@@ -142,7 +142,7 @@ PR 본문:
 - Jira: SCRUM-16
 ```
 
-저장소에는 `.github/workflows/jira-sync.yml`이 있어 PR 제목이나 본문에 Jira 키가 없으면 경고를 띄웁니다. 경고는 실패가 아니라 알림입니다. 실제 강제는 GitHub for Jira 앱과 브랜치 보호 설정이 완료된 뒤 강화합니다.
+저장소에는 `.github/workflows/jira-sync.yml`이 있어 PR 제목이나 본문에 Jira 키가 없으면 경고를 띄웁니다. 경고는 실패가 아니라 알림입니다. 브랜치 보호는 PR과 CI 통과를 강제하고, Jira 키 자체는 GitHub for Jira 연결 이후에도 사람이 확인하는 운영 규칙으로 둡니다.
 
 ## GitHub for Jira 설정
 
@@ -154,6 +154,22 @@ PR 본문:
 4. 테스트 PR을 열고 Jira 이슈 화면에 branch, commit, pull request 정보가 보이는지 확인합니다.
 
 관리자 권한이 필요한 단계라 자동 스크립트만으로 끝나지 않을 수 있습니다. 현재 이 작업은 `SCRUM-20`에 연결되어 있습니다.
+
+## GitHub 저장소 설정
+
+현재 기준:
+
+| 항목 | 값 |
+| --- | --- |
+| 저장소 | `Onieum/ONMU` |
+| 공개 범위 | public |
+| 기본 브랜치 | `dev` |
+| 안정 릴리스 브랜치 | `main` |
+| 브랜치 보호 | `dev`, `main` |
+| 필수 CI check | `Repository checks`, `Flutter app` |
+| Dependabot | GitHub Actions, npm, Flutter pub |
+
+`dev`는 개발 통합 브랜치이므로 리뷰 1명 이상을 요구합니다. `main`은 릴리스 브랜치이므로 리뷰 2명 이상을 요구합니다. 둘 다 force push와 삭제를 금지합니다.
 
 ## Smart Commits 사용 기준
 
@@ -208,9 +224,10 @@ ONMU Home
 | --- | --- | --- |
 | 1 | PR에 Jira 키가 있는지 경고 | 설정됨 |
 | 2 | GitHub for Jira로 PR/커밋/배포 표시 | 관리자 승인 필요 |
-| 3 | PR merge 시 Jira 댓글 추가 | GitHub for Jira 이후 진행 |
-| 4 | release tag 생성 시 Jira release version 연결 | 릴리스 파이프라인 이후 진행 |
-| 5 | GitHub Actions 실패 시 Jira 댓글 또는 Teams 알림 | CI 안정화 이후 진행 |
+| 3 | GitHub 브랜치 보호로 PR/CI 기준 강제 | 설정됨 |
+| 4 | PR merge 시 Jira 댓글 추가 | GitHub for Jira 이후 진행 |
+| 5 | release tag 생성 시 Jira release version 연결 | 릴리스 파이프라인 이후 진행 |
+| 6 | GitHub Actions 실패 시 Jira 댓글 또는 Teams 알림 | CI 안정화 이후 진행 |
 
 ## Jira 초기화 스크립트
 

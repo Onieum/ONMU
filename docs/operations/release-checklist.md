@@ -11,7 +11,7 @@
 
 ## 백엔드
 
-- [ ] `/healthz` and `/readyz`
+- [ ] `/healthz`와 `/readyz` 제공
 - [ ] 데이터베이스 migration Job 테스트 완료
 - [ ] API 계약 테스트 통과
 - [ ] 실시간 reconnect/resync 테스트 완료
@@ -32,4 +32,7 @@
 - [ ] Jira epic 생성 완료
 - [ ] Sprint 0과 Sprint 1 backlog 준비 완료
 - [ ] GitHub 저장소와 Jira 연결 완료
+- [ ] `dev`와 `main` 브랜치 보호 적용 완료
+- [ ] GitHub Actions 필수 check 설정 완료
+- [ ] Dependabot 업데이트 PR 흐름 확인 완료
 - [ ] Notion 프로젝트 허브와 Jira synced database 연결 완료

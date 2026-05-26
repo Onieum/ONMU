@@ -6,7 +6,7 @@ set(EPHEMERAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ephemeral")
 # flutter tool이 제공하는 configuration입니다.
 include(${EPHEMERAL_DIR}/generated_config.cmake)
 
-# TODO: 나머지 내용을 ephemeral 내부 파일로 옮깁니다. 참고:
+# 할 일: 나머지 내용을 ephemeral 내부 파일로 옮깁니다. 참고:
 # https://github.com/flutter/flutter/issues/57146.
 
 # CMake 3.10에서 사용할 수 없는 list(TRANSFORM ... PREPEND ...)와 같은 역할을 합니다.

@@ -17,7 +17,28 @@ type/SCRUM-번호-short-description -> 개별 작업 브랜치
 - `dev`와 `main`에는 PR로만 머지합니다.
 - `main`은 릴리스 후보가 검증된 뒤 릴리스 PR로만 갱신합니다.
 - 브랜치, 커밋, PR 제목이나 본문 중 최소 한 곳에는 Jira 키를 넣습니다.
-- 현재 private 저장소의 브랜치 보호는 GitHub 플랜 제한으로 강제 설정 전입니다. `SCRUM-23`이 해결되기 전까지는 팀 규칙으로 수동 준수합니다.
+
+## 브랜치 보호
+
+ONMU 저장소는 public 저장소 기준으로 `dev`와 `main`에 브랜치 보호를 적용합니다.
+
+| 브랜치 | 용도 | 강제 기준 |
+| --- | --- | --- |
+| `dev` | 개발 통합 | PR 필수, 최신 브랜치 기준 CI 통과, 리뷰 1명 이상 |
+| `main` | 안정 릴리스 | PR 필수, 최신 브랜치 기준 CI 통과, 리뷰 2명 이상 |
+
+필수 CI check:
+
+- `Repository checks`
+- `Flutter app`
+
+공통 보호 기준:
+
+- force push 금지
+- 브랜치 삭제 금지
+- 관리자도 보호 규칙 적용
+- 대화가 해결되지 않은 PR은 머지하지 않음
+- PR merge 후 작업 브랜치 자동 삭제 권장
 
 ## 일일 작업 루틴
 
@@ -56,6 +77,13 @@ cd apps/mobile-flutter
 flutter pub get
 flutter analyze
 flutter test
+```
+
+Android Gradle 설정을 바꿨거나 Windows/CI 빌드 경로를 확인해야 하면 JDK 17 이상을 준비한 뒤 wrapper도 확인합니다.
+
+```bash
+cd apps/mobile-flutter/android
+./gradlew --version
 ```
 
 ## 브랜치 이름
@@ -152,6 +180,8 @@ PR 본문은 저장소의 `.github/pull_request_template.md`를 사용합니다.
 - 머지는 squash merge를 기본으로 합니다.
 - PR 머지 후 원격 작업 브랜치는 삭제합니다.
 
+GitHub 보호 규칙은 위 기준 중 최소선을 강제합니다. 릴리스 전 판단, 디자인 승인, Jira 상태 전환은 PR 설명과 리뷰에서 별도로 확인합니다.
+
 ## GitHub 라벨과 마일스톤
 
 라벨은 리뷰 범위를 빠르게 알려주기 위한 보조 정보입니다.
@@ -179,6 +209,16 @@ PR 전 확인:
 - 실제 사용자 데이터, 위치 데이터, 사진, DB dump를 커밋하지 않습니다.
 - 외부 API 키는 로컬 `.env`, GitHub Actions secrets, Azure Key Vault 중 하나에서 관리합니다.
 - `uvx pre-commit run --all-files`로 기본 포맷, YAML/JSON, 시크릿 검사를 통과시킵니다.
+
+## 의존성 관리
+
+Dependabot은 다음 범위를 주 1회 확인합니다.
+
+- GitHub Actions
+- root npm package
+- Flutter pub package
+
+Dependabot PR도 일반 PR과 동일하게 Jira 키, 리뷰, CI 기준을 따릅니다. 보안 업데이트는 스프린트 업무보다 우선순위를 높여 처리합니다.
 
 ## AI 도구 사용 규칙
 

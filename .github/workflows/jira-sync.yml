@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   remind-jira-link:
     name: Check Jira key in PR
@@ -15,7 +19,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           if echo "$PR_TITLE $PR_BODY" | grep -Eq 'SCRUM-[0-9]+'; then
-            echo "Jira key found."
+            echo "Jira 키가 확인되었습니다."
           else
-            echo "::warning::Add a Jira key such as SCRUM-12 to the PR title or body so Jira can auto-link this PR."
+            echo "::warning::Jira가 PR을 자동 연결할 수 있도록 PR 제목이나 본문에 SCRUM-12 같은 Jira 키를 추가하세요."
           fi

@@ -54,6 +54,7 @@ docs/
 - 작업 브랜치 형식: `type/SCRUM-123-short-description`
 - 커밋 형식: `type(scope): SCRUM-123 short description`
 - 모든 머지는 pull request를 거칩니다.
+- 공개 저장소 기준으로 `dev`와 `main`에는 브랜치 보호를 적용합니다.
 - Jira는 일정과 작업 상태의 기준이고, GitHub는 코드 리뷰와 CI의 기준입니다.
 - README, `docs/**/*.md`, 사람이 읽는 주석은 한국어로 작성합니다.
 
@@ -64,3 +65,12 @@ docs/
 - `docs/development/platform-setup.md`
 - `docs/integrations/jira-github-notion.md`
 - `docs/operations/windows-backend-server.md`
+
+## 현재 저장소 기준
+
+- 저장소 공개 범위: public
+- 기본 브랜치: `dev`
+- 보호 브랜치: `dev`, `main`
+- 필수 CI check: `Repository checks`, `Flutter app`
+- 의존성 자동 점검: GitHub Actions, npm, Flutter pub 기준 Dependabot
+- Android Gradle wrapper: 저장소에 포함하며 팀원과 CI가 같은 Gradle 버전을 사용합니다.

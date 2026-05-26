@@ -17,11 +17,17 @@
 도구 설치:
 
 ```bash
-brew install git gh node uv azure-cli
+brew install git gh node uv azure-cli openjdk@17
 brew install --cask docker
 brew install --cask flutter
 brew tap atlassian/homebrew-acli
 brew install acli
+```
+
+JDK 경로가 자동으로 잡히지 않으면 shell 설정에 `JAVA_HOME`을 추가합니다.
+
+```bash
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 ```
 
 인증:
@@ -48,6 +54,9 @@ flutter doctor
 cd apps/mobile-flutter
 flutter pub get
 flutter analyze
+flutter test
+cd android
+./gradlew --version
 ```
 
 ## Windows
@@ -65,6 +74,7 @@ PowerShell에서 설치:
 winget install Git.Git
 winget install GitHub.cli
 winget install OpenJS.NodeJS.LTS
+winget install EclipseAdoptium.Temurin.17.JDK
 winget install Docker.DockerDesktop
 winget install Microsoft.AzureCLI
 winget install Google.Flutter
@@ -80,6 +90,12 @@ cd ONMU
 npm install
 docker compose -f infra/compose/docker-compose.yml config
 flutter doctor
+cd apps\mobile-flutter
+flutter pub get
+flutter analyze
+flutter test
+cd android
+.\gradlew.bat --version
 ```
 
 Windows 장비를 팀 공용 백엔드 서버로 쓸 경우, 이 로컬 세팅 이후 `docs/operations/windows-backend-server.md`를 따릅니다. 해당 문서는 `0.0.0.0` 바인딩, LAN IP 확인, 방화벽 규칙, 외부에 열면 안 되는 Docker 포트를 다룹니다.
@@ -98,7 +114,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 sudo apt update
-sudo apt install -y git curl unzip nodejs npm docker.io docker-compose-plugin
+sudo apt install -y git curl unzip nodejs npm docker.io docker-compose-plugin openjdk-17-jdk
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
@@ -124,6 +140,8 @@ cd ONMU
 npm install
 docker compose -f infra/compose/docker-compose.yml config
 ```
+
+Android Gradle wrapper는 저장소에 포함되어 있습니다. 팀원과 CI는 시스템에 설치된 Gradle이 아니라 `apps/mobile-flutter/android/gradlew` 또는 `gradlew.bat`을 사용합니다.
 
 ## 로컬 의존성 스택
 
@@ -155,3 +173,6 @@ docker compose -f infra/compose/docker-compose.yml --profile events --profile se
 - `.env`는 커밋하지 않습니다.
 - `.env.example`을 템플릿으로 사용합니다.
 - Jira와 GitHub가 작업을 자동 연결할 수 있도록 PR에 Jira 이슈 키를 넣습니다.
+- Flutter 빌드 캐시인 `.dart_tool/`, `build/`, platform별 ephemeral 파일은 커밋하지 않습니다.
+- Android Gradle wrapper 3개 파일은 커밋합니다: `gradlew`, `gradlew.bat`, `gradle-wrapper.jar`.
+- Flutter가 재생성하는 registrant와 `pubspec.lock` 헤더는 도구 원본 형식을 유지합니다.

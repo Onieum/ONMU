@@ -55,3 +55,4 @@ ONMU는 Flutter 우선 모바일 제품입니다. 웹 앱은 브랜드와 프로
 - README와 `docs/**/*.md`는 한국어로 작성합니다.
 - 사람이 읽는 주석은 한국어로 작성합니다.
 - 기술 용어, 명령어, identifier, API 이름, product name은 필요한 경우 원문을 유지할 수 있습니다.
+- Gradle wrapper, Flutter generated registrant, `pubspec.lock`처럼 외부 도구가 재생성하는 표준 파일은 동작 안정성을 우선하고, 사람이 직접 작성하는 주변 문서에서 의미를 한국어로 설명합니다.

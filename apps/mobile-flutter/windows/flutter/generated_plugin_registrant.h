@@ -1,5 +1,5 @@
 //
-//  생성된 파일입니다. 직접 수정하지 않습니다.
+//  Generated file. Do not edit.
 //
 
 // clang-format off
@@ -9,7 +9,7 @@
 
 #include <flutter/plugin_registry.h>
 
-// Flutter plugin을 등록합니다.
+// Registers Flutter plugins.
 void RegisterPlugins(flutter::PluginRegistry* registry);
 
 #endif  // GENERATED_PLUGIN_REGISTRANT_
