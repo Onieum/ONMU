@@ -31,3 +31,4 @@ Default sample issues created by Jira onboarding were removed so the board start
 | `SCRUM-20` | Task | Connect GitHub repository to Jira |
 | `SCRUM-21` | Task | Create Notion project hub |
 | `SCRUM-22` | Task | Draft brand web content structure |
+| `SCRUM-23` | Task | Enable branch protection after GitHub plan supports it |
