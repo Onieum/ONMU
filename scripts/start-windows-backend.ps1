@@ -8,20 +8,16 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $ComposeFile = Join-Path $RepoRoot "infra\compose\docker-compose.yml"
-$WindowsComposeFile = Join-Path $RepoRoot "infra\compose\docker-compose.windows.yml"
-$ComposeArgs = @("-f", $ComposeFile)
-if (Test-Path $WindowsComposeFile) {
-  $ComposeArgs += @("-f", $WindowsComposeFile)
-}
+$env:POSTGRES_HOST_PORT = "15432"
 
 Set-Location $RepoRoot
 
 Write-Host "Starting ONMU local dependencies..."
-docker compose @ComposeArgs up -d postgres redis minio
+docker compose -f $ComposeFile up -d postgres redis minio
 
 Write-Host ""
 Write-Host "Current compose status:"
-docker compose @ComposeArgs ps
+docker compose -f $ComposeFile ps
 
 if ($AllowLan) {
   $ruleName = "ONMU API $ApiPort"

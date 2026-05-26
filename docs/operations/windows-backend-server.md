@@ -107,15 +107,15 @@ Docker Compose 설정 확인:
 docker compose -f infra/compose/docker-compose.yml config
 ```
 
-이미 로컬 PostgreSQL이 `5432`를 쓰는 Windows 개발 서버에서는 override를 함께 사용합니다.
+이미 로컬 PostgreSQL이 `5432`를 쓰는 Windows 개발 서버에서는 Windows helper를 사용합니다.
 
 ```powershell
-docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.windows.yml config
+npm run compose:config:windows
 ```
 
 현재 Compose 의존성 포트는 `127.0.0.1`에만 바인딩합니다. Windows 서버에서 직접 띄운 API는 `localhost:5432`, `localhost:6379`, `localhost:9000`으로 의존성에 접근할 수 있지만, 다른 팀원 PC에서는 이 포트에 직접 접근할 수 없어야 합니다.
 
-이 저장소의 Windows override는 이 PC의 기존 PostgreSQL과 충돌하지 않도록 Docker PostgreSQL을 `localhost:15432`에 바인딩합니다. 이때 API의 `DATABASE_URL`은 `postgresql://onmu:onmu@localhost:15432/onmu`를 사용합니다.
+이 저장소의 Windows helper는 이 PC의 기존 PostgreSQL과 충돌하지 않도록 `POSTGRES_HOST_PORT=15432`를 설정해 Docker PostgreSQL을 `localhost:15432`에 바인딩합니다. 이때 API의 `DATABASE_URL`은 `postgresql://onmu:onmu@localhost:15432/onmu`를 사용합니다.
 
 기본 의존성 실행:
 
@@ -124,7 +124,7 @@ docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 docker compose -f infra/compose/docker-compose.yml ps
 ```
 
-Windows override를 쓰는 경우:
+Windows helper를 쓰는 경우:
 
 ```powershell
 npm run host:windows
