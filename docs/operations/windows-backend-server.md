@@ -107,13 +107,28 @@ Docker Compose 설정 확인:
 docker compose -f infra/compose/docker-compose.yml config
 ```
 
+이미 로컬 PostgreSQL이 `5432`를 쓰는 Windows 개발 서버에서는 Windows helper를 사용합니다.
+
+```powershell
+npm run compose:config:windows
+```
+
 현재 Compose 의존성 포트는 `127.0.0.1`에만 바인딩합니다. Windows 서버에서 직접 띄운 API는 `localhost:5432`, `localhost:6379`, `localhost:9000`으로 의존성에 접근할 수 있지만, 다른 팀원 PC에서는 이 포트에 직접 접근할 수 없어야 합니다.
+
+이 저장소의 Windows helper는 이 PC의 기존 PostgreSQL과 충돌하지 않도록 `POSTGRES_HOST_PORT=15432`를 설정해 Docker PostgreSQL을 `localhost:15432`에 바인딩합니다. 이때 API의 `DATABASE_URL`은 `postgresql://onmu:onmu@localhost:15432/onmu`를 사용합니다.
 
 기본 의존성 실행:
 
 ```powershell
 docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 docker compose -f infra/compose/docker-compose.yml ps
+```
+
+Windows helper를 쓰는 경우:
+
+```powershell
+npm run host:windows
+npm run compose:ps:windows
 ```
 
 이벤트나 검색 기능을 함께 테스트할 때만 선택적으로 실행합니다.
@@ -138,6 +153,20 @@ API 서비스가 생긴 뒤 실행 예시는 서비스별 README에 맞춥니다
 ```powershell
 # 예시입니다. 실제 명령은 services/api 구현 후 갱신합니다.
 npm run dev --workspace services/api
+```
+
+현재 저장소의 smoke test API는 아래처럼 실행합니다.
+
+```powershell
+npm run api:dev
+```
+
+LAN으로 직접 열어야 할 때만 API host를 바꿉니다.
+
+```powershell
+$env:API_HOST="0.0.0.0"
+$env:HOST="0.0.0.0"
+npm run api:dev
 ```
 
 헬스 체크 엔드포인트가 생기면 Windows 로컬에서 확인합니다.
@@ -239,12 +268,29 @@ curl http://<windows-lan-ip>:8080/healthz
 
 팀원이 같은 LAN 밖에 있다면 바로 공유기 port forwarding을 열기보다 VPN이나 터널을 먼저 사용합니다.
 
+ONMU의 현재 Windows dev 서버는 Cloudflare를 기본 선택지로 둡니다. 이유는 다음과 같습니다.
+
+- 공유기 port forwarding 없이 outbound 연결만으로 외부 접속을 열 수 있습니다.
+- Windows Defender Firewall에서 8080 inbound를 열지 않아도 됩니다.
+- PostgreSQL, Redis, MinIO 포트는 계속 `127.0.0.1`에만 둘 수 있습니다.
+- `onmu.cloud` DNS, 나중의 제품 소개 페이지, dev API tunnel을 한 Cloudflare 계정에서 관리할 수 있습니다.
+- 루트 도메인은 제품과 비즈니스 소개 페이지에 남기고, 로컬 백엔드는 개발용 서브도메인으로 분리할 수 있습니다.
+
+도메인 역할:
+
+| 도메인 | 용도 |
+| --- | --- |
+| `onmu.cloud` | 제품/비즈니스 소개 페이지. Cloudflare Pages, Vercel, Azure Web App 중 나중에 선택합니다. |
+| `www.onmu.cloud` | `onmu.cloud`와 같은 소개 페이지 또는 redirect. |
+| `dev-api.onmu.cloud` | Windows 로컬 백엔드 dev tunnel. |
+| `api.onmu.cloud` | 나중의 staging/prod API용으로 예약합니다. |
+
 권장 순서:
 
-1. Tailscale 같은 VPN으로 팀원 장치를 같은 사설망처럼 묶습니다.
-2. 임시 데모는 Cloudflare Tunnel 또는 ngrok를 사용합니다.
+1. 같은 조직 안의 장기 개발망은 Tailscale 같은 VPN을 검토합니다.
+2. 현재 Windows dev 서버와 짧은 팀 테스트는 Cloudflare Tunnel을 사용합니다.
 3. 장기 운영은 Azure staging 환경으로 옮깁니다.
-4. 공유기 port forwarding은 HTTPS reverse proxy와 인증을 준비한 뒤 사용합니다.
+4. 공유기 port forwarding은 HTTPS reverse proxy와 인증을 준비한 뒤 마지막 선택지로만 사용합니다.
 
 외부 공개 시 금지:
 
@@ -253,6 +299,58 @@ curl http://<windows-lan-ip>:8080/healthz
 - MinIO console 공개
 - `.env`나 API 키를 화면 공유 또는 Notion/Jira에 노출
 - 기본 비밀번호를 그대로 사용
+
+### Gabia와 Cloudflare 네임서버
+
+`onmu.cloud`는 Gabia에서 구매했고, Gabia 도메인 관리에서 Cloudflare가 발급한 nameserver 2개로 교체했습니다. 2026-05-27 작업에서는 Cloudflare zone이 약 5분 만에 `Active`가 되었지만, DNS 변경은 등록기관/상위 DNS 캐시 상태에 따라 더 오래 걸릴 수 있습니다. 따라서 실제 운영 절차에서는 빠르게 끝날 수 있되, 외부 팀 일정에는 여유를 둡니다.
+
+Gabia 쪽에서는 DNS 레코드를 직접 만들지 않고 nameserver만 Cloudflare로 넘깁니다. 이후 `dev-api`, `www`, `api` 같은 레코드는 Cloudflare에서 관리합니다.
+
+### Cloudflare Tunnel
+
+현재 dev API tunnel:
+
+```text
+dev-api.onmu.cloud -> onmu-dev-api tunnel -> http://localhost:8080
+```
+
+처음 만드는 명령:
+
+```powershell
+cloudflared tunnel create onmu-dev-api
+cloudflared tunnel route dns onmu-dev-api dev-api.onmu.cloud
+```
+
+실행:
+
+```powershell
+npm run tunnel:cloudflare
+```
+
+확인:
+
+```powershell
+curl https://dev-api.onmu.cloud/healthz
+curl https://dev-api.onmu.cloud/readyz
+npm run tunnel:cloudflare:info
+```
+
+2026-05-27 초기 세팅 검증:
+
+- `onmu-dev-api` named tunnel 생성
+- `dev-api.onmu.cloud` DNS route 생성
+- `cloudflared` 2026.5.1로 실행
+- `https://dev-api.onmu.cloud/healthz`가 `200 OK`
+- `https://dev-api.onmu.cloud/readyz`가 PostgreSQL `localhost:15432`, Redis `localhost:6379`, MinIO `localhost:9000` 모두 `ok`
+- quick tunnel은 정리하고 named tunnel connector 1개만 유지
+
+Cloudflare quick tunnel을 쓸 때도 저장소의 전용 config를 사용합니다. 이 PC에 이미 `~/.cloudflared/config.yml`이 있으면 기존 ingress 규칙이 섞여서 새 URL이 404를 반환할 수 있기 때문입니다.
+
+```powershell
+npm run tunnel:cloudflare:quick
+```
+
+`cloudflared tunnel route dns`에서 `Authentication error`가 나면 현재 `~/.cloudflared/cert.pem`이 새 zone 권한을 갖고 있지 않은 상태입니다. 기존 인증서는 백업해 두고 `cloudflared login`을 다시 실행한 뒤 `onmu.cloud`를 선택해서 승인합니다.
 
 ## 9. Docker Compose 운영
 

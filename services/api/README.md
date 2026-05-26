@@ -25,3 +25,10 @@ API는 다음 도메인의 transaction boundary를 담당합니다.
 - `POST /meetups/{meetupId}/memories`
 - `GET /healthz`
 - `GET /readyz`
+
+현재 Windows backend-host smoke test용으로 `server.mjs`가 `/healthz`와 `/readyz`를 제공합니다.
+
+```powershell
+npm run host:windows
+npm run api:dev
+```

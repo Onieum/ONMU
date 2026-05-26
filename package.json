@@ -5,6 +5,17 @@
   "description": "ONMU 릴리스 아키텍처 작업 공간",
   "scripts": {
     "compose:config": "docker compose -f infra/compose/docker-compose.yml config",
+    "compose:config:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compose-windows.ps1 config",
+    "compose:up": "docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio",
+    "compose:up:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compose-windows.ps1 up",
+    "compose:ps": "docker compose -f infra/compose/docker-compose.yml ps",
+    "compose:ps:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/compose-windows.ps1 ps",
+    "api:dev": "node services/api/server.mjs",
+    "host:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1",
+    "host:windows:lan": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -AllowLan",
+    "tunnel:cloudflare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-tunnel.ps1",
+    "tunnel:cloudflare:quick": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-tunnel.ps1 -Quick",
+    "tunnel:cloudflare:info": "cloudflared --config infra/cloudflare/cloudflared-local.yml tunnel info onmu-dev-api",
     "jira:bootstrap": "node scripts/bootstrap-jira.mjs",
     "commitlint": "commitlint --from=HEAD~1 --to=HEAD --verbose"
   },
