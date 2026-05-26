@@ -34,7 +34,6 @@ jobs:
   flutter:
     name: Flutter app
     runs-on: ubuntu-latest
-    if: hashFiles('apps/mobile-flutter/pubspec.yaml') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -49,21 +48,3 @@ jobs:
       - name: Flutter test
         working-directory: apps/mobile-flutter
         run: flutter test
-
-  brand-web:
-    name: Brand web
-    runs-on: ubuntu-latest
-    if: hashFiles('apps/brand-web/package.json') != ''
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: apps/brand-web/package-lock.json
-      - name: Install dependencies
-        working-directory: apps/brand-web
-        run: npm ci
-      - name: Build
-        working-directory: apps/brand-web
-        run: npm run build
