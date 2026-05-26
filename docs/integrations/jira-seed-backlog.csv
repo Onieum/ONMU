@@ -1,19 +1,19 @@
-Issue Type,Summary,Description,Labels,Epic Name,Epic Link
-Epic,Platform / Infra,"AKS, Docker, CI/CD, observability, release infrastructure.",onmu;epic,Platform / Infra,
-Epic,Flutter Mobile,"Flutter app shell, flavors, navigation, API client, realtime client.",onmu;epic,Flutter Mobile,
-Epic,Profile & Preference,"User profile, taste tags, availability, saved places.",onmu;epic,Profile & Preference,
-Epic,Meetup & Realtime,"Meetup room, participants, schedules, votes, live status.",onmu;epic,Meetup & Realtime,
-Epic,Place & External API,"Place search, external APIs, route time, place risk, candidate scoring.",onmu;epic,Place & External API,
-Epic,Memory / Character,"Photo upload, memory cards, character and sticker expression.",onmu;epic,Memory / Character,
-Epic,Brand Web,"Public brand and project introduction website.",onmu;epic,Brand Web,
-Epic,QA / Release / Observability,"Device QA, smoke tests, dashboards, alerts, release checklist.",onmu;epic,QA / Release / Observability,
-Story,Build Flutter app skeleton with dev/staging/prod flavors,"The app can launch per flavor and read the correct API base URL.",onmu;vertical-prototype,,Flutter Mobile
-Story,Create profile preference input flow,"A user can save taste tags and availability through the API.",onmu;vertical-prototype,,Profile & Preference
-Story,Create meetup room and participant join flow,"A room can be created and participants can join with persisted state.",onmu;vertical-prototype,,Meetup & Realtime
-Story,Add place candidate search and scoring prototype,"A meetup room can receive place candidates with score and risk data.",onmu;vertical-prototype,,Place & External API
-Story,Create memory card stub after meetup decision,"A selected meetup can produce a simple memory card result.",onmu;vertical-prototype,,Memory / Character
-Story,Prepare local Compose and AKS staging baseline,"Local dependencies run with Compose and staging manifests have a baseline layout.",onmu;vertical-prototype,,Platform / Infra
-Story,Define vertical prototype smoke test,"The first connected flow has a repeatable smoke checklist.",onmu;vertical-prototype,,QA / Release / Observability
-Task,Connect GitHub repository to Jira,"Install GitHub for Jira and verify SCRUM issue keys link from PRs.",onmu;setup,,Platform / Infra
-Task,Create Notion project hub,"Create Notion pages for decisions, meeting notes, sprint review, and linked Jira database.",onmu;setup,,Platform / Infra
-Task,Draft brand web content structure,"Prepare sections for product concept, architecture, team, demo, and links.",onmu;setup,,Brand Web
+이슈 유형,요약,설명,라벨,Epic 이름,Epic 링크
+Epic,Platform / Infra,"AKS, Docker, CI/CD, 관측성, 릴리스 인프라.",onmu;epic,Platform / Infra,
+Epic,Flutter Mobile,"Flutter 앱 shell, flavor, navigation, API client, realtime client.",onmu;epic,Flutter Mobile,
+Epic,Profile & Preference,"사용자 프로필, 취향 태그, 가능 시간, 저장 장소.",onmu;epic,Profile & Preference,
+Epic,Meetup & Realtime,"약속 방, 참여자, 일정, 투표, 실시간 상태.",onmu;epic,Meetup & Realtime,
+Epic,Place & External API,"장소 검색, 외부 API, 이동 시간, 장소 리스크, 후보 점수화.",onmu;epic,Place & External API,
+Epic,Memory / Character,"사진 업로드, 기억 카드, 캐릭터와 스티커 표현.",onmu;epic,Memory / Character,
+Epic,Brand Web,"공개 브랜드 및 프로젝트 소개 웹사이트.",onmu;epic,Brand Web,
+Epic,QA / Release / Observability,"기기 QA, smoke test, dashboard, alert, 릴리스 체크리스트.",onmu;epic,QA / Release / Observability,
+Story,dev/staging/prod flavor를 가진 Flutter 앱 skeleton 구축,"앱이 flavor별로 실행되고 올바른 API base URL을 읽을 수 있습니다.",onmu;vertical-prototype,,Flutter Mobile
+Story,프로필 취향 입력 흐름 생성,"사용자가 API를 통해 취향 태그와 가능 시간을 저장할 수 있습니다.",onmu;vertical-prototype,,Profile & Preference
+Story,약속 방과 참여자 join 흐름 생성,"방을 생성하고 참여자가 join하면 상태가 저장됩니다.",onmu;vertical-prototype,,Meetup & Realtime
+Story,장소 후보 검색과 점수화 prototype 추가,"약속 방이 점수와 리스크 데이터가 포함된 장소 후보를 받을 수 있습니다.",onmu;vertical-prototype,,Place & External API
+Story,약속 결정 이후 기억 카드 stub 생성,"선택된 약속이 간단한 기억 카드 결과를 만들 수 있습니다.",onmu;vertical-prototype,,Memory / Character
+Story,로컬 Compose와 AKS staging baseline 준비,"로컬 의존성이 Compose로 실행되고 staging manifest가 기본 구조를 갖습니다.",onmu;vertical-prototype,,Platform / Infra
+Story,세로 prototype smoke test 정의,"첫 연결 흐름을 반복 가능한 smoke checklist로 확인할 수 있습니다.",onmu;vertical-prototype,,QA / Release / Observability
+Task,GitHub 저장소를 Jira에 연결,"GitHub for Jira를 설치하고 PR에서 SCRUM 이슈 키가 연결되는지 확인합니다.",onmu;setup,,Platform / Infra
+Task,Notion 프로젝트 허브 생성,"결정 기록, 회의록, sprint review, 연결된 Jira database용 Notion page를 만듭니다.",onmu;setup,,Platform / Infra
+Task,브랜드 웹 콘텐츠 구조 초안 작성,"제품 개념, 아키텍처, 팀, demo, link section을 준비합니다.",onmu;setup,,Brand Web

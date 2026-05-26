@@ -1,8 +1,8 @@
-# Kubernetes Layout
+# Kubernetes 구조
 
-This directory is intentionally scaffolded before full manifests are added.
+이 디렉터리는 전체 manifest를 추가하기 전에 기본 구조를 먼저 잡아둔 상태입니다.
 
-Recommended structure:
+권장 구조:
 
 ```text
 base/
@@ -16,9 +16,9 @@ overlays/
   prod/
 ```
 
-Use `base` for common Deployments, Services, ServiceAccounts, and ConfigMaps. Use overlays for environment-specific replica counts, image tags, hostnames, and secrets references.
+`base`에는 공통 Deployment, Service, ServiceAccount, ConfigMap을 둡니다. `overlays`에는 환경별 replica 수, image tag, hostname, secret reference를 둡니다.
 
-Target platform:
+목표 플랫폼:
 
 - AKS
 - Azure CNI Overlay
@@ -26,4 +26,4 @@ Target platform:
 - Gateway API ingress
 - Workload Identity
 - Key Vault CSI Driver
-- HPA and KEDA
+- HPA와 KEDA

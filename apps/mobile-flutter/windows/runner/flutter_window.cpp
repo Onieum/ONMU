@@ -16,11 +16,10 @@ bool FlutterWindow::OnCreate() {
 
   RECT frame = GetClientArea();
 
-  // The size here must match the window dimensions to avoid unnecessary surface
-  // creation / destruction in the startup path.
+  // startup path에서 불필요한 surface 생성/삭제를 피하려면 여기 size가 window dimension과 일치해야 합니다.
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project_);
-  // Ensure that basic setup of the controller was successful.
+  // controller의 기본 setup이 성공했는지 확인합니다.
   if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     return false;
   }
@@ -31,9 +30,9 @@ bool FlutterWindow::OnCreate() {
     this->Show();
   });
 
-  // Flutter can complete the first frame before the "show window" callback is
-  // registered. The following call ensures a frame is pending to ensure the
-  // window is shown. It is a no-op if the first frame hasn't completed yet.
+  // "show window" callback이 등록되기 전에 Flutter가 첫 frame을 완료할 수 있습니다.
+  // 아래 호출은 window가 표시되도록 pending frame을 보장합니다.
+  // 첫 frame이 아직 완료되지 않았다면 아무 동작도 하지 않습니다.
   flutter_controller_->ForceRedraw();
 
   return true;
@@ -51,7 +50,7 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
-  // Give Flutter, including plugins, an opportunity to handle window messages.
+  // plugin을 포함한 Flutter가 window message를 처리할 기회를 줍니다.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
         flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,

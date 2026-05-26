@@ -1,16 +1,15 @@
-# This file controls Flutter-level build steps. It should not be edited.
+# 이 파일은 Flutter 수준 build step을 제어합니다. 직접 수정하지 않습니다.
 cmake_minimum_required(VERSION 3.10)
 
 set(EPHEMERAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ephemeral")
 
-# Configuration provided via flutter tool.
+# flutter tool이 제공하는 configuration입니다.
 include(${EPHEMERAL_DIR}/generated_config.cmake)
 
-# TODO: Move the rest of this into files in ephemeral. See
+# TODO: 나머지 내용을 ephemeral 내부 파일로 옮깁니다. 참고:
 # https://github.com/flutter/flutter/issues/57146.
 
-# Serves the same purpose as list(TRANSFORM ... PREPEND ...),
-# which isn't available in 3.10.
+# CMake 3.10에서 사용할 수 없는 list(TRANSFORM ... PREPEND ...)와 같은 역할을 합니다.
 function(list_prepend LIST_NAME PREFIX)
     set(NEW_LIST "")
     foreach(element ${${LIST_NAME}})
@@ -19,8 +18,8 @@ function(list_prepend LIST_NAME PREFIX)
     set(${LIST_NAME} "${NEW_LIST}" PARENT_SCOPE)
 endfunction()
 
-# === Flutter Library ===
-# System-level dependencies.
+# === Flutter library ===
+# system-level dependency입니다.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
@@ -28,7 +27,7 @@ pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 set(FLUTTER_LIBRARY "${EPHEMERAL_DIR}/libflutter_linux_gtk.so")
 
-# Published to parent scope for install step.
+# install step에서 쓰도록 parent scope에 publish합니다.
 set(FLUTTER_LIBRARY ${FLUTTER_LIBRARY} PARENT_SCOPE)
 set(FLUTTER_ICU_DATA_FILE "${EPHEMERAL_DIR}/icudtl.dat" PARENT_SCOPE)
 set(PROJECT_BUILD_DIR "${PROJECT_DIR}/build/" PARENT_SCOPE)
@@ -70,9 +69,8 @@ target_link_libraries(flutter INTERFACE
 add_dependencies(flutter flutter_assemble)
 
 # === Flutter tool backend ===
-# _phony_ is a non-existent file to force this command to run every time,
-# since currently there's no way to get a full input/output list from the
-# flutter tool.
+# _phony_는 존재하지 않는 file이며 이 command가 매번 실행되도록 강제합니다.
+# 현재 flutter tool에서 전체 input/output list를 가져올 방법이 없기 때문에 필요합니다.
 add_custom_command(
   OUTPUT ${FLUTTER_LIBRARY} ${FLUTTER_LIBRARY_HEADERS}
     ${CMAKE_CURRENT_BINARY_DIR}/_phony_

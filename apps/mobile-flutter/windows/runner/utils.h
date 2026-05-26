@@ -4,16 +4,13 @@
 #include <string>
 #include <vector>
 
-// Creates a console for the process, and redirects stdout and stderr to
-// it for both the runner and the Flutter library.
+// process용 console을 만들고 runner와 Flutter library의 stdout/stderr를 그 console로 redirect합니다.
 void CreateAndAttachConsole();
 
-// Takes a null-terminated wchar_t* encoded in UTF-16 and returns a std::string
-// encoded in UTF-8. Returns an empty std::string on failure.
+// null-terminated UTF-16 wchar_t*를 받아 UTF-8 std::string으로 반환합니다. 실패하면 빈 string을 반환합니다.
 std::string Utf8FromUtf16(const wchar_t* utf16_string);
 
-// Gets the command line arguments passed in as a std::vector<std::string>,
-// encoded in UTF-8. Returns an empty std::vector<std::string> on failure.
+// 전달된 command line argument를 UTF-8 std::vector<std::string>으로 가져옵니다. 실패하면 빈 vector를 반환합니다.
 std::vector<std::string> GetCommandLineArguments();
 
 #endif  // RUNNER_UTILS_H_

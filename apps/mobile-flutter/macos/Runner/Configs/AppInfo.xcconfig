@@ -1,14 +1,13 @@
-// Application-level settings for the Runner target.
+// Runner target의 application-level 설정입니다.
 //
-// This may be replaced with something auto-generated from metadata (e.g., pubspec.yaml) in the
-// future. If not, the values below would default to using the project name when this becomes a
-// 'flutter create' template.
+// 향후 pubspec.yaml 같은 metadata에서 자동 생성된 값으로 대체될 수 있습니다.
+// 대체되지 않으면 이 값들은 'flutter create' template에서 project name을 기본값으로 사용합니다.
 
-// The application's name. By default this is also the title of the Flutter window.
+// application 이름입니다. 기본적으로 Flutter window title로도 사용됩니다.
 PRODUCT_NAME = onmu_mobile
 
-// The application's bundle identifier
+// application bundle identifier입니다.
 PRODUCT_BUNDLE_IDENTIFIER = io.onieum.onmuMobile
 
-// The copyright displayed in application information
+// application 정보에 표시되는 copyright입니다.
 PRODUCT_COPYRIGHT = Copyright © 2026 io.onieum. All rights reserved.

@@ -1,4 +1,4 @@
-name: "Story"
+name: "스토리"
 description: 사용자 관점의 기능 요구사항
 title: "story(scope): "
 labels: ["story"]
@@ -6,15 +6,15 @@ body:
   - type: textarea
     id: user_story
     attributes:
-      label: User Story
+      label: 사용자 스토리
       description: 사용자 관점으로 작성해주세요.
-      placeholder: "As a meetup participant, I want to compare place candidates so that the group can decide faster."
+      placeholder: "약속 참여자로서, 그룹이 더 빠르게 결정할 수 있도록 장소 후보를 비교하고 싶다."
     validations:
       required: true
   - type: textarea
     id: acceptance
     attributes:
-      label: Acceptance Criteria
+      label: 완료 조건
       placeholder: |
         - [ ] Given ...
         - [ ] When ...
@@ -24,7 +24,7 @@ body:
   - type: dropdown
     id: domain
     attributes:
-      label: Domain
+      label: 도메인
       options:
         - mobile
         - profile

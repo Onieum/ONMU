@@ -7,9 +7,8 @@
 #include <memory>
 #include <string>
 
-// A class abstraction for a high DPI-aware Win32 Window. Intended to be
-// inherited from by classes that wish to specialize with custom
-// rendering and input handling
+// high DPI-aware Win32 Window용 class abstraction입니다.
+// custom rendering과 input handling을 특화하려는 class가 상속하도록 의도되었습니다.
 class Win32Window {
  public:
   struct Point {
@@ -28,74 +27,70 @@ class Win32Window {
   Win32Window();
   virtual ~Win32Window();
 
-  // Creates a win32 window with |title| that is positioned and sized using
-  // |origin| and |size|. New windows are created on the default monitor. Window
-  // sizes are specified to the OS in physical pixels, hence to ensure a
-  // consistent size this function will scale the inputted width and height as
-  // as appropriate for the default monitor. The window is invisible until
-  // |Show| is called. Returns true if the window was created successfully.
+  // |title|을 가진 Win32 window를 |origin|과 |size| 기준으로 생성합니다.
+  // 새 window는 default monitor에 만들어집니다.
+  // OS에는 physical pixel 기준으로 window size가 전달되므로, 일관된 size를 위해 default monitor에 맞게 width/height를 scale합니다.
+  // |Show|가 호출될 때까지 window는 보이지 않습니다. 생성에 성공하면 true를 반환합니다.
   bool Create(const std::wstring& title, const Point& origin, const Size& size);
 
-  // Show the current window. Returns true if the window was successfully shown.
+  // 현재 window를 표시합니다. 성공적으로 표시되면 true를 반환합니다.
   bool Show();
 
-  // Release OS resources associated with window.
+  // window와 연결된 OS resource를 해제합니다.
   void Destroy();
 
-  // Inserts |content| into the window tree.
+  // |content|를 window tree에 삽입합니다.
   void SetChildContent(HWND content);
 
-  // Returns the backing Window handle to enable clients to set icon and other
-  // window properties. Returns nullptr if the window has been destroyed.
+  // client가 icon과 다른 window property를 설정할 수 있도록 backing Window handle을 반환합니다.
+  // window가 destroy된 경우 nullptr를 반환합니다.
   HWND GetHandle();
 
-  // If true, closing this window will quit the application.
+  // true이면 이 window를 닫을 때 application이 종료됩니다.
   void SetQuitOnClose(bool quit_on_close);
 
-  // Return a RECT representing the bounds of the current client area.
+  // 현재 client area의 bounds를 나타내는 RECT를 반환합니다.
   RECT GetClientArea();
 
  protected:
-  // Processes and route salient window messages for mouse handling,
-  // size change and DPI. Delegates handling of these to member overloads that
-  // inheriting classes can handle.
+  // mouse handling, size change, DPI 관련 주요 window message를 처리하고 route합니다.
+  // 상속 class가 처리할 수 있도록 member overload에 위임합니다.
   virtual LRESULT MessageHandler(HWND window,
                                  UINT const message,
                                  WPARAM const wparam,
                                  LPARAM const lparam) noexcept;
 
-  // Called when CreateAndShow is called, allowing subclass window-related
-  // setup. Subclasses should return false if setup fails.
+  // CreateAndShow 호출 시 실행되며 subclass가 window 관련 setup을 할 수 있게 합니다.
+  // setup이 실패하면 subclass는 false를 반환해야 합니다.
   virtual bool OnCreate();
 
-  // Called when Destroy is called.
+  // Destroy가 호출될 때 실행됩니다.
   virtual void OnDestroy();
 
  private:
   friend class WindowClassRegistrar;
 
-  // OS callback called by message pump. Handles the WM_NCCREATE message which
-  // is passed when the non-client area is being created and enables automatic
-  // non-client DPI scaling so that the non-client area automatically
-  // responds to changes in DPI. All other messages are handled by
-  // MessageHandler.
+  // message pump가 호출하는 OS callback입니다.
+  // non-client area가 생성될 때 전달되는 WM_NCCREATE message를 처리하고 자동 non-client DPI scaling을 활성화합니다.
+  // 이를 통해 non-client area가 DPI 변화에 자동으로 반응합니다.
+  // 다른 message는 MessageHandler가 처리합니다.
   static LRESULT CALLBACK WndProc(HWND const window,
                                   UINT const message,
                                   WPARAM const wparam,
                                   LPARAM const lparam) noexcept;
 
-  // Retrieves a class instance pointer for |window|
+  // |window|에 해당하는 class instance pointer를 가져옵니다.
   static Win32Window* GetThisFromHandle(HWND const window) noexcept;
 
-  // Update the window frame's theme to match the system theme.
+  // system theme에 맞게 window frame theme를 갱신합니다.
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
 
-  // window handle for top level window.
+  // top-level window의 window handle입니다.
   HWND window_handle_ = nullptr;
 
-  // window handle for hosted content.
+  // hosted content의 window handle입니다.
   HWND child_content_ = nullptr;
 };
 

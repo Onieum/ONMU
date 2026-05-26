@@ -1,13 +1,13 @@
-# ONMU Brand Web
+# ONMU 브랜드 웹
 
-The brand web app is for public product introduction only.
+브랜드 웹 앱은 공개 제품 소개만 담당합니다.
 
-It should include:
+포함해야 할 내용:
 
-- Product concept
-- Team/project introduction
-- App screenshots or prototype video
-- Store/download links when available
-- Privacy/contact links
+- 제품 개념
+- 팀/프로젝트 소개
+- 앱 screenshot 또는 prototype 영상
+- 준비된 경우 store/download 링크
+- 개인정보 처리방침/contact 링크
 
-It should not include core product workflows such as login, meetup creation, place recommendation, or memory creation. Those belong in the Flutter app.
+로그인, 약속 생성, 장소 추천, 기록 생성 같은 핵심 제품 흐름은 포함하지 않습니다. 해당 흐름은 Flutter 앱에 둡니다.

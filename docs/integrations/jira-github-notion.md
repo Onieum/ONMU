@@ -138,7 +138,7 @@ PR 제목:
 PR 본문:
 
 ```markdown
-## Related
+## 관련
 - Jira: SCRUM-16
 ```
 
@@ -238,14 +238,14 @@ docs/integrations/jira-seed-backlog.csv
 
 CSV import 시 매핑:
 
-| CSV column | Jira field |
+| CSV 열 | Jira 필드 |
 | --- | --- |
-| `Issue Type` | Issue Type |
-| `Summary` | Summary |
-| `Description` | Description |
-| `Labels` | Labels |
-| `Epic Name` | Epic Name |
-| `Epic Link` | Parent 또는 Epic Link |
+| `이슈 유형` | Issue Type |
+| `요약` | Summary |
+| `설명` | Description |
+| `라벨` | Labels |
+| `Epic 이름` | Epic Name |
+| `Epic 링크` | Parent 또는 Epic Link |
 
 ## 권한과 보안
 

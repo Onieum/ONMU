@@ -8,10 +8,10 @@
 
 #include "win32_window.h"
 
-// A window that does nothing but host a Flutter view.
+// Flutter view를 host하는 역할만 하는 window입니다.
 class FlutterWindow : public Win32Window {
  public:
-  // Creates a new FlutterWindow hosting a Flutter view running |project|.
+  // |project|를 실행하는 Flutter view를 host하는 새 FlutterWindow를 만듭니다.
   explicit FlutterWindow(const flutter::DartProject& project);
   virtual ~FlutterWindow();
 
@@ -23,10 +23,10 @@ class FlutterWindow : public Win32Window {
                          LPARAM const lparam) noexcept override;
 
  private:
-  // The project to run.
+  // 실행할 project입니다.
   flutter::DartProject project_;
 
-  // The Flutter instance hosted by this window.
+  // 이 window가 host하는 Flutter instance입니다.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
 };
 

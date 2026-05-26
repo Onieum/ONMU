@@ -2,7 +2,7 @@
   "name": "onmu",
   "private": true,
   "version": "0.1.0",
-  "description": "ONMU release architecture workspace",
+  "description": "ONMU 릴리스 아키텍처 작업 공간",
   "scripts": {
     "compose:config": "docker compose -f infra/compose/docker-compose.yml config",
     "jira:bootstrap": "node scripts/bootstrap-jira.mjs",

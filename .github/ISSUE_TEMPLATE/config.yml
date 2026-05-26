@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: Jira Board
     url: https://onmu.atlassian.net/jira/software/projects/SCRUM/boards/1
-    about: Delivery planning and sprint board live in Jira.
+    about: 일정 계획과 스프린트 보드는 Jira에서 관리합니다.

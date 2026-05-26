@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- launch splash screen을 커스터마이즈하려면 이 파일을 수정합니다. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/white" />
 
-    <!-- You can insert your own image assets here -->
+    <!-- 여기에 원하는 image asset을 넣을 수 있습니다. -->
     <!-- <item>
         <bitmap
             android:gravity="center"

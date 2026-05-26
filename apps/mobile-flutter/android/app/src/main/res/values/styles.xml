@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
+    <!-- OS의 dark mode 설정이 꺼져 있을 때 process 시작 중 Android Window에 적용되는 theme입니다. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
+        <!-- activity에 splash screen을 표시합니다. Flutter engine이 첫 frame을 그리면 자동으로 제거됩니다. -->
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
+    <!-- process가 시작되자마자 Android Window에 적용되는 theme입니다.
+         Flutter UI 초기화 중과 실행 중 Flutter UI 뒤에 보이는 Android Window 색상을 결정합니다.
 
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+         이 theme는 Flutter Android embedding V2부터 사용됩니다. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>

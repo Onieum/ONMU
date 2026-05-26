@@ -1,35 +1,35 @@
-# Release Checklist
+# 릴리스 체크리스트
 
-## Mobile
+## 모바일
 
-- [ ] Flutter `dev`, `staging`, `prod` flavors configured
-- [ ] API base URLs configured per flavor
-- [ ] Push notification token registration tested
-- [ ] Location/photo/notification permissions tested on real devices
-- [ ] Firebase App Distribution or TestFlight build published
-- [ ] Crash reporting enabled
+- [ ] Flutter `dev`, `staging`, `prod` flavor 설정 완료
+- [ ] flavor별 API base URL 설정 완료
+- [ ] push 알림 토큰 등록 테스트 완료
+- [ ] 실제 기기에서 위치/사진/알림 권한 테스트 완료
+- [ ] Firebase App Distribution 또는 TestFlight 빌드 배포 완료
+- [ ] crash reporting 활성화
 
-## Backend
+## 백엔드
 
 - [ ] `/healthz` and `/readyz`
-- [ ] Database migration Job tested
-- [ ] API contract tests passed
-- [ ] Realtime reconnect/resync tested
-- [ ] Worker retries are idempotent
+- [ ] 데이터베이스 migration Job 테스트 완료
+- [ ] API 계약 테스트 통과
+- [ ] 실시간 reconnect/resync 테스트 완료
+- [ ] 워커 재시도가 idempotent하게 동작
 
-## Infrastructure
+## 인프라
 
-- [ ] ACR image build and push
-- [ ] AKS staging deploy
-- [ ] Managed PostgreSQL/PostGIS connection
-- [ ] Redis connection
-- [ ] Object storage upload and signed URL flow
-- [ ] Observability dashboard
-- [ ] Alert rules
+- [ ] ACR image build와 push 완료
+- [ ] AKS staging 배포 완료
+- [ ] 관리형 PostgreSQL/PostGIS 연결 확인
+- [ ] Redis 연결 확인
+- [ ] 오브젝트 스토리지 업로드와 signed URL 흐름 확인
+- [ ] 관측성 대시보드 준비
+- [ ] 알림 규칙 준비
 
-## Project Management
+## 프로젝트 관리
 
-- [ ] Jira epics created
-- [ ] Sprint 0 and Sprint 1 backlog ready
-- [ ] GitHub repository linked to Jira
-- [ ] Notion project hub linked to Jira synced database
+- [ ] Jira epic 생성 완료
+- [ ] Sprint 0과 Sprint 1 backlog 준비 완료
+- [ ] GitHub 저장소와 Jira 연결 완료
+- [ ] Notion 프로젝트 허브와 Jira synced database 연결 완료

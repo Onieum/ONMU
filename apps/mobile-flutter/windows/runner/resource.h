@@ -1,10 +1,10 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
-// Used by Runner.rc
+// Microsoft Visual C++가 생성한 include file입니다.
+// Runner.rc에서 사용합니다.
 //
 #define IDI_APP_ICON                    101
 
-// Next default values for new objects
+// 새 object용 다음 default value입니다.
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

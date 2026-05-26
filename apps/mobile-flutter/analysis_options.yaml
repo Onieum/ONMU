@@ -1,28 +1,21 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# 이 파일은 Dart code를 정적 분석해 error, warning, lint를 확인하는 analyzer를 설정합니다.
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# analyzer가 찾은 issue는 Dart 지원 IDE의 UI에 표시됩니다.
+# command line에서는 `flutter analyze`로 analyzer를 실행할 수 있습니다.
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
+# 아래 줄은 Flutter app, package, plugin에 권장되는 lint rule 묶음을 활성화합니다.
 include: package:flutter_lints/flutter.yaml
 
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
+  # 이 project에 적용되는 lint rule은 아래 section에서 조정할 수 있습니다.
+  # 위에서 포함한 `package:flutter_lints/flutter.yaml`의 rule을 끄거나 추가 rule을 켤 수 있습니다.
+  # 사용 가능한 lint 목록과 문서는 https://dart.dev/lints 에 있습니다.
   #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
+  # 전체 project에서 lint rule을 끄는 대신 특정 줄이나 파일에서만 억제할 수도 있습니다.
+  # lint가 발생한 줄에는 `// ignore: name_of_lint`, 파일에는 `// ignore_for_file: name_of_lint` 문법을 사용합니다.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # avoid_print: false  # `avoid_print` rule을 끄려면 주석을 해제합니다.
+    # prefer_single_quotes: true  # `prefer_single_quotes` rule을 켜려면 주석을 해제합니다.
 
-# Additional information about this file can be found at
+# 이 파일에 대한 추가 정보:
 # https://dart.dev/guides/language/analysis-options

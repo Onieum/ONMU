@@ -1,12 +1,12 @@
-# Jira Bootstrap Result
+# Jira 초기화 결과
 
-Created in Jira project `SCRUM` on `https://onmu.atlassian.net`.
+`https://onmu.atlassian.net`의 Jira project `SCRUM`에 생성했습니다.
 
-Default sample issues created by Jira onboarding were removed so the board starts with ONMU-specific work only.
+Jira 온보딩에서 자동 생성된 sample issue는 삭제했습니다. 보드는 ONMU 전용 작업만 있는 상태로 시작합니다.
 
-## Epics
+## Epic
 
-| Key | Epic |
+| 키 | Epic |
 | --- | --- |
 | `SCRUM-5` | Platform / Infra |
 | `SCRUM-6` | Flutter Mobile |
@@ -17,18 +17,18 @@ Default sample issues created by Jira onboarding were removed so the board start
 | `SCRUM-11` | Brand Web |
 | `SCRUM-12` | QA / Release / Observability |
 
-## First Backlog
+## 첫 백로그
 
-| Key | Type | Summary |
+| 키 | 유형 | 요약 |
 | --- | --- | --- |
-| `SCRUM-13` | Story | Build Flutter app skeleton with dev/staging/prod flavors |
-| `SCRUM-14` | Story | Create profile preference input flow |
-| `SCRUM-15` | Story | Create meetup room and participant join flow |
-| `SCRUM-16` | Story | Add place candidate search and scoring prototype |
-| `SCRUM-17` | Story | Create memory card stub after meetup decision |
-| `SCRUM-18` | Story | Prepare local Compose and AKS staging baseline |
-| `SCRUM-19` | Story | Define vertical prototype smoke test |
-| `SCRUM-20` | Task | Connect GitHub repository to Jira |
-| `SCRUM-21` | Task | Create Notion project hub |
-| `SCRUM-22` | Task | Draft brand web content structure |
-| `SCRUM-23` | Task | Enable branch protection after GitHub plan supports it |
+| `SCRUM-13` | Story | `dev`/`staging`/`prod` flavor가 있는 Flutter 앱 skeleton 구축 |
+| `SCRUM-14` | Story | 프로필 취향 입력 흐름 생성 |
+| `SCRUM-15` | Story | 약속 방과 참여자 join 흐름 생성 |
+| `SCRUM-16` | Story | 장소 후보 검색과 점수화 prototype 추가 |
+| `SCRUM-17` | Story | 약속 결정 이후 기억 카드 stub 생성 |
+| `SCRUM-18` | Story | 로컬 Compose와 AKS staging baseline 준비 |
+| `SCRUM-19` | Story | 세로 prototype smoke test 정의 |
+| `SCRUM-20` | Task | GitHub 저장소를 Jira에 연결 |
+| `SCRUM-21` | Task | Notion 프로젝트 허브 생성 |
+| `SCRUM-22` | Task | 브랜드 웹 콘텐츠 구조 초안 작성 |
+| `SCRUM-23` | Task | GitHub plan이 지원되면 branch protection 활성화 |

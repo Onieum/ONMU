@@ -1,20 +1,20 @@
-# Platform Setup Guide
+# 플랫폼 세팅 가이드
 
-This guide describes local setup for macOS, Windows, and Linux.
+이 문서는 macOS, Windows, Linux에서 ONMU 로컬 개발 환경을 준비하는 방법을 설명합니다.
 
-## Common Accounts
+## 공통 계정
 
-Required:
+필수:
 
-- GitHub access to `Onieum/ONMU`
-- Jira access to `https://onmu.atlassian.net`
-- Azure account for AKS and managed services
-- Figma access for product design
-- Notion workspace access if the team uses Notion for docs
+- `Onieum/ONMU` GitHub 접근 권한
+- `https://onmu.atlassian.net` Jira 접근 권한
+- AKS와 관리형 서비스를 위한 Azure 계정
+- 제품 디자인을 위한 Figma 접근 권한
+- 팀이 Notion을 문서 허브로 쓸 경우 Notion 워크스페이스 접근 권한
 
 ## macOS
 
-Install tools:
+도구 설치:
 
 ```bash
 brew install git gh node uv azure-cli
@@ -24,7 +24,7 @@ brew tap atlassian/homebrew-acli
 brew install acli
 ```
 
-Authenticate:
+인증:
 
 ```bash
 gh auth login
@@ -32,7 +32,7 @@ az login
 acli jira auth login --site onmu.atlassian.net
 ```
 
-Clone and prepare:
+저장소 클론과 준비:
 
 ```bash
 gh repo clone Onieum/ONMU
@@ -41,7 +41,7 @@ npm install
 docker compose -f infra/compose/docker-compose.yml config
 ```
 
-Flutter check:
+Flutter 확인:
 
 ```bash
 flutter doctor
@@ -52,14 +52,14 @@ flutter analyze
 
 ## Windows
 
-Recommended base:
+권장 기준:
 
 - Windows 11
-- WSL2 Ubuntu for backend/infra work
-- Android Studio for Android emulator
-- GitHub Desktop or Git CLI
+- 백엔드/인프라 작업용 WSL2 Ubuntu
+- Android emulator용 Android Studio
+- GitHub Desktop 또는 Git CLI
 
-Install in PowerShell:
+PowerShell에서 설치:
 
 ```powershell
 winget install Git.Git
@@ -70,7 +70,7 @@ winget install Microsoft.AzureCLI
 winget install Google.Flutter
 ```
 
-Then:
+그 다음:
 
 ```powershell
 gh auth login
@@ -82,9 +82,9 @@ docker compose -f infra/compose/docker-compose.yml config
 flutter doctor
 ```
 
-If the Windows machine will act as a shared backend server for the team, follow `docs/operations/windows-backend-server.md` after this local setup. That guide covers `0.0.0.0` binding, LAN IP checks, firewall rules, and which Docker ports must stay private.
+Windows 장비를 팀 공용 백엔드 서버로 쓸 경우, 이 로컬 세팅 이후 `docs/operations/windows-backend-server.md`를 따릅니다. 해당 문서는 `0.0.0.0` 바인딩, LAN IP 확인, 방화벽 규칙, 외부에 열면 안 되는 Docker 포트를 다룹니다.
 
-For WSL2:
+WSL2:
 
 ```bash
 sudo apt update
@@ -94,7 +94,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Linux
 
-Install common tools:
+공통 도구 설치:
 
 ```bash
 sudo apt update
@@ -102,7 +102,7 @@ sudo apt install -y git curl unzip nodejs npm docker.io docker-compose-plugin
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Install GitHub CLI and Azure CLI from their official package repositories.
+GitHub CLI와 Azure CLI는 각 공식 패키지 저장소 기준으로 설치합니다.
 
 Flutter:
 
@@ -115,7 +115,7 @@ source ~/.bashrc
 flutter doctor
 ```
 
-Repository:
+저장소:
 
 ```bash
 gh auth login
@@ -125,23 +125,23 @@ npm install
 docker compose -f infra/compose/docker-compose.yml config
 ```
 
-## Local Dependency Stack
+## 로컬 의존성 스택
 
-Start core dependencies:
+핵심 의존성 실행:
 
 ```bash
 docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 ```
 
-Start optional event/search services:
+선택 이벤트/검색 서비스 실행:
 
 ```bash
 docker compose -f infra/compose/docker-compose.yml --profile events --profile search up -d
 ```
 
-Services:
+서비스:
 
-| Service | URL |
+| 서비스 | URL |
 | --- | --- |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
@@ -150,8 +150,8 @@ Services:
 | Redpanda | `localhost:9092` |
 | OpenSearch | `http://localhost:9200` |
 
-## Notes
+## 참고
 
-- Do not commit `.env`.
-- Use `.env.example` as the template.
-- Use Jira issue keys in PRs so Jira and GitHub can link work automatically.
+- `.env`는 커밋하지 않습니다.
+- `.env.example`을 템플릿으로 사용합니다.
+- Jira와 GitHub가 작업을 자동 연결할 수 있도록 PR에 Jira 이슈 키를 넣습니다.

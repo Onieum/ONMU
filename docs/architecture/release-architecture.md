@@ -1,68 +1,68 @@
-# ONMU Release Architecture
+# ONMU 릴리스 아키텍처
 
-## Principle
+## 원칙
 
-ONMU is designed for a real service release from day one. The team will still deliver incrementally, but the target architecture is production-shaped: Flutter app, API, realtime gateway, workers, managed data services, AKS, observability, and CI/CD.
+ONMU는 처음부터 실제 서비스 릴리스를 전제로 설계합니다. 구현은 애자일하게 작게 나누어 진행하지만, 목표 아키텍처는 운영 가능한 제품 수준을 기준으로 둡니다. Flutter 앱, API, 실시간 게이트웨이, 워커, 관리형 데이터 서비스, AKS, 관측성, CI/CD를 초기 설계에 포함합니다.
 
-## Product Surfaces
+## 제품 표면
 
-| Surface | Role |
+| 표면 | 역할 |
 | --- | --- |
-| Flutter mobile app | Core product for iOS and Android |
-| Brand web | Static brand/project introduction |
-| Backend API | Domain transactions and contracts |
-| Realtime gateway | WebSocket room state and fan-out |
-| Workers | Recommendation, place risk, route/departure, photo memory, notification |
+| Flutter 모바일 앱 | iOS와 Android의 핵심 제품 경험 |
+| 브랜드 웹 | 정적 브랜드/프로젝트 소개 |
+| 백엔드 API | 도메인 트랜잭션과 계약 |
+| 실시간 게이트웨이 | WebSocket 방 상태와 fan-out |
+| 워커 | 추천, 장소 리스크, 경로/출발, 사진 기록, 알림 |
 
-## First Connected Flow
+## 첫 연결 흐름
 
 ```text
-profile preferences
-  -> meetup room
-  -> realtime participant state
-  -> place search/scoring
-  -> candidate decision
-  -> photo or memory card
-  -> character/sticker result
+프로필/취향
+  -> 약속 방
+  -> 실시간 참여자 상태
+  -> 장소 검색/점수화
+  -> 후보 결정
+  -> 사진 또는 기억 카드
+  -> 캐릭터/스티커 결과
 ```
 
-## Target Platform
+## 목표 플랫폼
 
 ```text
-Flutter App
+Flutter 앱
   -> API Gateway / Ingress
-  -> Main API
-  -> Realtime Gateway
+  -> 메인 API
+  -> 실시간 게이트웨이
   -> PostgreSQL + PostGIS
   -> Redis
-  -> Search service
-  -> Event bus
-  -> Worker services
-  -> Object Storage + CDN
-  -> Observability
+  -> 검색 서비스
+  -> 이벤트 버스
+  -> 워커 서비스
+  -> 오브젝트 스토리지 + CDN
+  -> 관측성
 ```
 
-## Domain Boundaries
+## 도메인 경계
 
-| Domain | Responsibility |
+| 도메인 | 책임 |
 | --- | --- |
-| Identity | users, auth providers, device tokens |
-| Profile | preference tags, availability, saved places |
-| Social | friendship and invitations |
-| Meetup | meetups, participants, schedule candidates |
-| Place | places, candidates, external API cache, risks |
-| Decision | votes, selected place/schedule, decision logs |
-| Realtime | presence and participant live status |
-| Recommendation | scoring runs, candidate explanations |
-| Memory | memory cards, photos, stickers |
-| Notification | push requests, delivery results |
-| Audit | outbox events, audit logs |
+| Identity | 사용자, 인증 제공자, 기기 토큰 |
+| Profile | 취향 태그, 가능 시간, 저장 장소 |
+| Social | 친구 관계와 초대 |
+| Meetup | 약속, 참여자, 일정 후보 |
+| Place | 장소, 후보, 외부 API 캐시, 리스크 |
+| Decision | 투표, 선택된 장소/일정, 결정 로그 |
+| Realtime | presence와 참여자 실시간 상태 |
+| Recommendation | 점수화 실행, 후보 설명 |
+| Memory | 기억 카드, 사진, 스티커 |
+| Notification | push 요청과 전송 결과 |
+| Audit | outbox 이벤트, 감사 로그 |
 
-## Delivery Stages
+## 전달 단계
 
-1. Platform foundation.
-2. Integrated vertical prototype.
-3. Realtime and collaboration hardening.
-4. Place/external API hardening.
-5. Memory/photo/character hardening.
-6. Release hardening.
+1. 플랫폼 기반을 준비합니다.
+2. 통합 세로 프로토타입을 만듭니다.
+3. 실시간 협업 흐름을 강화합니다.
+4. 장소/외부 API 흐름을 강화합니다.
+5. 기록/사진/캐릭터 흐름을 강화합니다.
+6. 릴리스 품질을 강화합니다.

@@ -15,7 +15,7 @@ type/SCRUM-번호-short-description -> 개별 작업 브랜치
 - 작업은 Jira 이슈를 먼저 만들고 시작합니다.
 - 새 브랜치는 항상 최신 `dev`에서 만듭니다.
 - `dev`와 `main`에는 PR로만 머지합니다.
-- `main`은 릴리스 후보가 검증된 뒤 release PR로만 갱신합니다.
+- `main`은 릴리스 후보가 검증된 뒤 릴리스 PR로만 갱신합니다.
 - 브랜치, 커밋, PR 제목이나 본문 중 최소 한 곳에는 Jira 키를 넣습니다.
 - 현재 private 저장소의 브랜치 보호는 GitHub 플랜 제한으로 강제 설정 전입니다. `SCRUM-23`이 해결되기 전까지는 팀 규칙으로 수동 준수합니다.
 
@@ -83,7 +83,7 @@ type/SCRUM-번호-short-description
 
 - 소문자와 하이픈을 사용합니다.
 - 작업 내용을 3~5단어 정도로 짧게 표현합니다.
-- Jira 키를 넣기 어렵다면 PR 본문 `Related`에 반드시 넣습니다.
+- Jira 키를 넣기 어렵다면 PR 본문 `관련` section에 반드시 넣습니다.
 
 ## 커밋 메시지
 
@@ -130,17 +130,17 @@ PR 제목:
 PR 본문은 저장소의 `.github/pull_request_template.md`를 사용합니다.
 
 ```markdown
-## Summary
+## 요약
 - 무엇을 왜 바꿨는지 한두 줄로 설명
 
-## Changes
+## 변경 사항
 - 주요 변경 파일과 동작 요약
 
-## Test
+## 검증
 - 실행한 검증 명령
 - UI 변경이면 스크린샷 또는 녹화 링크
 
-## Related
+## 관련
 - Jira: SCRUM-16
 - GitHub Issue: 필요 시 링크
 ```
@@ -187,4 +187,4 @@ Codex, Copilot, Cursor 같은 AI 도구도 이 문서를 따라야 합니다.
 - 작업 전에 관련 Jira 이슈와 문서를 확인합니다.
 - `.github/copilot-instructions.md`의 저장소 규칙을 우선합니다.
 - 자동 생성 코드라도 사람이 리뷰 가능한 크기로 PR을 나눕니다.
-- AI가 만든 변경에는 실행한 검증 명령을 PR `Test`에 남깁니다.
+- AI가 만든 변경에는 실행한 검증 명령을 PR `검증` section에 남깁니다.

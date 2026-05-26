@@ -1,5 +1,5 @@
 #
-# Generated file, do not edit.
+# 생성된 파일입니다. 직접 수정하지 않습니다.
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST

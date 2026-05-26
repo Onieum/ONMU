@@ -1,25 +1,25 @@
-## Summary
+## 요약
 
 -
 
-## Changes
+## 변경 사항
 
 -
 
-## Test
+## 검증
 
-- [ ] Local checks passed
-- [ ] Relevant Flutter/API/infra checks passed
-- [ ] Screenshots or recordings attached when UI changes
+- [ ] 로컬 검증 통과
+- [ ] 관련 Flutter/API/infra 검증 통과
+- [ ] UI 변경 시 screenshot 또는 recording 첨부
 
-## Related
+## 관련
 
 - Jira:
 - GitHub Issue:
 
-## Checklist
+## 체크리스트
 
-- [ ] Branch follows `type/short-description`
-- [ ] Commit messages follow Conventional Commits
-- [ ] No secrets, real user data, or generated credentials were committed
-- [ ] Docs were updated when behavior or setup changed
+- [ ] 브랜치가 `type/SCRUM-123-short-description` 형식을 따름
+- [ ] 커밋 메시지가 Conventional Commits 형식을 따름
+- [ ] secret, 실제 사용자 데이터, 생성된 credential을 커밋하지 않음
+- [ ] 동작이나 설정이 바뀐 경우 문서를 갱신함

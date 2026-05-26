@@ -1,4 +1,4 @@
-name: "Bug"
+name: "버그"
 description: 버그 신고 및 수정 요청
 title: "fix(scope): "
 labels: ["bug"]
@@ -6,21 +6,21 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: What happened?
+      label: 어떤 일이 발생했나요?
       description: 어떤 문제가 발생했는지 설명해주세요.
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
+      label: 기대 동작
       description: 정상적으로 기대한 동작을 적어주세요.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: Steps to reproduce
+      label: 재현 방법
       placeholder: |
         1.
         2.
@@ -30,10 +30,10 @@ body:
   - type: textarea
     id: environment
     attributes:
-      label: Environment
+      label: 환경
       placeholder: |
         - OS:
-        - App flavor:
-        - Backend env:
+        - 앱 flavor:
+        - 백엔드 환경:
     validations:
       required: false

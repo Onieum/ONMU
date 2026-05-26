@@ -1,6 +1,6 @@
-# Main API
+# 메인 API
 
-The API owns transaction boundaries for:
+API는 다음 도메인의 transaction boundary를 담당합니다.
 
 - identity
 - profile
@@ -11,9 +11,9 @@ The API owns transaction boundaries for:
 - memory
 - notification
 
-The first implementation can be a modular monolith, but module boundaries must match the release architecture so that services can be split later if needed.
+첫 구현은 modular monolith로 시작할 수 있습니다. 다만 나중에 필요할 때 서비스를 분리할 수 있도록 module boundary는 릴리스 아키텍처의 도메인 경계와 맞춰야 합니다.
 
-Required endpoints from the first vertical prototype:
+첫 세로 prototype에 필요한 endpoint:
 
 - `POST /profiles/me/preferences`
 - `POST /meetups`

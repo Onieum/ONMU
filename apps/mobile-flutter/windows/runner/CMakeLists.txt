@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 
-# Define the application target. To change its name, change BINARY_NAME in the
-# top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
-# work.
+# application target을 정의합니다. 이름을 바꾸려면 여기 값이 아니라 top-level CMakeLists.txt의 BINARY_NAME을 변경합니다.
+# 여기 값을 바꾸면 `flutter run`이 더 이상 동작하지 않습니다.
 #
-# Any new source files that you add to the application should be added here.
+# application에 새 source file을 추가하면 여기에 등록해야 합니다.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "main.cpp"
@@ -16,25 +15,23 @@ add_executable(${BINARY_NAME} WIN32
   "runner.exe.manifest"
 )
 
-# Apply the standard set of build settings. This can be removed for applications
-# that need different build settings.
+# 표준 build setting 묶음을 적용합니다. 다른 build setting이 필요한 application에서는 제거할 수 있습니다.
 apply_standard_settings(${BINARY_NAME})
 
-# Add preprocessor definitions for the build version.
+# build version용 preprocessor definition을 추가합니다.
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION=\"${FLUTTER_VERSION}\"")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_MAJOR=${FLUTTER_VERSION_MAJOR}")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_MINOR=${FLUTTER_VERSION_MINOR}")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_PATCH=${FLUTTER_VERSION_PATCH}")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTTER_VERSION_BUILD}")
 
-# Disable Windows macros that collide with C++ standard library functions.
+# C++ standard library function과 충돌하는 Windows macro를 비활성화합니다.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 
-# Add dependency libraries and include directories. Add any application-specific
-# dependencies here.
+# dependency library와 include directory를 추가합니다. application 전용 dependency는 여기에 추가합니다.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
-# Run the Flutter tool portions of the build. This must not be removed.
+# build 중 Flutter tool 부분을 실행합니다. 제거하면 안 됩니다.
 add_dependencies(${BINARY_NAME} flutter_assemble)

@@ -1,78 +1,67 @@
 name: onmu_mobile
-description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+description: "ONMU 모바일 Flutter 앱."
+# 이 설정은 private package가 실수로 pub.dev에 publish되는 것을 막습니다.
+publish_to: 'none' # pub.dev에 publish하려면 이 줄을 제거합니다.
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
+# 앱 버전과 빌드 번호를 정의합니다.
+# 버전 번호는 1.2.43처럼 점으로 구분된 세 숫자입니다.
+# 필요한 경우 + 뒤에 build number를 붙일 수 있습니다.
+# flutter build에서 --build-name과 --build-number로 각각 override할 수 있습니다.
+# Android에서는 build-name이 versionName, build-number가 versionCode로 사용됩니다.
+# Android versioning 참고: https://developer.android.com/studio/publish/versioning
+# iOS에서는 build-name이 CFBundleShortVersionString, build-number가 CFBundleVersion으로 사용됩니다.
+# iOS versioning 참고:
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
+# Windows에서는 build-name이 product/file version의 major, minor, patch로 사용되고 build-number가 build suffix로 사용됩니다.
 version: 1.0.0+1
 
 environment:
   sdk: ^3.12.0
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
+# dependencies에는 앱 실행에 필요한 package를 선언합니다.
+# dependency를 최신 major version까지 자동으로 올리려면 `flutter pub upgrade --major-versions`를 실행합니다.
+# 또는 아래 version number를 pub.dev의 최신 version으로 직접 수정할 수 있습니다.
+# 더 새로운 version이 있는지 보려면 `flutter pub outdated`를 실행합니다.
 dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  # Cupertino Icons font를 앱에 추가합니다.
+  # iOS style icon이 필요할 때 CupertinoIcons class와 함께 사용합니다.
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  # flutter_lints package는 권장 lint rule 묶음입니다.
+  # package root의 `analysis_options.yaml`에서 활성화됩니다.
+  # 특정 lint rule을 끄거나 추가하려면 해당 파일을 수정합니다.
   flutter_lints: ^6.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+# pubspec의 일반 Dart 설정은 다음 문서를 참고합니다.
+# https://dart.dev/tools/pub/pubspec
 
-# The following section is specific to Flutter packages.
+# 아래 section은 Flutter package 전용입니다.
 flutter:
 
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
+  # Material Icons font를 앱에 포함해 Material Icons class를 사용할 수 있게 합니다.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # asset을 앱에 추가하려면 다음처럼 assets section을 추가합니다.
   # assets:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
-  # An image asset can refer to one or more resolution-specific "variants", see
+  # image asset은 해상도별 variant를 가리킬 수 있습니다. 참고:
   # https://flutter.dev/to/resolution-aware-images
 
-  # For details regarding adding assets from package dependencies, see
+  # package dependency에서 asset을 추가하는 방법은 다음을 참고합니다.
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
+  # custom font를 추가하려면 이 "flutter" section에 fonts section을 추가합니다.
+  # 각 항목은 font family 이름을 담은 "family" key와 font asset/descriptor 목록을 담은 "fonts" key를 가져야 합니다.
+  # 예시:
   # fonts:
   #   - family: Schyler
   #     fonts:
@@ -85,5 +74,5 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  # package dependency에서 font를 가져오는 방법은 다음을 참고합니다.
+  # https://flutter.dev/to/font-from-package

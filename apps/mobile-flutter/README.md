@@ -1,17 +1,17 @@
-# ONMU Mobile
+# ONMU 모바일
 
-Flutter app for the core ONMU product.
+ONMU 핵심 제품을 위한 Flutter 앱입니다.
 
-## Prototype Goal
+## 프로토타입 목표
 
-The first app shell connects the four delivery parts:
+첫 앱 골격은 네 가지 전달 파트를 연결합니다.
 
-1. Profile preferences
-2. Meetup room and realtime collaboration
-3. Place candidates and external API data
-4. Memory cards and character elements
+1. 프로필 취향
+2. 약속 방과 실시간 협업
+3. 장소 후보와 외부 API 데이터
+4. 기억 카드와 캐릭터 요소
 
-## Local Commands
+## 로컬 명령
 
 ```bash
 flutter pub get
@@ -20,12 +20,12 @@ flutter test
 flutter run
 ```
 
-## Flavor Direction
+## 플레이버 방향
 
-The app should support:
+앱은 다음 플레이버를 지원해야 합니다.
 
 - `dev`
 - `staging`
 - `prod`
 
-Flavor-specific API base URLs should be configured before the first backend integration sprint.
+첫 백엔드 통합 스프린트 전에 플레이버별 API base URL을 설정해야 합니다.
