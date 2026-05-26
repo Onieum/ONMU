@@ -1,0 +1,19 @@
+Issue Type,Summary,Description,Labels,Epic Name,Epic Link
+Epic,Platform / Infra,"AKS, Docker, CI/CD, observability, release infrastructure.",onmu;epic,Platform / Infra,
+Epic,Flutter Mobile,"Flutter app shell, flavors, navigation, API client, realtime client.",onmu;epic,Flutter Mobile,
+Epic,Profile & Preference,"User profile, taste tags, availability, saved places.",onmu;epic,Profile & Preference,
+Epic,Meetup & Realtime,"Meetup room, participants, schedules, votes, live status.",onmu;epic,Meetup & Realtime,
+Epic,Place & External API,"Place search, external APIs, route time, place risk, candidate scoring.",onmu;epic,Place & External API,
+Epic,Memory / Character,"Photo upload, memory cards, character and sticker expression.",onmu;epic,Memory / Character,
+Epic,Brand Web,"Public brand and project introduction website.",onmu;epic,Brand Web,
+Epic,QA / Release / Observability,"Device QA, smoke tests, dashboards, alerts, release checklist.",onmu;epic,QA / Release / Observability,
+Story,Build Flutter app skeleton with dev/staging/prod flavors,"The app can launch per flavor and read the correct API base URL.",onmu;vertical-prototype,,Flutter Mobile
+Story,Create profile preference input flow,"A user can save taste tags and availability through the API.",onmu;vertical-prototype,,Profile & Preference
+Story,Create meetup room and participant join flow,"A room can be created and participants can join with persisted state.",onmu;vertical-prototype,,Meetup & Realtime
+Story,Add place candidate search and scoring prototype,"A meetup room can receive place candidates with score and risk data.",onmu;vertical-prototype,,Place & External API
+Story,Create memory card stub after meetup decision,"A selected meetup can produce a simple memory card result.",onmu;vertical-prototype,,Memory / Character
+Story,Prepare local Compose and AKS staging baseline,"Local dependencies run with Compose and staging manifests have a baseline layout.",onmu;vertical-prototype,,Platform / Infra
+Story,Define vertical prototype smoke test,"The first connected flow has a repeatable smoke checklist.",onmu;vertical-prototype,,QA / Release / Observability
+Task,Connect GitHub repository to Jira,"Install GitHub for Jira and verify SCRUM issue keys link from PRs.",onmu;setup,,Platform / Infra
+Task,Create Notion project hub,"Create Notion pages for decisions, meeting notes, sprint review, and linked Jira database.",onmu;setup,,Platform / Infra
+Task,Draft brand web content structure,"Prepare sections for product concept, architecture, team, demo, and links.",onmu;setup,,Brand Web

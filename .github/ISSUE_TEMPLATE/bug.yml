@@ -1,0 +1,39 @@
+name: "Bug"
+description: 버그 신고 및 수정 요청
+title: "fix(scope): "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: 어떤 문제가 발생했는지 설명해주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: 정상적으로 기대한 동작을 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        - OS:
+        - App flavor:
+        - Backend env:
+    validations:
+      required: false

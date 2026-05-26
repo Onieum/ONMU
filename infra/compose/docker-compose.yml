@@ -1,0 +1,82 @@
+name: onmu-local
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: onmu-postgres
+    environment:
+      POSTGRES_DB: onmu
+      POSTGRES_USER: onmu
+      POSTGRES_PASSWORD: onmu
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onmu -d onmu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: onmu-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: onmu-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: onmu
+      MINIO_ROOT_PASSWORD: onmu-local-password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  redpanda:
+    image: redpandadata/redpanda:v25.1.1
+    container_name: onmu-redpanda
+    profiles: ["events"]
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:9092
+    ports:
+      - "9092:9092"
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    container_name: onmu-opensearch
+    profiles: ["search"]
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: onmu-local-password
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

@@ -1,0 +1,15 @@
+{
+  "name": "onmu",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ONMU release architecture workspace",
+  "scripts": {
+    "compose:config": "docker compose -f infra/compose/docker-compose.yml config",
+    "jira:bootstrap": "node scripts/bootstrap-jira.mjs",
+    "commitlint": "commitlint --from=HEAD~1 --to=HEAD --verbose"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0"
+  }
+}

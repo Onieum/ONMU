@@ -1,0 +1,21 @@
+name: Jira Link Helper
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  remind-jira-link:
+    name: Check Jira key in PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check title/body for Jira issue key
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if echo "$PR_TITLE $PR_BODY" | grep -Eq 'SCRUM-[0-9]+'; then
+            echo "Jira key found."
+          else
+            echo "::warning::Add a Jira key such as SCRUM-12 to the PR title or body so Jira can auto-link this PR."
+          fi

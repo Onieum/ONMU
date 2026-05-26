@@ -1,0 +1,37 @@
+name: "Story"
+description: 사용자 관점의 기능 요구사항
+title: "story(scope): "
+labels: ["story"]
+body:
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: 사용자 관점으로 작성해주세요.
+      placeholder: "As a meetup participant, I want to compare place candidates so that the group can decide faster."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] Given ...
+        - [ ] When ...
+        - [ ] Then ...
+    validations:
+      required: true
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Domain
+      options:
+        - mobile
+        - profile
+        - meetup-realtime
+        - place-api
+        - memory-character
+        - brand-web
+        - platform-infra
+    validations:
+      required: true

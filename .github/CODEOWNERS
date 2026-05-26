@@ -1,0 +1,9 @@
+# CODEOWNERS
+# The org currently has no visible team slug through GitHub API.
+# Recommended next step:
+# 1. Create an org team named `onmu-core`.
+# 2. Grant it write access to this repository.
+# 3. Replace the fallback owners below with:
+#    * @Onieum/onmu-core
+
+* @RudinP
