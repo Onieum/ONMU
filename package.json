@@ -9,7 +9,7 @@
     "commitlint": "commitlint --from=HEAD~1 --to=HEAD --verbose"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.1.0",
+    "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^20.0.0"
   }
 }
