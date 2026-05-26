@@ -1,15 +1,15 @@
-# OS
+# 운영체제
 .DS_Store
 Thumbs.db
 
-# Editors
+# 편집기
 .idea/
 *.iml
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
 
-# Environment and secrets
+# 환경 변수와 비밀값
 .env
 .env.*
 !.env.example
@@ -20,11 +20,11 @@ Thumbs.db
 *.keystore
 *.jks
 
-# Logs
+# 로그
 *.log
 logs/
 
-# Node / web
+# Node / 웹
 node_modules/
 dist/
 build/
@@ -53,7 +53,7 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
-# Data files
+# 데이터 파일
 data/
 raw/
 *.csv
@@ -70,7 +70,7 @@ raw/
 .terraform/
 .terraform.lock.hcl
 
-# Local object storage
+# 로컬 객체 스토리지
 minio-data/
 postgres-data/
 redis-data/

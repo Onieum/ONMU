@@ -1,14 +1,11 @@
-gradle-wrapper.jar
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
 
-# Remember to never publicly share your keystore.
-# See https://flutter.dev/to/reference-keystore
+# 키스토어는 절대 공개 저장소에 올리지 않습니다.
+# 참고: https://flutter.dev/to/reference-keystore
 key.properties
 **/*.keystore
 **/*.jks
