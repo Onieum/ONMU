@@ -6,6 +6,7 @@
 - Platform setup: `docs/development/platform-setup.md`
 - Git workflow: `docs/development/git-workflow.md`
 - Jira/GitHub/Notion automation: `docs/integrations/jira-github-notion.md`
+- Shared Windows backend server: `docs/operations/windows-backend-server.md`
 
 ## Product Context
 

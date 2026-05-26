@@ -82,6 +82,8 @@ docker compose -f infra/compose/docker-compose.yml config
 flutter doctor
 ```
 
+If the Windows machine will act as a shared backend server for the team, follow `docs/operations/windows-backend-server.md` after this local setup. That guide covers `0.0.0.0` binding, LAN IP checks, firewall rules, and which Docker ports must stay private.
+
 For WSL2:
 
 ```bash

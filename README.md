@@ -51,8 +51,8 @@ profile preferences
 
 - Default integration branch: `dev`
 - Stable release branch: `main`
-- Work branch format: `type/short-description`
-- Commit format: `type(scope): short description`
+- Work branch format: `type/SCRUM-123-short-description`
+- Commit format: `type(scope): SCRUM-123 short description`
 - All merges go through pull requests.
 - Jira is the source of delivery planning; GitHub is the source of code review and CI.
 
@@ -62,3 +62,4 @@ See:
 - `docs/development/git-workflow.md`
 - `docs/development/platform-setup.md`
 - `docs/integrations/jira-github-notion.md`
+- `docs/operations/windows-backend-server.md`

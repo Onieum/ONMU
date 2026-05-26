@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: onmu
       POSTGRES_PASSWORD: onmu
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
@@ -24,7 +24,7 @@ services:
     container_name: onmu-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -41,8 +41,8 @@ services:
       MINIO_ROOT_USER: onmu
       MINIO_ROOT_PASSWORD: onmu-local-password
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio-data:/data
 
@@ -62,7 +62,7 @@ services:
       - --kafka-addr=PLAINTEXT://0.0.0.0:9092
       - --advertise-kafka-addr=PLAINTEXT://localhost:9092
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
 
   opensearch:
     image: opensearchproject/opensearch:2.19.0
@@ -74,7 +74,7 @@ services:
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: onmu-local-password
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
 
 volumes:
   postgres-data:
