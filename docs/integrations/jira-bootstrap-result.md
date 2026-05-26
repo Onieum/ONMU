@@ -2,6 +2,8 @@
 
 Created in Jira project `SCRUM` on `https://onmu.atlassian.net`.
 
+Default sample issues created by Jira onboarding were removed so the board starts with ONMU-specific work only.
+
 ## Epics
 
 | Key | Epic |
