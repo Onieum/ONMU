@@ -5,6 +5,8 @@
 - 제품과 릴리스 아키텍처: `docs/architecture/release-architecture.md`
 - 플랫폼 세팅: `docs/development/platform-setup.md`
 - Git 작업 흐름: `docs/development/git-workflow.md`
+- 팀 AI 도구, MCP, Skill 운영: `docs/development/team-ai-tooling.md`
+- 디자인 토큰과 컴포넌트 기준: `docs/design/DESIGN.md`
 - Jira/GitHub/Notion 자동화: `docs/integrations/jira-github-notion.md`
 - 공용 Windows 백엔드 서버: `docs/operations/windows-backend-server.md`
 
@@ -46,6 +48,7 @@ ONMU는 Flutter 우선 모바일 제품입니다. 웹 앱은 브랜드와 프로
 ## Flutter 규칙
 
 - flavor는 `dev`, `staging`, `prod`를 사용합니다.
+- UI 구현 전 `docs/design/DESIGN.md`의 색상, 타이포그래피, 간격, 컴포넌트 기준을 확인합니다.
 - domain state는 widget 밖에 둡니다.
 - 백엔드 계약이 있으면 OpenAPI로 생성한 client를 우선 사용합니다.
 - 실시간 흐름에는 reconnect와 방 상태 resync 동작이 필요합니다.

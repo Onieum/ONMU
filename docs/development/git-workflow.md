@@ -222,9 +222,10 @@ Dependabot PR도 일반 PR과 동일하게 Jira 키, 리뷰, CI 기준을 따릅
 
 ## AI 도구 사용 규칙
 
-Codex, Copilot, Cursor 같은 AI 도구도 이 문서를 따라야 합니다.
+Codex, Copilot, Cursor, Claude 같은 AI 도구도 이 문서를 따라야 합니다. 팀 공통 AI 도구, MCP, Skill 운영 기준은 `docs/development/team-ai-tooling.md`를 따릅니다.
 
 - 작업 전에 관련 Jira 이슈와 문서를 확인합니다.
 - `.github/copilot-instructions.md`의 저장소 규칙을 우선합니다.
+- Codex 또는 호환 에이전트는 루트 `AGENTS.md`가 있으면 우선 확인합니다.
 - 자동 생성 코드라도 사람이 리뷰 가능한 크기로 PR을 나눕니다.
 - AI가 만든 변경에는 실행한 검증 명령을 PR `검증` section에 남깁니다.
