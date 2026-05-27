@@ -2,7 +2,9 @@
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet("config", "up", "ps")]
-  [string]$Command
+  [string]$Command,
+  [switch]$IncludeEvents,
+  [switch]$IncludeSearch
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,14 +16,27 @@ Set-Location $RepoRoot
 
 $env:POSTGRES_HOST_PORT = "15432"
 
+$composeArgs = @("-f", $ComposeFile)
+$services = @("postgres", "redis", "minio")
+
+if ($IncludeEvents) {
+  $composeArgs += @("--profile", "events")
+  $services += "redpanda"
+}
+
+if ($IncludeSearch) {
+  $composeArgs += @("--profile", "search")
+  $services += "opensearch"
+}
+
 switch ($Command) {
   "config" {
-    docker compose -f $ComposeFile config
+    docker compose @composeArgs config
   }
   "up" {
-    docker compose -f $ComposeFile up -d postgres redis minio
+    docker compose @composeArgs up -d @services
   }
   "ps" {
-    docker compose -f $ComposeFile ps
+    docker compose @composeArgs ps
   }
 }
