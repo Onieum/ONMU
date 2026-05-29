@@ -1,9 +1,9 @@
 [CmdletBinding()]
 param(
-  [string]$ResourceGroup = "3dt-final-team1",
-  [string]$Location = "koreacentral",
-  [string]$VaultName,
-  [string]$WorkspaceName = "law-onmu-dev",
+  [string]$ResourceGroup = $env:AZURE_RESOURCE_GROUP,
+  [string]$Location = $(if ($env:AZURE_LOCATION) { $env:AZURE_LOCATION } else { "koreacentral" }),
+  [string]$VaultName = $env:AZURE_KEY_VAULT_NAME,
+  [string]$WorkspaceName = $env:AZURE_LOG_ANALYTICS_WORKSPACE,
   [int]$LogRetentionDays = 30,
   [switch]$SkipSelfSecretOfficerRole
 )
@@ -21,7 +21,15 @@ if (-not $account.id) {
 }
 
 if (-not $VaultName) {
-  $VaultName = "onmu-dev-kv-$($account.id.Substring(0, 6).ToLower())"
+  throw "VaultName is required. Pass -VaultName or set AZURE_KEY_VAULT_NAME."
+}
+
+if (-not $ResourceGroup) {
+  throw "ResourceGroup is required. Pass -ResourceGroup or set AZURE_RESOURCE_GROUP."
+}
+
+if (-not $WorkspaceName) {
+  throw "WorkspaceName is required. Pass -WorkspaceName or set AZURE_LOG_ANALYTICS_WORKSPACE."
 }
 
 az group show --name $ResourceGroup --output none
@@ -112,13 +120,13 @@ $vault = az keyvault show `
   ConvertFrom-Json
 
 [pscustomobject]@{
-  keyVault = $vault.name
-  resourceGroup = $vault.resourceGroup
+  keyVault = "<configured>"
+  resourceGroup = "<configured>"
   location = $vault.location
   rbac = $vault.enableRbacAuthorization
   purgeProtection = $vault.enablePurgeProtection
   softDeleteRetentionInDays = $vault.softDeleteRetentionInDays
   publicNetworkAccess = $vault.publicNetworkAccess
-  logAnalyticsWorkspace = $WorkspaceName
+  logAnalyticsWorkspace = "<configured>"
   diagnosticSetting = $diagName
 } | ConvertTo-Json -Depth 4

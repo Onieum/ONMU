@@ -13,23 +13,23 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
-  DATABASE_URL = "onmu-dev-database-url"
-  POSTGRES_PASSWORD = "onmu-dev-postgres-password"
-  REDIS_URL = "onmu-dev-redis-url"
-  OBJECT_STORAGE_ENDPOINT = "onmu-dev-object-storage-endpoint"
-  OBJECT_STORAGE_BUCKET = "onmu-dev-object-storage-bucket"
-  MINIO_ROOT_USER = "onmu-dev-minio-root-user"
-  MINIO_ROOT_PASSWORD = "onmu-dev-minio-root-password"
-  CLOUDFLARE_API_TOKEN = "onmu-dev-cloudflare-api-token"
-  KAKAO_REST_API_KEY = "onmu-dev-kakao-rest-api-key"
-  NAVER_CLIENT_ID = "onmu-dev-naver-client-id"
-  NAVER_CLIENT_SECRET = "onmu-dev-naver-client-secret"
-  GOOGLE_MAPS_API_KEY = "onmu-dev-google-maps-api-key"
-  FCM_PROJECT_ID = "onmu-dev-fcm-project-id"
-  APNS_TEAM_ID = "onmu-dev-apns-team-id"
-  JIRA_EMAIL = "onmu-dev-jira-email"
-  JIRA_API_TOKEN = "onmu-dev-jira-api-token"
-  NOTION_TOKEN = "onmu-dev-notion-token"
+  DATABASE_URL = "dev-database-url"
+  POSTGRES_PASSWORD = "dev-postgres-password"
+  REDIS_URL = "dev-redis-url"
+  OBJECT_STORAGE_ENDPOINT = "dev-object-storage-endpoint"
+  OBJECT_STORAGE_BUCKET = "dev-object-storage-bucket"
+  MINIO_ROOT_USER = "dev-minio-root-user"
+  MINIO_ROOT_PASSWORD = "dev-minio-root-password"
+  CLOUDFLARE_API_TOKEN = "dev-cloudflare-api-token"
+  KAKAO_REST_API_KEY = "dev-kakao-rest-api-key"
+  NAVER_CLIENT_ID = "dev-naver-client-id"
+  NAVER_CLIENT_SECRET = "dev-naver-client-secret"
+  GOOGLE_MAPS_API_KEY = "dev-google-maps-api-key"
+  FCM_PROJECT_ID = "dev-fcm-project-id"
+  APNS_TEAM_ID = "dev-apns-team-id"
+  JIRA_EMAIL = "dev-jira-email"
+  JIRA_API_TOKEN = "dev-jira-api-token"
+  NOTION_TOKEN = "dev-notion-token"
 }
 
 $loaded = New-Object System.Collections.Generic.List[string]
@@ -89,8 +89,8 @@ if ($missing.Count -gt 0) {
 
 if (-not $Quiet) {
   if ($loaded.Count -gt 0) {
-    Write-Host "Loaded environment variables from Key Vault '$VaultName': $($loaded -join ', ')"
+    Write-Host "Loaded environment variables from the configured Key Vault: $($loaded -join ', ')"
   } else {
-    Write-Warning "No mapped secrets were loaded from Key Vault '$VaultName'."
+    Write-Warning "No mapped secrets were loaded from the configured Key Vault."
   }
 }

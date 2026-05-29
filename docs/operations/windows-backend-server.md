@@ -564,33 +564,24 @@ copy .env.example .env
 운영 규칙:
 
 - `.env`는 커밋하지 않습니다.
-- 공유 dev 서버와 Azure 배포의 실제 비밀값은 `onmu-dev-kv-27db5e` Azure Key Vault에 저장합니다.
+- 공유 dev 서버와 Azure 배포의 실제 비밀값은 팀 Azure 구독의 dev Key Vault에 저장합니다. 실제 vault 이름과 리소스 그룹은 공개 문서나 PR 본문에 남기지 않습니다.
 - 실제 외부 API 키는 팀 채팅이나 Notion에 쓰지 않습니다.
 - GitHub Actions에는 GitHub Secrets를 사용합니다.
 - Azure 배포에서는 Managed Identity와 Key Vault reference를 사용합니다.
 - Key Vault 접근은 RBAC 최소 권한으로 부여합니다. 운영 앱에는 `Key Vault Secrets User`, secret 관리 담당자에게만 `Key Vault Secrets Officer`를 부여합니다.
-- 감사 로그는 `law-onmu-dev` Log Analytics workspace로 보냅니다.
+- 감사 로그는 팀 Azure 구독의 Log Analytics workspace로 보냅니다.
 - 비밀번호와 API key는 주기적으로 로테이션하고, 로테이션한 값은 PR/문서/터미널 로그에 출력하지 않습니다.
 - 키가 화면에 노출되었으면 즉시 폐기하고 재발급합니다.
 
-현재 dev Key Vault:
+현재 dev Key Vault 식별자는 팀 내부 채널에서만 공유합니다. 공개 저장소에는 아래 환경변수 이름만 남깁니다.
 
-| 항목 | 값 |
+| 환경변수 | 용도 |
 | --- | --- |
-| Resource group | `3dt-final-team1` |
-| Key Vault | `onmu-dev-kv-27db5e` |
-| Location | `koreacentral` |
-| Log Analytics workspace | `law-onmu-dev` |
-| Diagnostic setting | `onmu-keyvault-audit` |
+| `AZURE_RESOURCE_GROUP` | Key Vault가 있는 리소스 그룹 |
+| `AZURE_KEY_VAULT_NAME` | dev Key Vault 이름 |
+| `AZURE_LOG_ANALYTICS_WORKSPACE` | Key Vault 감사 로그 workspace |
 
-현재 공유 dev 서버에 저장한 secret 이름:
-
-| Secret name | 용도 |
-| --- | --- |
-| `onmu-dev-postgres-password` | PostgreSQL `onmu` 계정 비밀번호 |
-| `onmu-dev-database-url` | API가 읽는 PostgreSQL 연결 문자열 |
-| `onmu-dev-minio-root-user` | MinIO root user |
-| `onmu-dev-minio-root-password` | MinIO root password |
+공유 dev 서버에 저장한 secret 이름도 공개 문서에는 구체값을 남기지 않습니다. 스크립트가 관리하는 범주는 PostgreSQL 연결 문자열/비밀번호, MinIO root credential, Cloudflare token, 외부 API key입니다.
 
 초기 설정 또는 재검증:
 
@@ -614,7 +605,7 @@ npm run azure:keyvault:set-secrets -- -FromEnv
 npm run db:rotate-password:keyvault
 ```
 
-이 명령은 PostgreSQL `onmu` 계정의 새 비밀번호를 생성하고 `onmu-dev-postgres-password`, `onmu-dev-database-url` secret에 저장합니다. 출력에는 비밀번호를 표시하지 않습니다.
+이 명령은 PostgreSQL `onmu` 계정의 새 비밀번호를 생성하고 Key Vault의 DB password/connection string secret에 저장합니다. 출력에는 비밀번호를 표시하지 않습니다.
 
 서버 시작 시 Key Vault에서 환경변수 주입:
 

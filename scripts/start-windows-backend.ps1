@@ -109,7 +109,7 @@ if ($IncludeSearch) {
 Write-Host ""
 if ($UseKeyVault) {
   Write-Host "Key Vault env loaded:"
-  Write-Host "  AZURE_KEY_VAULT_NAME=$KeyVaultName"
+  Write-Host "  AZURE_KEY_VAULT_NAME=<configured>"
   Write-Host "  DATABASE_URL=<loaded from Key Vault>"
   Write-Host "  POSTGRES_PASSWORD=<loaded from Key Vault>"
 } else {

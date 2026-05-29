@@ -56,14 +56,14 @@ $sql = "ALTER USER `"$User`" WITH PASSWORD '$escapedPassword';"
 $sql | docker exec -i $ContainerName psql -U $User -d $Database -v ON_ERROR_STOP=1 | Out-Null
 
 $databaseUrl = "postgresql://${User}:$([uri]::EscapeDataString($password))@localhost:$HostPort/$Database"
-Set-SecretFromPlainText -Name "onmu-dev-postgres-password" -Value $password
-Set-SecretFromPlainText -Name "onmu-dev-database-url" -Value $databaseUrl
+Set-SecretFromPlainText -Name "dev-postgres-password" -Value $password
+Set-SecretFromPlainText -Name "dev-database-url" -Value $databaseUrl
 
 docker exec -e PGPASSWORD=$password $ContainerName psql -h localhost -U $User -d $Database -tAc "select 1" | Out-Null
 
 [pscustomobject]@{
-  vault = $VaultName
+  vault = "<configured>"
   rotatedDatabaseUser = $User
-  storedSecrets = @("onmu-dev-postgres-password", "onmu-dev-database-url")
+  storedSecrets = @("dev-postgres-password", "dev-database-url")
   verified = "postgres password authentication succeeded"
 } | ConvertTo-Json -Depth 4
