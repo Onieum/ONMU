@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: onmu
       POSTGRES_USER: onmu
-      POSTGRES_PASSWORD: onmu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onmu-local-only}
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
@@ -38,8 +38,8 @@ services:
     container_name: onmu-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: onmu
-      MINIO_ROOT_PASSWORD: onmu-local-password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-onmu}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-onmu-local-only}
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -71,7 +71,7 @@ services:
     environment:
       discovery.type: single-node
       plugins.security.disabled: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: onmu-local-password
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-onmu-local-only}
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
       - "127.0.0.1:9200:9200"

@@ -125,7 +125,7 @@ npm install
 copy .env.example .env
 ```
 
-`.env`는 커밋하지 않습니다. Windows dev 서버의 기본 예시는 `POSTGRES_HOST_PORT=15432`, `DATABASE_URL=postgresql://onmu:onmu@localhost:15432/onmu`, `REDIS_URL=redis://localhost:6379/0`, `OBJECT_STORAGE_ENDPOINT=http://localhost:9000`입니다.
+`.env`는 커밋하지 않습니다. 개인 로컬 테스트는 `.env.example`의 임시값을 복사해 쓸 수 있지만, 공유 Windows dev 서버의 DB 비밀번호, 외부 API key, Cloudflare API token은 Azure Key Vault에서 읽습니다.
 
 Docker Compose 설정 확인:
 
@@ -141,7 +141,7 @@ npm run compose:config:windows
 
 현재 Compose 의존성 포트는 `127.0.0.1`에만 바인딩합니다. Windows 서버에서 직접 띄운 API는 `localhost:5432`, `localhost:6379`, `localhost:9000`으로 의존성에 접근할 수 있지만, 다른 팀원 PC에서는 이 포트에 직접 접근할 수 없어야 합니다.
 
-이 저장소의 Windows helper는 이 PC의 기존 PostgreSQL과 충돌하지 않도록 `POSTGRES_HOST_PORT=15432`를 설정해 Docker PostgreSQL을 `localhost:15432`에 바인딩합니다. 이때 API의 `DATABASE_URL`은 `postgresql://onmu:onmu@localhost:15432/onmu`를 사용합니다.
+이 저장소의 Windows helper는 이 PC의 기존 PostgreSQL과 충돌하지 않도록 `POSTGRES_HOST_PORT=15432`를 설정해 Docker PostgreSQL을 `localhost:15432`에 바인딩합니다. 공유 dev 서버에서는 `DATABASE_URL`과 `POSTGRES_PASSWORD`를 Key Vault에서 로드합니다.
 
 기본 의존성 실행:
 
@@ -155,6 +155,13 @@ Windows helper를 쓰는 경우:
 ```powershell
 npm run host:windows
 npm run compose:ps:windows
+```
+
+공유 Windows dev 서버에서 Key Vault 값을 로드해 의존성을 시작하는 경우:
+
+```powershell
+npm run host:windows:keyvault
+npm run api:dev:keyvault
 ```
 
 이벤트나 검색 기능을 함께 테스트할 때만 선택적으로 실행합니다. 현재 ONMU의 기본 MVP 흐름은 PostgreSQL/PostGIS, Redis, MinIO만으로 충분합니다.
@@ -485,6 +492,8 @@ DB 클라이언트 설정:
 - DDL 권한은 기본적으로 제한하고, migration 담당자 또는 CI 계정만 부여합니다.
 - `0.0.0.0/0` 허용, 공유 비밀번호, 장기 세션, MFA 미적용 정책은 사용하지 않습니다.
 - Access 로그와 DB 로그를 함께 봐서 사용자 접속과 실제 DB 작업을 대조할 수 있게 합니다.
+- `dev-api.onmu.cloud`, `db-dev.onmu.cloud` 같은 hostname은 비밀값으로 간주하지 않습니다. 대신 Cloudflare Access, RBAC, 방화벽, 로그로 접근을 통제합니다.
+- DB 비밀번호, Cloudflare API token, Naver/Kakao/Google API key, JWT signing secret은 Azure Key Vault에 저장합니다.
 
 참고:
 
@@ -555,10 +564,77 @@ copy .env.example .env
 운영 규칙:
 
 - `.env`는 커밋하지 않습니다.
+- 공유 dev 서버와 Azure 배포의 실제 비밀값은 `onmu-dev-kv-27db5e` Azure Key Vault에 저장합니다.
 - 실제 외부 API 키는 팀 채팅이나 Notion에 쓰지 않습니다.
 - GitHub Actions에는 GitHub Secrets를 사용합니다.
-- Azure 배포에서는 Azure Key Vault를 사용합니다.
+- Azure 배포에서는 Managed Identity와 Key Vault reference를 사용합니다.
+- Key Vault 접근은 RBAC 최소 권한으로 부여합니다. 운영 앱에는 `Key Vault Secrets User`, secret 관리 담당자에게만 `Key Vault Secrets Officer`를 부여합니다.
+- 감사 로그는 `law-onmu-dev` Log Analytics workspace로 보냅니다.
+- 비밀번호와 API key는 주기적으로 로테이션하고, 로테이션한 값은 PR/문서/터미널 로그에 출력하지 않습니다.
 - 키가 화면에 노출되었으면 즉시 폐기하고 재발급합니다.
+
+현재 dev Key Vault:
+
+| 항목 | 값 |
+| --- | --- |
+| Resource group | `3dt-final-team1` |
+| Key Vault | `onmu-dev-kv-27db5e` |
+| Location | `koreacentral` |
+| Log Analytics workspace | `law-onmu-dev` |
+| Diagnostic setting | `onmu-keyvault-audit` |
+
+현재 공유 dev 서버에 저장한 secret 이름:
+
+| Secret name | 용도 |
+| --- | --- |
+| `onmu-dev-postgres-password` | PostgreSQL `onmu` 계정 비밀번호 |
+| `onmu-dev-database-url` | API가 읽는 PostgreSQL 연결 문자열 |
+| `onmu-dev-minio-root-user` | MinIO root user |
+| `onmu-dev-minio-root-password` | MinIO root password |
+
+초기 설정 또는 재검증:
+
+```powershell
+npm run azure:keyvault:setup
+```
+
+비밀값 저장은 값을 명령줄 인자로 넘기지 않고 프롬프트 또는 현재 프로세스 환경변수에서만 가져옵니다.
+
+```powershell
+# 프롬프트로 입력. 빈 값은 건너뜁니다.
+npm run azure:keyvault:set-secrets
+
+# 이미 현재 PowerShell 환경변수에 값이 있을 때만 저장.
+npm run azure:keyvault:set-secrets -- -FromEnv
+```
+
+개발 DB 비밀번호 로테이션:
+
+```powershell
+npm run db:rotate-password:keyvault
+```
+
+이 명령은 PostgreSQL `onmu` 계정의 새 비밀번호를 생성하고 `onmu-dev-postgres-password`, `onmu-dev-database-url` secret에 저장합니다. 출력에는 비밀번호를 표시하지 않습니다.
+
+서버 시작 시 Key Vault에서 환경변수 주입:
+
+```powershell
+npm run host:windows:keyvault
+npm run api:dev:keyvault
+```
+
+팀원 로컬 개발 기준:
+
+- 팀원 개인 PC는 Key Vault 직접 접근 권한을 기본으로 받지 않습니다.
+- 필요한 경우 기능별 임시 API key 또는 개인별 DB 계정을 짧은 기간으로 발급합니다.
+- DB 직접 점검은 `db-dev.onmu.cloud` Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
+- 로컬 `.env`는 각자 개발용 임시값만 두고, 공유 dev/운영 secret을 복사하지 않습니다.
+
+참고:
+
+- Azure Key Vault secret CLI quickstart: <https://learn.microsoft.com/en-us/azure/key-vault/secrets/quick-create-cli>
+- Azure Key Vault multiline/file secret: <https://learn.microsoft.com/en-us/azure/key-vault/secrets/multiline-secrets>
+- Azure App Service Key Vault references: <https://learn.microsoft.com/en-us/azure/app-service/app-service-key-vault-references>
 
 ## 12. 장애 대응 체크리스트
 

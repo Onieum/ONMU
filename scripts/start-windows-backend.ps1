@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
   [int]$ApiPort = 8080,
+  [string]$KeyVaultName = $env:AZURE_KEY_VAULT_NAME,
+  [switch]$UseKeyVault,
   [switch]$AllowLan,
   [switch]$IncludeEvents,
   [switch]$IncludeSearch
@@ -13,6 +15,11 @@ $ComposeFile = Join-Path $RepoRoot "infra\compose\docker-compose.yml"
 $env:POSTGRES_HOST_PORT = "15432"
 
 Set-Location $RepoRoot
+
+if ($UseKeyVault) {
+  $loader = Join-Path $PSScriptRoot "load-key-vault-env.ps1"
+  . $loader -VaultName $KeyVaultName -EnvName @("DATABASE_URL", "POSTGRES_PASSWORD", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD") -RequiredEnv @("DATABASE_URL", "POSTGRES_PASSWORD")
+}
 
 Write-Host "Starting ONMU local dependencies..."
 $composeArgs = @("-f", $ComposeFile)
@@ -65,7 +72,11 @@ Write-Host "API runtime target:"
 if ($AllowLan) {
   Write-Host "  HOST=0.0.0.0"
   Write-Host "  PORT=$ApiPort"
-  Write-Host "  Run: `$env:API_HOST='0.0.0.0'; `$env:HOST='0.0.0.0'; npm run api:dev"
+  if ($UseKeyVault) {
+    Write-Host "  Run: `$env:API_HOST='0.0.0.0'; `$env:HOST='0.0.0.0'; npm run api:dev:keyvault"
+  } else {
+    Write-Host "  Run: `$env:API_HOST='0.0.0.0'; `$env:HOST='0.0.0.0'; npm run api:dev"
+  }
   Write-Host ""
   Write-Host "LAN URLs:"
   foreach ($ip in $lanIps) {
@@ -74,7 +85,11 @@ if ($AllowLan) {
 } else {
   Write-Host "  HOST=127.0.0.1"
   Write-Host "  PORT=$ApiPort"
-  Write-Host "  Run: npm run api:dev"
+  if ($UseKeyVault) {
+    Write-Host "  Run: npm run api:dev:keyvault"
+  } else {
+    Write-Host "  Run: npm run api:dev"
+  }
   Write-Host "  Use scripts\start-cloudflare-tunnel.ps1 after the API is running."
 }
 
@@ -92,8 +107,16 @@ if ($IncludeSearch) {
 }
 
 Write-Host ""
-Write-Host "Recommended local env:"
+if ($UseKeyVault) {
+  Write-Host "Key Vault env loaded:"
+  Write-Host "  AZURE_KEY_VAULT_NAME=$KeyVaultName"
+  Write-Host "  DATABASE_URL=<loaded from Key Vault>"
+  Write-Host "  POSTGRES_PASSWORD=<loaded from Key Vault>"
+} else {
+  Write-Host "Recommended local-only env:"
+  Write-Host "  Use throwaway local values in .env for single-developer tests."
+  Write-Host "  Use npm run host:windows:keyvault for the shared Windows dev server."
+}
 Write-Host "  ONMU_ENV=local"
-Write-Host "  DATABASE_URL=postgresql://onmu:onmu@localhost:15432/onmu"
 Write-Host "  REDIS_URL=redis://localhost:6379/0"
 Write-Host "  OBJECT_STORAGE_ENDPOINT=http://localhost:9000"
