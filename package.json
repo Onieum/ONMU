@@ -20,6 +20,8 @@
     "host:windows:search": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -IncludeSearch",
     "host:windows:full": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -IncludeEvents -IncludeSearch",
     "tunnel:cloudflare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-tunnel.ps1",
+    "tunnel:cloudflare:access-tcp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-tunnel.ps1 -AccessTcp",
+    "db:access:cloudflare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-db-access.ps1",
     "tunnel:cloudflare:quick": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-cloudflare-tunnel.ps1 -Quick",
     "tunnel:cloudflare:info": "cloudflared --config infra/cloudflare/cloudflared-local.yml tunnel info onmu-dev-api",
     "jira:bootstrap": "node scripts/bootstrap-jira.mjs",

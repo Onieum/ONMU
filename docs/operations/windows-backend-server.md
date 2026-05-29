@@ -11,6 +11,7 @@
 - 외부 API 키, DB, Redis, Object Storage 같은 민감한 리소스를 직접 인터넷에 열지 않습니다.
 - 초기에는 Windows 노트북을 임시 dev 서버로 쓰고, 배포 준비가 되면 Azure Container Apps 또는 AKS staging으로 옮깁니다.
 - `onmu.cloud` 루트 도메인은 제품/비즈니스 소개 페이지용으로 남기고, 로컬 백엔드는 `dev-api.onmu.cloud` 같은 개발용 서브도메인으로만 노출합니다.
+- 팀원 DB 점검이 필요할 때는 DB 포트를 직접 열지 않고 `db-dev.onmu.cloud` Cloudflare Access TCP 앱을 통해 인증된 사용자만 접속하게 합니다.
 
 권장 구조:
 
@@ -63,6 +64,7 @@ PowerShell 기준으로 Git, GitHub CLI, Docker Desktop, WSL2, Node.js LTS, Azur
 API가 LAN 테스트에 필요할 때만 0.0.0.0:8080으로 열고, Windows Defender Firewall에서 8080만 인바운드 허용해줘.
 PostgreSQL 5432, Redis 6379, MinIO 9000/9001은 외부 네트워크에 열지 말고 로컬 또는 Docker network 내부에서만 쓰게 해줘.
 외부 네트워크 테스트는 dev-api.onmu.cloud Cloudflare Tunnel을 우선 사용하고, onmu.cloud 루트는 소개 페이지용으로 남겨줘.
+DB 직접 점검이 필요하면 db-dev.onmu.cloud Cloudflare Access TCP를 쓰고, 팀 계정 MFA와 개인별 DB 계정을 먼저 확인해줘.
 마지막에 같은 LAN의 다른 PC에서 접속할 수 있는 주소와 점검 명령을 정리해줘.
 ```
 
@@ -327,6 +329,7 @@ ONMU의 현재 Windows dev 서버는 Cloudflare를 기본 선택지로 둡니다
 | `onmu.cloud` | 제품/비즈니스 소개 페이지. Cloudflare Pages, Vercel, Azure Web App 중 나중에 선택합니다. |
 | `www.onmu.cloud` | `onmu.cloud`와 같은 소개 페이지 또는 redirect. |
 | `dev-api.onmu.cloud` | Windows 로컬 백엔드 dev tunnel. |
+| `db-dev.onmu.cloud` | Cloudflare Access TCP로 보호되는 개발 DB 점검용 hostname. |
 | `api.onmu.cloud` | 나중의 staging/prod API용으로 예약합니다. |
 
 권장 순서:
@@ -381,6 +384,19 @@ npm run tunnel:cloudflare:info
 
 Cloudflare Tunnel은 `dev-api.onmu.cloud`에서 API/gateway만 프록시합니다. PostgreSQL, Redis, MinIO, Redpanda, OpenSearch 관리 포트는 Cloudflare나 LAN에 직접 열지 않습니다. Realtime Gateway가 WebSocket을 쓰게 되면 같은 API 경계 아래로 붙이거나, 필요할 때만 `dev-realtime.onmu.cloud` 같은 별도 개발용 호스트를 추가합니다.
 
+기본 실행은 API 전용 config를 사용합니다.
+
+```powershell
+npm run tunnel:cloudflare
+```
+
+DB 점검용 Access TCP까지 함께 켤 때만 별도 config를 사용합니다. 이 모드는 Cloudflare Zero Trust의 Access application과 팀 정책이 active인 것을 확인한 뒤 실행합니다. 스크립트도 실수 실행을 막기 위해 `CLOUDFLARE_ACCESS_TCP_POLICY_ACTIVE=true`가 없으면 중단됩니다.
+
+```powershell
+$env:CLOUDFLARE_ACCESS_TCP_POLICY_ACTIVE="true"
+npm run tunnel:cloudflare:access-tcp
+```
+
 2026-05-27 초기 세팅 검증:
 
 - `onmu-dev-api` named tunnel 생성
@@ -397,6 +413,84 @@ npm run tunnel:cloudflare:quick
 ```
 
 `cloudflared tunnel route dns`에서 `Authentication error`가 나면 현재 `~/.cloudflared/cert.pem`이 새 zone 권한을 갖고 있지 않은 상태입니다. 기존 인증서는 백업해 두고 `cloudflared login`을 다시 실행한 뒤 `onmu.cloud`를 선택해서 승인합니다.
+
+### Cloudflare Access TCP로 개발 DB 접속
+
+DB를 클라우드처럼 팀원이 점검해야 할 때도 PostgreSQL 포트를 인터넷에 직접 열지 않습니다. ONMU 개발 서버의 권장 구조는 다음과 같습니다.
+
+```text
+Team member PC
+  -> cloudflared access tcp
+  -> localhost:15433
+  -> Cloudflare Access policy + MFA
+  -> db-dev.onmu.cloud
+  -> onmu-dev-api tunnel
+  -> Windows server localhost:15432
+  -> PostgreSQL/PostGIS
+```
+
+서버 쪽 Cloudflare ingress는 API와 DB를 분리합니다.
+
+| Hostname | Origin | 실행 모드 |
+| --- | --- | --- |
+| `dev-api.onmu.cloud` | `http://localhost:8080` | 기본 API tunnel |
+| `db-dev.onmu.cloud` | `tcp://localhost:15432` | Access TCP policy 확인 후에만 실행 |
+
+Cloudflare Zero Trust에서 먼저 설정해야 하는 항목:
+
+1. Access application을 추가하고 hostname을 `db-dev.onmu.cloud`로 지정합니다.
+2. 허용 정책은 팀 이메일 또는 팀 IdP 그룹만 포함합니다.
+3. MFA를 필수로 적용하고 세션 만료 시간을 짧게 둡니다.
+4. Access authentication logs에서 누가 언제 접속했는지 확인할 수 있게 합니다.
+5. DNS route는 `db-dev.onmu.cloud`가 `onmu-dev-api` tunnel을 보도록 만듭니다.
+
+위 정책이 active가 되기 전에는 `db-dev.onmu.cloud` DNS route를 만들거나 `npm run tunnel:cloudflare:access-tcp`를 공유하지 않습니다. 정책 없이 TCP ingress를 먼저 켜면 편의성보다 노출 위험이 커집니다.
+
+정책 활성화 후 Windows 서버에서 실행:
+
+```powershell
+cloudflared tunnel route dns onmu-dev-api db-dev.onmu.cloud
+$env:CLOUDFLARE_ACCESS_TCP_POLICY_ACTIVE="true"
+npm run tunnel:cloudflare:access-tcp
+```
+
+팀원 PC에서 실행:
+
+```powershell
+winget install Cloudflare.cloudflared
+npm run db:access:cloudflare
+```
+
+저장소를 받지 않은 팀원은 같은 명령을 직접 실행할 수 있습니다.
+
+```powershell
+cloudflared access tcp --hostname db-dev.onmu.cloud --url localhost:15433
+```
+
+DB 클라이언트 설정:
+
+| 항목 | 값 |
+| --- | --- |
+| Host | `localhost` |
+| Port | `15433` |
+| Database | `onmu` |
+| User | 개인별 개발 DB 계정 |
+| SSL | 로컬 cloudflared listener에는 불필요. 필요 시 DB 정책에 맞춰 조정 |
+
+보안 기준:
+
+- PostgreSQL host port `15432`는 Windows 서버의 `127.0.0.1`에만 둡니다.
+- Redis `6379`, MinIO `9000/9001`은 Access TCP로도 바로 열지 않습니다. 필요하면 별도 이슈에서 사용자, 권한, 감사로그를 먼저 설계합니다.
+- 공용 `onmu` 계정은 smoke test와 초기 개발용으로만 쓰고, 팀원에게는 개인별 DB 계정과 최소 권한을 부여합니다.
+- DDL 권한은 기본적으로 제한하고, migration 담당자 또는 CI 계정만 부여합니다.
+- `0.0.0.0/0` 허용, 공유 비밀번호, 장기 세션, MFA 미적용 정책은 사용하지 않습니다.
+- Access 로그와 DB 로그를 함께 봐서 사용자 접속과 실제 DB 작업을 대조할 수 있게 합니다.
+
+참고:
+
+- Cloudflare Arbitrary TCP with Access: <https://developers.cloudflare.com/cloudflare-one/access-controls/applications/non-http/cloudflared-authentication/arbitrary-tcp/>
+- Cloudflare Tunnel ingress rules: <https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/local-management/ingress/>
+- Cloudflare self-hosted Access applications: <https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/>
 
 ## 9. Docker Compose 운영
 
