@@ -13,23 +13,23 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
-  "onmu-dev-database-url" = "DATABASE_URL"
-  "onmu-dev-postgres-password" = "POSTGRES_PASSWORD"
-  "onmu-dev-redis-url" = "REDIS_URL"
-  "onmu-dev-object-storage-endpoint" = "OBJECT_STORAGE_ENDPOINT"
-  "onmu-dev-object-storage-bucket" = "OBJECT_STORAGE_BUCKET"
-  "onmu-dev-minio-root-user" = "MINIO_ROOT_USER"
-  "onmu-dev-minio-root-password" = "MINIO_ROOT_PASSWORD"
-  "onmu-dev-cloudflare-api-token" = "CLOUDFLARE_API_TOKEN"
-  "onmu-dev-kakao-rest-api-key" = "KAKAO_REST_API_KEY"
-  "onmu-dev-naver-client-id" = "NAVER_CLIENT_ID"
-  "onmu-dev-naver-client-secret" = "NAVER_CLIENT_SECRET"
-  "onmu-dev-google-maps-api-key" = "GOOGLE_MAPS_API_KEY"
-  "onmu-dev-fcm-project-id" = "FCM_PROJECT_ID"
-  "onmu-dev-apns-team-id" = "APNS_TEAM_ID"
-  "onmu-dev-jira-email" = "JIRA_EMAIL"
-  "onmu-dev-jira-api-token" = "JIRA_API_TOKEN"
-  "onmu-dev-notion-token" = "NOTION_TOKEN"
+  "dev-database-url" = "DATABASE_URL"
+  "dev-postgres-password" = "POSTGRES_PASSWORD"
+  "dev-redis-url" = "REDIS_URL"
+  "dev-object-storage-endpoint" = "OBJECT_STORAGE_ENDPOINT"
+  "dev-object-storage-bucket" = "OBJECT_STORAGE_BUCKET"
+  "dev-minio-root-user" = "MINIO_ROOT_USER"
+  "dev-minio-root-password" = "MINIO_ROOT_PASSWORD"
+  "dev-cloudflare-api-token" = "CLOUDFLARE_API_TOKEN"
+  "dev-kakao-rest-api-key" = "KAKAO_REST_API_KEY"
+  "dev-naver-client-id" = "NAVER_CLIENT_ID"
+  "dev-naver-client-secret" = "NAVER_CLIENT_SECRET"
+  "dev-google-maps-api-key" = "GOOGLE_MAPS_API_KEY"
+  "dev-fcm-project-id" = "FCM_PROJECT_ID"
+  "dev-apns-team-id" = "APNS_TEAM_ID"
+  "dev-jira-email" = "JIRA_EMAIL"
+  "dev-jira-api-token" = "JIRA_API_TOKEN"
+  "dev-notion-token" = "NOTION_TOKEN"
 }
 
 if (-not $SecretName -or $SecretName.Count -eq 0) {
@@ -115,7 +115,7 @@ foreach ($name in $SecretName) {
 }
 
 [pscustomobject]@{
-  vault = $VaultName
+  vault = "<configured>"
   stored = @($stored)
   skipped = @($skipped)
   expiresUtc = $expires
