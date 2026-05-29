@@ -26,9 +26,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Cupertino Icons font를 앱에 추가합니다.
-  # iOS style icon이 필요할 때 CupertinoIcons class와 함께 사용합니다.
   cupertino_icons: ^1.0.8
+
+  # 라우팅: StatefulShellRoute 기반 하단 탭 구조
+  go_router: ^14.6.1
+
+  # 상태 관리: 프로토타입 단계에서는 최소 사용, 비즈니스 로직 단계에서 확장
+  flutter_riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:
