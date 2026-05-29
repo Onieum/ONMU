@@ -182,6 +182,33 @@ PR 본문은 저장소의 `.github/pull_request_template.md`를 사용합니다.
 
 GitHub 보호 규칙은 위 기준 중 최소선을 강제합니다. 릴리스 전 판단, 디자인 승인, Jira 상태 전환은 PR 설명과 리뷰에서 별도로 확인합니다.
 
+### Windows에서 한글 PR/Issue 본문 작성
+
+Windows PowerShell에서 `gh pr create --body-file -`처럼 stdin pipe로 한글 본문을 넘기면 GitHub에 `??`로 저장될 수 있습니다. 한글이 포함된 Issue/PR 본문은 UTF-8 no BOM 파일로 만든 뒤 `--body-file <path>`로 전달합니다.
+
+권장 방식:
+
+```powershell
+$bodyPath = Join-Path $env:TEMP "onmu-pr-body.md"
+$body = @'
+## 요약
+- 한글 본문을 여기에 작성합니다.
+'@
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($bodyPath, $body, $utf8NoBom)
+gh pr create --base dev --head <branch> --title "<title>" --body-file $bodyPath
+Remove-Item -LiteralPath $bodyPath -Force
+```
+
+생성 또는 수정 후에는 반드시 본문을 다시 확인합니다.
+
+```powershell
+gh pr view <number> --json body
+gh issue view <number> --json body
+```
+
+본문에 `??`, `�`, 맨 앞 BOM 문자가 보이면 즉시 UTF-8 no BOM 파일 방식으로 `gh pr edit --body-file <path>` 또는 `gh issue edit --body-file <path>`를 실행합니다.
+
 ## GitHub 라벨과 마일스톤
 
 라벨은 리뷰 범위를 빠르게 알려주기 위한 보조 정보입니다.

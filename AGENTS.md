@@ -20,6 +20,7 @@
 - `dev`와 `main`에 직접 push하지 않는다.
 - 브랜치는 Jira 이슈를 기준으로 만든다.
 - 커밋과 PR 규칙은 `docs/development/git-workflow.md`를 따른다.
+- Windows PowerShell에서 한글 PR/Issue 본문을 만들 때는 파이프나 stdin 대신 UTF-8 no BOM 파일을 `gh --body-file`로 넘기고, 생성 후 `gh pr view --json body` 또는 `gh issue view --json body`로 깨짐 여부를 확인한다.
 - 자동 생성 코드도 사람이 리뷰 가능한 크기로 나눈다.
 
 ## Flutter UI 규칙

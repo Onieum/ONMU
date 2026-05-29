@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
   [int]$ApiPort = 8080,
-  [switch]$AllowLan
+  [switch]$AllowLan,
+  [switch]$IncludeEvents,
+  [switch]$IncludeSearch
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,11 +15,24 @@ $env:POSTGRES_HOST_PORT = "15432"
 Set-Location $RepoRoot
 
 Write-Host "Starting ONMU local dependencies..."
-docker compose -f $ComposeFile up -d postgres redis minio
+$composeArgs = @("-f", $ComposeFile)
+$services = @("postgres", "redis", "minio")
+
+if ($IncludeEvents) {
+  $composeArgs += @("--profile", "events")
+  $services += "redpanda"
+}
+
+if ($IncludeSearch) {
+  $composeArgs += @("--profile", "search")
+  $services += "opensearch"
+}
+
+docker compose @composeArgs up -d @services
 
 Write-Host ""
 Write-Host "Current compose status:"
-docker compose -f $ComposeFile ps
+docker compose @composeArgs ps
 
 if ($AllowLan) {
   $ruleName = "ONMU API $ApiPort"
@@ -69,3 +84,16 @@ Write-Host "  PostgreSQL  localhost:15432"
 Write-Host "  Redis       localhost:6379"
 Write-Host "  MinIO API   http://localhost:9000"
 Write-Host "  MinIO UI    http://localhost:9001"
+if ($IncludeEvents) {
+  Write-Host "  Redpanda    localhost:9092  (Event Hubs/Kafka compatibility tests only)"
+}
+if ($IncludeSearch) {
+  Write-Host "  OpenSearch  http://localhost:9200  (search/RAG experiments only)"
+}
+
+Write-Host ""
+Write-Host "Recommended local env:"
+Write-Host "  ONMU_ENV=local"
+Write-Host "  DATABASE_URL=postgresql://onmu:onmu@localhost:15432/onmu"
+Write-Host "  REDIS_URL=redis://localhost:6379/0"
+Write-Host "  OBJECT_STORAGE_ENDPOINT=http://localhost:9000"

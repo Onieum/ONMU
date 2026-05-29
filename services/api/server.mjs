@@ -52,6 +52,24 @@ function postgresTarget() {
   }
 }
 
+function redisTarget() {
+  const fallback = { hostName: "localhost", portNumber: 6379 };
+
+  if (!process.env.REDIS_URL) {
+    return fallback;
+  }
+
+  try {
+    const url = new URL(process.env.REDIS_URL);
+    return {
+      hostName: url.hostname || fallback.hostName,
+      portNumber: Number(url.port || fallback.portNumber),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 async function minioCheck() {
   const endpoint = process.env.OBJECT_STORAGE_ENDPOINT || "http://localhost:9000";
   const controller = new AbortController();
@@ -75,10 +93,11 @@ async function minioCheck() {
 
 async function readiness() {
   const postgres = postgresTarget();
+  const redis = redisTarget();
 
   const checks = await Promise.all([
     tcpCheck("postgres", postgres.hostName, postgres.portNumber),
-    tcpCheck("redis", "localhost", 6379),
+    tcpCheck("redis", redis.hostName, redis.portNumber),
     minioCheck(),
   ]);
 

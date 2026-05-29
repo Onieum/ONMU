@@ -9,20 +9,38 @@
 - 팀원이 각자 다른 PC나 모바일 기기에서 같은 백엔드에 접속할 수 있게 합니다.
 - 로컬 개발 환경과 나중의 Azure/AKS 환경이 크게 다르지 않게 Docker 기반으로 맞춥니다.
 - 외부 API 키, DB, Redis, Object Storage 같은 민감한 리소스를 직접 인터넷에 열지 않습니다.
-- 초기에는 Windows 노트북을 임시 dev 서버로 쓰고, 배포 준비가 되면 AKS staging으로 옮깁니다.
+- 초기에는 Windows 노트북을 임시 dev 서버로 쓰고, 배포 준비가 되면 Azure Container Apps 또는 AKS staging으로 옮깁니다.
+- `onmu.cloud` 루트 도메인은 제품/비즈니스 소개 페이지용으로 남기고, 로컬 백엔드는 `dev-api.onmu.cloud` 같은 개발용 서브도메인으로만 노출합니다.
 
 권장 구조:
 
 ```text
 Team devices
-  -> http://<windows-lan-ip>:8080
-  -> ONMU API or gateway
+  -> https://dev-api.onmu.cloud
+     또는 http://<windows-lan-ip>:8080
+  -> ONMU API / local gateway
   -> Docker Desktop / WSL2
      -> PostgreSQL + PostGIS
      -> Redis
      -> MinIO
-     -> optional Redpanda / OpenSearch
+     -> optional Redpanda
+     -> optional OpenSearch
 ```
+
+현재 아키텍처 반영 기준:
+
+| 영역 | Windows dev 서버 기준 |
+| --- | --- |
+| Main API | 현재는 `services/api/server.mjs` smoke API가 `/healthz`, `/readyz`를 제공하고, 이후 Spring Boot Main API도 같은 포트와 헬스 체크 계약을 유지합니다. |
+| Realtime Gateway | 1차 구현 전까지 별도 실행하지 않습니다. 구현 후에는 API 뒤에 두거나 개발용 포트를 별도로 정합니다. |
+| AI/Data Worker | 1차 Windows helper의 기본 실행 대상이 아닙니다. 추천/기록 worker가 생기면 Docker image 또는 별도 프로세스로 추가합니다. |
+| PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
+| Redis | Naver Place API 캐시, 실시간 presence, WebSocket fan-out, rate limit 보조에만 사용합니다. 원본 저장소로 쓰지 않습니다. |
+| MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지 개발 테스트에 사용합니다. |
+| Redpanda | Azure Service Bus/Event Hubs 또는 Kafka 호환 이벤트 흐름을 실험할 때만 켭니다. 기본 실행 대상이 아닙니다. |
+| OpenSearch | 초기 검색은 PostgreSQL Search를 우선합니다. 검색/RAG 실험이 필요할 때만 켭니다. |
+| Airflow | MVP Windows dev 서버 기본 구성에는 포함하지 않습니다. 추천 평가, 통계 리포트, 데이터셋 생성 같은 배치 파이프라인이 커질 때 별도 도입을 검토합니다. |
+| Cloudflare Tunnel | 외부 팀 테스트를 위한 개발용 API 터널입니다. 운영 배포 경계나 제품 소개 페이지 호스팅과 분리합니다. |
 
 나중에 외부 네트워크 접속이 필요해지면 다음 중 하나를 사용합니다.
 
@@ -39,9 +57,12 @@ Windows 쪽 Codex에게는 아래 순서대로 요청하면 됩니다.
 ```text
 ONMU 저장소를 Windows 개발 서버로 세팅해줘.
 PowerShell 기준으로 Git, GitHub CLI, Docker Desktop, WSL2, Node.js LTS, Azure CLI를 확인하고 없으면 설치해줘.
-저장소를 clone한 뒤 npm install, docker compose config, docker compose up을 실행해줘.
-API가 생기면 0.0.0.0:8080으로 열고, Windows Defender Firewall에서 8080만 인바운드 허용해줘.
+저장소를 clone한 뒤 npm install, npm run compose:config:windows, npm run host:windows를 실행해줘.
+기본 구성은 PostgreSQL/PostGIS, Redis, MinIO만 올려줘.
+이벤트/검색 실험이 필요할 때만 -IncludeEvents, -IncludeSearch 옵션으로 Redpanda/OpenSearch를 켜줘.
+API가 LAN 테스트에 필요할 때만 0.0.0.0:8080으로 열고, Windows Defender Firewall에서 8080만 인바운드 허용해줘.
 PostgreSQL 5432, Redis 6379, MinIO 9000/9001은 외부 네트워크에 열지 말고 로컬 또는 Docker network 내부에서만 쓰게 해줘.
+외부 네트워크 테스트는 dev-api.onmu.cloud Cloudflare Tunnel을 우선 사용하고, onmu.cloud 루트는 소개 페이지용으로 남겨줘.
 마지막에 같은 LAN의 다른 PC에서 접속할 수 있는 주소와 점검 명령을 정리해줘.
 ```
 
@@ -99,7 +120,10 @@ cd C:\dev
 gh repo clone Onieum/ONMU
 cd ONMU
 npm install
+copy .env.example .env
 ```
+
+`.env`는 커밋하지 않습니다. Windows dev 서버의 기본 예시는 `POSTGRES_HOST_PORT=15432`, `DATABASE_URL=postgresql://onmu:onmu@localhost:15432/onmu`, `REDIS_URL=redis://localhost:6379/0`, `OBJECT_STORAGE_ENDPOINT=http://localhost:9000`입니다.
 
 Docker Compose 설정 확인:
 
@@ -131,15 +155,26 @@ npm run host:windows
 npm run compose:ps:windows
 ```
 
-이벤트나 검색 기능을 함께 테스트할 때만 선택적으로 실행합니다.
+이벤트나 검색 기능을 함께 테스트할 때만 선택적으로 실행합니다. 현재 ONMU의 기본 MVP 흐름은 PostgreSQL/PostGIS, Redis, MinIO만으로 충분합니다.
 
 ```powershell
-docker compose -f infra/compose/docker-compose.yml --profile events --profile search up -d
+npm run host:windows:events
+npm run host:windows:search
+npm run host:windows:full
+```
+
+Windows helper를 쓰지 않을 때는 Compose profile을 직접 지정합니다.
+
+```powershell
+docker compose -f infra/compose/docker-compose.yml --profile events up -d postgres redis minio redpanda
+docker compose -f infra/compose/docker-compose.yml --profile search up -d postgres redis minio opensearch
 ```
 
 ## 4. API 서버 바인딩 규칙
 
 팀원이 다른 장치에서 접속하려면 API 서버가 `localhost`가 아니라 `0.0.0.0`에 바인딩되어야 합니다.
+
+단, 기본값은 안전하게 `127.0.0.1`입니다. 같은 LAN에서 직접 테스트할 때만 `0.0.0.0`과 Windows 방화벽 규칙을 사용하고, 외부 네트워크 테스트는 Cloudflare Tunnel을 우선 사용합니다.
 
 권장 환경 변수:
 
@@ -160,6 +195,15 @@ npm run dev --workspace services/api
 ```powershell
 npm run api:dev
 ```
+
+이 smoke API는 현재 Windows dev 서버 연결 검증용입니다. 이후 Spring Boot Main API로 바뀌더라도 다음 계약은 유지합니다.
+
+| 계약 | 이유 |
+| --- | --- |
+| `GET /healthz` | 프로세스가 살아 있고 HTTP 요청을 받을 수 있는지 확인 |
+| `GET /readyz` | PostgreSQL, Redis, MinIO 등 로컬 의존성 연결 확인 |
+| 기본 포트 `8080` | Cloudflare Tunnel, LAN 테스트, 모바일 앱 dev base URL을 고정하기 위함 |
+| DB/Redis/MinIO 로컬 바인딩 | 데이터 계층을 인터넷과 LAN에 직접 노출하지 않기 위함 |
 
 LAN으로 직접 열어야 할 때만 API host를 바꿉니다.
 
@@ -335,6 +379,8 @@ curl https://dev-api.onmu.cloud/readyz
 npm run tunnel:cloudflare:info
 ```
 
+Cloudflare Tunnel은 `dev-api.onmu.cloud`에서 API/gateway만 프록시합니다. PostgreSQL, Redis, MinIO, Redpanda, OpenSearch 관리 포트는 Cloudflare나 LAN에 직접 열지 않습니다. Realtime Gateway가 WebSocket을 쓰게 되면 같은 API 경계 아래로 붙이거나, 필요할 때만 `dev-realtime.onmu.cloud` 같은 별도 개발용 호스트를 추가합니다.
+
 2026-05-27 초기 세팅 검증:
 
 - `onmu-dev-api` named tunnel 생성
@@ -454,12 +500,13 @@ curl http://<windows-lan-ip>:8080/healthz
 
 Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azure staging으로 옮깁니다.
 
-- API와 realtime gateway가 Docker image로 빌드됩니다.
+- API와 realtime gateway 또는 worker가 Docker image로 빌드됩니다.
 - `/healthz`, `/readyz`가 있습니다.
 - DB migration이 자동화되어 있습니다.
 - GitHub Actions에서 image build와 test가 통과합니다.
-- AKS 또는 Azure Container Apps 중 배포 대상이 정해졌습니다.
+- Azure Container Apps 또는 AKS 중 배포 대상이 정해졌습니다.
 - 외부 API 키가 Azure Key Vault에 들어갔습니다.
 - 로그와 에러 추적이 Application Insights 또는 OpenTelemetry로 연결됩니다.
+- `dev-api.onmu.cloud`가 로컬 터널인지 Azure staging인지 팀원이 혼동하지 않게 DNS와 문서를 갱신합니다.
 
-Windows 서버에서 검증한 compose 설정은 AKS manifest나 Helm/Kustomize 설정을 만들 때 기준 입력으로 사용합니다.
+Windows 서버에서 검증한 compose 설정은 Azure Container Apps, AKS manifest, Helm/Kustomize 설정을 만들 때 기준 입력으로 사용합니다. Azure staging으로 옮긴 뒤에는 Cloudflare Tunnel을 끄고, `onmu.cloud` 또는 `www.onmu.cloud`는 제품/비즈니스 소개 페이지로만 사용합니다.
