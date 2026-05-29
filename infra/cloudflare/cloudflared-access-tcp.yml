@@ -3,4 +3,6 @@ protocol: quic
 ingress:
   - hostname: dev-api.onmu.cloud
     service: http://localhost:8080
+  - hostname: db-dev.onmu.cloud
+    service: tcp://localhost:15432
   - service: http_status:404
