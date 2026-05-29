@@ -39,4 +39,11 @@ npm run host:windows
 npm run api:dev
 ```
 
-Windows dev 서버에서는 `DATABASE_URL=postgresql://onmu:onmu@localhost:15432/onmu`, `REDIS_URL=redis://localhost:6379/0`, `OBJECT_STORAGE_ENDPOINT=http://localhost:9000`을 기본으로 둡니다. Cloudflare Tunnel은 이 API/gateway만 `dev-api.onmu.cloud`로 노출하고, DB/Redis/MinIO 포트는 외부에 열지 않습니다.
+개인 로컬 테스트는 `.env.example`의 임시값을 복사해서 쓸 수 있습니다. 공유 Windows dev 서버는 실제 DB 비밀번호와 외부 API key를 `.env`에 두지 않고 Azure Key Vault에서 읽어 시작합니다.
+
+```powershell
+npm run host:windows:keyvault
+npm run api:dev:keyvault
+```
+
+Cloudflare Tunnel은 이 API/gateway만 `dev-api.onmu.cloud`로 노출하고, DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 `db-dev.onmu.cloud` Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
