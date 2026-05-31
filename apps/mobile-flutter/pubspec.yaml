@@ -28,11 +28,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # 라우팅: StatefulShellRoute 기반 하단 탭 구조
-  go_router: ^14.6.1
-
-  # 상태 관리: 프로토타입 단계에서는 최소 사용, 비즈니스 로직 단계에서 확장
-  flutter_riverpod: ^2.6.1
+  # go_router, flutter_riverpod은 core/routing 구현 시 추가 예정
 
 dev_dependencies:
   flutter_test:

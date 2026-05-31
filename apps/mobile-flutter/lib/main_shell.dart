@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'shared/onmu_design.dart';
 import 'shared/widgets/onmu_bottom_nav_bar.dart';
 import 'features/home/home_page.dart';
 import 'features/meetup/meetup_list_page.dart';
@@ -32,17 +33,17 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   static const _pages = <Widget>[
-    HomePage(),        // 0 홈     — TODO(홈팀)
-    MeetupListPage(),  // 1 약속   — TODO(약속팀)
-    OnChatListPage(),  // 2 온챗   — TODO(온챗팀)
-    OotdListPage(),    // 3 기록   — TODO(기록팀)
-    MyPage(),          // 4 마이   — TODO(마이팀)
+    HomePage(), // 0 홈     — TODO(홈팀)
+    MeetupListPage(), // 1 약속   — TODO(약속팀)
+    OnChatListPage(), // 2 온챗   — TODO(온챗팀)
+    OotdListPage(), // 3 기록   — TODO(기록팀)
+    MyPage(), // 4 마이   — TODO(마이팀)
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF), // bg.default
+      backgroundColor: OnmuColors.bgDefault,
       body: _pages[_currentIndex],
       bottomNavigationBar: OnmuBottomNavBar(
         currentIndex: _currentIndex,
