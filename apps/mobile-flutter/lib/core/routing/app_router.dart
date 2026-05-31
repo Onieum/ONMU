@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/onchat/presentation/pages/onchat_group_home_page.dart';
+import '../../features/onchat/presentation/pages/onchat_list_page.dart';
+import '../../features/onchat/presentation/pages/onchat_meetup_board_page.dart';
+import '../../features/onchat/presentation/pages/onchat_meetup_create_page.dart';
+import '../../features/onchat/presentation/pages/onchat_memory_board_page.dart';
+import '../../features/onchat/presentation/pages/onchat_settlement_create_page.dart';
+import '../../features/onchat/presentation/pages/onchat_settlement_share_page.dart';
+import '../../features/onchat/presentation/pages/onchat_thread_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_compare_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -100,67 +108,40 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.onchat,
-              builder: (context, state) => const PrototypePlaceholderPage(
-                title: '온챗',
-                description: '채팅, 약속 보드, 추억 보드, 정산으로 이동합니다.',
-                primaryLabel: '온챗 그룹 열기',
-                primaryRoute: RoutePaths.onchatDemoGroup,
-              ),
+              builder: (context, state) => const OnChatListPage(),
               routes: [
                 GoRoute(
                   path: 'groups/:groupId',
-                  builder: (context, state) => const PrototypePlaceholderPage(
-                    title: '온챗 그룹',
-                    description: '고정 약속과 최근 대화를 확인합니다.',
-                  ),
+                  builder: (context, state) => const OnChatGroupHomePage(),
                   routes: [
                     GoRoute(
                       path: 'chat',
-                      builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '온챗 대화',
-                            description: 'mock message list와 입력창 UI입니다.',
-                          ),
+                      builder: (context, state) => const OnChatThreadPage(),
                     ),
                     GoRoute(
                       path: 'meetups/new',
                       builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '온챗 약속 만들기',
-                            description: '대화방 안에서 새 약속을 만듭니다.',
-                          ),
+                          const OnChatMeetupCreatePage(),
                     ),
                     GoRoute(
                       path: 'meetups/:meetupId/board',
                       builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '온챗 약속 보드',
-                            description: '장소 투표와 약속 준비 상태를 봅니다.',
-                          ),
+                          const OnChatMeetupBoardPage(),
                     ),
                     GoRoute(
                       path: 'memories',
                       builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '온챗 추억 보드',
-                            description: '함께 남긴 기록을 카드로 모아봅니다.',
-                          ),
+                          const OnChatMemoryBoardPage(),
                     ),
                     GoRoute(
                       path: 'settlements/new',
                       builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '정산 만들기',
-                            description: '결제자, 금액, 대상자를 고르는 화면입니다.',
-                          ),
+                          const OnChatSettlementCreatePage(),
                     ),
                     GoRoute(
                       path: 'settlements/:settlementId',
                       builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '정산 공유',
-                            description: '정산 상태와 공유 메시지를 확인합니다.',
-                          ),
+                          const OnChatSettlementSharePage(),
                     ),
                   ],
                 ),
