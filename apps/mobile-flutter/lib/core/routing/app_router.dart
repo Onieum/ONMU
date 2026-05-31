@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/place/presentation/pages/place_candidate_page.dart';
+import '../../features/place/presentation/pages/place_compare_page.dart';
+import '../../features/place/presentation/pages/place_detail_page.dart';
+import '../../features/place/presentation/pages/place_map_page.dart';
+import '../../features/place/presentation/pages/place_risks_page.dart';
+import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../shared/widgets/onmu_bottom_nav_bar.dart';
 import '../../shared/widgets/prototype_placeholder_page.dart';
 import 'route_paths.dart';
@@ -51,53 +57,38 @@ final appRouter = GoRouter(
                   routes: [
                     GoRoute(
                       path: 'places',
-                      builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '장소 후보',
-                            description: '추천 장소 카드가 들어갈 화면입니다.',
-                          ),
+                      builder: (context, state) {
+                        return PlaceCandidatePage(
+                          showVoteResult:
+                              state.uri.queryParameters['voteResult'] == '1',
+                        );
+                      },
                       routes: [
                         GoRoute(
                           path: 'search',
                           builder: (context, state) =>
-                              const PrototypePlaceholderPage(
-                                title: '장소 검색',
-                                description: '필터와 검색 UI가 들어갈 화면입니다.',
-                              ),
+                              const PlaceSearchFilterPage(),
                         ),
                         GoRoute(
                           path: 'map',
-                          builder: (context, state) =>
-                              const PrototypePlaceholderPage(
-                                title: '지도 보기',
-                                description: '지도 기반 후보 비교 UI가 들어갈 화면입니다.',
-                              ),
+                          builder: (context, state) => const PlaceMapPage(),
                         ),
                         GoRoute(
                           path: 'risks',
-                          builder: (context, state) =>
-                              const PrototypePlaceholderPage(
-                                title: '장소 리스크',
-                                description: '휴무, 브레이크타임, 비선호 조건을 확인합니다.',
-                              ),
+                          builder: (context, state) => const PlaceRisksPage(),
                         ),
                         GoRoute(
                           path: ':placeId',
-                          builder: (context, state) =>
-                              const PrototypePlaceholderPage(
-                                title: '장소 상세',
-                                description: '장소 상세 정보 sheet 역할의 화면입니다.',
-                              ),
+                          builder: (context, state) => PlaceDetailPage(
+                            placeId:
+                                state.pathParameters['placeId'] ?? 'cafe-moon',
+                          ),
                         ),
                       ],
                     ),
                     GoRoute(
                       path: 'place-compare',
-                      builder: (context, state) =>
-                          const PrototypePlaceholderPage(
-                            title: '장소 비교',
-                            description: '후보별 점수와 리스크를 비교합니다.',
-                          ),
+                      builder: (context, state) => const PlaceComparePage(),
                     ),
                   ],
                 ),
