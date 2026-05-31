@@ -6,6 +6,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 
 class PlaceCandidateCard extends StatelessWidget {
   const PlaceCandidateCard({
@@ -25,10 +26,19 @@ class PlaceCandidateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
-      borderColor: candidate.isOpen ? AppColors.linePurple : AppColors.linePink,
+      borderColor: candidate.isOpen ? AppColors.lineBrown : AppColors.linePink,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (!compact) ...[
+            OnmuStickerLabel(
+              label: candidate.category,
+              icon: Icons.local_cafe_outlined,
+              backgroundColor: AppColors.bgPaper,
+              borderColor: AppColors.lineWarm,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -52,7 +62,7 @@ class PlaceCandidateCard extends StatelessWidget {
               ),
               OnmuChip(
                 label: candidate.isOpen ? '영업 중' : '확인 필요',
-                selected: candidate.isOpen,
+                selected: !candidate.isOpen,
               ),
             ],
           ),
@@ -120,6 +130,7 @@ class PlaceCandidateCard extends StatelessWidget {
                   child: OnmuPrimaryButton(
                     label: '후보 선택',
                     icon: Icons.check,
+                    color: AppColors.primaryPink,
                     onPressed: onSelectPressed,
                   ),
                 ),
@@ -141,9 +152,9 @@ class _PlaceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.bgPurpleSoft,
+        color: AppColors.bgPaper,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.linePurple),
+        border: Border.all(color: AppColors.lineWarm),
       ),
       child: SizedBox(
         width: 58,
@@ -151,12 +162,12 @@ class _PlaceBadge extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.auto_awesome, color: AppColors.primaryPurple),
+            const Icon(Icons.auto_awesome, color: AppColors.accentOrange),
             Text(
               score.toStringAsFixed(1),
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.primaryPurpleDark,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.accentBrown),
             ),
           ],
         ),

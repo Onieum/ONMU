@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class PlaceComparePage extends StatelessWidget {
@@ -16,14 +17,16 @@ class PlaceComparePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '장소 비교',
-      subtitle: '후보별 점수, 이동, 리스크를 같은 기준으로 비교합니다.',
+      subtitle: '후보별 느낌과 조건을 한 장의 메모처럼 비교합니다.',
       children: [
         OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const OnmuStickerLabel(label: '오늘의 추천', icon: Icons.auto_awesome),
+              const SizedBox(height: AppSpacing.sm),
               Text('가장 무난한 선택', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.xs),
               Text(
@@ -84,9 +87,9 @@ class _CompareCard extends StatelessWidget {
               ),
               Text(
                 '${candidate.matchPercent}%',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.primaryPurpleDark,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(color: AppColors.accentBrown),
               ),
             ],
           ),
@@ -131,10 +134,10 @@ class _ScoreRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: value,
               minHeight: 8,
-              backgroundColor: AppColors.primaryPurpleSoft,
+              backgroundColor: AppColors.primaryPinkSoft,
               color: value > 0.7
-                  ? AppColors.primaryPurple
-                  : AppColors.primaryPink,
+                  ? AppColors.primaryPink
+                  : AppColors.accentOrange,
             ),
           ),
         ],

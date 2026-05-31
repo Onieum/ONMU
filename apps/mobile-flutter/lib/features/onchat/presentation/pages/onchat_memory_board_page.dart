@@ -5,6 +5,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class OnChatMemoryBoardPage extends StatelessWidget {
@@ -14,15 +15,17 @@ class OnChatMemoryBoardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온챗 추억 보드',
-      subtitle: '같은 온챗 멤버와 남긴 OOTD와 기억을 모아봅니다.',
+      subtitle: '같은 온챗 멤버와 남긴 OOTD와 기억을 스크랩북처럼 모아봅니다.',
       useGridBackground: true,
       children: [
         for (final memory in demoOnChatMemories) ...[
           OnmuCard(
-            backgroundColor: AppColors.bgDefault,
+            backgroundColor: AppColors.bgPaper,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const OnmuTape(width: 74),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
                     const Icon(

@@ -8,6 +8,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
@@ -18,7 +19,7 @@ class PlaceSearchFilterPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '장소 검색',
-      subtitle: '실제 지도 API 없이 필터와 결과 카드의 화면 흐름만 확인합니다.',
+      subtitle: '원하는 분위기와 피하고 싶은 조건을 작은 스티커처럼 고릅니다.',
       children: [
         TextField(
           decoration: InputDecoration(
@@ -45,14 +46,11 @@ class PlaceSearchFilterPage extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Row(
             children: [
-              const Icon(
-                Icons.favorite_outline,
-                color: AppColors.primaryPurple,
-              ),
+              const Icon(Icons.favorite_outline, color: AppColors.primaryPink),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -100,11 +98,11 @@ class _FilterSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
+      backgroundColor: AppColors.bgPaper,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          OnmuStickerLabel(label: title, icon: Icons.sell_outlined),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,

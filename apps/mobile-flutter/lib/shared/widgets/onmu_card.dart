@@ -10,7 +10,7 @@ class OnmuCard extends StatelessWidget {
     super.key,
     this.padding = const EdgeInsets.all(AppSpacing.md),
     this.backgroundColor = AppColors.bgPaper,
-    this.borderColor = AppColors.lineSoft,
+    this.borderColor = AppColors.lineBrown,
     this.onTap,
   });
 
@@ -30,8 +30,8 @@ class OnmuCard extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 12,
-            offset: Offset(0, 6),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),

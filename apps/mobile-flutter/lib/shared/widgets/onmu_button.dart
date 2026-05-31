@@ -9,19 +9,21 @@ class OnmuPrimaryButton extends StatelessWidget {
     required this.onPressed,
     super.key,
     this.icon,
-    this.color = AppColors.primaryPurple,
+    this.color = AppColors.primaryPink,
+    this.foregroundColor = AppColors.textMain,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
   final Color color;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
     final style = FilledButton.styleFrom(
       backgroundColor: color,
-      foregroundColor: AppColors.textInverse,
+      foregroundColor: foregroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
@@ -60,7 +62,8 @@ class OnmuSecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = OutlinedButton.styleFrom(
       foregroundColor: AppColors.textMain,
-      side: const BorderSide(color: AppColors.lineSoft),
+      backgroundColor: AppColors.bgDefault,
+      side: const BorderSide(color: AppColors.lineBrown),
       minimumSize: const Size.fromHeight(48),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),

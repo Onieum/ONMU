@@ -8,6 +8,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class PlaceDetailPage extends StatelessWidget {
@@ -21,14 +22,19 @@ class PlaceDetailPage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '장소 상세',
-      subtitle: '바텀시트로 열릴 상세 정보를 모바일 화면에서 먼저 검토합니다.',
+      subtitle: '후보 장소를 종이 기록지처럼 펼쳐 봅니다.',
       children: [
         OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const OnmuStickerLabel(
+                label: '후보 장소 카드',
+                icon: Icons.place_outlined,
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 candidate.name,
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -60,6 +66,7 @@ class PlaceDetailPage extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         OnmuCard(
+          backgroundColor: AppColors.bgPaper,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

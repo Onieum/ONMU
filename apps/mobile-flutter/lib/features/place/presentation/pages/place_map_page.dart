@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class PlaceMapPage extends StatelessWidget {
@@ -17,7 +18,7 @@ class PlaceMapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '지도 보기',
-      subtitle: '실제 지도 대신 후보 위치와 이동 시간을 한눈에 보는 mock 지도입니다.',
+      subtitle: '실제 지도 대신 친구 위치와 후보 장소를 다이어리 지도처럼 표시했어요.',
       useGridBackground: true,
       children: [
         const _MockMap(),
@@ -27,7 +28,7 @@ class PlaceMapPage extends StatelessWidget {
             backgroundColor: AppColors.bgDefault,
             child: Row(
               children: [
-                const Icon(Icons.place, color: AppColors.primaryPurple),
+                const Icon(Icons.place, color: AppColors.primaryPink),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
@@ -47,7 +48,7 @@ class PlaceMapPage extends StatelessWidget {
                 Text(
                   '${candidate.matchPercent}%',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.primaryPurpleDark,
+                    color: AppColors.accentBrown,
                   ),
                 ),
               ],
@@ -89,12 +90,13 @@ class _MockMap extends StatelessWidget {
       aspectRatio: 1.08,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.bgPurpleSoft,
+          color: AppColors.bgPaper,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.linePurple),
+          border: Border.all(color: AppColors.lineBrown),
         ),
         child: Stack(
           children: const [
+            Positioned(top: 18, left: 138, child: OnmuTape(width: 92)),
             Positioned(
               left: 28,
               top: 34,
@@ -135,7 +137,7 @@ class _MapLabel extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.bgDefault,
         borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.lineSoft),
+        border: Border.all(color: AppColors.lineBrown),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -164,7 +166,7 @@ class _MapPin extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.primaryPurple,
+        color: AppColors.primaryPink,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Padding(
@@ -175,7 +177,7 @@ class _MapPin extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.place, color: AppColors.textInverse),
+            const Icon(Icons.place, color: AppColors.textMain),
             const SizedBox(width: AppSpacing.xs),
             Text(label, style: Theme.of(context).textTheme.labelLarge),
           ],

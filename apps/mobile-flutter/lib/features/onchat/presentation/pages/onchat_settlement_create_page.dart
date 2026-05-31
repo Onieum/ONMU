@@ -8,6 +8,7 @@ import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
 
@@ -20,14 +21,14 @@ class OnChatSettlementCreatePage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '정산 만들기',
-      subtitle: '결제자, 금액, 정산 대상자를 고르는 mock 입력 화면입니다.',
+      subtitle: '결제자, 금액, 대상자를 정산 메모로 차분히 정리합니다.',
       children: [
         OnmuCard(
-          backgroundColor: AppColors.bgDefault,
+          backgroundColor: AppColors.bgPaper,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('정산 정보', style: Theme.of(context).textTheme.titleMedium),
+              const OnmuStickerLabel(label: '정산 정보', icon: Icons.receipt_long),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                 decoration: InputDecoration(
@@ -51,7 +52,7 @@ class OnChatSettlementCreatePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('대상자', style: Theme.of(context).textTheme.titleSmall),
+              const OnmuStickerLabel(label: '대상자', icon: Icons.group_outlined),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: AppSpacing.xs,

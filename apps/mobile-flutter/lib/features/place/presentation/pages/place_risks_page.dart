@@ -16,7 +16,7 @@ class PlaceRisksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '장소 리스크',
-      subtitle: '싫어하는 키워드, 휴무, 브레이크타임을 후보 선택 전에 확인합니다.',
+      subtitle: '휴무, 웨이팅, 비선호 조건을 작게 붙여두고 먼저 확인합니다.',
       children: [
         for (final risk in demoPlaceRisks) ...[
           _RiskCard(risk: risk),

@@ -23,7 +23,7 @@ class OnmuChip extends StatelessWidget {
         color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
         borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
-          color: selected ? AppColors.linePink : AppColors.lineSoft,
+          color: selected ? AppColors.linePink : AppColors.lineBrown,
         ),
       ),
       child: Padding(
@@ -35,7 +35,7 @@ class OnmuChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 15, color: AppColors.primaryPurple),
+              Icon(icon, size: 15, color: AppColors.primaryPink),
               const SizedBox(width: AppSpacing.xxs),
             ],
             Text(label, style: Theme.of(context).textTheme.labelMedium),

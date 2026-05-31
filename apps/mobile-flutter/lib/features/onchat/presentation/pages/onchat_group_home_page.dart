@@ -7,6 +7,7 @@ import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
 
@@ -17,7 +18,7 @@ class OnChatGroupHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '성수 토요일 멤버',
-      subtitle: '대화, 약속 보드, 추억 보드, 정산으로 자연스럽게 이동합니다.',
+      subtitle: '대화, 약속 보드, 추억 보드, 정산을 작은 노트처럼 넘겨봅니다.',
       children: [
         PinnedMeetupCard(
           meetup: demoPinnedMeetup,
@@ -48,7 +49,10 @@ class OnChatGroupHomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('빠른 이동', style: Theme.of(context).textTheme.titleSmall),
+              const OnmuStickerLabel(
+                label: '빠른 이동',
+                icon: Icons.bookmark_outline,
+              ),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: AppSpacing.xs,

@@ -8,10 +8,10 @@ class AppTheme {
 
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primaryPurple,
+      seedColor: AppColors.primaryPink,
       brightness: Brightness.light,
-      primary: AppColors.primaryPurple,
-      secondary: AppColors.primaryPink,
+      primary: AppColors.primaryPink,
+      secondary: AppColors.primaryPurple,
       surface: AppColors.bgDefault,
     );
 
@@ -24,7 +24,7 @@ class AppTheme {
         centerTitle: false,
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: AppColors.bgDefault,
+        backgroundColor: AppColors.bgWarm,
         foregroundColor: AppColors.textMain,
       ),
       cardTheme: const CardThemeData(
@@ -112,6 +112,20 @@ class AppTheme {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
           borderSide: const BorderSide(color: AppColors.linePink, width: 1.4),
+        ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        backgroundColor: AppColors.bgDefault,
+        indicatorColor: AppColors.primaryPinkSoft,
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(
+            color: AppColors.textSub,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        iconTheme: WidgetStatePropertyAll(
+          IconThemeData(color: AppColors.textSub),
         ),
       ),
     );

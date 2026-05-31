@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
 
@@ -19,14 +20,16 @@ class OnChatSettlementSharePage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '정산 공유',
-      subtitle: '정산 메시지와 참여자별 입금 상태를 한 화면에서 확인합니다.',
+      subtitle: '정산 메시지를 친구들에게 붙여둘 공유 카드로 정리합니다.',
       children: [
         OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const OnmuStickerLabel(label: '정산 메모', icon: Icons.receipt_long),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 settlement.title,
                 style: Theme.of(context).textTheme.titleMedium,

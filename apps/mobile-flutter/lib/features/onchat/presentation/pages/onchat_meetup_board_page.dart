@@ -9,6 +9,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class OnChatMeetupBoardPage extends StatelessWidget {
@@ -18,14 +19,19 @@ class OnChatMeetupBoardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온챗 약속 보드',
-      subtitle: '대화방 안에서 장소 투표와 준비 상태를 함께 확인합니다.',
+      subtitle: '장소 투표와 준비 상태를 한 장의 보드처럼 붙여둡니다.',
       children: [
         OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const OnmuStickerLabel(
+                label: '약속 보드',
+                icon: Icons.push_pin_outlined,
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 demoPinnedMeetup.title,
                 style: Theme.of(context).textTheme.titleMedium,
@@ -84,12 +90,12 @@ class _VoteCard extends StatelessWidget {
 
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
-      borderColor: isTop ? AppColors.linePurple : AppColors.lineSoft,
+      borderColor: isTop ? AppColors.linePink : AppColors.lineBrown,
       child: Row(
         children: [
           Icon(
             isTop ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isTop ? AppColors.primaryPurple : AppColors.textMuted,
+            color: isTop ? AppColors.primaryPink : AppColors.textMuted,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

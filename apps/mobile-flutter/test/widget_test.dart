@@ -19,6 +19,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('성수 토요일 멤버'), findsOneWidget);
-    expect(find.text('성수 온챗 열기'), findsOneWidget);
+    expect(find.text('친구들이 남긴 새 메모'), findsOneWidget);
   });
 }

@@ -6,6 +6,7 @@ import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 
 class OnChatGroupCard extends StatelessWidget {
   const OnChatGroupCard({required this.group, required this.onTap, super.key});
@@ -70,18 +71,17 @@ class PinnedMeetupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgPurpleSoft,
-      borderColor: AppColors.linePurple,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
       onTap: onBoardPressed,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const OnmuStickerLabel(label: '고정 약속', icon: Icons.push_pin_outlined),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(
-                Icons.push_pin_outlined,
-                color: AppColors.primaryPurple,
-              ),
+              const Icon(Icons.push_pin_outlined, color: AppColors.primaryPink),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
@@ -89,7 +89,7 @@ class PinnedMeetupCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.primaryPurple),
+              const Icon(Icons.chevron_right, color: AppColors.accentBrown),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -117,13 +117,11 @@ class ChatMessageBubble extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: message.isMine
-                ? AppColors.primaryPurple
+                ? AppColors.primaryPinkSoft
                 : AppColors.bgDefault,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: message.isMine
-                  ? AppColors.primaryPurple
-                  : AppColors.lineSoft,
+              color: message.isMine ? AppColors.linePink : AppColors.lineBrown,
             ),
           ),
           child: Padding(
@@ -135,7 +133,7 @@ class ChatMessageBubble extends StatelessWidget {
                   message.sender,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: message.isMine
-                        ? AppColors.textInverse
+                        ? AppColors.textSub
                         : AppColors.textMuted,
                   ),
                 ),
@@ -144,7 +142,7 @@ class ChatMessageBubble extends StatelessWidget {
                   message.message,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: message.isMine
-                        ? AppColors.textInverse
+                        ? AppColors.textMain
                         : AppColors.textMain,
                   ),
                 ),
@@ -153,7 +151,7 @@ class ChatMessageBubble extends StatelessWidget {
                   message.timeLabel,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: message.isMine
-                        ? AppColors.textInverse
+                        ? AppColors.textSub
                         : AppColors.textMuted,
                   ),
                 ),
@@ -183,7 +181,7 @@ class SettlementStatusRow extends StatelessWidget {
         children: [
           CircleAvatar(
             backgroundColor: member.isPaid
-                ? AppColors.primaryPurpleSoft
+                ? AppColors.accentGreen
                 : AppColors.primaryPinkSoft,
             foregroundColor: AppColors.textMain,
             child: Text(member.name.characters.first),

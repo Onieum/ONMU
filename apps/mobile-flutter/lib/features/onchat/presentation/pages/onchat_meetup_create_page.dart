@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class OnChatMeetupCreatePage extends StatelessWidget {
@@ -16,7 +17,7 @@ class OnChatMeetupCreatePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온챗 약속 만들기',
-      subtitle: '온챗 멤버를 그대로 가져와 약속 초안을 만드는 화면입니다.',
+      subtitle: '온챗 멤버와 날짜 후보를 약속 메모로 정리합니다.',
       children: [
         const _CreateSection(title: '참여자', chips: ['민서', '지훈', '하린', '나']),
         const SizedBox(height: AppSpacing.md),
@@ -26,7 +27,7 @@ class OnChatMeetupCreatePage extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         OnmuCard(
-          backgroundColor: AppColors.bgDefault,
+          backgroundColor: AppColors.bgPaper,
           child: TextField(
             decoration: const InputDecoration(
               labelText: '약속 메모',
@@ -58,7 +59,7 @@ class _CreateSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          OnmuStickerLabel(label: title, icon: Icons.sell_outlined),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,

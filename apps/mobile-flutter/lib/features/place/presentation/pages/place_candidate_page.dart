@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
@@ -19,7 +20,7 @@ class PlaceCandidatePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '장소 후보',
-      subtitle: '참여자 취향, 이동 시간, 영업 상태를 mock data로 엮은 추천 화면입니다.',
+      subtitle: '친구 취향과 이동 시간을 종이 메모처럼 모아봤어요.',
       children: [
         if (showVoteResult) ...[
           const _VoteResultCarryoverCard(),
@@ -79,6 +80,8 @@ class _MeetupContextCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const OnmuStickerLabel(label: '오늘의 약속 메모', icon: Icons.favorite),
+          const SizedBox(height: AppSpacing.sm),
           Text('토요일 오후 성수 모임', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xs),
           Text(
@@ -89,8 +92,8 @@ class _MeetupContextCard extends StatelessWidget {
           const LinearProgressIndicator(
             value: 0.76,
             minHeight: 8,
-            backgroundColor: AppColors.primaryPurpleSoft,
-            color: AppColors.primaryPurple,
+            backgroundColor: AppColors.primaryPinkSoft,
+            color: AppColors.primaryPink,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text('참여자 취향 반영률 76%', style: Theme.of(context).textTheme.bodySmall),
@@ -106,11 +109,13 @@ class _VoteResultCarryoverCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgPurpleSoft,
-      borderColor: AppColors.linePurple,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const OnmuTape(width: 76),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             demoPlaceVoteResult.title,
             style: Theme.of(context).textTheme.titleSmall,

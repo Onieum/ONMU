@@ -11,8 +11,6 @@ class OnmuBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NavigationBar(
-      backgroundColor: AppColors.bgDefault,
-      indicatorColor: AppColors.primaryPinkSoft,
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: (index) {
         navigationShell.goBranch(
@@ -23,27 +21,27 @@ class OnmuBottomNavBar extends StatelessWidget {
       destinations: const [
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
+          selectedIcon: Icon(Icons.home, color: AppColors.primaryPink),
           label: '홈',
         ),
         NavigationDestination(
           icon: Icon(Icons.groups_outlined),
-          selectedIcon: Icon(Icons.groups),
+          selectedIcon: Icon(Icons.groups, color: AppColors.primaryPink),
           label: '약속',
         ),
         NavigationDestination(
           icon: Icon(Icons.chat_bubble_outline),
-          selectedIcon: Icon(Icons.chat_bubble),
+          selectedIcon: Icon(Icons.chat_bubble, color: AppColors.primaryPink),
           label: '온챗',
         ),
         NavigationDestination(
           icon: Icon(Icons.auto_stories_outlined),
-          selectedIcon: Icon(Icons.auto_stories),
+          selectedIcon: Icon(Icons.auto_stories, color: AppColors.primaryPink),
           label: '기록',
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
+          selectedIcon: Icon(Icons.person, color: AppColors.primaryPink),
           label: '마이',
         ),
       ],

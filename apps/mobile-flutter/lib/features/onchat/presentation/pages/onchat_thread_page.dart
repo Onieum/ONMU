@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
 
@@ -18,7 +19,7 @@ class OnChatThreadPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온챗 대화',
-      subtitle: '실제 WebSocket 없이 메시지 목록과 입력 UI만 보여줍니다.',
+      subtitle: '친구들이 붙여둔 말풍선을 메모지처럼 확인합니다.',
       bottom: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -33,7 +34,7 @@ class OnChatThreadPage extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 const Icon(
                   Icons.add_circle_outline,
-                  color: AppColors.primaryPurple,
+                  color: AppColors.primaryPink,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 const Expanded(
@@ -69,11 +70,16 @@ class OnChatThreadPage extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.md),
         OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.lineWarm,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const OnmuStickerLabel(
+                label: 'ONMU 메모',
+                icon: Icons.auto_awesome,
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Text('ONMU 추천 카드', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.xs),
               Text(

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
-import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
 
@@ -17,26 +16,13 @@ class OnChatListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온챗',
-      subtitle: '약속과 장소 후보, 추억, 정산을 대화방 안에서 이어보는 플로우입니다.',
+      subtitle: '약속, 장소 후보, 추억, 정산을 친구 다이어리처럼 이어봅니다.',
       children: [
-        OnmuCard(
-          backgroundColor: AppColors.bgPurpleSoft,
-          borderColor: AppColors.linePurple,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline,
-                color: AppColors.primaryPurple,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '새 메시지 3개와 진행 중인 장소 투표가 있어요.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
+        const OnmuPaperHeader(
+          title: '친구들이 남긴 새 메모',
+          body: '새 메시지 3개와 진행 중인 장소 투표가 있어요.',
+          stickerLabel: '온챗 알림',
+          icon: Icons.chat_bubble_outline,
         ),
         const SizedBox(height: AppSpacing.md),
         for (final group in demoOnChatGroups) ...[
