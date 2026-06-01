@@ -54,13 +54,6 @@ class _MeetupMemberSelectPageState extends State<MeetupMemberSelectPage> {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => context.push(RoutePaths.meetupNewTitle),
-                  child: const OnmuChip(
-                    label: '약속 이름 입력',
-                    icon: Icons.edit_outlined,
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),

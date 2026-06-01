@@ -7,8 +7,8 @@ class RoutePaths {
   static const home = '/home';
   static const meetups = '/meetups';
   static const meetupNewMembers = '/meetups/new/members';
-  static const meetupNewTitle = '/meetups/new/title';
   static const meetupNewSchedule = '/meetups/new/schedule';
+  static const meetupNewCalendar = '/meetups/new/schedule/calendar';
 
   static const meetupDemo = '/meetups/demo';
   static const placeCandidates = '/meetups/demo/places';
