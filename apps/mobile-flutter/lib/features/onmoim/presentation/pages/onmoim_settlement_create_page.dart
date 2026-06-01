@@ -25,7 +25,6 @@ class OnMoimSettlementCreatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settlement = demoSettlementSummary;
-    final currentItem = settlement.paymentItems.first;
 
     return OnmuScaffold(
       title: '약속 정산 만들기',
@@ -45,15 +44,20 @@ class OnMoimSettlementCreatePage extends StatelessWidget {
       children: [
         _MeetupSettlementScopeCard(settlement: settlement),
         const SizedBox(height: AppSpacing.md),
-        _PaymentItemEditorCard(item: currentItem),
+        for (final item in settlement.paymentItems) ...[
+          _PaymentItemEditorCard(
+            item: item,
+            itemNumber: settlement.paymentItems.indexOf(item) + 1,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        const _AddPaymentItemCard(),
         const SizedBox(height: AppSpacing.md),
         _PaymentItemListCard(items: settlement.paymentItems),
         const SizedBox(height: AppSpacing.md),
         _ValidationCard(
           totalAmountLabel: settlement.totalAmountLabel,
-          participantCount: currentItem.participants
-              .where((participant) => participant.included)
-              .length,
+          participantCount: settlement.memberResults.length,
         ),
       ],
     );
@@ -107,19 +111,25 @@ class _MeetupSettlementScopeCard extends StatelessWidget {
 }
 
 class _PaymentItemEditorCard extends StatelessWidget {
-  const _PaymentItemEditorCard({required this.item});
+  const _PaymentItemEditorCard({required this.item, required this.itemNumber});
 
   final SettlementPaymentItem item;
+  final int itemNumber;
 
   @override
   Widget build(BuildContext context) {
+    final isCustom = item.splitType == SettlementSplitType.custom;
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.linePink,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const OnmuStickerLabel(label: '결제 항목 1', icon: Icons.receipt_long),
+          OnmuStickerLabel(
+            label: '결제 항목 $itemNumber',
+            icon: Icons.receipt_long,
+          ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             decoration: InputDecoration(
@@ -177,19 +187,23 @@ class _PaymentItemEditorCard extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '결제자 추가',
               icon: Icons.person_add_alt_1_outlined,
-              onPressed: () {},
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('결제자별 금액 입력 UI를 열어요.')),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text('정산 방식', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.xs),
-          const Row(
+          Row(
             children: [
               Expanded(
-                child: _SplitModePill(label: '1/N으로 나누기', selected: true),
+                child: _SplitModePill(label: '1/N으로 나누기', selected: !isCustom),
               ),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(child: _SplitModePill(label: '참여자별 금액 다르게')),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _SplitModePill(label: '참여자별 금액 다르게', selected: isCustom),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -202,7 +216,9 @@ class _PaymentItemEditorCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${item.targetLabel} · 자동 계산',
+                isCustom
+                    ? '${item.targetLabel} · 직접 입력'
+                    : '${item.targetLabel} · 자동 계산',
                 style: Theme.of(
                   context,
                 ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
@@ -223,16 +239,52 @@ class _PaymentItemEditorCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           for (final participant in item.participants) ...[
-            _ParticipantAmountRow(participant: participant),
+            _ParticipantAmountRow(participant: participant, isCustom: isCustom),
             const SizedBox(height: AppSpacing.xs),
           ],
+          _ItemValidationNote(item: item),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddPaymentItemCard extends StatelessWidget {
+  const _AddPaymentItemCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.add_circle_outline,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '저녁, 카페, 택시처럼 결제 항목을 계속 추가할 수 있어요.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
           SizedBox(
             width: double.infinity,
             child: OnmuSecondaryButton(
               label: '결제 항목 추가',
               icon: Icons.add,
-              onPressed: () {},
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('결제 항목 추가 UI를 열어요.')),
+              ),
             ),
           ),
         ],
@@ -320,9 +372,13 @@ class _SplitModePill extends StatelessWidget {
 }
 
 class _ParticipantAmountRow extends StatelessWidget {
-  const _ParticipantAmountRow({required this.participant});
+  const _ParticipantAmountRow({
+    required this.participant,
+    required this.isCustom,
+  });
 
   final SettlementPaymentParticipant participant;
+  final bool isCustom;
 
   @override
   Widget build(BuildContext context) {
@@ -346,15 +402,109 @@ class _ParticipantAmountRow extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          participant.included ? participant.owedAmountLabel : '제외',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: participant.included
-                ? AppColors.primaryPink
-                : AppColors.textMuted,
-          ),
+        _AmountFieldPreview(
+          label: participant.included ? participant.owedAmountLabel : '제외',
+          enabled: participant.included,
+          editable: participant.included && isCustom,
         ),
       ],
+    );
+  }
+}
+
+class _AmountFieldPreview extends StatelessWidget {
+  const _AmountFieldPreview({
+    required this.label,
+    required this.enabled,
+    required this.editable,
+  });
+
+  final String label;
+  final bool enabled;
+  final bool editable;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = editable ? AppColors.linePink : AppColors.lineSoft;
+    final backgroundColor = editable ? AppColors.bgDefault : AppColors.bgPaper;
+    final foregroundColor = enabled
+        ? AppColors.primaryPink
+        : AppColors.textMuted;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (editable) ...[
+              const Icon(
+                Icons.edit_outlined,
+                size: 13,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+            ],
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: foregroundColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemValidationNote extends StatelessWidget {
+  const _ItemValidationNote({required this.item});
+
+  final SettlementPaymentItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCustom = item.splitType == SettlementSplitType.custom;
+    final message = isCustom
+        ? '참여자별 입력 합계가 ${item.amountLabel}와 일치해요.'
+        : '${item.targetLabel} 기준 1/N 금액이 자동으로 계산됐어요.';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.primaryPinkSoft.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.check_circle_outline,
+              size: 18,
+              color: AppColors.primaryPink,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textMain),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -470,7 +620,9 @@ class _ValidationCard extends StatelessWidget {
           OnmuSecondaryButton(
             label: '영수증으로 자동 입력',
             icon: Icons.document_scanner_outlined,
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('영수증 OCR은 후순위 확장으로 연결해요.')),
+            ),
           ),
         ],
       ),
