@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
@@ -390,7 +391,12 @@ class _ShareMessageCard extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '복사하기',
               icon: Icons.copy,
-              onPressed: () {},
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: '$message\n확인 부탁드려요 :)'));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('공유용 메시지를 복사했어요.')),
+                );
+              },
             ),
           ),
         ],
