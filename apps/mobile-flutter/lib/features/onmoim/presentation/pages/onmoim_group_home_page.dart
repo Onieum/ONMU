@@ -5,9 +5,7 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
-import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onmoim_cards.dart';
 
@@ -16,9 +14,10 @@ class OnMoimGroupHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final group = demoOnMoimGroups.first;
+
     return OnmuScaffold(
-      title: '모임 홈',
-      subtitle: '대학 동기 여행단 · 채팅, 약속, 추억을 한 곳에서 이어갑니다.',
+      title: group.name,
       actions: [
         IconButton(
           tooltip: '멤버 관리',
@@ -27,67 +26,123 @@ class OnMoimGroupHomePage extends StatelessWidget {
         ),
       ],
       children: [
-        const _GroupProfileCard(),
+        _GroupSummary(group: group),
         const SizedBox(height: AppSpacing.md),
-        PinnedMeetupCard(
-          meetup: demoPinnedMeetup,
-          onBoardPressed: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
+        _PinnedMeetupRail(onTap: () => context.go(RoutePaths.onmoimDemoMeetup)),
+        const SizedBox(height: AppSpacing.lg),
+        Text('최근 흐름', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.xs),
+        _RecentValueRow(
+          icon: Icons.chat_bubble_outline,
+          label: '채팅',
+          title: '현우: 항공권 모바일 체크인 했어!',
+          meta: '방금 전 · 안 읽은 메시지 3개',
+          onTap: () => context.go(RoutePaths.onmoimDemoChat),
         ),
-        const SizedBox(height: AppSpacing.md),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          childAspectRatio: 1.62,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _QuickActionTile(
-              label: '채팅',
-              body: '모임 대화방',
-              icon: Icons.chat_bubble_outline,
-              onTap: () => context.go(RoutePaths.onmoimDemoChat),
-            ),
-            _QuickActionTile(
-              label: '약속',
-              body: '일정 · 장소 논의',
-              icon: Icons.calendar_month_outlined,
-              onTap: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
-            ),
-            _QuickActionTile(
-              label: '추억',
-              body: '사진 · 기록 모아보기',
-              icon: Icons.photo_library_outlined,
-              onTap: () => context.go(RoutePaths.onmoimDemoMemories),
-            ),
-          ],
+        _RecentValueRow(
+          icon: Icons.calendar_month_outlined,
+          label: '약속',
+          title: '제주도 여행 장소 투표 진행 중',
+          meta: '온무식당 5표 · 무드카페 3표',
+          onTap: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
+        ),
+        _RecentValueRow(
+          icon: Icons.photo_library_outlined,
+          label: '추억',
+          title: '민지님이 새 사진 8장을 올렸어요',
+          meta: '제주 카페에서 · 지난 모임',
+          onTap: () => context.go(RoutePaths.onmoimDemoMemories),
         ),
         const SizedBox(height: AppSpacing.lg),
-        OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.lineSoft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text('최근 활동', style: Theme.of(context).textTheme.titleMedium),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              const Divider(height: AppSpacing.xl),
-              const _ActivityRow(
-                label: '고정',
-                title: '여행 준비 체크리스트',
-                body: '체크리스트 6/12 완료',
-              ),
-              const _ActivityRow(
-                label: '추억',
-                title: '민지님이 새 추억을 추가했어요',
-                body: '제주 카페에서',
-              ),
-            ],
+      ],
+    );
+  }
+}
+
+const _homePinnedMeetups = [
+  demoPinnedMeetup,
+  OnMoimPinnedMeetup(
+    id: 'dinner',
+    title: '주말 나들이',
+    dateLabel: '5.26(일) 오후 1:00',
+    placeName: '성수동 일대',
+    statusLabel: '장소 후보 3개',
+    voteSummary: '온무식당 5표 · 무드카페 3표',
+  ),
+  OnMoimPinnedMeetup(
+    id: 'checklist',
+    title: '여행 준비 체크리스트',
+    dateLabel: 'D-7까지 준비',
+    placeName: '항공권 · 숙소 · 준비물',
+    statusLabel: '6/12 완료',
+    voteSummary: '혜진, 준호 응답 대기',
+  ),
+];
+
+class _GroupSummary extends StatelessWidget {
+  const _GroupSummary({required this.group});
+
+  final OnMoimGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '우리 다음 약속이 거의 정해졌어요.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textMain),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            OnmuChip(label: '멤버 ${group.members.length}명'),
+            const OnmuChip(label: '약속 2개 진행중'),
+            const OnmuChip(label: '오늘 새 이야기 3개'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PinnedMeetupRail extends StatelessWidget {
+  const _PinnedMeetupRail({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('고정 약속', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(width: AppSpacing.xs),
+            const OnmuChip(label: '옆으로 보기', selected: true),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 184,
+          child: ListView.separated(
+            clipBehavior: Clip.none,
+            scrollDirection: Axis.horizontal,
+            itemCount: _homePinnedMeetups.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              final meetup = _homePinnedMeetups[index];
+
+              return SizedBox(
+                width: 286,
+                child: PinnedMeetupCard(meetup: meetup, onBoardPressed: onTap),
+              );
+            },
           ),
         ),
       ],
@@ -95,122 +150,76 @@ class OnMoimGroupHomePage extends StatelessWidget {
   }
 }
 
-class _GroupProfileCard extends StatelessWidget {
-  const _GroupProfileCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final group = demoOnMoimGroups.first;
-
-    return OnmuCard(
-      backgroundColor: AppColors.primaryPinkSoft,
-      borderColor: AppColors.linePink,
-      child: Row(
-        children: [
-          const OnmuPixelBuddy(size: 82),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(group.name, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  group.description,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    OnmuChip(label: '멤버 ${group.members.length}명'),
-                    const OnmuChip(label: '2024.03.16부터'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickActionTile extends StatelessWidget {
-  const _QuickActionTile({
-    required this.label,
-    required this.body,
+class _RecentValueRow extends StatelessWidget {
+  const _RecentValueRow({
     required this.icon,
+    required this.label,
+    required this.title,
+    required this.meta,
     required this.onTap,
   });
 
-  final String label;
-  final String body;
   final IconData icon;
+  final String label;
+  final String title;
+  final String meta;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return OnmuCard(
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primaryPinkSoft,
-            foregroundColor: AppColors.primaryPink,
-            child: Icon(icon),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.titleSmall),
-                Text(body, style: Theme.of(context).textTheme.bodySmall),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.primaryPinkSoft,
+              foregroundColor: AppColors.primaryPink,
+              child: Icon(icon, size: 20),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: AppColors.primaryPink),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({
-    required this.label,
-    required this.title,
-    required this.body,
-  });
-
-  final String label;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          OnmuChip(label: label, selected: label == '고정'),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.bodyMedium),
-                Text(body, style: Theme.of(context).textTheme.bodySmall),
-              ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        label,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    meta,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.xs),
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }

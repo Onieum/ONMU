@@ -5,7 +5,6 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
-import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -18,44 +17,42 @@ class OnMoimListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온모임',
-      subtitle: '모임, 친구, 약속을 검색하고 이어봅니다.',
       actions: [
         IconButton(
           tooltip: '온모임 검색',
           onPressed: () {},
           icon: const Icon(Icons.search),
         ),
-        IconButton(
-          tooltip: '온모임 만들기',
-          onPressed: () {},
-          icon: const Icon(Icons.add_circle_outline),
-        ),
       ],
+      floatingActionButton: FloatingActionButton(
+        tooltip: '온모임 만들기',
+        backgroundColor: AppColors.primaryPink,
+        foregroundColor: AppColors.textMain,
+        shape: const CircleBorder(),
+        onPressed: () => context.go(RoutePaths.onmoimDemo),
+        child: const Icon(Icons.add),
+      ),
       children: [
         const _OnMoimSearchField(),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
-            Text('내가 참여한 모임', style: Theme.of(context).textTheme.titleMedium),
+            Text('내 모임', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(width: AppSpacing.xs),
             const OnmuStickerLabel(label: '5', icon: Icons.favorite),
             const Spacer(),
-            TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.keyboard_arrow_down),
-              label: const Text('최신순'),
-            ),
+            TextButton(onPressed: () {}, child: const Text('최근 활동순')),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         for (final group in demoOnMoimGroups) ...[
           OnMoimGroupCard(
             group: group,
             onTap: () => context.go(RoutePaths.onmoimDemo),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
         ],
-        _CreateGroupCard(onPressed: () => context.go(RoutePaths.onmoimDemo)),
+        const SizedBox(height: 72),
       ],
     );
   }
@@ -75,63 +72,13 @@ class _OnMoimSearchField extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: AppColors.textMuted),
+          const Icon(Icons.search, color: AppColors.textMuted, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            '모임, 친구, 약속 검색',
+            '모임, 멤버, 약속 검색',
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CreateGroupCard extends StatelessWidget {
-  const _CreateGroupCard({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
-      borderColor: AppColors.lineWarm,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const OnmuPixelBuddy(size: 52),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '새로운 모임을 만들어보세요!',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      '친구들과 약속을 만들고 온모임에서 함께 소통해요.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OnmuPrimaryButton(
-              label: '모임 만들기',
-              icon: Icons.add,
-              color: AppColors.primaryPink,
-              onPressed: onPressed,
-            ),
           ),
         ],
       ),
