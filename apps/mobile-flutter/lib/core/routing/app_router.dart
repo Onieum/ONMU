@@ -8,6 +8,7 @@ import '../../features/meetup/presentation/pages/meetup_detail_page.dart';
 import '../../features/meetup/presentation/pages/meetup_member_select_page.dart';
 import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
 import '../../features/meetup/presentation/pages/meetup_title_input_page.dart';
+import '../../features/my/my_page.dart';
 import '../../features/onchat/presentation/pages/onchat_group_home_page.dart';
 import '../../features/onchat/presentation/pages/onchat_list_page.dart';
 import '../../features/onchat/presentation/pages/onchat_meetup_board_page.dart';
@@ -209,10 +210,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.my,
-              builder: (context, state) => const PrototypePlaceholderPage(
-                title: '마이 ONMU',
-                description: '캐릭터, 취향, 기록 요약을 관리합니다.',
-              ),
+              builder: (context, state) => const MyPage(),
             ),
           ],
         ),
