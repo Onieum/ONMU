@@ -1,146 +1,315 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'core/theme/app_theme.dart';
+import 'features/character/character_start_page.dart';
+import 'features/launch/splash_page.dart';
+import 'features/home/home_page.dart';
+import 'features/ootd/ootd_list_page.dart';
+import 'features/ootd/presentation/pages/daily_record_screen.dart';
+import 'features/ootd/presentation/pages/ootd_record_screen.dart';
+import 'features/memory/presentation/pages/memory_detail_page.dart';
+import 'features/memory/presentation/pages/memory_diary_template_page.dart';
+import 'main_shell.dart';
+import 'shared/models/ootd_model.dart';
+import 'shared/providers/state_providers.dart';
 
 void main() {
-  runApp(const OnmuApp());
+  runApp(
+    const ProviderScope(
+      child: OnmuApp(),
+    ),
+  );
 }
 
-class OnmuApp extends StatelessWidget {
+class OnmuApp extends ConsumerStatefulWidget {
   const OnmuApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ONMU',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7B4CF2),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      home: const PrototypeHomeScreen(),
-    );
-  }
+  ConsumerState<OnmuApp> createState() => _OnmuAppState();
 }
 
-class PrototypeHomeScreen extends StatelessWidget {
-  const PrototypeHomeScreen({super.key});
-
-  static const _steps = [
-    PrototypeStep(
-      title: '프로필 취향',
-      description: '선호/비선호 태그와 가능 시간을 추천 입력값으로 연결',
-      icon: Icons.person_outline,
-    ),
-    PrototypeStep(
-      title: '약속 방',
-      description: '참여자, 일정 후보, 실시간 상태를 하나의 room state로 관리',
-      icon: Icons.groups_outlined,
-    ),
-    PrototypeStep(
-      title: '장소 후보',
-      description: '외부 API, 영업시간, 이동 시간, 리스크를 후보 점수로 표시',
-      icon: Icons.place_outlined,
-    ),
-    PrototypeStep(
-      title: '기록 카드',
-      description: '사진과 캐릭터 요소를 약속 후 라이프로그로 저장',
-      icon: Icons.photo_library_outlined,
-    ),
-  ];
+class _OnmuAppState extends ConsumerState<OnmuApp> {
+  late final GoRouter _router;
+  late final _RouterRefreshNotifier _refreshNotifier;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ONMU'),
-        actions: [
-          IconButton(
-            tooltip: '알림',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none),
+  void initState() {
+    super.initState();
+    
+    _refreshNotifier = _RouterRefreshNotifier();
+    
+    _router = GoRouter(
+      initialLocation: '/splash',
+      refreshListenable: _refreshNotifier,
+      redirect: (context, state) {
+        final showSplash = ref.read(showSplashProvider);
+        final character = ref.read(userCharacterProvider);
+        final location = state.matchedLocation;
+
+        if (showSplash) {
+          return '/splash';
+        }
+
+        if (character == null) {
+          if (location.startsWith('/character')) {
+            return null;
+          }
+          return '/character/start';
+        }
+
+        if (location == '/splash' || location == '/character/start') {
+          return '/home';
+        }
+
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/splash',
+          builder: (context, state) => SplashPage(
+            onTimeout: () {
+              ref.read(showSplashProvider.notifier).state = false;
+            },
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              '약속을 만들고, 장소를 고르고, 기록으로 남기는 흐름',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+        ),
+        GoRoute(
+          path: '/character/start',
+          builder: (context, state) => CharacterStartPage(
+            onCompleted: (character) {
+              ref.read(userCharacterProvider.notifier).state = character;
+            },
+          ),
+        ),
+        
+        // StatefulShellRoute로 하단 탭 내비게이션 바 구성
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) {
+            return MainShell(navigationShell: navigationShell);
+          },
+          branches: [
+            // 탭 0: 홈
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/home',
+                  builder: (context, state) => const HomePage(),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '첫 프로토타입은 4개 파트가 끊기지 않고 이어지는 얇은 사용자 여정을 목표로 합니다.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.black54,
+            // 탭 1: 약속
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/meetups',
+                  builder: (context, state) => const _TabPlaceholder(
+                    title: '약속 탭',
+                    todoText: '약속 목록 화면 개발 예정',
                   ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            for (final step in _steps) ...[
-              PrototypeStepCard(step: step),
-              const SizedBox(height: 12),
-            ],
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add),
-              label: const Text('약속 만들기'),
+            // 탭 2: 온챗
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/onchat',
+                  builder: (context, state) => const _TabPlaceholder(
+                    title: '온챗 탭',
+                    todoText: '온챗 목록 화면 개발 예정',
+                  ),
+                ),
+              ],
+            ),
+            // 탭 3: 기록 (OotdListPage)
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/ootd/list',
+                  builder: (context, state) {
+                    final character = ref.watch(userCharacterProvider)!;
+                    final records = ref.watch(customRecordsProvider);
+                    return OotdListPage(
+                      userCharacter: character,
+                      customRecords: records,
+                      onAddOotd: (date) {
+                        context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
+                      },
+                      onAddDailyRecord: (date, ootdRecord) {
+                        // ootdRecord가 있으면 query parameter 대신 extra로 전달할 수 있도록 함
+                        context.push(
+                          '/ootd/new/daily?date=${date.toIso8601String()}',
+                          extra: ootdRecord,
+                        );
+                      },
+                      onViewOotdDetail: (record) {
+                        // 기록 상세(기억 상세) 페이지 이동
+                        final type = record.brands['recordType'] ?? 'ootd';
+                        final recordKey = '${record.date.year}-${record.date.month}-${record.date.day}-$type';
+                        context.push('/memories/$recordKey');
+                      },
+                      onNavigateToProfile: () {
+                        // 캐릭터 초기화 다이얼로그 호출
+                        _showResetDialog(context);
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+            // 탭 4: 마이
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/my',
+                  builder: (context, state) => const _TabPlaceholder(
+                    title: '마이 탭',
+                    todoText: '마이페이지 개발 예정',
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+
+        // 기록 등록 화면들 (풀스크린 모달 형태)
+        GoRoute(
+          path: '/ootd/new/daily',
+          builder: (context, state) {
+            final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
+            final date = DateTime.parse(dateStr);
+            final ootdRecord = state.extra as OotdRecord?;
+            final character = ref.read(userCharacterProvider)!;
+
+            return DailyRecordScreen(
+              userCharacter: character,
+              recordDate: date,
+              ootdRecord: ootdRecord,
+              onSave: (newRecord) {
+                ref.read(customRecordsProvider.notifier).update((state) => [...state, newRecord]);
+              },
+              onCreateOotd: () {
+                context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
+              },
+            );
+          },
+        ),
+        GoRoute(
+          path: '/ootd/new/ootd',
+          builder: (context, state) {
+            final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
+            final date = DateTime.parse(dateStr);
+            final character = ref.read(userCharacterProvider)!;
+
+            return OotdRecordScreen(
+              userCharacter: character,
+              recordDate: date,
+              onSave: (newRecord) {
+                ref.read(customRecordsProvider.notifier).update((state) => [...state, newRecord]);
+              },
+            );
+          },
+        ),
+
+        // 기억 상세 및 다이어리 템플릿
+        GoRoute(
+          path: '/memories/:memoryId',
+          builder: (context, state) {
+            final memoryId = state.pathParameters['memoryId'] ?? '0';
+            return MemoryDetailPage(memoryId: memoryId);
+          },
+        ),
+        GoRoute(
+          path: '/memories/:memoryId/template-diary',
+          builder: (context, state) {
+            final memoryId = state.pathParameters['memoryId'] ?? '0';
+            return MemoryDiaryTemplatePage(memoryId: memoryId);
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showResetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('캐릭터 재설정'),
+        content: const Text('캐릭터를 처음부터 다시 만들까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              ref.read(userCharacterProvider.notifier).state = null;
+            },
+            child: const Text(
+              '초기화',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Riverpod 상태 변화를 감지하여 GoRouter 리프레시 노티파이어 트리거
+    ref.listen(showSplashProvider, (_, __) => _refreshNotifier.notify());
+    ref.listen(userCharacterProvider, (_, __) => _refreshNotifier.notify());
+
+    return MaterialApp.router(
+      title: 'ONMU',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      routerConfig: _router,
     );
   }
 }
 
-class PrototypeStep {
-  const PrototypeStep({
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
-
-  final String title;
-  final String description;
-  final IconData icon;
+// 라우터 갱신을 돕는 심플 노티파이어
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void notify() {
+    notifyListeners();
+  }
 }
 
-class PrototypeStepCard extends StatelessWidget {
-  const PrototypeStepCard({required this.step, super.key});
+// 탭 플레이스홀더 위젯
+class _TabPlaceholder extends StatelessWidget {
+  final String title;
+  final String todoText;
 
-  final PrototypeStep step;
+  const _TabPlaceholder({required this.title, required this.todoText});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final textMain = const Color(0xFF3A2A23);
+    final textSub = const Color(0xFF7A6258);
+    final bgWarm = const Color(0xFFFFFDF9);
+
+    return Scaffold(
+      backgroundColor: bgWarm,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(step.icon, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    step.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(step.description),
-                ],
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: textMain,
               ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'TODO: $todoText',
+              style: TextStyle(fontSize: 13, color: textSub),
             ),
           ],
         ),
