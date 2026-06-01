@@ -1,6 +1,9 @@
 class RoutePaths {
   const RoutePaths._();
 
+  static const splash = '/splash';
+  static const start = '/start';
+  static const preferenceIntro = '/preferences/intro';
   static const home = '/home';
   static const meetups = '/meetups';
   static const meetupNewMembers = '/meetups/new/members';

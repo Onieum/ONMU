@@ -6,15 +6,58 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/meetup_models.dart';
+import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../preferences/preference_summary_page.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({this.showOnlyMeetups = false, super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({
+    this.showOnlyMeetups = false,
+    this.summaryProfile,
+    super.key,
+  });
 
   final bool showOnlyMeetups;
+  final PreferenceProfile? summaryProfile;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _summaryShown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _showSummaryIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.summaryProfile != widget.summaryProfile) {
+      _summaryShown = false;
+      _showSummaryIfNeeded();
+    }
+  }
+
+  void _showSummaryIfNeeded() {
+    final profile = widget.summaryProfile;
+    if (_summaryShown || profile == null) {
+      return;
+    }
+
+    _summaryShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        showPreferenceSummaryBottomSheet(context, profile);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +73,7 @@ class HomePage extends StatelessWidget {
         extendedPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       ),
       children: [
-        if (!showOnlyMeetups) ...[
+        if (!widget.showOnlyMeetups) ...[
           Row(
             children: [
               const PixelAvatar(label: '지', size: 64),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/launch/splash_page.dart';
+import '../../features/launch/start_page.dart';
 import '../../features/meetup/presentation/pages/meetup_complete_page.dart';
 import '../../features/meetup/presentation/pages/meetup_calendar_page.dart';
 import '../../features/meetup/presentation/pages/meetup_date_select_page.dart';
@@ -23,14 +25,30 @@ import '../../features/place/presentation/pages/place_detail_page.dart';
 import '../../features/place/presentation/pages/place_map_page.dart';
 import '../../features/place/presentation/pages/place_risks_page.dart';
 import '../../features/place/presentation/pages/place_search_filter_page.dart';
+import '../../features/preferences/preference_intro_page.dart';
+import '../../shared/models/preference_profile.dart';
 import '../../shared/widgets/onmu_bottom_nav_bar.dart';
 import '../../shared/widgets/prototype_placeholder_page.dart';
 import 'route_paths.dart';
 
 final appRouter = GoRouter(
-  initialLocation: RoutePaths.home,
+  initialLocation: RoutePaths.splash,
   routes: [
-    GoRoute(path: '/', redirect: (context, state) => RoutePaths.home),
+    GoRoute(path: '/', redirect: (context, state) => RoutePaths.splash),
+    GoRoute(
+      path: RoutePaths.splash,
+      builder: (context, state) =>
+          SplashPage(onTimeout: () => context.go(RoutePaths.preferenceIntro)),
+    ),
+    GoRoute(
+      path: RoutePaths.start,
+      builder: (context, state) => const StartPage(),
+    ),
+    GoRoute(
+      path: RoutePaths.preferenceIntro,
+      builder: (context, state) =>
+          PreferenceIntroPage(profile: PreferenceProfile.mock()),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return Scaffold(
@@ -45,7 +63,11 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.home,
-              builder: (context, state) => const HomePage(),
+              builder: (context, state) => HomePage(
+                summaryProfile: state.extra is PreferenceProfile
+                    ? state.extra! as PreferenceProfile
+                    : null,
+              ),
             ),
           ],
         ),

@@ -120,7 +120,7 @@ class PixelCharacterWidget extends StatelessWidget {
             height: size * 1.3,
             fit: fitMode,
             color: hairColor,
-            colorBlendMode: BlendMode.modulate, // 흰색 실루엣 위에 헤어 색상을 자연스럽게 곱하기 연산
+            colorBlendMode: BlendMode.srcIn,
             errorBuilder: (context, error, stackTrace) => const SizedBox(),
           ),
 
