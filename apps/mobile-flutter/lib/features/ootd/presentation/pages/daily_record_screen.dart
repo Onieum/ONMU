@@ -1300,11 +1300,6 @@ class DailyRecordResultScreen extends StatelessWidget {
     );
   }
 
-  String get _dateTitle {
-    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return '${record.date.year}.${record.date.month.toString().padLeft(2, '0')}.${record.date.day.toString().padLeft(2, '0')} (${weekdays[record.date.weekday - 1]})';
-  }
-
   static String _pick(List<String> assets, int seed) {
     return assets[Random(seed).nextInt(assets.length)];
   }
@@ -1364,7 +1359,6 @@ class _DiaryHeader extends StatelessWidget {
 class _DiaryAssetImage extends StatelessWidget {
   final String asset;
   final double? width;
-  final double? height;
   final BoxFit? fit;
   final Widget fallback;
 
@@ -1372,7 +1366,6 @@ class _DiaryAssetImage extends StatelessWidget {
     required this.asset,
     required this.fallback,
     this.width,
-    this.height,
     this.fit,
   });
 
@@ -1381,7 +1374,6 @@ class _DiaryAssetImage extends StatelessWidget {
     return Image.asset(
       asset,
       width: width,
-      height: height,
       fit: fit,
       gaplessPlayback: true,
       errorBuilder: (context, error, stackTrace) => fallback,
@@ -2076,72 +2068,6 @@ class _ResultMetaRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ResultPhotoCard extends StatelessWidget {
-  final int index;
-  final TimelineItem item;
-  final bool isDiary;
-
-  const _ResultPhotoCard({
-    required this.index,
-    required this.item,
-    required this.isDiary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isDiary ? 12 : 8),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: index.isEven
-                  ? AppColors.primaryPinkSoft
-                  : AppColors.primaryPurpleSoft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.image_outlined, color: AppColors.textSub),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.time,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primaryPink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.description,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSub,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

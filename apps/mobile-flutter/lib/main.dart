@@ -260,8 +260,8 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
   @override
   Widget build(BuildContext context) {
     // Riverpod 상태 변화를 감지하여 GoRouter 리프레시 노티파이어 트리거
-    ref.listen(showSplashProvider, (_, __) => _refreshNotifier.notify());
-    ref.listen(userCharacterProvider, (_, __) => _refreshNotifier.notify());
+    ref.listen(showSplashProvider, (a, b) => _refreshNotifier.notify());
+    ref.listen(userCharacterProvider, (a, b) => _refreshNotifier.notify());
 
     return MaterialApp.router(
       title: 'ONMU',
