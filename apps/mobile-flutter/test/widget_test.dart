@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/app/onmu_app.dart';
+import 'package:onmu_mobile/core/routing/app_router.dart';
+import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/meetup/presentation/pages/meetup_complete_page.dart';
 import 'package:onmu_mobile/features/meetup/presentation/pages/meetup_member_select_page.dart';
 
 void main() {
+  Future<void> pumpOnmuHome(WidgetTester tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    appRouter.go(RoutePaths.home);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('starts with splash and opens preference intro', (tester) async {
     await tester.pumpWidget(const OnmuApp());
 
@@ -41,8 +49,7 @@ void main() {
   });
 
   testWidgets('기존 하단 마이 탭에서 마이페이지가 열린다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
     await tester.tap(find.text('마이').last);
     await tester.pumpAndSettle();
@@ -54,8 +61,7 @@ void main() {
   });
 
   testWidgets('마이페이지 친구 탭에서 친구 추가를 할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
     await tester.tap(find.text('마이').last);
     await tester.pumpAndSettle();
@@ -79,8 +85,7 @@ void main() {
   });
 
   testWidgets('마이페이지 친구 탭에서 친구 메모를 저장할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
     await tester.tap(find.text('마이').last);
     await tester.pumpAndSettle();
@@ -104,7 +109,7 @@ void main() {
   testWidgets('약속 참여자 선택 화면에서 약속 이름 입력 진입점을 보이지 않는다', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light(),
+        theme: AppTheme.lightTheme,
         home: const MeetupMemberSelectPage(),
       ),
     );
@@ -119,7 +124,7 @@ void main() {
   testWidgets('약속 완료 화면에서 자동 생성된 약속 이름을 수정할 수 있다', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light(),
+        theme: AppTheme.lightTheme,
         home: const MeetupCompletePage(meetupId: 'weekend-outing'),
       ),
     );
@@ -140,10 +145,9 @@ void main() {
   });
 
   testWidgets('날짜 시간 선택 화면에서 캘린더 보기 페이지로 이동할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
-    await tester.tap(find.text('약속').last);
+    appRouter.go(RoutePaths.meetups);
     await tester.pumpAndSettle();
     await tester.tap(find.text('약속 만들기'));
     await tester.pumpAndSettle();
@@ -159,10 +163,9 @@ void main() {
   });
 
   testWidgets('장소 선택 이후 약속 완료 화면으로 이동해 자동 생성 이름을 확인할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
-    await tester.tap(find.text('약속').last);
+    appRouter.go(RoutePaths.meetups);
     await tester.pumpAndSettle();
     await tester.tap(find.text('약속 만들기'));
     await tester.pumpAndSettle();
@@ -185,8 +188,7 @@ void main() {
   });
 
   testWidgets('불가능한 날짜는 달력에서 여러 날짜를 선택할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
     await tester.tap(find.text('마이').last);
     await tester.pumpAndSettle();
@@ -217,8 +219,7 @@ void main() {
   });
 
   testWidgets('가능 요일은 요일 버튼으로 여러 개 선택할 수 있다', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
-    await tester.pumpAndSettle();
+    await pumpOnmuHome(tester);
 
     await tester.tap(find.text('마이').last);
     await tester.pumpAndSettle();

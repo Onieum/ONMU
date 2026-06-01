@@ -54,7 +54,11 @@ final appRouter = GoRouter(
         return Scaffold(
           body: navigationShell,
           bottomNavigationBar: OnmuBottomNavBar(
-            navigationShell: navigationShell,
+            currentIndex: navigationShell.currentIndex,
+            onTap: (index) => navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            ),
           ),
         );
       },
@@ -175,51 +179,6 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: RoutePaths.onchat,
-              builder: (context, state) => const OnChatListPage(),
-              routes: [
-                GoRoute(
-                  path: 'groups/:groupId',
-                  builder: (context, state) => const OnChatGroupHomePage(),
-                  routes: [
-                    GoRoute(
-                      path: 'chat',
-                      builder: (context, state) => const OnChatThreadPage(),
-                    ),
-                    GoRoute(
-                      path: 'meetups/new',
-                      builder: (context, state) =>
-                          const OnChatMeetupCreatePage(),
-                    ),
-                    GoRoute(
-                      path: 'meetups/:meetupId/board',
-                      builder: (context, state) =>
-                          const OnChatMeetupBoardPage(),
-                    ),
-                    GoRoute(
-                      path: 'memories',
-                      builder: (context, state) =>
-                          const OnChatMemoryBoardPage(),
-                    ),
-                    GoRoute(
-                      path: 'settlements/new',
-                      builder: (context, state) =>
-                          const OnChatSettlementCreatePage(),
-                    ),
-                    GoRoute(
-                      path: 'settlements/:settlementId',
-                      builder: (context, state) =>
-                          const OnChatSettlementSharePage(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
               path: RoutePaths.ootdList,
               builder: (context, state) => const PrototypePlaceholderPage(
                 title: '기록',
@@ -233,6 +192,42 @@ final appRouter = GoRouter(
             GoRoute(
               path: RoutePaths.my,
               builder: (context, state) => const MyPage(),
+            ),
+          ],
+        ),
+      ],
+    ),
+    GoRoute(
+      path: RoutePaths.onchat,
+      builder: (context, state) => const OnChatListPage(),
+      routes: [
+        GoRoute(
+          path: 'groups/:groupId',
+          builder: (context, state) => const OnChatGroupHomePage(),
+          routes: [
+            GoRoute(
+              path: 'chat',
+              builder: (context, state) => const OnChatThreadPage(),
+            ),
+            GoRoute(
+              path: 'meetups/new',
+              builder: (context, state) => const OnChatMeetupCreatePage(),
+            ),
+            GoRoute(
+              path: 'meetups/:meetupId/board',
+              builder: (context, state) => const OnChatMeetupBoardPage(),
+            ),
+            GoRoute(
+              path: 'memories',
+              builder: (context, state) => const OnChatMemoryBoardPage(),
+            ),
+            GoRoute(
+              path: 'settlements/new',
+              builder: (context, state) => const OnChatSettlementCreatePage(),
+            ),
+            GoRoute(
+              path: 'settlements/:settlementId',
+              builder: (context, state) => const OnChatSettlementSharePage(),
             ),
           ],
         ),
