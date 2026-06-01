@@ -12,7 +12,14 @@ import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class PlaceMapPage extends StatelessWidget {
-  const PlaceMapPage({super.key});
+  const PlaceMapPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +70,9 @@ class PlaceMapPage extends StatelessWidget {
               child: OnmuSecondaryButton(
                 label: '후보 목록',
                 icon: Icons.list_alt,
-                onPressed: () => context.go(RoutePaths.placeCandidates),
+                onPressed: () => context.go(
+                  RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId),
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -71,7 +80,9 @@ class PlaceMapPage extends StatelessWidget {
               child: OnmuPrimaryButton(
                 label: '비교하기',
                 icon: Icons.compare_arrows,
-                onPressed: () => context.go(RoutePaths.placeCompare),
+                onPressed: () => context.go(
+                  RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+                ),
               ),
             ),
           ],

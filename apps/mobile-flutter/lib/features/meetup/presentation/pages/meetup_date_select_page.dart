@@ -14,7 +14,9 @@ import '../../../../shared/widgets/onmu_step_progress.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupDateSelectPage extends StatefulWidget {
-  const MeetupDateSelectPage({super.key});
+  const MeetupDateSelectPage({required this.onmoimId, super.key});
+
+  final String onmoimId;
 
   @override
   State<MeetupDateSelectPage> createState() => _MeetupDateSelectPageState();
@@ -85,8 +87,9 @@ class _MeetupDateSelectPageState extends State<MeetupDateSelectPage> {
             OnmuPrimaryButton(
               label: '장소 선택',
               icon: Icons.arrow_forward,
-              onPressed: () =>
-                  context.push(RoutePaths.meetupPlaces(mockMeetup.id)),
+              onPressed: () => context.push(
+                RoutePaths.onmoimMeetupPlaces(widget.onmoimId, mockMeetup.id),
+              ),
             ),
           ],
         ),
@@ -175,7 +178,9 @@ class _MeetupDateSelectPageState extends State<MeetupDateSelectPage> {
                   const Spacer(),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => context.push(RoutePaths.meetupNewCalendar),
+                    onTap: () => context.push(
+                      RoutePaths.onmoimMeetupNewCalendar(widget.onmoimId),
+                    ),
                     child: const OnmuChip(
                       label: '캘린더 보기',
                       icon: Icons.calendar_month,

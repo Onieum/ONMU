@@ -13,7 +13,14 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 enum PlaceRiskDialogKind { keyword, breakTime, closedDay }
 
 class PlaceRisksPage extends StatelessWidget {
-  const PlaceRisksPage({super.key});
+  const PlaceRisksPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +36,9 @@ class PlaceRisksPage extends StatelessWidget {
                 child: OnmuSecondaryButton(
                   label: '그래도 후보 추가',
                   icon: Icons.add_circle_outline,
-                  onPressed: () => context.go(RoutePaths.placeCompare),
+                  onPressed: () => context.go(
+                    RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -39,7 +48,9 @@ class PlaceRisksPage extends StatelessWidget {
                   icon: Icons.swap_horiz,
                   color: AppColors.primaryPurple,
                   foregroundColor: AppColors.textInverse,
-                  onPressed: () => context.go(RoutePaths.placeSearch),
+                  onPressed: () => context.go(
+                    RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
+                  ),
                 ),
               ),
             ],
@@ -67,15 +78,29 @@ class PlaceRisksPage extends StatelessWidget {
           children: [
             ActionChip(
               label: const Text('비선호 키워드'),
-              onPressed: () => context.go(RoutePaths.placeRiskKeyword),
+              onPressed: () => context.go(
+                RoutePaths.onmoimMeetupPlaceRisk(onmoimId, meetupId, 'keyword'),
+              ),
             ),
             ActionChip(
               label: const Text('브레이크 타임'),
-              onPressed: () => context.go(RoutePaths.placeRiskBreakTime),
+              onPressed: () => context.go(
+                RoutePaths.onmoimMeetupPlaceRisk(
+                  onmoimId,
+                  meetupId,
+                  'break-time',
+                ),
+              ),
             ),
             ActionChip(
               label: const Text('휴무일'),
-              onPressed: () => context.go(RoutePaths.placeRiskClosedDay),
+              onPressed: () => context.go(
+                RoutePaths.onmoimMeetupPlaceRisk(
+                  onmoimId,
+                  meetupId,
+                  'closed-day',
+                ),
+              ),
             ),
           ],
         ),
@@ -85,8 +110,15 @@ class PlaceRisksPage extends StatelessWidget {
 }
 
 class PlaceRiskDialogPreviewPage extends StatelessWidget {
-  const PlaceRiskDialogPreviewPage({required this.kind, super.key});
+  const PlaceRiskDialogPreviewPage({
+    required this.onmoimId,
+    required this.meetupId,
+    required this.kind,
+    super.key,
+  });
 
+  final String onmoimId;
+  final String meetupId;
   final PlaceRiskDialogKind kind;
 
   @override
@@ -126,7 +158,11 @@ class PlaceRiskDialogPreviewPage extends StatelessWidget {
             Positioned.fill(
               child: Align(
                 alignment: Alignment.center,
-                child: _RiskDialogCard(copy: copy),
+                child: _RiskDialogCard(
+                  copy: copy,
+                  onmoimId: onmoimId,
+                  meetupId: meetupId,
+                ),
               ),
             ),
           ],
@@ -270,9 +306,15 @@ class _EvidenceCard extends StatelessWidget {
 }
 
 class _RiskDialogCard extends StatelessWidget {
-  const _RiskDialogCard({required this.copy});
+  const _RiskDialogCard({
+    required this.copy,
+    required this.onmoimId,
+    required this.meetupId,
+  });
 
   final _RiskDialogCopy copy;
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -300,7 +342,9 @@ class _RiskDialogCard extends StatelessWidget {
                 Expanded(
                   child: OnmuSecondaryButton(
                     label: copy.secondaryLabel,
-                    onPressed: () => context.go(RoutePaths.placeRisks),
+                    onPressed: () => context.go(
+                      RoutePaths.onmoimMeetupPlaceRisks(onmoimId, meetupId),
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -308,7 +352,9 @@ class _RiskDialogCard extends StatelessWidget {
                   child: OnmuPrimaryButton(
                     label: copy.primaryLabel,
                     color: AppColors.primaryPink,
-                    onPressed: () => context.go(RoutePaths.placeCompare),
+                    onPressed: () => context.go(
+                      RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+                    ),
                   ),
                 ),
               ],

@@ -9,26 +9,34 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/onchat_cards.dart';
+import '../widgets/onmoim_cards.dart';
 
-class OnChatSettlementSharePage extends StatelessWidget {
-  const OnChatSettlementSharePage({super.key});
+class OnMoimSettlementSharePage extends StatelessWidget {
+  const OnMoimSettlementSharePage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
     final settlement = demoSettlementSummary;
 
     return OnmuScaffold(
-      title: '정산 공유',
-      subtitle: '총액, N분의 1, 입금 상태, 공유 문구를 온챗에 붙여둡니다.',
+      title: '약속 정산',
+      subtitle: '이 약속의 총액, N분의 1, 입금 상태를 확인합니다.',
       bottom: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: OnmuPrimaryButton(
-            label: '온챗에 공유하기',
-            icon: Icons.reply_outlined,
+            label: '약속 상세로 돌아가기',
+            icon: Icons.event_note_outlined,
             color: AppColors.primaryPink,
-            onPressed: () => context.go(RoutePaths.onchatDemoChat),
+            onPressed: () =>
+                context.go(RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)),
           ),
         ),
       ),

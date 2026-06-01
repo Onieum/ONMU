@@ -10,10 +10,17 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/onchat_cards.dart';
+import '../widgets/onmoim_cards.dart';
 
-class OnChatSettlementCreatePage extends StatelessWidget {
-  const OnChatSettlementCreatePage({super.key});
+class OnMoimSettlementCreatePage extends StatelessWidget {
+  const OnMoimSettlementCreatePage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +28,7 @@ class OnChatSettlementCreatePage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '정산 만들기',
-      subtitle: '결제자, 금액, 대상자를 정산 메모로 차분히 정리합니다.',
+      subtitle: '이 약속에서 쓴 비용만 정산 메모로 차분히 정리합니다.',
       children: [
         OnmuCard(
           backgroundColor: AppColors.bgPaper,
@@ -77,7 +84,13 @@ class OnChatSettlementCreatePage extends StatelessWidget {
         OnmuPrimaryButton(
           label: '정산 공유 화면 보기',
           icon: Icons.send_outlined,
-          onPressed: () => context.go(RoutePaths.settlementShare),
+          onPressed: () => context.go(
+            RoutePaths.onmoimMeetupSettlementShare(
+              onmoimId,
+              meetupId,
+              settlement.id,
+            ),
+          ),
         ),
       ],
     );

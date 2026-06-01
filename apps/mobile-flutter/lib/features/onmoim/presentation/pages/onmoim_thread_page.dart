@@ -5,21 +5,21 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/onchat_cards.dart';
+import '../widgets/onmoim_cards.dart';
 
-class OnChatThreadPage extends StatelessWidget {
-  const OnChatThreadPage({super.key});
+class OnMoimThreadPage extends StatelessWidget {
+  const OnMoimThreadPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '온챗 대화',
+      title: '채팅',
       subtitle: '친구들이 붙여둔 말풍선을 메모지처럼 확인합니다.',
       bottom: SafeArea(
         child: Padding(
@@ -62,12 +62,12 @@ class OnChatThreadPage extends StatelessWidget {
       children: [
         PinnedMeetupCard(
           meetup: demoPinnedMeetup,
-          onBoardPressed: () => context.go(RoutePaths.onchatMeetupBoard),
+          onBoardPressed: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
         ),
         const SizedBox(height: AppSpacing.md),
         const _StatusChipRow(),
         const SizedBox(height: AppSpacing.md),
-        for (final message in demoOnChatMessages) ...[
+        for (final message in demoOnMoimMessages) ...[
           ChatMessageBubble(message: message),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -93,7 +93,7 @@ class OnChatThreadPage extends StatelessWidget {
               OnmuPrimaryButton(
                 label: '투표 보드 보기',
                 icon: Icons.how_to_vote_outlined,
-                onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
+                onPressed: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
               ),
             ],
           ),

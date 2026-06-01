@@ -34,7 +34,7 @@ class SettlementSummary {
 
 const demoSettlementSummary = SettlementSummary(
   id: 'lunch-split',
-  title: '이번 모임 총 금액',
+  title: '이번 약속 총 금액',
   totalAmountLabel: '186,000원',
   payer: '지민',
   dueDateLabel: '정산일 2025.05.28',
@@ -76,5 +76,5 @@ const demoSettlementSummary = SettlementSummary(
       isPaid: false,
     ),
   ],
-  shareMessage: '5/30~6/1 제주도 여행 정산입니다! 확인 부탁드려요.',
+  shareMessage: '5/30~6/1 제주도 여행 약속 정산입니다! 확인 부탁드려요.',
 );

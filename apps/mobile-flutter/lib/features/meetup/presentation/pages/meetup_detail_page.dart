@@ -13,8 +13,13 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupDetailPage extends StatelessWidget {
-  const MeetupDetailPage({required this.meetupId, super.key});
+  const MeetupDetailPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
 
+  final String onmoimId;
   final String meetupId;
 
   @override
@@ -36,7 +41,9 @@ class MeetupDetailPage extends StatelessWidget {
       bottom: OnmuPrimaryButton(
         label: '동선 확인',
         icon: Icons.route_outlined,
-        onPressed: () => context.push(RoutePaths.meetupRouteReview(meetup.id)),
+        onPressed: () => context.push(
+          RoutePaths.onmoimMeetupRouteReview(onmoimId, meetup.id),
+        ),
       ),
       children: [
         _MeetupHeaderCard(meetup: meetup, members: selectedMembers),
@@ -47,12 +54,89 @@ class MeetupDetailPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _ScheduleCard(meetup: meetup),
         const SizedBox(height: AppSpacing.md),
+        _MeetupActionCard(onmoimId: onmoimId, meetupId: meetup.id),
+        const SizedBox(height: AppSpacing.md),
         _VisitPlanCard(visitPlan: meetup.visitPlan),
         const SizedBox(height: AppSpacing.md),
         _MemoCard(memo: meetup.memo),
         const SizedBox(height: AppSpacing.md),
         const _StatusCard(),
       ],
+    );
+  }
+}
+
+class _MeetupActionCard extends StatelessWidget {
+  const _MeetupActionCard({required this.onmoimId, required this.meetupId});
+
+  final String onmoimId;
+  final String meetupId;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.dashboard_customize,
+                color: AppColors.primaryPurple,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '약속 도구',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '지도와 정산은 이 약속 상세에서만 관리해요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '지도 보기',
+                  icon: Icons.map_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '정산 만들기',
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupSettlementNew(onmoimId, meetupId),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OnmuSecondaryButton(
+            label: '정산 보기',
+            icon: Icons.payments_outlined,
+            onPressed: () => context.push(
+              RoutePaths.onmoimMeetupSettlementShare(
+                onmoimId,
+                meetupId,
+                'lunch-split',
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

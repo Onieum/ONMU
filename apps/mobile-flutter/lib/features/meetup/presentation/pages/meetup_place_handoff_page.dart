@@ -29,7 +29,8 @@ class MeetupPlaceHandoffPage extends StatelessWidget {
       bottom: OnmuPrimaryButton(
         label: '선택 완료',
         icon: Icons.check,
-        onPressed: () => context.push(RoutePaths.meetupDetail(meetupId)),
+        onPressed: () =>
+            context.push(RoutePaths.onmoimMeetupDetail('friends', meetupId)),
       ),
       children: [
         const OnmuStepProgress(currentIndex: 2),
