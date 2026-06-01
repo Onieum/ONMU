@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -17,6 +18,8 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
+  static const _friendMemoMaxLength = 30;
+
   var _selectedTab = _MyTab.profile;
   var _profile = _mockProfile;
   var _friends = _mockFriends;
@@ -44,6 +47,7 @@ class _MyPageState extends State<MyPage> {
                 _FriendsTab(
                   friends: _friends.where((friend) => friend.isFriend).toList(),
                   onOpenAddFriend: _showFriendAddSheet,
+                  onEditMemo: _showFriendMemoSheet,
                 ),
             ],
           ),
@@ -163,6 +167,18 @@ class _MyPageState extends State<MyPage> {
     });
   }
 
+  void _updateFriendMemo(FriendProfile target, String memo) {
+    setState(() {
+      _friends = [
+        for (final friend in _friends)
+          if (friend.name == target.name)
+            friend.copyWith(memo: memo)
+          else
+            friend,
+      ];
+    });
+  }
+
   Future<void> _showFriendAddSheet() async {
     final result = await showModalBottomSheet<FriendProfile>(
       context: context,
@@ -179,6 +195,25 @@ class _MyPageState extends State<MyPage> {
     }
 
     _addFriend(result);
+  }
+
+  Future<void> _showFriendMemoSheet(FriendProfile friend) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return _FriendMemoSheet(
+          friend: friend,
+          maxLength: _friendMemoMaxLength,
+        );
+      },
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    _updateFriendMemo(friend, result);
   }
 }
 
@@ -441,10 +476,15 @@ class _PlaceTile extends StatelessWidget {
 }
 
 class _FriendsTab extends StatelessWidget {
-  const _FriendsTab({required this.friends, required this.onOpenAddFriend});
+  const _FriendsTab({
+    required this.friends,
+    required this.onOpenAddFriend,
+    required this.onEditMemo,
+  });
 
   final List<FriendProfile> friends;
   final VoidCallback onOpenAddFriend;
+  final ValueChanged<FriendProfile> onEditMemo;
 
   @override
   Widget build(BuildContext context) {
@@ -461,7 +501,7 @@ class _FriendsTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         for (final friend in friends) ...[
-          _FriendCard(friend: friend),
+          _FriendCard(friend: friend, onEditMemo: () => onEditMemo(friend)),
           const SizedBox(height: AppSpacing.sm),
         ],
         if (friends.isEmpty) const OnmuCard(child: Text('아직 친구가 없어요.')),
@@ -471,12 +511,15 @@ class _FriendsTab extends StatelessWidget {
 }
 
 class _FriendCard extends StatelessWidget {
-  const _FriendCard({required this.friend});
+  const _FriendCard({required this.friend, required this.onEditMemo});
 
   final FriendProfile friend;
+  final VoidCallback onEditMemo;
 
   @override
   Widget build(BuildContext context) {
+    final memo = friend.memo.trim();
+
     return OnmuCard(
       child: Row(
         children: [
@@ -491,9 +534,126 @@ class _FriendCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  memo.isEmpty ? '메모를 남겨보세요' : memo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: memo.isEmpty
+                        ? AppColors.textMuted
+                        : AppColors.textSub,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(friend.preferenceSummary),
               ],
             ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          IconButton(
+            tooltip: '${friend.name} 메모 편집',
+            onPressed: onEditMemo,
+            icon: const Icon(Icons.edit_note_outlined),
+            color: AppColors.primaryPurple,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FriendMemoSheet extends StatefulWidget {
+  const _FriendMemoSheet({required this.friend, required this.maxLength});
+
+  final FriendProfile friend;
+  final int maxLength;
+
+  @override
+  State<_FriendMemoSheet> createState() => _FriendMemoSheetState();
+}
+
+class _FriendMemoSheetState extends State<_FriendMemoSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.friend.memo);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '친구 메모',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                tooltip: '닫기',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${widget.friend.name}님을 기억할 짧은 메모를 남겨요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLength: widget.maxLength,
+            maxLines: 2,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(widget.maxLength),
+            ],
+            decoration: const InputDecoration(
+              hintText: '예: 전시 전에 조용한 카페 선호',
+              prefixIcon: Icon(Icons.sticky_note_2_outlined),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '취소',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuPrimaryButton(
+                  label: '저장하기',
+                  icon: Icons.check,
+                  onPressed: () {
+                    Navigator.of(context).pop(_controller.text.trim());
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),

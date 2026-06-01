@@ -74,17 +74,20 @@ class FriendProfile {
     required this.name,
     required this.preferenceSummary,
     required this.isFriend,
+    this.memo = '',
   });
 
   final String name;
   final String preferenceSummary;
   final bool isFriend;
+  final String memo;
 
-  FriendProfile copyWith({bool? isFriend}) {
+  FriendProfile copyWith({bool? isFriend, String? memo}) {
     return FriendProfile(
       name: name,
       preferenceSummary: preferenceSummary,
       isFriend: isFriend ?? this.isFriend,
+      memo: memo ?? this.memo,
     );
   }
 }
