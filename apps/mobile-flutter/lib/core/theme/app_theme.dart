@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 
-abstract final class AppTheme {
+class AppTheme {
+  const AppTheme._();
+
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primaryPurple,
+      seedColor: AppColors.primaryPink,
       brightness: Brightness.light,
-      primary: AppColors.primaryPurple,
-      secondary: AppColors.primaryPink,
+      primary: AppColors.primaryPink,
+      secondary: AppColors.primaryPurple,
       surface: AppColors.bgDefault,
       surfaceContainerHighest: AppColors.bgPaper,
       outline: AppColors.lineSoft,
@@ -23,43 +25,52 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: AppColors.bgDefault,
       fontFamily: 'Apple SD Gothic Neo',
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.bgDefault,
-        foregroundColor: AppColors.textMain,
+        centerTitle: false,
         elevation: 0,
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColors.bgWarm,
+        foregroundColor: AppColors.textMain,
       ),
-      navigationBarTheme: NavigationBarThemeData(
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        color: AppColors.bgPaper,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
+          side: BorderSide(color: AppColors.lineSoft),
+        ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: AppColors.bgDefault,
         indicatorColor: AppColors.primaryPinkSoft,
-        labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? const TextStyle(
-                  color: AppColors.primaryPurple,
-                  fontWeight: FontWeight.w800,
-                )
-              : const TextStyle(
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(
+            color: AppColors.textSub,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        iconTheme: WidgetStatePropertyAll(
+          IconThemeData(color: AppColors.textSub),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(54),
-          backgroundColor: AppColors.primaryPurple,
-          foregroundColor: AppColors.textInverse,
+          minimumSize: const Size.fromHeight(52),
+          backgroundColor: AppColors.primaryPink,
+          foregroundColor: AppColors.textMain,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
-          foregroundColor: AppColors.primaryPurple,
-          side: const BorderSide(color: AppColors.linePurple),
+          minimumSize: const Size.fromHeight(48),
+          foregroundColor: AppColors.textMain,
+          side: const BorderSide(color: AppColors.lineBrown),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
         ),
       ),
@@ -70,59 +81,74 @@ abstract final class AppTheme {
           horizontal: 16,
           vertical: 14,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.lineSoft),
-        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           borderSide: const BorderSide(color: AppColors.lineSoft),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.linePurple),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: const BorderSide(color: AppColors.linePink, width: 1.4),
         ),
       ),
       textTheme: const TextTheme(
         headlineSmall: TextStyle(
           color: AppColors.textMain,
-          fontSize: 28,
+          fontSize: 24,
           fontWeight: FontWeight.w800,
+          height: 1.25,
           letterSpacing: 0,
         ),
         titleLarge: TextStyle(
           color: AppColors.textMain,
           fontSize: 22,
           fontWeight: FontWeight.w800,
+          height: 1.25,
           letterSpacing: 0,
         ),
         titleMedium: TextStyle(
           color: AppColors.textMain,
           fontSize: 18,
           fontWeight: FontWeight.w800,
+          height: 1.3,
+          letterSpacing: 0,
+        ),
+        titleSmall: TextStyle(
+          color: AppColors.textMain,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
           letterSpacing: 0,
         ),
         bodyLarge: TextStyle(
           color: AppColors.textMain,
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
+          height: 1.45,
           letterSpacing: 0,
         ),
         bodyMedium: TextStyle(
           color: AppColors.textSub,
           fontSize: 14,
           fontWeight: FontWeight.w500,
+          height: 1.45,
+          letterSpacing: 0,
+        ),
+        bodySmall: TextStyle(
+          color: AppColors.textMuted,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          height: 1.35,
           letterSpacing: 0,
         ),
         labelLarge: TextStyle(
           color: AppColors.textInverse,
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w800,
           letterSpacing: 0,
         ),
         labelMedium: TextStyle(
           color: AppColors.textSub,
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           letterSpacing: 0,
         ),

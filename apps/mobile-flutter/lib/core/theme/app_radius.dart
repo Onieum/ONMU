@@ -1,8 +1,10 @@
-abstract final class AppRadius {
-  static const double xs = 8;
-  static const double sm = 10;
-  static const double md = 12;
-  static const double lg = 16;
-  static const double xl = 20;
-  static const double pill = 999;
+class AppRadius {
+  const AppRadius._();
+
+  static const xs = 8.0;
+  static const sm = 10.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 20.0;
+  static const pill = 999.0;
 }

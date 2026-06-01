@@ -7,39 +7,39 @@ import '../../core/theme/app_spacing.dart';
 class OnmuChip extends StatelessWidget {
   const OnmuChip({
     required this.label,
-    this.selected = false,
-    this.icon,
-    this.color,
     super.key,
+    this.icon,
+    this.selected = false,
+    this.color,
   });
 
   final String label;
-  final bool selected;
   final IconData? icon;
+  final bool selected;
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.primaryPurple;
+    final activeColor = color ?? AppColors.primaryPink;
     final hasCustomColor = color != null;
     final backgroundColor = selected
-        ? AppColors.primaryPurpleSoft
+        ? AppColors.primaryPinkSoft
         : hasCustomColor
         ? activeColor.withValues(alpha: 0.14)
         : AppColors.bgDefault;
     final borderColor = selected
-        ? AppColors.linePurple
+        ? AppColors.linePink
         : hasCustomColor
         ? activeColor.withValues(alpha: 0.62)
-        : AppColors.lineSoft;
-    final foregroundColor = (selected || hasCustomColor)
+        : AppColors.lineBrown;
+    final foregroundColor = selected || hasCustomColor
         ? activeColor
         : AppColors.textSub;
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: borderColor),
       ),
       child: Padding(

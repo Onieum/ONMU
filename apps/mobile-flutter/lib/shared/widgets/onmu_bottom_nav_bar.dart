@@ -30,7 +30,7 @@ class OnmuBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.bgDefault,
         border: Border(top: BorderSide(color: AppColors.lineSoft)),
@@ -43,6 +43,7 @@ class OnmuBottomNavBar extends StatelessWidget {
             children: List.generate(_items.length, (index) {
               final selected = navigationShell.currentIndex == index;
               final item = _items[index];
+
               return Expanded(
                 child: InkWell(
                   onTap: () {
@@ -59,7 +60,7 @@ class OnmuBottomNavBar extends StatelessWidget {
                       Icon(
                         selected ? item.filled : item.outlined,
                         color: selected
-                            ? AppColors.primaryPurple
+                            ? AppColors.primaryPink
                             : AppColors.textMuted,
                         size: 24,
                       ),
@@ -73,7 +74,7 @@ class OnmuBottomNavBar extends StatelessWidget {
                               ? FontWeight.w700
                               : FontWeight.w500,
                           color: selected
-                              ? AppColors.primaryPurple
+                              ? AppColors.primaryPink
                               : AppColors.textMuted,
                         ),
                       ),

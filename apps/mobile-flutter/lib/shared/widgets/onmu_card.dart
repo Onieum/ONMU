@@ -7,11 +7,11 @@ import '../../core/theme/app_spacing.dart';
 class OnmuCard extends StatelessWidget {
   const OnmuCard({
     required this.child,
+    super.key,
     this.padding = const EdgeInsets.all(AppSpacing.md),
     this.backgroundColor = AppColors.bgPaper,
-    this.borderColor = AppColors.lineSoft,
+    this.borderColor = AppColors.lineBrown,
     this.onTap,
-    super.key,
   });
 
   final Widget child;
@@ -22,7 +22,7 @@ class OnmuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = DecoratedBox(
+    final card = DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -30,8 +30,8 @@ class OnmuCard extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -39,13 +39,16 @@ class OnmuCard extends StatelessWidget {
     );
 
     if (onTap == null) {
-      return content;
+      return card;
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: content,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onTap,
+        child: card,
+      ),
     );
   }
 }

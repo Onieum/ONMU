@@ -7,29 +7,39 @@ import 'onmu_top_bar.dart';
 class OnmuScaffold extends StatelessWidget {
   const OnmuScaffold({
     required this.children,
+    super.key,
     this.title,
+    this.subtitle,
+    this.leading,
+    this.actions = const [],
     this.showBackButton = false,
     this.onBack,
     this.action,
     this.bottom,
     this.floatingActionButton,
+    this.useGridBackground = false,
     this.useWarmBackground = true,
-    super.key,
   });
 
   final List<Widget> children;
   final String? title;
+  final String? subtitle;
+  final Widget? leading;
+  final List<Widget> actions;
   final bool showBackButton;
   final VoidCallback? onBack;
   final Widget? action;
   final Widget? bottom;
   final Widget? floatingActionButton;
+  final bool useGridBackground;
   final bool useWarmBackground;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: useWarmBackground
+      backgroundColor: useGridBackground
+          ? AppColors.bgGrid
+          : useWarmBackground
           ? AppColors.bgWarm
           : AppColors.bgDefault,
       floatingActionButton: floatingActionButton,
@@ -40,9 +50,9 @@ class OnmuScaffold extends StatelessWidget {
             if (title != null)
               OnmuTopBar(
                 title: title!,
-                showBackButton: showBackButton,
+                showBackButton: showBackButton || leading != null,
                 onBack: onBack,
-                action: action,
+                action: action ?? (actions.isEmpty ? null : Row(children: actions)),
               ),
             Expanded(
               child: ListView(
@@ -52,25 +62,35 @@ class OnmuScaffold extends StatelessWidget {
                   AppSpacing.lg,
                   AppSpacing.xxl,
                 ),
-                children: children,
+                children: [
+                  if (subtitle != null) ...[
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  ...children,
+                ],
               ),
             ),
-            if (bottom != null)
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                  ),
-                  child: bottom,
-                ),
-              ),
           ],
         ),
       ),
+      bottomNavigationBar: bottom == null
+          ? null
+          : SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: bottom,
+              ),
+            ),
     );
   }
 }

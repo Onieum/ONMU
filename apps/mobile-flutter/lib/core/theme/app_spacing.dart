@@ -1,9 +1,11 @@
-abstract final class AppSpacing {
-  static const double xxs = 4;
-  static const double xs = 8;
-  static const double sm = 12;
-  static const double md = 16;
-  static const double lg = 20;
-  static const double xl = 24;
-  static const double xxl = 32;
+class AppSpacing {
+  const AppSpacing._();
+
+  static const xxs = 4.0;
+  static const xs = 8.0;
+  static const sm = 12.0;
+  static const md = 16.0;
+  static const lg = 20.0;
+  static const xl = 24.0;
+  static const xxl = 32.0;
 }
