@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../onmu_design.dart';
+import '../../core/theme/app_colors.dart';
 
 class OnmuBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
+  const OnmuBottomNavBar({required this.navigationShell, super.key});
 
-  const OnmuBottomNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
+  final StatefulNavigationShell navigationShell;
 
   static const _items = [
     _NavItem(label: '홈', outlined: Icons.home_outlined, filled: Icons.home),
@@ -36,8 +32,8 @@ class OnmuBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: OnmuColors.bgDefault,
-        border: Border(top: BorderSide(color: OnmuColors.lineSoft)),
+        color: AppColors.bgDefault,
+        border: Border(top: BorderSide(color: AppColors.lineSoft)),
       ),
       child: SafeArea(
         top: false,
@@ -45,11 +41,16 @@ class OnmuBottomNavBar extends StatelessWidget {
           height: 60,
           child: Row(
             children: List.generate(_items.length, (index) {
-              final selected = index == currentIndex;
+              final selected = navigationShell.currentIndex == index;
               final item = _items[index];
               return Expanded(
                 child: InkWell(
-                  onTap: () => onTap(index),
+                  onTap: () {
+                    navigationShell.goBranch(
+                      index,
+                      initialLocation: index == navigationShell.currentIndex,
+                    );
+                  },
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   child: Column(
@@ -58,8 +59,8 @@ class OnmuBottomNavBar extends StatelessWidget {
                       Icon(
                         selected ? item.filled : item.outlined,
                         color: selected
-                            ? OnmuColors.purple
-                            : OnmuColors.textMuted,
+                            ? AppColors.primaryPurple
+                            : AppColors.textMuted,
                         size: 24,
                       ),
                       const SizedBox(height: 3),
@@ -72,8 +73,8 @@ class OnmuBottomNavBar extends StatelessWidget {
                               ? FontWeight.w700
                               : FontWeight.w500,
                           color: selected
-                              ? OnmuColors.purple
-                              : OnmuColors.textMuted,
+                              ? AppColors.primaryPurple
+                              : AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -89,13 +90,13 @@ class OnmuBottomNavBar extends StatelessWidget {
 }
 
 class _NavItem {
-  final String label;
-  final IconData outlined;
-  final IconData filled;
-
   const _NavItem({
     required this.label,
     required this.outlined,
     required this.filled,
   });
+
+  final String label;
+  final IconData outlined;
+  final IconData filled;
 }
