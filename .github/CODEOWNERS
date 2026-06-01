@@ -1,9 +1,4 @@
 # CODEOWNERS
-# 현재 GitHub API에서 확인 가능한 organization team slug가 없습니다.
-# 권장 다음 단계:
-# 1. `onmu-core`라는 organization team을 만듭니다.
-# 2. 이 저장소에 write 권한을 부여합니다.
-# 3. 아래 fallback owner를 다음 값으로 교체합니다.
-#    * @Onieum/onmu-core
+# 기본 리뷰 오너는 Onieum organization team이 담당합니다.
 
-* @RudinP
+* @Onieum/onieum
