@@ -15,22 +15,22 @@ class PreferenceFoodPage extends StatefulWidget {
 
 class _PreferenceFoodPageState extends State<PreferenceFoodPage> {
   static const _favoriteOptions = [
-    '한식 🍚',
-    '일식 🍣',
-    '양식 🍝',
-    '중식 🥟',
-    '매운 음식 🌶️',
-    '디저트/카페 🍰',
-    '고기/구이류 🥩',
-    '비건/건강식 🥗',
+    '한식',
+    '일식',
+    '양식',
+    '중식',
+    '매운 음식',
+    '디저트 카페',
+    '고기/구이',
+    '비건/건강식',
     '상관 없어요',
   ];
   static const _dislikeOptions = [
-    '맵찔이 (매운 거 절대 불가) 🥵',
-    '해산물 싫어요 🙅‍♂️',
-    '고수/향신료 빼주세요 🌿',
-    '오이 싫어요 🥒',
-    '주차 공간 없는 곳 🚗',
+    '너무 매운 음식',
+    '해산물',
+    '향신료 강한 음식',
+    '기름진 음식',
+    '주차 어려운 곳',
     '상관 없어요',
   ];
 
@@ -52,7 +52,7 @@ class _PreferenceFoodPageState extends State<PreferenceFoodPage> {
   Widget build(BuildContext context) {
     return PreferencePageFrame(
       currentStep: 2,
-      stepCount: 6,
+      stepCount: 5,
       title: '음식/메뉴 취향',
       buttonLabel: '다음',
       onNext: _favorites.isEmpty && _dislikes.isEmpty
@@ -78,21 +78,21 @@ class _PreferenceFoodPageState extends State<PreferenceFoodPage> {
             selected: _favorites,
             onTap: (value) => _toggle(_favorites, value),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           PreferenceTextField(
             label: '기타 입력',
             controller: _favoriteOtherController,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
           PreferenceOptionSection(
-            title: '비선호 태그',
-            caption: '이건 꼭 빼줬으면 하는 메뉴를 골라주세요.',
+            title: '피하고 싶은 태그',
+            caption: '약속에서 되도록 피하고 싶은 메뉴를 골라주세요.',
             options: _dislikeOptions,
             selected: _dislikes,
             isDislike: true,
             onTap: (value) => _toggle(_dislikes, value),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           PreferenceTextField(
             label: '기타 입력',
             controller: _dislikeOtherController,
