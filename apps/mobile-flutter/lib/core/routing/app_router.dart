@@ -3,11 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/meetup/presentation/pages/meetup_complete_page.dart';
+import '../../features/meetup/presentation/pages/meetup_calendar_page.dart';
 import '../../features/meetup/presentation/pages/meetup_date_select_page.dart';
 import '../../features/meetup/presentation/pages/meetup_detail_page.dart';
 import '../../features/meetup/presentation/pages/meetup_member_select_page.dart';
 import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
-import '../../features/meetup/presentation/pages/meetup_title_input_page.dart';
 import '../../features/my/my_page.dart';
 import '../../features/onchat/presentation/pages/onchat_group_home_page.dart';
 import '../../features/onchat/presentation/pages/onchat_list_page.dart';
@@ -61,12 +61,12 @@ final appRouter = GoRouter(
                   builder: (context, state) => const MeetupMemberSelectPage(),
                 ),
                 GoRoute(
-                  path: 'new/title',
-                  builder: (context, state) => const MeetupTitleInputPage(),
-                ),
-                GoRoute(
                   path: 'new/schedule',
                   builder: (context, state) => const MeetupDateSelectPage(),
+                ),
+                GoRoute(
+                  path: 'new/schedule/calendar',
+                  builder: (context, state) => const MeetupCalendarPage(),
                 ),
                 GoRoute(
                   path: ':meetupId',
