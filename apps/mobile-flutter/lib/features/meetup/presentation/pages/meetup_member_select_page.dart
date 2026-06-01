@@ -13,7 +13,9 @@ import '../../../../shared/widgets/onmu_step_progress.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupMemberSelectPage extends StatefulWidget {
-  const MeetupMemberSelectPage({super.key});
+  const MeetupMemberSelectPage({required this.onmoimId, super.key});
+
+  final String onmoimId;
 
   @override
   State<MeetupMemberSelectPage> createState() => _MeetupMemberSelectPageState();
@@ -55,7 +57,9 @@ class _MeetupMemberSelectPageState extends State<MeetupMemberSelectPage> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => context.push(RoutePaths.meetupNewTitle),
+                  onTap: () => context.push(
+                    RoutePaths.onmoimMeetupNewTitle(widget.onmoimId),
+                  ),
                   child: const OnmuChip(
                     label: '약속 이름 입력',
                     icon: Icons.edit_outlined,
@@ -67,7 +71,9 @@ class _MeetupMemberSelectPageState extends State<MeetupMemberSelectPage> {
             OnmuPrimaryButton(
               label: '다음 단계로',
               icon: Icons.arrow_forward,
-              onPressed: () => context.push(RoutePaths.meetupNewSchedule),
+              onPressed: () => context.push(
+                RoutePaths.onmoimMeetupNewSchedule(widget.onmoimId),
+              ),
             ),
           ],
         ),

@@ -12,8 +12,15 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
 class PlaceDetailPage extends StatelessWidget {
-  const PlaceDetailPage({required this.placeId, super.key});
+  const PlaceDetailPage({
+    required this.onmoimId,
+    required this.meetupId,
+    required this.placeId,
+    super.key,
+  });
 
+  final String onmoimId;
+  final String meetupId;
   final String placeId;
 
   @override
@@ -31,7 +38,9 @@ class PlaceDetailPage extends StatelessWidget {
             icon: Icons.add,
             color: AppColors.primaryPurple,
             foregroundColor: AppColors.textInverse,
-            onPressed: () => context.go(RoutePaths.placeCompare),
+            onPressed: () => context.go(
+              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+            ),
           ),
         ),
       ),
@@ -46,7 +55,9 @@ class PlaceDetailPage extends StatelessWidget {
               child: OnmuSecondaryButton(
                 label: '목록',
                 icon: Icons.arrow_back,
-                onPressed: () => context.go(RoutePaths.placeCandidates),
+                onPressed: () => context.go(
+                  RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId),
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -54,7 +65,9 @@ class PlaceDetailPage extends StatelessWidget {
               child: OnmuSecondaryButton(
                 label: '리스크',
                 icon: Icons.warning_amber,
-                onPressed: () => context.go(RoutePaths.placeRisks),
+                onPressed: () => context.go(
+                  RoutePaths.onmoimMeetupPlaceRisks(onmoimId, meetupId),
+                ),
               ),
             ),
           ],

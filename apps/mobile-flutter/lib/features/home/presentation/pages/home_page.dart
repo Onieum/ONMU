@@ -22,7 +22,8 @@ class HomePage extends StatelessWidget {
 
     return OnmuScaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(RoutePaths.meetupNewMembers),
+        onPressed: () =>
+            context.push(RoutePaths.onmoimMeetupNewMembers('friends')),
         icon: const Icon(Icons.add, size: 20),
         label: const Text('약속 만들기'),
         backgroundColor: AppColors.primaryPurple,
@@ -63,7 +64,7 @@ class HomePage extends StatelessWidget {
         _SectionTitle(
           title: '진행 중인 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.meetups),
+          onTap: () => context.go(RoutePaths.onmoim),
         ),
         const SizedBox(height: AppSpacing.sm),
         _ActiveMeetupCard(meetup: meetup),
@@ -186,8 +187,9 @@ class _ActiveMeetupCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 TextButton(
-                  onPressed: () =>
-                      context.push(RoutePaths.meetupDetail(meetup.id)),
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupDetail('friends', meetup.id),
+                  ),
                   child: const Text('상세 보기'),
                 ),
               ],

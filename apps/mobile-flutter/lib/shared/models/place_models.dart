@@ -180,10 +180,10 @@ const demoPlaceCandidates = [
 ];
 
 const demoPlaceVoteResult = PlaceVoteResult(
-  title: '온챗 투표 결과',
+  title: '온모임 투표 결과',
   selectedPlaceName: '온무식당',
   voters: ['민서', '지훈', '하린'],
-  note: '온챗에서 3명이 안정적인 한식 장소에 투표했어요. 후보 상단에 이어서 보여줍니다.',
+  note: '온모임에서 3명이 안정적인 한식 장소에 투표했어요. 후보 상단에 이어서 보여줍니다.',
 );
 
 const demoPlaceRisks = [

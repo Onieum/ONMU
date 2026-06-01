@@ -4,21 +4,21 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/onchat_cards.dart';
+import '../widgets/onmoim_cards.dart';
 
-class OnChatGroupHomePage extends StatelessWidget {
-  const OnChatGroupHomePage({super.key});
+class OnMoimGroupHomePage extends StatelessWidget {
+  const OnMoimGroupHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '모임 홈',
-      subtitle: '대학 동기 여행단 · 빠른 액션으로 채팅, 약속, 추억, 정산을 이어갑니다.',
+      subtitle: '대학 동기 여행단 · 채팅, 약속, 추억을 한 곳에서 이어갑니다.',
       actions: [
         IconButton(
           tooltip: '멤버 관리',
@@ -31,7 +31,7 @@ class OnChatGroupHomePage extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         PinnedMeetupCard(
           meetup: demoPinnedMeetup,
-          onBoardPressed: () => context.go(RoutePaths.onchatMeetupBoard),
+          onBoardPressed: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
         ),
         const SizedBox(height: AppSpacing.md),
         GridView.count(
@@ -46,25 +46,19 @@ class OnChatGroupHomePage extends StatelessWidget {
               label: '채팅',
               body: '모임 대화방',
               icon: Icons.chat_bubble_outline,
-              onTap: () => context.go(RoutePaths.onchatDemoChat),
+              onTap: () => context.go(RoutePaths.onmoimDemoChat),
             ),
             _QuickActionTile(
               label: '약속',
               body: '일정 · 장소 논의',
               icon: Icons.calendar_month_outlined,
-              onTap: () => context.go(RoutePaths.onchatMeetupBoard),
+              onTap: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
             ),
             _QuickActionTile(
               label: '추억',
               body: '사진 · 기록 모아보기',
               icon: Icons.photo_library_outlined,
-              onTap: () => context.go(RoutePaths.onchatMemories),
-            ),
-            _QuickActionTile(
-              label: '정산',
-              body: '비용 관리하기',
-              icon: Icons.calculate_outlined,
-              onTap: () => context.go(RoutePaths.settlementShare),
+              onTap: () => context.go(RoutePaths.onmoimDemoMemories),
             ),
           ],
         ),
@@ -93,11 +87,6 @@ class OnChatGroupHomePage extends StatelessWidget {
                 title: '민지님이 새 추억을 추가했어요',
                 body: '제주 카페에서',
               ),
-              const _ActivityRow(
-                label: '정산',
-                title: '정산 대기 중인 내역이 있어요',
-                body: '교통비 · 숙소비 2건',
-              ),
             ],
           ),
         ),
@@ -111,7 +100,7 @@ class _GroupProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final group = demoOnChatGroups.first;
+    final group = demoOnMoimGroups.first;
 
     return OnmuCard(
       backgroundColor: AppColors.primaryPinkSoft,

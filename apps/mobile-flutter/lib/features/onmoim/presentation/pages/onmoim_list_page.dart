@@ -4,35 +4,35 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/onchat_cards.dart';
+import '../widgets/onmoim_cards.dart';
 
-class OnChatListPage extends StatelessWidget {
-  const OnChatListPage({super.key});
+class OnMoimListPage extends StatelessWidget {
+  const OnMoimListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '온챗',
+      title: '온모임',
       subtitle: '모임, 친구, 약속을 검색하고 이어봅니다.',
       actions: [
         IconButton(
-          tooltip: '온챗 검색',
+          tooltip: '온모임 검색',
           onPressed: () {},
           icon: const Icon(Icons.search),
         ),
         IconButton(
-          tooltip: '온챗 만들기',
+          tooltip: '온모임 만들기',
           onPressed: () {},
           icon: const Icon(Icons.add_circle_outline),
         ),
       ],
       children: [
-        const _OnChatSearchField(),
+        const _OnMoimSearchField(),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
@@ -48,23 +48,21 @@ class OnChatListPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final group in demoOnChatGroups) ...[
-          OnChatGroupCard(
+        for (final group in demoOnMoimGroups) ...[
+          OnMoimGroupCard(
             group: group,
-            onTap: () => context.go(RoutePaths.onchatDemoGroup),
+            onTap: () => context.go(RoutePaths.onmoimDemo),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        _CreateGroupCard(
-          onPressed: () => context.go(RoutePaths.onchatDemoGroup),
-        ),
+        _CreateGroupCard(onPressed: () => context.go(RoutePaths.onmoimDemo)),
       ],
     );
   }
 }
 
-class _OnChatSearchField extends StatelessWidget {
-  const _OnChatSearchField();
+class _OnMoimSearchField extends StatelessWidget {
+  const _OnMoimSearchField();
 
   @override
   Widget build(BuildContext context) {
@@ -101,31 +99,39 @@ class _CreateGroupCard extends StatelessWidget {
     return OnmuCard(
       backgroundColor: AppColors.bgPaper,
       borderColor: AppColors.lineWarm,
-      child: Row(
+      child: Column(
         children: [
-          const OnmuPixelBuddy(size: 52),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '새로운 모임을 만들어보세요!',
-                  style: Theme.of(context).textTheme.titleSmall,
+          Row(
+            children: [
+              const OnmuPixelBuddy(size: 52),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '새로운 모임을 만들어보세요!',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '친구들과 약속을 만들고 온모임에서 함께 소통해요.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '친구들과 약속을 만들고 온챗에서 함께 소통해요.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          OnmuPrimaryButton(
-            label: '모임 만들기',
-            icon: Icons.add,
-            color: AppColors.primaryPink,
-            onPressed: onPressed,
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: OnmuPrimaryButton(
+              label: '모임 만들기',
+              icon: Icons.add,
+              color: AppColors.primaryPink,
+              onPressed: onPressed,
+            ),
           ),
         ],
       ),

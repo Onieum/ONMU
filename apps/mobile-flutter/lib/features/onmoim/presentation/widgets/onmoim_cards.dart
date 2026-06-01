@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 
-class OnChatGroupCard extends StatelessWidget {
-  const OnChatGroupCard({required this.group, required this.onTap, super.key});
+class OnMoimGroupCard extends StatelessWidget {
+  const OnMoimGroupCard({required this.group, required this.onTap, super.key});
 
-  final OnChatGroup group;
+  final OnMoimGroup group;
   final VoidCallback onTap;
 
   @override
@@ -65,7 +65,7 @@ class PinnedMeetupCard extends StatelessWidget {
     super.key,
   });
 
-  final OnChatPinnedMeetup meetup;
+  final OnMoimPinnedMeetup meetup;
   final VoidCallback onBoardPressed;
 
   @override
@@ -106,7 +106,7 @@ class PinnedMeetupCard extends StatelessWidget {
 class ChatMessageBubble extends StatelessWidget {
   const ChatMessageBubble({required this.message, super.key});
 
-  final OnChatMessage message;
+  final OnMoimMessage message;
 
   @override
   Widget build(BuildContext context) {

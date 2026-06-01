@@ -12,7 +12,14 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
 class PlaceSearchFilterPage extends StatelessWidget {
-  const PlaceSearchFilterPage({super.key});
+  const PlaceSearchFilterPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -60,16 +67,24 @@ class PlaceSearchFilterPage extends StatelessWidget {
           PlaceCandidateCard(
             candidate: candidate,
             compact: true,
-            onDetailPressed: () =>
-                context.go('/meetups/demo/places/${candidate.id}'),
-            onSelectPressed: () => context.go(RoutePaths.placeCompare),
+            onDetailPressed: () => context.go(
+              RoutePaths.onmoimMeetupPlaceDetail(
+                onmoimId,
+                meetupId,
+                candidate.id,
+              ),
+            ),
+            onSelectPressed: () => context.go(
+              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
         OnmuSecondaryButton(
           label: '추천 후보로 돌아가기',
           icon: Icons.arrow_back,
-          onPressed: () => context.go(RoutePaths.placeCandidates),
+          onPressed: () =>
+              context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
         ),
       ],
     );
