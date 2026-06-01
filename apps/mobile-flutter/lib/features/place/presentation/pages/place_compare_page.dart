@@ -27,7 +27,7 @@ class PlaceComparePage extends StatelessWidget {
             icon: Icons.check_circle_outline,
             color: AppColors.primaryPurple,
             foregroundColor: AppColors.textInverse,
-            onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
+            onPressed: () => context.go(RoutePaths.meetupRouteReview('demo')),
           ),
         ),
       ),

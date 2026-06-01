@@ -15,17 +15,17 @@ class PreferencePlacePage extends StatefulWidget {
 
 class _PreferencePlacePageState extends State<PreferencePlacePage> {
   static const _favoriteOptions = [
-    '조용하게 대화하기 좋은 곳 🤫',
-    '인스타 감성 (사진 맛집) 📸',
-    '가성비 좋은 곳 💸',
-    '주차 공간 넉넉한 곳 🚗',
-    '공간이 넓고 쾌적한 곳 🛋️',
+    '조용한 대화 공간',
+    '감성 있는 사진 맛집',
+    '가성비 좋은 곳',
+    '주차가 편한 곳',
+    '넓고 쾌적한 공간',
     '상관 없어요',
   ];
   static const _dislikeOptions = [
-    '웨이팅 1시간 넘어가는 곳 ⏳',
-    '옆 테이블 말소리 들리는 시끄러운 곳 🗣️',
-    '사람 너무 많은 북적이는 곳 👥',
+    '이동 시간이 긴 곳',
+    '소음이 큰 곳',
+    '사람이 너무 많은 곳',
     '상관 없어요',
   ];
 
@@ -47,7 +47,7 @@ class _PreferencePlacePageState extends State<PreferencePlacePage> {
   Widget build(BuildContext context) {
     return PreferencePageFrame(
       currentStep: 3,
-      stepCount: 6,
+      stepCount: 5,
       title: '장소/분위기 취향',
       buttonLabel: '다음',
       onNext: _favorites.isEmpty && _dislikes.isEmpty
@@ -73,21 +73,21 @@ class _PreferencePlacePageState extends State<PreferencePlacePage> {
             selected: _favorites,
             onTap: (value) => _toggle(_favorites, value),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           PreferenceTextField(
             label: '기타 입력',
             controller: _favoriteOtherController,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
           PreferenceOptionSection(
-            title: '비선호 태그',
-            caption: '이런 곳은 피하고 싶은 조건을 골라주세요.',
+            title: '피하고 싶은 태그',
+            caption: '약속 장소로 피하고 싶은 조건을 골라주세요.',
             options: _dislikeOptions,
             selected: _dislikes,
             isDislike: true,
             onTap: (value) => _toggle(_dislikes, value),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           PreferenceTextField(
             label: '기타 입력',
             controller: _dislikeOtherController,

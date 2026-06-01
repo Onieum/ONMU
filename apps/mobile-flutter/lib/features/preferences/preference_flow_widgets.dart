@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_radius.dart';
 import '../../shared/onmu_design.dart';
 
 class PreferencePageFrame extends StatelessWidget {
@@ -23,55 +25,47 @@ class PreferencePageFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = currentStep / stepCount;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: OnmuColors.bgDefault,
+      backgroundColor: AppColors.bgDefault,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 24, 10),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      IconButton(
-                        tooltip: '이전',
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                      ),
                       Expanded(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           child: LinearProgressIndicator(
                             value: progress,
                             minHeight: 8,
-                            backgroundColor: OnmuColors.purpleSoft,
-                            color: OnmuColors.pink,
+                            backgroundColor: AppColors.primaryPurpleSoft,
+                            color: AppColors.primaryPink,
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text(
                         '$currentStep/$stepCount',
-                        style: const TextStyle(
-                          color: OnmuColors.textMuted,
-                          fontSize: 12,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12, top: 14),
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: OnmuColors.textMain,
-                        fontSize: 27,
-                        height: 1.22,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  const SizedBox(height: 20),
+                  Text(
+                    title,
+                    style: textTheme.headlineSmall?.copyWith(
+                      color: AppColors.textMain,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -85,7 +79,26 @@ class PreferencePageFrame extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: OnmuPrimaryButton(label: buttonLabel, onPressed: onNext),
+              child: Row(
+                children: [
+                  if (currentStep > 1) ...[
+                    Expanded(
+                      child: OnmuSecondaryButton(
+                        label: '이전',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    flex: currentStep == 1 ? 1 : 2,
+                    child: OnmuPrimaryButton(
+                      label: buttonLabel,
+                      onPressed: onNext,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -114,27 +127,24 @@ class PreferenceOptionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: OnmuColors.textMain,
-            fontSize: 18,
+          style: textTheme.titleMedium?.copyWith(
+            color: AppColors.textMain,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           caption,
-          style: const TextStyle(
-            color: OnmuColors.textSub,
-            fontSize: 14,
-            height: 1.4,
-          ),
+          style: textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -168,21 +178,26 @@ class PreferenceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = isDislike ? OnmuColors.pink : OnmuColors.purple;
-    final activeBg = isDislike ? OnmuColors.pinkSoft : OnmuColors.purpleSoft;
+    final activeColor = isDislike
+        ? AppColors.primaryPink
+        : AppColors.primaryPurple;
+    final activeBg = isDislike
+        ? AppColors.primaryPinkSoft
+        : AppColors.primaryPurpleSoft;
+
     return Material(
-      color: selected ? activeBg : OnmuColors.bgWarm,
-      borderRadius: BorderRadius.circular(12),
+      color: selected ? activeBg : AppColors.bgWarm,
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: selected ? activeColor : OnmuColors.lineSoft,
+              color: selected ? activeColor : AppColors.lineSoft,
               width: selected ? 1.6 : 1,
             ),
           ),
@@ -191,16 +206,15 @@ class PreferenceChip extends StatelessWidget {
             children: [
               Icon(
                 selected ? Icons.check_circle : Icons.circle_outlined,
-                color: selected ? activeColor : OnmuColors.textMuted,
+                color: selected ? activeColor : AppColors.textMuted,
                 size: 18,
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    color: OnmuColors.textMain,
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textMain,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -230,14 +244,14 @@ class PreferenceTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: OnmuColors.bgWarm,
+        fillColor: AppColors.bgWarm,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: OnmuColors.lineSoft),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: const BorderSide(color: AppColors.lineSoft),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: OnmuColors.purple),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: const BorderSide(color: AppColors.primaryPurple),
         ),
       ),
     );

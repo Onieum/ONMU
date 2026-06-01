@@ -8,8 +8,8 @@ class PreferenceProfile {
   final String otherFavoritePlace;
   final String otherDislikedPlace;
   final List<String> meetupStyles;
+  final List<String> preferredWeekdays;
   final List<String> preferredTimes;
-  final List<String> unavailableWeekdays;
 
   const PreferenceProfile({
     required this.favoriteFoodTags,
@@ -21,23 +21,23 @@ class PreferenceProfile {
     required this.otherFavoritePlace,
     required this.otherDislikedPlace,
     required this.meetupStyles,
+    required this.preferredWeekdays,
     required this.preferredTimes,
-    required this.unavailableWeekdays,
   });
 
   factory PreferenceProfile.mock() {
     return const PreferenceProfile(
-      favoriteFoodTags: ['한식 🍚', '디저트/카페 🍰'],
-      dislikedFoodTags: ['맵찔이 (매운 거 절대 불가) 🥵'],
+      favoriteFoodTags: ['한식', '디저트 카페'],
+      dislikedFoodTags: ['너무 매운 음식'],
       otherFavoriteFood: '',
       otherDislikedFood: '',
-      favoritePlaceTags: ['조용하게 대화하기 좋은 곳 🤫'],
-      dislikedPlaceTags: ['웨이팅 1시간 넘어가는 곳 ⏳'],
+      favoritePlaceTags: ['조용한 대화 공간'],
+      dislikedPlaceTags: ['이동 시간이 긴 곳'],
       otherFavoritePlace: '',
       otherDislikedPlace: '',
-      meetupStyles: ['미리 일정이 확정되면 좋겠어요.'],
+      meetupStyles: ['미리 일정을 정하는 편'],
+      preferredWeekdays: ['토요일'],
       preferredTimes: ['저녁'],
-      unavailableWeekdays: ['일요일'],
     );
   }
 
@@ -51,8 +51,8 @@ class PreferenceProfile {
     String? otherFavoritePlace,
     String? otherDislikedPlace,
     List<String>? meetupStyles,
+    List<String>? preferredWeekdays,
     List<String>? preferredTimes,
-    List<String>? unavailableWeekdays,
   }) {
     return PreferenceProfile(
       favoriteFoodTags: favoriteFoodTags ?? this.favoriteFoodTags,
@@ -64,8 +64,8 @@ class PreferenceProfile {
       otherFavoritePlace: otherFavoritePlace ?? this.otherFavoritePlace,
       otherDislikedPlace: otherDislikedPlace ?? this.otherDislikedPlace,
       meetupStyles: meetupStyles ?? this.meetupStyles,
+      preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       preferredTimes: preferredTimes ?? this.preferredTimes,
-      unavailableWeekdays: unavailableWeekdays ?? this.unavailableWeekdays,
     );
   }
 }

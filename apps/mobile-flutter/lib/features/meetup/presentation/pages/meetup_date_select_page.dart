@@ -173,20 +173,36 @@ class _MeetupDateSelectPageState extends State<MeetupDateSelectPage> {
                 children: [
                   Text('날짜 선택', style: Theme.of(context).textTheme.titleMedium),
                   const Spacer(),
-                  const OnmuChip(label: '캘린더 보기', icon: Icons.calendar_month),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => context.push(RoutePaths.meetupNewCalendar),
+                    child: const OnmuChip(
+                      label: '캘린더 보기',
+                      icon: Icons.calendar_month,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  for (var index = 0; index < _dateChoices.length; index++)
-                    _DatePill(
-                      choice: _dateChoices[index],
-                      selected: index == _selectedDateIndex,
-                      onTap: () => setState(() => _selectedDateIndex = index),
-                    ),
-                ],
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < _dateChoices.length;
+                      index++
+                    ) ...[
+                      _DatePill(
+                        choice: _dateChoices[index],
+                        selected: index == _selectedDateIndex,
+                        onTap: () => setState(() => _selectedDateIndex = index),
+                      ),
+                      if (index != _dateChoices.length - 1)
+                        const SizedBox(width: AppSpacing.xs),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),

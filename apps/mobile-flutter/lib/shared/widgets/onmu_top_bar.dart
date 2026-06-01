@@ -25,7 +25,7 @@ class OnmuTopBar extends StatelessWidget {
         children: [
           const SizedBox(width: 8),
           SizedBox.square(
-            dimension: 44,
+            dimension: 48,
             child: showBackButton
                 ? IconButton(
                     tooltip: '뒤로',
@@ -48,7 +48,7 @@ class OnmuTopBar extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          SizedBox.square(dimension: 44, child: action),
+          SizedBox.square(dimension: 48, child: action),
           const SizedBox(width: 8),
         ],
       ),

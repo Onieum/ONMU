@@ -13,10 +13,23 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/onmu_step_progress.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
-class MeetupCompletePage extends StatelessWidget {
+class MeetupCompletePage extends StatefulWidget {
   const MeetupCompletePage({required this.meetupId, super.key});
 
   final String meetupId;
+
+  @override
+  State<MeetupCompletePage> createState() => _MeetupCompletePageState();
+}
+
+class _MeetupCompletePageState extends State<MeetupCompletePage> {
+  late String _meetupTitle;
+
+  @override
+  void initState() {
+    super.initState();
+    _meetupTitle = _buildDefaultMeetupTitle(mockMeetup);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +66,12 @@ class MeetupCompletePage extends StatelessWidget {
       children: [
         const OnmuStepProgress(currentIndex: 3),
         const SizedBox(height: AppSpacing.xl),
-        _CompleteHero(meetup: meetup, members: selectedMembers),
+        _CompleteHero(
+          meetup: meetup,
+          members: selectedMembers,
+          title: _meetupTitle,
+          onEditTitle: _showTitleEditSheet,
+        ),
         const SizedBox(height: AppSpacing.md),
         _CompleteTimeline(visitPlan: meetup.visitPlan),
         const SizedBox(height: AppSpacing.md),
@@ -63,13 +81,45 @@ class MeetupCompletePage extends StatelessWidget {
       ],
     );
   }
+
+  String _buildDefaultMeetupTitle(Meetup meetup) {
+    final schedule = meetup.dateTime.split('~').first.trim();
+    final members = meetup.members
+        .where((member) => member.selected)
+        .map((member) => member.name)
+        .join(', ');
+    return '$schedule · $members';
+  }
+
+  Future<void> _showTitleEditSheet() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _MeetupTitleEditSheet(initialTitle: _meetupTitle),
+    );
+
+    if (result == null || result.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _meetupTitle = result;
+    });
+  }
 }
 
 class _CompleteHero extends StatelessWidget {
-  const _CompleteHero({required this.meetup, required this.members});
+  const _CompleteHero({
+    required this.meetup,
+    required this.members,
+    required this.title,
+    required this.onEditTitle,
+  });
 
   final Meetup meetup;
   final List<MeetupMember> members;
+  final String title;
+  final VoidCallback onEditTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +167,23 @@ class _CompleteHero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    meetup.title,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '약속 이름 수정',
+                        onPressed: onEditTitle,
+                        icon: const Icon(Icons.edit_note_outlined),
+                        color: AppColors.primaryPurple,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xs),
                   _SummaryLine(
                     icon: Icons.calendar_month_outlined,
                     text: meetup.dateTime,
@@ -134,6 +196,100 @@ class _CompleteHero extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MeetupTitleEditSheet extends StatefulWidget {
+  const _MeetupTitleEditSheet({required this.initialTitle});
+
+  final String initialTitle;
+
+  @override
+  State<_MeetupTitleEditSheet> createState() => _MeetupTitleEditSheetState();
+}
+
+class _MeetupTitleEditSheetState extends State<_MeetupTitleEditSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialTitle);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '약속 이름 수정',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                tooltip: '닫기',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '자동으로 만든 이름을 기억하기 쉬운 이름으로 바꿀 수 있어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLength: 40,
+            decoration: const InputDecoration(
+              hintText: '예: 성수 산책 모임',
+              prefixIcon: Icon(Icons.drive_file_rename_outline),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '취소',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuPrimaryButton(
+                  label: '저장하기',
+                  icon: Icons.check,
+                  onPressed: () {
+                    Navigator.of(context).pop(_controller.text.trim());
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
