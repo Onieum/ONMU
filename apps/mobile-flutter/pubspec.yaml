@@ -26,9 +26,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Cupertino Icons font를 앱에 추가합니다.
-  # iOS style icon이 필요할 때 CupertinoIcons class와 함께 사용합니다.
   cupertino_icons: ^1.0.8
+
+  # go_router, flutter_riverpod은 core/routing 구현 시 추가 예정
 
 dev_dependencies:
   flutter_test:
