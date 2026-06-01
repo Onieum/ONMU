@@ -26,9 +26,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Cupertino Icons font를 앱에 추가합니다.
-  # iOS style icon이 필요할 때 CupertinoIcons class와 함께 사용합니다.
   cupertino_icons: ^1.0.8
+  go_router: ^17.2.3
+  flutter_riverpod: ^3.3.1
+
+  # go_router, flutter_riverpod은 core/routing 구현 시 추가 예정
 
 dev_dependencies:
   flutter_test:
@@ -48,10 +50,21 @@ flutter:
   # Material Icons font를 앱에 포함해 Material Icons class를 사용할 수 있게 합니다.
   uses-material-design: true
 
-  # asset을 앱에 추가하려면 다음처럼 assets section을 추가합니다.
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/
+    - assets/images/character/female/body/
+    - assets/images/character/female/eyes/
+    - assets/images/character/female/hair/
+    - assets/images/character/female/clothes/
+    - assets/images/character/male/body/
+    - assets/images/character/male/eyes/
+    - assets/images/character/male/hair/
+    - assets/images/character/male/clothes/
+    - assets/images/diary_decorate/background/
+    - assets/images/diary_decorate/clip/
+    - assets/images/diary_decorate/masking_tape/
+    - assets/images/diary_decorate/scratch_paper/
+    - assets/images/diary_decorate/stamp/
 
   # image asset은 해상도별 variant를 가리킬 수 있습니다. 참고:
   # https://flutter.dev/to/resolution-aware-images

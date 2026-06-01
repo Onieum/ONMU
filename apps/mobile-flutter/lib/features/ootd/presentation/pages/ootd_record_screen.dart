@@ -1,0 +1,1269 @@
+// ignore_for_file: deprecated_member_use
+
+import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/character_model.dart';
+import '../../../../shared/models/ootd_model.dart';
+import '../../../../shared/widgets/pixel_character.dart';
+import '../../../../shared/widgets/grid_background.dart';
+
+class OotdRecordScreen extends StatefulWidget {
+  final CharacterDraft userCharacter;
+  final Function(OotdRecord) onSave;
+  final DateTime? recordDate;
+  final bool isDailyRecord;
+
+  const OotdRecordScreen({
+    super.key,
+    required this.userCharacter,
+    required this.onSave,
+    this.recordDate,
+    this.isDailyRecord = false,
+  });
+
+  @override
+  State<OotdRecordScreen> createState() => _OotdRecordScreenState();
+}
+
+class _OotdRecordScreenState extends State<OotdRecordScreen> {
+  int _currentStep = 0;
+  // 0: 진입 화면 (OotdEntryPage)
+  // 1: 기록 방법 선택 (OotdMethodPage)
+  // 2: 사진 업로드 또는 설명 입력 (OotdPhotoUploadPage / OotdDescriptionPage)
+  // 3: 추가 정보 입력 (OotdExtraInfoPage)
+  // 4: 스타일 옵션 (OotdStylePage)
+  // 5: 소품 및 분위기 (OotdPropsMoodPage)
+  // 6: AI 분석 중 (OotdAnalysisPage)
+  // 7: 기록 완료 (OotdCompletePage)
+
+  int _selectedMethod = 0; // 0: 사진으로 기록, 1: 설명으로 기록
+  final List<String> _moodTags = ['#데일리룩'];
+  final _tagController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _descController = TextEditingController();
+  final _memoController = TextEditingController();
+
+  String _selectedSeason = '가을'; // 봄, 여름, 가을, 겨울, 실내
+  int _selectedBgColorIndex = 0;
+  bool _changeStyle = false;
+  int _customHairStyleIndex = 0;
+  int _customEyeShapeIndex = 0;
+
+  // 시뮬레이션용 데이터
+  final List<String> _seasons = ['봄', '여름', '가을', '겨울', '실내'];
+  final List<Color> _bgColors = [
+    const Color(0xFFFFE3E8),
+    const Color(0xFFEDE4FF),
+    const Color(0xFFE8F5E9),
+    const Color(0xFFFFFDE7),
+    const Color(0xFFE3F2FD),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _customHairStyleIndex = widget.userCharacter.hairStyleIndex;
+    _customEyeShapeIndex = widget.userCharacter.eyeShapeIndex;
+  }
+
+  @override
+  void dispose() {
+    _tagController.dispose();
+    _locationController.dispose();
+    _descController.dispose();
+    _memoController.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (_currentStep == 4) {
+      // 4단계 완료 시 AI 분석 중 페이지(5)로 보내고, 2초 후에 완료 페이지(6)로 자동 이동 시뮬레이션!
+      setState(() => _currentStep = 5);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() => _currentStep = 6);
+        }
+      });
+    } else if (_currentStep == 6) {
+      // 최종 세이브
+      _save();
+    } else {
+      setState(() {
+        _currentStep++;
+      });
+    }
+  }
+
+  void _back() {
+    if (_currentStep > 0 && _currentStep != 5 && _currentStep != 6) {
+      setState(() {
+        _currentStep--;
+      });
+    }
+  }
+
+  void _save() {
+    final ootdCharacter = widget.userCharacter.copyWith(
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      eyeShapeIndex: _changeStyle
+          ? _customEyeShapeIndex
+          : widget.userCharacter.eyeShapeIndex,
+      accessoryStyleIndex: 0, // 소품은 완전히 배제
+    );
+
+    final record = OotdRecord(
+      date: widget.recordDate ?? DateTime.now(),
+      character: ootdCharacter,
+      moodTags: _moodTags,
+      brands: {
+        '스타일': _selectedMethod == 0 ? '사진 OOTD' : '텍스트 OOTD',
+        '날씨/계절': _selectedSeason,
+        '장소': _locationController.text.trim().isEmpty
+            ? '미지정'
+            : _locationController.text.trim(),
+      },
+      weather: _selectedSeason == '실내' ? 'cloudy' : 'sunny',
+      mood: 'happy',
+      isPublic: false,
+      timeline: [
+        TimelineItem(
+          time: '14:00',
+          placeName: _locationController.text.trim().isEmpty
+              ? '서울숲 카페'
+              : _locationController.text.trim(),
+          category: 'place',
+          description: _memoController.text.trim().isEmpty
+              ? '즐거운 하루의 기록!'
+              : _memoController.text.trim(),
+        ),
+      ],
+    );
+    widget.onSave(record);
+    Navigator.of(context).pop();
+  }
+
+  // OOTD 스텝 인디케이터
+  Widget _buildStepIndicator() {
+    // 3개 대그룹: 1 입력방법 -> 2 상세정보 -> 3 마무리
+    int activeGroup = 1;
+    if (_currentStep >= 3 && _currentStep <= 4) {
+      activeGroup = 2;
+    } else if (_currentStep >= 5) {
+      activeGroup = 3;
+    }
+
+    final labels = ['입력 방법', '상세 정보', '마무리'];
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(3, (index) {
+          final groupNum = index + 1;
+          final isActive = activeGroup == groupNum;
+          final isPassed = activeGroup > groupNum;
+
+          return Row(
+            children: [
+              CircleAvatar(
+                radius: 11,
+                backgroundColor: isActive
+                    ? AppColors.primaryPink
+                    : isPassed
+                    ? AppColors.primaryPinkSoft
+                    : AppColors.bgWarm,
+                child: Text(
+                  groupNum.toString(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isActive
+                        ? Colors.white
+                        : isPassed
+                        ? AppColors.primaryPink
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                labels[index],
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  color: isActive ? AppColors.textMain : AppColors.textMuted,
+                ),
+              ),
+              if (index < 2)
+                Container(
+                  width: 30,
+                  height: 1.5,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: isPassed ? AppColors.primaryPink : AppColors.lineSoft,
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bgWarm,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: _currentStep == 6
+            ? const SizedBox()
+            : IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: AppColors.textMain,
+                  size: 20,
+                ),
+                onPressed: _currentStep == 0
+                    ? () => Navigator.of(context).pop()
+                    : _back,
+              ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_currentStep > 0 && _currentStep < 6) _buildStepIndicator(),
+            Expanded(
+              child: GridBackground(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  child: _buildContent(),
+                ),
+              ),
+            ),
+            _buildBottomCta(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    switch (_currentStep) {
+      case 0:
+        return _buildEntryPage();
+      case 1:
+        return _buildMethodPage();
+      case 2:
+        return _selectedMethod == 0
+            ? _buildPhotoUploadPage()
+            : _buildDescriptionPage();
+      case 3:
+        return _buildExtraInfoPage();
+      case 4:
+        return _buildStylePage();
+      case 5:
+        return _buildAnalysisPage();
+      case 6:
+        return _buildCompletePage();
+      default:
+        return const SizedBox();
+    }
+  }
+
+  // 0. OotdEntryPage (새 OOTD 기록하기 시작)
+  Widget _buildEntryPage() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Icon(Icons.star_outline, color: AppColors.accentOrange, size: 24),
+        const SizedBox(height: 8),
+        const Text(
+          '새 OOTD 기록하기',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '오늘 입은 코디를 기록하고\n나만의 캐릭터를 꾸며보세요!',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppColors.textSub, height: 1.4),
+        ),
+        const SizedBox(height: 30),
+        // 데코 아이콘들이 흩어진 아바타 영역
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            PixelCharacterWidget(character: widget.userCharacter, size: 140),
+            Positioned(
+              top: 0,
+              left: 10,
+              child: const Icon(
+                Icons.cloud_outlined,
+                color: AppColors.accentBlue,
+                size: 20,
+              ),
+            ),
+            Positioned(
+              bottom: 20,
+              right: 10,
+              child: const Icon(
+                Icons.camera_alt_outlined,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 30),
+        // 설명 배너
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            '사진을 올리거나 코디 설명을 입력하면\n캐릭터를 자동으로 꾸며드려요!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSub,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 1. OotdMethodPage (기록 방법 선택)
+  Widget _buildMethodPage() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Text(
+          '기록 방법을 선택해주세요',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '어떤 방법으로 코디를 기록할까요?',
+          style: TextStyle(fontSize: 12, color: AppColors.textSub),
+        ),
+        const SizedBox(height: 24),
+        // 사진으로 기록하기 카드
+        _buildMethodCard(
+          index: 0,
+          icon: Icons.photo_camera_outlined,
+          title: '사진으로 기록하기',
+          subtitle: '오늘 입은 코디 사진을 업로드하면\nAI가 자동으로 인식해요!',
+        ),
+        const SizedBox(height: 16),
+        // 설명으로 기록하기 카드
+        _buildMethodCard(
+          index: 1,
+          icon: Icons.edit_note_outlined,
+          title: '설명으로 기록하기',
+          subtitle: '직접 코디 정보를 입력하면\n캐릭터를 꾸며드려요!',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMethodCard({
+    required int index,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final isSelected = _selectedMethod == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMethod = index),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
+            width: isSelected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 36,
+              color: isSelected ? AppColors.primaryPink : AppColors.textMuted,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSub,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<int>(
+              value: index,
+              groupValue: _selectedMethod,
+              activeColor: AppColors.primaryPink,
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedMethod = val);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 2A. OotdPhotoUploadPage (코디 사진 업로드)
+  Widget _buildPhotoUploadPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          child: Text(
+            '코디 사진을 업로드해주세요 📷',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '정면 사진이 가장 좋아요!',
+            style: TextStyle(fontSize: 11, color: AppColors.textSub),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // 파일 드롭존 모양 컨테이너
+        Container(
+          width: double.infinity,
+          height: 180,
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.lineBrown,
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(
+                Icons.add_a_photo_outlined,
+                size: 36,
+                color: AppColors.primaryPink,
+              ),
+              SizedBox(height: 10),
+              Text(
+                '사진을 선택하거나\n여기로 드래그 해주세요\n(JPG, PNG / 최대 10장)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSub,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        // 코디 예시 목록 가로 스크롤
+        const Text(
+          '사진 예시',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: 4,
+            itemBuilder: (context, index) {
+              return Container(
+                width: 60,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.lineSoft),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '예시 ${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 2B. OotdDescriptionPage (코디 설명 입력)
+  Widget _buildDescriptionPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          child: Text(
+            '코디 설명 입력 📝',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '입은 옷과 소품에 대해 알려주세요!',
+            style: TextStyle(fontSize: 11, color: AppColors.textSub),
+          ),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _descController,
+          maxLines: 6,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            hintText:
+                '예시)\n- 아이보리 니트 가디건\n- 흰색 셔츠\n- 검정 미니 스커트\n- 흰색 양말\n- 검정 로퍼\n- 체인 숄더백',
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 팁 카드
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          child: Row(
+            children: [
+              PixelCharacterWidget(character: widget.userCharacter, size: 36),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  '💡 TIP: 구체적으로 작성할수록 더 정확하게 캐릭터가 완성돼요!',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSub,
+                    height: 1.3,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 3. OotdExtraInfoPage (추가 정보 입력)
+  Widget _buildExtraInfoPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          child: Text(
+            '추가 정보 입력 (선택)',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '더 자세한 정보를 입력하면 정확도가 높아져요!',
+            style: TextStyle(fontSize: 11, color: AppColors.textSub),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // 태그 추가
+        const Text(
+          '태그 추가',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _tagController,
+                decoration: const InputDecoration(
+                  hintText: '태그 입력 (예: 스트릿, 모던)',
+                ),
+                onSubmitted: (_) => _addTag(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _addTag,
+              style: ElevatedButton.styleFrom(minimumSize: const Size(60, 50)),
+              child: const Text('추가'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: _moodTags
+              .map(
+                (t) => Chip(
+                  label: Text(
+                    t,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primaryPink,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: AppColors.primaryPinkSoft,
+                  onDeleted: () => setState(() => _moodTags.remove(t)),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 16),
+        // 장소
+        const Text(
+          '장소',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _locationController,
+          decoration: const InputDecoration(hintText: '예) 학교, 카페, 회사 등'),
+        ),
+        const SizedBox(height: 16),
+        // 날씨 / 계절
+        const Text(
+          '날씨 / 계절',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: _seasons.map((season) {
+            final isSel = _selectedSeason == season;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedSeason = season),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSel
+                      ? AppColors.primaryPinkSoft
+                      : AppColors.bgDefault,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSel ? AppColors.primaryPink : AppColors.lineSoft,
+                    width: isSel ? 1.8 : 1.0,
+                  ),
+                ),
+                child: Text(
+                  season,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isSel ? AppColors.primaryPink : AppColors.textMain,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 20),
+        // 메모
+        const Text(
+          '메모 (선택)',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _memoController,
+          maxLength: 200,
+          decoration: const InputDecoration(hintText: '오늘의 코디 포인트나 느낌을 적어보세요!'),
+        ),
+      ],
+    );
+  }
+
+  void _addTag() {
+    final val = _tagController.text.trim();
+    if (val.isNotEmpty) {
+      final tag = val.startsWith('#') ? val : '#$val';
+      if (!_moodTags.contains(tag)) {
+        setState(() {
+          _moodTags.add(tag);
+          _tagController.clear();
+        });
+      }
+    }
+  }
+
+  // 4. OotdStylePage (스타일 옵션)
+  Widget _buildStylePage() {
+    final previewCharacter = widget.userCharacter.copyWith(
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      eyeShapeIndex: _changeStyle
+          ? _customEyeShapeIndex
+          : widget.userCharacter.eyeShapeIndex,
+      accessoryStyleIndex: 0, // 소품 배제
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Center(
+          child: Text(
+            '스타일 옵션 (선택)',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '캐릭터 배경 색상과 외모를 다이어리 분위기에 맞게 꾸며보세요!',
+            style: TextStyle(fontSize: 11, color: AppColors.textSub),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // 캐릭터 실시간 미리보기
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _bgColors[_selectedBgColorIndex].withOpacity(0.3),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.lineSoft, width: 1.5),
+            ),
+            child: PixelCharacterWidget(character: previewCharacter, size: 100),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 1. 배경 색상 선택
+        const Text(
+          '배경 색상',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 40,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _bgColors.length,
+            itemBuilder: (context, index) {
+              final isSel = _selectedBgColorIndex == index;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedBgColorIndex = index),
+                child: Container(
+                  width: 40,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: _bgColors[index],
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSel ? AppColors.primaryPink : AppColors.lineSoft,
+                      width: isSel ? 3.0 : 1.0,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 2. 외모 변경 여부 질문
+        const Text(
+          '헤어스타일이나 눈 모양을 변경하시겠습니까?',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _changeStyle = false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: !_changeStyle
+                        ? AppColors.primaryPinkSoft
+                        : AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: !_changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.lineSoft,
+                      width: !_changeStyle ? 2 : 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '변경 안 함',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: !_changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _changeStyle = true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _changeStyle
+                        ? AppColors.primaryPinkSoft
+                        : AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.lineSoft,
+                      width: _changeStyle ? 2 : 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '변경하기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // 3. 외모 커스터마이징 영역 (변경하기를 눌렀을 때만 노출)
+        if (_changeStyle) ...[
+          const SizedBox(height: 24),
+          const Text(
+            '헤어스타일 종류',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textSub,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(4, (index) {
+              final isSel = _customHairStyleIndex == index;
+              return GestureDetector(
+                onTap: () => setState(() => _customHairStyleIndex = index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSel
+                        ? AppColors.primaryPurpleSoft
+                        : AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.lineSoft,
+                      width: isSel ? 1.8 : 1.0,
+                    ),
+                  ),
+                  child: Text(
+                    '스타일 ${index + 1}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.textMain,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '눈 모양 (표정)',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textSub,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(3, (index) {
+              final isSel = _customEyeShapeIndex == index;
+              final label = index == 0
+                  ? '😊 웃음'
+                  : index == 1
+                  ? '😉 윙크'
+                  : '🥺 둥근눈';
+              return GestureDetector(
+                onTap: () => setState(() => _customEyeShapeIndex = index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSel
+                        ? AppColors.primaryPurpleSoft
+                        : AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.lineSoft,
+                      width: isSel ? 1.8 : 1.0,
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.textMain,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // 5. OotdAnalysisPage (AI 코디 분석 중)
+  Widget _buildAnalysisPage() {
+    return Column(
+      children: [
+        const SizedBox(height: 30),
+        const Center(
+          child: Text(
+            'AI가 코디 분석 중...',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '조금만 기다려주세요!\n캐릭터를 예쁘게 꾸미고 있어요 ✨',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSub,
+              height: 1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+        // 진행 체크리스트 애니메이션 모의
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          child: Column(
+            children: [
+              _buildAnalysisRow('이미지 분석 중', true),
+              const Divider(color: AppColors.lineSoft, height: 24),
+              _buildAnalysisRow('코디 스타일 분석 중', true),
+              const Divider(color: AppColors.lineSoft, height: 24),
+              _buildAnalysisRow('캐릭터 스타일 적용 중', false),
+              const Divider(color: AppColors.lineSoft, height: 24),
+              _buildAnalysisRow('최종 결과 생성 중', false),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalysisRow(String title, bool isDone) {
+    return Row(
+      children: [
+        isDone
+            ? const Icon(
+                Icons.check_circle,
+                color: AppColors.accentGreen,
+                size: 20,
+              )
+            : const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primaryPurple,
+                ),
+              ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+            color: isDone ? AppColors.textMain : AppColors.textSub,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 6. OotdCompletePage (기록 완료)
+  Widget _buildCompletePage() {
+    final finalCharacter = widget.userCharacter.copyWith(
+      skinToneIndex: _selectedBgColorIndex,
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      eyeShapeIndex: _changeStyle
+          ? _customEyeShapeIndex
+          : widget.userCharacter.eyeShapeIndex,
+      accessoryStyleIndex: 0,
+    );
+
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Icon(
+          Icons.check_circle_outline,
+          color: AppColors.accentGreen,
+          size: 30,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'OOTD 기록 완료!',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '오늘의 코디가 기록되었어요!',
+          style: TextStyle(fontSize: 12, color: AppColors.textSub),
+        ),
+        const SizedBox(height: 30),
+        // 폴라로이드 감성 완료 카드
+        Container(
+          width: 220,
+          height: 290,
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.lineBrown, width: 2),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              PixelCharacterWidget(character: finalCharacter, size: 120),
+              const SizedBox(height: 16),
+              // 날짜 손글씨 메모 라벨
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.bgWarm,
+                  border: Border.all(color: AppColors.lineSoft),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  '2026.10.03 (SAT) ✍️',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        const Text(
+          '기록을 저장하고 다른 날의\nOOTD도 기록해볼까요?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.4),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomCta() {
+    if (_currentStep == 5) {
+      // 분석 로딩창에서는 하단 버튼 없음
+      return const SizedBox(height: 30);
+    }
+
+    String label = '다음 ➔';
+    if (_currentStep == 0) {
+      label = '시작하기';
+    } else if (_currentStep == 4) {
+      label = '기록 분석 요청 ➔';
+    } else if (_currentStep == 6) {
+      label = '홈으로 가기 ➔';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          if (_currentStep > 0 && _currentStep < 5) ...[
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _back,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.bgDefault,
+                  foregroundColor: AppColors.textMain,
+                  side: const BorderSide(color: AppColors.lineSoft),
+                ),
+                child: const Text('이전'),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: _next,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: (_currentStep == 0 || _currentStep == 6)
+                    ? AppColors.primaryPink
+                    : AppColors.primaryPurple,
+              ),
+              child: Text(label),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
