@@ -1,0 +1,194 @@
+import 'package:flutter/material.dart';
+
+class OnmuColors {
+  static const bgDefault = Color(0xFFFFFFFF);
+  static const bgWarm = Color(0xFFFFFDF9);
+  static const paper = Color(0xFFFFFAF3);
+  static const purple = Color(0xFF8B5CF6);
+  static const purpleDark = Color(0xFF6D3FE8);
+  static const purpleSoft = Color(0xFFEDE4FF);
+  static const pink = Color(0xFFFF8FA3);
+  static const pinkSoft = Color(0xFFFFE3E8);
+  static const textMain = Color(0xFF3A2A23);
+  static const textSub = Color(0xFF7A6258);
+  static const textMuted = Color(0xFFA9948A);
+  static const lineSoft = Color(0xFFEAD8CC);
+  static const linePurple = Color(0xFFBDA4FF);
+  static const accentGreen = Color(0xFFA8C58B);
+  static const accentBlue = Color(0xFF8CC6E8);
+}
+
+class OnmuPrimaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+
+  const OnmuPrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: OnmuColors.purple,
+          disabledBackgroundColor: OnmuColors.purpleSoft,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+}
+
+class OnmuSecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+
+  const OnmuSecondaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OnmuColors.textMain,
+          side: const BorderSide(color: OnmuColors.lineSoft),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+}
+
+class OnmuCharacterHero extends StatelessWidget {
+  final bool compact;
+
+  const OnmuCharacterHero({super.key, this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = compact ? 154.0 : 230.0;
+    return Center(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: OnmuColors.paper,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: OnmuColors.lineSoft),
+        ),
+        child: CustomPaint(
+          painter: _PixelCharacterPainter(),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+}
+
+class PaperNote extends StatelessWidget {
+  final String title;
+  final String body;
+  final IconData? icon;
+
+  const PaperNote({
+    super.key,
+    required this.title,
+    required this.body,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: OnmuColors.paper,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OnmuColors.lineSoft),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: OnmuColors.pink, size: 22),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: OnmuColors.textMain,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: OnmuColors.textSub,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PixelCharacterPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.width / 14;
+    void rect(int x, int y, int w, int h, Color color) {
+      canvas.drawRect(
+        Rect.fromLTWH(x * unit, y * unit, w * unit, h * unit),
+        Paint()..color = color,
+      );
+    }
+
+    rect(4, 2, 6, 1, const Color(0xFF5C4035));
+    rect(3, 3, 8, 2, const Color(0xFF5C4035));
+    rect(3, 5, 1, 3, const Color(0xFF5C4035));
+    rect(10, 5, 1, 3, const Color(0xFF5C4035));
+    rect(4, 4, 6, 5, const Color(0xFFFFD7BE));
+    rect(5, 6, 1, 1, OnmuColors.textMain);
+    rect(8, 6, 1, 1, OnmuColors.textMain);
+    rect(6, 8, 2, 1, OnmuColors.pink);
+    rect(4, 9, 6, 3, OnmuColors.purpleSoft);
+    rect(3, 10, 2, 2, OnmuColors.pinkSoft);
+    rect(9, 10, 2, 2, OnmuColors.pinkSoft);
+    rect(5, 12, 2, 1, OnmuColors.textSub);
+    rect(8, 12, 2, 1, OnmuColors.textSub);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
