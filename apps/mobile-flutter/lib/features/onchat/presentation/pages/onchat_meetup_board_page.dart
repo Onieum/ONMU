@@ -18,41 +18,65 @@ class OnChatMeetupBoardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '온챗 약속 보드',
-      subtitle: '장소 투표와 준비 상태를 한 장의 보드처럼 붙여둡니다.',
+      title: '약속 보드',
+      subtitle: '온챗 · 우리들의 주말 · 투표 마감 D-1',
+      bottom: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: OnmuPrimaryButton(
+            label: '최종 장소 확정하기',
+            icon: Icons.check_circle_outline,
+            color: AppColors.primaryPink,
+            onPressed: () => context.go(RoutePaths.onchatDemoChat),
+          ),
+        ),
+      ),
       children: [
+        const _BoardNoticeCard(),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Text('장소 후보', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(width: AppSpacing.xs),
+            const OnmuChip(label: '3', selected: true),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (var index = 0; index < demoPlaceCandidates.length; index += 1) ...[
+          _VoteCard(
+            rank: index + 1,
+            candidate: demoPlaceCandidates[index],
+            voteCount: switch (index) {
+              0 => 5,
+              1 => 3,
+              _ => 1,
+            },
+            progress: switch (index) {
+              0 => 0.62,
+              1 => 0.25,
+              _ => 0.13,
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        const _ParticipantResponseCard(),
+        const SizedBox(height: AppSpacing.md),
         OnmuCard(
           backgroundColor: AppColors.bgPaper,
           borderColor: AppColors.lineWarm,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              const OnmuStickerLabel(
-                label: '약속 보드',
-                icon: Icons.push_pin_outlined,
+              const OnmuStickerLabel(label: '투표 결과', icon: Icons.edit_outlined),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '모두가 만족할 장소를 정해보아요!',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                demoPinnedMeetup.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                demoPinnedMeetup.dateLabel,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              OnmuChip(label: demoPinnedMeetup.statusLabel, selected: true),
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text('장소 투표', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        for (final candidate in demoPlaceCandidates.take(2)) ...[
-          _VoteCard(candidate: candidate),
-          const SizedBox(height: AppSpacing.sm),
-        ],
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
@@ -66,10 +90,10 @@ class OnChatMeetupBoardPage extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: OnmuPrimaryButton(
-                label: '정산 만들기',
+              child: OnmuSecondaryButton(
+                label: '정산 보기',
                 icon: Icons.receipt_long_outlined,
-                onPressed: () => context.go(RoutePaths.settlementNew),
+                onPressed: () => context.go(RoutePaths.settlementShare),
               ),
             ),
           ],
@@ -79,43 +103,192 @@ class OnChatMeetupBoardPage extends StatelessWidget {
   }
 }
 
-class _VoteCard extends StatelessWidget {
-  const _VoteCard({required this.candidate});
-
-  final PlaceCandidate candidate;
+class _BoardNoticeCard extends StatelessWidget {
+  const _BoardNoticeCard();
 
   @override
   Widget build(BuildContext context) {
-    final isTop = candidate.id == 'cafe-moon';
-
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: isTop ? AppColors.linePink : AppColors.lineBrown,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isTop ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isTop ? AppColors.primaryPink : AppColors.textMuted,
-          ),
+          const Icon(Icons.star, color: AppColors.accentOrange),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  candidate.name,
-                  style: Theme.of(context).textTheme.titleSmall,
+                  demoPinnedMeetup.title,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
-                  candidate.summary,
+                  '마음에 드는 장소에 투표해 주세요!',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          const OnmuChip(label: 'D-1', selected: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoteCard extends StatelessWidget {
+  const _VoteCard({
+    required this.rank,
+    required this.candidate,
+    required this.voteCount,
+    required this.progress,
+  });
+
+  final int rank;
+  final PlaceCandidate candidate;
+  final int voteCount;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final isTop = rank == 1;
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: isTop ? AppColors.linePink : AppColors.lineSoft,
+      child: Row(
+        children: [
+          _RankBadge(rank: rank),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        candidate.name,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    Text(
+                      '$voteCount표',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColors.primaryPink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '${candidate.category} · ${candidate.distanceLabel}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: AppColors.primaryPinkSoft,
+                  color: AppColors.primaryPink,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '${(progress * 100).round()}%',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
           ),
-          OnmuChip(label: isTop ? '3표' : '1표', selected: isTop),
         ],
       ),
+    );
+  }
+}
+
+class _ParticipantResponseCard extends StatelessWidget {
+  const _ParticipantResponseCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('참여자 응답', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: const [
+              Expanded(
+                child: _ResponseTile(label: '참석', count: '5', selected: true),
+              ),
+              SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _ResponseTile(label: '미정', count: '1'),
+              ),
+              SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _ResponseTile(label: '불참', count: '0'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResponseTile extends StatelessWidget {
+  const _ResponseTile({
+    required this.label,
+    required this.count,
+    this.selected = false,
+  });
+
+  final String label;
+  final String count;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selected ? AppColors.linePink : AppColors.lineSoft,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Column(
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(count, style: Theme.of(context).textTheme.titleMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RankBadge extends StatelessWidget {
+  const _RankBadge({required this.rank});
+
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      backgroundColor: AppColors.primaryPink,
+      foregroundColor: AppColors.textInverse,
+      child: Text('$rank'),
     );
   }
 }

@@ -7,7 +7,10 @@ class RoutePaths {
   static const placeCandidates = '/meetups/demo/places';
   static const placeSearch = '/meetups/demo/places/search';
   static const placeMap = '/meetups/demo/places/map';
-  static const placeDetail = '/meetups/demo/places/cafe-moon';
+  static const placeDetail = '/meetups/demo/places/onmu-diner';
+  static const placeRiskKeyword = '/meetups/demo/places/risks/keyword';
+  static const placeRiskBreakTime = '/meetups/demo/places/risks/break-time';
+  static const placeRiskClosedDay = '/meetups/demo/places/risks/closed-day';
   static const placeCompare = '/meetups/demo/place-compare';
   static const placeRisks = '/meetups/demo/places/risks';
 

@@ -13,12 +13,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보'), findsWidgets);
-    expect(find.text('카페 문라이트'), findsOneWidget);
+    expect(find.text('온무식당'), findsOneWidget);
 
     await tester.tap(find.text('온챗'));
     await tester.pumpAndSettle();
 
-    expect(find.text('성수 토요일 멤버'), findsOneWidget);
-    expect(find.text('친구들이 남긴 새 메모'), findsOneWidget);
+    expect(find.text('내가 참여한 모임'), findsOneWidget);
+    expect(find.text('대학 동기 여행단'), findsOneWidget);
   });
 }

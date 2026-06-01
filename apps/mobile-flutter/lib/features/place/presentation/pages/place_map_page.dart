@@ -18,7 +18,7 @@ class PlaceMapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '지도 보기',
-      subtitle: '실제 지도 대신 친구 위치와 후보 장소를 다이어리 지도처럼 표시했어요.',
+      subtitle: '지도 핀, 리스트 탭, 추천 후보를 한 화면에서 확인합니다.',
       useGridBackground: true,
       children: [
         const _MockMap(),
@@ -115,9 +115,9 @@ class _MockMap extends StatelessWidget {
             Positioned(
               right: 54,
               bottom: 70,
-              child: _MapLabel(label: '성수역', icon: Icons.train_outlined),
+              child: _MapLabel(label: '홍대입구역', icon: Icons.train_outlined),
             ),
-            Center(child: _MapPin(label: '카페 문라이트')),
+            Center(child: _MapPin(label: '온무식당')),
           ],
         ),
       ),

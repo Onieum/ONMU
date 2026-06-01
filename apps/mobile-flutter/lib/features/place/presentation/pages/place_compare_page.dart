@@ -7,8 +7,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
+import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../widgets/place_candidate_card.dart';
 
 class PlaceComparePage extends StatelessWidget {
   const PlaceComparePage({super.key});
@@ -16,129 +17,177 @@ class PlaceComparePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '장소 비교',
-      subtitle: '후보별 느낌과 조건을 한 장의 메모처럼 비교합니다.',
-      children: [
-        OnmuCard(
-          backgroundColor: AppColors.bgPaper,
-          borderColor: AppColors.lineWarm,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const OnmuStickerLabel(label: '오늘의 추천', icon: Icons.auto_awesome),
-              const SizedBox(height: AppSpacing.sm),
-              Text('가장 무난한 선택', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '카페 문라이트가 취향 점수와 이동 균형이 가장 좋아요.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
+      title: '후보 비교',
+      subtitle: '기준: 홍대 토요일 18:00',
+      bottom: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: OnmuPrimaryButton(
+            label: '온무식당 선택하기',
+            icon: Icons.check_circle_outline,
+            color: AppColors.primaryPurple,
+            foregroundColor: AppColors.textInverse,
+            onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        for (final candidate in demoPlaceCandidates) ...[
-          _CompareCard(candidate: candidate),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '리스크',
-                icon: Icons.warning_amber,
-                onPressed: () => context.go(RoutePaths.placeRisks),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OnmuPrimaryButton(
-                label: '온챗에 공유',
-                icon: Icons.send_outlined,
-                onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
-              ),
-            ),
-          ],
-        ),
+      ),
+      children: const [
+        _CandidateCompareTable(),
+        SizedBox(height: AppSpacing.lg),
+        _MemberFitSummary(),
+        SizedBox(height: AppSpacing.lg),
+        _RecommendationConclusion(),
       ],
     );
   }
 }
 
-class _CompareCard extends StatelessWidget {
-  const _CompareCard({required this.candidate});
-
-  final PlaceCandidate candidate;
+class _CandidateCompareTable extends StatelessWidget {
+  const _CandidateCompareTable();
 
   @override
   Widget build(BuildContext context) {
+    final candidates = demoPlaceCandidates;
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Table(
+          border: TableBorder.all(color: AppColors.lineSoft),
+          children: [
+            _row(
+              context,
+              candidates.map((candidate) => candidate.name).toList(),
+              isHeader: true,
+            ),
+            _row(
+              context,
+              candidates
+                  .map((candidate) => '${candidate.score.toInt()}점')
+                  .toList(),
+            ),
+            _row(
+              context,
+              candidates.map((candidate) => candidate.travelTimeLabel).toList(),
+            ),
+            _row(
+              context,
+              candidates.map((candidate) => candidate.riskLabel).toList(),
+              highlightedIndex: 0,
+            ),
+            _row(
+              context,
+              candidates.map((candidate) => candidate.category).toList(),
+            ),
+            _row(
+              context,
+              candidates
+                  .map(
+                    (candidate) => candidate.openingLabel.contains('LO')
+                        ? candidate.openingLabel.split('·').last.trim()
+                        : '정보 오래됨',
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  TableRow _row(
+    BuildContext context,
+    List<String> values, {
+    bool isHeader = false,
+    int? highlightedIndex,
+  }) {
+    return TableRow(
+      children: [
+        for (var index = 0; index < values.length; index += 1)
+          ColoredBox(
+            color: index == highlightedIndex
+                ? AppColors.primaryPinkSoft
+                : isHeader
+                ? AppColors.primaryPurpleSoft
+                : AppColors.bgDefault,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.md,
+              ),
+              child: Text(
+                values[index],
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: isHeader
+                      ? AppColors.primaryPurpleDark
+                      : AppColors.textMain,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MemberFitSummary extends StatelessWidget {
+  const _MemberFitSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    final fits = demoPlaceCandidates.first.memberFits.take(3);
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  candidate.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Text(
-                '${candidate.matchPercent}%',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(color: AppColors.accentBrown),
-              ),
-            ],
-          ),
+          Text('참여자별 적합도', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.sm),
-          _ScoreRow(label: '취향', value: candidate.matchPercent / 100),
-          _ScoreRow(
-            label: '이동',
-            value: candidate.travelTimeLabel == '평균 18분' ? 0.92 : 0.74,
-          ),
-          _ScoreRow(
-            label: '리스크',
-            value: candidate.risks.length == 1 ? 0.72 : 0.46,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            candidate.risks.join(' · '),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          for (final fit in fits) ...[
+            PlaceMemberFitBar(fit: fit),
+            Text(
+              '${fit.label}: 온무식당 선호 · ${fit.note}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ScoreRow extends StatelessWidget {
-  const _ScoreRow({required this.label, required this.value});
-
-  final String label;
-  final double value;
+class _RecommendationConclusion extends StatelessWidget {
+  const _RecommendationConclusion();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 52,
-            child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+          Text('추천 결론', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '온무식당은 평균 점수와 운영 안정성이 가장 높고, 약속 시간과 충돌하는 리스크가 없습니다.',
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
-          Expanded(
-            child: LinearProgressIndicator(
-              value: value,
-              minHeight: 8,
-              backgroundColor: AppColors.primaryPinkSoft,
-              color: value > 0.7
-                  ? AppColors.primaryPink
-                  : AppColors.accentOrange,
-            ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: const [
+              OnmuChip(label: '최저 만족도 방어', selected: true),
+              OnmuChip(label: '리스크 없음', selected: true),
+            ],
           ),
         ],
       ),

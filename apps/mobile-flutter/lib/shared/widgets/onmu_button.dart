@@ -24,6 +24,7 @@ class OnmuPrimaryButton extends StatelessWidget {
     final style = FilledButton.styleFrom(
       backgroundColor: color,
       foregroundColor: foregroundColor,
+      minimumSize: const Size(0, 52),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
@@ -64,7 +65,7 @@ class OnmuSecondaryButton extends StatelessWidget {
       foregroundColor: AppColors.textMain,
       backgroundColor: AppColors.bgDefault,
       side: const BorderSide(color: AppColors.lineBrown),
-      minimumSize: const Size.fromHeight(48),
+      minimumSize: const Size(0, 48),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),

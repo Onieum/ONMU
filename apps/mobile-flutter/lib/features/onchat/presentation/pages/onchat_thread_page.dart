@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onchat_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onchat_cards.dart';
@@ -64,6 +65,8 @@ class OnChatThreadPage extends StatelessWidget {
           onBoardPressed: () => context.go(RoutePaths.onchatMeetupBoard),
         ),
         const SizedBox(height: AppSpacing.md),
+        const _StatusChipRow(),
+        const SizedBox(height: AppSpacing.md),
         for (final message in demoOnChatMessages) ...[
           ChatMessageBubble(message: message),
           const SizedBox(height: AppSpacing.sm),
@@ -95,6 +98,24 @@ class OnChatThreadPage extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _StatusChipRow extends StatelessWidget {
+  const _StatusChipRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: const [
+        OnmuChip(label: '출발 1명', selected: true),
+        OnmuChip(label: '도착 1명', selected: true),
+        OnmuChip(label: '늦음 1명'),
+        OnmuChip(label: '준비물 PDF'),
       ],
     );
   }

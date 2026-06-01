@@ -20,59 +20,188 @@ class OnChatSettlementSharePage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '정산 공유',
-      subtitle: '정산 메시지를 친구들에게 붙여둘 공유 카드로 정리합니다.',
-      children: [
-        OnmuCard(
-          backgroundColor: AppColors.bgPaper,
-          borderColor: AppColors.lineWarm,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const OnmuStickerLabel(label: '정산 메모', icon: Icons.receipt_long),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                settlement.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${settlement.totalAmountLabel} · 결제자 ${settlement.payer}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                settlement.shareMessage,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+      subtitle: '총액, N분의 1, 입금 상태, 공유 문구를 온챗에 붙여둡니다.',
+      bottom: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: OnmuPrimaryButton(
+            label: '온챗에 공유하기',
+            icon: Icons.reply_outlined,
+            color: AppColors.primaryPink,
+            onPressed: () => context.go(RoutePaths.onchatDemoChat),
           ),
         ),
+      ),
+      children: [
+        _TotalAmountCard(settlement: settlement),
+        const SizedBox(height: AppSpacing.md),
+        _SplitSummaryCard(settlement: settlement),
         const SizedBox(height: AppSpacing.md),
         for (final member in settlement.members) ...[
           SettlementStatusRow(member: member),
           const SizedBox(height: AppSpacing.sm),
         ],
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '대화로 이동',
-                icon: Icons.chat_bubble_outline,
-                onPressed: () => context.go(RoutePaths.onchatDemoChat),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OnmuPrimaryButton(
-                label: '보드로 이동',
-                icon: Icons.push_pin_outlined,
-                onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
-              ),
-            ),
-          ],
-        ),
+        _ShareMessageCard(message: settlement.shareMessage),
       ],
+    );
+  }
+}
+
+class _TotalAmountCard extends StatelessWidget {
+  const _TotalAmountCard({required this.settlement});
+
+  final SettlementSummary settlement;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.linePink,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -24,
+            right: 18,
+            child: Transform.rotate(
+              angle: -0.18,
+              child: const OnmuTape(width: 70),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      settlement.title,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      settlement.totalAmountLabel,
+                      style: Theme.of(context).textTheme.headlineLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      settlement.dueDateLabel,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                children: [
+                  const OnmuPixelBuddy(size: 70),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '결제자\n${settlement.payer}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SplitSummaryCard extends StatelessWidget {
+  const _SplitSummaryCard({required this.settlement});
+
+  final SettlementSummary settlement;
+
+  @override
+  Widget build(BuildContext context) {
+    final paidCount = settlement.members
+        .where((member) => member.isPaid)
+        .length;
+    final unpaidCount = settlement.members.length - paidCount;
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('N분의 1 정산', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                '완료 $paidCount명 / 미완료 $unpaidCount명',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: AppColors.accentBrown),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '1인당 금액 31,000원',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: AppColors.primaryPink),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareMessageCard extends StatelessWidget {
+  const _ShareMessageCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('공유용 메시지', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          OnmuCard(
+            backgroundColor: AppColors.bgDefault,
+            borderColor: AppColors.lineSoft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.sticky_note_2_outlined,
+                  color: AppColors.primaryPink,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '$message\n확인 부탁드려요 :)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OnmuSecondaryButton(
+              label: '복사하기',
+              icon: Icons.copy,
+              onPressed: () {},
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

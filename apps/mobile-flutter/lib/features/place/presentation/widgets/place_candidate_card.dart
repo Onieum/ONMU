@@ -24,26 +24,17 @@ class PlaceCandidateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final riskColor = _riskColor(candidate.riskTone);
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: candidate.isOpen ? AppColors.lineBrown : AppColors.linePink,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!compact) ...[
-            OnmuStickerLabel(
-              label: candidate.category,
-              icon: Icons.local_cafe_outlined,
-              backgroundColor: AppColors.bgPaper,
-              borderColor: AppColors.lineWarm,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PlaceBadge(score: candidate.score),
-              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,40 +48,64 @@ class PlaceCandidateCard extends StatelessWidget {
                       '${candidate.category} · ${candidate.distanceLabel}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      candidate.summary,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
-              OnmuChip(
-                label: candidate.isOpen ? '영업 중' : '확인 필요',
-                selected: !candidate.isOpen,
-              ),
+              _PlaceScoreBadge(score: candidate.score),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            candidate.summary,
-            style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              OnmuChip(
-                label: '취향 ${candidate.matchPercent}%',
-                icon: Icons.favorite_outline,
-                selected: true,
-              ),
+              OnmuChip(label: candidate.riskLabel, selected: true),
               OnmuChip(
                 label: candidate.travelTimeLabel,
                 icon: Icons.directions_walk,
               ),
-              OnmuChip(label: candidate.priceLabel, icon: Icons.payments),
-              for (final tag in candidate.tags.take(compact ? 1 : 3))
+              OnmuChip(
+                label: candidate.sourceLabel.split(' · ').first,
+                icon: Icons.public,
+              ),
+              for (final tag in candidate.tags.take(compact ? 2 : 3))
                 OnmuChip(label: tag),
             ],
           ),
           if (!compact) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _MemberFitMiniList(candidate: candidate),
+            const SizedBox(height: AppSpacing.sm),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: riskColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: riskColor.withValues(alpha: 0.45)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: riskColor),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        candidate.risks.first,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             for (final reason in candidate.reasons.take(2))
               Padding(
@@ -119,7 +134,7 @@ class PlaceCandidateCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OnmuSecondaryButton(
-                  label: '상세',
+                  label: '상세 보기',
                   icon: Icons.info_outline,
                   onPressed: onDetailPressed,
                 ),
@@ -128,8 +143,8 @@ class PlaceCandidateCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: OnmuPrimaryButton(
-                    label: '후보 선택',
-                    icon: Icons.check,
+                    label: '후보 추가',
+                    icon: Icons.add,
                     color: AppColors.primaryPink,
                     onPressed: onSelectPressed,
                   ),
@@ -141,10 +156,117 @@ class PlaceCandidateCard extends StatelessWidget {
       ),
     );
   }
+
+  Color _riskColor(String tone) {
+    return switch (tone) {
+      'none' => AppColors.accentGreen,
+      'medium' => AppColors.accentOrange,
+      'unknown' => AppColors.textMuted,
+      _ => AppColors.primaryPink,
+    };
+  }
 }
 
-class _PlaceBadge extends StatelessWidget {
-  const _PlaceBadge({required this.score});
+class PlaceMemberFitBar extends StatelessWidget {
+  const PlaceMemberFitBar({required this.fit, super.key});
+
+  final MemberFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            child: Text(
+              fit.label,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          Expanded(
+            child: LinearProgressIndicator(
+              value: fit.score / 100,
+              minHeight: 8,
+              backgroundColor: AppColors.primaryPurpleSoft,
+              color: AppColors.primaryPink,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          SizedBox(
+            width: 30,
+            child: Text(
+              '${fit.score}',
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ExternalSourceBadge extends StatelessWidget {
+  const ExternalSourceBadge({required this.label, super.key});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuStickerLabel(
+      label: label,
+      icon: Icons.sync,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+    );
+  }
+}
+
+class _MemberFitMiniList extends StatelessWidget {
+  const _MemberFitMiniList({required this.candidate});
+
+  final PlaceCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final fit in candidate.memberFits) ...[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.primaryPurpleSoft,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.linePurple),
+            ),
+            child: SizedBox(
+              width: 38,
+              height: 38,
+              child: Center(
+                child: Text(
+                  fit.label,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        const Spacer(),
+        Text(
+          '평균 ${candidate.matchPercent}',
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.primaryPurpleDark),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaceScoreBadge extends StatelessWidget {
+  const _PlaceScoreBadge({required this.score});
 
   final double score;
 
@@ -152,24 +274,19 @@ class _PlaceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.bgPaper,
+        color: AppColors.primaryPurple,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.lineWarm),
       ),
-      child: SizedBox(
-        width: 58,
-        height: 58,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.auto_awesome, color: AppColors.accentOrange),
-            Text(
-              score.toStringAsFixed(1),
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.accentBrown),
-            ),
-          ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Text(
+          '${score.toInt()}점',
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.textInverse),
         ),
       ),
     );

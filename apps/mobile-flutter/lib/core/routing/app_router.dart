@@ -20,8 +20,8 @@ import '../../shared/widgets/prototype_placeholder_page.dart';
 import 'route_paths.dart';
 
 final appRouter = GoRouter(
-  initialLocation: RoutePaths.meetups,
   routes: [
+    GoRoute(path: '/', redirect: (context, state) => RoutePaths.meetups),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return Scaffold(
@@ -84,12 +84,35 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: 'risks',
                           builder: (context, state) => const PlaceRisksPage(),
+                          routes: [
+                            GoRoute(
+                              path: 'keyword',
+                              builder: (context, state) =>
+                                  const PlaceRiskDialogPreviewPage(
+                                    kind: PlaceRiskDialogKind.keyword,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'break-time',
+                              builder: (context, state) =>
+                                  const PlaceRiskDialogPreviewPage(
+                                    kind: PlaceRiskDialogKind.breakTime,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'closed-day',
+                              builder: (context, state) =>
+                                  const PlaceRiskDialogPreviewPage(
+                                    kind: PlaceRiskDialogKind.closedDay,
+                                  ),
+                            ),
+                          ],
                         ),
                         GoRoute(
                           path: ':placeId',
                           builder: (context, state) => PlaceDetailPage(
                             placeId:
-                                state.pathParameters['placeId'] ?? 'cafe-moon',
+                                state.pathParameters['placeId'] ?? 'onmu-diner',
                           ),
                         ),
                       ],
