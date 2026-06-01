@@ -10,6 +10,7 @@ class OotdRecordScreen extends StatefulWidget {
   final Function(OotdRecord) onSave;
   final DateTime? recordDate;
   final bool isDailyRecord;
+  final OotdRecord? existingRecord;
 
   const OotdRecordScreen({
     super.key,
@@ -17,6 +18,7 @@ class OotdRecordScreen extends StatefulWidget {
     required this.onSave,
     this.recordDate,
     this.isDailyRecord = false,
+    this.existingRecord,
   });
 
   @override
@@ -47,6 +49,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   int _customHairStyleIndex = 0;
   int _customHairColorIndex = 0;
   int _customEyeColorIndex = 0;
+  double _rating = 5.0;
 
   // 시뮬레이션용 데이터
   final List<String> _seasons = ['봄', '여름', '가을', '겨울', '실내'];
@@ -61,9 +64,27 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   @override
   void initState() {
     super.initState();
-    _customHairStyleIndex = widget.userCharacter.hairStyleIndex;
-    _customHairColorIndex = widget.userCharacter.hairColorIndex;
-    _customEyeColorIndex = widget.userCharacter.eyeColorIndex;
+    if (widget.existingRecord != null) {
+      final r = widget.existingRecord!;
+      _selectedMethod = r.brands['스타일'] == '사진 OOTD' ? 0 : 1;
+      _moodTags.clear();
+      _moodTags.addAll(r.moodTags);
+      _locationController.text = r.brands['스타일 컨셉'] ?? r.brands['장소'] ?? '';
+      _selectedSeason = r.brands['날씨/계절'] ?? '가을';
+      _selectedBgColorIndex = int.tryParse(r.brands['bgColorIndex'] ?? '0') ?? 0;
+      _changeStyle = true;
+      _customHairStyleIndex = r.character.hairStyleIndex;
+      _customHairColorIndex = r.character.hairColorIndex;
+      _customEyeColorIndex = r.character.eyeColorIndex;
+      _rating = double.tryParse(r.brands['rating'] ?? '5.0') ?? 5.0;
+      if (r.timeline.isNotEmpty) {
+        _memoController.text = r.timeline.first.description;
+      }
+    } else {
+      _customHairStyleIndex = widget.userCharacter.hairStyleIndex;
+      _customHairColorIndex = widget.userCharacter.hairColorIndex;
+      _customEyeColorIndex = widget.userCharacter.eyeColorIndex;
+    }
   }
 
   @override
@@ -117,7 +138,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       brands: {
         '스타일': _selectedMethod == 0 ? '사진 OOTD' : '텍스트 OOTD',
         '날씨/계절': _selectedSeason,
-        '장소': _locationController.text.trim().isEmpty ? '미지정' : _locationController.text.trim(),
+        '스타일 컨셉': _locationController.text.trim().isEmpty ? '미지정' : _locationController.text.trim(),
+        'bgColorIndex': _selectedBgColorIndex.toString(),
+        'rating': _rating.toString(),
       },
       weather: _selectedSeason == '실내' ? 'cloudy' : 'sunny',
       mood: 'happy',
@@ -125,7 +148,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       timeline: [
         TimelineItem(
           time: '14:00',
-          placeName: _locationController.text.trim().isEmpty ? '서울숲 카페' : _locationController.text.trim(),
+          placeName: _locationController.text.trim().isEmpty ? '스타일 컨셉' : _locationController.text.trim(),
           category: 'place',
           description: _memoController.text.trim().isEmpty ? '즐거운 하루의 기록!' : _memoController.text.trim(),
         )
@@ -579,12 +602,12 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           )).toList(),
         ),
         const SizedBox(height: 16),
-        // 장소
-        const Text('장소', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        // 스타일 컨셉 / 상황 (TPO)
+        const Text('스타일 컨셉 / 상황 (TPO)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
         const SizedBox(height: 6),
         TextField(
           controller: _locationController,
-          decoration: const InputDecoration(hintText: '예) 학교, 카페, 회사 등'),
+          decoration: const InputDecoration(hintText: '예) 데이트, 오피스룩, 캠퍼스룩, 격식있는 자리 등'),
         ),
         const SizedBox(height: 16),
         // 날씨 / 계절
@@ -617,6 +640,27 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               ),
             );
           }).toList(),
+        ),
+        const SizedBox(height: 16),
+        // 코디 별점
+        const Text('오늘의 코디 별점', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            final starVal = index + 1.0;
+            final isFull = _rating >= starVal;
+            return GestureDetector(
+              onTap: () => setState(() => _rating = starVal),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  isFull ? Icons.star : Icons.star_border,
+                  color: AppColors.accentOrange,
+                  size: 32,
+                ),
+              ),
+            );
+          }),
         ),
         const SizedBox(height: 20),
         // 메모
@@ -782,9 +826,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           const SizedBox(height: 24),
           const Text('헤어스타일 종류', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(4, (index) {
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(8, (index) {
               final isSel = _customHairStyleIndex == index;
               return GestureDetector(
                 onTap: () => setState(() => _customHairStyleIndex = index),

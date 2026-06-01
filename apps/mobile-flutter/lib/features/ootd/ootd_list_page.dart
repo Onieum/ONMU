@@ -8,7 +8,7 @@ import '../../shared/widgets/grid_background.dart';
 class OotdListPage extends StatefulWidget {
   final CharacterDraft userCharacter;
   final List<OotdRecord> customRecords;
-  final Function(DateTime) onAddOotd;
+  final Function(DateTime, OotdRecord?) onAddOotd;
   final void Function(DateTime, OotdRecord?) onAddDailyRecord;
   final Function(OotdRecord) onViewOotdDetail;
   final VoidCallback onNavigateToProfile;
@@ -31,6 +31,14 @@ class _OotdListPageState extends State<OotdListPage> {
   late DateTime _currentMonth;
   late DateTime _selectedDay;
   List<OotdRecord> _allRecords = [];
+
+  final List<Color> _bgColors = [
+    const Color(0xFFFFE3E8),
+    const Color(0xFFEDE4FF),
+    const Color(0xFFE8F5E9),
+    const Color(0xFFFFFDE7),
+    const Color(0xFFE3F2FD),
+  ];
 
   // 달력 셀 테두리용 파스텔 컬러 팔레트
   final List<Color> _pastelBorders = [
@@ -343,7 +351,7 @@ class _OotdListPageState extends State<OotdListPage> {
                         child: GestureDetector(
                           onTap: () {
                             Navigator.pop(context);
-                            widget.onAddOotd(localSelectedDate);
+                            widget.onAddOotd(localSelectedDate, null);
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 20),
@@ -441,12 +449,13 @@ class _OotdListPageState extends State<OotdListPage> {
               }
             });
           },
-          onAddDailyRecord: () {
+          onAddDailyRecord: (date, ootdRecord) {
             Navigator.pop(context);
-            widget.onAddDailyRecord(day, _getOotdRecordForDate(day));
+            widget.onAddDailyRecord(date, ootdRecord);
           },
-          onAddOotdRecord: () {
-            widget.onAddOotd(day);
+          onAddOotdRecord: (date, ootdRecord) {
+            Navigator.pop(context);
+            widget.onAddOotd(date, ootdRecord);
           },
           onViewDetail: () {
             widget.onViewOotdDetail(record);
@@ -709,12 +718,15 @@ class _OotdListPageState extends State<OotdListPage> {
             cellDate.day == _selectedDay.day;
         final record = _getRecordForDate(cellDate);
         final borderColor = _pastelBorders[day % _pastelBorders.length];
+        
+        final int? bgColorIndex = record != null ? int.tryParse(record.brands['bgColorIndex'] ?? '') : null;
+        final Color cellBgColor = bgColorIndex != null ? _bgColors[bgColorIndex].withOpacity(0.4) : AppColors.bgDefault;
 
         return GestureDetector(
           onTap: () => _onDayTap(cellDate),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.bgDefault,
+              color: cellBgColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
@@ -791,8 +803,8 @@ class _TimelineBottomSheetContent extends StatefulWidget {
   final OotdRecord record;
   final CharacterDraft userCharacter;
   final Function(OotdRecord) onSaveRecord;
-  final VoidCallback onAddDailyRecord;
-  final VoidCallback onAddOotdRecord;
+  final Function(DateTime, OotdRecord?) onAddDailyRecord;
+  final Function(DateTime, OotdRecord?) onAddOotdRecord;
   final VoidCallback? onViewDetail;
 
   const _TimelineBottomSheetContent({
@@ -1073,7 +1085,7 @@ class _TimelineBottomSheetContentState
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  widget.onAddDailyRecord();
+                  widget.onAddDailyRecord(widget.record.date, null);
                 },
                 icon: const Icon(Icons.calendar_today_outlined, size: 16),
                 label: const Text('하루 일과 기록하기'),
@@ -1094,7 +1106,7 @@ class _TimelineBottomSheetContentState
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  widget.onAddOotdRecord();
+                  widget.onAddOotdRecord(widget.record.date, null);
                 },
                 icon: const Icon(Icons.checkroom, size: 16),
                 label: const Text('오늘 코디 기록하기 (OOTD)'),
@@ -1820,43 +1832,31 @@ class _TimelineBottomSheetContentState
                       color: AppColors.textMain,
                     ),
                   ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star,
-                        color: AppColors.accentOrange,
-                        size: 14,
-                      ),
-                      const Icon(
-                        Icons.star,
-                        color: AppColors.accentOrange,
-                        size: 14,
-                      ),
-                      const Icon(
-                        Icons.star,
-                        color: AppColors.accentOrange,
-                        size: 14,
-                      ),
-                      const Icon(
-                        Icons.star,
-                        color: AppColors.accentOrange,
-                        size: 14,
-                      ),
-                      const Icon(
-                        Icons.star_border,
-                        color: AppColors.accentOrange,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        '4.0',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      final double rating = double.tryParse(_localRecord.brands['rating'] ?? '5.0') ?? 5.0;
+                      final int fullStars = rating.floor();
+                      return Row(
+                        children: [
+                          ...List.generate(5, (index) {
+                            if (index < fullStars) {
+                              return const Icon(Icons.star, color: AppColors.accentOrange, size: 14);
+                            } else {
+                              return const Icon(Icons.star_border, color: AppColors.accentOrange, size: 14);
+                            }
+                          }),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                        ],
+                      );
+                    }
                   ),
                 ],
               ),
@@ -1969,13 +1969,15 @@ class _TimelineBottomSheetContentState
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () {
-              if (widget.onViewDetail != null) {
-                Navigator.pop(context); // Close bottom sheet
-                widget.onViewDetail!();
+              Navigator.pop(context); // Close bottom sheet
+              if (_localRecord.brands['recordType'] == 'daily') {
+                widget.onAddDailyRecord(_localRecord.date, _localRecord);
+              } else {
+                widget.onAddOotdRecord(_localRecord.date, _localRecord);
               }
             },
-            icon: const Icon(Icons.fullscreen, size: 16),
-            label: const Text('자세히 보기(전체화면)'),
+            icon: const Icon(Icons.edit, size: 16),
+            label: const Text('수정하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.bgDefault,
               foregroundColor: AppColors.textMain,
@@ -1994,10 +1996,10 @@ class _TimelineBottomSheetContentState
               widget.onSaveRecord(_localRecord);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('다이어리 기록이 저장되었습니다!')),
+                const SnackBar(content: Text('이미지가 핸드폰 갤러리에 저장되었습니다! 📸')),
               );
             },
-            icon: const Icon(Icons.check, size: 16),
+            icon: const Icon(Icons.download, size: 16),
             label: const Text('저장하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPink,

@@ -98,26 +98,14 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                 ),
               ],
             ),
-            // 탭 1: 약속
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/meetups',
-                  builder: (context, state) => const _TabPlaceholder(
-                    title: '약속 탭',
-                    todoText: '약속 목록 화면 개발 예정',
-                  ),
-                ),
-              ],
-            ),
-            // 탭 2: 온챗
+            // 탭 1: 온모임
             StatefulShellBranch(
               routes: [
                 GoRoute(
                   path: '/onchat',
                   builder: (context, state) => const _TabPlaceholder(
-                    title: '온챗 탭',
-                    todoText: '온챗 목록 화면 개발 예정',
+                    title: '온모임 탭',
+                    todoText: '온모임 목록 화면 개발 예정',
                   ),
                 ),
               ],
@@ -133,8 +121,11 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                     return OotdListPage(
                       userCharacter: character,
                       customRecords: records,
-                      onAddOotd: (date) {
-                        context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
+                      onAddOotd: (date, ootdRecord) {
+                        context.push(
+                          '/ootd/new/ootd?date=${date.toIso8601String()}',
+                          extra: ootdRecord,
+                        );
                       },
                       onAddDailyRecord: (date, ootdRecord) {
                         // ootdRecord가 있으면 query parameter 대신 extra로 전달할 수 있도록 함
@@ -187,7 +178,20 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
               recordDate: date,
               ootdRecord: ootdRecord,
               onSave: (newRecord) {
-                ref.read(customRecordsProvider.notifier).update((state) => [...state, newRecord]);
+                ref.read(customRecordsProvider.notifier).update((state) {
+                  final type = newRecord.brands['recordType'] ?? 'daily';
+                  final index = state.indexWhere((r) =>
+                      r.date.year == newRecord.date.year &&
+                      r.date.month == newRecord.date.month &&
+                      r.date.day == newRecord.date.day &&
+                      (r.brands['recordType'] ?? 'daily') == type);
+                  if (index != -1) {
+                    final list = List<OotdRecord>.from(state);
+                    list[index] = newRecord;
+                    return list;
+                  }
+                  return [...state, newRecord];
+                });
               },
               onCreateOotd: () {
                 context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
@@ -201,12 +205,27 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
             final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
             final date = DateTime.parse(dateStr);
             final character = ref.read(userCharacterProvider)!;
+            final existingRecord = state.extra as OotdRecord?;
 
             return OotdRecordScreen(
               userCharacter: character,
               recordDate: date,
+              existingRecord: existingRecord,
               onSave: (newRecord) {
-                ref.read(customRecordsProvider.notifier).update((state) => [...state, newRecord]);
+                ref.read(customRecordsProvider.notifier).update((state) {
+                  final type = newRecord.brands['recordType'] ?? 'ootd';
+                  final index = state.indexWhere((r) =>
+                      r.date.year == newRecord.date.year &&
+                      r.date.month == newRecord.date.month &&
+                      r.date.day == newRecord.date.day &&
+                      (r.brands['recordType'] ?? 'ootd') == type);
+                  if (index != -1) {
+                    final list = List<OotdRecord>.from(state);
+                    list[index] = newRecord;
+                    return list;
+                  }
+                  return [...state, newRecord];
+                });
               },
             );
           },
