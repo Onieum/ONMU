@@ -2,6 +2,23 @@ class RoutePaths {
   const RoutePaths._();
 
   static const home = '/home';
+
+  static const meetups = '/meetups';
+  static const meetupNewMembers = '/meetups/new/members';
+  static const meetupNewSchedule = '/meetups/new/schedule';
+  static const meetupNewCalendar = '/meetups/new/schedule/calendar';
+
+  static const meetupDemo = '/meetups/demo';
+  static const placeCandidates = '/meetups/demo/places';
+  static const placeSearch = '/meetups/demo/places/search';
+  static const placeMap = '/meetups/demo/places/map';
+  static const placeDetail = '/meetups/demo/places/onmu-diner';
+  static const placeRiskKeyword = '/meetups/demo/places/risks/keyword';
+  static const placeRiskBreakTime = '/meetups/demo/places/risks/break-time';
+  static const placeRiskClosedDay = '/meetups/demo/places/risks/closed-day';
+  static const placeCompare = '/meetups/demo/place-compare';
+  static const placeRisks = '/meetups/demo/places/risks';
+
   static const onmoim = '/onmoim';
   static const onmoimDemo = '/onmoim/friends';
   static const onmoimDemoChat = '/onmoim/friends/chat';
@@ -16,8 +33,27 @@ class RoutePaths {
   static const onmoimDemoMeetupSettlementShare =
       '/onmoim/friends/meetups/demo/settlements/lunch-split';
 
+  static const onchat = '/onchat';
+  static const onchatDemoGroup = onmoimDemo;
+  static const onchatDemoChat = onmoimDemoChat;
+  static const onchatMeetupNew = '/onmoim/friends/meetups/new/members';
+  static const onchatMeetupBoard = onmoimDemoMeetupBoard;
+  static const onchatMemories = onmoimDemoMemories;
+  static const settlementNew = onmoimDemoMeetupSettlementNew;
+  static const settlementShare = onmoimDemoMeetupSettlementShare;
+
   static const ootdList = '/ootd/list';
   static const my = '/my';
+
+  static String meetupDetail(String meetupId) => '/meetups/$meetupId';
+
+  static String meetupPlaces(String meetupId) => '/meetups/$meetupId/places';
+
+  static String meetupRouteReview(String meetupId) =>
+      '/meetups/$meetupId/route-review';
+
+  static String meetupComplete(String meetupId) =>
+      '/meetups/$meetupId/complete';
 
   static String onmoimDetail(String onmoimId) => '/onmoim/$onmoimId';
 

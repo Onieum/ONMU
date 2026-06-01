@@ -1,5 +1,19 @@
 enum SettlementSplitType { equal, custom }
 
+class SettlementMember {
+  const SettlementMember({
+    required this.name,
+    required this.amountLabel,
+    required this.statusLabel,
+    required this.isPaid,
+  });
+
+  final String name;
+  final String amountLabel;
+  final String statusLabel;
+  final bool isPaid;
+}
+
 class SettlementPayerShare {
   const SettlementPayerShare({required this.name, required this.amountLabel});
 
@@ -98,6 +112,26 @@ class SettlementSummary {
   final List<SettlementMemberResult> memberResults;
   final List<SettlementTransferSummary> transfers;
   final String shareMessage;
+
+  String get title => meetupTitle;
+
+  String get payer =>
+      paymentItems.isEmpty ? '-' : paymentItems.first.payerLabel;
+
+  String get dueDateLabel => createdDateLabel;
+
+  List<SettlementMember> get members {
+    return memberResults
+        .map(
+          (result) => SettlementMember(
+            name: result.name,
+            amountLabel: result.finalShareLabel,
+            statusLabel: result.willReceive ? '받음' : '송금',
+            isPaid: result.willReceive,
+          ),
+        )
+        .toList(growable: false);
+  }
 }
 
 const _allParticipants = [
