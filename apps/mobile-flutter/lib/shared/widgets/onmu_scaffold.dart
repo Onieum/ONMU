@@ -52,7 +52,8 @@ class OnmuScaffold extends StatelessWidget {
                 title: title!,
                 showBackButton: showBackButton || leading != null,
                 onBack: onBack,
-                action: action ?? (actions.isEmpty ? null : Row(children: actions)),
+                action:
+                    action ?? (actions.isEmpty ? null : Row(children: actions)),
               ),
             Expanded(
               child: ListView(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../main_shell.dart';
+import '../../core/routing/route_paths.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/onmu_design.dart';
 import 'preference_flow_widgets.dart';
@@ -18,10 +19,7 @@ class PreferenceSummaryPage extends StatelessWidget {
       title: '취향 입력이 끝났어요',
       buttonLabel: '홈으로 가기',
       onNext: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const MainShell()),
-          (_) => false,
-        );
+        context.go(RoutePaths.home);
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

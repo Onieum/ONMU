@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-
-import '../../shared/onmu_design.dart';
-import 'start_page.dart';
+import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/grid_background.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  final VoidCallback onTimeout;
+
+  const SplashPage({super.key, required this.onTimeout});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -14,53 +15,77 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const StartPage()),
-      );
+    // 1.5초 후 자동 다음 화면 이동
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        widget.onTimeout();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: OnmuColors.bgDefault,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(28),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Spacer(),
-              Text(
-                'ONMU',
-                style: TextStyle(
-                  color: OnmuColors.purple,
-                  fontSize: 46,
-                  fontWeight: FontWeight.w900,
+    return GestureDetector(
+      onTap: widget.onTimeout, // 터치 시 즉시 건너뛰기
+      child: Scaffold(
+        backgroundColor: AppColors.bgWarm,
+        body: GridBackground(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Brand Accent (Heart Sticker style)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryPinkSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.favorite_rounded,
+                    size: 80,
+                    color: AppColors.primaryPink,
+                  ),
                 ),
-              ),
-              SizedBox(height: 18),
-              OnmuCharacterHero(compact: true),
-              SizedBox(height: 18),
-              Text(
-                '오늘의 취향을 불러오는 중',
-                style: TextStyle(
-                  color: OnmuColors.textSub,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 24),
+
+                // App Logo Title
+                const Text(
+                  'ONMU',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primaryPurple,
+                    letterSpacing: -1.0,
+                  ),
                 ),
-              ),
-              SizedBox(height: 24),
-              LinearProgressIndicator(
-                minHeight: 7,
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                backgroundColor: OnmuColors.purpleSoft,
-                color: OnmuColors.pink,
-              ),
-              Spacer(),
-            ],
+                const SizedBox(height: 8),
+
+                // Subtitle
+                const Text(
+                  '오늘의 코디와 일상을 픽셀로 기록해요',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSub,
+                  ),
+                ),
+                const SizedBox(height: 48),
+
+                // Subtle loading indicator
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3.0,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primaryPink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
