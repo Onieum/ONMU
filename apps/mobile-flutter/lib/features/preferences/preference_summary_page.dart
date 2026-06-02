@@ -77,8 +77,8 @@ class PreferenceSummaryPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: OnmuPrimaryButton(
-                label: '홈으로 가기',
-                onPressed: () => context.go(RoutePaths.home),
+                label: '캐릭터 설정하기',
+                onPressed: () => context.go(RoutePaths.characterStart),
               ),
             ),
           ],

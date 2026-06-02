@@ -15,7 +15,9 @@ void main() {
     expect(find.text('시작하기'), findsOneWidget);
   });
 
-  testWidgets('preference flow ends on 4-tab onmoim shell', (tester) async {
+  testWidgets('onboarding flows through preference, character, and home', (
+    tester,
+  ) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
@@ -25,9 +27,14 @@ void main() {
     }
 
     expect(find.text('취향 선택 완료'), findsOneWidget);
-    expect(find.text('홈으로 가기'), findsOneWidget);
+    expect(find.text('캐릭터 설정하기'), findsOneWidget);
 
-    await tester.tap(find.text('홈으로 가기'));
+    await tester.tap(find.text('캐릭터 설정하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('캐릭터 만들기'), findsOneWidget);
+
+    await tester.tap(find.text('스킵하고 기본 캐릭터로 시작하기 ➔'));
     await tester.pumpAndSettle();
 
     expect(find.text('안녕하세요, 지우님'), findsOneWidget);

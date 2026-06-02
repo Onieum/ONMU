@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/character/character_start_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
@@ -47,6 +48,11 @@ final appRouter = GoRouter(
       path: RoutePaths.preferenceIntro,
       builder: (context, state) =>
           PreferenceIntroPage(profile: PreferenceProfile.mock()),
+    ),
+    GoRoute(
+      path: RoutePaths.characterStart,
+      builder: (context, state) =>
+          CharacterStartPage(onCompleted: (_) => context.go(RoutePaths.home)),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
