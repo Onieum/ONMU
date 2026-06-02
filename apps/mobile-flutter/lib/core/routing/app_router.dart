@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/character/character_start_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
@@ -12,6 +13,7 @@ import '../../features/meetup/presentation/pages/meetup_member_select_page.dart'
 import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
 import '../../features/my/my_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_group_home_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_group_settings_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_list_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
@@ -48,6 +50,11 @@ final appRouter = GoRouter(
       builder: (context, state) =>
           PreferenceIntroPage(profile: PreferenceProfile.mock()),
     ),
+    GoRoute(
+      path: RoutePaths.characterStart,
+      builder: (context, state) =>
+          CharacterStartPage(onCompleted: (_) => context.go(RoutePaths.home)),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return Scaffold(
@@ -80,6 +87,12 @@ final appRouter = GoRouter(
                   path: ':onmoimId',
                   builder: (context, state) => const OnMoimGroupHomePage(),
                   routes: [
+                    GoRoute(
+                      path: 'settings',
+                      builder: (context, state) => OnMoimGroupSettingsPage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                      ),
+                    ),
                     GoRoute(
                       path: 'chat',
                       builder: (context, state) => const OnMoimThreadPage(),

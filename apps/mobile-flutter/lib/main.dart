@@ -18,6 +18,7 @@ import 'features/memory/presentation/pages/memory_detail_page.dart';
 import 'features/memory/presentation/pages/memory_diary_template_page.dart';
 import 'features/my/my_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_group_home_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_group_settings_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_list_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
@@ -33,8 +34,10 @@ import 'features/place/presentation/pages/place_detail_page.dart';
 import 'features/place/presentation/pages/place_map_page.dart';
 import 'features/place/presentation/pages/place_risks_page.dart';
 import 'features/place/presentation/pages/place_search_filter_page.dart';
+import 'features/preferences/preference_intro_page.dart';
 import 'main_shell.dart';
 import 'shared/models/ootd_model.dart';
+import 'shared/models/preference_profile.dart';
 import 'shared/providers/state_providers.dart';
 
 void main() {
@@ -71,13 +74,15 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         }
 
         if (character == null) {
-          if (location.startsWith('/character')) {
+          if (location.startsWith('/preferences') ||
+              location.startsWith(RoutePaths.characterStart)) {
             return null;
           }
-          return '/character/start';
+          return RoutePaths.preferenceIntro;
         }
 
-        if (location == RoutePaths.splash || location == '/character/start') {
+        if (location == RoutePaths.splash ||
+            location.startsWith(RoutePaths.characterStart)) {
           return RoutePaths.home;
         }
 
@@ -93,12 +98,17 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
           ),
         ),
         GoRoute(
-          path: '/character/start',
+          path: RoutePaths.characterStart,
           builder: (context, state) => CharacterStartPage(
             onCompleted: (character) {
               ref.read(userCharacterProvider.notifier).state = character;
             },
           ),
+        ),
+        GoRoute(
+          path: RoutePaths.preferenceIntro,
+          builder: (context, state) =>
+              PreferenceIntroPage(profile: PreferenceProfile.mock()),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
@@ -123,6 +133,12 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                       path: ':onmoimId',
                       builder: (context, state) => const OnMoimGroupHomePage(),
                       routes: [
+                        GoRoute(
+                          path: 'settings',
+                          builder: (context, state) => OnMoimGroupSettingsPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                        ),
                         GoRoute(
                           path: 'chat',
                           builder: (context, state) => const OnMoimThreadPage(),
