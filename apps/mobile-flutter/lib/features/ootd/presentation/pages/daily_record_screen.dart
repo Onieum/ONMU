@@ -257,21 +257,17 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.sticker.copyWith(
                       color: isActive ? Colors.white : AppColors.textSub,
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   labels[index],
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  style: AppTextStyles.sticker.copyWith(
                     color: isActive ? AppColors.textMain : AppColors.textMuted,
                   ),
                 ),
@@ -292,7 +288,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: _currentStep == 7
-            ? const SizedBox()
+            ? SizedBox()
             : IconButton(
                 icon: const Icon(
                   Icons.arrow_back_ios_new,
@@ -301,13 +297,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 ),
                 onPressed: _back,
               ),
-        title: const Text(
+        title: Text(
           '하루 일과 기록',
-          style: TextStyle(
-            color: AppColors.textMain,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
         centerTitle: true,
       ),
@@ -357,39 +349,35 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           photoCount: _savedPhotoCount,
         );
       default:
-        return const SizedBox();
+        return SizedBox();
     }
   }
 
   Widget _buildEntryPage() {
     return Column(
       children: [
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         const Icon(
           Icons.auto_stories_outlined,
           color: AppColors.primaryPink,
           size: 30,
         ),
-        const SizedBox(height: 10),
-        const Text(
+        SizedBox(height: 10),
+        Text(
           '오늘 하루를 한 장씩 남겨볼까요?',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineSmall.copyWith(
             color: AppColors.textMain,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           _dateLabel(widget.recordDate),
-          style: const TextStyle(
-            fontSize: 13,
+          style: AppTextStyles.labelLarge.copyWith(
             color: AppColors.primaryPink,
-            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -400,12 +388,11 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           child: Column(
             children: [
               PixelCharacterWidget(character: widget.userCharacter, size: 112),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 '사진, 메모, 기분, 날씨, OOTD, 함께한 크루까지 차례대로 기록해요.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textSub,
                   height: 1.45,
                 ),
@@ -434,7 +421,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         OutlinedButton.icon(
           onPressed: _addPhotoMemo,
           icon: const Icon(Icons.add_photo_alternate_outlined),
-          label: const Text('사진 더 추가하기'),
+          label: Text('사진 더 추가하기'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             foregroundColor: AppColors.primaryPink,
@@ -453,24 +440,24 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('오늘의 분위기', '하루 해시태그와 기분, 날씨를 골라주세요.'),
-        const Text('오늘 기분', style: _labelStyle),
-        const SizedBox(height: 8),
+        Text('오늘 기분', style: _labelStyle),
+        SizedBox(height: 8),
         _choiceGrid(
           _moods,
           _selectedMood,
           (index) => setState(() => _selectedMood = index),
         ),
-        const SizedBox(height: 20),
-        const Text('날씨', style: _labelStyle),
-        const SizedBox(height: 8),
+        SizedBox(height: 20),
+        Text('날씨', style: _labelStyle),
+        SizedBox(height: 8),
         _choiceGrid(
           _weathers,
           _selectedWeather,
           (index) => setState(() => _selectedWeather = index),
         ),
-        const SizedBox(height: 20),
-        const Text('하루 해시태그', style: _labelStyle),
-        const SizedBox(height: 8),
+        SizedBox(height: 20),
+        Text('하루 해시태그', style: _labelStyle),
+        SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -480,30 +467,21 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 onSubmitted: (_) => _addTag(),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             SizedBox(
               width: 72,
-              child: ElevatedButton(
-                onPressed: _addTag,
-                child: const Text('추가'),
-              ),
+              child: ElevatedButton(onPressed: _addTag, child: Text('추가')),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: _hashtags
               .map(
                 (tag) => Chip(
-                  label: Text(
-                    tag,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  label: Text(tag, style: AppTextStyles.labelMedium),
                   backgroundColor: AppColors.primaryPinkSoft,
                   deleteIconColor: AppColors.primaryPink,
                   onDeleted: _hashtags.length == 1
@@ -546,20 +524,16 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 ),
                 child: Text(
                   '${index + 1}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelMedium.copyWith(
                     color: AppColors.primaryPink,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '사진 ${index + 1}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
@@ -576,7 +550,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           GestureDetector(
             onTap: () => setState(() => photo.hasPhoto = !photo.hasPhoto),
             child: Container(
@@ -605,12 +579,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                         : AppColors.textMuted,
                     size: 11,
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     photo.hasPhoto ? '사진 선택됨' : '사진 선택하기',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelMedium.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
@@ -618,7 +590,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           TextField(
             controller: photo.controller,
             maxLines: 2,
@@ -650,17 +622,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             ),
             child: Column(
               children: [
-                const Text(
+                Text(
                   '기록된 OOTD를 찾았어요',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 PixelCharacterWidget(character: ootd.character, size: 96),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -669,10 +639,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                       .take(4)
                       .map(
                         (tag) => Chip(
-                          label: Text(
-                            tag,
-                            style: const TextStyle(fontSize: 11),
-                          ),
+                          label: Text(tag, style: AppTextStyles.labelSmall),
                           backgroundColor: AppColors.primaryPurpleSoft,
                         ),
                       )
@@ -697,31 +664,33 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                   size: 38,
                   color: AppColors.primaryPurple,
                 ),
-                const SizedBox(height: 12),
-                const Text(
+                SizedBox(height: 12),
+                Text(
                   '이 날짜에는 OOTD 기록이 없어요',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
+                SizedBox(height: 6),
+                Text(
                   '하루 기록에 코디도 함께 남길까요?',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.textSub),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSub,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: widget.onCreateOotd,
                   icon: const Icon(Icons.add),
-                  label: const Text('OOTD 기록하러 가기'),
+                  label: Text('OOTD 기록하러 가기'),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   '건너뛰면 하루 일과만 저장됩니다.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -743,11 +712,11 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         Row(
           children: [
             Expanded(child: _toggleCard('함께 넣기', Icons.groups_outlined, true)),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: _toggleCard('나만 넣기', Icons.person_outline, false)),
           ],
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
         Center(
           child: Wrap(
             spacing: 14,
@@ -779,7 +748,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           icon: Icons.interests_outlined,
           color: AppColors.primaryPink,
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _themeCard(
           index: 1,
           title: '깔끔한 기록',
@@ -787,7 +756,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           icon: Icons.view_agenda_outlined,
           color: AppColors.primaryPurple,
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         TextField(
           controller: _dayMemoController,
           maxLines: 5,
@@ -803,27 +772,25 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
     return Column(
       children: [
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         const Icon(
           Icons.check_circle_outline,
           color: AppColors.accentGreen,
           size: 34,
         ),
-        const SizedBox(height: 10),
-        const Text(
+        SizedBox(height: 10),
+        Text(
           '하루 기록이 준비됐어요',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineSmall.copyWith(
             color: AppColors.textMain,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           isDiary ? '다이어리처럼 꾸며서 저장할게요.' : '깔끔한 기록으로 저장할게요.',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSub),
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(18),
@@ -845,7 +812,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                     size: 78,
                   ),
                   if (_includeCrew) ...[
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     PixelCharacterWidget(
                       character: widget.userCharacter.copyWith(
                         hairColorIndex: 4,
@@ -855,16 +822,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                   ],
                 ],
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               Text(
                 '${_weathers[_selectedWeather].label} · ${_moods[_selectedMood].label}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textMain,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -873,8 +838,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                     .map(
                       (tag) => Text(
                         tag,
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.primaryPink,
                         ),
                       ),
@@ -911,10 +875,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                   foregroundColor: AppColors.textMain,
                   side: const BorderSide(color: AppColors.lineSoft),
                 ),
-                child: const Text('이전'),
+                child: Text('이전'),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
           ],
           Expanded(
             flex: 2,
@@ -940,17 +904,12 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMain,
-            ),
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(
-              fontSize: 12,
+            style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSub,
               height: 1.4,
             ),
@@ -995,12 +954,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             child: Row(
               children: [
                 Icon(choice.icon, color: choice.color, size: 22),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   choice.label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
@@ -1033,12 +990,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               color: selected ? AppColors.primaryPink : AppColors.textMuted,
               size: 28,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
+              style: AppTextStyles.labelLarge.copyWith(
                 color: AppColors.textMain,
               ),
             ),
@@ -1071,24 +1026,21 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         child: Row(
           children: [
             Icon(icon, color: color, size: 30),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                    style: AppTextStyles.labelLarge.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: AppTextStyles.labelSmall.copyWith(
                       color: AppColors.textSub,
                       height: 1.35,
                     ),
@@ -1107,9 +1059,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} (${weekdays[date.weekday - 1]})';
   }
 
-  static const _labelStyle = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
+  static final _labelStyle = AppTextStyles.labelLarge.copyWith(
     color: AppColors.textSub,
   );
 }
@@ -1221,7 +1171,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     return Column(
       children: [
         _DiaryHeader(record: record),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         if (photoItems.isEmpty)
           _DiaryEmptyPhotoCard(memo: dailyMemo)
         else
@@ -1246,16 +1196,16 @@ class DailyRecordResultScreen extends StatelessWidget {
             ),
           ),
         if (ootdRecord != null) ...[
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _DiaryOotdBlock(ootdRecord: ootdRecord!),
         ],
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         _DiaryPeopleMoodBlock(
           record: record,
           userCharacter: userCharacter,
           includeCrew: includeCrew,
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         _DiaryMemoFooter(
           memo: dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
           stampAsset: _pick(_stamps, record.date.day + photoItems.length),
@@ -1276,14 +1226,12 @@ class DailyRecordResultScreen extends StatelessWidget {
       children: [
         Text(
           dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineSmall.copyWith(
             color: AppColors.textMain,
             height: 1.25,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -1297,7 +1245,7 @@ class DailyRecordResultScreen extends StatelessWidget {
               )
               .toList(),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1311,35 +1259,27 @@ class DailyRecordResultScreen extends StatelessWidget {
             photoCount: photoCount,
           ),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         if (photoItems.isNotEmpty) ...[
-          const Text(
+          Text(
             '사진 기록',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMain,
-            ),
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ...photoItems.asMap().entries.map(
             (entry) => _CleanPhotoCard(index: entry.key, item: entry.value),
           ),
         ],
         if (ootdRecord != null) ...[
-          const SizedBox(height: 20),
-          const Text(
+          SizedBox(height: 20),
+          Text(
             '오늘의 OOTD',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMain,
-            ),
+            style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _CleanOotdBlock(ootdRecord: ootdRecord!),
         ],
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         _CleanPeopleBlock(
           userCharacter: userCharacter,
           includeCrew: includeCrew,
@@ -1365,23 +1305,17 @@ class _DiaryHeader extends StatelessWidget {
       children: [
         Text(
           '${record.date.year}.${record.date.month.toString().padLeft(2, '0')}.${record.date.day.toString().padLeft(2, '0')} (${weekdays[record.date.weekday - 1]})',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSub,
-          ),
+          style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 4),
-        const Text(
+        SizedBox(height: 4),
+        Text(
           '하루 일과 기록',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineLarge.copyWith(
             color: AppColors.textMain,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 4,
@@ -1390,9 +1324,7 @@ class _DiaryHeader extends StatelessWidget {
               .map(
                 (tag) => Text(
                   tag,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textSub,
                   ),
                 ),
@@ -1477,8 +1409,8 @@ class _DiaryPhotoSpread extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: photoFirst
-          ? [photo, const SizedBox(width: 12), memo]
-          : [memo, const SizedBox(width: 12), photo],
+          ? [photo, SizedBox(width: 12), memo]
+          : [memo, SizedBox(width: 12), photo],
     );
   }
 }
@@ -1656,20 +1588,16 @@ class _DiaryPhotoMemo extends StatelessWidget {
       children: [
         Text(
           'PHOTO ${index + 1}',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.labelSmall.copyWith(
             color: AppColors.accentBrown,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           text,
-          style: const TextStyle(
-            fontSize: 12,
+          style: AppTextStyles.bodySmall.copyWith(
             color: AppColors.textMain,
             height: 1.45,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -1727,24 +1655,21 @@ class _DiaryOotdBlock extends StatelessWidget {
       child: Row(
         children: [
           PixelCharacterWidget(character: ootdRecord.character, size: 80),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'TODAY OOTD',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.primaryPurple,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   ootdRecord.moodTags.take(4).join(' '),
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSub,
                     height: 1.35,
                   ),
@@ -1788,7 +1713,7 @@ class _DiaryPeopleMoodBlock extends StatelessWidget {
                 children: [
                   PixelCharacterWidget(character: userCharacter, size: 42),
                   if (includeCrew) ...[
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     PixelCharacterWidget(
                       character: userCharacter.copyWith(hairColorIndex: 4),
                       size: 38,
@@ -1803,9 +1728,7 @@ class _DiaryPeopleMoodBlock extends StatelessWidget {
               'MOOD',
               Text(
                 record.mood,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textMain,
                 ),
               ),
@@ -1816,9 +1739,7 @@ class _DiaryPeopleMoodBlock extends StatelessWidget {
               'WEATHER',
               Text(
                 record.weather,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textMain,
                 ),
               ),
@@ -1834,13 +1755,9 @@ class _DiaryPeopleMoodBlock extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w900,
-          ),
+          style: AppTextStyles.sticker.copyWith(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         child,
       ],
     );
@@ -1868,8 +1785,7 @@ class _DiaryMemoFooter extends StatelessWidget {
           ),
           child: Text(
             memo,
-            style: const TextStyle(
-              fontSize: 13,
+            style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSub,
               height: 1.45,
             ),
@@ -1910,8 +1826,7 @@ class _DiaryEmptyPhotoCard extends StatelessWidget {
       ),
       child: Text(
         memo ?? '사진 없이 오늘 하루의 메모만 남겼어요.',
-        style: const TextStyle(
-          fontSize: 13,
+        style: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSub,
           height: 1.45,
         ),
@@ -1952,24 +1867,21 @@ class _CleanPhotoCard extends StatelessWidget {
             ),
             child: const Icon(Icons.photo_outlined, color: AppColors.textSub),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.time,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                  style: AppTextStyles.labelMedium.copyWith(
                     color: AppColors.primaryPink,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   item.description,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSub,
                     height: 1.35,
                   ),
@@ -1999,14 +1911,12 @@ class _CleanOotdBlock extends StatelessWidget {
       child: Row(
         children: [
           PixelCharacterWidget(character: ootdRecord.character, size: 62),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Text(
               ootdRecord.moodTags.take(4).join(' '),
-              style: const TextStyle(
-                fontSize: 13,
+              style: AppTextStyles.labelLarge.copyWith(
                 color: AppColors.textMain,
-                fontWeight: FontWeight.bold,
                 height: 1.35,
               ),
             ),
@@ -2039,23 +1949,22 @@ class _CleanPeopleBlock extends StatelessWidget {
         children: [
           PixelCharacterWidget(character: userCharacter, size: 58),
           if (includeCrew) ...[
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             PixelCharacterWidget(
               character: userCharacter.copyWith(hairColorIndex: 4),
               size: 52,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             PixelCharacterWidget(
               character: userCharacter.copyWith(hairColorIndex: 6),
               size: 52,
             ),
           ],
-          const SizedBox(width: 14),
-          const Expanded(
+          SizedBox(width: 14),
+          Expanded(
             child: Text(
               '함께한 캐릭터를 포함해 하루 기록을 정리했어요.',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSub,
                 height: 1.35,
               ),
@@ -2095,25 +2004,17 @@ class _ResultMetaRow extends StatelessWidget {
     return Column(
       children: [
         Icon(icon, color: AppColors.primaryPink, size: 18),
-        const SizedBox(height: 5),
+        SizedBox(height: 5),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textMuted,
-          ),
+          style: AppTextStyles.tiny.copyWith(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMain),
         ),
       ],
     );

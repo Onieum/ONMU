@@ -162,8 +162,8 @@ class MemoryDetailPage extends ConsumerWidget {
     if (record == null) {
       return Scaffold(
         backgroundColor: AppColors.bgWarm,
-        appBar: AppBar(title: const Text('기록을 찾을 수 없음')),
-        body: const Center(child: Text('해당하는 다이어리 기록이 존재하지 않습니다.')),
+        appBar: AppBar(title: Text('기록을 찾을 수 없음')),
+        body: Center(child: Text('해당하는 다이어리 기록이 존재하지 않습니다.')),
       );
     }
 
@@ -184,11 +184,7 @@ class MemoryDetailPage extends ConsumerWidget {
         ),
         title: Text(
           isDaily ? '하루 기억 상세' : 'OOTD 상세 기록',
-          style: const TextStyle(
-            color: AppColors.textMain,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
         centerTitle: true,
       ),
@@ -242,23 +238,19 @@ class MemoryDetailPage extends ConsumerWidget {
             children: [
               Text(
                 isDiaryTheme ? '오늘의 소중한 다이어리' : '하루 일과 기록',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                style: AppTextStyles.headlineSmall.copyWith(
                   color: AppColors.textMain,
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Wrap(
                 spacing: 6,
                 children: record.moodTags
                     .map(
                       (tag) => Text(
                         tag,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelMedium.copyWith(
                           color: AppColors.textSub,
                         ),
                       ),
@@ -268,7 +260,7 @@ class MemoryDetailPage extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 타임라인 리스트
         ...record.timeline.asMap().entries.map((entry) {
@@ -296,31 +288,26 @@ class MemoryDetailPage extends ConsumerWidget {
                   ),
                   child: Text(
                     item.time,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.sticker.copyWith(
                       color: AppColors.primaryPink,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         item.placeName,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelLarge.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         item.description,
-                        style: const TextStyle(
-                          fontSize: 11,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textSub,
                           height: 1.35,
                         ),
@@ -332,7 +319,7 @@ class MemoryDetailPage extends ConsumerWidget {
             ),
           );
         }),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 캐릭터 배치 영역
         Container(
@@ -354,25 +341,23 @@ class MemoryDetailPage extends ConsumerWidget {
                         character: record.character,
                         size: 72,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      SizedBox(height: 6),
+                      Text(
                         '나',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
                     ],
                   ),
                   if (record.brands['crew'] == 'included') ...[
-                    const SizedBox(width: 26),
+                    SizedBox(width: 26),
                     const Icon(
                       Icons.favorite_rounded,
                       color: AppColors.accentRed,
                       size: 28,
                     ),
-                    const SizedBox(width: 26),
+                    SizedBox(width: 26),
                     Column(
                       children: [
                         PixelCharacterWidget(
@@ -382,12 +367,10 @@ class MemoryDetailPage extends ConsumerWidget {
                           ),
                           size: 72,
                         ),
-                        const SizedBox(height: 6),
-                        const Text(
+                        SizedBox(height: 6),
+                        Text(
                           '크루원',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                          style: AppTextStyles.labelSmall.copyWith(
                             color: AppColors.textMain,
                           ),
                         ),
@@ -396,12 +379,10 @@ class MemoryDetailPage extends ConsumerWidget {
                   ],
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 '기분: ${record.mood} · 날씨: ${record.weather}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.primaryPink,
                 ),
               ),
@@ -435,15 +416,13 @@ class MemoryDetailPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Today\'s Look',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
+                          style: AppTextStyles.titleMedium.copyWith(
                             color: AppColors.primaryPink,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -455,40 +434,27 @@ class MemoryDetailPage extends ConsumerWidget {
                             record.timeline.isNotEmpty
                                 ? record.timeline.first.description
                                 : '즐겁게 기록한 OOTD 스타일링!',
-                            style: const TextStyle(
-                              fontSize: 10,
+                            style: AppTextStyles.sticker.copyWith(
                               color: AppColors.textSub,
                               height: 1.35,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'MOOD',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '🥰 ${record.mood}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        SizedBox(height: 12),
+                        Text('MOOD', style: AppTextStyles.micro),
+                        SizedBox(height: 4),
+                        Text('🥰 ${record.mood}', style: AppTextStyles.sticker),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
 
                   // 가운데 캐릭터
                   Expanded(
                     flex: 4,
                     child: Column(
                       children: [
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         PixelCharacterWidget(
                           character: record.character,
                           size: 110,
@@ -496,7 +462,7 @@ class MemoryDetailPage extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
 
                   // 오른쪽 날씨
                   Expanded(
@@ -504,14 +470,8 @@ class MemoryDetailPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'WEATHER',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
+                        Text('WEATHER', style: AppTextStyles.micro),
+                        SizedBox(height: 4),
                         Row(
                           children: [
                             const Icon(
@@ -519,14 +479,8 @@ class MemoryDetailPage extends ConsumerWidget {
                               size: 12,
                               color: AppColors.accentOrange,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              record.weather,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            SizedBox(width: 4),
+                            Text(record.weather, style: AppTextStyles.tiny),
                           ],
                         ),
                       ],
@@ -547,20 +501,16 @@ class MemoryDetailPage extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               '스타일 컨셉 / TPO',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.tiny.copyWith(
                                 color: AppColors.textSub,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
                               '${record.brands['스타일 컨셉'] ?? record.brands['장소']}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.labelMedium.copyWith(
                                 color: AppColors.textMain,
                               ),
                             ),
@@ -571,15 +521,13 @@ class MemoryDetailPage extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text(
+                          Text(
                             '별점',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
+                            style: AppTextStyles.tiny.copyWith(
                               color: AppColors.textSub,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Row(
                             children: [
                               Row(
@@ -600,12 +548,10 @@ class MemoryDetailPage extends ConsumerWidget {
                                   );
                                 }),
                               ),
-                              const SizedBox(width: 4),
+                              SizedBox(width: 4),
                               Text(
                                 '${record.brands['rating']}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTextStyles.labelSmall.copyWith(
                                   color: AppColors.textMain,
                                 ),
                               ),
@@ -619,7 +565,7 @@ class MemoryDetailPage extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 해시태그 목록
         Wrap(
@@ -635,9 +581,7 @@ class MemoryDetailPage extends ConsumerWidget {
               ),
               child: Text(
                 tag,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.sticker.copyWith(
                   color: AppColors.primaryPink,
                 ),
               ),
@@ -660,7 +604,7 @@ class MemoryDetailPage extends ConsumerWidget {
                 context.push('/memories/$memoryId/template-diary');
               },
               icon: const Icon(Icons.palette_outlined, size: 16),
-              label: const Text('다이어리 꾸미기'),
+              label: Text('다이어리 꾸미기'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryPurple,
                 foregroundColor: Colors.white,

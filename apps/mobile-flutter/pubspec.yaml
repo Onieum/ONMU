@@ -71,6 +71,9 @@ flutter:
     - assets/images/diary_decorate/masking_tape/
     - assets/images/diary_decorate/scratch_paper/
     - assets/images/diary_decorate/stamp/
+    - assets/fonts/mona/01_Main/
+    - assets/fonts/mona/02_Emoji/
+    - assets/fonts/mona/03_Text/
 
   # image asset은 해상도별 variant를 가리킬 수 있습니다. 참고:
   # https://flutter.dev/to/resolution-aware-images
@@ -78,20 +81,43 @@ flutter:
   # package dependency에서 asset을 추가하는 방법은 다음을 참고합니다.
   # https://flutter.dev/to/asset-from-package
 
-  # custom font를 추가하려면 이 "flutter" section에 fonts section을 추가합니다.
-  # 각 항목은 font family 이름을 담은 "family" key와 font asset/descriptor 목록을 담은 "fonts" key를 가져야 합니다.
-  # 예시:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # package dependency에서 font를 가져오는 방법은 다음을 참고합니다.
-  # https://flutter.dev/to/font-from-package
+  fonts:
+    - family: Mona10
+      fonts:
+        - asset: assets/fonts/mona/01_Main/Mona10.otf
+        - asset: assets/fonts/mona/01_Main/Mona10-Bold.otf
+          weight: 700
+    - family: Mona10x12
+      fonts:
+        - asset: assets/fonts/mona/01_Main/Mona10x12.otf
+        - asset: assets/fonts/mona/01_Main/Mona10x12-Bold.otf
+          weight: 700
+    - family: Mona12
+      fonts:
+        - asset: assets/fonts/mona/01_Main/Mona12.otf
+        - asset: assets/fonts/mona/01_Main/Mona12-Bold.otf
+          weight: 700
+    - family: Mona8x12
+      fonts:
+        - asset: assets/fonts/mona/01_Main/Mona8x12.otf
+    - family: Mona12Emoji
+      fonts:
+        - asset: assets/fonts/mona/02_Emoji/Mona12Emoji.otf
+    - family: Mona12ColorEmoji
+      fonts:
+        - asset: assets/fonts/mona/02_Emoji/Mona12ColorEmoji.otf
+    - family: Mona12TextHK
+      fonts:
+        - asset: assets/fonts/mona/03_Text/Mona12TextHK.otf
+    - family: Mona12TextJP
+      fonts:
+        - asset: assets/fonts/mona/03_Text/Mona12TextJP.otf
+    - family: Mona12TextKR
+      fonts:
+        - asset: assets/fonts/mona/03_Text/Mona12TextKR.otf
+    - family: Mona12TextSC
+      fonts:
+        - asset: assets/fonts/mona/03_Text/Mona12TextSC.otf
+    - family: Mona12TextTC
+      fonts:
+        - asset: assets/fonts/mona/03_Text/Mona12TextTC.otf

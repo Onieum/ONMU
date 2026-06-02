@@ -274,10 +274,9 @@ class FinalSettlementResultRow extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   result.resultLabel,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMain,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
                 ),
               ],
             ),

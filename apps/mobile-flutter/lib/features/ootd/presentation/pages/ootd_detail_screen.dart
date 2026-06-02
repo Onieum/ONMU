@@ -28,11 +28,7 @@ class OotdDetailScreen extends StatelessWidget {
         ),
         title: Text(
           '${record.date.year}.${record.date.month}.${record.date.day} 다이어리',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-            fontSize: 16,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
         actions: [
           IconButton(
@@ -49,7 +45,7 @@ class OotdDetailScreen extends StatelessWidget {
             children: [
               // 1. 헤더 영역 (기록 제목 & 날짜)
               _buildTitleHeader(),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               if (isSpecialCollage) ...[
                 // 피그마 시안과 일치하는 스크랩북 콜라주 레이아웃
@@ -58,15 +54,15 @@ class OotdDetailScreen extends StatelessWidget {
                 // 일반 OOTD 상세 레이아웃
                 _buildStandardOotdDetail(),
               ],
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // 3. 동행인 정보 & 날씨 & 기분
               _buildMetaStatsCard(),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // 4. 시간별 타임라인
               _buildTimelineListSection(),
-              const SizedBox(height: 40),
+              SizedBox(height: 40),
             ],
           ),
         ),
@@ -78,32 +74,26 @@ class OotdDetailScreen extends StatelessWidget {
     return Center(
       child: Column(
         children: [
-          const Text(
+          Text(
             '📝 2026.10.03 (SAT) 💖',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+            style: AppTextStyles.labelMedium.copyWith(
               color: AppColors.primaryPink,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          SizedBox(height: 4),
+          Text(
             '서울 카페 투어 ☕',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+            style: AppTextStyles.headlineMedium.copyWith(
               color: AppColors.textMain,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Wrap(
             spacing: 8,
             children: record.moodTags.map((tag) {
               return Text(
                 tag,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
                 ),
               );
@@ -131,7 +121,7 @@ class OotdDetailScreen extends StatelessWidget {
                 emoji: '🍰',
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             // 오른쪽 상단: 편집숍 폴라로이드 카드 (Archive Hannam)
             Expanded(
               flex: 5,
@@ -144,7 +134,7 @@ class OotdDetailScreen extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 중앙: '나 & 지훈' standing 픽셀 아바타 커플 렌더링!
         Container(
@@ -170,24 +160,22 @@ class OotdDetailScreen extends StatelessWidget {
                         character: record.character,
                         size: 70,
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
+                      SizedBox(height: 4),
+                      Text(
                         '나',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 24),
+                  SizedBox(width: 24),
                   const Icon(
                     Icons.favorite,
                     color: AppColors.accentRed,
                     size: 24,
                   ),
-                  const SizedBox(width: 24),
+                  SizedBox(width: 24),
                   Column(
                     children: [
                       // 동행 캐릭터 (지훈 - 남성 숏컷 프리셋)
@@ -203,12 +191,10 @@ class OotdDetailScreen extends StatelessWidget {
                         ),
                         size: 70,
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
+                      SizedBox(height: 4),
+                      Text(
                         '지훈',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
@@ -216,20 +202,18 @@ class OotdDetailScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               // 하트 말풍선 데코
-              const Text(
+              Text(
                 '우리의 가을 시밀러 룩 데이트! 💕',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.primaryPink,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +228,7 @@ class OotdDetailScreen extends StatelessWidget {
                 emoji: '☕',
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             // 오른쪽 하단: 저녁 파스타 카드
             Expanded(
               flex: 5,
@@ -290,7 +274,7 @@ class OotdDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             // 브랜드 리스트박스
             Container(
               padding: const EdgeInsets.all(14),
@@ -302,20 +286,17 @@ class OotdDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'BRAND INFO 👕',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelSmall.copyWith(
                       color: AppColors.primaryPurple,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   if (record.brands.isEmpty)
-                    const Text(
+                    Text(
                       '의상 정보가 비어있습니다.',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textMuted,
                       ),
                     )
@@ -327,16 +308,13 @@ class OotdDetailScreen extends StatelessWidget {
                           children: [
                             Text(
                               '${e.key}: ',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.labelMedium.copyWith(
                                 color: AppColors.textSub,
                               ),
                             ),
                             Text(
                               e.value,
-                              style: const TextStyle(
-                                fontSize: 12,
+                              style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textMain,
                               ),
                             ),
@@ -385,22 +363,17 @@ class OotdDetailScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 32)),
+            child: Text(emoji, style: AppTextStyles.emojiLarge),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-            ),
+            style: AppTextStyles.sticker.copyWith(color: AppColors.textMuted),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             description,
-            style: const TextStyle(
-              fontSize: 11,
+            style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.textSub,
               height: 1.3,
             ),
@@ -426,39 +399,33 @@ class OotdDetailScreen extends StatelessWidget {
           // 동행
           Column(
             children: [
-              const Text(
+              Text(
                 'WITH',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.sticker.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Row(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 12,
                     backgroundColor: AppColors.primaryPinkSoft,
                     child: Text(
                       '나',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                      style: AppTextStyles.sticker.copyWith(
                         color: AppColors.primaryPink,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   if (record.moodTags.contains('#데이트'))
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 12,
                       backgroundColor: AppColors.primaryPurpleSoft,
                       child: Text(
                         '지훈',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.sticker.copyWith(
                           color: AppColors.primaryPurple,
                         ),
                       ),
@@ -470,24 +437,20 @@ class OotdDetailScreen extends StatelessWidget {
           // 기분
           Column(
             children: [
-              const Text(
+              Text(
                 'MOOD',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.sticker.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 record.mood == 'happy'
                     ? '😊 신남'
                     : record.mood == 'excited'
                     ? '🥰 데이트'
                     : '☕ 차분',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.textMain,
                 ),
               ),
@@ -496,15 +459,13 @@ class OotdDetailScreen extends StatelessWidget {
           // 날씨
           Column(
             children: [
-              const Text(
+              Text(
                 'WEATHER',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.sticker.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
@@ -516,12 +477,10 @@ class OotdDetailScreen extends StatelessWidget {
                         ? AppColors.accentOrange
                         : AppColors.accentBlue,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     record.weather == 'sunny' ? '맑음 20°C' : '구름',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelMedium.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
@@ -538,19 +497,15 @@ class OotdDetailScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '오늘 하루의 기록 상세 📍',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.labelLarge.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         if (record.timeline.isEmpty)
-          const Text(
+          Text(
             '추가된 타임라인 경로가 없습니다.',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
           )
         else
           ListView.builder(
@@ -577,31 +532,26 @@ class OotdDetailScreen extends StatelessWidget {
                         ),
                         child: Text(
                           item.time,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                          style: AppTextStyles.labelSmall.copyWith(
                             color: AppColors.primaryPurple,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               item.placeName,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.labelLarge.copyWith(
                                 color: AppColors.textMain,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
                               item.description,
-                              style: const TextStyle(
-                                fontSize: 12,
+                              style: AppTextStyles.bodySmall.copyWith(
                                 color: AppColors.textSub,
                                 height: 1.4,
                               ),
