@@ -4,6 +4,7 @@ class RoutePaths {
   static const splash = '/splash';
   static const start = '/start';
   static const preferenceIntro = '/preferences/intro';
+  static const characterStart = '/character/start';
   static const home = '/home';
   static const onmoim = '/onmoim';
   static const onmoimDemo = '/onmoim/friends';

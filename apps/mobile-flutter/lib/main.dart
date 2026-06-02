@@ -33,8 +33,10 @@ import 'features/place/presentation/pages/place_detail_page.dart';
 import 'features/place/presentation/pages/place_map_page.dart';
 import 'features/place/presentation/pages/place_risks_page.dart';
 import 'features/place/presentation/pages/place_search_filter_page.dart';
+import 'features/preferences/preference_intro_page.dart';
 import 'main_shell.dart';
 import 'shared/models/ootd_model.dart';
+import 'shared/models/preference_profile.dart';
 import 'shared/providers/state_providers.dart';
 
 void main() {
@@ -71,13 +73,15 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         }
 
         if (character == null) {
-          if (location.startsWith('/character')) {
+          if (location.startsWith('/preferences') ||
+              location.startsWith(RoutePaths.characterStart)) {
             return null;
           }
-          return '/character/start';
+          return RoutePaths.preferenceIntro;
         }
 
-        if (location == RoutePaths.splash || location == '/character/start') {
+        if (location == RoutePaths.splash ||
+            location.startsWith(RoutePaths.characterStart)) {
           return RoutePaths.home;
         }
 
@@ -93,12 +97,17 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
           ),
         ),
         GoRoute(
-          path: '/character/start',
+          path: RoutePaths.characterStart,
           builder: (context, state) => CharacterStartPage(
             onCompleted: (character) {
               ref.read(userCharacterProvider.notifier).state = character;
             },
           ),
+        ),
+        GoRoute(
+          path: RoutePaths.preferenceIntro,
+          builder: (context, state) =>
+              PreferenceIntroPage(profile: PreferenceProfile.mock()),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
