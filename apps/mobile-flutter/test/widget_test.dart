@@ -1,5 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/app/onmu_app.dart';
+import 'package:onmu_mobile/core/routing/app_router.dart';
+import 'package:onmu_mobile/core/routing/route_paths.dart';
+import 'package:onmu_mobile/core/theme/app_colors.dart';
 
 void main() {
   testWidgets('starts with splash and opens preference intro', (tester) async {
@@ -44,5 +48,67 @@ void main() {
     expect(find.text('온모임'), findsWidgets);
     expect(find.text('기록'), findsWidgets);
     expect(find.text('마이'), findsWidgets);
+  });
+
+  testWidgets('legacy meetup creation route opens the unified create screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupNewMembers('friends'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 만들기'), findsWidgets);
+    expect(find.text('약속 이름'), findsOneWidget);
+    expect(find.text('참여 멤버'), findsOneWidget);
+    expect(find.text('참여자 선택'), findsNothing);
+  });
+
+  testWidgets('confirmed meetup date tabs can be selected', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(
+      '${RoutePaths.onmoimMeetupDetail('friends', 'demo')}?place=confirmed',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('6/8 일'));
+    await tester.pumpAndSettle();
+
+    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+
+    expect(secondTabText.style?.color, AppColors.primaryPink);
+  });
+
+  testWidgets('place candidate date tabs can be selected', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupPlaces('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('6/8 일'));
+    await tester.pumpAndSettle();
+
+    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+
+    expect(secondTabText.style?.color, AppColors.primaryPink);
+  });
+
+  testWidgets('route review date tabs can be selected', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupRouteReview('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('6/8 일'));
+    await tester.pumpAndSettle();
+
+    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+
+    expect(secondTabText.style?.color, AppColors.primaryPink);
   });
 }
