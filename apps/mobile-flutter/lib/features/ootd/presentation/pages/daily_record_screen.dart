@@ -258,7 +258,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                   child: Text(
                     '${index + 1}',
                     style: AppTextStyles.sticker.copyWith(
-                      color: isActive ? Colors.white : AppColors.textSub,
+                      color: isActive
+                          ? AppColors.textInverse
+                          : AppColors.textSub,
                     ),
                   ),
                 ),
@@ -285,7 +287,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
         elevation: 0,
         leading: _currentStep == 7
             ? SizedBox()
@@ -507,7 +509,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           width: photo.hasPhoto ? 1.8 : 1,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
+                BoxShadow(
+                  color: AppColors.textMain.withValues(alpha: 0.02),
+                  blurRadius: 8,
+                ),
         ],
       ),
       child: Column(
@@ -886,7 +891,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               onPressed: _next,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryPink,
-                foregroundColor: Colors.white,
+                  foregroundColor: AppColors.textInverse,
               ),
               child: Text(label),
             ),
@@ -1466,12 +1471,12 @@ class _DecoratedDiaryPhoto extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: AppColors.lineSoft),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: AppColors.textMain.withValues(alpha: 0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -1480,8 +1485,8 @@ class _DecoratedDiaryPhoto extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: index.isEven
-                        ? const Color(0xFFF9DDE5)
-                        : const Color(0xFFE7F0EA),
+                        ? AppColors.photoFrameRoseMutedBg
+                        : AppColors.photoFrameGreenMutedBg,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
@@ -1851,7 +1856,10 @@ class _CleanPhotoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.lineSoft),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
+            BoxShadow(
+              color: AppColors.textMain.withValues(alpha: 0.03),
+              blurRadius: 10,
+            ),
         ],
       ),
       child: Row(

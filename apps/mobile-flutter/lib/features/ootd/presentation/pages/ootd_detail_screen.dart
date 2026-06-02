@@ -20,7 +20,7 @@ class OotdDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textMain),
@@ -117,7 +117,7 @@ class OotdDetailScreen extends StatelessWidget {
               child: _buildPolaroidPhoto(
                 title: 'PLACE 01 - mRd Record',
                 description: '케이크가 진짜 맛있었고 매장 분위기도 너무 좋았어! 🍰',
-                imageColor: const Color(0xFFFCE4EC),
+                imageColor: AppColors.photoFrameRoseBg,
                 emoji: '🍰',
               ),
             ),
@@ -128,7 +128,7 @@ class OotdDetailScreen extends StatelessWidget {
               child: _buildPolaroidPhoto(
                 title: 'PLACE 02 - Archive Hannam',
                 description: '편집숍 구경 넘 재밌었고 시향해본 향수 취향 저격!',
-                imageColor: const Color(0xFFE8F5E9),
+                imageColor: AppColors.photoFrameGreenBg,
                 emoji: '🛍️',
               ),
             ),
@@ -224,7 +224,7 @@ class OotdDetailScreen extends StatelessWidget {
               child: _buildPolaroidPhoto(
                 title: 'PLACE 03 - Ofr. seoul',
                 description: '성수동으로 넘어와서 먹은 고소한 플랫화이트 ☕',
-                imageColor: const Color(0xFFEFFFFA),
+                imageColor: AppColors.photoFrameMintBg,
                 emoji: '☕',
               ),
             ),
@@ -235,7 +235,7 @@ class OotdDetailScreen extends StatelessWidget {
               child: _buildPolaroidPhoto(
                 title: 'EVENING - 성수 맛집',
                 description: '예약해 둔 저녁 파스타! 분위기 맛 다 완벽해 🍝',
-                imageColor: const Color(0xFFFFFDE7),
+                imageColor: AppColors.photoFrameYellowBg,
                 emoji: '🍝',
               ),
             ),
@@ -341,12 +341,12 @@ class OotdDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+                    color: AppColors.bgDefault,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.lineSoft, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+                color: AppColors.textMain.withValues(alpha: 0.03),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
