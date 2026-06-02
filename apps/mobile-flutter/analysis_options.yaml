@@ -3,8 +3,11 @@
 # analyzer가 찾은 issue는 Dart 지원 IDE의 UI에 표시됩니다.
 # command line에서는 `flutter analyze`로 analyzer를 실행할 수 있습니다.
 
-# 아래 줄은 Flutter app, package, plugin에 권장되는 lint rule 묶음을 활성화합니다.
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    deprecated_member_use: ignore
 
 linter:
   # 이 project에 적용되는 lint rule은 아래 section에서 조정할 수 있습니다.

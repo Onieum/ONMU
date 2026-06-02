@@ -18,7 +18,7 @@ class PreferenceFlowPreviewApp extends StatelessWidget {
     return MaterialApp(
       title: 'ONMU Preference Flow',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.lightTheme,
       home: const PreferenceFlowPreviewHome(),
     );
   }

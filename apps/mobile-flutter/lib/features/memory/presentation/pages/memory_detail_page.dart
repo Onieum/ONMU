@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -426,112 +424,198 @@ class MemoryDetailPage extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lineBrown, width: 1.2),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
             children: [
-              // 왼쪽 정보
-              Expanded(
-                flex: 5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Today\'s Look',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primaryPink,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgWarm,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.lineSoft),
-                      ),
-                      child: Text(
-                        record.timeline.isNotEmpty
-                            ? record.timeline.first.description
-                            : '즐겁게 기록한 OOTD 스타일링!',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textSub,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'MOOD',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '🥰 ${record.mood}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // 가운데 캐릭터
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    PixelCharacterWidget(
-                      character: record.character,
-                      size: 110,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // 오른쪽 날씨
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'WEATHER',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 왼쪽 정보
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.wb_sunny_outlined,
-                          size: 12,
-                          color: AppColors.accentOrange,
+                        const Text(
+                          'Today\'s Look',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primaryPink,
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgWarm,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.lineSoft),
+                          ),
+                          child: Text(
+                            record.timeline.isNotEmpty
+                                ? record.timeline.first.description
+                                : '즐겁게 기록한 OOTD 스타일링!',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSub,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'MOOD',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         Text(
-                          record.weather,
+                          '🥰 ${record.mood}',
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 가운데 캐릭터
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        PixelCharacterWidget(
+                          character: record.character,
+                          size: 110,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 오른쪽 날씨
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'WEATHER',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.wb_sunny_outlined,
+                              size: 12,
+                              color: AppColors.accentOrange,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              record.weather,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (record.brands['스타일 컨셉'] != null ||
+                  record.brands['장소'] != null ||
+                  record.brands['rating'] != null) ...[
+                const Divider(height: 24, color: AppColors.lineSoft),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (record.brands['스타일 컨셉'] != null ||
+                        record.brands['장소'] != null)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '스타일 컨셉 / TPO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSub,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${record.brands['스타일 컨셉'] ?? record.brands['장소']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (record.brands['rating'] != null)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            '별점',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textSub,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Row(
+                                children: List.generate(5, (index) {
+                                  final ratingVal =
+                                      double.tryParse(
+                                        record.brands['rating'].toString(),
+                                      ) ??
+                                      5.0;
+                                  return Icon(
+                                    index < ratingVal.floor()
+                                        ? Icons.star_rounded
+                                        : (index < ratingVal
+                                              ? Icons.star_half_rounded
+                                              : Icons.star_outline_rounded),
+                                    color: Colors.amber,
+                                    size: 16,
+                                  );
+                                }),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${record.brands['rating']}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textMain,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                   ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
