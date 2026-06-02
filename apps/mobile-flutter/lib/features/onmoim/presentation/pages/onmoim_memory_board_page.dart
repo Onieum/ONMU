@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
@@ -17,6 +19,15 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
     return OnmuScaffold(
       title: '추억 보드',
       subtitle: '대학 동기 여행단 · 우리가 함께한 순간들',
+      showBackButton: true,
+      onBack: () {
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+
+        context.go(RoutePaths.onmoimDemo);
+      },
       useGridBackground: true,
       bottom: SafeArea(
         child: Padding(

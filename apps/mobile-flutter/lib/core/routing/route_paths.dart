@@ -4,9 +4,11 @@ class RoutePaths {
   static const splash = '/splash';
   static const start = '/start';
   static const preferenceIntro = '/preferences/intro';
+  static const characterStart = '/character/start';
   static const home = '/home';
   static const onmoim = '/onmoim';
   static const onmoimDemo = '/onmoim/friends';
+  static const onmoimDemoSettings = '/onmoim/friends/settings';
   static const onmoimDemoChat = '/onmoim/friends/chat';
   static const onmoimDemoMemories = '/onmoim/friends/memories';
   static const onmoimDemoMeetup = '/onmoim/friends/meetups/demo';
@@ -22,6 +24,8 @@ class RoutePaths {
   static const my = '/my';
 
   static String onmoimDetail(String onmoimId) => '/onmoim/$onmoimId';
+
+  static String onmoimSettings(String onmoimId) => '/onmoim/$onmoimId/settings';
 
   static String onmoimChat(String onmoimId) => '/onmoim/$onmoimId/chat';
 
