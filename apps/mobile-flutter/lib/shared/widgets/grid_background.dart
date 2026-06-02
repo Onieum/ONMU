@@ -5,7 +5,11 @@ class GridBackground extends StatelessWidget {
   final Widget? child;
   final double gridSize;
 
-  const GridBackground({super.key, this.child, this.gridSize = 20.0});
+  const GridBackground({
+    super.key,
+    this.child,
+    this.gridSize = 20.0,
+  });
 
   @override
   Widget build(BuildContext context) {

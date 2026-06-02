@@ -11,7 +11,7 @@ class OnmuApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'ONMU',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.lightTheme,
       routerConfig: appRouter,
     );
   }

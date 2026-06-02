@@ -7,14 +7,17 @@ import '../../shared/widgets/grid_background.dart';
 class CharacterStartPage extends StatefulWidget {
   final Function(CharacterDraft) onCompleted;
 
-  const CharacterStartPage({super.key, required this.onCompleted});
+  const CharacterStartPage({
+    super.key,
+    required this.onCompleted,
+  });
 
   @override
   State<CharacterStartPage> createState() => _CharacterStartPageState();
 }
 
 class _CharacterStartPageState extends State<CharacterStartPage> {
-  int _currentStep = 0;
+  int _currentStep = 0; 
   // 0: 시작하기 (성별 선택 포함)
   // 1: 피부색 선택 (1~5단계)
   // 2: 눈 모양 선택 (1~5단계)
@@ -26,10 +29,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   // 8: 캐릭터 이름 설정
   // 9: 생성 완료
 
-  CharacterDraft _draft = const CharacterDraft(
-    gender: 'female',
-    topStyleIndex: -1,
-  );
+  CharacterDraft _draft = const CharacterDraft(gender: 'female', topStyleIndex: -1);
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
 
@@ -45,13 +45,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
       if (_currentStep < 9) {
         _currentStep++;
       } else {
-        widget.onCompleted(
-          _draft.copyWith(
-            nickname: _nicknameController.text.trim().isEmpty
-                ? '온뮤'
-                : _nicknameController.text.trim(),
-          ),
-        );
+        widget.onCompleted(_draft.copyWith(
+          nickname: _nicknameController.text.trim().isEmpty ? '온뮤' : _nicknameController.text.trim(),
+        ));
       }
     });
   }
@@ -65,9 +61,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   }
 
   void _skipOnboarding() {
-    widget.onCompleted(
-      const CharacterDraft(gender: 'female', nickname: '온뮤', topStyleIndex: -1),
-    );
+    widget.onCompleted(const CharacterDraft(
+      gender: 'female',
+      nickname: '온뮤',
+      topStyleIndex: -1,
+    ));
   }
 
   // 상단 진행 상태 바 (이모지 및 구성 단순화)
@@ -88,21 +86,21 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 children: [
                   CircleAvatar(
                     radius: 12,
-                    backgroundColor: isActive
-                        ? AppColors.primaryPink
-                        : isPassed
-                        ? AppColors.primaryPinkSoft
-                        : AppColors.bgWarm,
+                    backgroundColor: isActive 
+                        ? AppColors.primaryPink 
+                        : isPassed 
+                            ? AppColors.primaryPinkSoft 
+                            : AppColors.bgWarm,
                     child: Text(
                       stepNum.toString(),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11, 
                         fontWeight: FontWeight.bold,
-                        color: isActive
-                            ? Colors.white
-                            : isPassed
-                            ? AppColors.primaryPink
-                            : AppColors.textMuted,
+                        color: isActive 
+                            ? Colors.white 
+                            : isPassed 
+                                ? AppColors.primaryPink 
+                                : AppColors.textMuted,
                       ),
                     ),
                   ),
@@ -111,14 +109,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                     labels[index],
                     style: TextStyle(
                       fontSize: 9,
-                      fontWeight: isActive
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: isActive
-                          ? AppColors.textMain
-                          : AppColors.textMuted,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                      color: isActive ? AppColors.textMain : AppColors.textMuted,
                     ),
-                  ),
+                  )
                 ],
               ),
               if (index < 3)
@@ -145,11 +139,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: AppColors.textMain,
-                  size: 20,
-                ),
+                icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textMain, size: 20),
                 onPressed: _back,
               ),
             ),
@@ -158,19 +148,16 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           children: [
             if (_currentStep > 0 && _currentStep < 9)
               _buildProgressBar(
-                _currentStep <= 6
-                    ? 1
-                    : _currentStep == 7
-                    ? 2
-                    : 3,
+                _currentStep <= 6 
+                    ? 1 
+                    : _currentStep == 7 
+                        ? 2 
+                        : 3,
               ),
             Expanded(
               child: GridBackground(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: _buildContent(),
                 ),
               ),
@@ -218,11 +205,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
         const SizedBox(height: 20),
         const Text(
           '캐릭터 만들기',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textMain,
-          ),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.textMain),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -230,11 +213,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           style: TextStyle(fontSize: 13, color: AppColors.textSub),
         ),
         const SizedBox(height: 30),
-
+        
         // 실시간 성별 프리뷰
-        Center(child: PixelCharacterWidget(character: _draft, size: 160)),
+        Center(
+          child: PixelCharacterWidget(character: _draft, size: 160),
+        ),
         const SizedBox(height: 30),
-
+        
         // 성별 선택 카드 타일
         const Align(
           alignment: Alignment.centerLeft,
@@ -242,11 +227,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             padding: EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '성별을 선택해 주세요',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textMain,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMain),
             ),
           ),
         ),
@@ -254,19 +235,14 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           children: [
             Expanded(
               child: GestureDetector(
-                onTap: () =>
-                    setState(() => _draft = _draft.copyWith(gender: 'female')),
+                onTap: () => setState(() => _draft = _draft.copyWith(gender: 'female')),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: isFemale
-                        ? AppColors.primaryPinkSoft
-                        : AppColors.bgDefault,
+                    color: isFemale ? AppColors.primaryPinkSoft : AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isFemale
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
+                      color: isFemale ? AppColors.primaryPink : AppColors.lineSoft,
                       width: isFemale ? 2 : 1,
                     ),
                   ),
@@ -276,13 +252,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       Text(
                         '여성',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isFemale
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isFemale
-                              ? AppColors.primaryPink
-                              : AppColors.textSub,
+                          fontSize: 13, 
+                          fontWeight: isFemale ? FontWeight.bold : FontWeight.normal,
+                          color: isFemale ? AppColors.primaryPink : AppColors.textSub
                         ),
                       ),
                     ],
@@ -293,19 +265,14 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             const SizedBox(width: 16),
             Expanded(
               child: GestureDetector(
-                onTap: () =>
-                    setState(() => _draft = _draft.copyWith(gender: 'male')),
+                onTap: () => setState(() => _draft = _draft.copyWith(gender: 'male')),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: !isFemale
-                        ? AppColors.primaryPurpleSoft
-                        : AppColors.bgDefault,
+                    color: !isFemale ? AppColors.primaryPurpleSoft : AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: !isFemale
-                          ? AppColors.primaryPurple
-                          : AppColors.lineSoft,
+                      color: !isFemale ? AppColors.primaryPurple : AppColors.lineSoft,
                       width: !isFemale ? 2 : 1,
                     ),
                   ),
@@ -315,13 +282,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       Text(
                         '남성',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: !isFemale
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: !isFemale
-                              ? AppColors.primaryPurple
-                              : AppColors.textSub,
+                          fontSize: 13, 
+                          fontWeight: !isFemale ? FontWeight.bold : FontWeight.normal,
+                          color: !isFemale ? AppColors.primaryPurple : AppColors.textSub
                         ),
                       ),
                     ],
@@ -340,14 +303,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildSkinTonePage() {
     return Column(
       children: [
-        const Text(
-          '01 피부색을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('01 피부색을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
@@ -359,9 +315,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             final isSelected = _draft.skinToneIndex == index;
 
             return GestureDetector(
-              onTap: () => setState(
-                () => _draft = _draft.copyWith(skinToneIndex: index),
-              ),
+              onTap: () => setState(() => _draft = _draft.copyWith(skinToneIndex: index)),
               child: Container(
                 width: 52,
                 height: 52,
@@ -369,29 +323,14 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   color: color,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryPink
-                        : AppColors.lineSoft,
+                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                     width: isSelected ? 3.5 : 1.2,
                   ),
                   boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primaryPink.withValues(
-                              alpha: 0.25,
-                            ),
-                            blurRadius: 6,
-                          ),
-                        ]
+                      ? [BoxShadow(color: AppColors.primaryPink.withValues(alpha: 0.25), blurRadius: 6)]
                       : null,
                 ),
-                child: isSelected
-                    ? const Icon(
-                        Icons.check,
-                        color: AppColors.textMain,
-                        size: 20,
-                      )
-                    : null,
+                child: isSelected ? const Icon(Icons.check, color: AppColors.textMain, size: 20) : null,
               ),
             );
           }),
@@ -399,11 +338,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
         const SizedBox(height: 16),
         Text(
           '피부 단계: ${_draft.skinToneIndex + 1}단계',
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSub,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSub, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -413,18 +348,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildEyeShapePage() {
     return Column(
       children: [
-        const Text(
-          '02 눈 모양을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('02 눈 모양을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
-
+        
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -438,25 +366,16 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           itemBuilder: (context, index) {
             final isSelected = _draft.eyeShapeIndex == index;
             // 각 눈 모양 번호의 검은색 눈동자 버전을 미니 프리뷰 캐릭터로 렌더링
-            final previewChar = _draft.copyWith(
-              eyeShapeIndex: index,
-              eyeColorIndex: 0,
-            );
+            final previewChar = _draft.copyWith(eyeShapeIndex: index, eyeColorIndex: 0);
 
             return GestureDetector(
-              onTap: () => setState(
-                () => _draft = _draft.copyWith(eyeShapeIndex: index),
-              ),
+              onTap: () => setState(() => _draft = _draft.copyWith(eyeShapeIndex: index)),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primaryPinkSoft
-                      : AppColors.bgDefault,
+                  color: isSelected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryPink
-                        : AppColors.lineSoft,
+                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -470,14 +389,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                           minHeight: 80,
                           maxHeight: 110,
                           child: Transform.translate(
-                            offset: const Offset(
-                              0,
-                              5,
-                            ), // 얼굴 부위가 크롭되어 보이도록 위치 오프셋 조정
-                            child: PixelCharacterWidget(
-                              character: previewChar,
-                              size: 65,
-                            ),
+                            offset: const Offset(0, 5), // 얼굴 부위가 크롭되어 보이도록 위치 오프셋 조정
+                            child: PixelCharacterWidget(character: previewChar, size: 65),
                           ),
                         ),
                       ),
@@ -487,13 +400,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       child: Text(
                         '${index + 1}번 눈',
                         style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? AppColors.textMain
-                              : AppColors.textSub,
+                          fontSize: 9, 
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.textMain : AppColors.textSub
                         ),
                       ),
                     ),
@@ -511,18 +420,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildEyeColorPage() {
     return Column(
       children: [
-        const Text(
-          '03 눈동자 색상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('03 눈동자 색상을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
-
+        
         if (_draft.gender == 'female' && _draft.eyeShapeIndex == 2) ...[
           // 여자 눈 03번(인덱스 2)은 디자이너 공지에 따라 단일 색상(선화)만 존재
           Container(
@@ -535,13 +437,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             child: const Text(
               '선택하신 3번 눈동자는 단일 색상 렌더링을 지원합니다. ✦\n(색상 선택 없음)',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSub,
-                height: 1.4,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.textSub, height: 1.4),
             ),
-          ),
+          )
         ] else ...[
           // 그 외의 눈동자는 8가지 색상 선택 지원
           GridView.builder(
@@ -561,17 +459,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               final label = CharacterDraft.eyeColorLabels[index];
 
               return GestureDetector(
-                onTap: () => setState(
-                  () => _draft = _draft.copyWith(eyeColorIndex: index),
-                ),
+                onTap: () => setState(() => _draft = _draft.copyWith(eyeColorIndex: index)),
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isSelected
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
+                      color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                       width: isSelected ? 2.5 : 1,
                     ),
                   ),
@@ -581,22 +475,17 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       Container(
                         width: 14,
                         height: 14,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
+                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         label,
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           color: AppColors.textMain,
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
@@ -612,18 +501,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildHairStylePage() {
     return Column(
       children: [
-        const Text(
-          '04 헤어 스타일을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('04 헤어 스타일을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
-
+        
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -640,19 +522,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             final previewChar = _draft.copyWith(hairStyleIndex: index);
 
             return GestureDetector(
-              onTap: () => setState(
-                () => _draft = _draft.copyWith(hairStyleIndex: index),
-              ),
+              onTap: () => setState(() => _draft = _draft.copyWith(hairStyleIndex: index)),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primaryPinkSoft
-                      : AppColors.bgDefault,
+                  color: isSelected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryPink
-                        : AppColors.lineSoft,
+                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -666,14 +542,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                           minHeight: 80,
                           maxHeight: 110,
                           child: Transform.translate(
-                            offset: const Offset(
-                              0,
-                              -10,
-                            ), // 머리 부위가 도드라져 보이도록 위치 오프셋 조정
-                            child: PixelCharacterWidget(
-                              character: previewChar,
-                              size: 65,
-                            ),
+                            offset: const Offset(0, -10), // 머리 부위가 도드라져 보이도록 위치 오프셋 조정
+                            child: PixelCharacterWidget(character: previewChar, size: 65),
                           ),
                         ),
                       ),
@@ -683,13 +553,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       child: Text(
                         '스타일 ${index + 1}',
                         style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? AppColors.textMain
-                              : AppColors.textSub,
+                          fontSize: 9, 
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.textMain : AppColors.textSub
                         ),
                       ),
                     ),
@@ -707,18 +573,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildHairColorPage() {
     return Column(
       children: [
-        const Text(
-          '05 머리 색상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('05 머리 색상을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
-
+        
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -736,17 +595,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             final label = CharacterDraft.hairColorLabels[index];
 
             return GestureDetector(
-              onTap: () => setState(
-                () => _draft = _draft.copyWith(hairColorIndex: index),
-              ),
+              onTap: () => setState(() => _draft = _draft.copyWith(hairColorIndex: index)),
               child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryPink
-                        : AppColors.lineSoft,
+                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                     width: isSelected ? 2.5 : 1,
                   ),
                 ),
@@ -767,12 +622,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       '${(index + 1).toString().padLeft(2, '0')} $label',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         color: AppColors.textMain,
                       ),
-                    ),
+                    )
                   ],
                 ),
               ),
@@ -787,18 +640,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildClothesPage() {
     return Column(
       children: [
-        const Text(
-          '06 의상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('06 의상을 선택해주세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
         const SizedBox(height: 28),
-
+        
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -814,19 +660,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             final previewChar = _draft.copyWith(topStyleIndex: index);
 
             return GestureDetector(
-              onTap: () => setState(
-                () => _draft = _draft.copyWith(topStyleIndex: index),
-              ),
+              onTap: () => setState(() => _draft = _draft.copyWith(topStyleIndex: index)),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primaryPinkSoft
-                      : AppColors.bgDefault,
+                  color: isSelected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryPink
-                        : AppColors.lineSoft,
+                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
                     width: isSelected ? 2.5 : 1,
                   ),
                 ),
@@ -841,10 +681,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                           maxHeight: 140,
                           child: Transform.translate(
                             offset: const Offset(0, 15), // 의상 부위 크롭을 위해 오프셋 조정
-                            child: PixelCharacterWidget(
-                              character: previewChar,
-                              size: 85,
-                            ),
+                            child: PixelCharacterWidget(character: previewChar, size: 85),
                           ),
                         ),
                       ),
@@ -854,13 +691,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       child: Text(
                         '의상 ${index + 1}',
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? AppColors.textMain
-                              : AppColors.textSub,
+                          fontSize: 11, 
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.textMain : AppColors.textSub
                         ),
                       ),
                     ),
@@ -878,14 +711,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildPreviewPage() {
     return Column(
       children: [
-        const Text(
-          '캐릭터 미리보기',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('캐릭터 미리보기', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
         Container(
           width: 220,
@@ -899,7 +725,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
-              ),
+              )
             ],
           ),
           child: Column(
@@ -921,23 +747,15 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(
-                Icons.check_circle_outline,
-                size: 16,
-                color: AppColors.primaryPink,
-              ),
+              Icon(Icons.check_circle_outline, size: 16, color: AppColors.primaryPink),
               SizedBox(width: 8),
               Text(
                 '나만의 전용 픽셀 아바타가 준비되었습니다!',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSub,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+                style: TextStyle(fontSize: 11, color: AppColors.textSub, fontWeight: FontWeight.w500),
+              )
             ],
           ),
-        ),
+        )
       ],
     );
   }
@@ -947,37 +765,16 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '캐릭터 이름을 정해주세요',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
-        ),
+        const Text('캐릭터 이름을 정해주세요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         const SizedBox(height: 24),
-        const Text(
-          '이름 (선택)',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSub,
-          ),
-        ),
+        const Text('이름 (선택)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSub)),
         const SizedBox(height: 6),
         TextField(
           controller: _nameController,
           decoration: const InputDecoration(hintText: '이름을 입력해 주세요'),
         ),
         const SizedBox(height: 18),
-        const Text(
-          '닉네임 (선택)',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSub,
-          ),
-        ),
+        const Text('닉네임 (선택)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSub)),
         const SizedBox(height: 6),
         TextField(
           controller: _nicknameController,
@@ -995,11 +792,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
         const SizedBox(height: 10),
         const Text(
           '꾸미기 완료!',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textMain,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textMain),
         ),
         const SizedBox(height: 24),
         Container(
@@ -1014,7 +807,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
-              ),
+              )
             ],
           ),
           child: Column(
@@ -1023,23 +816,15 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               PixelCharacterWidget(character: _draft, size: 165),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.bgWarm,
                   border: Border.all(color: AppColors.lineSoft),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _nicknameController.text.trim().isEmpty
-                      ? '내 캐릭터'
-                      : _nicknameController.text.trim(),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  _nicknameController.text.trim().isEmpty ? '내 캐릭터' : _nicknameController.text.trim(),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -1057,14 +842,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           child: const Text(
             '이제 OOTD 다이어리 기록을 시작해볼까요?\n캘린더 탭에서 나만의 코디를 수집해 보세요!',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.primaryPink,
-              fontWeight: FontWeight.bold,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 11, color: AppColors.primaryPink, fontWeight: FontWeight.bold, height: 1.4),
           ),
-        ),
+        )
       ],
     );
   }
@@ -1103,8 +883,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 child: ElevatedButton(
                   onPressed: _next,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: (_currentStep == 0 || _currentStep == 9)
-                        ? AppColors.primaryPink
+                    backgroundColor: (_currentStep == 0 || _currentStep == 9) 
+                        ? AppColors.primaryPink 
                         : AppColors.primaryPurple,
                   ),
                   child: Text(label),
@@ -1118,11 +898,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               onPressed: _skipOnboarding,
               child: const Text(
                 '스킵하고 기본 캐릭터로 시작하기 ➔',
-                style: TextStyle(
-                  color: AppColors.textSub,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: AppColors.textSub, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ],

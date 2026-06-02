@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use, unused_element, unused_element_parameter
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
@@ -57,6 +55,44 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     _ChoiceData('비', Icons.water_drop_outlined, AppColors.primaryPurple),
     _ChoiceData('눈', Icons.ac_unit, AppColors.accentBlue),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.ootdRecord != null && widget.ootdRecord!.brands['recordType'] == 'daily') {
+      final r = widget.ootdRecord!;
+      _selectedMood = _moods.indexWhere((m) => m.label == r.brands['mood']);
+      if (_selectedMood == -1) _selectedMood = 0;
+      _selectedWeather = _weathers.indexWhere((w) => w.label == r.brands['weather']);
+      if (_selectedWeather == -1) _selectedWeather = 0;
+      _selectedTheme = r.brands['theme'] == 'diary' ? 0 : 1;
+      _includeCrew = r.brands['crew'] == 'included';
+      
+      _hashtags.clear();
+      _hashtags.addAll(r.moodTags);
+      
+      // Load daily memo
+      final dailyItem = r.timeline.firstWhere(
+        (item) => item.category == 'daily',
+        orElse: () => const TimelineItem(time: '', placeName: '', category: '', description: ''),
+      );
+      _dayMemoController.text = dailyItem.description;
+
+      // Load photo memos
+      final photoItems = r.timeline.where((item) => item.category == 'photo').toList();
+      _photoMemos.clear();
+      if (photoItems.isEmpty) {
+        _photoMemos.add(_PhotoMemoDraft());
+      } else {
+        for (final item in photoItems) {
+          final draft = _PhotoMemoDraft();
+          draft.controller.text = item.description;
+          draft.hasPhoto = item.placeName == '추가한 사진';
+          _photoMemos.add(draft);
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -1302,11 +1338,6 @@ class DailyRecordResultScreen extends StatelessWidget {
     );
   }
 
-  String get _dateTitle {
-    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return '${record.date.year}.${record.date.month.toString().padLeft(2, '0')}.${record.date.day.toString().padLeft(2, '0')} (${weekdays[record.date.weekday - 1]})';
-  }
-
   static String _pick(List<String> assets, int seed) {
     return assets[Random(seed).nextInt(assets.length)];
   }
@@ -1366,7 +1397,6 @@ class _DiaryHeader extends StatelessWidget {
 class _DiaryAssetImage extends StatelessWidget {
   final String asset;
   final double? width;
-  final double? height;
   final BoxFit? fit;
   final Widget fallback;
 
@@ -1374,7 +1404,6 @@ class _DiaryAssetImage extends StatelessWidget {
     required this.asset,
     required this.fallback,
     this.width,
-    this.height,
     this.fit,
   });
 
@@ -1383,7 +1412,6 @@ class _DiaryAssetImage extends StatelessWidget {
     return Image.asset(
       asset,
       width: width,
-      height: height,
       fit: fit,
       gaplessPlayback: true,
       errorBuilder: (context, error, stackTrace) => fallback,
@@ -2078,72 +2106,6 @@ class _ResultMetaRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ResultPhotoCard extends StatelessWidget {
-  final int index;
-  final TimelineItem item;
-  final bool isDiary;
-
-  const _ResultPhotoCard({
-    required this.index,
-    required this.item,
-    required this.isDiary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isDiary ? 12 : 8),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: index.isEven
-                  ? AppColors.primaryPinkSoft
-                  : AppColors.primaryPurpleSoft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.image_outlined, color: AppColors.textSub),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.time,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primaryPink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.description,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSub,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

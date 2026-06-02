@@ -73,16 +73,8 @@ class CharacterDraft {
   ];
 
   static List<String> get hairColorLabels => [
-    '블랙',
-    '브라운',
-    '블론드',
-    '화이트',
-    '핑크',
-    '레드',
-    '블루',
-    '민트',
-    '퍼플',
-    '라임',
+    '블랙', '브라운', '블론드', '화이트', '핑크',
+    '레드', '블루', '민트', '퍼플', '라임'
   ];
 
   // 눈 컬러 8가지
@@ -98,24 +90,10 @@ class CharacterDraft {
   ];
 
   static List<String> get eyeColorLabels => [
-    '검정',
-    '갈색',
-    '파랑',
-    '핑크',
-    '초록',
-    '회색',
-    '보라',
-    '골드',
+    '검정', '갈색', '파랑', '핑크', '초록', '회색', '보라', '골드'
   ];
 
   static List<String> get eyeColorEnglishNames => [
-    'black',
-    'brown',
-    'blue',
-    'pink',
-    'green',
-    'gray',
-    'purple',
-    'gold',
+    'black', 'brown', 'blue', 'pink', 'green', 'gray', 'purple', 'gold'
   ];
 }
