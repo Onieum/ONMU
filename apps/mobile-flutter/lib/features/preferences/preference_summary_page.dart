@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/onmu_design.dart';
@@ -58,7 +57,6 @@ class PreferenceSummaryPage extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: textTheme.headlineSmall?.copyWith(
                       color: AppColors.textMain,
-                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -129,7 +127,6 @@ class _PreferenceSummarySheet extends StatelessWidget {
                         '취향 요약',
                         style: textTheme.headlineSmall?.copyWith(
                           color: AppColors.textMain,
-                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
@@ -228,18 +225,12 @@ class _SummaryCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textSub,
-              fontWeight: FontWeight.w700,
-            ),
+            style: textTheme.labelMedium?.copyWith(color: AppColors.textSub),
           ),
           const SizedBox(height: 8),
           Text(
             values.isEmpty ? '선택 없음' : values.join(', '),
-            style: textTheme.titleSmall?.copyWith(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w800,
-            ),
+            style: textTheme.titleSmall?.copyWith(color: AppColors.textMain),
           ),
         ],
       ),

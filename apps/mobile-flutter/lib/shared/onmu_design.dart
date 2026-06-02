@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
+
+export '../core/theme/app_theme.dart';
+
 class OnmuColors {
   static const bgDefault = Color(0xFFFFFFFF);
   static const bgWarm = Color(0xFFFFFDF9);
@@ -41,10 +45,7 @@ class OnmuPrimaryButton extends StatelessWidget {
           ),
         ),
         onPressed: onPressed,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-        ),
+        child: Text(label, style: AppTextStyles.titleSmall),
       ),
     );
   }
@@ -73,7 +74,7 @@ class OnmuSecondaryButton extends StatelessWidget {
           ),
         ),
         onPressed: onPressed,
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        child: Text(label, style: AppTextStyles.labelLarge),
       ),
     );
   }
@@ -131,7 +132,7 @@ class PaperNote extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, color: OnmuColors.pink, size: 22),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
           ],
           Expanded(
             child: Column(
@@ -139,18 +140,15 @@ class PaperNote extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: AppTextStyles.titleSmall.copyWith(
                     color: OnmuColors.textMain,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   body,
-                  style: const TextStyle(
+                  style: AppTextStyles.bodyMedium.copyWith(
                     color: OnmuColors.textSub,
-                    fontSize: 14,
                     height: 1.45,
                   ),
                 ),

@@ -84,15 +84,11 @@ class OnmuBottomNavBar extends StatelessWidget {
                       size: 24,
                       color: color,
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       item.label,
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: AppTextStyles.labelSmall.copyWith(
                         height: 1.2,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
                         color: color,
                         letterSpacing: 0,
                       ),

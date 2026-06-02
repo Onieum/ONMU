@@ -216,15 +216,13 @@ class _OotdListPageState extends State<OotdListPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '어떤 기록을 남기시겠습니까?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.titleSmall.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   // 날짜 선택 영역 추가
                   GestureDetector(
@@ -275,12 +273,10 @@ class _OotdListPageState extends State<OotdListPage> {
                                 color: AppColors.primaryPink,
                                 size: 20,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Text(
                                 '기록할 날짜: $dateStr',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTextStyles.labelLarge.copyWith(
                                   color: AppColors.textMain,
                                 ),
                               ),
@@ -295,7 +291,7 @@ class _OotdListPageState extends State<OotdListPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   Row(
                     children: [
@@ -317,7 +313,7 @@ class _OotdListPageState extends State<OotdListPage> {
                               border: Border.all(color: AppColors.lineSoft),
                             ),
                             child: Column(
-                              children: const [
+                              children: [
                                 Icon(
                                   Icons.calendar_today_outlined,
                                   size: 32,
@@ -326,17 +322,14 @@ class _OotdListPageState extends State<OotdListPage> {
                                 SizedBox(height: 8),
                                 Text(
                                   '하루 일과 기록',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTextStyles.labelLarge.copyWith(
                                     color: AppColors.textMain,
                                   ),
                                 ),
                                 SizedBox(height: 4),
                                 Text(
                                   '타임라인 및 일과 정보',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppTextStyles.sticker.copyWith(
                                     color: AppColors.textSub,
                                   ),
                                 ),
@@ -345,7 +338,7 @@ class _OotdListPageState extends State<OotdListPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       // 2. OOTD 기록하기
                       Expanded(
                         child: GestureDetector(
@@ -361,7 +354,7 @@ class _OotdListPageState extends State<OotdListPage> {
                               border: Border.all(color: AppColors.lineSoft),
                             ),
                             child: Column(
-                              children: const [
+                              children: [
                                 Icon(
                                   Icons.checkroom,
                                   size: 32,
@@ -370,17 +363,14 @@ class _OotdListPageState extends State<OotdListPage> {
                                 SizedBox(height: 8),
                                 Text(
                                   'OOTD 기록',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTextStyles.labelLarge.copyWith(
                                     color: AppColors.textMain,
                                   ),
                                 ),
                                 SizedBox(height: 4),
                                 Text(
                                   '의상 코디 및 외모 꾸미기',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppTextStyles.sticker.copyWith(
                                     color: AppColors.textSub,
                                   ),
                                 ),
@@ -391,7 +381,7 @@ class _OotdListPageState extends State<OotdListPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                 ],
               ),
             );
@@ -539,10 +529,7 @@ class _OotdListPageState extends State<OotdListPage> {
                   physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Column(
-                    children: [
-                      _buildCalendarGrid(),
-                      const SizedBox(height: 32),
-                    ],
+                    children: [_buildCalendarGrid(), SizedBox(height: 32)],
                   ),
                 ),
               ),
@@ -579,13 +566,11 @@ class _OotdListPageState extends State<OotdListPage> {
                 children: [
                   Text(
                     '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
+                    style: AppTextStyles.headlineMedium.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -608,13 +593,11 @@ class _OotdListPageState extends State<OotdListPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4),
+              Text(
                 '오늘의 코디 기록 다이어리',
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.primaryPink,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -634,21 +617,21 @@ class _OotdListPageState extends State<OotdListPage> {
                     character: widget.userCharacter,
                     size: 36,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         '마이룸 ▾',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.sticker.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
                       Text(
                         '데모 초기화',
-                        style: TextStyle(fontSize: 8, color: AppColors.textSub),
+                        style: AppTextStyles.micro.copyWith(
+                          color: AppColors.textSub,
+                        ),
                       ),
                     ],
                   ),
@@ -675,9 +658,7 @@ class _OotdListPageState extends State<OotdListPage> {
             child: Text(
               day,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+              style: AppTextStyles.labelSmall.copyWith(
                 color: isWeekend
                     ? AppColors.accentRed.withOpacity(0.8)
                     : AppColors.textSub,
@@ -707,7 +688,7 @@ class _OotdListPageState extends State<OotdListPage> {
       itemCount: totalCells,
       itemBuilder: (context, index) {
         if (index < firstWeekday) {
-          return const SizedBox();
+          return SizedBox();
         }
 
         final day = index - firstWeekday + 1;
@@ -756,9 +737,7 @@ class _OotdListPageState extends State<OotdListPage> {
                   left: 6,
                   child: Text(
                     day.toString(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelMedium.copyWith(
                       color: isSelected
                           ? AppColors.primaryPink
                           : AppColors.textMain,
@@ -853,9 +832,7 @@ class _TimelineBottomSheetContentState
         ),
         child: Text(
           title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
+          style: AppTextStyles.labelLarge.copyWith(
             color: isSelected ? AppColors.primaryPink : AppColors.textSub,
           ),
         ),
@@ -933,9 +910,7 @@ class _TimelineBottomSheetContentState
                         ),
                         Text(
                           _tabIndex == 0 ? '하루 일과' : 'OOTD 기록',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          style: AppTextStyles.titleSmall.copyWith(
                             color: AppColors.textMain,
                           ),
                         ),
@@ -951,7 +926,7 @@ class _TimelineBottomSheetContentState
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                 ] else ...[
                   // 하프스크린일 때 손잡이 바
                   Center(
@@ -980,22 +955,19 @@ class _TimelineBottomSheetContentState
                                 color: AppColors.primaryPink,
                                 size: 24,
                               ),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(
                                 '${_localRecord.date.year}.${_localRecord.date.month.toString().padLeft(2, '0')}.${_localRecord.date.day.toString().padLeft(2, '0')} (${_getWeekdayName(_localRecord.date)})',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTextStyles.titleMedium.copyWith(
                                   color: AppColors.textMain,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
+                          SizedBox(height: 4),
+                          Text(
                             '오늘 하루의 소중한 기록을 채워보세요',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textSub,
                             ),
                           ),
@@ -1009,7 +981,7 @@ class _TimelineBottomSheetContentState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                 ],
 
                 // 2. 탭 버튼바 (하루 일과 / OOTD 기록) - 기록이 있을 때만 노출
@@ -1018,11 +990,11 @@ class _TimelineBottomSheetContentState
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildTabButton(0, '하루 일과'),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       _buildTabButton(1, 'OOTD 기록'),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                 ],
 
                 // 3. 본문 뷰 렌더링
@@ -1033,12 +1005,12 @@ class _TimelineBottomSheetContentState
                 else
                   _buildOotdDetailView(),
 
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
 
                 // 4. 하단 버튼 바 (수정하기 / 저장하기) - 기록이 있을 때만 노출
                 if (_localRecord.timeline.isNotEmpty) ...[
                   _buildBottomButtonRow(),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30),
                 ],
               ],
             ),
@@ -1064,26 +1036,21 @@ class _TimelineBottomSheetContentState
             size: 48,
             color: AppColors.textMuted,
           ),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             '아직 기록된 내용이 없습니다',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMain,
-            ),
+            style: AppTextStyles.labelLarge.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             '오늘 하루 어떤 일들이 있었나요?\n소중한 순간들을 기록해 보세요!',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
+            style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.textSub,
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Column(
             children: [
               ElevatedButton.icon(
@@ -1092,7 +1059,7 @@ class _TimelineBottomSheetContentState
                   widget.onAddDailyRecord(widget.record.date, null);
                 },
                 icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                label: const Text('하루 일과 기록하기'),
+                label: Text('하루 일과 기록하기'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryPinkSoft,
                   foregroundColor: AppColors.primaryPink,
@@ -1106,14 +1073,14 @@ class _TimelineBottomSheetContentState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
                   widget.onAddOotdRecord(widget.record.date, null);
                 },
                 icon: const Icon(Icons.checkroom, size: 16),
-                label: const Text('오늘 코디 기록하기 (OOTD)'),
+                label: Text('오늘 코디 기록하기 (OOTD)'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryPurpleSoft,
                   foregroundColor: AppColors.primaryPurple,
@@ -1163,12 +1130,10 @@ class _TimelineBottomSheetContentState
             ],
           ),
           child: Column(
-            children: const [
+            children: [
               Text(
                 '서울 카페 투어',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                style: AppTextStyles.headlineSmall.copyWith(
                   color: AppColors.textMain,
                   letterSpacing: -0.5,
                 ),
@@ -1176,16 +1141,14 @@ class _TimelineBottomSheetContentState
               SizedBox(height: 6),
               Text(
                 '#카페 #한남동 #데이트',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.textSub,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // PLACE 01 카드 & TODAY'S MEMORY
         Row(
@@ -1214,7 +1177,7 @@ class _TimelineBottomSheetContentState
                       alignment: Alignment.center,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Icon(
                             Icons.cake_outlined,
                             color: AppColors.textSub,
@@ -1223,29 +1186,24 @@ class _TimelineBottomSheetContentState
                           SizedBox(height: 4),
                           Text(
                             'mRd Record',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                            style: AppTextStyles.sticker.copyWith(
                               color: AppColors.textSub,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'mRd Record',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                      style: AppTextStyles.labelMedium.copyWith(
                         color: AppColors.textMain,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
+                    SizedBox(height: 4),
+                    Text(
                       '케이크가 진짜 맛있었고 매장 분위기도 굿! 사진도 찰칵',
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppTextStyles.sticker.copyWith(
                         color: AppColors.textSub,
                         height: 1.3,
                       ),
@@ -1254,7 +1212,7 @@ class _TimelineBottomSheetContentState
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
 
             // TODAY'S MEMORY 체크리스트
             Expanded(
@@ -1271,7 +1229,7 @@ class _TimelineBottomSheetContentState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: const [
+                      children: [
                         Icon(
                           Icons.bookmark_outline_rounded,
                           color: AppColors.accentBrown,
@@ -1280,15 +1238,13 @@ class _TimelineBottomSheetContentState
                         SizedBox(width: 4),
                         Text(
                           'TODAY\'S MEMORY',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                          style: AppTextStyles.sticker.copyWith(
                             color: AppColors.accentBrown,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1307,7 +1263,7 @@ class _TimelineBottomSheetContentState
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 커플 아바타 standing 스크랩 (나 & 지훈)
         Container(
@@ -1329,24 +1285,22 @@ class _TimelineBottomSheetContentState
                         character: _localRecord.character,
                         size: 72,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      SizedBox(height: 6),
+                      Text(
                         '나',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 26),
+                  SizedBox(width: 26),
                   const Icon(
                     Icons.favorite_rounded,
                     color: AppColors.accentRed,
                     size: 28,
                   ),
-                  const SizedBox(width: 26),
+                  SizedBox(width: 26),
                   Column(
                     children: [
                       PixelCharacterWidget(
@@ -1361,12 +1315,10 @@ class _TimelineBottomSheetContentState
                         ),
                         size: 72,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      SizedBox(height: 6),
+                      Text(
                         '지훈',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
@@ -1374,19 +1326,17 @@ class _TimelineBottomSheetContentState
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12),
+              Text(
                 '우리의 가을 시밀러 룩 데이트!',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.primaryPink,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // PLACE 02 & PLACE 03 이미지 프레임 카드
         Row(
@@ -1399,7 +1349,7 @@ class _TimelineBottomSheetContentState
                 Icons.shopping_bag_outlined,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: _buildScrapPhotoCard(
                 'PLACE 03 - Ofr. seoul',
@@ -1410,7 +1360,7 @@ class _TimelineBottomSheetContentState
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // EVENING (PLACE 04) 및 요약 정보
         Container(
@@ -1425,7 +1375,7 @@ class _TimelineBottomSheetContentState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: const [
+                children: [
                   Icon(
                     Icons.restaurant,
                     color: AppColors.primaryPink,
@@ -1434,19 +1384,16 @@ class _TimelineBottomSheetContentState
                   SizedBox(width: 6),
                   Text(
                     'EVENING - 성수 맛집',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelMedium.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              const Text(
+              SizedBox(height: 6),
+              Text(
                 '저녁으로 예약해둔 파스타 맛집. 분위기 맛 다 최고였어!',
-                style: TextStyle(
-                  fontSize: 11,
+                style: AppTextStyles.labelSmall.copyWith(
                   color: AppColors.textSub,
                   height: 1.3,
                 ),
@@ -1476,12 +1423,10 @@ class _TimelineBottomSheetContentState
           size: 15,
           color: checked ? AppColors.primaryPink : AppColors.textMuted,
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: 6),
         Text(
           text,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
+          style: AppTextStyles.labelSmall.copyWith(
             color: checked ? AppColors.textMain : AppColors.textMuted,
             decoration: checked ? TextDecoration.lineThrough : null,
           ),
@@ -1516,19 +1461,15 @@ class _TimelineBottomSheetContentState
             alignment: Alignment.center,
             child: Icon(icon, size: 24, color: AppColors.textSub),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-            ),
+            style: AppTextStyles.sticker.copyWith(color: AppColors.textMuted),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             desc,
-            style: const TextStyle(fontSize: 10, color: AppColors.textSub),
+            style: AppTextStyles.sticker.copyWith(color: AppColors.textSub),
           ),
         ],
       ),
@@ -1540,20 +1481,12 @@ class _TimelineBottomSheetContentState
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMuted,
-          ),
+          style: AppTextStyles.tiny.copyWith(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           val,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
         ),
       ],
     );
@@ -1590,16 +1523,14 @@ class _TimelineBottomSheetContentState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Today\'s\nLook',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
+                              style: AppTextStyles.titleMedium.copyWith(
                                 color: AppColors.primaryPink,
                                 height: 1.2,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             // 손글씨 폰트 느낌의 바디 텍스트
                             Container(
                               padding: const EdgeInsets.all(8),
@@ -1610,16 +1541,15 @@ class _TimelineBottomSheetContentState
                                   color: AppColors.lineSoft.withOpacity(0.5),
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 lookMemoText,
-                                style: TextStyle(
-                                  fontSize: 10,
+                                style: AppTextStyles.sticker.copyWith(
                                   color: AppColors.textSub,
                                   height: 1.35,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12),
 
                             // MOOD 라디오
                             _buildOotdPaperSection('MOOD', [
@@ -1630,14 +1560,14 @@ class _TimelineBottomSheetContentState
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
 
                       // 가운데: 캐릭터 크게 그리기
                       Expanded(
                         flex: 4,
                         child: Column(
                           children: [
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             PixelCharacterWidget(
                               character: _localRecord.character,
                               size: 110,
@@ -1645,7 +1575,7 @@ class _TimelineBottomSheetContentState
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
 
                       // 오른쪽: HAIR 및 WEATHER 메모지
                       Expanded(
@@ -1653,32 +1583,25 @@ class _TimelineBottomSheetContentState
                         child: Column(
                           children: [
                             _buildOotdPaperSection('HAIR', [
-                              const Text(
+                              Text(
                                 '오늘은 웨이브를\n살짝 넣어서\n분위기 있게 ♥',
-                                style: TextStyle(
-                                  fontSize: 9,
+                                style: AppTextStyles.tiny.copyWith(
                                   color: AppColors.textSub,
                                   height: 1.35,
                                 ),
                               ),
                             ]),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10),
                             _buildOotdPaperSection('WEATHER', [
                               Row(
-                                children: const [
+                                children: [
                                   Icon(
                                     Icons.wb_sunny_outlined,
                                     size: 12,
                                     color: AppColors.accentOrange,
                                   ),
                                   SizedBox(width: 4),
-                                  Text(
-                                    '20°C / 맑음',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  Text('20°C / 맑음', style: AppTextStyles.tiny),
                                 ],
                               ),
                             ]),
@@ -1687,7 +1610,7 @@ class _TimelineBottomSheetContentState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -1696,14 +1619,8 @@ class _TimelineBottomSheetContentState
                       Expanded(
                         flex: 6,
                         child: _buildOotdPaperSection('POINT', [
-                          const Text(
-                            '가방으로 포인트 주기!',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
+                          Text('가방으로 포인트 주기!', style: AppTextStyles.tiny),
+                          SizedBox(height: 6),
                           Center(
                             child: Container(
                               padding: const EdgeInsets.all(6),
@@ -1721,7 +1638,7 @@ class _TimelineBottomSheetContentState
                           ),
                         ]),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
 
                       // OUTFIT INFO
                       Expanded(
@@ -1766,18 +1683,16 @@ class _TimelineBottomSheetContentState
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // TODAY'S TAG (파스텔 칩)
         Align(
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 6),
-            child: const Text(
+            child: Text(
               'TODAY\'S TAG',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+              style: AppTextStyles.labelSmall.copyWith(
                 color: AppColors.textMuted,
               ),
             ),
@@ -1803,9 +1718,7 @@ class _TimelineBottomSheetContentState
                 ),
                 child: Text(
                   tag,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.sticker.copyWith(
                     color: AppColors.primaryPink,
                   ),
                 ),
@@ -1813,7 +1726,7 @@ class _TimelineBottomSheetContentState
             }).toList(),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // 평가 피드백 카드
         Container(
@@ -1828,11 +1741,9 @@ class _TimelineBottomSheetContentState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     '오늘 코디는 어땠나요?',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.labelSmall.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
@@ -1861,12 +1772,10 @@ class _TimelineBottomSheetContentState
                               );
                             }
                           }),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                            style: AppTextStyles.labelSmall.copyWith(
                               color: AppColors.textMain,
                             ),
                           ),
@@ -1879,19 +1788,19 @@ class _TimelineBottomSheetContentState
               const Divider(color: AppColors.lineSoft, height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     '다음에 입고 싶은 룩: ',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.sticker.copyWith(
                       color: AppColors.textSub,
                     ),
                   ),
                   Expanded(
                     child: Text(
                       '니트에 청바지 조합도 좋을 것 같아! ♡',
-                      style: TextStyle(fontSize: 10, color: AppColors.textMain),
+                      style: AppTextStyles.sticker.copyWith(
+                        color: AppColors.textMain,
+                      ),
                     ),
                   ),
                 ],
@@ -1917,13 +1826,9 @@ class _TimelineBottomSheetContentState
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 8,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-            ),
+            style: AppTextStyles.micro.copyWith(color: AppColors.textMuted),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           ...children,
         ],
       ),
@@ -1940,10 +1845,10 @@ class _TimelineBottomSheetContentState
             size: 11,
             color: selected ? AppColors.primaryPink : AppColors.textMuted,
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text(
             text,
-            style: const TextStyle(fontSize: 9, color: AppColors.textMain),
+            style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
           ),
         ],
       ),
@@ -1956,19 +1861,15 @@ class _TimelineBottomSheetContentState
       child: Row(
         children: [
           Icon(icon, size: 9, color: AppColors.textMuted),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text(
             '$part: ',
-            style: const TextStyle(
-              fontSize: 8,
-              color: AppColors.textSub,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.micro.copyWith(color: AppColors.textSub),
           ),
           Expanded(
             child: Text(
               brand,
-              style: const TextStyle(fontSize: 8, color: AppColors.textMain),
+              style: AppTextStyles.micro.copyWith(color: AppColors.textMain),
             ),
           ),
         ],
@@ -1993,7 +1894,7 @@ class _TimelineBottomSheetContentState
               }
             },
             icon: const Icon(Icons.edit, size: 16),
-            label: const Text('수정하기'),
+            label: Text('수정하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.bgDefault,
               foregroundColor: AppColors.textMain,
@@ -2005,7 +1906,7 @@ class _TimelineBottomSheetContentState
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () {
@@ -2016,7 +1917,7 @@ class _TimelineBottomSheetContentState
               );
             },
             icon: const Icon(Icons.download, size: 16),
-            label: const Text('저장하기'),
+            label: Text('저장하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPink,
               foregroundColor: Colors.white,

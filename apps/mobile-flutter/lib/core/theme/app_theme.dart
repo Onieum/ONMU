@@ -1,39 +1,10 @@
 import 'package:flutter/material.dart';
 
-class AppColors {
-  // Background Colors
-  static const Color bgDefault = Color(0xFFFFFFFF);
-  static const Color bgWarm = Color(0xFFFFFDF9);
-  static const Color bgPaper = Color(0xFFFFFAF3);
-  static const Color bgGrid = Color(0xFFFFF7EF);
-  static const Color bgPurpleSoft = Color(0xFFF6F1FF);
+import 'app_colors.dart';
+import 'app_typography.dart';
 
-  // Primary Colors
-  static const Color primaryPurple = Color(0xFF8B5CF6);
-  static const Color primaryPurpleDark = Color(0xFF6D3FE8);
-  static const Color primaryPurpleSoft = Color(0xFFEDE4FF);
-  static const Color primaryPink = Color(0xFFFF8FA3);
-  static const Color primaryPinkSoft = Color(0xFFFFE3E8);
-
-  // Text Colors
-  static const Color textMain = Color(0xFF3A2A23);
-  static const Color textSub = Color(0xFF7A6258);
-  static const Color textMuted = Color(0xFFA9948A);
-  static const Color textInverse = Color(0xFFFFFFFF);
-
-  // Line / Border Colors
-  static const Color lineSoft = Color(0xFFEAD8CC);
-  static const Color lineBrown = Color(0xFFC9A995);
-  static const Color linePink = Color(0xFFFF9CAD);
-  static const Color linePurple = Color(0xFFBDA4FF);
-
-  // Accent Colors
-  static const Color accentBrown = Color(0xFFB98562);
-  static const Color accentOrange = Color(0xFFFFB35C);
-  static const Color accentGreen = Color(0xFFA8C58B);
-  static const Color accentBlue = Color(0xFF8CC6E8);
-  static const Color accentRed = Color(0xFFFF6B7A);
-}
+export 'app_colors.dart';
+export 'app_typography.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
@@ -47,47 +18,26 @@ class AppTheme {
         error: AppColors.accentRed,
       ),
       scaffoldBackgroundColor: AppColors.bgDefault,
+      fontFamily: AppFontFamilies.body,
+      fontFamilyFallback: AppFontFamilies.fallback,
       textTheme: const TextTheme(
-        // DungGeunMo / Galmuri 느낌의 Pixel Title 대용으로 폰트 스타일 두껍고 딱딱하게 지정
-        displayLarge: TextStyle(
-          fontSize: 32.0,
-          fontWeight: FontWeight.w900,
-          color: AppColors.textMain,
-          letterSpacing: -0.5,
-        ),
-        displayMedium: TextStyle(
-          fontSize: 24.0,
-          fontWeight: FontWeight.w800,
-          color: AppColors.textMain,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 20.0,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textMain,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 18.0,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textMain,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 15.0,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textMain,
-          height: 1.4,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14.0,
-          fontWeight: FontWeight.normal,
-          color: AppColors.textSub,
-          height: 1.4,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 12.0,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textMuted,
-        ),
+        displayLarge: AppTextStyles.displayLarge,
+        displayMedium: AppTextStyles.displayMedium,
+        displaySmall: AppTextStyles.displaySmall,
+        headlineLarge: AppTextStyles.headlineLarge,
+        headlineMedium: AppTextStyles.headlineMedium,
+        headlineSmall: AppTextStyles.headlineSmall,
+        titleLarge: AppTextStyles.titleLarge,
+        titleMedium: AppTextStyles.titleMedium,
+        titleSmall: AppTextStyles.titleSmall,
+        bodyLarge: AppTextStyles.bodyLarge,
+        bodyMedium: AppTextStyles.bodyMedium,
+        bodySmall: AppTextStyles.bodySmall,
+        labelLarge: AppTextStyles.labelLarge,
+        labelMedium: AppTextStyles.labelMedium,
+        labelSmall: AppTextStyles.labelSmall,
       ),
+      extensions: const <ThemeExtension<dynamic>>[OnmuTypography.light],
       cardTheme: CardThemeData(
         color: AppColors.bgPaper,
         elevation: 0.5,
@@ -105,7 +55,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          textStyle: AppTextStyles.labelLarge,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -130,8 +80,12 @@ class AppTheme {
             width: 1.5,
           ),
         ),
-        labelStyle: const TextStyle(color: AppColors.textMuted),
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+        labelStyle: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.textMuted,
+        ),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.textMuted,
+        ),
       ),
     );
   }

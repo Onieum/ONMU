@@ -805,10 +805,9 @@ class _FriendCandidateAddButton extends StatelessWidget {
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.visible,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.textMain,
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.textMain),
         ),
       ),
     );

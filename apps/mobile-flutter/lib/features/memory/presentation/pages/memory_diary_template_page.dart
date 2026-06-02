@@ -24,13 +24,9 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
           ),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           '다이어리 꾸미기 템플릿',
-          style: TextStyle(
-            color: AppColors.textMain,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
         centerTitle: true,
       ),
@@ -41,20 +37,20 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '원하는 디자인 템플릿을 선택하세요',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.titleMedium.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   '기록 스타일에 맞춰 어울리는 손글씨와 스티커 테마가 적용됩니다.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSub),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSub,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
 
                 // 템플릿 리스트 모의 레이아웃
                 Expanded(
@@ -89,7 +85,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                       backgroundColor: AppColors.primaryPink,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('적용 완료'),
+                    child: Text('적용 완료'),
                   ),
                 ),
               ],
@@ -136,21 +132,19 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
               color: AppColors.textSub,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+            style: AppTextStyles.labelMedium.copyWith(
               color: AppColors.textMain,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             desc,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 9, color: AppColors.textSub),
+            style: AppTextStyles.tiny.copyWith(color: AppColors.textSub),
           ),
         ],
       ),

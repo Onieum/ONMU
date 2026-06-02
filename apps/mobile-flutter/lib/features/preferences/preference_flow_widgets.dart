@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/onmu_design.dart';
 
@@ -55,7 +54,6 @@ class PreferencePageFrame extends StatelessWidget {
                         '$currentStep/$stepCount',
                         style: textTheme.bodySmall?.copyWith(
                           color: AppColors.textMuted,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -65,7 +63,6 @@ class PreferencePageFrame extends StatelessWidget {
                     title,
                     style: textTheme.headlineSmall?.copyWith(
                       color: AppColors.textMain,
-                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -134,10 +131,7 @@ class PreferenceOptionSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: textTheme.titleMedium?.copyWith(
-            color: AppColors.textMain,
-            fontWeight: FontWeight.w900,
-          ),
+          style: textTheme.titleMedium?.copyWith(color: AppColors.textMain),
         ),
         const SizedBox(height: 8),
         Text(
@@ -213,10 +207,9 @@ class PreferenceChip extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textMain,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppColors.textMain),
                 ),
               ),
             ],

@@ -117,26 +117,67 @@ ONMU는 흰색 배경을 중심으로 핑크, 보라, 브라운, 웜 파스텔�
 
 ## 4. Typography
 
-픽셀 타이틀과 부드러운 한글 본문 폰트를 함께 사용한다.
+픽셀 타이틀과 부드러운 한글 본문 폰트를 함께 사용한다. Flutter 앱의 `TextStyle.fontSize` 값은 CSS px나 인쇄용 pt가 아니라 device-independent logical pixel이다. 디자인 문서의 size도 Flutter 구현값과 1:1로 맞추기 위해 `logical px`로 기록한다.
 
-### Font Roles
+### Font Families
 
-| Role | Font Style | Usage |
+| Role | Font Family | Usage |
 | --- | --- | --- |
-| Pixel Title | Galmuri, DungGeunMo, NeoDunggeunmo | 월 이름, 기록 제목, OOTD 타이틀 |
-| Body | Pretendard, SUIT, Apple SD Gothic Neo | 본문, 버튼, 입력 필드 |
-| Handwriting | Kyobo Handwriting, Nanum Pen Script | 메모, 스티커 라벨, 다이어리 문구 |
+| Pixel Title | `Mona12`, `Mona10x12` | 월 이름, 기록 제목, OOTD 타이틀, 스티커형 라벨 |
+| Body | `Mona12TextKR` | 본문, 버튼, 입력 필드, 탭, 카드 정보 |
+| Fallback | `Mona12TextJP`, `Mona12TextSC`, `Mona12TextTC`, `Mona12TextHK`, `Mona12Emoji`, `Mona12ColorEmoji` | 다국어 문자와 이모지 보조 |
 
 ### Type Scale
 
 | Token | Size | Weight | Usage |
 | --- | --- | --- | --- |
-| `display.pixel` | 40-56px | Regular/Bold | 월 이름, 큰 기록 제목 |
-| `title.lg` | 26-32px | 700 | 화면 메인 제목 |
-| `title.md` | 20-24px | 700 | 섹션 제목 |
-| `body.md` | 15-17px | 400-500 | 기본 본문 |
-| `body.sm` | 13-14px | 400-500 | 보조 설명 |
-| `caption` | 11-12px | 400 | 날짜, 라벨, 카운터 |
+| `display.lg` | 40 logical px | 700 | 월 이름, 브랜드형 큰 픽셀 타이틀 |
+| `display.md` | 32 logical px | 700 | 큰 기록 제목, 완료 화면 타이틀 |
+| `display.sm` | 28 logical px | 700 | 온보딩/시작 화면 강조 제목 |
+| `headline.lg` | 28 logical px | 800 | 화면 메인 제목 |
+| `headline.md` | 24 logical px | 800 | 기록/상세 상단 제목 |
+| `headline.sm` | 22 logical px | 800 | 큰 카드 제목 |
+| `title.lg` | 20 logical px | 700 | 페이지 섹션 제목 |
+| `title.md` | 18 logical px | 700 | 카드 제목, 설정 단계 제목 |
+| `title.sm` | 16 logical px | 700 | 리스트 제목, 버튼형 텍스트 |
+| `body.lg` | 16 logical px | 500 | 강조 본문, 입력값 |
+| `body.md` | 14 logical px | 500 | 기본 본문 |
+| `body.sm` | 13 logical px | 400 | 보조 설명, 메타 정보 |
+| `label.lg` | 14 logical px | 700 | CTA, 선택 칩, 강한 라벨 |
+| `label.md` | 12 logical px | 700 | 날짜, 태그, 카운터, 탭 라벨 |
+| `label.sm` | 11 logical px | 600 | 작은 배지, 보조 라벨 |
+| `sticker` | 10 logical px | 700 | 스티커/픽셀 배지 텍스트 |
+| `tiny` | 9 logical px | 600 | 아주 작은 장식 라벨 |
+| `micro` | 8 logical px | 600 | 미니 캘린더, 픽셀 카드 내부 최소 라벨 |
+| `emoji.lg` | 32 logical px | 400 | 단독 이모지 표시 |
+
+### Flutter Mapping
+
+| Flutter Slot | ONMU Token |
+| --- | --- |
+| `displayLarge` | `display.lg` |
+| `displayMedium` | `display.md` |
+| `displaySmall` | `display.sm` |
+| `headlineLarge` | `headline.lg` |
+| `headlineMedium` | `headline.md` |
+| `headlineSmall` | `headline.sm` |
+| `titleLarge` | `title.lg` |
+| `titleMedium` | `title.md` |
+| `titleSmall` | `title.sm` |
+| `bodyLarge` | `body.lg` |
+| `bodyMedium` | `body.md` |
+| `bodySmall` | `body.sm` |
+| `labelLarge` | `label.lg` |
+| `labelMedium` | `label.md` |
+| `labelSmall` | `label.sm` |
+
+### Usage Rules
+
+- 화면과 공통 위젯은 `Theme.of(context).textTheme` 또는 ONMU typography extension을 사용한다.
+- 화면 코드에서 `TextStyle(fontSize: ...)`, `fontWeight: ...`를 직접 지정하지 않는다.
+- 색상, 줄높이, 정렬처럼 문맥에 따라 달라지는 값은 `copyWith`로 조정할 수 있다.
+- 장식용 극소 텍스트는 `sticker`, `tiny`, `micro` 토큰 중 하나를 사용한다.
+- 터치 가능한 버튼과 칩 텍스트는 최소 `label.md` 이상을 사용한다.
 
 ### Copy Tone
 

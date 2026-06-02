@@ -61,8 +61,6 @@ class _SplashPageState extends State<SplashPage> {
                       Text(
                         'ONMU',
                         style: textTheme.displayLarge?.copyWith(
-                          fontSize: 54,
-                          fontWeight: FontWeight.w900,
                           letterSpacing: 1.5,
                           color: AppColors.primaryPurple,
                         ),
@@ -77,7 +75,6 @@ class _SplashPageState extends State<SplashPage> {
                         textAlign: TextAlign.center,
                         style: textTheme.titleMedium?.copyWith(
                           color: AppColors.textMain,
-                          fontWeight: FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -86,7 +83,6 @@ class _SplashPageState extends State<SplashPage> {
                         textAlign: TextAlign.center,
                         style: textTheme.titleMedium?.copyWith(
                           color: AppColors.textMain,
-                          fontWeight: FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 12),

@@ -95,9 +95,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                         : AppColors.bgWarm,
                     child: Text(
                       stepNum.toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      style: AppTextStyles.labelSmall.copyWith(
                         color: isActive
                             ? Colors.white
                             : isPassed
@@ -106,14 +104,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     labels[index],
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: isActive
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                    style: AppTextStyles.tiny.copyWith(
                       color: isActive
                           ? AppColors.textMain
                           : AppColors.textMuted,
@@ -205,7 +199,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
       case 9:
         return _buildCompletePage();
       default:
-        return const SizedBox();
+        return SizedBox();
     }
   }
 
@@ -215,36 +209,32 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
 
     return Column(
       children: [
-        const SizedBox(height: 20),
-        const Text(
+        SizedBox(height: 20),
+        Text(
           '캐릭터 만들기',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineMedium.copyWith(
             color: AppColors.textMain,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
+        SizedBox(height: 6),
+        Text(
           '나를 닮은 귀여운 픽셀 캐릭터를 꾸며보세요!',
-          style: TextStyle(fontSize: 13, color: AppColors.textSub),
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
 
         // 실시간 성별 프리뷰
         Center(child: PixelCharacterWidget(character: _draft, size: 160)),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
 
         // 성별 선택 카드 타일
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '성별을 선택해 주세요',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+              style: AppTextStyles.labelLarge.copyWith(
                 color: AppColors.textMain,
               ),
             ),
@@ -272,14 +262,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       Text(
                         '여성',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isFemale
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.bodySmall.copyWith(
                           color: isFemale
                               ? AppColors.primaryPink
                               : AppColors.textSub,
@@ -290,7 +276,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16),
             Expanded(
               child: GestureDetector(
                 onTap: () =>
@@ -311,14 +297,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       Text(
                         '남성',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: !isFemale
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.bodySmall.copyWith(
                           color: !isFemale
                               ? AppColors.primaryPurple
                               : AppColors.textSub,
@@ -331,7 +313,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
       ],
     );
   }
@@ -340,17 +322,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildSkinTonePage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '01 피부색을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: List.generate(5, (index) {
@@ -396,14 +374,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             );
           }),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text(
           '피부 단계: ${_draft.skinToneIndex + 1}단계',
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSub,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSub),
         ),
       ],
     );
@@ -413,17 +387,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildEyeShapePage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '02 눈 모양을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         GridView.builder(
           shrinkWrap: true,
@@ -486,11 +456,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       padding: const EdgeInsets.only(bottom: 4.0),
                       child: Text(
                         '${index + 1}번 눈',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.tiny.copyWith(
                           color: isSelected
                               ? AppColors.textMain
                               : AppColors.textSub,
@@ -511,17 +477,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildEyeColorPage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '03 눈동자 색상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         if (_draft.gender == 'female' && _draft.eyeShapeIndex == 2) ...[
           // 여자 눈 03번(인덱스 2)은 디자이너 공지에 따라 단일 색상(선화)만 존재
@@ -532,11 +494,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               border: Border.all(color: AppColors.lineSoft),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
+            child: Text(
               '선택하신 3번 눈동자는 단일 색상 렌더링을 지원합니다. ✦\n(색상 선택 없음)',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSub,
                 height: 1.4,
               ),
@@ -586,14 +547,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Text(
                         label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMain,
                         ),
                       ),
@@ -612,17 +569,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildHairStylePage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '04 헤어 스타일을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         GridView.builder(
           shrinkWrap: true,
@@ -682,11 +635,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       padding: const EdgeInsets.only(bottom: 4.0),
                       child: Text(
                         '스타일 ${index + 1}',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.tiny.copyWith(
                           color: isSelected
                               ? AppColors.textMain
                               : AppColors.textSub,
@@ -707,17 +656,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildHairColorPage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '05 머리 색상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         GridView.builder(
           shrinkWrap: true,
@@ -752,7 +697,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Container(
                       width: 20,
                       height: 20,
@@ -762,14 +707,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                         border: Border.all(color: Colors.black26, width: 0.8),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Text(
                       '${(index + 1).toString().padLeft(2, '0')} $label',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                      style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textMain,
                       ),
                     ),
@@ -787,17 +728,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildClothesPage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '06 의상을 선택해주세요',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         PixelCharacterWidget(character: _draft, size: 140),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         GridView.builder(
           shrinkWrap: true,
@@ -853,11 +790,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       padding: const EdgeInsets.only(bottom: 6.0),
                       child: Text(
                         '의상 ${index + 1}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: isSelected
                               ? AppColors.textMain
                               : AppColors.textSub,
@@ -878,15 +811,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildPreviewPage() {
     return Column(
       children: [
-        const Text(
+        Text(
           '캐릭터 미리보기',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Container(
           width: 220,
           height: 260,
@@ -906,11 +835,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               PixelCharacterWidget(character: _draft, size: 155),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -920,7 +849,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Icon(
                 Icons.check_circle_outline,
                 size: 16,
@@ -929,10 +858,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               SizedBox(width: 8),
               Text(
                 '나만의 전용 픽셀 아바타가 준비되었습니다!',
-                style: TextStyle(
-                  fontSize: 11,
+                style: AppTextStyles.labelSmall.copyWith(
                   color: AppColors.textSub,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -947,43 +874,31 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '캐릭터 이름을 정해주세요',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textMain,
-          ),
+          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textMain),
         ),
-        const SizedBox(height: 24),
-        const Text(
+        SizedBox(height: 24),
+        Text(
           '이름 (선택)',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSub,
-          ),
+          style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         TextField(
           controller: _nameController,
           decoration: const InputDecoration(hintText: '이름을 입력해 주세요'),
         ),
-        const SizedBox(height: 18),
-        const Text(
+        SizedBox(height: 18),
+        Text(
           '닉네임 (선택)',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSub,
-          ),
+          style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSub),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         TextField(
           controller: _nicknameController,
           decoration: const InputDecoration(hintText: '닉네임을 입력해 주세요'),
         ),
-        const SizedBox(height: 40),
+        SizedBox(height: 40),
       ],
     );
   }
@@ -992,16 +907,14 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildCompletePage() {
     return Column(
       children: [
-        const SizedBox(height: 10),
-        const Text(
+        SizedBox(height: 10),
+        Text(
           '꾸미기 완료!',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.headlineMedium.copyWith(
             color: AppColors.textMain,
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Container(
           width: 230,
           height: 310,
@@ -1021,7 +934,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               PixelCharacterWidget(character: _draft, size: 165),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -1036,16 +949,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   _nicknameController.text.trim().isEmpty
                       ? '내 캐릭터'
                       : _nicknameController.text.trim(),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTextStyles.labelLarge,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1054,13 +964,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.linePink),
           ),
-          child: const Text(
+          child: Text(
             '이제 OOTD 다이어리 기록을 시작해볼까요?\n캘린더 탭에서 나만의 코디를 수집해 보세요!',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
+            style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.primaryPink,
-              fontWeight: FontWeight.bold,
               height: 1.4,
             ),
           ),
@@ -1093,10 +1001,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       foregroundColor: AppColors.textMain,
                       side: const BorderSide(color: AppColors.lineSoft),
                     ),
-                    child: const Text('이전'),
+                    child: Text('이전'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
               ],
               Expanded(
                 flex: 2,
@@ -1113,15 +1021,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             ],
           ),
           if (_currentStep == 0) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             TextButton(
               onPressed: _skipOnboarding,
-              child: const Text(
+              child: Text(
                 '스킵하고 기본 캐릭터로 시작하기 ➔',
-                style: TextStyle(
+                style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
                 ),
               ),
             ),
