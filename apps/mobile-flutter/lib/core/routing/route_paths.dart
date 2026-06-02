@@ -3,6 +3,8 @@ class RoutePaths {
 
   static const splash = '/splash';
   static const start = '/start';
+  static const login = '/login';
+  static const onboarding = '/onboarding';
   static const preferenceIntro = '/preferences/intro';
   static const characterStart = '/character/start';
   static const home = '/home';
