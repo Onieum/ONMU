@@ -13,6 +13,7 @@ import '../../features/meetup/presentation/pages/meetup_member_select_page.dart'
 import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
 import '../../features/my/my_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_group_home_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_group_settings_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_list_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
@@ -86,6 +87,12 @@ final appRouter = GoRouter(
                   path: ':onmoimId',
                   builder: (context, state) => const OnMoimGroupHomePage(),
                   routes: [
+                    GoRoute(
+                      path: 'settings',
+                      builder: (context, state) => OnMoimGroupSettingsPage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                      ),
+                    ),
                     GoRoute(
                       path: 'chat',
                       builder: (context, state) => const OnMoimThreadPage(),

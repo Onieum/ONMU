@@ -20,8 +20,8 @@ class OnMoimGroupHomePage extends StatelessWidget {
       title: group.name,
       actions: [
         IconButton(
-          tooltip: '멤버 관리',
-          onPressed: () {},
+          tooltip: '모임 설정',
+          onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
           icon: const Icon(Icons.settings_outlined),
         ),
       ],
