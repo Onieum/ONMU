@@ -14,30 +14,47 @@ class PixelCharacterWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String genderPath = character.gender == 'female' ? 'female' : 'male';
-    
+
     // 1. 피부/몸 경로 가공
-    final String bodyPrefix = character.gender == 'female' ? 'girl_skin_base_0' : 'boy_skin_base_0';
-    final String bodyPath = 'assets/images/character/$genderPath/body/$bodyPrefix${character.skinToneIndex + 1}.PNG';
-    
+    final String bodyPrefix = character.gender == 'female'
+        ? 'girl_skin_base_0'
+        : 'boy_skin_base_0';
+    final String bodyPath =
+        'assets/images/character/$genderPath/body/$bodyPrefix${character.skinToneIndex + 1}.PNG';
+
     // 2. 눈 경로 가공
-    final String eyePrefix = character.gender == 'female' ? 'girl_eye_0' : 'boy_eye_0';
+    final String eyePrefix = character.gender == 'female'
+        ? 'girl_eye_0'
+        : 'boy_eye_0';
     String eyePath;
     if (character.gender == 'female' && character.eyeShapeIndex == 2) {
       // 여자 눈 3번(인덱스 2)은 색상이 없고 단일 파일(girl_eye_03.PNG)만 존재함
       eyePath = 'assets/images/character/female/eyes/girl_eye_03.PNG';
     } else {
-      final String colorEng = CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
-      eyePath = 'assets/images/character/$genderPath/eyes/$eyePrefix${character.eyeShapeIndex + 1}_$colorEng.PNG';
+      final String colorEng =
+          CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
+      eyePath =
+          'assets/images/character/$genderPath/eyes/$eyePrefix${character.eyeShapeIndex + 1}_$colorEng.PNG';
     }
-    
+
     // 3. 머리 경로 가공
-    final String hairPrefix = character.gender == 'female' ? 'hair_girl_0' : 'hair_boy_0';
-    final String hairSilPath = 'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}_silhouette.PNG';
-    final String hairOutPath = 'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}.PNG';
-    
+    final String hairPrefix = character.gender == 'female'
+        ? 'hair_girl_0'
+        : 'hair_boy_0';
+    final String hairSilPath =
+        'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}_silhouette.PNG';
+    final String hairOutPath =
+        'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}.PNG';
+
     // 헤어 염색용 색상 추출
-    final Color hairColor = Color(int.parse(
-        CharacterDraft.hairColors[character.hairColorIndex].replaceAll('#', '0xFF')));
+    final Color hairColor = Color(
+      int.parse(
+        CharacterDraft.hairColors[character.hairColorIndex].replaceAll(
+          '#',
+          '0xFF',
+        ),
+      ),
+    );
 
     // 4. 의상 경로 가공
     final String clothesPrefix = character.gender == 'female' ? 'girl' : 'boy';
@@ -62,11 +79,13 @@ class PixelCharacterWidget extends StatelessWidget {
               height: size * 0.12,
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.all(Radius.elliptical(size * 0.65, size * 0.12)),
+                borderRadius: BorderRadius.all(
+                  Radius.elliptical(size * 0.65, size * 0.12),
+                ),
               ),
             ),
           ),
-          
+
           // 몸/피부 레이어
           Image.asset(
             bodyPath,
@@ -75,7 +94,7 @@ class PixelCharacterWidget extends StatelessWidget {
             fit: fitMode,
             errorBuilder: (context, error, stackTrace) => const SizedBox(),
           ),
-          
+
           // 의상 레이어
           Image.asset(
             clothesPath,
@@ -84,7 +103,7 @@ class PixelCharacterWidget extends StatelessWidget {
             fit: fitMode,
             errorBuilder: (context, error, stackTrace) => const SizedBox(),
           ),
-          
+
           // 눈 레이어
           Image.asset(
             eyePath,
@@ -93,7 +112,7 @@ class PixelCharacterWidget extends StatelessWidget {
             fit: fitMode,
             errorBuilder: (context, error, stackTrace) => const SizedBox(),
           ),
-          
+
           // 헤어 실루엣 (염색 레이어)
           Image.asset(
             hairSilPath,
@@ -104,7 +123,7 @@ class PixelCharacterWidget extends StatelessWidget {
             colorBlendMode: BlendMode.srcIn,
             errorBuilder: (context, error, stackTrace) => const SizedBox(),
           ),
-          
+
           // 헤어 아웃라인 (디테일 레이어)
           Image.asset(
             hairOutPath,

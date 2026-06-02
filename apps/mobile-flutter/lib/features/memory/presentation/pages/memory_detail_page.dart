@@ -12,10 +12,7 @@ import '../../../../shared/providers/state_providers.dart';
 class MemoryDetailPage extends ConsumerWidget {
   final String memoryId;
 
-  const MemoryDetailPage({
-    super.key,
-    required this.memoryId,
-  });
+  const MemoryDetailPage({super.key, required this.memoryId});
 
   // Mock records generator helper (matching the ones in OotdListPage)
   List<OotdRecord> _getMockRecords(CharacterDraft baseChar) {
@@ -165,12 +162,8 @@ class MemoryDetailPage extends ConsumerWidget {
     if (record == null) {
       return Scaffold(
         backgroundColor: AppColors.bgWarm,
-        appBar: AppBar(
-          title: const Text('기록을 찾을 수 없음'),
-        ),
-        body: const Center(
-          child: Text('해당하는 다이어리 기록이 존재하지 않습니다.'),
-        ),
+        appBar: AppBar(title: const Text('기록을 찾을 수 없음')),
+        body: const Center(child: Text('해당하는 다이어리 기록이 존재하지 않습니다.')),
       );
     }
 
@@ -205,7 +198,10 @@ class MemoryDetailPage extends ConsumerWidget {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   child: isDaily
                       ? _buildDailyTimelineView(context, record)
                       : _buildOotdDetailView(record),
@@ -257,14 +253,16 @@ class MemoryDetailPage extends ConsumerWidget {
               Wrap(
                 spacing: 6,
                 children: record.moodTags
-                    .map((tag) => Text(
-                          tag,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSub,
-                          ),
-                        ))
+                    .map(
+                      (tag) => Text(
+                        tag,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -288,7 +286,10 @@ class MemoryDetailPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryPinkSoft,
                     borderRadius: BorderRadius.circular(8),
@@ -464,12 +465,18 @@ class MemoryDetailPage extends ConsumerWidget {
                         const SizedBox(height: 12),
                         const Text(
                           'MOOD',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '🥰 ${record.mood}',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -499,7 +506,10 @@ class MemoryDetailPage extends ConsumerWidget {
                       children: [
                         const Text(
                           'WEATHER',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -512,7 +522,10 @@ class MemoryDetailPage extends ConsumerWidget {
                             const SizedBox(width: 4),
                             Text(
                               record.weather,
-                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -521,12 +534,15 @@ class MemoryDetailPage extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (record.brands['스타일 컨셉'] != null || record.brands['장소'] != null || record.brands['rating'] != null) ...[
+              if (record.brands['스타일 컨셉'] != null ||
+                  record.brands['장소'] != null ||
+                  record.brands['rating'] != null) ...[
                 const Divider(height: 24, color: AppColors.lineSoft),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (record.brands['스타일 컨셉'] != null || record.brands['장소'] != null)
+                    if (record.brands['스타일 컨셉'] != null ||
+                        record.brands['장소'] != null)
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,11 +584,17 @@ class MemoryDetailPage extends ConsumerWidget {
                             children: [
                               Row(
                                 children: List.generate(5, (index) {
-                                  final ratingVal = double.tryParse(record.brands['rating'].toString()) ?? 5.0;
+                                  final ratingVal =
+                                      double.tryParse(
+                                        record.brands['rating'].toString(),
+                                      ) ??
+                                      5.0;
                                   return Icon(
                                     index < ratingVal.floor()
                                         ? Icons.star_rounded
-                                        : (index < ratingVal ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                                        : (index < ratingVal
+                                              ? Icons.star_half_rounded
+                                              : Icons.star_outline_rounded),
                                     color: Colors.amber,
                                     size: 16,
                                   );

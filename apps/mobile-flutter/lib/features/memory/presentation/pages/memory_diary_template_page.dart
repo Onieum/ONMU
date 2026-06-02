@@ -7,10 +7,7 @@ import '../../../../shared/widgets/grid_background.dart';
 class MemoryDiaryTemplatePage extends StatelessWidget {
   final String memoryId;
 
-  const MemoryDiaryTemplatePage({
-    super.key,
-    required this.memoryId,
-  });
+  const MemoryDiaryTemplatePage({super.key, required this.memoryId});
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +55,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: AppColors.textSub),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // 템플릿 리스트 모의 레이아웃
                 Expanded(
                   child: GridView.count(
@@ -74,7 +71,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // 하단 저장 완료 버튼
                 SizedBox(
                   width: double.infinity,
@@ -82,7 +79,9 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('다이어리 템플릿이 적용되어 최종 저장되었습니다!')),
+                        const SnackBar(
+                          content: Text('다이어리 템플릿이 적용되어 최종 저장되었습니다!'),
+                        ),
                       );
                       context.pop(); // Pop back to detail screen
                     },
@@ -116,7 +115,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                 BoxShadow(
                   color: AppColors.primaryPink.withOpacity(0.12),
                   blurRadius: 8,
-                )
+                ),
               ]
             : null,
       ),
@@ -131,7 +130,11 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.lineSoft),
             ),
-            child: const Icon(Icons.art_track_outlined, size: 36, color: AppColors.textSub),
+            child: const Icon(
+              Icons.art_track_outlined,
+              size: 36,
+              color: AppColors.textSub,
+            ),
           ),
           const SizedBox(height: 8),
           Text(

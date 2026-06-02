@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -12,14 +12,14 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
-class OnChatMeetupBoardPage extends StatelessWidget {
-  const OnChatMeetupBoardPage({super.key});
+class OnMoimMeetupBoardPage extends StatelessWidget {
+  const OnMoimMeetupBoardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '약속 보드',
-      subtitle: '온챗 · 우리들의 주말 · 투표 마감 D-1',
+      subtitle: '온모임 · 우리들의 주말 · 투표 마감 D-1',
       bottom: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -27,7 +27,7 @@ class OnChatMeetupBoardPage extends StatelessWidget {
             label: '최종 장소 확정하기',
             icon: Icons.check_circle_outline,
             color: AppColors.primaryPink,
-            onPressed: () => context.go(RoutePaths.onchatDemoChat),
+            onPressed: () => context.go(RoutePaths.onmoimDemoMeetup),
           ),
         ),
       ),
@@ -78,25 +78,11 @@ class OnChatMeetupBoardPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '장소 추천',
-                icon: Icons.place_outlined,
-                onPressed: () =>
-                    context.go('${RoutePaths.placeCandidates}?voteResult=1'),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '정산 보기',
-                icon: Icons.receipt_long_outlined,
-                onPressed: () => context.go(RoutePaths.settlementShare),
-              ),
-            ),
-          ],
+        OnmuSecondaryButton(
+          label: '장소 추천',
+          icon: Icons.place_outlined,
+          onPressed: () =>
+              context.go('${RoutePaths.onmoimDemoMeetupPlaces}?voteResult=1'),
         ),
       ],
     );

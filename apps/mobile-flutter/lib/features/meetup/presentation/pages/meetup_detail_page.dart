@@ -13,8 +13,13 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupDetailPage extends StatelessWidget {
-  const MeetupDetailPage({required this.meetupId, super.key});
+  const MeetupDetailPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
 
+  final String onmoimId;
   final String meetupId;
 
   @override
@@ -25,7 +30,7 @@ class MeetupDetailPage extends StatelessWidget {
         .toList();
 
     return OnmuScaffold(
-      title: '약속 상세',
+      title: meetup.title,
       showBackButton: true,
       onBack: () => context.pop(),
       action: IconButton(
@@ -34,25 +39,129 @@ class MeetupDetailPage extends StatelessWidget {
         icon: const Icon(Icons.more_vert),
       ),
       bottom: OnmuPrimaryButton(
-        label: '동선 확인',
-        icon: Icons.route_outlined,
-        onPressed: () => context.push(RoutePaths.meetupRouteReview(meetup.id)),
+        label: '지도에서 후보 보기',
+        icon: Icons.map_outlined,
+        onPressed: () =>
+            context.push(RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetup.id)),
       ),
       children: [
         _MeetupHeaderCard(meetup: meetup, members: selectedMembers),
-        const SizedBox(height: AppSpacing.md),
-        const _CountdownCard(),
+        const SizedBox(height: AppSpacing.sm),
+        _CountdownCard(
+          onMapPressed: () => context.push(
+            RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetup.id),
+          ),
+        ),
         const SizedBox(height: AppSpacing.md),
         _MembersCard(members: selectedMembers),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         _ScheduleCard(meetup: meetup),
+        const SizedBox(height: AppSpacing.sm),
+        _MeetupActionCard(onmoimId: onmoimId, meetupId: meetup.id),
         const SizedBox(height: AppSpacing.md),
         _VisitPlanCard(visitPlan: meetup.visitPlan),
         const SizedBox(height: AppSpacing.md),
         _MemoCard(memo: meetup.memo),
-        const SizedBox(height: AppSpacing.md),
-        const _StatusCard(),
       ],
+    );
+  }
+}
+
+class _MeetupActionCard extends StatelessWidget {
+  const _MeetupActionCard({required this.onmoimId, required this.meetupId});
+
+  final String onmoimId;
+  final String meetupId;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.dashboard_customize,
+                color: AppColors.primaryPurple,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '약속 도구',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '후보 비교, 정산, 동선 확인을 여기서 이어갈 수 있어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '지도 보기',
+                  icon: Icons.map_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '정산 보기',
+                  icon: Icons.payments_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupSettlementShare(
+                      onmoimId,
+                      meetupId,
+                      'lunch-split',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '약속 보드',
+                  icon: Icons.dashboard_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupBoard(onmoimId, meetupId),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '정산 만들기',
+                  icon: Icons.receipt_long_outlined,
+                  onPressed: () => context.push(
+                    RoutePaths.onmoimMeetupSettlementNew(onmoimId, meetupId),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OnmuSecondaryButton(
+            label: '동선 확인',
+            icon: Icons.route_outlined,
+            onPressed: () => context.push(
+              RoutePaths.onmoimMeetupRouteReview(onmoimId, meetupId),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -66,20 +175,22 @@ class _MeetupHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.linePink,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 112,
-            height: 76,
+            width: 98,
+            height: 62,
             child: Stack(
               children: [
                 for (var index = 0; index < members.length; index++)
                   Positioned(
-                    left: index * 24,
+                    left: index * 22,
                     child: PixelAvatar(
                       label: members[index].name,
-                      size: 52,
+                      size: 46,
                       bodyColor: index.isEven
                           ? AppColors.primaryPurple
                           : AppColors.primaryPink,
@@ -104,7 +215,7 @@ class _MeetupHeaderCard extends StatelessWidget {
                     OnmuChip(label: meetup.status, selected: true),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 _IconText(
                   icon: Icons.calendar_month_outlined,
                   text: meetup.dateTime,
@@ -124,65 +235,93 @@ class _MeetupHeaderCard extends StatelessWidget {
 }
 
 class _CountdownCard extends StatelessWidget {
-  const _CountdownCard();
+  const _CountdownCard({required this.onMapPressed});
+
+  final VoidCallback onMapPressed;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      child: Row(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.schedule, color: AppColors.primaryPurple),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '약속까지 D-2',
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: AppColors.primaryPurple),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '다음 할 일',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '5월 24일 (금) 오늘',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
+              ),
+              const OnmuChip(label: '장소 진행중', selected: true),
+            ],
           ),
-          const _ActionTile(icon: Icons.ios_share, label: '공유'),
-          const SizedBox(width: AppSpacing.xs),
-          const _ActionTile(icon: Icons.person_add_alt_1, label: '초대'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '장소 후보 3개 중 하나를 골라요. 혜린, 현우 투표가 남았어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _ProgressSteps(),
+          const SizedBox(height: AppSpacing.md),
+          OnmuPrimaryButton(
+            label: '지도에서 비교하기',
+            icon: Icons.map_outlined,
+            onPressed: onMapPressed,
+          ),
         ],
       ),
     );
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.icon, required this.label});
+class _ProgressSteps extends StatelessWidget {
+  const _ProgressSteps();
 
-  final IconData icon;
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(child: _ProgressStep(label: '참여자', done: true)),
+        SizedBox(width: AppSpacing.xs),
+        Expanded(child: _ProgressStep(label: '시간', done: true)),
+        SizedBox(width: AppSpacing.xs),
+        Expanded(child: _ProgressStep(label: '장소', done: false)),
+        SizedBox(width: AppSpacing.xs),
+        Expanded(child: _ProgressStep(label: '완료', done: false)),
+      ],
+    );
+  }
+}
+
+class _ProgressStep extends StatelessWidget {
+  const _ProgressStep({required this.label, required this.done});
+
   final String label;
+  final bool done;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.bgPurpleSoft,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.lineSoft),
+        color: done ? AppColors.primaryPurpleSoft : AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: done ? AppColors.linePurple : AppColors.lineSoft,
+        ),
       ),
-      child: SizedBox(
-        width: 56,
-        height: 58,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: AppColors.primaryPurple),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: done ? AppColors.primaryPurpleDark : AppColors.textMuted,
+          ),
         ),
       ),
     );
@@ -207,7 +346,10 @@ class _MembersCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text('참여자', style: Theme.of(context).textTheme.titleMedium),
               const Spacer(),
-              Text('4명', style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                '${members.length}명',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -456,55 +598,6 @@ class _MemoCard extends StatelessWidget {
                 Text(memo, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusCard extends StatelessWidget {
-  const _StatusCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: AppColors.primaryPurple),
-              const SizedBox(width: AppSpacing.sm),
-              Text('상태', style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: OnmuSecondaryButton(
-                  label: '출발했어요',
-                  icon: Icons.near_me_outlined,
-                  onPressed: () {},
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: OnmuSecondaryButton(
-                  label: '도착했어요',
-                  icon: Icons.location_on_outlined,
-                  onPressed: () {},
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          OnmuSecondaryButton(
-            label: '늦을 것 같아요',
-            icon: Icons.access_time,
-            onPressed: () {},
           ),
         ],
       ),

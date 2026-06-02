@@ -19,27 +19,34 @@ class OnmuTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const sideWidth = 104.0;
+
     return SizedBox(
       height: 56,
       child: Row(
         children: [
-          const SizedBox(width: 8),
-          SizedBox.square(
-            dimension: 48,
-            child: showBackButton
-                ? IconButton(
-                    tooltip: '뒤로',
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back_ios_new),
-                    style: IconButton.styleFrom(
-                      foregroundColor: AppColors.textMain,
-                      backgroundColor: AppColors.bgWarm,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                      ),
-                    ),
-                  )
-                : null,
+          SizedBox(
+            width: sideWidth,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox.square(
+                dimension: 44,
+                child: showBackButton
+                    ? IconButton(
+                        tooltip: '뒤로',
+                        onPressed: onBack,
+                        icon: const Icon(Icons.arrow_back_ios_new),
+                        style: IconButton.styleFrom(
+                          foregroundColor: AppColors.textMain,
+                          backgroundColor: AppColors.bgWarm,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
           ),
           Expanded(
             child: Text(
@@ -48,8 +55,10 @@ class OnmuTopBar extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          SizedBox.square(dimension: 48, child: action),
-          const SizedBox(width: 8),
+          SizedBox(
+            width: sideWidth,
+            child: Align(alignment: Alignment.centerRight, child: action),
+          ),
         ],
       ),
     );

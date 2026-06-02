@@ -12,8 +12,15 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
 class PlaceCandidatePage extends StatelessWidget {
-  const PlaceCandidatePage({super.key, this.showVoteResult = false});
+  const PlaceCandidatePage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+    this.showVoteResult = false,
+  });
 
+  final String onmoimId;
+  final String meetupId;
   final bool showVoteResult;
 
   @override
@@ -36,7 +43,9 @@ class PlaceCandidatePage extends StatelessWidget {
             icon: Icons.compare_arrows,
             color: AppColors.primaryPurple,
             foregroundColor: AppColors.textInverse,
-            onPressed: () => context.go(RoutePaths.placeCompare),
+            onPressed: () => context.go(
+              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+            ),
           ),
         ),
       ),
@@ -50,8 +59,12 @@ class PlaceCandidatePage extends StatelessWidget {
         const _MapPreviewCard(),
         const SizedBox(height: AppSpacing.md),
         _PlaceSearchRow(
-          onSearchPressed: () => context.go(RoutePaths.placeSearch),
-          onFilterPressed: () => context.go(RoutePaths.placeSearch),
+          onSearchPressed: () => context.go(
+            RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
+          ),
+          onFilterPressed: () => context.go(
+            RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         Row(
@@ -59,7 +72,9 @@ class PlaceCandidatePage extends StatelessWidget {
             Text('추천 후보', style: Theme.of(context).textTheme.titleMedium),
             const Spacer(),
             TextButton.icon(
-              onPressed: () => context.go(RoutePaths.placeSearch),
+              onPressed: () => context.go(
+                RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
+              ),
               icon: const Icon(Icons.chevron_right),
               label: const Text('24개 보기'),
             ),
@@ -70,16 +85,25 @@ class PlaceCandidatePage extends StatelessWidget {
           PlaceCandidateCard(
             candidate: candidate,
             onDetailPressed: () {
-              context.go('/meetups/demo/places/${candidate.id}');
+              context.go(
+                RoutePaths.onmoimMeetupPlaceDetail(
+                  onmoimId,
+                  meetupId,
+                  candidate.id,
+                ),
+              );
             },
-            onSelectPressed: () => context.go(RoutePaths.placeCompare),
+            onSelectPressed: () => context.go(
+              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
         OnmuSecondaryButton(
           label: '운영 리스크 확인',
           icon: Icons.warning_amber,
-          onPressed: () => context.go(RoutePaths.placeRisks),
+          onPressed: () =>
+              context.go(RoutePaths.onmoimMeetupPlaceRisks(onmoimId, meetupId)),
         ),
       ],
     );

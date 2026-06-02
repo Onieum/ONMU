@@ -14,8 +14,13 @@ import '../../../../shared/widgets/onmu_step_progress.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupCompletePage extends StatefulWidget {
-  const MeetupCompletePage({required this.meetupId, super.key});
+  const MeetupCompletePage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
 
+  final String onmoimId;
   final String meetupId;
 
   @override
@@ -56,9 +61,10 @@ class _MeetupCompletePageState extends State<MeetupCompletePage> {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: OnmuPrimaryButton(
-              label: '약속 홈으로 이동',
+              label: '온모임 홈으로 이동',
               icon: Icons.home_outlined,
-              onPressed: () => context.go(RoutePaths.meetups),
+              onPressed: () =>
+                  context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
             ),
           ),
         ],

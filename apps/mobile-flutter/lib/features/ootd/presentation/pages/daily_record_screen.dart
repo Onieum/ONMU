@@ -59,27 +59,37 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.ootdRecord != null && widget.ootdRecord!.brands['recordType'] == 'daily') {
+    if (widget.ootdRecord != null &&
+        widget.ootdRecord!.brands['recordType'] == 'daily') {
       final r = widget.ootdRecord!;
       _selectedMood = _moods.indexWhere((m) => m.label == r.brands['mood']);
       if (_selectedMood == -1) _selectedMood = 0;
-      _selectedWeather = _weathers.indexWhere((w) => w.label == r.brands['weather']);
+      _selectedWeather = _weathers.indexWhere(
+        (w) => w.label == r.brands['weather'],
+      );
       if (_selectedWeather == -1) _selectedWeather = 0;
       _selectedTheme = r.brands['theme'] == 'diary' ? 0 : 1;
       _includeCrew = r.brands['crew'] == 'included';
-      
+
       _hashtags.clear();
       _hashtags.addAll(r.moodTags);
-      
+
       // Load daily memo
       final dailyItem = r.timeline.firstWhere(
         (item) => item.category == 'daily',
-        orElse: () => const TimelineItem(time: '', placeName: '', category: '', description: ''),
+        orElse: () => const TimelineItem(
+          time: '',
+          placeName: '',
+          category: '',
+          description: '',
+        ),
       );
       _dayMemoController.text = dailyItem.description;
 
       // Load photo memos
-      final photoItems = r.timeline.where((item) => item.category == 'photo').toList();
+      final photoItems = r.timeline
+          .where((item) => item.category == 'photo')
+          .toList();
       _photoMemos.clear();
       if (photoItems.isEmpty) {
         _photoMemos.add(_PhotoMemoDraft());

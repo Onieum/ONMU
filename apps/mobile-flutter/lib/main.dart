@@ -1,26 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/routing/route_paths.dart';
 import 'core/theme/app_theme.dart';
 import 'features/character/character_start_page.dart';
-import 'features/launch/splash_page.dart';
 import 'features/home/home_page.dart';
+import 'features/launch/splash_page.dart';
+import 'features/meetup/presentation/pages/meetup_calendar_page.dart';
+import 'features/meetup/presentation/pages/meetup_complete_page.dart';
+import 'features/meetup/presentation/pages/meetup_date_select_page.dart';
+import 'features/meetup/presentation/pages/meetup_detail_page.dart';
+import 'features/meetup/presentation/pages/meetup_member_select_page.dart';
+import 'features/meetup/presentation/pages/meetup_route_review_page.dart';
+import 'features/memory/presentation/pages/memory_detail_page.dart';
+import 'features/memory/presentation/pages/memory_diary_template_page.dart';
+import 'features/my/my_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_group_home_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_list_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_thread_page.dart';
 import 'features/ootd/ootd_list_page.dart';
 import 'features/ootd/presentation/pages/daily_record_screen.dart';
 import 'features/ootd/presentation/pages/ootd_record_screen.dart';
-import 'features/memory/presentation/pages/memory_detail_page.dart';
-import 'features/memory/presentation/pages/memory_diary_template_page.dart';
+import 'features/place/presentation/pages/place_candidate_page.dart';
+import 'features/place/presentation/pages/place_compare_page.dart';
+import 'features/place/presentation/pages/place_detail_page.dart';
+import 'features/place/presentation/pages/place_map_page.dart';
+import 'features/place/presentation/pages/place_risks_page.dart';
+import 'features/place/presentation/pages/place_search_filter_page.dart';
 import 'main_shell.dart';
 import 'shared/models/ootd_model.dart';
 import 'shared/providers/state_providers.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: OnmuApp(),
-    ),
-  );
+  usePathUrlStrategy();
+  runApp(const ProviderScope(child: OnmuApp()));
 }
 
 class OnmuApp extends ConsumerStatefulWidget {
@@ -37,11 +56,10 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
   @override
   void initState() {
     super.initState();
-    
+
     _refreshNotifier = _RouterRefreshNotifier();
-    
     _router = GoRouter(
-      initialLocation: '/splash',
+      initialLocation: RoutePaths.splash,
       refreshListenable: _refreshNotifier,
       redirect: (context, state) {
         final showSplash = ref.read(showSplashProvider);
@@ -49,7 +67,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         final location = state.matchedLocation;
 
         if (showSplash) {
-          return '/splash';
+          return RoutePaths.splash;
         }
 
         if (character == null) {
@@ -59,15 +77,15 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
           return '/character/start';
         }
 
-        if (location == '/splash' || location == '/character/start') {
-          return '/home';
+        if (location == RoutePaths.splash || location == '/character/start') {
+          return RoutePaths.home;
         }
 
         return null;
       },
       routes: [
         GoRoute(
-          path: '/splash',
+          path: RoutePaths.splash,
           builder: (context, state) => SplashPage(
             onTimeout: () {
               ref.read(showSplashProvider.notifier).state = false;
@@ -82,39 +100,202 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
             },
           ),
         ),
-        
-        // StatefulShellRoute로 하단 탭 내비게이션 바 구성
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
             return MainShell(navigationShell: navigationShell);
           },
           branches: [
-            // 탭 0: 홈
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/home',
+                  path: RoutePaths.home,
                   builder: (context, state) => const HomePage(),
                 ),
               ],
             ),
-            // 탭 1: 온모임
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/onchat',
-                  builder: (context, state) => const _TabPlaceholder(
-                    title: '온모임 탭',
-                    todoText: '온모임 목록 화면 개발 예정',
-                  ),
+                  path: RoutePaths.onmoim,
+                  builder: (context, state) => const OnMoimListPage(),
+                  routes: [
+                    GoRoute(
+                      path: ':onmoimId',
+                      builder: (context, state) => const OnMoimGroupHomePage(),
+                      routes: [
+                        GoRoute(
+                          path: 'chat',
+                          builder: (context, state) => const OnMoimThreadPage(),
+                        ),
+                        GoRoute(
+                          path: 'memories',
+                          builder: (context, state) =>
+                              const OnMoimMemoryBoardPage(),
+                        ),
+                        GoRoute(
+                          path: 'meetups/new/members',
+                          builder: (context, state) => MeetupMemberSelectPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                        ),
+                        GoRoute(
+                          path: 'meetups/new/schedule',
+                          builder: (context, state) => MeetupDateSelectPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                          routes: [
+                            GoRoute(
+                              path: 'calendar',
+                              builder: (context, state) =>
+                                  const MeetupCalendarPage(),
+                            ),
+                          ],
+                        ),
+                        GoRoute(
+                          path: 'meetups/:meetupId',
+                          builder: (context, state) => MeetupDetailPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                            meetupId: state.pathParameters['meetupId']!,
+                          ),
+                          routes: [
+                            GoRoute(
+                              path: 'board',
+                              builder: (context, state) =>
+                                  const OnMoimMeetupBoardPage(),
+                            ),
+                            GoRoute(
+                              path: 'places',
+                              builder: (context, state) {
+                                return PlaceCandidatePage(
+                                  onmoimId: state.pathParameters['onmoimId']!,
+                                  meetupId: state.pathParameters['meetupId']!,
+                                  showVoteResult:
+                                      state.uri.queryParameters['voteResult'] ==
+                                      '1',
+                                );
+                              },
+                              routes: [
+                                GoRoute(
+                                  path: 'search',
+                                  builder: (context, state) =>
+                                      PlaceSearchFilterPage(
+                                        onmoimId:
+                                            state.pathParameters['onmoimId']!,
+                                        meetupId:
+                                            state.pathParameters['meetupId']!,
+                                      ),
+                                ),
+                                GoRoute(
+                                  path: 'map',
+                                  builder: (context, state) => PlaceMapPage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                                ),
+                                GoRoute(
+                                  path: 'risks',
+                                  builder: (context, state) => PlaceRisksPage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                                  routes: [
+                                    GoRoute(
+                                      path: 'keyword',
+                                      builder: (context, state) =>
+                                          PlaceRiskDialogPreviewPage(
+                                            onmoimId: state
+                                                .pathParameters['onmoimId']!,
+                                            meetupId: state
+                                                .pathParameters['meetupId']!,
+                                            kind: PlaceRiskDialogKind.keyword,
+                                          ),
+                                    ),
+                                    GoRoute(
+                                      path: 'break-time',
+                                      builder: (context, state) =>
+                                          PlaceRiskDialogPreviewPage(
+                                            onmoimId: state
+                                                .pathParameters['onmoimId']!,
+                                            meetupId: state
+                                                .pathParameters['meetupId']!,
+                                            kind: PlaceRiskDialogKind.breakTime,
+                                          ),
+                                    ),
+                                    GoRoute(
+                                      path: 'closed-day',
+                                      builder: (context, state) =>
+                                          PlaceRiskDialogPreviewPage(
+                                            onmoimId: state
+                                                .pathParameters['onmoimId']!,
+                                            meetupId: state
+                                                .pathParameters['meetupId']!,
+                                            kind: PlaceRiskDialogKind.closedDay,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                GoRoute(
+                                  path: ':placeId',
+                                  builder: (context, state) => PlaceDetailPage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                    placeId:
+                                        state.pathParameters['placeId'] ??
+                                        'onmu-diner',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            GoRoute(
+                              path: 'place-compare',
+                              builder: (context, state) => PlaceComparePage(
+                                onmoimId: state.pathParameters['onmoimId']!,
+                                meetupId: state.pathParameters['meetupId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'route-review',
+                              builder: (context, state) =>
+                                  MeetupRouteReviewPage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'complete',
+                              builder: (context, state) => MeetupCompletePage(
+                                onmoimId: state.pathParameters['onmoimId']!,
+                                meetupId: state.pathParameters['meetupId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new',
+                              builder: (context, state) =>
+                                  OnMoimSettlementCreatePage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/:settlementId',
+                              builder: (context, state) =>
+                                  OnMoimSettlementSharePage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
-            // 탭 3: 기록 (OotdListPage)
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/ootd/list',
+                  path: RoutePaths.ootdList,
                   builder: (context, state) {
                     final character = ref.watch(userCharacterProvider)!;
                     final records = ref.watch(customRecordsProvider);
@@ -128,20 +309,18 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                         );
                       },
                       onAddDailyRecord: (date, ootdRecord) {
-                        // ootdRecord가 있으면 query parameter 대신 extra로 전달할 수 있도록 함
                         context.push(
                           '/ootd/new/daily?date=${date.toIso8601String()}',
                           extra: ootdRecord,
                         );
                       },
                       onViewOotdDetail: (record) {
-                        // 기록 상세(기억 상세) 페이지 이동
                         final type = record.brands['recordType'] ?? 'ootd';
-                        final recordKey = '${record.date.year}-${record.date.month}-${record.date.day}-$type';
+                        final recordKey =
+                            '${record.date.year}-${record.date.month}-${record.date.day}-$type';
                         context.push('/memories/$recordKey');
                       },
                       onNavigateToProfile: () {
-                        // 캐릭터 초기화 다이얼로그 호출
                         _showResetDialog(context);
                       },
                     );
@@ -149,26 +328,22 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                 ),
               ],
             ),
-            // 탭 4: 마이
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/my',
-                  builder: (context, state) => const _TabPlaceholder(
-                    title: '마이 탭',
-                    todoText: '마이페이지 개발 예정',
-                  ),
+                  path: RoutePaths.my,
+                  builder: (context, state) => const MyPage(),
                 ),
               ],
             ),
           ],
         ),
-
-        // 기록 등록 화면들 (풀스크린 모달 형태)
         GoRoute(
           path: '/ootd/new/daily',
           builder: (context, state) {
-            final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
+            final dateStr =
+                state.uri.queryParameters['date'] ??
+                DateTime.now().toIso8601String();
             final date = DateTime.parse(dateStr);
             final ootdRecord = state.extra as OotdRecord?;
             final character = ref.read(userCharacterProvider)!;
@@ -177,22 +352,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
               userCharacter: character,
               recordDate: date,
               ootdRecord: ootdRecord,
-              onSave: (newRecord) {
-                ref.read(customRecordsProvider.notifier).update((state) {
-                  final type = newRecord.brands['recordType'] ?? 'daily';
-                  final index = state.indexWhere((r) =>
-                      r.date.year == newRecord.date.year &&
-                      r.date.month == newRecord.date.month &&
-                      r.date.day == newRecord.date.day &&
-                      (r.brands['recordType'] ?? 'daily') == type);
-                  if (index != -1) {
-                    final list = List<OotdRecord>.from(state);
-                    list[index] = newRecord;
-                    return list;
-                  }
-                  return [...state, newRecord];
-                });
-              },
+              onSave: _upsertRecord,
               onCreateOotd: () {
                 context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
               },
@@ -202,7 +362,9 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         GoRoute(
           path: '/ootd/new/ootd',
           builder: (context, state) {
-            final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
+            final dateStr =
+                state.uri.queryParameters['date'] ??
+                DateTime.now().toIso8601String();
             final date = DateTime.parse(dateStr);
             final character = ref.read(userCharacterProvider)!;
             final existingRecord = state.extra as OotdRecord?;
@@ -211,27 +373,10 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
               userCharacter: character,
               recordDate: date,
               existingRecord: existingRecord,
-              onSave: (newRecord) {
-                ref.read(customRecordsProvider.notifier).update((state) {
-                  final type = newRecord.brands['recordType'] ?? 'ootd';
-                  final index = state.indexWhere((r) =>
-                      r.date.year == newRecord.date.year &&
-                      r.date.month == newRecord.date.month &&
-                      r.date.day == newRecord.date.day &&
-                      (r.brands['recordType'] ?? 'ootd') == type);
-                  if (index != -1) {
-                    final list = List<OotdRecord>.from(state);
-                    list[index] = newRecord;
-                    return list;
-                  }
-                  return [...state, newRecord];
-                });
-              },
+              onSave: _upsertRecord,
             );
           },
         ),
-
-        // 기억 상세 및 다이어리 템플릿
         GoRoute(
           path: '/memories/:memoryId',
           builder: (context, state) {
@@ -250,26 +395,43 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
     );
   }
 
+  void _upsertRecord(OotdRecord newRecord) {
+    ref.read(customRecordsProvider.notifier).update((state) {
+      final type = newRecord.brands['recordType'] ?? 'daily';
+      final index = state.indexWhere((record) {
+        return record.date.year == newRecord.date.year &&
+            record.date.month == newRecord.date.month &&
+            record.date.day == newRecord.date.day &&
+            (record.brands['recordType'] ?? 'daily') == type;
+      });
+
+      if (index != -1) {
+        final list = List<OotdRecord>.from(state);
+        list[index] = newRecord;
+        return list;
+      }
+
+      return [...state, newRecord];
+    });
+  }
+
   void _showResetDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('캐릭터 재설정'),
         content: const Text('캐릭터를 처음부터 다시 만들까요?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('취소'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(dialogCtx).pop();
+              Navigator.of(dialogContext).pop();
               ref.read(userCharacterProvider.notifier).state = null;
             },
-            child: const Text(
-              '초기화',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('초기화', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -278,9 +440,12 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Riverpod 상태 변화를 감지하여 GoRouter 리프레시 노티파이어 트리거
-    ref.listen(showSplashProvider, (a, b) => _refreshNotifier.notify());
-    ref.listen(userCharacterProvider, (a, b) => _refreshNotifier.notify());
+    ref.listen(showSplashProvider, (previous, next) {
+      _refreshNotifier.notify();
+    });
+    ref.listen(userCharacterProvider, (previous, next) {
+      _refreshNotifier.notify();
+    });
 
     return MaterialApp.router(
       title: 'ONMU',
@@ -291,48 +456,8 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
   }
 }
 
-// 라우터 갱신을 돕는 심플 노티파이어
 class _RouterRefreshNotifier extends ChangeNotifier {
   void notify() {
     notifyListeners();
-  }
-}
-
-// 탭 플레이스홀더 위젯
-class _TabPlaceholder extends StatelessWidget {
-  final String title;
-  final String todoText;
-
-  const _TabPlaceholder({required this.title, required this.todoText});
-
-  @override
-  Widget build(BuildContext context) {
-    final textMain = const Color(0xFF3A2A23);
-    final textSub = const Color(0xFF7A6258);
-    final bgWarm = const Color(0xFFFFFDF9);
-
-    return Scaffold(
-      backgroundColor: bgWarm,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: textMain,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'TODO: $todoText',
-              style: TextStyle(fontSize: 13, color: textSub),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

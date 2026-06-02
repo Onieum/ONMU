@@ -12,8 +12,13 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class MeetupRouteReviewPage extends StatelessWidget {
-  const MeetupRouteReviewPage({required this.meetupId, super.key});
+  const MeetupRouteReviewPage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
 
+  final String onmoimId;
   final String meetupId;
 
   @override
@@ -27,7 +32,8 @@ class MeetupRouteReviewPage extends StatelessWidget {
       bottom: OnmuPrimaryButton(
         label: '약속 완료',
         icon: Icons.check,
-        onPressed: () => context.push(RoutePaths.meetupComplete(meetup.id)),
+        onPressed: () =>
+            context.push(RoutePaths.onmoimMeetupComplete(onmoimId, meetup.id)),
       ),
       children: [
         OnmuCard(

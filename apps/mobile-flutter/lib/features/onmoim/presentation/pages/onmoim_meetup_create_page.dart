@@ -10,14 +10,14 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
-class OnChatMeetupCreatePage extends StatelessWidget {
-  const OnChatMeetupCreatePage({super.key});
+class OnMoimMeetupCreatePage extends StatelessWidget {
+  const OnMoimMeetupCreatePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '온챗 약속 만들기',
-      subtitle: '온챗 멤버와 날짜 후보를 약속 메모로 정리합니다.',
+      title: '온모임 약속 만들기',
+      subtitle: '온모임 멤버와 날짜 후보를 약속 메모로 정리합니다.',
       children: [
         const _CreateSection(title: '참여자', chips: ['민서', '지훈', '하린', '나']),
         const SizedBox(height: AppSpacing.md),
@@ -40,7 +40,7 @@ class OnChatMeetupCreatePage extends StatelessWidget {
         OnmuPrimaryButton(
           label: '약속 보드 만들기',
           icon: Icons.add_task,
-          onPressed: () => context.go(RoutePaths.onchatMeetupBoard),
+          onPressed: () => context.go(RoutePaths.onmoimDemoMeetupBoard),
         ),
       ],
     );

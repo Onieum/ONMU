@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
-class OnChatMemoryBoardPage extends StatelessWidget {
-  const OnChatMemoryBoardPage({super.key});
+class OnMoimMemoryBoardPage extends StatelessWidget {
+  const OnMoimMemoryBoardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class OnChatMemoryBoardPage extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            for (final memory in demoOnChatMemories)
+            for (final memory in demoOnMoimMemories)
               _MemoryCard(memory: memory),
           ],
         ),
@@ -102,7 +102,7 @@ class _MemoryFilters extends StatelessWidget {
 class _MemoryCard extends StatelessWidget {
   const _MemoryCard({required this.memory});
 
-  final OnChatMemoryRecord memory;
+  final OnMoimMemoryRecord memory;
 
   @override
   Widget build(BuildContext context) {

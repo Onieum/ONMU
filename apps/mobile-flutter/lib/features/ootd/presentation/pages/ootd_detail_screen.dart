@@ -8,15 +8,13 @@ import '../../../../shared/widgets/grid_background.dart';
 class OotdDetailScreen extends StatelessWidget {
   final OotdRecord record;
 
-  const OotdDetailScreen({
-    super.key,
-    required this.record,
-  });
+  const OotdDetailScreen({super.key, required this.record});
 
   @override
   Widget build(BuildContext context) {
     // 10월 3일 '서울 카페 투어' 레코드에 대한 특별 콜라주 레이아웃 활성화
-    final isSpecialCollage = record.moodTags.contains('#서울카페투어') ||
+    final isSpecialCollage =
+        record.moodTags.contains('#서울카페투어') ||
         (record.date.month == 10 && record.date.day == 3);
 
     return Scaffold(
@@ -30,13 +28,17 @@ class OotdDetailScreen extends StatelessWidget {
         ),
         title: Text(
           '${record.date.year}.${record.date.month}.${record.date.day} 다이어리',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textMain, fontSize: 16),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textMain,
+            fontSize: 16,
+          ),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_horiz, color: AppColors.textMain),
             onPressed: () {},
-          )
+          ),
         ],
       ),
       body: GridBackground(
@@ -78,7 +80,11 @@ class OotdDetailScreen extends StatelessWidget {
         children: [
           const Text(
             '📝 2026.10.03 (SAT) 💖',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryPink),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryPink,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -160,13 +166,27 @@ class OotdDetailScreen extends StatelessWidget {
                 children: [
                   Column(
                     children: [
-                      PixelCharacterWidget(character: record.character, size: 70),
+                      PixelCharacterWidget(
+                        character: record.character,
+                        size: 70,
+                      ),
                       const SizedBox(height: 4),
-                      const Text('나', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                      const Text(
+                        '나',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(width: 24),
-                  const Icon(Icons.favorite, color: AppColors.accentRed, size: 24),
+                  const Icon(
+                    Icons.favorite,
+                    color: AppColors.accentRed,
+                    size: 24,
+                  ),
                   const SizedBox(width: 24),
                   Column(
                     children: [
@@ -184,7 +204,14 @@ class OotdDetailScreen extends StatelessWidget {
                         size: 70,
                       ),
                       const SizedBox(height: 4),
-                      const Text('지훈', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                      const Text(
+                        '지훈',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -277,26 +304,49 @@ class OotdDetailScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'BRAND INFO 👕',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryPurple),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryPurple,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   if (record.brands.isEmpty)
-                    const Text('의상 정보가 비어있습니다.', style: TextStyle(fontSize: 12, color: AppColors.textMuted))
+                    const Text(
+                      '의상 정보가 비어있습니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    )
                   else
                     ...record.brands.entries.map((e) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
                           children: [
-                            Text('${e.key}: ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSub)),
-                            Text(e.value, style: const TextStyle(fontSize: 12, color: AppColors.textMain)),
+                            Text(
+                              '${e.key}: ',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSub,
+                              ),
+                            ),
+                            Text(
+                              e.value,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMain,
+                              ),
+                            ),
                           ],
                         ),
                       );
                     }),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -321,7 +371,7 @@ class OotdDetailScreen extends StatelessWidget {
             color: Colors.black.withOpacity(0.03),
             blurRadius: 4,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -335,20 +385,25 @@ class OotdDetailScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             alignment: Alignment.center,
-            child: Text(
-              emoji,
-              style: const TextStyle(fontSize: 32),
-            ),
+            child: Text(emoji, style: const TextStyle(fontSize: 32)),
           ),
           const SizedBox(height: 8),
           Text(
             title,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             description,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.3),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSub,
+              height: 1.3,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -371,21 +426,42 @@ class OotdDetailScreen extends StatelessWidget {
           // 동행
           Column(
             children: [
-              const Text('WITH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+              const Text(
+                'WITH',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textMuted,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   const CircleAvatar(
                     radius: 12,
                     backgroundColor: AppColors.primaryPinkSoft,
-                    child: Text('나', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryPink)),
+                    child: Text(
+                      '나',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryPink,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   if (record.moodTags.contains('#데이트'))
                     const CircleAvatar(
                       radius: 12,
                       backgroundColor: AppColors.primaryPurpleSoft,
-                      child: Text('지훈', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryPurple)),
+                      child: Text(
+                        '지훈',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryPurple,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -394,30 +470,60 @@ class OotdDetailScreen extends StatelessWidget {
           // 기분
           Column(
             children: [
-              const Text('MOOD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+              const Text(
+                'MOOD',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textMuted,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
-                record.mood == 'happy' ? '😊 신남' : record.mood == 'excited' ? '🥰 데이트' : '☕ 차분',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                record.mood == 'happy'
+                    ? '😊 신남'
+                    : record.mood == 'excited'
+                    ? '🥰 데이트'
+                    : '☕ 차분',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textMain,
+                ),
               ),
             ],
           ),
           // 날씨
           Column(
             children: [
-              const Text('WEATHER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+              const Text(
+                'WEATHER',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textMuted,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
-                    record.weather == 'sunny' ? Icons.wb_sunny : Icons.wb_cloudy_outlined,
+                    record.weather == 'sunny'
+                        ? Icons.wb_sunny
+                        : Icons.wb_cloudy_outlined,
                     size: 14,
-                    color: record.weather == 'sunny' ? AppColors.accentOrange : AppColors.accentBlue,
+                    color: record.weather == 'sunny'
+                        ? AppColors.accentOrange
+                        : AppColors.accentBlue,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     record.weather == 'sunny' ? '맑음 20°C' : '구름',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                    ),
                   ),
                 ],
               ),
@@ -434,11 +540,18 @@ class OotdDetailScreen extends StatelessWidget {
       children: [
         const Text(
           '오늘 하루의 기록 상세 📍',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 14),
         if (record.timeline.isEmpty)
-          const Text('추가된 타임라인 경로가 없습니다.', style: TextStyle(color: AppColors.textMuted, fontSize: 13))
+          const Text(
+            '추가된 타임라인 경로가 없습니다.',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
@@ -454,14 +567,21 @@ class OotdDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primaryPurpleSoft,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           item.time,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryPurple),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryPurple,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -471,12 +591,20 @@ class OotdDetailScreen extends StatelessWidget {
                           children: [
                             Text(
                               item.placeName,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textMain,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               item.description,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSub, height: 1.4),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSub,
+                                height: 1.4,
+                              ),
                             ),
                           ],
                         ),

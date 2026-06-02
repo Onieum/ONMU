@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/onchat_models.dart';
+import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 
-class OnChatGroupCard extends StatelessWidget {
-  const OnChatGroupCard({required this.group, required this.onTap, super.key});
+class OnMoimGroupCard extends StatelessWidget {
+  const OnMoimGroupCard({required this.group, required this.onTap, super.key});
 
-  final OnChatGroup group;
+  final OnMoimGroup group;
   final VoidCallback onTap;
 
   @override
@@ -19,6 +18,10 @@ class OnChatGroupCard extends StatelessWidget {
     return OnmuCard(
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -33,25 +36,59 @@ class OnChatGroupCard extends StatelessWidget {
                     Text(
                       group.name,
                       style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       '${group.members.length}명 · ${group.pinnedMeetupTitle}',
                       style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              if (group.unreadCount > 0)
-                OnmuChip(label: '${group.unreadCount}', selected: true),
+              const SizedBox(width: AppSpacing.xs),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (group.unreadCount > 0)
+                    OnmuChip(label: '${group.unreadCount}', selected: true),
+                  const SizedBox(height: AppSpacing.xs),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            group.description,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
           const SizedBox(height: AppSpacing.xs),
-          Text(group.lastMessage, style: Theme.of(context).textTheme.bodySmall),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  group.description,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              const _CompactStatus(label: '진행중'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            group.lastMessage,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -65,7 +102,7 @@ class PinnedMeetupCard extends StatelessWidget {
     super.key,
   });
 
-  final OnChatPinnedMeetup meetup;
+  final OnMoimPinnedMeetup meetup;
   final VoidCallback onBoardPressed;
 
   @override
@@ -74,29 +111,62 @@ class PinnedMeetupCard extends StatelessWidget {
       backgroundColor: AppColors.bgPaper,
       borderColor: AppColors.lineWarm,
       onTap: onBoardPressed,
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const OnmuStickerLabel(label: '고정 약속', icon: Icons.push_pin_outlined),
-          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(Icons.push_pin_outlined, color: AppColors.primaryPink),
+              const OnmuChip(label: '고정', selected: true),
+              const Spacer(),
+              const Icon(Icons.chevron_right, color: AppColors.accentBrown),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              const Icon(Icons.push_pin, color: AppColors.primaryPink),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   meetup.title,
                   style: Theme.of(context).textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.accentBrown),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(meetup.dateLabel, style: Theme.of(context).textTheme.bodyMedium),
-          Text(meetup.placeName, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: AppSpacing.sm),
-          OnmuChip(label: meetup.statusLabel, selected: true),
+          Text(
+            meetup.dateLabel,
+            style: Theme.of(context).textTheme.bodyMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            meetup.placeName,
+            style: Theme.of(context).textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              OnmuChip(label: meetup.statusLabel, selected: true),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  meetup.voteSummary,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -106,7 +176,7 @@ class PinnedMeetupCard extends StatelessWidget {
 class ChatMessageBubble extends StatelessWidget {
   const ChatMessageBubble({required this.message, super.key});
 
-  final OnChatMessage message;
+  final OnMoimMessage message;
 
   @override
   Widget build(BuildContext context) {
@@ -164,10 +234,10 @@ class ChatMessageBubble extends StatelessWidget {
   }
 }
 
-class SettlementStatusRow extends StatelessWidget {
-  const SettlementStatusRow({required this.member, super.key});
+class FinalSettlementResultRow extends StatelessWidget {
+  const FinalSettlementResultRow({required this.result, super.key});
 
-  final SettlementMember member;
+  final SettlementMemberResult result;
 
   @override
   Widget build(BuildContext context) {
@@ -178,13 +248,14 @@ class SettlementStatusRow extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            backgroundColor: member.isPaid
+            backgroundColor: result.willReceive
                 ? AppColors.accentGreen
                 : AppColors.primaryPinkSoft,
             foregroundColor: AppColors.textMain,
-            child: Text(member.name.characters.first),
+            child: Text(result.name.characters.first),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -192,17 +263,26 @@ class SettlementStatusRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  member.name,
+                  result.name,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  member.amountLabel,
+                  '부담 ${result.finalShareLabel} · 결제 ${result.paidAmountLabel}',
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  result.resultLabel,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textMain,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
           ),
-          OnmuChip(label: member.statusLabel, selected: member.isPaid),
+          if (result.isMe) const OnmuChip(label: '나', selected: true),
         ],
       ),
     );
@@ -215,9 +295,10 @@ class _AvatarCluster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 58,
+      width: 72,
       height: 34,
       child: Stack(
+        clipBehavior: Clip.none,
         children: const [
           Positioned(left: 0, child: _TinyAvatar(label: '민')),
           Positioned(left: 18, child: _TinyAvatar(label: '지')),
@@ -240,6 +321,35 @@ class _TinyAvatar extends StatelessWidget {
       backgroundColor: AppColors.primaryPinkSoft,
       foregroundColor: AppColors.textMain,
       child: Text(label),
+    );
+  }
+}
+
+class _CompactStatus extends StatelessWidget {
+  const _CompactStatus({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.primaryPurpleSoft,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.linePurple),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPurpleDark),
+        ),
+      ),
     );
   }
 }

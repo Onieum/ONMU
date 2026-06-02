@@ -71,7 +71,8 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       _moodTags.addAll(r.moodTags);
       _locationController.text = r.brands['스타일 컨셉'] ?? r.brands['장소'] ?? '';
       _selectedSeason = r.brands['날씨/계절'] ?? '가을';
-      _selectedBgColorIndex = int.tryParse(r.brands['bgColorIndex'] ?? '0') ?? 0;
+      _selectedBgColorIndex =
+          int.tryParse(r.brands['bgColorIndex'] ?? '0') ?? 0;
       _changeStyle = true;
       _customHairStyleIndex = r.character.hairStyleIndex;
       _customHairColorIndex = r.character.hairColorIndex;
@@ -125,9 +126,15 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   void _save() {
     final ootdCharacter = widget.userCharacter.copyWith(
-      hairStyleIndex: _changeStyle ? _customHairStyleIndex : widget.userCharacter.hairStyleIndex,
-      hairColorIndex: _changeStyle ? _customHairColorIndex : widget.userCharacter.hairColorIndex,
-      eyeColorIndex: _changeStyle ? _customEyeColorIndex : widget.userCharacter.eyeColorIndex,
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      hairColorIndex: _changeStyle
+          ? _customHairColorIndex
+          : widget.userCharacter.hairColorIndex,
+      eyeColorIndex: _changeStyle
+          ? _customEyeColorIndex
+          : widget.userCharacter.eyeColorIndex,
       accessoryStyleIndex: 0, // 소품은 완전히 배제
     );
 
@@ -138,7 +145,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       brands: {
         '스타일': _selectedMethod == 0 ? '사진 OOTD' : '텍스트 OOTD',
         '날씨/계절': _selectedSeason,
-        '스타일 컨셉': _locationController.text.trim().isEmpty ? '미지정' : _locationController.text.trim(),
+        '스타일 컨셉': _locationController.text.trim().isEmpty
+            ? '미지정'
+            : _locationController.text.trim(),
         'bgColorIndex': _selectedBgColorIndex.toString(),
         'rating': _rating.toString(),
       },
@@ -148,10 +157,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       timeline: [
         TimelineItem(
           time: '14:00',
-          placeName: _locationController.text.trim().isEmpty ? '스타일 컨셉' : _locationController.text.trim(),
+          placeName: _locationController.text.trim().isEmpty
+              ? '스타일 컨셉'
+              : _locationController.text.trim(),
           category: 'place',
-          description: _memoController.text.trim().isEmpty ? '즐거운 하루의 기록!' : _memoController.text.trim(),
-        )
+          description: _memoController.text.trim().isEmpty
+              ? '즐거운 하루의 기록!'
+              : _memoController.text.trim(),
+        ),
       ],
     );
     widget.onSave(record);
@@ -182,21 +195,21 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             children: [
               CircleAvatar(
                 radius: 11,
-                backgroundColor: isActive 
-                    ? AppColors.primaryPink 
-                    : isPassed 
-                        ? AppColors.primaryPinkSoft 
-                        : AppColors.bgWarm,
+                backgroundColor: isActive
+                    ? AppColors.primaryPink
+                    : isPassed
+                    ? AppColors.primaryPinkSoft
+                    : AppColors.bgWarm,
                 child: Text(
                   groupNum.toString(),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: isActive 
-                        ? Colors.white 
-                        : isPassed 
-                            ? AppColors.primaryPink 
-                            : AppColors.textMuted,
+                    color: isActive
+                        ? Colors.white
+                        : isPassed
+                        ? AppColors.primaryPink
+                        : AppColors.textMuted,
                   ),
                 ),
               ),
@@ -231,11 +244,17 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: _currentStep == 6
-          ? const SizedBox()
-          : IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textMain, size: 20),
-              onPressed: _currentStep == 0 ? () => Navigator.of(context).pop() : _back,
-            ),
+            ? const SizedBox()
+            : IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: AppColors.textMain,
+                  size: 20,
+                ),
+                onPressed: _currentStep == 0
+                    ? () => Navigator.of(context).pop()
+                    : _back,
+              ),
       ),
       body: SafeArea(
         child: Column(
@@ -244,7 +263,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             Expanded(
               child: GridBackground(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: _buildContent(),
                 ),
               ),
@@ -263,7 +285,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       case 1:
         return _buildMethodPage();
       case 2:
-        return _selectedMethod == 0 ? _buildPhotoUploadPage() : _buildDescriptionPage();
+        return _selectedMethod == 0
+            ? _buildPhotoUploadPage()
+            : _buildDescriptionPage();
       case 3:
         return _buildExtraInfoPage();
       case 4:
@@ -286,7 +310,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const SizedBox(height: 8),
         const Text(
           '새 OOTD 기록하기',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -303,12 +331,20 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             Positioned(
               top: 0,
               left: 10,
-              child: const Icon(Icons.cloud_outlined, color: AppColors.accentBlue, size: 20),
+              child: const Icon(
+                Icons.cloud_outlined,
+                color: AppColors.accentBlue,
+                size: 20,
+              ),
             ),
             Positioned(
               bottom: 20,
               right: 10,
-              child: const Icon(Icons.camera_alt_outlined, color: AppColors.textMuted, size: 20),
+              child: const Icon(
+                Icons.camera_alt_outlined,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
             ),
           ],
         ),
@@ -326,7 +362,12 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           child: const Text(
             '사진을 올리거나 코디 설명을 입력하면\n캐릭터를 자동으로 꾸며드려요!',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.4, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSub,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -340,7 +381,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const SizedBox(height: 10),
         const Text(
           '기록 방법을 선택해주세요',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -387,15 +432,16 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 8,
-            )
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
           ],
         ),
         child: Row(
           children: [
-            Icon(icon, size: 36, color: isSelected ? AppColors.primaryPink : AppColors.textMuted),
+            Icon(
+              icon,
+              size: 36,
+              color: isSelected ? AppColors.primaryPink : AppColors.textMuted,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -404,15 +450,21 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14, 
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.primaryPink : AppColors.textMain,
+                      color: isSelected
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.3),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSub,
+                      height: 1.3,
+                    ),
                   ),
                 ],
               ),
@@ -424,7 +476,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               onChanged: (val) {
                 if (val != null) setState(() => _selectedMethod = val);
               },
-            )
+            ),
           ],
         ),
       ),
@@ -439,7 +491,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const Center(
           child: Text(
             '코디 사진을 업로드해주세요 📷',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -457,24 +513,42 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           decoration: BoxDecoration(
             color: AppColors.bgPaper,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineBrown, style: BorderStyle.solid),
+            border: Border.all(
+              color: AppColors.lineBrown,
+              style: BorderStyle.solid,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.primaryPink),
+              Icon(
+                Icons.add_a_photo_outlined,
+                size: 36,
+                color: AppColors.primaryPink,
+              ),
               SizedBox(height: 10),
               Text(
                 '사진을 선택하거나\n여기로 드래그 해주세요\n(JPG, PNG / 최대 10장)',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.4),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSub,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
         // 코디 예시 목록 가로 스크롤
-        const Text('사진 예시', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '사진 예시',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 80,
@@ -491,7 +565,13 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   border: Border.all(color: AppColors.lineSoft),
                 ),
                 alignment: Alignment.center,
-                child: Text('예시 ${index + 1}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                child: Text(
+                  '예시 ${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               );
             },
           ),
@@ -508,7 +588,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const Center(
           child: Text(
             '코디 설명 입력 📝',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -524,7 +608,8 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           maxLines: 6,
           maxLength: 500,
           decoration: const InputDecoration(
-            hintText: '예시)\n- 아이보리 니트 가디건\n- 흰색 셔츠\n- 검정 미니 스커트\n- 흰색 양말\n- 검정 로퍼\n- 체인 숄더백',
+            hintText:
+                '예시)\n- 아이보리 니트 가디건\n- 흰색 셔츠\n- 검정 미니 스커트\n- 흰색 양말\n- 검정 로퍼\n- 체인 숄더백',
           ),
         ),
         const SizedBox(height: 16),
@@ -543,7 +628,12 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               const Expanded(
                 child: Text(
                   '💡 TIP: 구체적으로 작성할수록 더 정확하게 캐릭터가 완성돼요!',
-                  style: TextStyle(fontSize: 10, color: AppColors.textSub, height: 1.3, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSub,
+                    height: 1.3,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -561,7 +651,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const Center(
           child: Text(
             '추가 정보 입력 (선택)',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -573,14 +667,23 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         ),
         const SizedBox(height: 20),
         // 태그 추가
-        const Text('태그 추가', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '태그 추가',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _tagController,
-                decoration: const InputDecoration(hintText: '태그 입력 (예: 스트릿, 모던)'),
+                decoration: const InputDecoration(
+                  hintText: '태그 입력 (예: 스트릿, 모던)',
+                ),
                 onSubmitted: (_) => _addTag(),
               ),
             ),
@@ -589,29 +692,56 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               onPressed: _addTag,
               style: ElevatedButton.styleFrom(minimumSize: const Size(60, 50)),
               child: const Text('추가'),
-            )
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: _moodTags.map((t) => Chip(
-            label: Text(t, style: const TextStyle(fontSize: 11, color: AppColors.primaryPink, fontWeight: FontWeight.bold)),
-            backgroundColor: AppColors.primaryPinkSoft,
-            onDeleted: () => setState(() => _moodTags.remove(t)),
-          )).toList(),
+          children: _moodTags
+              .map(
+                (t) => Chip(
+                  label: Text(
+                    t,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primaryPink,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: AppColors.primaryPinkSoft,
+                  onDeleted: () => setState(() => _moodTags.remove(t)),
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: 16),
         // 스타일 컨셉 / 상황 (TPO)
-        const Text('스타일 컨셉 / 상황 (TPO)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '스타일 컨셉 / 상황 (TPO)',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _locationController,
-          decoration: const InputDecoration(hintText: '예) 데이트, 오피스룩, 캠퍼스룩, 격식있는 자리 등'),
+          decoration: const InputDecoration(
+            hintText: '예) 데이트, 오피스룩, 캠퍼스룩, 격식있는 자리 등',
+          ),
         ),
         const SizedBox(height: 16),
         // 날씨 / 계절
-        const Text('날씨 / 계절', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '날씨 / 계절',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -620,9 +750,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             return GestureDetector(
               onTap: () => setState(() => _selectedSeason = season),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSel ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+                  color: isSel
+                      ? AppColors.primaryPinkSoft
+                      : AppColors.bgDefault,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSel ? AppColors.primaryPink : AppColors.lineSoft,
@@ -632,8 +767,8 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 child: Text(
                   season,
                   style: TextStyle(
-                    fontSize: 12, 
-                    fontWeight: FontWeight.bold, 
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                     color: isSel ? AppColors.primaryPink : AppColors.textMain,
                   ),
                 ),
@@ -643,7 +778,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         ),
         const SizedBox(height: 16),
         // 코디 별점
-        const Text('오늘의 코디 별점', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '오늘의 코디 별점',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: List.generate(5, (index) {
@@ -664,7 +806,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         ),
         const SizedBox(height: 20),
         // 메모
-        const Text('메모 (선택)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '메모 (선택)',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _memoController,
@@ -691,9 +840,15 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   // 4. OotdStylePage (스타일 옵션)
   Widget _buildStylePage() {
     final previewCharacter = widget.userCharacter.copyWith(
-      hairStyleIndex: _changeStyle ? _customHairStyleIndex : widget.userCharacter.hairStyleIndex,
-      hairColorIndex: _changeStyle ? _customHairColorIndex : widget.userCharacter.hairColorIndex,
-      eyeColorIndex: _changeStyle ? _customEyeColorIndex : widget.userCharacter.eyeColorIndex,
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      hairColorIndex: _changeStyle
+          ? _customHairColorIndex
+          : widget.userCharacter.hairColorIndex,
+      eyeColorIndex: _changeStyle
+          ? _customEyeColorIndex
+          : widget.userCharacter.eyeColorIndex,
       accessoryStyleIndex: 0, // 소품 배제
     );
 
@@ -703,7 +858,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const Center(
           child: Text(
             '스타일 옵션 (선택)',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -730,7 +889,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const SizedBox(height: 24),
 
         // 1. 배경 색상 선택
-        const Text('배경 색상', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+        const Text(
+          '배경 색상',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 40,
@@ -762,7 +928,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         // 2. 외모 변경 여부 질문
         const Text(
           '헤어스타일이나 헤어/눈 컬러를 변경하시겠습니까?',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.textSub,
+          ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -773,10 +943,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: !_changeStyle ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+                    color: !_changeStyle
+                        ? AppColors.primaryPinkSoft
+                        : AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: !_changeStyle ? AppColors.primaryPink : AppColors.lineSoft,
+                      color: !_changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.lineSoft,
                       width: !_changeStyle ? 2 : 1,
                     ),
                   ),
@@ -786,7 +960,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: !_changeStyle ? AppColors.primaryPink : AppColors.textMain,
+                      color: !_changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
                     ),
                   ),
                 ),
@@ -799,10 +975,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _changeStyle ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+                    color: _changeStyle
+                        ? AppColors.primaryPinkSoft
+                        : AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _changeStyle ? AppColors.primaryPink : AppColors.lineSoft,
+                      color: _changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.lineSoft,
                       width: _changeStyle ? 2 : 1,
                     ),
                   ),
@@ -812,7 +992,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: _changeStyle ? AppColors.primaryPink : AppColors.textMain,
+                      color: _changeStyle
+                          ? AppColors.primaryPink
+                          : AppColors.textMain,
                     ),
                   ),
                 ),
@@ -824,7 +1006,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         // 3. 외모 커스터마이징 영역 (변경하기를 눌렀을 때만 노출)
         if (_changeStyle) ...[
           const SizedBox(height: 24),
-          const Text('헤어스타일 종류', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+          const Text(
+            '헤어스타일 종류',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textSub,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -834,12 +1023,19 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               return GestureDetector(
                 onTap: () => setState(() => _customHairStyleIndex = index),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSel ? AppColors.primaryPurpleSoft : AppColors.bgDefault,
+                    color: isSel
+                        ? AppColors.primaryPurpleSoft
+                        : AppColors.bgDefault,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isSel ? AppColors.primaryPurple : AppColors.lineSoft,
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.lineSoft,
                       width: isSel ? 1.8 : 1.0,
                     ),
                   ),
@@ -848,7 +1044,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isSel ? AppColors.primaryPurple : AppColors.textMain,
+                      color: isSel
+                          ? AppColors.primaryPurple
+                          : AppColors.textMain,
                     ),
                   ),
                 ),
@@ -856,7 +1054,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             }),
           ),
           const SizedBox(height: 20),
-          const Text('헤어 컬러', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+          const Text(
+            '헤어 컬러',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textSub,
+            ),
+          ),
           const SizedBox(height: 8),
           SizedBox(
             height: 40,
@@ -866,7 +1071,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               itemBuilder: (context, index) {
                 final colorHex = CharacterDraft.hairColors[index];
                 final isSel = _customHairColorIndex == index;
-                final colorVal = Color(int.parse(colorHex.replaceFirst('#', 'FF'), radix: 16));
+                final colorVal = Color(
+                  int.parse(colorHex.replaceFirst('#', 'FF'), radix: 16),
+                );
                 return GestureDetector(
                   onTap: () => setState(() => _customHairColorIndex = index),
                   child: Container(
@@ -877,7 +1084,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                       color: colorVal,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSel ? AppColors.primaryPurple : AppColors.lineSoft,
+                        color: isSel
+                            ? AppColors.primaryPurple
+                            : AppColors.lineSoft,
                         width: isSel ? 3.0 : 1.0,
                       ),
                     ),
@@ -887,7 +1096,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('눈 컬러', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSub)),
+          const Text(
+            '눈 컬러',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textSub,
+            ),
+          ),
           const SizedBox(height: 8),
           SizedBox(
             height: 40,
@@ -897,7 +1113,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               itemBuilder: (context, index) {
                 final colorHex = CharacterDraft.eyeColors[index];
                 final isSel = _customEyeColorIndex == index;
-                final colorVal = Color(int.parse(colorHex.replaceFirst('#', 'FF'), radix: 16));
+                final colorVal = Color(
+                  int.parse(colorHex.replaceFirst('#', 'FF'), radix: 16),
+                );
                 return GestureDetector(
                   onTap: () => setState(() => _customEyeColorIndex = index),
                   child: Container(
@@ -908,7 +1126,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                       color: colorVal,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSel ? AppColors.primaryPurple : AppColors.lineSoft,
+                        color: isSel
+                            ? AppColors.primaryPurple
+                            : AppColors.lineSoft,
                         width: isSel ? 3.0 : 1.0,
                       ),
                     ),
@@ -930,7 +1150,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         const Center(
           child: Text(
             'AI가 코디 분석 중...',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMain,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -938,7 +1162,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           child: Text(
             '조금만 기다려주세요!\n캐릭터를 예쁘게 꾸미고 있어요 ✨',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: AppColors.textSub, height: 1.4),
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSub,
+              height: 1.4,
+            ),
           ),
         ),
         const SizedBox(height: 40),
@@ -969,22 +1197,29 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   Widget _buildAnalysisRow(String title, bool isDone) {
     return Row(
       children: [
-        isDone 
-            ? const Icon(Icons.check_circle, color: AppColors.accentGreen, size: 20)
+        isDone
+            ? const Icon(
+                Icons.check_circle,
+                color: AppColors.accentGreen,
+                size: 20,
+              )
             : const SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryPurple),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primaryPurple,
+                ),
               ),
         const SizedBox(width: 12),
         Text(
           title,
           style: TextStyle(
-            fontSize: 13, 
+            fontSize: 13,
             fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
             color: isDone ? AppColors.textMain : AppColors.textSub,
           ),
-        )
+        ),
       ],
     );
   }
@@ -992,20 +1227,34 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   // 6. OotdCompletePage (기록 완료)
   Widget _buildCompletePage() {
     final finalCharacter = widget.userCharacter.copyWith(
-      hairStyleIndex: _changeStyle ? _customHairStyleIndex : widget.userCharacter.hairStyleIndex,
-      hairColorIndex: _changeStyle ? _customHairColorIndex : widget.userCharacter.hairColorIndex,
-      eyeColorIndex: _changeStyle ? _customEyeColorIndex : widget.userCharacter.eyeColorIndex,
+      hairStyleIndex: _changeStyle
+          ? _customHairStyleIndex
+          : widget.userCharacter.hairStyleIndex,
+      hairColorIndex: _changeStyle
+          ? _customHairColorIndex
+          : widget.userCharacter.hairColorIndex,
+      eyeColorIndex: _changeStyle
+          ? _customEyeColorIndex
+          : widget.userCharacter.eyeColorIndex,
       accessoryStyleIndex: 0,
     );
 
     return Column(
       children: [
         const SizedBox(height: 10),
-        const Icon(Icons.check_circle_outline, color: AppColors.accentGreen, size: 30),
+        const Icon(
+          Icons.check_circle_outline,
+          color: AppColors.accentGreen,
+          size: 30,
+        ),
         const SizedBox(height: 8),
         const Text(
           'OOTD 기록 완료!',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -1022,10 +1271,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lineBrown, width: 2),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-              )
+              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
             ],
           ),
           child: Column(
@@ -1038,12 +1284,18 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.lineSoft, width: 1.0),
                 ),
-                child: PixelCharacterWidget(character: finalCharacter, size: 100),
+                child: PixelCharacterWidget(
+                  character: finalCharacter,
+                  size: 100,
+                ),
               ),
               const SizedBox(height: 16),
               // 날짜 손글씨 메모 라벨
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.bgWarm,
                   border: Border.all(color: AppColors.lineSoft),
@@ -1051,7 +1303,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 ),
                 child: const Text(
                   '2026.10.03 (SAT) ✍️',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textMain,
+                  ),
                 ),
               ),
             ],
@@ -1105,8 +1361,8 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             child: ElevatedButton(
               onPressed: _next,
               style: ElevatedButton.styleFrom(
-                backgroundColor: (_currentStep == 0 || _currentStep == 6) 
-                    ? AppColors.primaryPink 
+                backgroundColor: (_currentStep == 0 || _currentStep == 6)
+                    ? AppColors.primaryPink
                     : AppColors.primaryPurple,
               ),
               child: Text(label),

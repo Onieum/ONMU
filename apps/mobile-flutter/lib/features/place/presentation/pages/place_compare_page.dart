@@ -12,7 +12,14 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/place_candidate_card.dart';
 
 class PlaceComparePage extends StatelessWidget {
-  const PlaceComparePage({super.key});
+  const PlaceComparePage({
+    required this.onmoimId,
+    required this.meetupId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String meetupId;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +34,8 @@ class PlaceComparePage extends StatelessWidget {
             icon: Icons.check_circle_outline,
             color: AppColors.primaryPurple,
             foregroundColor: AppColors.textInverse,
-            onPressed: () => context.go(RoutePaths.meetupRouteReview('demo')),
+            onPressed: () =>
+                context.go(RoutePaths.onmoimMeetupBoard(onmoimId, meetupId)),
           ),
         ),
       ),

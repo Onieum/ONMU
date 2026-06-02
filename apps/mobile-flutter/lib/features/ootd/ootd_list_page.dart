@@ -718,9 +718,13 @@ class _OotdListPageState extends State<OotdListPage> {
             cellDate.day == _selectedDay.day;
         final record = _getRecordForDate(cellDate);
         final borderColor = _pastelBorders[day % _pastelBorders.length];
-        
-        final int? bgColorIndex = record != null ? int.tryParse(record.brands['bgColorIndex'] ?? '') : null;
-        final Color cellBgColor = bgColorIndex != null ? _bgColors[bgColorIndex].withOpacity(0.4) : AppColors.bgDefault;
+
+        final int? bgColorIndex = record != null
+            ? int.tryParse(record.brands['bgColorIndex'] ?? '')
+            : null;
+        final Color cellBgColor = bgColorIndex != null
+            ? _bgColors[bgColorIndex].withOpacity(0.4)
+            : AppColors.bgDefault;
 
         return GestureDetector(
           onTap: () => _onDayTap(cellDate),
@@ -1834,15 +1838,27 @@ class _TimelineBottomSheetContentState
                   ),
                   Builder(
                     builder: (context) {
-                      final double rating = double.tryParse(_localRecord.brands['rating'] ?? '5.0') ?? 5.0;
+                      final double rating =
+                          double.tryParse(
+                            _localRecord.brands['rating'] ?? '5.0',
+                          ) ??
+                          5.0;
                       final int fullStars = rating.floor();
                       return Row(
                         children: [
                           ...List.generate(5, (index) {
                             if (index < fullStars) {
-                              return const Icon(Icons.star, color: AppColors.accentOrange, size: 14);
+                              return const Icon(
+                                Icons.star,
+                                color: AppColors.accentOrange,
+                                size: 14,
+                              );
                             } else {
-                              return const Icon(Icons.star_border, color: AppColors.accentOrange, size: 14);
+                              return const Icon(
+                                Icons.star_border,
+                                color: AppColors.accentOrange,
+                                size: 14,
+                              );
                             }
                           }),
                           const SizedBox(width: 4),
@@ -1856,7 +1872,7 @@ class _TimelineBottomSheetContentState
                           ),
                         ],
                       );
-                    }
+                    },
                   ),
                 ],
               ),
