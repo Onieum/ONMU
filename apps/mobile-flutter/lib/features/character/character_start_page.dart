@@ -47,9 +47,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
       } else {
         widget.onCompleted(
           _draft.copyWith(
-            nickname: _nicknameController.text.trim().isEmpty
-                ? '온뮤'
-                : _nicknameController.text.trim(),
+            nickname: _nameController.text.trim().isEmpty
+                ? '내 캐릭터'
+                : _nameController.text.trim(),
           ),
         );
       }
@@ -97,7 +97,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       stepNum.toString(),
                       style: AppTextStyles.labelSmall.copyWith(
                         color: isActive
-                            ? Colors.white
+                            ? AppColors.textInverse
                             : isPassed
                             ? AppColors.primaryPink
                             : AppColors.textMuted,
@@ -136,7 +136,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
       appBar: _currentStep == 0
           ? null
           : AppBar(
-              backgroundColor: Colors.transparent,
+              backgroundColor: AppColors.transparent,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(
@@ -704,7 +704,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26, width: 0.8),
+                        border: Border.all(
+                          color: AppColors.textMain.withValues(alpha: 0.26),
+                          width: 0.8,
+                        ),
                       ),
                     ),
                     SizedBox(width: 10),
@@ -825,7 +828,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             border: Border.all(color: AppColors.lineBrown, width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                  color: AppColors.textMain.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -924,7 +927,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             border: Border.all(color: AppColors.lineBrown, width: 2.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                  color: AppColors.textMain.withValues(alpha: 0.04),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -945,13 +948,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   border: Border.all(color: AppColors.lineSoft),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  _nicknameController.text.trim().isEmpty
-                      ? '내 캐릭터'
-                      : _nicknameController.text.trim(),
-                  style: AppTextStyles.labelLarge,
+                  child: Text(
+                    _nameController.text.trim().isEmpty
+                        ? '내 캐릭터'
+                        : _nicknameController.text.trim(),
+                    style: AppTextStyles.labelLarge,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

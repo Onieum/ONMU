@@ -54,11 +54,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   // 시뮬레이션용 데이터
   final List<String> _seasons = ['봄', '여름', '가을', '겨울', '실내'];
   final List<Color> _bgColors = [
-    const Color(0xFFFFE3E8),
-    const Color(0xFFEDE4FF),
-    const Color(0xFFE8F5E9),
-    const Color(0xFFFFFDE7),
-    const Color(0xFFE3F2FD),
+    AppColors.calendarDatePinkBg,
+    AppColors.calendarDatePurpleBg,
+    AppColors.calendarDateGreenBg,
+    AppColors.calendarDateYellowBg,
+    AppColors.calendarDateBlueBg,
   ];
 
   @override
@@ -204,7 +204,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   groupNum.toString(),
                   style: AppTextStyles.sticker.copyWith(
                     color: isActive
-                        ? Colors.white
+                          ? AppColors.textInverse
                         : isPassed
                         ? AppColors.primaryPink
                         : AppColors.textMuted,
@@ -237,7 +237,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
         elevation: 0,
         leading: _currentStep == 6
             ? SizedBox()
@@ -423,7 +423,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
+                BoxShadow(
+                  color: AppColors.textMain.withValues(alpha: 0.02),
+                  blurRadius: 8,
+                ),
           ],
         ),
         child: Row(
@@ -541,7 +544,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 width: 60,
                 margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                          color: AppColors.lineSoft,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.lineSoft),
                 ),
@@ -1186,7 +1189,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lineBrown, width: 2),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
+            BoxShadow(
+              color: AppColors.textMain.withValues(alpha: 0.04),
+              blurRadius: 10,
+            ),
             ],
           ),
           child: Column(

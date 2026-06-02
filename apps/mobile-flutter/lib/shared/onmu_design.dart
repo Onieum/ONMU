@@ -5,21 +5,21 @@ import '../core/theme/app_theme.dart';
 export '../core/theme/app_theme.dart';
 
 class OnmuColors {
-  static const bgDefault = Color(0xFFFFFFFF);
-  static const bgWarm = Color(0xFFFFFDF9);
-  static const paper = Color(0xFFFFFAF3);
-  static const purple = Color(0xFF8B5CF6);
-  static const purpleDark = Color(0xFF6D3FE8);
-  static const purpleSoft = Color(0xFFEDE4FF);
-  static const pink = Color(0xFFFF8FA3);
-  static const pinkSoft = Color(0xFFFFE3E8);
-  static const textMain = Color(0xFF3A2A23);
-  static const textSub = Color(0xFF7A6258);
-  static const textMuted = Color(0xFFA9948A);
-  static const lineSoft = Color(0xFFEAD8CC);
-  static const linePurple = Color(0xFFBDA4FF);
-  static const accentGreen = Color(0xFFA8C58B);
-  static const accentBlue = Color(0xFF8CC6E8);
+  static const bgDefault = AppColors.bgDefault;
+  static const bgWarm = AppColors.bgWarm;
+  static const paper = AppColors.bgPaper;
+  static const purple = AppColors.primaryPurple;
+  static const purpleDark = AppColors.primaryPurpleDark;
+  static const purpleSoft = AppColors.primaryPurpleSoft;
+  static const pink = AppColors.primaryPink;
+  static const pinkSoft = AppColors.primaryPinkSoft;
+  static const textMain = AppColors.textMain;
+  static const textSub = AppColors.textSub;
+  static const textMuted = AppColors.textMuted;
+  static const lineSoft = AppColors.lineSoft;
+  static const linePurple = AppColors.linePurple;
+  static const accentGreen = AppColors.accentGreen;
+  static const accentBlue = AppColors.accentBlue;
 }
 
 class OnmuPrimaryButton extends StatelessWidget {

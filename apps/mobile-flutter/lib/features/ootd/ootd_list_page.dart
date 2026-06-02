@@ -33,11 +33,11 @@ class _OotdListPageState extends State<OotdListPage> {
   List<OotdRecord> _allRecords = [];
 
   final List<Color> _bgColors = [
-    const Color(0xFFFFE3E8),
-    const Color(0xFFEDE4FF),
-    const Color(0xFFE8F5E9),
-    const Color(0xFFFFFDE7),
-    const Color(0xFFE3F2FD),
+    AppColors.calendarDatePinkBg,
+    AppColors.calendarDatePurpleBg,
+    AppColors.calendarDateGreenBg,
+    AppColors.calendarDateYellowBg,
+    AppColors.calendarDateBlueBg,
   ];
 
   // 달력 셀 테두리용 파스텔 컬러 팔레트
@@ -197,7 +197,7 @@ class _OotdListPageState extends State<OotdListPage> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width),
       builder: (context) {
         return StatefulBuilder(
@@ -237,7 +237,7 @@ class _OotdListPageState extends State<OotdListPage> {
                             data: Theme.of(context).copyWith(
                               colorScheme: const ColorScheme.light(
                                 primary: AppColors.primaryPink,
-                                onPrimary: Colors.white,
+                  onPrimary: AppColors.textInverse,
                                 onSurface: AppColors.textMain,
                               ),
                             ),
@@ -415,7 +415,7 @@ class _OotdListPageState extends State<OotdListPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.transparent,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height,
         maxWidth: MediaQuery.of(context).size.width,
@@ -540,7 +540,7 @@ class _OotdListPageState extends State<OotdListPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showRecordTypeSelectionSheet(context, _selectedDay),
         backgroundColor: AppColors.primaryPink,
-        foregroundColor: Colors.white,
+                foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
         elevation: 4,
         child: const Icon(Icons.add, size: 28),
@@ -870,7 +870,7 @@ class _TimelineBottomSheetContentState
                   : const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                    color: AppColors.textMain.withValues(alpha: 0.06),
                   blurRadius: 15,
                   offset: const Offset(0, -4),
                 ),
@@ -1123,7 +1123,7 @@ class _TimelineBottomSheetContentState
             border: Border.all(color: AppColors.lineBrown, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.01),
+                color: AppColors.textMain.withValues(alpha: 0.01),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -1171,7 +1171,7 @@ class _TimelineBottomSheetContentState
                       height: 105,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFCE4EC),
+                        color: AppColors.photoFrameRoseBg,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
@@ -1345,7 +1345,7 @@ class _TimelineBottomSheetContentState
               child: _buildScrapPhotoCard(
                 'PLACE 02 - Archive Hannam',
                 '편집숍 시향 최고!',
-                const Color(0xFFE8F5E9),
+                AppColors.photoFrameGreenBg,
                 Icons.shopping_bag_outlined,
               ),
             ),
@@ -1354,7 +1354,7 @@ class _TimelineBottomSheetContentState
               child: _buildScrapPhotoCard(
                 'PLACE 03 - Ofr. seoul',
                 '달달한 플랫화이트',
-                const Color(0xFFEFFFFA),
+                AppColors.photoFrameMintBg,
                 Icons.coffee_outlined,
               ),
             ),
@@ -1920,7 +1920,7 @@ class _TimelineBottomSheetContentState
             label: Text('저장하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPink,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.textInverse,
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
