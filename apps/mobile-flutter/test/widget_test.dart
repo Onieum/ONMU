@@ -34,7 +34,7 @@ void main() {
 
     expect(find.text('캐릭터 만들기'), findsOneWidget);
 
-    await tester.tap(find.text('스킵하고 기본 캐릭터로 시작하기 ➔'));
+    await tester.tap(find.text('건너뛰고 기본 캐릭터로 시작하기'));
     await tester.pumpAndSettle();
 
     expect(find.text('안녕하세요, 지우님'), findsOneWidget);
