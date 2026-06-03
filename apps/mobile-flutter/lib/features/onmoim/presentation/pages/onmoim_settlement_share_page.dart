@@ -83,7 +83,6 @@ class _TotalAmountCard extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned(top: -24, right: 18, child: const OnmuTape(width: 70)),
           Row(
             children: [
               Expanded(
