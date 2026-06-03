@@ -5,6 +5,7 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
+import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onmoim_cards.dart';
@@ -27,6 +28,14 @@ class OnMoimGroupHomePage extends StatelessWidget {
       ],
       children: [
         _GroupSummary(group: group),
+        const SizedBox(height: AppSpacing.md),
+        OnmuPrimaryButton(
+          label: '약속 만들기',
+          icon: Icons.add_task,
+          color: AppColors.primaryPink,
+          foregroundColor: AppColors.textInverse,
+          onPressed: () => context.go(RoutePaths.onmoimMeetupNew(group.id)),
+        ),
         const SizedBox(height: AppSpacing.md),
         _PinnedMeetupRail(onTap: () => context.go(RoutePaths.onmoimDemoMeetup)),
         const SizedBox(height: AppSpacing.lg),
