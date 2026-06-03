@@ -247,7 +247,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   color: AppColors.textMain,
                   size: 20,
                 ),
-                onPressed: _currentStep == 0
+                onPressed: widget.isDailyRecord
+                    ? () => Navigator.of(context).pop()
+                    : _currentStep == 0
                     ? () => Navigator.of(context).pop()
                     : _back,
               ),
@@ -1257,7 +1259,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
     } else if (_currentStep == 4) {
       label = '기록 분석 요청 ➔';
     } else if (_currentStep == 6) {
-      label = '홈으로 가기 ➔';
+      label = widget.isDailyRecord ? '이어서 하루 일과 작성하기' : '홈으로 가기 ➔';
     }
 
     return Container(

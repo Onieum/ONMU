@@ -1,9 +1,21 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
 import '../../shared/widgets/pixel_character.dart';
 import '../../shared/widgets/grid_background.dart';
+
+class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
+  const _BottomSheetScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.stylus,
+  };
+}
 
 class OotdListPage extends StatefulWidget {
   final CharacterDraft userCharacter;
@@ -191,13 +203,14 @@ class _OotdListPageState extends State<OotdListPage> {
       DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
 
   // 기록 종류 선택 바텀시트 띄우기
-  // 기록 종류 선택 바텀시트 띄우기
   void _showRecordTypeSelectionSheet(BuildContext context, DateTime date) {
     DateTime localSelectedDate = date;
 
     showModalBottomSheet(
       context: context,
-        backgroundColor: AppColors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: AppColors.transparent,
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width),
       builder: (context) {
         return StatefulBuilder(
@@ -225,69 +238,72 @@ class _OotdListPageState extends State<OotdListPage> {
                   SizedBox(height: 16),
 
                   // 날짜 선택 영역 추가
-                  GestureDetector(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: localSelectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                        builder: (context, child) {
-                          return Theme(
-                            data: Theme.of(context).copyWith(
-                              colorScheme: const ColorScheme.light(
-                                primary: AppColors.primaryPink,
-                  onPrimary: AppColors.textInverse,
-                                onSurface: AppColors.textMain,
-                              ),
-                            ),
-                            child: child!,
-                          );
-                        },
-                      );
-                      if (picked != null) {
-                        setModalState(() {
-                          localSelectedDate = picked;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryPinkSoft.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primaryPink.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_month,
-                                color: AppColors.primaryPink,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                '기록할 날짜: $dateStr',
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  color: AppColors.textMain,
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: localSelectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: AppColors.primaryPink,
+                                  onPrimary: AppColors.textInverse,
+                                  onSurface: AppColors.textMain,
                                 ),
                               ),
-                            ],
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            localSelectedDate = picked;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPinkSoft.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primaryPink.withOpacity(0.3),
                           ),
-                          const Icon(
-                            Icons.edit_calendar,
-                            color: AppColors.primaryPink,
-                            size: 18,
-                          ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month,
+                                  color: AppColors.primaryPink,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  '기록할 날짜: $dateStr',
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: AppColors.textMain,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Icon(
+                              Icons.edit_calendar,
+                              color: AppColors.primaryPink,
+                              size: 18,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -297,43 +313,46 @@ class _OotdListPageState extends State<OotdListPage> {
                     children: [
                       // 1. 하루 일과 기록하기
                       Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                            widget.onAddDailyRecord(
-                              localSelectedDate,
-                              _getOotdRecordForDate(localSelectedDate),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            decoration: BoxDecoration(
-                              color: AppColors.bgDefault,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.lineSoft),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 32,
-                                  color: AppColors.primaryPink,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  '하루 일과 기록',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textMain,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              widget.onAddDailyRecord(
+                                localSelectedDate,
+                                _getOotdRecordForDate(localSelectedDate),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgDefault,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.lineSoft),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 32,
+                                    color: AppColors.primaryPink,
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  '타임라인 및 일과 정보',
-                                  style: AppTextStyles.sticker.copyWith(
-                                    color: AppColors.textSub,
+                                  SizedBox(height: 8),
+                                  Text(
+                                    '하루 일과 기록',
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: AppColors.textMain,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  SizedBox(height: 4),
+                                  Text(
+                                    '타임라인 및 일과 정보',
+                                    style: AppTextStyles.sticker.copyWith(
+                                      color: AppColors.textSub,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -341,40 +360,43 @@ class _OotdListPageState extends State<OotdListPage> {
                       SizedBox(width: 12),
                       // 2. OOTD 기록하기
                       Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                            widget.onAddOotd(localSelectedDate, null);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            decoration: BoxDecoration(
-                              color: AppColors.bgDefault,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.lineSoft),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.checkroom,
-                                  size: 32,
-                                  color: AppColors.primaryPurple,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'OOTD 기록',
-                                  style: AppTextStyles.labelLarge.copyWith(
-                                    color: AppColors.textMain,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              widget.onAddOotd(localSelectedDate, null);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgDefault,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.lineSoft),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.checkroom,
+                                    size: 32,
+                                    color: AppColors.primaryPurple,
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  '의상 코디 및 외모 꾸미기',
-                                  style: AppTextStyles.sticker.copyWith(
-                                    color: AppColors.textSub,
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'OOTD 기록',
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: AppColors.textMain,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  SizedBox(height: 4),
+                                  Text(
+                                    '의상 코디 및 외모 꾸미기',
+                                    style: AppTextStyles.sticker.copyWith(
+                                      color: AppColors.textSub,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -414,8 +436,10 @@ class _OotdListPageState extends State<OotdListPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true, // 네이티브 바텀시트 드래그 활성화 (닫기 동작 위함)
       useSafeArea: true,
-        backgroundColor: AppColors.transparent,
+      backgroundColor: AppColors.transparent,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height,
         maxWidth: MediaQuery.of(context).size.width,
@@ -440,11 +464,9 @@ class _OotdListPageState extends State<OotdListPage> {
             });
           },
           onAddDailyRecord: (date, ootdRecord) {
-            Navigator.pop(context);
             widget.onAddDailyRecord(date, ootdRecord);
           },
           onAddOotdRecord: (date, ootdRecord) {
-            Navigator.pop(context);
             widget.onAddOotd(date, ootdRecord);
           },
           onViewDetail: () {
@@ -539,8 +561,9 @@ class _OotdListPageState extends State<OotdListPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showRecordTypeSelectionSheet(context, _selectedDay),
+        mouseCursor: SystemMouseCursors.click,
         backgroundColor: AppColors.primaryPink,
-                foregroundColor: AppColors.textInverse,
+        foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
         elevation: 4,
         child: const Icon(Icons.add, size: 28),
@@ -554,6 +577,23 @@ class _OotdListPageState extends State<OotdListPage> {
   }
 
   Widget _buildHeader() {
+    final daysInCurrentMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month + 1,
+      0,
+    ).day;
+    final recordedDayCount = _allRecords
+        .where(
+          (record) =>
+              record.date.year == _currentMonth.year &&
+              record.date.month == _currentMonth.month,
+        )
+        .map((record) => record.date.day)
+        .toSet()
+        .length;
+    final monthlyProgress = recordedDayCount / daysInCurrentMonth;
+    final monthlyPercent = (monthlyProgress * 100).round();
+
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 10),
       child: Row(
@@ -602,41 +642,55 @@ class _OotdListPageState extends State<OotdListPage> {
               ),
             ],
           ),
-          GestureDetector(
-            onTap: widget.onNavigateToProfile,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.lineSoft, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  PixelCharacterWidget(
-                    character: widget.userCharacter,
-                    size: 36,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryPinkSoft.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.linePink, width: 1.2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '이번 달 기록 $recordedDayCount일',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textMain,
+                    height: 1.1,
                   ),
-                  SizedBox(width: 4),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '마이룸 ▾',
-                        style: AppTextStyles.sticker.copyWith(
-                          color: AppColors.textMain,
+                ),
+                SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 74,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: monthlyProgress,
+                          minHeight: 7,
+                          backgroundColor: AppColors.bgDefault.withValues(
+                            alpha: 0.9,
+                          ),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryPink,
+                          ),
                         ),
                       ),
-                      Text(
-                        '데모 초기화',
-                        style: AppTextStyles.micro.copyWith(
-                          color: AppColors.textSub,
-                        ),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '$monthlyPercent%',
+                      style: AppTextStyles.micro.copyWith(
+                        color: AppColors.primaryPink,
+                        height: 1.1,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -707,70 +761,73 @@ class _OotdListPageState extends State<OotdListPage> {
             ? _bgColors[bgColorIndex].withOpacity(0.4)
             : AppColors.bgDefault;
 
-        return GestureDetector(
-          onTap: () => _onDayTap(cellDate),
-          child: Container(
-            decoration: BoxDecoration(
-              color: cellBgColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.primaryPink
-                    : record != null
-                    ? borderColor
-                    : AppColors.lineSoft.withOpacity(0.6),
-                width: isSelected ? 2.5 : 1.2,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primaryPink.withOpacity(0.15),
-                        blurRadius: 6,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 4,
-                  left: 6,
-                  child: Text(
-                    day.toString(),
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: isSelected
-                          ? AppColors.primaryPink
-                          : AppColors.textMain,
-                    ),
-                  ),
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () => _onDayTap(cellDate),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cellBgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primaryPink
+                      : record != null
+                      ? borderColor
+                      : AppColors.lineSoft.withOpacity(0.6),
+                  width: isSelected ? 2.5 : 1.2,
                 ),
-                if (record != null)
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primaryPink.withOpacity(0.15),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Stack(
+                children: [
                   Positioned(
-                    top: 2,
-                    right: 4,
-                    child: Icon(
-                      record.weather == 'sunny'
-                          ? Icons.wb_sunny
-                          : Icons.cloud_outlined,
-                      size: 10,
-                      color: record.weather == 'sunny'
-                          ? AppColors.accentOrange
-                          : AppColors.accentBlue,
-                    ),
-                  ),
-                if (record != null)
-                  Positioned(
-                    bottom: 2,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: PixelCharacterWidget(
-                        character: record.character,
-                        size: 38,
+                    top: 4,
+                    left: 6,
+                    child: Text(
+                      day.toString(),
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: isSelected
+                            ? AppColors.primaryPink
+                            : AppColors.textMain,
                       ),
                     ),
                   ),
-              ],
+                  if (record != null)
+                    Positioned(
+                      top: 2,
+                      right: 4,
+                      child: Icon(
+                        record.weather == 'sunny'
+                            ? Icons.wb_sunny
+                            : Icons.cloud_outlined,
+                        size: 10,
+                        color: record.weather == 'sunny'
+                            ? AppColors.accentOrange
+                            : AppColors.accentBlue,
+                      ),
+                    ),
+                  if (record != null)
+                    Positioned(
+                      bottom: 2,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: PixelCharacterWidget(
+                          character: record.character,
+                          size: 38,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -806,14 +863,218 @@ class _TimelineBottomSheetContent extends StatefulWidget {
 
 class _TimelineBottomSheetContentState
     extends State<_TimelineBottomSheetContent> {
+  static const double _sheetMinSize = 0.35;
+  static const double _sheetDefaultSize = 0.68;
+  static const double _sheetMaxSize = 1.0;
+
   int _tabIndex = 0; // 0: 하루 일과, 1: OOTD 기록
   late OotdRecord _localRecord;
-  double _currentExtent = 0.68; // 드래그 비율 상태 변수
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
+  double _currentExtent = _sheetDefaultSize; // 드래그 비율 상태 변수
+  bool _isDailyRecordButtonHovered = false;
+  bool _isOotdRecordButtonHovered = false;
 
   @override
   void initState() {
     super.initState();
     _localRecord = widget.record;
+  }
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  void _toggleSheetExtent() {
+    final targetSize = _currentExtent >= 0.90
+        ? _sheetDefaultSize
+        : _sheetMaxSize;
+
+    setState(() {
+      _currentExtent = targetSize;
+    });
+
+    if (_sheetController.isAttached) {
+      _sheetController.animateTo(
+        targetSize,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  Widget _buildSheetExtentButton(bool isFullScreen) {
+    return IconButton(
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      tooltip: isFullScreen ? '축소' : '전체화면',
+      icon: Icon(
+        isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+        color: AppColors.textSub,
+        size: 22,
+      ),
+      onPressed: _toggleSheetExtent,
+    );
+  }
+
+  Widget _buildSheetDragHandle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Container(
+          width: 44,
+          height: 5,
+          decoration: BoxDecoration(
+            color: AppColors.lineSoft,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheetHeader(bool isFullScreen) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSheetDragHandle(),
+          if (isFullScreen) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: const BoxDecoration(
+                color: AppColors.bgDefault,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.lineSoft, width: 0.8),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: AppColors.textMain,
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Text(
+                    _tabIndex == 0 ? '하루 일과' : 'OOTD 기록',
+                    style: AppTextStyles.titleSmall.copyWith(
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSheetExtentButton(isFullScreen),
+                      SizedBox(width: 10),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textMuted,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.edit_note,
+                          color: AppColors.primaryPink,
+                          size: 24,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          '${_localRecord.date.year}.${_localRecord.date.month.toString().padLeft(2, '0')}.${_localRecord.date.day.toString().padLeft(2, '0')} (${_getWeekdayName(_localRecord.date)})',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textMain,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '오늘 하루의 소중한 기록을 채워보세요',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildSheetExtentButton(isFullScreen),
+                    SizedBox(width: 10),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.close, color: AppColors.textSub),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+          ],
+          if (_localRecord.timeline.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTabButton(0, '하루 일과'),
+                SizedBox(width: 12),
+                _buildTabButton(1, 'OOTD 기록'),
+              ],
+            ),
+            SizedBox(height: 20),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSheetScrollableBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_localRecord.timeline.isEmpty)
+            _buildEmptyRecordView()
+          else if (_tabIndex == 0)
+            _buildDailyTimelineView()
+          else
+            _buildOotdDetailView(),
+          SizedBox(height: 24),
+          if (_localRecord.timeline.isNotEmpty) ...[
+            _buildBottomButtonRow(),
+            SizedBox(height: 30),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildTabButton(int index, String title) {
@@ -853,166 +1114,41 @@ class _TimelineBottomSheetContentState
         return true;
       },
       child: DraggableScrollableSheet(
-        initialChildSize: 0.68,
-        minChildSize: 0.35,
-        maxChildSize: 1.0,
+        controller: _sheetController,
+        initialChildSize: _sheetDefaultSize,
+        minChildSize: _sheetMinSize,
+        maxChildSize: _sheetMaxSize,
         snap: true,
-        expand: true,
+        snapSizes: const [_sheetMinSize, _sheetDefaultSize, _sheetMaxSize],
+        expand: false,
         builder: (context, scrollController) {
-          // 일정 높이(0.90) 이상 드래그되면 전체화면 모드로 판단하여 상단바 렌더링
           final isFullScreen = _currentExtent >= 0.90;
 
           return Container(
             decoration: BoxDecoration(
-              color: AppColors.bgDefault, // DESIGN.md 기준 바탕색 하얀색(#FFFFFF)
+              color: AppColors.bgDefault,
               borderRadius: isFullScreen
                   ? BorderRadius.zero
                   : const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                    color: AppColors.textMain.withValues(alpha: 0.06),
+                  color: AppColors.textMain.withValues(alpha: 0.06),
                   blurRadius: 15,
                   offset: const Offset(0, -4),
                 ),
               ],
             ),
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              children: [
-                // 1. 상단 제어 바 영역 (풀스크린인 경우와 하프스크린인 경우 분기)
-                if (isFullScreen) ...[
-                  // 전체화면 전용 공통 상단바
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: const BoxDecoration(
-                      color: AppColors.bgDefault,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.lineSoft,
-                          width: 0.8,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: AppColors.textMain,
-                            size: 20,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Text(
-                          _tabIndex == 0 ? '하루 일과' : 'OOTD 기록',
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.textMain,
-                          ),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: AppColors.textMuted,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                ] else ...[
-                  // 하프스크린일 때 손잡이 바
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.lineSoft,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-
-                  // 날짜 정보 헤더 (이름/날짜 및 우측 닫기 버튼)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.edit_note,
-                                color: AppColors.primaryPink,
-                                size: 24,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                '${_localRecord.date.year}.${_localRecord.date.month.toString().padLeft(2, '0')}.${_localRecord.date.day.toString().padLeft(2, '0')} (${_getWeekdayName(_localRecord.date)})',
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  color: AppColors.textMain,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            '오늘 하루의 소중한 기록을 채워보세요',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textSub,
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(Icons.close, color: AppColors.textSub),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
+            child: ScrollConfiguration(
+              behavior: const _BottomSheetScrollBehavior(),
+              child: ListView(
+                controller: scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: bottomInset),
+                children: [
+                  _buildSheetHeader(isFullScreen),
+                  _buildSheetScrollableBody(),
                 ],
-
-                // 2. 탭 버튼바 (하루 일과 / OOTD 기록) - 기록이 있을 때만 노출
-                if (_localRecord.timeline.isNotEmpty) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildTabButton(0, '하루 일과'),
-                      SizedBox(width: 12),
-                      _buildTabButton(1, 'OOTD 기록'),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-                ],
-
-                // 3. 본문 뷰 렌더링
-                if (_localRecord.timeline.isEmpty)
-                  _buildEmptyRecordView()
-                else if (_tabIndex == 0)
-                  _buildDailyTimelineView()
-                else
-                  _buildOotdDetailView(),
-
-                SizedBox(height: 24),
-
-                // 4. 하단 버튼 바 (수정하기 / 저장하기) - 기록이 있을 때만 노출
-                if (_localRecord.timeline.isNotEmpty) ...[
-                  _buildBottomButtonRow(),
-                  SizedBox(height: 30),
-                ],
-              ],
+              ),
             ),
           );
         },
@@ -1053,44 +1189,114 @@ class _TimelineBottomSheetContentState
           SizedBox(height: 24),
           Column(
             children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onAddDailyRecord(widget.record.date, null);
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) {
+                  setState(() {
+                    _isDailyRecordButtonHovered = true;
+                  });
                 },
-                icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                label: Text('하루 일과 기록하기'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPinkSoft,
-                  foregroundColor: AppColors.primaryPink,
-                  side: const BorderSide(
-                    color: AppColors.primaryPink,
-                    width: 1.5,
-                  ),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
+                onExit: (_) {
+                  setState(() {
+                    _isDailyRecordButtonHovered = false;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: _isDailyRecordButtonHovered
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primaryPink.withValues(
+                                alpha: 0.18,
+                              ),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onAddDailyRecord(widget.record.date, null);
+                    },
+                    icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                    label: Text('하루 일과 기록하기'),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPink.withValues(
+                        alpha: 0.14,
+                      ),
+                      foregroundColor: AppColors.primaryPink,
+                      overlayColor: AppColors.primaryPink.withValues(
+                        alpha: 0.04,
+                      ),
+                      side: const BorderSide(
+                        color: AppColors.primaryPink,
+                        width: 1.5,
+                      ),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               ),
               SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onAddOotdRecord(widget.record.date, null);
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) {
+                  setState(() {
+                    _isOotdRecordButtonHovered = true;
+                  });
                 },
-                icon: const Icon(Icons.checkroom, size: 16),
-                label: Text('오늘 코디 기록하기 (OOTD)'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPurpleSoft,
-                  foregroundColor: AppColors.primaryPurple,
-                  side: const BorderSide(
-                    color: AppColors.primaryPurple,
-                    width: 1.5,
-                  ),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
+                onExit: (_) {
+                  setState(() {
+                    _isOotdRecordButtonHovered = false;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: _isOotdRecordButtonHovered
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primaryPurple.withValues(
+                                alpha: 0.16,
+                              ),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onAddOotdRecord(widget.record.date, null);
+                    },
+                    icon: const Icon(Icons.checkroom, size: 16),
+                    label: Text('오늘 코디 기록하기 (OOTD)'),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.bgDefault,
+                      foregroundColor: AppColors.primaryPurple,
+                      overlayColor: AppColors.primaryPurple.withValues(
+                        alpha: 0.08,
+                      ),
+                      side: const BorderSide(
+                        color: AppColors.primaryPurple,
+                        width: 1.5,
+                      ),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -30,8 +30,8 @@ class OnmuBottomNavBar extends StatelessWidget {
       label: '온모임',
     ),
     _BottomNavItem(
-      icon: Icons.checkroom_outlined,
-      activeIcon: Icons.checkroom,
+      icon: Icons.calendar_month_outlined,
+      activeIcon: Icons.calendar_month,
       label: '기록',
     ),
     _BottomNavItem(

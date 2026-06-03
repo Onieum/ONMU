@@ -370,7 +370,9 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
               ootdRecord: ootdRecord,
               onSave: _upsertRecord,
               onCreateOotd: () {
-                context.push('/ootd/new/ootd?date=${date.toIso8601String()}');
+                context.push(
+                  '/ootd/new/ootd?date=${date.toIso8601String()}&daily=1',
+                );
               },
             );
           },
@@ -384,11 +386,14 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
             final date = DateTime.parse(dateStr);
             final character = ref.read(userCharacterProvider)!;
             final existingRecord = state.extra as OotdRecord?;
+            final isDailyRecord =
+                state.uri.queryParameters['daily'] == '1';
 
             return OotdRecordScreen(
               userCharacter: character,
               recordDate: date,
               existingRecord: existingRecord,
+              isDailyRecord: isDailyRecord,
               onSave: _upsertRecord,
             );
           },
