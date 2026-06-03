@@ -863,7 +863,7 @@ class _TimelineBottomSheetContent extends StatefulWidget {
 
 class _TimelineBottomSheetContentState
     extends State<_TimelineBottomSheetContent> {
-  static const double _sheetMinSize = 0.35;
+  static const double _sheetMinSize = 0.08;
   static const double _sheetDefaultSize = 0.68;
   static const double _sheetMaxSize = 1.0;
 
@@ -1111,6 +1111,13 @@ class _TimelineBottomSheetContentState
         setState(() {
           _currentExtent = notification.extent;
         });
+        if (notification.extent <= _sheetMinSize + 0.01) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          });
+        }
         return true;
       },
       child: DraggableScrollableSheet(
