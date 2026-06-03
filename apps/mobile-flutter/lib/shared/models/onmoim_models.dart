@@ -52,12 +52,14 @@ class OnMoimMessage {
 
 class OnMoimMemoryRecord {
   const OnMoimMemoryRecord({
+    required this.author,
     required this.title,
     required this.description,
     required this.dateLabel,
     required this.tags,
   });
 
+  final String author;
   final String title;
   final String description;
   final String dateLabel;
@@ -153,27 +155,31 @@ const demoOnMoimVoteCard = OnMoimVoteCard(
 
 const demoOnMoimMemories = [
   OnMoimMemoryRecord(
-    title: '협재 해수욕장',
-    description: '진짜 바다 색이 미쳤다...',
-    dateLabel: '제주 여행',
-    tags: ['사진', '바다', '친구'],
+    author: '지연',
+    title: '성수동 카페',
+    description: '분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.',
+    dateLabel: '2024.05.24',
+    tags: ['카페', '사진', '디저트'],
   ),
   OnMoimMemoryRecord(
-    title: '석양 맛집 인정!',
-    description: '분위기 최고였던 카페 기록',
-    dateLabel: '지난 모임',
-    tags: ['사진', '카페', '기록'],
+    author: '민수',
+    title: '제주 바다',
+    description: '바다 색이 진짜 예뻤던 날.',
+    dateLabel: '2024.05.16',
+    tags: ['여행', '사진', '바다'],
   ),
   OnMoimMemoryRecord(
-    title: '흑돼지 맛집',
-    description: '목살이 진짜 부드러웠어요.',
-    dateLabel: '저녁 기록',
-    tags: ['음식', '맛집', '공유'],
+    author: '하린',
+    title: '전시회 다녀왔어요',
+    description: '조용히 둘러보기 좋았던 전시.',
+    dateLabel: '2024.05.10',
+    tags: ['기타', '기록', '전시'],
   ),
   OnMoimMemoryRecord(
-    title: '이런 여행 너무 즐거웠어',
-    description: '다음엔 어디로 갈까?',
-    dateLabel: 'Day 2',
-    tags: ['기록', '친구', '추억'],
+    author: '현우',
+    title: '한강 피크닉',
+    description: '다음에도 같이 가자!',
+    dateLabel: '2024.05.10',
+    tags: ['여행', '사진', '피크닉'],
   ),
 ];
