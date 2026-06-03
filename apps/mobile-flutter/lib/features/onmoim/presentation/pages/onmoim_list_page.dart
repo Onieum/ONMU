@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onmoim_cards.dart';
 
@@ -39,7 +39,7 @@ class OnMoimListPage extends StatelessWidget {
           children: [
             Text('내 모임', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(width: AppSpacing.xs),
-            const OnmuStickerLabel(label: '5', icon: Icons.favorite),
+            const _GroupCountBadge(count: 5),
             const Spacer(),
             TextButton(onPressed: () {}, child: const Text('최근 활동순')),
           ],
@@ -54,6 +54,37 @@ class OnMoimListPage extends StatelessWidget {
         ],
         const SizedBox(height: 72),
       ],
+    );
+  }
+}
+
+class _GroupCountBadge extends StatelessWidget {
+  const _GroupCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgSticker,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.favorite, size: 14, color: AppColors.primaryPink),
+            const SizedBox(width: AppSpacing.xxs),
+            Text('$count', style: Theme.of(context).textTheme.labelMedium),
+          ],
+        ),
+      ),
     );
   }
 }
