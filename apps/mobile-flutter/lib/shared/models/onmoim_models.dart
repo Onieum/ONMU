@@ -64,6 +64,20 @@ class OnMoimMemoryRecord {
   final List<String> tags;
 }
 
+class OnMoimVoteCard {
+  const OnMoimVoteCard({
+    required this.title,
+    required this.summary,
+    required this.statusLabel,
+    required this.actionLabel,
+  });
+
+  final String title;
+  final String summary;
+  final String statusLabel;
+  final String actionLabel;
+}
+
 const demoOnMoimGroups = [
   OnMoimGroup(
     id: 'friends',
@@ -98,9 +112,9 @@ const demoPinnedMeetup = OnMoimPinnedMeetup(
   id: 'demo',
   title: '제주도 여행',
   dateLabel: '6.7(토) - 6.9(월)',
-  placeName: '부산 해운대 출발',
-  statusLabel: '장소 투표 진행 중',
-  voteSummary: '온무식당 5표 · 무드카페 3표 · 하루정원 1표',
+  placeName: '제주도 일대',
+  statusLabel: 'D-12',
+  voteSummary: '4명 참여',
 );
 
 const demoOnMoimMessages = [
@@ -124,11 +138,18 @@ const demoOnMoimMessages = [
   ),
   OnMoimMessage(
     sender: 'ONMU',
-    message: '장소 투표 마감이 D-1이에요. 최종 장소를 확정해보세요.',
+    message: '장소 후보가 3개 모였어요. 필요하면 투표를 만들어 함께 정해요.',
     timeLabel: '오전 9:25',
     isMine: false,
   ),
 ];
+
+const demoOnMoimVoteCard = OnMoimVoteCard(
+  title: '제주도 여행 장소 투표',
+  summary: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
+  statusLabel: '수동 투표 · 진행 중',
+  actionLabel: '후보 보기',
+);
 
 const demoOnMoimMemories = [
   OnMoimMemoryRecord(

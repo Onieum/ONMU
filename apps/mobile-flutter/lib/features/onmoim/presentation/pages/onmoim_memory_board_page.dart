@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
@@ -17,8 +18,8 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '추억 보드',
-      subtitle: '대학 동기 여행단 · 우리가 함께한 순간들',
+      title: '기록',
+      subtitle: '대학 동기 여행단 · 함께 남긴 사진과 메모를 모아봐요.',
       showBackButton: true,
       onBack: () {
         if (context.canPop()) {
@@ -28,7 +29,7 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
 
         context.go(RoutePaths.onmoimDemo);
       },
-      useGridBackground: true,
+      useWarmBackground: false,
       bottom: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -47,7 +48,7 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: AppSpacing.sm,
           mainAxisSpacing: AppSpacing.sm,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.64,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
@@ -76,12 +77,9 @@ class _MemoryFilters extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text('최근 기록', style: Theme.of(context).textTheme.titleMedium),
                   Text(
-                    '대학 동기 여행단',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(
-                    '사진 18장 · 기록 7개',
+                    '사진 18장 · 메모 7개',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -101,7 +99,7 @@ class _MemoryFilters extends StatelessWidget {
           children: const [
             OnmuChip(label: '전체', icon: Icons.favorite, selected: true),
             OnmuChip(label: '사진', icon: Icons.image_outlined),
-            OnmuChip(label: '기록', icon: Icons.edit_outlined),
+            OnmuChip(label: '메모', icon: Icons.edit_outlined),
             OnmuChip(label: '링크', icon: Icons.link),
           ],
         ),
@@ -118,18 +116,20 @@ class _MemoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
+      backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const OnmuTape(width: 62),
+          const _MemoryTapeBar(),
           const SizedBox(height: AppSpacing.xs),
-          Expanded(
+          SizedBox(
+            height: 76,
+            width: double.infinity,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: AppColors.bgDefault,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: AppColors.lineSoft),
               ),
               child: const Center(
@@ -142,7 +142,12 @@ class _MemoryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(memory.title, style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            memory.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             memory.description,
@@ -151,9 +156,26 @@ class _MemoryCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: AppSpacing.xs),
+          const Spacer(),
           OnmuChip(label: memory.tags.first, selected: true),
         ],
       ),
+    );
+  }
+}
+
+class _MemoryTapeBar extends StatelessWidget {
+  const _MemoryTapeBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgTape,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: AppColors.lineWarm),
+      ),
+      child: const SizedBox(width: 64, height: 18),
     );
   }
 }
