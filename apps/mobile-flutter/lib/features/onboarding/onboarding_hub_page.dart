@@ -204,7 +204,10 @@ class _OnboardingTaskCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextButton(onPressed: onSkip, child: const Text('스킵')),
+                child: TextButton(
+                  onPressed: onSkip,
+                  child: const Text('나중에 할게요'),
+                ),
               ),
             ],
           ),
