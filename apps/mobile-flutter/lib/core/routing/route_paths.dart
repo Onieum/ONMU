@@ -9,6 +9,8 @@ class RoutePaths {
   static const characterStart = '/character/start';
   static const home = '/home';
   static const homeUpcomingMeetups = '/home/upcoming-meetups';
+  static const homeNotifications = '/home/notifications';
+  static const homeRecentRecords = '/home/recent-records';
   static const onmoim = '/onmoim';
   static const onmoimNew = '/onmoim/new';
   static const onmoimDemo = '/onmoim/friends';

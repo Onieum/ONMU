@@ -46,7 +46,7 @@ void main() {
     expect(find.text('안녕하세요, 지우님'), findsOneWidget);
     expect(find.text('진행 중인 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
-    expect(find.text('전체 보기'), findsOneWidget);
+    expect(find.text('전체 보기'), findsWidgets);
     expect(find.text('홈'), findsWidgets);
     expect(find.text('약속'), findsNothing);
     expect(find.text('온모임'), findsWidgets);
@@ -78,7 +78,7 @@ void main() {
     appRouter.go(RoutePaths.home);
     await tester.pumpAndSettle();
 
-    expect(find.text('상세 보기'), findsNothing);
+    expect(find.text('상세 보기'), findsOneWidget);
 
     await tester.tap(find.text('성수 저녁 약속'));
     await tester.pumpAndSettle();
@@ -99,10 +99,53 @@ void main() {
     await tester.tap(find.text('전체 보기').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('다가오는 약속 전체'), findsOneWidget);
+    expect(find.text('다가오는 약속'), findsOneWidget);
     expect(find.text('한남 카페 투어'), findsOneWidget);
     expect(find.text('홍대 전시회 구경'), findsOneWidget);
-    expect(find.text('북촌 소품샵 산책'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('제주도 여행'), 320);
+    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('성수 디저트 모임'), findsOneWidget);
+  });
+
+  testWidgets('home notification bell opens stacked notifications', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.home);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('알림'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('알림'), findsOneWidget);
+    expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsOneWidget);
+    expect(find.text('투표 확인하기'), findsOneWidget);
+  });
+
+  testWidgets('home recent records see all opens record grid', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.home);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('최근 기록'), 320);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('전체 보기').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('최근 기록'), findsOneWidget);
+    expect(find.text('성수동 카페'), findsWidgets);
+    expect(find.text('제주 바다'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('기록 카드 만들기'),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('기록 카드 만들기'), findsOneWidget);
   });
 
   testWidgets('confirmed meetup date tabs can be selected', (tester) async {

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/character/character_start_page.dart';
+import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/home_recent_records_page.dart';
 import '../../features/home/presentation/pages/upcoming_meetups_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
@@ -82,6 +84,14 @@ final appRouter = GoRouter(
             GoRoute(
               path: RoutePaths.homeUpcomingMeetups,
               builder: (context, state) => const UpcomingMeetupsPage(),
+            ),
+            GoRoute(
+              path: RoutePaths.homeNotifications,
+              builder: (context, state) => const HomeNotificationsPage(),
+            ),
+            GoRoute(
+              path: RoutePaths.homeRecentRecords,
+              builder: (context, state) => const HomeRecentRecordsPage(),
             ),
           ],
         ),

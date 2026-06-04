@@ -9,6 +9,8 @@ import 'features/auth/login_page.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/character/character_start_page.dart';
 import 'features/home/home_page.dart';
+import 'features/home/presentation/pages/home_notifications_page.dart';
+import 'features/home/presentation/pages/home_recent_records_page.dart';
 import 'features/home/presentation/pages/upcoming_meetups_page.dart';
 import 'features/launch/splash_page.dart';
 import 'features/meetup/presentation/pages/meetup_create_page.dart';
@@ -157,6 +159,14 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                 GoRoute(
                   path: RoutePaths.homeUpcomingMeetups,
                   builder: (context, state) => const UpcomingMeetupsPage(),
+                ),
+                GoRoute(
+                  path: RoutePaths.homeNotifications,
+                  builder: (context, state) => const HomeNotificationsPage(),
+                ),
+                GoRoute(
+                  path: RoutePaths.homeRecentRecords,
+                  builder: (context, state) => const HomeRecentRecordsPage(),
                 ),
               ],
             ),
