@@ -489,4 +489,23 @@ void main() {
 
     expect(find.text('확인 메시지'), findsOneWidget);
   });
+
+  testWidgets('onmoim chat vote notice opens vote detail', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimChat('friends'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('후보 보기'), findsNothing);
+    expect(find.text('투표 보기'), findsOneWidget);
+
+    await tester.tap(find.text('투표 보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
+    expect(find.text('후보별 투표 현황'), findsOneWidget);
+    expect(find.text('온무식당'), findsOneWidget);
+    expect(find.text('민서님 선택'), findsOneWidget);
+  });
 }

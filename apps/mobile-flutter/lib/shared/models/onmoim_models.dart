@@ -257,7 +257,7 @@ const demoOnMoimVoteCard = OnMoimVoteCard(
   title: '제주도 여행 장소 투표',
   summary: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
   statusLabel: '수동 투표 · 진행 중',
-  actionLabel: '후보 보기',
+  actionLabel: '투표 보기',
 );
 
 const demoOnMoimMemories = [

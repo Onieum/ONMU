@@ -22,6 +22,7 @@ import '../../features/onmoim/presentation/pages/onmoim_memory_detail_page.dart'
 import '../../features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_thread_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_compare_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -119,6 +120,13 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'chat',
                       builder: (context, state) => const OnMoimThreadPage(),
+                    ),
+                    GoRoute(
+                      path: 'votes/:voteId',
+                      builder: (context, state) => OnMoimVoteDetailPage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                        voteId: state.pathParameters['voteId'] ?? 'demo',
+                      ),
                     ),
                     GoRoute(
                       path: 'memories',
