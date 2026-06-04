@@ -9,7 +9,6 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../widgets/place_candidate_card.dart';
 
 class PlaceComparePage extends StatelessWidget {
   const PlaceComparePage({
@@ -73,18 +72,7 @@ class _CandidateCompareTable extends StatelessWidget {
             ),
             _row(
               context,
-              candidates
-                  .map((candidate) => '${candidate.score.toInt()}점')
-                  .toList(),
-            ),
-            _row(
-              context,
               candidates.map((candidate) => candidate.travelTimeLabel).toList(),
-            ),
-            _row(
-              context,
-              candidates.map((candidate) => candidate.riskLabel).toList(),
-              highlightedIndex: 0,
             ),
             _row(
               context,
@@ -155,12 +143,11 @@ class _MemberFitSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('참여자별 적합도', style: Theme.of(context).textTheme.titleMedium),
+          Text('참여자 선호', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.sm),
           for (final fit in fits) ...[
-            PlaceMemberFitBar(fit: fit),
             Text(
-              '${fit.label}: 온무식당 선호 · ${fit.note}',
+              '${fit.label}님이 온무식당을 ${fit.note} 장소로 보고 있어요.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -185,7 +172,7 @@ class _RecommendationConclusion extends StatelessWidget {
           Text('추천 결론', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '온무식당은 평균 점수와 운영 안정성이 가장 높고, 약속 시간과 충돌하는 리스크가 없습니다.',
+            '온무식당은 이동 시간이 짧고 한식을 좋아하는 멤버들이 함께 고르기 좋은 후보예요.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -193,8 +180,8 @@ class _RecommendationConclusion extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: const [
-              OnmuChip(label: '최저 만족도 방어', selected: true),
-              OnmuChip(label: '리스크 없음', selected: true),
+              OnmuChip(label: '한식 선호', selected: true),
+              OnmuChip(label: '이동 쉬움', selected: true),
             ],
           ),
         ],

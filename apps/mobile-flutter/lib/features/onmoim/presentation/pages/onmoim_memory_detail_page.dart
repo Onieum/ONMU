@@ -1,0 +1,249 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/routing/route_paths.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/models/onmoim_models.dart';
+import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
+import '../widgets/onmoim_memory_photo.dart';
+
+class OnMoimMemoryDetailPage extends StatelessWidget {
+  const OnMoimMemoryDetailPage({
+    required this.onmoimId,
+    required this.memoryId,
+    super.key,
+  });
+
+  final String onmoimId;
+  final String memoryId;
+
+  @override
+  Widget build(BuildContext context) {
+    final memoryIndex = demoOnMoimMemories.indexWhere(
+      (memory) => memory.id == memoryId,
+    );
+    final safeIndex = memoryIndex < 0 ? 0 : memoryIndex;
+    final memory = demoOnMoimMemories[safeIndex];
+
+    return OnmuScaffold(
+      title: '기록',
+      showBackButton: true,
+      onBack: () => context.go(RoutePaths.onmoimMemories(onmoimId)),
+      action: IconButton(
+        tooltip: '기록 옵션',
+        onPressed: () {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('기록 옵션은 이후에 연결할게요.')));
+        },
+        icon: const Icon(Icons.more_horiz),
+      ),
+      useWarmBackground: false,
+      bottom: const _CommentInput(),
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: AspectRatio(
+            aspectRatio: 1.36,
+            child: OnMoimMemoryPhoto(index: safeIndex),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _MemoryBody(memory: memory),
+        const SizedBox(height: AppSpacing.lg),
+        const Divider(color: AppColors.lineSoft),
+        const SizedBox(height: AppSpacing.md),
+        Text('댓글 3', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.md),
+        const _CommentRow(author: '민수', body: '분위기 좋다! 어디야?', date: '05.24'),
+        const SizedBox(height: AppSpacing.sm),
+        const _CommentRow(author: '하린', body: '다음에 같이 가자!', date: '05.24'),
+        const SizedBox(height: 72),
+      ],
+    );
+  }
+}
+
+class _MemoryBody extends StatelessWidget {
+  const _MemoryBody({required this.memory});
+
+  final OnMoimMemoryRecord memory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PixelAvatar(label: memory.author, size: 40),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    memory.author,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    memory.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    memory.dateLabel,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          memory.description,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [for (final tag in memory.tags) _TagPill(label: tag)],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            const Icon(Icons.favorite, color: AppColors.accentRed),
+            const SizedBox(width: AppSpacing.xs),
+            Text('12', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(width: AppSpacing.lg),
+            const Icon(Icons.mode_comment_outlined, color: AppColors.textSub),
+            const SizedBox(width: AppSpacing.xs),
+            Text('3', style: Theme.of(context).textTheme.labelLarge),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TagPill extends StatelessWidget {
+  const _TagPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.primaryPinkSoft,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.primaryPink),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentRow extends StatelessWidget {
+  const _CommentRow({
+    required this.author,
+    required this.body,
+    required this.date,
+  });
+
+  final String author;
+  final String body;
+  final String date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PixelAvatar(label: author, size: 28),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '$author  ',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                TextSpan(
+                  text: body,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          date,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _CommentInput extends StatelessWidget {
+  const _CommentInput();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        children: [
+          const Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: '댓글을 입력하세요...',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: '댓글 보내기',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('댓글 작성은 목업으로만 확인해요.')),
+              );
+            },
+            icon: const Icon(Icons.send_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+}

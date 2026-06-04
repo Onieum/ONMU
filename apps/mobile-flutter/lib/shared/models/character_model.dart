@@ -49,27 +49,25 @@ class CharacterDraft {
     );
   }
 
-  // 기본 프리셋들
   static List<String> get skinTones => [
-    '#FFECCA', // 1단계 (가장 밝음)
-    '#FCD0B4', // 2단계
-    '#EBB390', // 3단계
-    '#D49673', // 4단계
-    '#B87B57', // 5단계 (가장 어두움)
+    '#FEE7DA',
+    '#F5CDA7',
+    '#E0A96D',
+    '#96613F',
+    '#4D2C19',
   ];
 
-  // 헤어 컬러 10가지
   static List<String> get hairColors => [
-    '#1E1E1E', // 블랙
-    '#7A5230', // 브라운
-    '#E7D08B', // 블론드
-    '#F5F5F5', // 화이트
-    '#E6A3C6', // 핑크
-    '#C94B4B', // 레드
-    '#7FA9E6', // 블루
-    '#7ED8B6', // 민트
-    '#9A79D8', // 퍼플
-    '#9AD64D', // 라임
+    '#1E1E1E',
+    '#7A5230',
+    '#E7D08B',
+    '#F5F5F5',
+    '#E6A3C6',
+    '#C94B4B',
+    '#7FA9E6',
+    '#7ED8B6',
+    '#9A79D8',
+    '#9AD64D',
   ];
 
   static List<String> get hairColorLabels => [
@@ -85,16 +83,15 @@ class CharacterDraft {
     '라임',
   ];
 
-  // 눈 컬러 8가지
   static List<String> get eyeColors => [
-    '#3A3A3A', // 검정
-    '#8B5A3C', // 갈색
-    '#4F8FD9', // 파랑
-    '#D86A9C', // 핑크
-    '#6FA45A', // 초록
-    '#7A7A7A', // 회색
-    '#8A6BB8', // 보라
-    '#C99652', // 골드
+    '#3A3A3A',
+    '#8B5A3C',
+    '#4F8FD9',
+    '#D86A9C',
+    '#6FA45A',
+    '#7A7A7A',
+    '#8A6BB8',
+    '#C99652',
   ];
 
   static List<String> get eyeColorLabels => [

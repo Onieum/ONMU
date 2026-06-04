@@ -126,10 +126,7 @@ class _PaymentItemEditorCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          OnmuStickerLabel(
-            label: '결제 항목 $itemNumber',
-            icon: Icons.receipt_long,
-          ),
+          _PaymentItemHeader(itemNumber: itemNumber),
           const SizedBox(height: AppSpacing.md),
           TextField(
             decoration: InputDecoration(
@@ -289,6 +286,30 @@ class _AddPaymentItemCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PaymentItemHeader extends StatelessWidget {
+  const _PaymentItemHeader({required this.itemNumber});
+
+  final int itemNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.receipt_long_outlined,
+          size: 20,
+          color: AppColors.primaryPink,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          '결제 항목 $itemNumber',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+      ],
     );
   }
 }

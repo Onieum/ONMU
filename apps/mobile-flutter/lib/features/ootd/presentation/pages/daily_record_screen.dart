@@ -471,8 +471,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             ),
             SizedBox(width: 8),
             SizedBox(
-              width: 72,
-              child: ElevatedButton(onPressed: _addTag, child: Text('추가')),
+              width: 92,
+              child: ElevatedButton(
+                onPressed: _addTag,
+                child: const Text(
+                  '추가',
+                  maxLines: 1,
+                  softWrap: false,
+                ),
+              ),
             ),
           ],
         ),

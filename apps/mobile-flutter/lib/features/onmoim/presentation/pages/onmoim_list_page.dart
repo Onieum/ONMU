@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../widgets/onmoim_cards.dart';
 
@@ -20,7 +20,10 @@ class OnMoimListPage extends StatelessWidget {
       actions: [
         IconButton(
           tooltip: '온모임 검색',
-          onPressed: () {},
+          onPressed: () => _showOnMoimListSnack(
+            context,
+            '검색은 입력창에서 모임, 멤버, 약속을 함께 찾는 흐름으로 연결할게요.',
+          ),
           icon: const Icon(Icons.search),
         ),
       ],
@@ -29,7 +32,7 @@ class OnMoimListPage extends StatelessWidget {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textMain,
         shape: const CircleBorder(),
-        onPressed: () => context.go(RoutePaths.onmoimDemo),
+        onPressed: () => context.go(RoutePaths.onmoimNew),
         child: const Icon(Icons.add),
       ),
       children: [
@@ -39,9 +42,13 @@ class OnMoimListPage extends StatelessWidget {
           children: [
             Text('내 모임', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(width: AppSpacing.xs),
-            const OnmuStickerLabel(label: '5', icon: Icons.favorite),
+            const _GroupCountBadge(count: 5),
             const Spacer(),
-            TextButton(onPressed: () {}, child: const Text('최근 활동순')),
+            TextButton(
+              onPressed: () =>
+                  _showOnMoimListSnack(context, '최근 활동순으로 정렬된 상태예요.'),
+              child: const Text('최근 활동순'),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -58,12 +65,45 @@ class OnMoimListPage extends StatelessWidget {
   }
 }
 
+class _GroupCountBadge extends StatelessWidget {
+  const _GroupCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgSticker,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.favorite, size: 14, color: AppColors.primaryPink),
+            const SizedBox(width: AppSpacing.xxs),
+            Text('$count', style: Theme.of(context).textTheme.labelMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _OnMoimSearchField extends StatelessWidget {
   const _OnMoimSearchField();
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      onTap: () =>
+          _showOnMoimListSnack(context, '검색어 입력 UI는 다음 단계에서 실제 필드로 연결할게요.'),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
       padding: const EdgeInsets.symmetric(
@@ -84,4 +124,8 @@ class _OnMoimSearchField extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showOnMoimListSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

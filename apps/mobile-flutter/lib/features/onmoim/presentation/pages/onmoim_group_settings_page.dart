@@ -8,8 +8,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
 
 class OnMoimGroupSettingsPage extends StatefulWidget {
   const OnMoimGroupSettingsPage({required this.onmoimId, super.key});
@@ -27,78 +27,46 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
     orElse: () => demoOnMoimGroups.first,
   );
   late String _groupName = _group.name;
-  bool _chatNotificationEnabled = true;
-  bool _meetupNotificationEnabled = true;
-  bool _memoryNotificationEnabled = false;
 
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '모임 설정',
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.onmoimDetail(widget.onmoimId));
-      },
+      onBack: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
+      useWarmBackground: false,
       children: [
-        _GroupHeader(name: _groupName, group: _group),
+        _SettingsHeroCard(group: _group, groupName: _groupName),
         const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
-          title: '모임 정보',
-          children: [
-            _NameSettingCard(
-              groupName: _groupName,
-              description: _group.description,
-              onRenamePressed: _showRenameSheet,
-            ),
-          ],
+        _SettingActionCard(
+          icon: Icons.drive_file_rename_outline,
+          title: '모임 이름 변경',
+          subtitle: '모임의 이름과 소개를 변경할 수 있어요.',
+          onTap: _showRenameSheet,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
+        const SizedBox(height: AppSpacing.sm),
+        _SettingActionCard(
+          icon: Icons.notifications_none,
           title: '알림',
-          children: [
-            _SwitchSettingCard(
-              icon: Icons.chat_bubble_outline,
-              title: '새 채팅',
-              subtitle: '친구들이 남긴 이야기를 놓치지 않아요.',
-              value: _chatNotificationEnabled,
-              onChanged: (value) {
-                setState(() => _chatNotificationEnabled = value);
-              },
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _SwitchSettingCard(
-              icon: Icons.calendar_month_outlined,
-              title: '약속 변경',
-              subtitle: '시간, 장소, 후보 변경을 알려드려요.',
-              value: _meetupNotificationEnabled,
-              onChanged: (value) {
-                setState(() => _meetupNotificationEnabled = value);
-              },
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _SwitchSettingCard(
-              icon: Icons.photo_library_outlined,
-              title: '추억 업로드',
-              subtitle: '사진과 기록이 올라오면 살짝 알려드려요.',
-              value: _memoryNotificationEnabled,
-              onChanged: (value) {
-                setState(() => _memoryNotificationEnabled = value);
-              },
-            ),
-          ],
+          subtitle: '모임 알림을 설정하고 관리할 수 있어요.',
+          onTap: _showNotificationSheet,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
-          title: '함께하는 멤버',
-          children: [_MemberSummaryCard(members: _group.members)],
+        const SizedBox(height: AppSpacing.sm),
+        _SettingActionCard(
+          icon: Icons.groups_outlined,
+          title: '멤버 목록',
+          subtitle: '모임원 목록을 확인할 수 있어요.',
+          onTap: () => context.go(RoutePaths.onmoimMembers(widget.onmoimId)),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        _LeaveGroupCard(onLeavePressed: _confirmLeaveGroup),
+        const SizedBox(height: AppSpacing.sm),
+        _SettingActionCard(
+          icon: Icons.logout,
+          title: '모임 나가기',
+          subtitle: '모임을 나가면 더 이상 활동할 수 없어요.',
+          danger: true,
+          onTap: _confirmLeaveGroup,
+        ),
+        const SizedBox(height: 72),
       ],
     );
   }
@@ -130,6 +98,17 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
     } finally {
       controller.dispose();
     }
+  }
+
+  Future<void> _showNotificationSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: AppColors.transparent,
+      builder: (context) {
+        return const _NotificationSheet();
+      },
+    );
   }
 
   Future<void> _confirmLeaveGroup() async {
@@ -166,122 +145,70 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
   }
 }
 
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.name, required this.group});
+class _SettingsHeroCard extends StatelessWidget {
+  const _SettingsHeroCard({required this.group, required this.groupName});
 
-  final String name;
   final OnMoimGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.linePurple,
-      child: Row(
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.primaryPurpleSoft,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: const SizedBox.square(
-              dimension: 64,
-              child: Icon(
-                Icons.groups_2_outlined,
-                color: AppColors.primaryPurple,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  group.description,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    OnmuChip(label: '${group.members.length}명'),
-                    const OnmuChip(label: '공동 모임'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        ...children,
-      ],
-    );
-  }
-}
-
-class _NameSettingCard extends StatelessWidget {
-  const _NameSettingCard({
-    required this.groupName,
-    required this.description,
-    required this.onRenamePressed,
-  });
-
   final String groupName;
-  final String description;
-  final VoidCallback onRenamePressed;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
       backgroundColor: AppColors.bgPaper,
-      child: Row(
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.edit_note, color: AppColors.primaryPink),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(groupName, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  description,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          Text('모임 정보', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              SizedBox(
+                width: 76,
+                height: 54,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned(
+                      left: 0,
+                      child: PixelAvatar(label: group.members[0], size: 42),
+                    ),
+                    PixelAvatar(label: group.members[1], size: 46),
+                    Positioned(
+                      right: 0,
+                      child: PixelAvatar(label: group.members[2], size: 42),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          IconButton.outlined(
-            tooltip: '모임 이름 변경',
-            onPressed: onRenamePressed,
-            icon: const Icon(Icons.drive_file_rename_outline),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      groupName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      group.description,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '멤버 ${group.members.length}명',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.primaryPink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -289,38 +216,33 @@ class _NameSettingCard extends StatelessWidget {
   }
 }
 
-class _SwitchSettingCard extends StatelessWidget {
-  const _SwitchSettingCard({
+class _SettingActionCard extends StatelessWidget {
+  const _SettingActionCard({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.value,
-    required this.onChanged,
+    required this.onTap,
+    this.danger = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
+    final color = danger ? AppColors.accentRed : AppColors.primaryPink;
+
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
+      onTap: onTap,
+      backgroundColor: danger ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+      borderColor: danger ? AppColors.linePink : AppColors.lineSoft,
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: value
-                ? AppColors.primaryPinkSoft
-                : AppColors.bgPaper,
-            foregroundColor: value
-                ? AppColors.primaryPink
-                : AppColors.textMuted,
-            child: Icon(icon, size: 20),
-          ),
-          const SizedBox(width: AppSpacing.sm),
+          Icon(icon, color: color, size: 30),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,89 +258,8 @@ class _SwitchSettingCard extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: value,
-            activeThumbColor: AppColors.primaryPurple,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberSummaryCard extends StatelessWidget {
-  const _MemberSummaryCard({required this.members});
-
-  final List<String> members;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '모두 같은 권한으로 약속과 기록을 함께 관리해요.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [for (final member in members) OnmuChip(label: member)],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LeaveGroupCard extends StatelessWidget {
-  const _LeaveGroupCard({required this.onLeavePressed});
-
-  final VoidCallback onLeavePressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.linePink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.logout, color: AppColors.accentRed),
-              const SizedBox(width: AppSpacing.sm),
-              Text('모임 나가기', style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '나간 뒤에는 온모임 목록에서 이 모임이 보이지 않아요.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accentRed,
-                side: const BorderSide(color: AppColors.linePink),
-                minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-              ),
-              onPressed: onLeavePressed,
-              icon: const Icon(Icons.logout),
-              label: const Text('모임 나가기'),
-            ),
-          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],
       ),
     );
@@ -465,15 +306,31 @@ class _RenameGroupSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('모임 이름 변경', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Text(
+                  '모임 이름 변경',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                Text(
+                  '${controller.text.characters.length}/20',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: controller,
+              maxLength: 20,
               autofocus: true,
               textInputAction: TextInputAction.done,
               decoration: const InputDecoration(
                 labelText: '모임 이름',
-                hintText: '새 모임 이름을 입력해 주세요',
+                helperText: '모임원에게 보이는 이름이에요.',
+                counterText: '',
               ),
               onSubmitted: (_) => _submit(context),
             ),
@@ -491,8 +348,6 @@ class _RenameGroupSheet extends StatelessWidget {
                   child: OnmuPrimaryButton(
                     label: '저장',
                     icon: Icons.check,
-                    color: AppColors.primaryPurple,
-                    foregroundColor: AppColors.textInverse,
                     onPressed: () => _submit(context),
                   ),
                 ),
@@ -511,5 +366,55 @@ class _RenameGroupSheet extends StatelessWidget {
     }
 
     Navigator.of(context).pop(value);
+  }
+}
+
+class _NotificationSheet extends StatefulWidget {
+  const _NotificationSheet();
+
+  @override
+  State<_NotificationSheet> createState() => _NotificationSheetState();
+}
+
+class _NotificationSheetState extends State<_NotificationSheet> {
+  bool _chat = true;
+  bool _meetup = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.bgWarm,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('알림', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.md),
+            SwitchListTile(
+              value: _chat,
+              onChanged: (value) => setState(() => _chat = value),
+              title: const Text('새 채팅'),
+              subtitle: const Text('모임 대화가 올라오면 알려드려요.'),
+            ),
+            SwitchListTile(
+              value: _meetup,
+              onChanged: (value) => setState(() => _meetup = value),
+              title: const Text('약속 변경'),
+              subtitle: const Text('약속 시간과 장소 변경을 알려드려요.'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            OnmuPrimaryButton(
+              label: '완료',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
