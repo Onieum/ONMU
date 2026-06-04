@@ -29,6 +29,10 @@ class OnMoimGroupHomePage extends StatelessWidget {
           title: '다가오는 약속',
           actionLabel: '전체 보기',
           onTap: () => context.go(RoutePaths.onmoimMeetups(group.id)),
+          secondaryLabel: '약속 만들기',
+          secondaryIcon: Icons.add,
+          onSecondaryTap: () =>
+              context.go(RoutePaths.onmoimMeetupNew(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupCard(
@@ -254,11 +258,17 @@ class _SectionHeader extends StatelessWidget {
     required this.title,
     required this.actionLabel,
     required this.onTap,
+    this.secondaryLabel,
+    this.secondaryIcon,
+    this.onSecondaryTap,
   });
 
   final String title;
   final String actionLabel;
   final VoidCallback onTap;
+  final String? secondaryLabel;
+  final IconData? secondaryIcon;
+  final VoidCallback? onSecondaryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +277,20 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
+        if (secondaryLabel != null && onSecondaryTap != null) ...[
+          TextButton.icon(
+            onPressed: onSecondaryTap,
+            icon: Icon(secondaryIcon ?? Icons.add, size: 16),
+            label: Text(secondaryLabel!),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryPink,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+        ],
         TextButton.icon(
           onPressed: onTap,
           icon: Text(actionLabel),

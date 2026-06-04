@@ -9,12 +9,15 @@ class RoutePaths {
   static const characterStart = '/character/start';
   static const home = '/home';
   static const homeUpcomingMeetups = '/home/upcoming-meetups';
+  static const homeNotifications = '/home/notifications';
+  static const homeRecentRecords = '/home/recent-records';
   static const onmoim = '/onmoim';
   static const onmoimNew = '/onmoim/new';
   static const onmoimDemo = '/onmoim/friends';
   static const onmoimDemoSettings = '/onmoim/friends/settings';
   static const onmoimDemoChat = '/onmoim/friends/chat';
   static const onmoimDemoMemories = '/onmoim/friends/memories';
+  static const onmoimDemoVote = '/onmoim/friends/votes/demo';
   static const onmoimDemoMeetup = '/onmoim/friends/meetups/demo';
   static const onmoimDemoMeetupBoard = '/onmoim/friends/meetups/demo/board';
   static const onmoimDemoMeetupPlaces = '/onmoim/friends/meetups/demo/places';
@@ -36,6 +39,9 @@ class RoutePaths {
   static String onmoimSettings(String onmoimId) => '/onmoim/$onmoimId/settings';
 
   static String onmoimChat(String onmoimId) => '/onmoim/$onmoimId/chat';
+
+  static String onmoimVote(String onmoimId, String voteId) =>
+      '/onmoim/$onmoimId/votes/$voteId';
 
   static String onmoimMemories(String onmoimId) => '/onmoim/$onmoimId/memories';
 

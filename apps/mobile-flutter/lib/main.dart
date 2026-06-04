@@ -9,6 +9,8 @@ import 'features/auth/login_page.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/character/character_start_page.dart';
 import 'features/home/home_page.dart';
+import 'features/home/presentation/pages/home_notifications_page.dart';
+import 'features/home/presentation/pages/home_recent_records_page.dart';
 import 'features/home/presentation/pages/upcoming_meetups_page.dart';
 import 'features/launch/splash_page.dart';
 import 'features/meetup/presentation/pages/meetup_create_page.dart';
@@ -29,6 +31,7 @@ import 'features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_thread_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
 import 'features/onboarding/onboarding_hub_page.dart';
 import 'features/ootd/ootd_list_page.dart';
 import 'features/ootd/presentation/pages/daily_record_screen.dart';
@@ -157,6 +160,14 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                   path: RoutePaths.homeUpcomingMeetups,
                   builder: (context, state) => const UpcomingMeetupsPage(),
                 ),
+                GoRoute(
+                  path: RoutePaths.homeNotifications,
+                  builder: (context, state) => const HomeNotificationsPage(),
+                ),
+                GoRoute(
+                  path: RoutePaths.homeRecentRecords,
+                  builder: (context, state) => const HomeRecentRecordsPage(),
+                ),
               ],
             ),
             StatefulShellBranch(
@@ -205,6 +216,13 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                           builder: (context, state) => const OnMoimThreadPage(),
                         ),
                         GoRoute(
+                          path: 'votes/:voteId',
+                          builder: (context, state) => OnMoimVoteDetailPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                            voteId: state.pathParameters['voteId'] ?? 'demo',
+                          ),
+                        ),
+                        GoRoute(
                           path: 'memories',
                           builder: (context, state) =>
                               const OnMoimMemoryBoardPage(),
@@ -223,6 +241,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                           path: 'meetups/new/members',
                           builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
+                            editingMeetupId: state.uri.queryParameters['edit'],
                           ),
                         ),
                         GoRoute(
@@ -235,12 +254,15 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                           path: 'meetups/new/schedule',
                           builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
+                            editingMeetupId: state.uri.queryParameters['edit'],
                           ),
                           routes: [
                             GoRoute(
                               path: 'calendar',
                               builder: (context, state) => MeetupCreatePage(
                                 onmoimId: state.pathParameters['onmoimId']!,
+                                editingMeetupId:
+                                    state.uri.queryParameters['edit'],
                               ),
                             ),
                           ],

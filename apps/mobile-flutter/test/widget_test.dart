@@ -46,7 +46,7 @@ void main() {
     expect(find.text('안녕하세요, 지우님'), findsOneWidget);
     expect(find.text('진행 중인 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
-    expect(find.text('전체 보기'), findsOneWidget);
+    expect(find.text('전체 보기'), findsWidgets);
     expect(find.text('홈'), findsWidgets);
     expect(find.text('약속'), findsNothing);
     expect(find.text('온모임'), findsWidgets);
@@ -78,7 +78,7 @@ void main() {
     appRouter.go(RoutePaths.home);
     await tester.pumpAndSettle();
 
-    expect(find.text('상세 보기'), findsNothing);
+    expect(find.text('상세 보기'), findsOneWidget);
 
     await tester.tap(find.text('성수 저녁 약속'));
     await tester.pumpAndSettle();
@@ -99,10 +99,53 @@ void main() {
     await tester.tap(find.text('전체 보기').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('다가오는 약속 전체'), findsOneWidget);
+    expect(find.text('다가오는 약속'), findsOneWidget);
     expect(find.text('한남 카페 투어'), findsOneWidget);
     expect(find.text('홍대 전시회 구경'), findsOneWidget);
-    expect(find.text('북촌 소품샵 산책'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('제주도 여행'), 320);
+    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('성수 디저트 모임'), findsOneWidget);
+  });
+
+  testWidgets('home notification bell opens stacked notifications', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.home);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('알림'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('알림'), findsOneWidget);
+    expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsOneWidget);
+    expect(find.text('투표 확인하기'), findsOneWidget);
+  });
+
+  testWidgets('home recent records see all opens record grid', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.home);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('최근 기록'), 320);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('전체 보기').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('최근 기록'), findsOneWidget);
+    expect(find.text('성수동 카페'), findsWidgets);
+    expect(find.text('제주 바다'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('기록 카드 만들기'),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('기록 카드 만들기'), findsOneWidget);
   });
 
   testWidgets('confirmed meetup date tabs can be selected', (tester) async {
@@ -120,6 +163,10 @@ void main() {
     final secondTabText = tester.widget<Text>(find.text('6/8 일'));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
+    expect(find.text('제주도 일대'), findsOneWidget);
+    expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
+    expect(find.text('협재 해수욕장'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsNothing);
   });
 
   testWidgets('draft meetup can open the shared candidate list', (
@@ -133,11 +180,52 @@ void main() {
 
     expect(find.text('장소 검색하기'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('제주도 일대'), findsOneWidget);
+    expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
+    expect(find.text('일정이 없어요'), findsNothing);
+    expect(find.text('일정 타임라인'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsOneWidget);
+
+    await tester.tap(find.text('6/8 일'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('협재 해수욕장'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsNothing);
+
+    final searchButtonRect = tester.getRect(
+      find.byKey(const ValueKey('meetup-place-action-search')),
+    );
+    final candidateButtonRect = tester.getRect(
+      find.byKey(const ValueKey('meetup-place-action-candidates')),
+    );
+    expect(searchButtonRect.size, candidateButtonRect.size);
 
     await tester.tap(find.text('후보 리스트 보기'));
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보 리스트'), findsOneWidget);
+  });
+
+  testWidgets('meetup detail more menu opens edit flow', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupDetail('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('더보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+
+    await tester.tap(find.text('약속 수정하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+    expect(find.text('수정 완료'), findsOneWidget);
+    expect(find.text('약속 이름'), findsOneWidget);
+    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('제주도 일대'), findsOneWidget);
   });
 
   testWidgets('confirmed meetup still exposes the shared candidate list', (
@@ -192,6 +280,13 @@ void main() {
     expect(find.text('중복 선택'), findsOneWidget);
     expect(find.text('마감 날짜'), findsOneWidget);
     expect(find.text('마감 시간'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '투표 만들기').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표 보기'), findsOneWidget);
+    expect(find.text('후보별 투표 현황'), findsOneWidget);
+    expect(find.text('온무식당'), findsOneWidget);
   });
 
   testWidgets('place map actions show confirmation without navigation', (
@@ -480,5 +575,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('확인 메시지'), findsOneWidget);
+  });
+
+  testWidgets('onmoim chat vote notice opens vote detail', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimChat('friends'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('후보 보기'), findsNothing);
+    expect(find.text('투표 보기'), findsOneWidget);
+
+    await tester.tap(find.text('투표 보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
+    expect(find.text('후보별 투표 현황'), findsOneWidget);
+    expect(find.text('온무식당'), findsOneWidget);
+    expect(find.text('민서님 선택'), findsOneWidget);
   });
 }

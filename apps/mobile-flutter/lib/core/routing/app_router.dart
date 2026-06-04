@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/character/character_start_page.dart';
+import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/home_recent_records_page.dart';
 import '../../features/home/presentation/pages/upcoming_meetups_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
@@ -22,6 +24,7 @@ import '../../features/onmoim/presentation/pages/onmoim_memory_detail_page.dart'
 import '../../features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_thread_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_compare_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -82,6 +85,14 @@ final appRouter = GoRouter(
               path: RoutePaths.homeUpcomingMeetups,
               builder: (context, state) => const UpcomingMeetupsPage(),
             ),
+            GoRoute(
+              path: RoutePaths.homeNotifications,
+              builder: (context, state) => const HomeNotificationsPage(),
+            ),
+            GoRoute(
+              path: RoutePaths.homeRecentRecords,
+              builder: (context, state) => const HomeRecentRecordsPage(),
+            ),
           ],
         ),
         StatefulShellBranch(
@@ -129,6 +140,13 @@ final appRouter = GoRouter(
                       builder: (context, state) => const OnMoimThreadPage(),
                     ),
                     GoRoute(
+                      path: 'votes/:voteId',
+                      builder: (context, state) => OnMoimVoteDetailPage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                        voteId: state.pathParameters['voteId'] ?? 'demo',
+                      ),
+                    ),
+                    GoRoute(
                       path: 'memories',
                       builder: (context, state) =>
                           const OnMoimMemoryBoardPage(),
@@ -146,6 +164,7 @@ final appRouter = GoRouter(
                       path: 'meetups/new/members',
                       builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
+                        editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                     ),
                     GoRoute(
@@ -158,12 +177,14 @@ final appRouter = GoRouter(
                       path: 'meetups/new/schedule',
                       builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
+                        editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                       routes: [
                         GoRoute(
                           path: 'calendar',
                           builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
+                            editingMeetupId: state.uri.queryParameters['edit'],
                           ),
                         ),
                       ],

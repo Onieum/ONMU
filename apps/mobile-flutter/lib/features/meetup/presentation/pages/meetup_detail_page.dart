@@ -8,7 +8,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/meetup_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
@@ -44,7 +43,7 @@ class MeetupDetailPage extends StatelessWidget {
   }
 }
 
-class _DraftMeetupDetail extends StatelessWidget {
+class _DraftMeetupDetail extends StatefulWidget {
   const _DraftMeetupDetail({
     required this.onmoimId,
     required this.meetupId,
@@ -56,9 +55,17 @@ class _DraftMeetupDetail extends StatelessWidget {
   final List<MeetupMember> members;
 
   @override
+  State<_DraftMeetupDetail> createState() => _DraftMeetupDetailState();
+}
+
+class _DraftMeetupDetailState extends State<_DraftMeetupDetail> {
+  var _selectedDateIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '제주도 여행',
+      titleSubtitle: const _MeetupLocationSubtitle(location: '제주도 일대'),
       showBackButton: true,
       onBack: () {
         if (context.canPop()) {
@@ -66,64 +73,104 @@ class _DraftMeetupDetail extends StatelessWidget {
           return;
         }
 
-        context.go(RoutePaths.onmoimDetail(onmoimId));
+        context.go(RoutePaths.onmoimDetail(widget.onmoimId));
       },
-      action: IconButton(
-        tooltip: '더보기',
-        onPressed: () {},
-        icon: const Icon(Icons.more_vert),
+      action: _MeetupMoreMenu(
+        onEditPressed: () => context.push(
+          '${RoutePaths.onmoimMeetupNewMembers(widget.onmoimId)}?edit=${widget.meetupId}',
+        ),
       ),
-      bottom: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          OnmuPrimaryButton(
+      bottom: _DraftPlaceActions(
+        onSearchPressed: () => context.push(
+          RoutePaths.onmoimMeetupPlaceMap(widget.onmoimId, widget.meetupId),
+        ),
+        onCandidatesPressed: () => context.push(
+          RoutePaths.onmoimMeetupPlaces(widget.onmoimId, widget.meetupId),
+        ),
+      ),
+      children: [
+        _MeetupMemberSection(members: widget.members),
+        const SizedBox(height: AppSpacing.md),
+        _DateTabs(
+          selectedIndex: _selectedDateIndex,
+          onChanged: (index) => setState(() => _selectedDateIndex = index),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text('일정 타임라인', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        _TimelineCard(visitPlan: _visitPlanByDate(_selectedDateIndex)),
+      ],
+    );
+  }
+}
+
+class _DraftPlaceActions extends StatelessWidget {
+  const _DraftPlaceActions({
+    required this.onSearchPressed,
+    required this.onCandidatesPressed,
+  });
+
+  static const _buttonHeight = 52.0;
+
+  final VoidCallback onSearchPressed;
+  final VoidCallback onCandidatesPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          key: const ValueKey('meetup-place-action-search'),
+          height: _buttonHeight,
+          child: OnmuPrimaryButton(
             label: '장소 검색하기',
             icon: Icons.add_location_alt_outlined,
             color: AppColors.primaryPink,
             foregroundColor: AppColors.textInverse,
-            onPressed: () => context.push(
-              RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId),
-            ),
+            onPressed: onSearchPressed,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          OnmuSecondaryButton(
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          key: const ValueKey('meetup-place-action-candidates'),
+          height: _buttonHeight,
+          child: OnmuSecondaryButton(
             label: '후보 리스트 보기',
             icon: Icons.favorite_border,
-            onPressed: () =>
-                context.push(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
-          ),
-        ],
-      ),
-      children: [
-        _MeetupMetaRow(members: members),
-        const SizedBox(height: AppSpacing.xl),
-        OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          child: SizedBox(
-            height: 320,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  size: 88,
-                  color: AppColors.primaryPink,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text('일정이 없어요', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '장소를 검색하거나 후보 리스트에서 골라볼까요?',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
+            onPressed: onCandidatesPressed,
           ),
         ),
       ],
     );
   }
 }
+
+class _MeetupMoreMenu extends StatelessWidget {
+  const _MeetupMoreMenu({required this.onEditPressed});
+
+  final VoidCallback onEditPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_MeetupMenuAction>(
+      tooltip: '더보기',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _MeetupMenuAction.edit:
+            onEditPressed();
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: _MeetupMenuAction.edit, child: Text('약속 수정하기')),
+      ],
+    );
+  }
+}
+
+enum _MeetupMenuAction { edit }
 
 class _ConfirmedMeetupDetail extends StatefulWidget {
   const _ConfirmedMeetupDetail({
@@ -147,6 +194,7 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '제주도 여행',
+      titleSubtitle: const _MeetupLocationSubtitle(location: '제주도 일대'),
       showBackButton: true,
       onBack: () {
         if (context.canPop()) {
@@ -156,10 +204,10 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
 
         context.go(RoutePaths.onmoimDetail(widget.onmoimId));
       },
-      action: IconButton(
-        tooltip: '더보기',
-        onPressed: () {},
-        icon: const Icon(Icons.more_vert),
+      action: _MeetupMoreMenu(
+        onEditPressed: () => context.push(
+          '${RoutePaths.onmoimMeetupNewMembers(widget.onmoimId)}?edit=${widget.meetupId}',
+        ),
       ),
       bottom: OnmuPrimaryButton(
         label: '저장하기',
@@ -169,7 +217,7 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
         onPressed: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
       ),
       children: [
-        _MeetupMetaRow(members: widget.members),
+        _MeetupMemberSection(members: widget.members),
         const SizedBox(height: AppSpacing.md),
         _DateTabs(
           selectedIndex: _selectedDateIndex,
@@ -212,14 +260,41 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        _TimelineCard(visitPlan: mockMeetup.visitPlan),
+        _TimelineCard(visitPlan: _visitPlanByDate(_selectedDateIndex)),
       ],
     );
   }
 }
 
-class _MeetupMetaRow extends StatelessWidget {
-  const _MeetupMetaRow({required this.members});
+class _MeetupLocationSubtitle extends StatelessWidget {
+  const _MeetupLocationSubtitle({required this.location});
+
+  final String location;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.location_on_outlined,
+          size: 16,
+          color: AppColors.textSub,
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(
+          location,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+        ),
+      ],
+    );
+  }
+}
+
+class _MeetupMemberSection extends StatelessWidget {
+  const _MeetupMemberSection({required this.members});
 
   final List<MeetupMember> members;
 
@@ -228,15 +303,6 @@ class _MeetupMetaRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: const [
-            OnmuChip(label: '6.7 (금) 오전 10:00'),
-            OnmuChip(label: '제주도 일대'),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
         Text(
           '참여자 ${members.length}명',
           style: Theme.of(context).textTheme.titleSmall,
@@ -253,6 +319,54 @@ class _MeetupMetaRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+List<VisitPlan> _visitPlanByDate(int index) {
+  switch (index) {
+    case 1:
+      return const [
+        VisitPlan(
+          time: '10:30',
+          endTime: '12:00',
+          place: '협재 해수욕장',
+          kind: '관광',
+          duration: '1시간 30분',
+        ),
+        VisitPlan(
+          time: '12:20',
+          endTime: '13:40',
+          place: '한림 흑돼지 식당',
+          kind: '식사',
+          duration: '1시간 20분',
+        ),
+        VisitPlan(
+          time: '14:10',
+          endTime: '16:00',
+          place: '카페 오션뷰',
+          kind: '카페',
+          duration: '1시간 50분',
+        ),
+      ];
+    case 2:
+      return const [
+        VisitPlan(
+          time: '09:30',
+          endTime: '11:00',
+          place: '오름 산책로',
+          kind: '산책',
+          duration: '1시간 30분',
+        ),
+        VisitPlan(
+          time: '11:30',
+          endTime: '13:00',
+          place: '동문시장',
+          kind: '식사',
+          duration: '1시간 30분',
+        ),
+      ];
+    default:
+      return mockMeetup.visitPlan;
   }
 }
 

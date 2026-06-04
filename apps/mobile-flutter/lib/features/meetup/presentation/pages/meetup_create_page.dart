@@ -12,27 +12,36 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class MeetupCreatePage extends StatelessWidget {
-  const MeetupCreatePage({required this.onmoimId, super.key});
+  const MeetupCreatePage({
+    required this.onmoimId,
+    super.key,
+    this.editingMeetupId,
+  });
 
   final String onmoimId;
+  final String? editingMeetupId;
 
   @override
   Widget build(BuildContext context) {
     final selectedMembers = mockMembers
         .where((member) => member.selected)
         .toList();
+    final editing = editingMeetupId != null;
 
     return OnmuScaffold(
-      title: '약속 만들기',
+      title: editing ? '약속 수정하기' : '약속 만들기',
       showBackButton: true,
       onBack: () => context.pop(),
       bottom: OnmuPrimaryButton(
-        label: '약속 만들기',
-        icon: Icons.add_task,
+        label: editing ? '수정 완료' : '약속 만들기',
+        icon: editing ? Icons.check : Icons.add_task,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         onPressed: () => context.go(
-          '${RoutePaths.onmoimMeetupDetail(onmoimId, mockMeetup.id)}?stage=draft',
+          RoutePaths.onmoimMeetupDetail(
+            onmoimId,
+            editingMeetupId ?? mockMeetup.id,
+          ),
         ),
       ),
       children: [
