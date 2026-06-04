@@ -11,60 +11,54 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
-class OnMoimMeetupListPage extends StatefulWidget {
+class OnMoimMeetupListPage extends StatelessWidget {
   const OnMoimMeetupListPage({required this.onmoimId, super.key});
 
   final String onmoimId;
 
   @override
-  State<OnMoimMeetupListPage> createState() => _OnMoimMeetupListPageState();
-}
-
-class _OnMoimMeetupListPageState extends State<OnMoimMeetupListPage> {
-  bool _showPast = false;
-
-  @override
   Widget build(BuildContext context) {
-    final upcoming = demoOnMoimMeetups.where((meetup) => !meetup.isPast);
-    final past = demoOnMoimMeetups.where((meetup) => meetup.isPast);
-    final visibleMeetups = _showPast ? past : upcoming;
+    final upcoming = demoOnMoimMeetups
+        .where((meetup) => !meetup.isPast)
+        .toList();
+    final past = demoOnMoimMeetups.where((meetup) => meetup.isPast).toList();
 
     return OnmuScaffold(
-      title: '약속 전체보기',
+      title: '약속',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
+      onBack: () => context.go(RoutePaths.onmoimDetail(onmoimId)),
+      action: IconButton(
+        tooltip: '약속 만들기',
+        onPressed: () => context.go(RoutePaths.onmoimMeetupNew(onmoimId)),
+        icon: const Icon(Icons.add, color: AppColors.primaryPink),
+      ),
       useWarmBackground: false,
       children: [
-        _MeetupSegmentedControl(
-          showPast: _showPast,
-          onChanged: (showPast) => setState(() => _showPast = showPast),
-        ),
-        const SizedBox(height: AppSpacing.md),
         const _MeetupSearchSortRow(),
         const SizedBox(height: AppSpacing.lg),
-        Text(
-          _showPast ? '지난 약속' : '6월',
-          style: Theme.of(context).textTheme.titleMedium,
+        _MeetupSectionTitle(
+          title: '다가오는 약속',
+          count: upcoming.length,
+          onCreateTap: () => context.go(RoutePaths.onmoimMeetupNew(onmoimId)),
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final meetup in visibleMeetups) ...[
+        for (final meetup in upcoming) ...[
           _MeetupSummaryCard(
             meetup: meetup,
-            onTap: () => context.go(
-              RoutePaths.onmoimMeetupDetail(widget.onmoimId, meetup.id),
-            ),
+            onTap: () =>
+                context.go(RoutePaths.onmoimMeetupDetail(onmoimId, meetup.id)),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
-        if (!_showPast) ...[
+        if (past.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
-          Text('지난 약속', style: Theme.of(context).textTheme.titleMedium),
+          _MeetupSectionTitle(title: '지난 약속', count: past.length),
           const SizedBox(height: AppSpacing.sm),
           for (final meetup in past) ...[
             _MeetupSummaryCard(
               meetup: meetup,
               onTap: () => context.go(
-                RoutePaths.onmoimMeetupDetail(widget.onmoimId, meetup.id),
+                RoutePaths.onmoimMeetupDetail(onmoimId, meetup.id),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -76,75 +70,38 @@ class _OnMoimMeetupListPageState extends State<OnMoimMeetupListPage> {
   }
 }
 
-class _MeetupSegmentedControl extends StatelessWidget {
-  const _MeetupSegmentedControl({
-    required this.showPast,
-    required this.onChanged,
+class _MeetupSectionTitle extends StatelessWidget {
+  const _MeetupSectionTitle({
+    required this.title,
+    required this.count,
+    this.onCreateTap,
   });
 
-  final bool showPast;
-  final ValueChanged<bool> onChanged;
+  final String title;
+  final int count;
+  final VoidCallback? onCreateTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Row(
-        children: [
-          _SegmentButton(
-            label: '다가오는',
-            selected: !showPast,
-            onTap: () => onChanged(false),
-          ),
-          _SegmentButton(
-            label: '지난 약속',
-            selected: showPast,
-            onTap: () => onChanged(true),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentButton extends StatelessWidget {
-  const _SegmentButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected ? AppColors.bgDefault : AppColors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: selected ? AppColors.primaryPink : AppColors.textSub,
-              ),
+    return Row(
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(width: AppSpacing.xs),
+        OnmuChip(label: '$count개'),
+        const Spacer(),
+        if (onCreateTap != null)
+          TextButton.icon(
+            onPressed: onCreateTap,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('약속 만들기'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryPink,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        ),
-      ),
+      ],
     );
   }
 }

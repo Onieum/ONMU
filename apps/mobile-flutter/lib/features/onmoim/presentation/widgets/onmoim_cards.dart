@@ -199,53 +199,80 @@ class ChatMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!message.isMine) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PixelAvatar(label: message.sender, size: 32),
+            const SizedBox(width: AppSpacing.xs),
+            Flexible(
+              child: _ChatMessageContent(message: message, maxWidth: 246),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Align(
-      alignment: message.isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 286),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: message.isMine
-                ? AppColors.primaryPinkSoft
-                : AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: message.isMine ? AppColors.linePink : AppColors.lineBrown,
-            ),
+      alignment: Alignment.centerRight,
+      child: _ChatMessageContent(message: message, maxWidth: 286),
+    );
+  }
+}
+
+class _ChatMessageContent extends StatelessWidget {
+  const _ChatMessageContent({required this.message, required this.maxWidth});
+
+  final OnMoimMessage message;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: message.isMine
+              ? AppColors.primaryPinkSoft
+              : AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: message.isMine ? AppColors.linePink : AppColors.lineBrown,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message.sender,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: message.isMine
-                        ? AppColors.textSub
-                        : AppColors.textMuted,
-                  ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message.sender,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: message.isMine
+                      ? AppColors.textSub
+                      : AppColors.textMuted,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  message.message,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: message.isMine
-                        ? AppColors.textMain
-                        : AppColors.textMain,
-                  ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                message.message,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                message.timeLabel,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: message.isMine
+                      ? AppColors.textSub
+                      : AppColors.textMuted,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  message.timeLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: message.isMine
-                        ? AppColors.textSub
-                        : AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
