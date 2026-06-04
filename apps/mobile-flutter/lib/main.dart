@@ -8,11 +8,8 @@ import 'core/theme/app_theme.dart';
 import 'features/character/character_start_page.dart';
 import 'features/home/home_page.dart';
 import 'features/launch/splash_page.dart';
-import 'features/meetup/presentation/pages/meetup_calendar_page.dart';
-import 'features/meetup/presentation/pages/meetup_complete_page.dart';
-import 'features/meetup/presentation/pages/meetup_date_select_page.dart';
+import 'features/meetup/presentation/pages/meetup_create_page.dart';
 import 'features/meetup/presentation/pages/meetup_detail_page.dart';
-import 'features/meetup/presentation/pages/meetup_member_select_page.dart';
 import 'features/meetup/presentation/pages/meetup_route_review_page.dart';
 import 'features/memory/presentation/pages/memory_detail_page.dart';
 import 'features/memory/presentation/pages/memory_diary_template_page.dart';
@@ -150,20 +147,21 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                         ),
                         GoRoute(
                           path: 'meetups/new/members',
-                          builder: (context, state) => MeetupMemberSelectPage(
+                          builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
                           ),
                         ),
                         GoRoute(
                           path: 'meetups/new/schedule',
-                          builder: (context, state) => MeetupDateSelectPage(
+                          builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
                           ),
                           routes: [
                             GoRoute(
                               path: 'calendar',
-                              builder: (context, state) =>
-                                  const MeetupCalendarPage(),
+                              builder: (context, state) => MeetupCreatePage(
+                                onmoimId: state.pathParameters['onmoimId']!,
+                              ),
                             ),
                           ],
                         ),
@@ -172,6 +170,9 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                           builder: (context, state) => MeetupDetailPage(
                             onmoimId: state.pathParameters['onmoimId']!,
                             meetupId: state.pathParameters['meetupId']!,
+                            placeConfirmed:
+                                state.uri.queryParameters['place'] ==
+                                'confirmed',
                           ),
                           routes: [
                             GoRoute(
@@ -279,9 +280,10 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                             ),
                             GoRoute(
                               path: 'complete',
-                              builder: (context, state) => MeetupCompletePage(
+                              builder: (context, state) => MeetupDetailPage(
                                 onmoimId: state.pathParameters['onmoimId']!,
                                 meetupId: state.pathParameters['meetupId']!,
+                                placeConfirmed: true,
                               ),
                             ),
                             GoRoute(
