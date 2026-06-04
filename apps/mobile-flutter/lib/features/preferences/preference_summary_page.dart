@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/onmu_design.dart';
+import '../../shared/providers/state_providers.dart';
 
 Future<void> showPreferenceSummaryBottomSheet(
   BuildContext context,
@@ -32,13 +34,13 @@ Future<void> showPreferenceSummaryBottomSheet(
   );
 }
 
-class PreferenceSummaryPage extends StatelessWidget {
+class PreferenceSummaryPage extends ConsumerWidget {
   final PreferenceProfile profile;
 
   const PreferenceSummaryPage({super.key, required this.profile});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -75,8 +77,12 @@ class PreferenceSummaryPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: OnmuPrimaryButton(
-                label: '캐릭터 설정하기',
-                onPressed: () => context.go(RoutePaths.characterStart),
+                label: '온보딩으로 돌아가기',
+                onPressed: () {
+                  ref.read(preferenceProfileProvider.notifier).state = profile;
+                  ref.read(skippedPreferenceProvider.notifier).state = false;
+                  context.go(RoutePaths.onboarding);
+                },
               ),
             ),
           ],

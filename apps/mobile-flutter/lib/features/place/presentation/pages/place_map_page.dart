@@ -6,9 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
-import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
 
 class PlaceMapPage extends StatelessWidget {
@@ -29,55 +27,49 @@ class PlaceMapPage extends StatelessWidget {
         child: Column(
           children: [
             OnmuTopBar(
-              title: '장소 지도',
+              title: '장소 추가하기',
               showBackButton: true,
               onBack: () => context.pop(),
+              action: IconButton(
+                tooltip: '장소 옵션',
+                onPressed: () {},
+                icon: const Icon(Icons.more_vert),
+              ),
             ),
             Expanded(
               child: Stack(
                 children: [
-                  const Positioned.fill(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        AppSpacing.lg,
-                        AppSpacing.sm,
-                        AppSpacing.lg,
-                        AppSpacing.lg,
+                  const Positioned.fill(child: _MapCanvas()),
+                  Positioned(
+                    left: AppSpacing.lg,
+                    right: AppSpacing.lg,
+                    top: AppSpacing.sm,
+                    child: _SearchBar(
+                      onTap: () => context.go(
+                        RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
                       ),
-                      child: _MockMap(),
                     ),
                   ),
                   Positioned(
-                    left: AppSpacing.lg,
-                    bottom: 112,
-                    child: FloatingActionButton.extended(
-                      heroTag: 'place-map-list',
-                      tooltip: '후보 목록 열기',
-                      backgroundColor: AppColors.bgDefault,
-                      foregroundColor: AppColors.textMain,
-                      elevation: 2,
-                      icon: const Icon(Icons.list_alt),
-                      label: const Text('목록'),
+                    right: AppSpacing.lg,
+                    top: 76,
+                    child: IconButton.filledTonal(
+                      tooltip: '필터',
                       onPressed: () => context.go(
-                        RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId),
+                        RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
                       ),
+                      icon: const Icon(Icons.tune),
                     ),
                   ),
                   DraggableScrollableSheet(
-                    initialChildSize: 0.38,
-                    minChildSize: 0.18,
-                    maxChildSize: 0.72,
+                    initialChildSize: 0.34,
+                    minChildSize: 0.24,
+                    maxChildSize: 0.7,
                     builder: (context, scrollController) {
-                      return _CandidateSheet(
+                      return _RecommendationSheet(
                         controller: scrollController,
-                        onListPressed: () => context.go(
+                        onAddPressed: () => context.go(
                           RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId),
-                        ),
-                        onComparePressed: () => context.go(
-                          RoutePaths.onmoimMeetupPlaceCompare(
-                            onmoimId,
-                            meetupId,
-                          ),
                         ),
                       );
                     },
@@ -92,16 +84,135 @@ class PlaceMapPage extends StatelessWidget {
   }
 }
 
-class _CandidateSheet extends StatelessWidget {
-  const _CandidateSheet({
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      onTap: onTap,
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: AppColors.textSub),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              '장소 검색 (카페, 식당, 관광지)',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapCanvas extends StatelessWidget {
+  const _MapCanvas();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _MapCanvasPainter(),
+      child: Stack(
+        children: const [
+          Positioned(left: 92, top: 132, child: _MapPin(order: 1)),
+          Positioned(right: 96, top: 220, child: _MapPin(order: 2)),
+          Positioned(right: 66, top: 128, child: _MapPin(order: 3)),
+          Positioned(left: 184, top: 176, child: _CurrentLocationDot()),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapCanvasPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final roadPaint = Paint()
+      ..color = AppColors.lineSoft
+      ..strokeWidth = 2;
+
+    for (var y = 40.0; y < size.height; y += 58) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y - 28), roadPaint);
+    }
+
+    for (var x = 24.0; x < size.width; x += 72) {
+      canvas.drawLine(Offset(x, 0), Offset(x + 40, size.height), roadPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _MapPin extends StatelessWidget {
+  const _MapPin({required this.order});
+
+  final int order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.primaryPink,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: AppColors.bgDefault, width: 3),
+          ),
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: Text(
+                '$order',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: AppColors.textInverse),
+              ),
+            ),
+          ),
+        ),
+        const Icon(Icons.location_on, color: AppColors.primaryPink),
+      ],
+    );
+  }
+}
+
+class _CurrentLocationDot extends StatelessWidget {
+  const _CurrentLocationDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.accentBlue,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.bgDefault, width: 4),
+      ),
+      child: const SizedBox.square(dimension: 24),
+    );
+  }
+}
+
+class _RecommendationSheet extends StatelessWidget {
+  const _RecommendationSheet({
     required this.controller,
-    required this.onListPressed,
-    required this.onComparePressed,
+    required this.onAddPressed,
   });
 
   final ScrollController controller;
-  final VoidCallback onListPressed;
-  final VoidCallback onComparePressed;
+  final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +234,7 @@ class _CandidateSheet extends StatelessWidget {
           AppSpacing.lg,
           AppSpacing.sm,
           AppSpacing.lg,
-          96,
+          AppSpacing.xl,
         ),
         children: [
           Center(
@@ -136,45 +247,25 @@ class _CandidateSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '후보 장소',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Text(
-                '아래로 내리면 지도만 볼 수 있어요',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
-              ),
-            ],
+          Text('추천 장소', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '검색하거나 지도로 이동해 후보를 추가해요',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           for (final candidate in demoPlaceCandidates) ...[
-            _SheetCandidateTile(candidate: candidate),
+            _RecommendationTile(
+              candidate: candidate,
+              onAddPressed: onAddPressed,
+            ),
             const SizedBox(height: AppSpacing.sm),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: OnmuSecondaryButton(
-                  label: '전체 목록',
-                  icon: Icons.list_alt,
-                  onPressed: onListPressed,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OnmuPrimaryButton(
-                  label: '비교하기',
-                  icon: Icons.compare_arrows,
-                  onPressed: onComparePressed,
-                ),
-              ),
-            ],
+          Text(
+            '4명이 함께 정하고 있어요',
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
           ),
         ],
       ),
@@ -182,22 +273,36 @@ class _CandidateSheet extends StatelessWidget {
   }
 }
 
-class _SheetCandidateTile extends StatelessWidget {
-  const _SheetCandidateTile({required this.candidate});
+class _RecommendationTile extends StatelessWidget {
+  const _RecommendationTile({
+    required this.candidate,
+    required this.onAddPressed,
+  });
 
   final PlaceCandidate candidate;
+  final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Row(
         children: [
-          const Icon(Icons.place, color: AppColors.primaryPink),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgGrid,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const SizedBox.square(
+              dimension: 58,
+              child: Icon(
+                Icons.photo_camera_outlined,
+                color: AppColors.textSub,
+              ),
+            ),
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -206,130 +311,22 @@ class _SheetCandidateTile extends StatelessWidget {
                 Text(
                   candidate.name,
                   style: Theme.of(context).textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${candidate.travelTimeLabel} · ${candidate.category}',
+                  '${candidate.category} · ${candidate.travelTimeLabel}',
                   style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
+                Text(candidate.tags.take(2).join(' · ')),
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '${candidate.matchPercent}%',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(color: AppColors.primaryPink),
+          IconButton.outlined(
+            tooltip: '후보 추가',
+            onPressed: onAddPressed,
+            icon: const Icon(Icons.add),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MockMap extends StatelessWidget {
-  const _MockMap();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.lineBrown),
-      ),
-      child: Stack(
-        children: const [
-          Positioned(top: 18, left: 138, child: OnmuTape(width: 92)),
-          Positioned(
-            left: 28,
-            top: 34,
-            child: _MapLabel(label: '민서', icon: Icons.face_3_outlined),
-          ),
-          Positioned(
-            right: 34,
-            top: 58,
-            child: _MapLabel(label: '지훈', icon: Icons.face_outlined),
-          ),
-          Positioned(
-            left: 52,
-            bottom: 168,
-            child: _MapLabel(label: '하린', icon: Icons.face_4_outlined),
-          ),
-          Positioned(
-            right: 54,
-            bottom: 190,
-            child: _MapLabel(label: '홍대입구역', icon: Icons.train_outlined),
-          ),
-          Center(child: _MapPin(label: '온무식당')),
-        ],
-      ),
-    );
-  }
-}
-
-class _MapLabel extends StatelessWidget {
-  const _MapLabel({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.lineBrown),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: AppColors.accentBrown),
-            const SizedBox(width: AppSpacing.xxs),
-            Text(label),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MapPin extends StatelessWidget {
-  const _MapPin({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.primaryPink,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.place, color: AppColors.textMain),
-            const SizedBox(width: AppSpacing.xs),
-            Text(label, style: Theme.of(context).textTheme.labelLarge),
-          ],
-        ),
       ),
     );
   }
