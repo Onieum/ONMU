@@ -204,7 +204,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   groupNum.toString(),
                   style: AppTextStyles.sticker.copyWith(
                     color: isActive
-                          ? AppColors.textInverse
+                        ? AppColors.textInverse
                         : isPassed
                         ? AppColors.primaryPink
                         : AppColors.textMuted,
@@ -425,10 +425,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
-                BoxShadow(
-                  color: AppColors.textMain.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                ),
+            BoxShadow(
+              color: AppColors.textMain.withValues(alpha: 0.02),
+              blurRadius: 8,
+            ),
           ],
         ),
         child: Row(
@@ -546,7 +546,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                 width: 60,
                 margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
-                          color: AppColors.lineSoft,
+                  color: AppColors.lineSoft,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.lineSoft),
                 ),
@@ -1191,10 +1191,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lineBrown, width: 2),
             boxShadow: [
-            BoxShadow(
-              color: AppColors.textMain.withValues(alpha: 0.04),
-              blurRadius: 10,
-            ),
+              BoxShadow(
+                color: AppColors.textMain.withValues(alpha: 0.04),
+                blurRadius: 10,
+              ),
             ],
           ),
           child: Column(
@@ -1259,7 +1259,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
     } else if (_currentStep == 4) {
       label = '기록 분석 요청 ➔';
     } else if (_currentStep == 6) {
-      label = widget.isDailyRecord ? '이어서 하루 일과 작성하기' : '홈으로 가기 ➔';
+      label = widget.isDailyRecord ? '이어서 하루 일과 작성하기' : '홈으로 가기';
     }
 
     return Container(

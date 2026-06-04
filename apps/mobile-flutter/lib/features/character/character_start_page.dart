@@ -788,7 +788,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             TextButton(
               onPressed: _skipOnboarding,
               child: Text(
-                '나중에 할게요',
+                '홈으로 가기',
                 style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
                 ),

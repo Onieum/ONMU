@@ -102,9 +102,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
           return RoutePaths.onboarding;
         }
 
-        if (location == RoutePaths.splash ||
-            isLoginRoute ||
-            isOnboardingRoute) {
+        if (location == RoutePaths.splash || isLoginRoute) {
           return RoutePaths.home;
         }
 
