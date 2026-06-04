@@ -25,13 +25,13 @@ class OnmuBottomNavBar extends StatelessWidget {
       label: '홈',
     ),
     _BottomNavItem(
-      icon: Icons.forum_outlined,
-      activeIcon: Icons.forum,
+      icon: Icons.groups_outlined,
+      activeIcon: Icons.groups_rounded,
       label: '온모임',
     ),
     _BottomNavItem(
       icon: Icons.calendar_month_outlined,
-      activeIcon: Icons.calendar_month,
+      activeIcon: Icons.calendar_month_rounded,
       label: '기록',
     ),
     _BottomNavItem(

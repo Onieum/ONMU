@@ -52,16 +52,32 @@ class OnMoimMessage {
 
 class OnMoimMemoryRecord {
   const OnMoimMemoryRecord({
+    required this.author,
     required this.title,
     required this.description,
     required this.dateLabel,
     required this.tags,
   });
 
+  final String author;
   final String title;
   final String description;
   final String dateLabel;
   final List<String> tags;
+}
+
+class OnMoimVoteCard {
+  const OnMoimVoteCard({
+    required this.title,
+    required this.summary,
+    required this.statusLabel,
+    required this.actionLabel,
+  });
+
+  final String title;
+  final String summary;
+  final String statusLabel;
+  final String actionLabel;
 }
 
 const demoOnMoimGroups = [
@@ -98,9 +114,9 @@ const demoPinnedMeetup = OnMoimPinnedMeetup(
   id: 'demo',
   title: '제주도 여행',
   dateLabel: '6.7(토) - 6.9(월)',
-  placeName: '부산 해운대 출발',
-  statusLabel: '장소 투표 진행 중',
-  voteSummary: '온무식당 5표 · 무드카페 3표 · 하루정원 1표',
+  placeName: '제주도 일대',
+  statusLabel: 'D-12',
+  voteSummary: '4명 참여',
 );
 
 const demoOnMoimMessages = [
@@ -124,35 +140,46 @@ const demoOnMoimMessages = [
   ),
   OnMoimMessage(
     sender: 'ONMU',
-    message: '장소 투표 마감이 D-1이에요. 최종 장소를 확정해보세요.',
+    message: '장소 후보가 3개 모였어요. 필요하면 투표를 만들어 함께 정해요.',
     timeLabel: '오전 9:25',
     isMine: false,
   ),
 ];
 
+const demoOnMoimVoteCard = OnMoimVoteCard(
+  title: '제주도 여행 장소 투표',
+  summary: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
+  statusLabel: '수동 투표 · 진행 중',
+  actionLabel: '후보 보기',
+);
+
 const demoOnMoimMemories = [
   OnMoimMemoryRecord(
-    title: '협재 해수욕장',
-    description: '진짜 바다 색이 미쳤다...',
-    dateLabel: '제주 여행',
-    tags: ['사진', '바다', '친구'],
+    author: '지연',
+    title: '성수동 카페',
+    description: '분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.',
+    dateLabel: '2024.05.24',
+    tags: ['카페', '사진', '디저트'],
   ),
   OnMoimMemoryRecord(
-    title: '석양 맛집 인정!',
-    description: '분위기 최고였던 카페 기록',
-    dateLabel: '지난 모임',
-    tags: ['사진', '카페', '기록'],
+    author: '민수',
+    title: '제주 바다',
+    description: '바다 색이 진짜 예뻤던 날.',
+    dateLabel: '2024.05.16',
+    tags: ['여행', '사진', '바다'],
   ),
   OnMoimMemoryRecord(
-    title: '흑돼지 맛집',
-    description: '목살이 진짜 부드러웠어요.',
-    dateLabel: '저녁 기록',
-    tags: ['음식', '맛집', '공유'],
+    author: '하린',
+    title: '전시회 다녀왔어요',
+    description: '조용히 둘러보기 좋았던 전시.',
+    dateLabel: '2024.05.10',
+    tags: ['기타', '기록', '전시'],
   ),
   OnMoimMemoryRecord(
-    title: '이런 여행 너무 즐거웠어',
-    description: '다음엔 어디로 갈까?',
-    dateLabel: 'Day 2',
-    tags: ['기록', '친구', '추억'],
+    author: '현우',
+    title: '한강 피크닉',
+    description: '다음에도 같이 가자!',
+    dateLabel: '2024.05.10',
+    tags: ['여행', '사진', '피크닉'],
   ),
 ];

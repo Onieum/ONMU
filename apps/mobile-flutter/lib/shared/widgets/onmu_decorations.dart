@@ -20,29 +20,26 @@ class OnmuStickerLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.025,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          border: Border.all(color: borderColor),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 15, color: AppColors.accentBrown),
-                const SizedBox(width: AppSpacing.xxs),
-              ],
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 15, color: AppColors.accentBrown),
+              const SizedBox(width: AppSpacing.xxs),
             ],
-          ),
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
+          ],
         ),
       ),
     );
@@ -56,16 +53,13 @@ class OnmuTape extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: 0.045,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.bgTape,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          border: Border.all(color: AppColors.lineWarm),
-        ),
-        child: SizedBox(width: width, height: 18),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgTape,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(color: AppColors.lineWarm),
       ),
+      child: SizedBox(width: width, height: 18),
     );
   }
 }

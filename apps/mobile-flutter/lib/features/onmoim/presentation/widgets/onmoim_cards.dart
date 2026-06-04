@@ -6,6 +6,7 @@ import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
 
 class OnMoimGroupCard extends StatelessWidget {
   const OnMoimGroupCard({required this.group, required this.onTap, super.key});
@@ -27,7 +28,7 @@ class OnMoimGroupCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const _AvatarCluster(),
+              _AvatarCluster(members: group.members),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -68,6 +69,12 @@ class OnMoimGroupCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
+              const Icon(
+                Icons.event_outlined,
+                size: 16,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
               Expanded(
                 child: Text(
                   group.description,
@@ -81,13 +88,25 @@ class OnMoimGroupCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xxs),
-          Text(
-            group.lastMessage,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              const Icon(
+                Icons.chat_bubble_outline,
+                size: 16,
+                color: AppColors.textMuted,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  group.lastMessage,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -289,7 +308,9 @@ class FinalSettlementResultRow extends StatelessWidget {
 }
 
 class _AvatarCluster extends StatelessWidget {
-  const _AvatarCluster();
+  const _AvatarCluster({required this.members});
+
+  final List<String> members;
 
   @override
   Widget build(BuildContext context) {
@@ -298,28 +319,14 @@ class _AvatarCluster extends StatelessWidget {
       height: 34,
       child: Stack(
         clipBehavior: Clip.none,
-        children: const [
-          Positioned(left: 0, child: _TinyAvatar(label: '민')),
-          Positioned(left: 18, child: _TinyAvatar(label: '지')),
-          Positioned(left: 36, child: _TinyAvatar(label: '나')),
+        children: [
+          for (var index = 0; index < members.take(3).length; index += 1)
+            Positioned(
+              left: index * 18,
+              child: PixelAvatar(label: members[index], size: 34),
+            ),
         ],
       ),
-    );
-  }
-}
-
-class _TinyAvatar extends StatelessWidget {
-  const _TinyAvatar({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 17,
-      backgroundColor: AppColors.primaryPinkSoft,
-      foregroundColor: AppColors.textMain,
-      child: Text(label),
     );
   }
 }
