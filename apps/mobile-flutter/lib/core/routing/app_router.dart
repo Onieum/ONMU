@@ -11,9 +11,13 @@ import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
 import '../../features/my/my_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_group_home_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_group_settings_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_create_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_list_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_meetup_list_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_member_list_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_thread_page.dart';
@@ -81,9 +85,25 @@ final appRouter = GoRouter(
               builder: (context, state) => const OnMoimListPage(),
               routes: [
                 GoRoute(
+                  path: 'new',
+                  builder: (context, state) => const OnMoimCreatePage(),
+                ),
+                GoRoute(
                   path: ':onmoimId',
                   builder: (context, state) => const OnMoimGroupHomePage(),
                   routes: [
+                    GoRoute(
+                      path: 'members',
+                      builder: (context, state) => OnMoimMemberListPage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'invite',
+                      builder: (context, state) => OnMoimInvitePage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                      ),
+                    ),
                     GoRoute(
                       path: 'settings',
                       builder: (context, state) => OnMoimGroupSettingsPage(
@@ -98,10 +118,25 @@ final appRouter = GoRouter(
                       path: 'memories',
                       builder: (context, state) =>
                           const OnMoimMemoryBoardPage(),
+                      routes: [
+                        GoRoute(
+                          path: ':memoryId',
+                          builder: (context, state) => OnMoimMemoryDetailPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                            memoryId: state.pathParameters['memoryId']!,
+                          ),
+                        ),
+                      ],
                     ),
                     GoRoute(
                       path: 'meetups/new/members',
                       builder: (context, state) => MeetupCreatePage(
+                        onmoimId: state.pathParameters['onmoimId']!,
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'meetups',
+                      builder: (context, state) => OnMoimMeetupListPage(
                         onmoimId: state.pathParameters['onmoimId']!,
                       ),
                     ),

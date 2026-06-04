@@ -12,8 +12,59 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../widgets/onmoim_cards.dart';
 
-class OnMoimThreadPage extends StatelessWidget {
+class OnMoimThreadPage extends StatefulWidget {
   const OnMoimThreadPage({super.key});
+
+  @override
+  State<OnMoimThreadPage> createState() => _OnMoimThreadPageState();
+}
+
+class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<OnMoimMessage> _messages = List.of(demoOnMoimMessages);
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메시지를 입력해 주세요.')));
+      return;
+    }
+
+    setState(() {
+      _messages.add(
+        OnMoimMessage(
+          sender: '나',
+          message: text,
+          timeLabel: '방금',
+          isMine: true,
+        ),
+      );
+      _messageController.clear();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +79,11 @@ class OnMoimThreadPage extends StatelessWidget {
         onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
         icon: const Icon(Icons.more_vert),
       ),
-      bottom: const _MessageInput(),
+      bottom: _MessageInput(
+        controller: _messageController,
+        onSend: _sendMessage,
+      ),
+      scrollController: _scrollController,
       children: [
         _MeetupChatAnchor(onTap: () => context.go(RoutePaths.onmoimDemoMeetup)),
         const SizedBox(height: AppSpacing.md),
@@ -39,7 +94,7 @@ class OnMoimThreadPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         const _DateDivider(label: '2024년 6월 2일'),
         const SizedBox(height: AppSpacing.md),
-        for (final message in demoOnMoimMessages) ...[
+        for (final message in _messages) ...[
           ChatMessageBubble(message: message),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -196,7 +251,10 @@ class _DateDivider extends StatelessWidget {
 }
 
 class _MessageInput extends StatelessWidget {
-  const _MessageInput();
+  const _MessageInput({required this.controller, required this.onSend});
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
@@ -211,8 +269,10 @@ class _MessageInput extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           const Icon(Icons.add_circle_outline, color: AppColors.primaryPink),
           const SizedBox(width: AppSpacing.xs),
-          const Expanded(
+          Expanded(
             child: TextField(
+              controller: controller,
+              onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
                 hintText: '메시지를 입력해보세요',
                 border: InputBorder.none,
@@ -224,7 +284,7 @@ class _MessageInput extends StatelessWidget {
           ),
           IconButton(
             tooltip: '전송',
-            onPressed: () {},
+            onPressed: onSend,
             icon: const Icon(Icons.send_outlined),
           ),
         ],
