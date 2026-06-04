@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:onmu_mobile/app/onmu_app.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
-import 'package:onmu_mobile/core/theme/app_colors.dart';
+import 'package:onmu_mobile/core/theme/app_theme.dart';
+import 'package:onmu_mobile/features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 
 void main() {
   testWidgets('starts with splash and opens login', (tester) async {
@@ -448,5 +449,36 @@ void main() {
     final secondTabText = tester.widget<Text>(find.text('6/8 일'));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
+  });
+
+  testWidgets('onmoim memory detail screen renders', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: const OnMoimMemoryDetailPage(
+          onmoimId: 'friends',
+          memoryId: 'seongsu-cafe',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pumpAndSettle();
+
+    expect(find.text('분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.'), findsOneWidget);
+  });
+
+  testWidgets('onmoim chat input sends a visible message', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimChat('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '확인 메시지');
+    await tester.tap(find.byTooltip('전송'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('확인 메시지'), findsOneWidget);
   });
 }

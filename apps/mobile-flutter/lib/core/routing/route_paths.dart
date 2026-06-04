@@ -10,6 +10,7 @@ class RoutePaths {
   static const home = '/home';
   static const homeUpcomingMeetups = '/home/upcoming-meetups';
   static const onmoim = '/onmoim';
+  static const onmoimNew = '/onmoim/new';
   static const onmoimDemo = '/onmoim/friends';
   static const onmoimDemoSettings = '/onmoim/friends/settings';
   static const onmoimDemoChat = '/onmoim/friends/chat';
@@ -28,11 +29,20 @@ class RoutePaths {
 
   static String onmoimDetail(String onmoimId) => '/onmoim/$onmoimId';
 
+  static String onmoimMembers(String onmoimId) => '/onmoim/$onmoimId/members';
+
+  static String onmoimInvite(String onmoimId) => '/onmoim/$onmoimId/invite';
+
   static String onmoimSettings(String onmoimId) => '/onmoim/$onmoimId/settings';
 
   static String onmoimChat(String onmoimId) => '/onmoim/$onmoimId/chat';
 
   static String onmoimMemories(String onmoimId) => '/onmoim/$onmoimId/memories';
+
+  static String onmoimMemoryDetail(String onmoimId, String memoryId) =>
+      '/onmoim/$onmoimId/memories/$memoryId';
+
+  static String onmoimMeetups(String onmoimId) => '/onmoim/$onmoimId/meetups';
 
   static String onmoimMeetupNew(String onmoimId) =>
       '/onmoim/$onmoimId/meetups/new/members';

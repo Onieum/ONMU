@@ -28,7 +28,7 @@ class OnMoimGroupHomePage extends StatelessWidget {
         _SectionHeader(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoimDemoMeetup),
+          onTap: () => context.go(RoutePaths.onmoimMeetups(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupCard(
@@ -42,7 +42,7 @@ class OnMoimGroupHomePage extends StatelessWidget {
           onTap: () => context.go(RoutePaths.onmoimDemoMemories),
         ),
         const SizedBox(height: AppSpacing.sm),
-        const _RecentMemoryStrip(),
+        _RecentMemoryStrip(group: group),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
           title: '최근 대화',
@@ -55,7 +55,7 @@ class OnMoimGroupHomePage extends StatelessWidget {
         _SectionHeader(
           title: '모임원',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+          onTap: () => context.go(RoutePaths.onmoimMembers(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _MemberStrip(group: group),
@@ -94,7 +94,13 @@ class _GroupHomeHeader extends StatelessWidget {
                 children: [
                   IconButton(
                     tooltip: '모임 검색',
-                    onPressed: () {},
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('모임 안 검색은 다음 단계에서 연결할게요.'),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.search),
                   ),
                   IconButton(
@@ -117,7 +123,7 @@ class _GroupHomeHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         InkWell(
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+          onTap: () => context.go(RoutePaths.onmoimMembers(group.id)),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -349,7 +355,9 @@ class _UpcomingMeetupCard extends StatelessWidget {
 }
 
 class _RecentMemoryStrip extends StatelessWidget {
-  const _RecentMemoryStrip();
+  const _RecentMemoryStrip({required this.group});
+
+  final OnMoimGroup group;
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +377,15 @@ class _RecentMemoryStrip extends StatelessWidget {
         itemBuilder: (context, index) {
           final memory = memories[index];
 
-          return _MemoryThumb(icon: memory.$1, color: memory.$2);
+          return _MemoryThumb(
+            icon: memory.$1,
+            color: memory.$2,
+            onTap: () {
+              final record =
+                  demoOnMoimMemories[index % demoOnMoimMemories.length];
+              context.go(RoutePaths.onmoimMemoryDetail(group.id, record.id));
+            },
+          );
         },
       ),
     );
@@ -377,33 +393,46 @@ class _RecentMemoryStrip extends StatelessWidget {
 }
 
 class _MemoryThumb extends StatelessWidget {
-  const _MemoryThumb({required this.icon, required this.color});
+  const _MemoryThumb({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        _PhotoThumb(icon: icon, width: 76, height: 76, color: color),
-        Positioned(
-          right: -4,
-          bottom: 2,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: AppColors.linePink),
-            ),
-            child: const SizedBox.square(
-              dimension: 22,
-              child: Icon(Icons.favorite, size: 14, color: AppColors.accentRed),
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          _PhotoThumb(icon: icon, width: 76, height: 76, color: color),
+          Positioned(
+            right: -4,
+            bottom: 2,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.bgDefault,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: AppColors.linePink),
+              ),
+              child: const SizedBox.square(
+                dimension: 22,
+                child: Icon(
+                  Icons.favorite,
+                  size: 14,
+                  color: AppColors.accentRed,
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -480,7 +509,7 @@ class _MemberStrip extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
           ],
           _InviteButton(
-            onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+            onTap: () => context.go(RoutePaths.onmoimInvite(group.id)),
           ),
         ],
       ),

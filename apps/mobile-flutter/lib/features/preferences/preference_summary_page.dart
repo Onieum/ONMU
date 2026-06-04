@@ -76,13 +76,29 @@ class PreferenceSummaryPage extends ConsumerWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: OnmuPrimaryButton(
-                label: '온보딩으로 돌아가기',
-                onPressed: () {
-                  ref.read(preferenceProfileProvider.notifier).state = profile;
-                  ref.read(skippedPreferenceProvider.notifier).state = false;
-                  context.go(RoutePaths.onboarding);
-                },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OnmuSecondaryButton(
+                      label: '이전',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: OnmuPrimaryButton(
+                      label: '시작하기',
+                      onPressed: () {
+                        ref.read(preferenceProfileProvider.notifier).state =
+                            profile;
+                        ref.read(skippedPreferenceProvider.notifier).state =
+                            false;
+                        context.go(RoutePaths.onboarding);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

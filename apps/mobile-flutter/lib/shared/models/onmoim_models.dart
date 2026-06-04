@@ -36,6 +36,32 @@ class OnMoimPinnedMeetup {
   final String voteSummary;
 }
 
+class OnMoimMeetupSummary {
+  const OnMoimMeetupSummary({
+    required this.id,
+    required this.title,
+    required this.dateLabel,
+    required this.placeName,
+    required this.statusLabel,
+    required this.statusType,
+    required this.memberCount,
+    required this.extraMemberCount,
+    required this.iconKind,
+    required this.isPast,
+  });
+
+  final String id;
+  final String title;
+  final String dateLabel;
+  final String placeName;
+  final String statusLabel;
+  final String statusType;
+  final int memberCount;
+  final int extraMemberCount;
+  final String iconKind;
+  final bool isPast;
+}
+
 class OnMoimMessage {
   const OnMoimMessage({
     required this.sender,
@@ -52,6 +78,7 @@ class OnMoimMessage {
 
 class OnMoimMemoryRecord {
   const OnMoimMemoryRecord({
+    required this.id,
     required this.author,
     required this.title,
     required this.description,
@@ -59,6 +86,7 @@ class OnMoimMemoryRecord {
     required this.tags,
   });
 
+  final String id;
   final String author;
   final String title;
   final String description;
@@ -78,6 +106,20 @@ class OnMoimVoteCard {
   final String summary;
   final String statusLabel;
   final String actionLabel;
+}
+
+class OnMoimMemberProfile {
+  const OnMoimMemberProfile({
+    required this.name,
+    required this.note,
+    required this.statusLabel,
+    this.invited = false,
+  });
+
+  final String name;
+  final String note;
+  final String statusLabel;
+  final bool invited;
 }
 
 const demoOnMoimGroups = [
@@ -119,6 +161,71 @@ const demoPinnedMeetup = OnMoimPinnedMeetup(
   voteSummary: '4명 참여',
 );
 
+const demoOnMoimMeetups = [
+  OnMoimMeetupSummary(
+    id: 'demo',
+    title: '제주도 여행',
+    dateLabel: '6.7 (금) - 6.9 (일)',
+    placeName: '제주도 일대',
+    statusLabel: 'D-12',
+    statusType: '진행중',
+    memberCount: 6,
+    extraMemberCount: 2,
+    iconKind: 'water',
+    isPast: false,
+  ),
+  OnMoimMeetupSummary(
+    id: 'cafe-tour',
+    title: '성수 카페 투어',
+    dateLabel: '6.5 (수) 오후 2:00',
+    placeName: '성수동 일대',
+    statusLabel: 'D-2',
+    statusType: '예정',
+    memberCount: 5,
+    extraMemberCount: 1,
+    iconKind: 'coffee',
+    isPast: false,
+  ),
+  OnMoimMeetupSummary(
+    id: 'han-river',
+    title: '한강 피크닉',
+    dateLabel: '5.10 (금) 오후 1:00',
+    placeName: '여의도 한강공원',
+    statusLabel: '완료',
+    statusType: '완료',
+    memberCount: 4,
+    extraMemberCount: 0,
+    iconKind: 'park',
+    isPast: true,
+  ),
+];
+
+const demoOnMoimMemberProfiles = [
+  OnMoimMemberProfile(name: '지연', note: '여행 가이드 준비 중이에요', statusLabel: '참여 중'),
+  OnMoimMemberProfile(name: '민수', note: '맛집 리스트 정리 중!', statusLabel: '참여 중'),
+  OnMoimMemberProfile(name: '하린', note: '렌터카 비교해봤어요', statusLabel: '참여 중'),
+  OnMoimMemberProfile(name: '현우', note: '숙소 후보 찾아보는 중', statusLabel: '참여 중'),
+  OnMoimMemberProfile(name: '소연', note: '카페 투어 코스 짜는 중', statusLabel: '참여 중'),
+  OnMoimMemberProfile(
+    name: '재훈',
+    note: '사진 스팟 모아두었어요',
+    statusLabel: '초대됨',
+    invited: true,
+  ),
+  OnMoimMemberProfile(
+    name: '은지',
+    note: '함께하고 싶어요!',
+    statusLabel: '초대됨',
+    invited: true,
+  ),
+  OnMoimMemberProfile(
+    name: '태호',
+    note: '이번엔 꼭 참석할게요!',
+    statusLabel: '초대됨',
+    invited: true,
+  ),
+];
+
 const demoOnMoimMessages = [
   OnMoimMessage(
     sender: '지민',
@@ -155,6 +262,7 @@ const demoOnMoimVoteCard = OnMoimVoteCard(
 
 const demoOnMoimMemories = [
   OnMoimMemoryRecord(
+    id: 'seongsu-cafe',
     author: '지연',
     title: '성수동 카페',
     description: '분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.',
@@ -162,6 +270,7 @@ const demoOnMoimMemories = [
     tags: ['카페', '사진', '디저트'],
   ),
   OnMoimMemoryRecord(
+    id: 'jeju-sea',
     author: '민수',
     title: '제주 바다',
     description: '바다 색이 진짜 예뻤던 날.',
@@ -169,6 +278,7 @@ const demoOnMoimMemories = [
     tags: ['여행', '사진', '바다'],
   ),
   OnMoimMemoryRecord(
+    id: 'gallery-day',
     author: '하린',
     title: '전시회 다녀왔어요',
     description: '조용히 둘러보기 좋았던 전시.',
@@ -176,6 +286,7 @@ const demoOnMoimMemories = [
     tags: ['기타', '기록', '전시'],
   ),
   OnMoimMemoryRecord(
+    id: 'han-river-picnic',
     author: '현우',
     title: '한강 피크닉',
     description: '다음에도 같이 가자!',
