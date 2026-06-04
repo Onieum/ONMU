@@ -5,11 +5,8 @@ import '../../features/character/character_start_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
-import '../../features/meetup/presentation/pages/meetup_calendar_page.dart';
-import '../../features/meetup/presentation/pages/meetup_complete_page.dart';
-import '../../features/meetup/presentation/pages/meetup_date_select_page.dart';
+import '../../features/meetup/presentation/pages/meetup_create_page.dart';
 import '../../features/meetup/presentation/pages/meetup_detail_page.dart';
-import '../../features/meetup/presentation/pages/meetup_member_select_page.dart';
 import '../../features/meetup/presentation/pages/meetup_route_review_page.dart';
 import '../../features/my/my_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_group_home_page.dart';
@@ -104,20 +101,21 @@ final appRouter = GoRouter(
                     ),
                     GoRoute(
                       path: 'meetups/new/members',
-                      builder: (context, state) => MeetupMemberSelectPage(
+                      builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
                       ),
                     ),
                     GoRoute(
                       path: 'meetups/new/schedule',
-                      builder: (context, state) => MeetupDateSelectPage(
+                      builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
                       ),
                       routes: [
                         GoRoute(
                           path: 'calendar',
-                          builder: (context, state) =>
-                              const MeetupCalendarPage(),
+                          builder: (context, state) => MeetupCreatePage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
                         ),
                       ],
                     ),
@@ -126,6 +124,8 @@ final appRouter = GoRouter(
                       builder: (context, state) => MeetupDetailPage(
                         onmoimId: state.pathParameters['onmoimId']!,
                         meetupId: state.pathParameters['meetupId']!,
+                        placeConfirmed:
+                            state.uri.queryParameters['place'] == 'confirmed',
                       ),
                       routes: [
                         GoRoute(
@@ -230,9 +230,10 @@ final appRouter = GoRouter(
                         ),
                         GoRoute(
                           path: 'complete',
-                          builder: (context, state) => MeetupCompletePage(
+                          builder: (context, state) => MeetupDetailPage(
                             onmoimId: state.pathParameters['onmoimId']!,
                             meetupId: state.pathParameters['meetupId']!,
+                            placeConfirmed: true,
                           ),
                         ),
                         GoRoute(

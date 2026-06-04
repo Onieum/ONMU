@@ -33,6 +33,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   go_router: ^14.6.1
   flutter_riverpod: ^2.6.1
+  google_sign_in: ^7.2.0
+  google_sign_in_web: ^1.1.3
 
   # 라우팅: StatefulShellRoute 기반 하단 탭 구조
 
@@ -58,6 +60,10 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/auth/
+    - assets/images/auth/kakao_logo.png
+    - assets/images/auth/google_logo.png
+    - assets/images/auth/naver_logo.png
     - assets/images/character/female/body/
     - assets/images/character/female/eyes/
     - assets/images/character/female/hair/
