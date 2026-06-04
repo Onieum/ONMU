@@ -103,7 +103,15 @@ final appRouter = GoRouter(
               routes: [
                 GoRoute(
                   path: 'new',
-                  builder: (context, state) => const OnMoimCreatePage(),
+                  builder: (context, state) {
+                    final initialMemberNames = state.extra is List<String>
+                        ? state.extra! as List<String>
+                        : const <String>[];
+
+                    return OnMoimCreatePage(
+                      initialMemberNames: initialMemberNames,
+                    );
+                  },
                 ),
                 GoRoute(
                   path: ':onmoimId',
@@ -344,7 +352,9 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.my,
-              builder: (context, state) => const MyPage(),
+              builder: (context, state) => MyPage(
+                resetToken: state.uri.queryParameters['reset'],
+              ),
             ),
           ],
         ),

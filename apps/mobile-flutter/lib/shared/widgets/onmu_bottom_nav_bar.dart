@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_theme.dart';
 
 class OnmuBottomNavBar extends StatelessWidget {
@@ -66,9 +67,21 @@ class OnmuBottomNavBar extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   if (navigationShell != null) {
+                    final isCurrentBranch =
+                        index == navigationShell!.currentIndex;
+                    final isMyBranch = index == 3;
+
+                    if (isCurrentBranch && isMyBranch) {
+                      navigationShell!.goBranch(index, initialLocation: true);
+                      context.go(
+                        '${RoutePaths.my}?reset=${DateTime.now().microsecondsSinceEpoch}',
+                      );
+                      return;
+                    }
+
                     navigationShell!.goBranch(
                       index,
-                      initialLocation: index == navigationShell!.currentIndex,
+                      initialLocation: isCurrentBranch,
                     );
                     return;
                   }
