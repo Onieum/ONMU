@@ -73,26 +73,11 @@ class _DraftMeetupDetail extends StatelessWidget {
         onPressed: () {},
         icon: const Icon(Icons.more_vert),
       ),
-      bottom: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          OnmuPrimaryButton(
-            label: '장소 검색하기',
-            icon: Icons.add_location_alt_outlined,
-            color: AppColors.primaryPink,
-            foregroundColor: AppColors.textInverse,
-            onPressed: () => context.push(
-              RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OnmuSecondaryButton(
-            label: '후보 리스트 보기',
-            icon: Icons.favorite_border,
-            onPressed: () =>
-                context.push(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
-          ),
-        ],
+      bottom: _DraftPlaceActions(
+        onSearchPressed: () =>
+            context.push(RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId)),
+        onCandidatesPressed: () =>
+            context.push(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
       ),
       children: [
         _MeetupMetaRow(members: members),
@@ -118,6 +103,49 @@ class _DraftMeetupDetail extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DraftPlaceActions extends StatelessWidget {
+  const _DraftPlaceActions({
+    required this.onSearchPressed,
+    required this.onCandidatesPressed,
+  });
+
+  static const _buttonHeight = 52.0;
+
+  final VoidCallback onSearchPressed;
+  final VoidCallback onCandidatesPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          key: const ValueKey('meetup-place-action-search'),
+          height: _buttonHeight,
+          child: OnmuPrimaryButton(
+            label: '장소 검색하기',
+            icon: Icons.add_location_alt_outlined,
+            color: AppColors.primaryPink,
+            foregroundColor: AppColors.textInverse,
+            onPressed: onSearchPressed,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          key: const ValueKey('meetup-place-action-candidates'),
+          height: _buttonHeight,
+          child: OnmuSecondaryButton(
+            label: '후보 리스트 보기',
+            icon: Icons.favorite_border,
+            onPressed: onCandidatesPressed,
           ),
         ),
       ],

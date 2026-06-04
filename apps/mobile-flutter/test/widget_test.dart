@@ -134,6 +134,14 @@ void main() {
     expect(find.text('장소 검색하기'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
 
+    final searchButtonRect = tester.getRect(
+      find.byKey(const ValueKey('meetup-place-action-search')),
+    );
+    final candidateButtonRect = tester.getRect(
+      find.byKey(const ValueKey('meetup-place-action-candidates')),
+    );
+    expect(searchButtonRect.size, candidateButtonRect.size);
+
     await tester.tap(find.text('후보 리스트 보기'));
     await tester.pumpAndSettle();
 
