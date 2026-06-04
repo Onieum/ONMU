@@ -9,7 +9,6 @@ import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../../../../shared/widgets/pixel_avatar.dart';
 import '../widgets/onmoim_cards.dart';
 
 class OnMoimThreadPage extends StatefulWidget {
@@ -101,7 +100,9 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
         const SizedBox(height: AppSpacing.md),
         const _DateDivider(label: '2024년 6월 2일'),
         const SizedBox(height: AppSpacing.md),
-        for (final message in _messages) ...[
+        for (final message in _messages.where(
+          (message) => message.sender != 'ONMU',
+        )) ...[
           ChatMessageBubble(message: message),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -162,71 +163,59 @@ class _VoteNoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PixelAvatar(label: '온뮤', size: 42),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OnmuCard(
-                backgroundColor: AppColors.bgDefault,
-                borderColor: AppColors.linePink,
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            vote.title,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ),
-                        const OnmuChip(label: '투표', selected: true),
-                      ],
+        constraints: const BoxConstraints(maxWidth: 336),
+        child: OnmuCard(
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.linePink,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.campaign_outlined,
+                    size: 18,
+                    color: AppColors.primaryPink,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'ONMU 알림',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.primaryPink,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      vote.summary,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        OnmuChip(label: vote.statusLabel),
-                        const OnmuChip(label: '채팅 연계'),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryPink,
-                            foregroundColor: AppColors.textInverse,
-                            minimumSize: const Size(0, 36),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                            ),
-                          ),
-                          onPressed: onTap,
-                          icon: const Icon(Icons.place_outlined, size: 16),
-                          label: Text(vote.actionLabel),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                vote.summary,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryPink,
+                  foregroundColor: AppColors.textInverse,
+                  minimumSize: const Size.fromHeight(36),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                  ),
+                ),
+                onPressed: onTap,
+                icon: const Icon(Icons.place_outlined, size: 16),
+                label: Text(vote.actionLabel),
+              ),
+            ],
+          ),
         ),
       ),
     );
