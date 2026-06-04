@@ -183,10 +183,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final actions = ref.read(authActionProvider);
 
     if (!actions.isGoogleConfigured) {
-      return _GoogleSetupNotice(
-        message:
-            'Google Web Client ID가 아직 없어요. 실행할 때 '
-            '--dart-define=GOOGLE_CLIENT_ID=... 값을 넣으면 실제 버튼이 표시됩니다.',
+      return _LoginButton(
+        label: '구글로 시작하기',
+        backgroundColor: AppColors.bgDefault,
+        foregroundColor: AppColors.textMain,
+        borderColor: AppColors.lineSoft,
+        iconAsset: 'assets/images/auth/google_logo.png',
+        fallbackIconLabel: 'G',
+        fallbackIconForeground: AppColors.primaryPurple,
+        onPressed: _isLoading
+            ? null
+            : () {
+                setState(() {
+                  _errorMessage =
+                      'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
+                });
+              },
       );
     }
 
@@ -398,44 +410,6 @@ class _FallbackBrandIcon extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GoogleSetupNotice extends StatelessWidget {
-  const _GoogleSetupNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 54),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.info_outline,
-            color: AppColors.primaryPurple,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-            ),
-          ),
-        ],
       ),
     );
   }

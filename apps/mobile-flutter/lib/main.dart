@@ -98,9 +98,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
           return RoutePaths.onboarding;
         }
 
-        if (location == RoutePaths.splash ||
-            isLoginRoute ||
-            isOnboardingRoute) {
+        if (location == RoutePaths.splash || isLoginRoute) {
           return RoutePaths.home;
         }
 
@@ -423,8 +421,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
             final character =
                 ref.read(userCharacterProvider) ?? const CharacterDraft();
             final existingRecord = state.extra as OotdRecord?;
-            final isDailyRecord =
-                state.uri.queryParameters['daily'] == '1';
+            final isDailyRecord = state.uri.queryParameters['daily'] == '1';
 
             return OotdRecordScreen(
               userCharacter: character,

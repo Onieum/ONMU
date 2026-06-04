@@ -21,7 +21,21 @@ class OnboardingHubPage extends ConsumerWidget {
     final skippedPreference = ref.watch(skippedPreferenceProvider);
     final characterReady = hasCharacter || skippedCharacter;
     final preferenceReady = hasPreference || skippedPreference;
-    final canEnterHome = characterReady && preferenceReady;
+    final displayName = user?.displayName ?? '온뮤 친구';
+    final completedCount = [
+      hasCharacter,
+      hasPreference,
+    ].where((completed) => completed).length;
+    final title = switch (completedCount) {
+      0 => '$displayName님,\n기록 준비를 해볼까요?',
+      1 => '$displayName님,\n하나 완료했어요.\n남은 설정도 해볼까요?',
+      _ => '$displayName님,\n준비가 끝났어요!',
+    };
+    final description = switch (completedCount) {
+      0 => '캐릭터와 취향은 지금 설정해도 좋고, 나중에 천천히 채워도 괜찮아요.',
+      1 => '남은 항목은 지금 이어서 해도 좋고, 나중에 천천히 채워도 괜찮아요.',
+      _ => '캐릭터와 취향 설정이 모두 준비됐어요. 이제 ONMU를 시작해볼까요?',
+    };
 
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
@@ -33,14 +47,14 @@ class OnboardingHubPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                 children: [
                   Text(
-                    '${user?.displayName ?? '온뮤 친구'}님,\n기록 준비를 해볼까요?',
+                    title,
                     style: textTheme.headlineSmall?.copyWith(
                       color: AppColors.textMain,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '캐릭터와 취향은 지금 설정해도 좋고, 나중에 천천히 채워도 괜찮아요.',
+                    description,
                     style: textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSub,
                       height: 1.45,
@@ -54,14 +68,11 @@ class OnboardingHubPage extends ConsumerWidget {
                     description: 'OOTD 기록에 함께할 픽셀 캐릭터를 꾸며요.',
                     icon: Icons.face_retouching_natural_outlined,
                     state: _TaskState.from(hasCharacter, skippedCharacter),
-                    primaryLabel: hasCharacter ? '다시 설정' : '시작하기',
+                    primaryLabel: _taskButtonLabel(
+                      completed: hasCharacter,
+                      skipped: skippedCharacter,
+                    ),
                     onPrimary: () => context.go(RoutePaths.characterStart),
-                    onSkip: characterReady
-                        ? null
-                        : () {
-                            ref.read(skippedCharacterProvider.notifier).state =
-                                true;
-                          },
                   ),
                   const SizedBox(height: 12),
                   _OnboardingTaskCard(
@@ -69,14 +80,11 @@ class OnboardingHubPage extends ConsumerWidget {
                     description: '음식, 장소, 약속 스타일 추천에 쓸 취향을 골라요.',
                     icon: Icons.tune,
                     state: _TaskState.from(hasPreference, skippedPreference),
-                    primaryLabel: hasPreference ? '다시 설정' : '시작하기',
+                    primaryLabel: _taskButtonLabel(
+                      completed: hasPreference,
+                      skipped: skippedPreference,
+                    ),
                     onPrimary: () => context.go(RoutePaths.preferenceIntro),
-                    onSkip: preferenceReady
-                        ? null
-                        : () {
-                            ref.read(skippedPreferenceProvider.notifier).state =
-                                true;
-                          },
                   ),
                 ],
               ),
@@ -84,7 +92,7 @@ class OnboardingHubPage extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: OnmuPrimaryButton(
-                label: canEnterHome ? '홈으로 가기' : '나중에 할게요',
+                label: '홈으로 가기',
                 onPressed: () {
                   if (!characterReady) {
                     ref.read(skippedCharacterProvider.notifier).state = true;
@@ -101,6 +109,12 @@ class OnboardingHubPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _taskButtonLabel({required bool completed, required bool skipped}) {
+  if (completed) return '다시 설정';
+  if (skipped) return '설정하기';
+  return '시작하기';
 }
 
 enum _TaskState {
@@ -129,7 +143,6 @@ class _OnboardingTaskCard extends StatelessWidget {
     required this.state,
     required this.primaryLabel,
     required this.onPrimary,
-    required this.onSkip,
   });
 
   final String title;
@@ -138,7 +151,6 @@ class _OnboardingTaskCard extends StatelessWidget {
   final _TaskState state;
   final String primaryLabel;
   final VoidCallback onPrimary;
-  final VoidCallback? onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -193,24 +205,7 @@ class _OnboardingTaskCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: OnmuSecondaryButton(
-                  label: primaryLabel,
-                  onPressed: onPrimary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextButton(
-                  onPressed: onSkip,
-                  child: const Text('나중에 할게요'),
-                ),
-              ),
-            ],
-          ),
+          OnmuSecondaryButton(label: primaryLabel, onPressed: onPrimary),
         ],
       ),
     );
