@@ -20,7 +20,10 @@ class OnMoimListPage extends StatelessWidget {
       actions: [
         IconButton(
           tooltip: '온모임 검색',
-          onPressed: () {},
+          onPressed: () => _showOnMoimListSnack(
+            context,
+            '검색은 입력창에서 모임, 멤버, 약속을 함께 찾는 흐름으로 연결할게요.',
+          ),
           icon: const Icon(Icons.search),
         ),
       ],
@@ -41,7 +44,11 @@ class OnMoimListPage extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             const _GroupCountBadge(count: 5),
             const Spacer(),
-            TextButton(onPressed: () {}, child: const Text('최근 활동순')),
+            TextButton(
+              onPressed: () =>
+                  _showOnMoimListSnack(context, '최근 활동순으로 정렬된 상태예요.'),
+              child: const Text('최근 활동순'),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -95,6 +102,8 @@ class _OnMoimSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      onTap: () =>
+          _showOnMoimListSnack(context, '검색어 입력 UI는 다음 단계에서 실제 필드로 연결할게요.'),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
       padding: const EdgeInsets.symmetric(
@@ -115,4 +124,8 @@ class _OnMoimSearchField extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showOnMoimListSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

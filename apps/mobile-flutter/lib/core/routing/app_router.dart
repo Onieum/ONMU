@@ -17,6 +17,7 @@ import '../../features/onmoim/presentation/pages/onmoim_meetup_list_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_member_list_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
+import '../../features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_thread_page.dart';
@@ -117,6 +118,15 @@ final appRouter = GoRouter(
                       path: 'memories',
                       builder: (context, state) =>
                           const OnMoimMemoryBoardPage(),
+                      routes: [
+                        GoRoute(
+                          path: ':memoryId',
+                          builder: (context, state) => OnMoimMemoryDetailPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                            memoryId: state.pathParameters['memoryId']!,
+                          ),
+                        ),
+                      ],
                     ),
                     GoRoute(
                       path: 'meetups/new/members',

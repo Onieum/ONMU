@@ -9,6 +9,7 @@ import '../../../../shared/models/onmoim_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../widgets/onmoim_memory_photo.dart';
 
 class OnMoimMemoryBoardPage extends StatelessWidget {
   const OnMoimMemoryBoardPage({super.key});
@@ -48,7 +49,11 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             for (var index = 0; index < demoOnMoimMemories.length; index += 1)
-              _MemoryCard(memory: demoOnMoimMemories[index], photoIndex: index),
+              _MemoryCard(
+                onmoimId: group.id,
+                memory: demoOnMoimMemories[index],
+                photoIndex: index,
+              ),
           ],
         ),
         const SizedBox(height: 72),
@@ -188,14 +193,21 @@ class _MemoryFilterChip extends StatelessWidget {
 }
 
 class _MemoryCard extends StatelessWidget {
-  const _MemoryCard({required this.memory, required this.photoIndex});
+  const _MemoryCard({
+    required this.onmoimId,
+    required this.memory,
+    required this.photoIndex,
+  });
 
+  final String onmoimId;
   final OnMoimMemoryRecord memory;
   final int photoIndex;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      onTap: () =>
+          context.go(RoutePaths.onmoimMemoryDetail(onmoimId, memory.id)),
       backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Column(
@@ -247,7 +259,7 @@ class _MemoryCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _MemoryPhoto(index: photoIndex),
+                  OnMoimMemoryPhoto(index: photoIndex),
                   Positioned(
                     right: AppSpacing.xs,
                     bottom: AppSpacing.xs,
@@ -276,173 +288,4 @@ class _MemoryCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _MemoryPhoto extends StatelessWidget {
-  const _MemoryPhoto({required this.index});
-
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _MemoryPhotoPainter(index));
-  }
-}
-
-class _MemoryPhotoPainter extends CustomPainter {
-  const _MemoryPhotoPainter(this.index);
-
-  final int index;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..isAntiAlias = true;
-
-    void rect(Rect rect, Color color) {
-      paint.color = color;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(8)),
-        paint,
-      );
-    }
-
-    switch (index % 4) {
-      case 0:
-        rect(Offset.zero & size, const Color(0xFFF5E4D2));
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.08,
-            size.height * 0.1,
-            size.width * 0.44,
-            size.height * 0.44,
-          ),
-          const Color(0xFFE2C3A7),
-        );
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.58,
-            size.height * 0.12,
-            size.width * 0.3,
-            size.height * 0.34,
-          ),
-          const Color(0xFFD9EDF0),
-        );
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.14,
-            size.height * 0.62,
-            size.width * 0.72,
-            size.height * 0.16,
-          ),
-          const Color(0xFFC69A76),
-        );
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.2,
-            size.height * 0.5,
-            size.width * 0.22,
-            size.height * 0.2,
-          ),
-          const Color(0xFFFFFAF3),
-        );
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.52,
-            size.height * 0.48,
-            size.width * 0.2,
-            size.height * 0.22,
-          ),
-          const Color(0xFF8B5E3C),
-        );
-        break;
-      case 1:
-        rect(Offset.zero & size, const Color(0xFFCDEAF6));
-        rect(
-          Rect.fromLTWH(0, size.height * 0.45, size.width, size.height * 0.24),
-          const Color(0xFF72B7D9),
-        );
-        rect(
-          Rect.fromLTWH(0, size.height * 0.68, size.width, size.height * 0.32),
-          const Color(0xFFEFDAB5),
-        );
-        paint
-          ..color = AppColors.bgDefault.withValues(alpha: 0.75)
-          ..strokeWidth = 4
-          ..style = PaintingStyle.stroke;
-        final wave = Path()
-          ..moveTo(size.width * 0.1, size.height * 0.55)
-          ..quadraticBezierTo(
-            size.width * 0.28,
-            size.height * 0.47,
-            size.width * 0.48,
-            size.height * 0.55,
-          )
-          ..quadraticBezierTo(
-            size.width * 0.68,
-            size.height * 0.64,
-            size.width * 0.9,
-            size.height * 0.54,
-          );
-        canvas.drawPath(wave, paint);
-        paint.style = PaintingStyle.fill;
-        break;
-      case 2:
-        rect(Offset.zero & size, const Color(0xFFEDE1D8));
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.18,
-            size.height * 0.12,
-            size.width * 0.58,
-            size.height * 0.48,
-          ),
-          AppColors.bgDefault,
-        );
-        rect(
-          Rect.fromLTWH(
-            size.width * 0.26,
-            size.height * 0.2,
-            size.width * 0.42,
-            size.height * 0.32,
-          ),
-          const Color(0xFFC6B8AE),
-        );
-        rect(
-          Rect.fromLTWH(0, size.height * 0.72, size.width, size.height * 0.28),
-          const Color(0xFFBFAF9E),
-        );
-        break;
-      default:
-        rect(Offset.zero & size, const Color(0xFFD7EEF8));
-        rect(
-          Rect.fromLTWH(0, size.height * 0.58, size.width, size.height * 0.42),
-          const Color(0xFFA7C38E),
-        );
-        rect(
-          Rect.fromLTWH(0, size.height * 0.7, size.width, size.height * 0.18),
-          const Color(0xFF93BDD7),
-        );
-        for (final x in [0.14, 0.34, 0.68]) {
-          paint.color = const Color(0xFF6F8D62);
-          canvas.drawCircle(
-            Offset(size.width * x, size.height * 0.45),
-            size.width * 0.12,
-            paint,
-          );
-          rect(
-            Rect.fromLTWH(
-              size.width * x - 3,
-              size.height * 0.48,
-              6,
-              size.height * 0.26,
-            ),
-            const Color(0xFF8B6A4D),
-          );
-        }
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MemoryPhotoPainter oldDelegate) =>
-      oldDelegate.index != index;
 }

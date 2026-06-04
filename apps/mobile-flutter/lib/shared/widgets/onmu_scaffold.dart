@@ -17,6 +17,7 @@ class OnmuScaffold extends StatelessWidget {
     this.action,
     this.bottom,
     this.floatingActionButton,
+    this.scrollController,
     this.useGridBackground = false,
     this.useWarmBackground = true,
   });
@@ -31,6 +32,7 @@ class OnmuScaffold extends StatelessWidget {
   final Widget? action;
   final Widget? bottom;
   final Widget? floatingActionButton;
+  final ScrollController? scrollController;
   final bool useGridBackground;
   final bool useWarmBackground;
 
@@ -57,6 +59,7 @@ class OnmuScaffold extends StatelessWidget {
               ),
             Expanded(
               child: ListView(
+                controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.md,

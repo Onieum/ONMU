@@ -38,6 +38,9 @@ class RoutePaths {
 
   static String onmoimMemories(String onmoimId) => '/onmoim/$onmoimId/memories';
 
+  static String onmoimMemoryDetail(String onmoimId, String memoryId) =>
+      '/onmoim/$onmoimId/memories/$memoryId';
+
   static String onmoimMeetups(String onmoimId) => '/onmoim/$onmoimId/meetups';
 
   static String onmoimMeetupNew(String onmoimId) =>

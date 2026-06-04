@@ -158,6 +158,8 @@ class _MeetupSearchSortRow extends StatelessWidget {
       children: [
         Expanded(
           child: OnmuCard(
+            onTap: () =>
+                _showMeetupListSnack(context, '약속 검색 입력은 다음 단계에서 연결할게요.'),
             backgroundColor: AppColors.bgDefault,
             borderColor: AppColors.lineSoft,
             padding: const EdgeInsets.symmetric(
@@ -182,13 +184,15 @@ class _MeetupSearchSortRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         OutlinedButton.icon(
-          onPressed: () {},
+          onPressed: () =>
+              _showMeetupListSnack(context, '현재는 날짜 순으로 정렬되어 있어요.'),
           icon: const Icon(Icons.keyboard_arrow_down),
           label: const Text('날짜 순'),
         ),
         IconButton.outlined(
           tooltip: '약속 필터',
-          onPressed: () {},
+          onPressed: () =>
+              _showMeetupListSnack(context, '진행 중, 예정, 완료 필터는 다음 단계에서 연결할게요.'),
           icon: const Icon(Icons.tune),
         ),
       ],
@@ -234,7 +238,10 @@ class _MeetupSummaryCard extends StatelessWidget {
                     ),
                     IconButton(
                       tooltip: '약속 더보기',
-                      onPressed: () {},
+                      onPressed: () => _showMeetupListSnack(
+                        context,
+                        '${meetup.title} 더보기 메뉴는 다음 단계에서 연결할게요.',
+                      ),
                       icon: const Icon(Icons.more_vert),
                     ),
                   ],
@@ -278,6 +285,10 @@ class _MeetupSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showMeetupListSnack(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 class _MeetupThumb extends StatelessWidget {

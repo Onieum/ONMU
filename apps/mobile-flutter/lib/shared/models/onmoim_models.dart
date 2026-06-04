@@ -78,6 +78,7 @@ class OnMoimMessage {
 
 class OnMoimMemoryRecord {
   const OnMoimMemoryRecord({
+    required this.id,
     required this.author,
     required this.title,
     required this.description,
@@ -85,6 +86,7 @@ class OnMoimMemoryRecord {
     required this.tags,
   });
 
+  final String id;
   final String author;
   final String title;
   final String description;
@@ -260,6 +262,7 @@ const demoOnMoimVoteCard = OnMoimVoteCard(
 
 const demoOnMoimMemories = [
   OnMoimMemoryRecord(
+    id: 'seongsu-cafe',
     author: '지연',
     title: '성수동 카페',
     description: '분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.',
@@ -267,6 +270,7 @@ const demoOnMoimMemories = [
     tags: ['카페', '사진', '디저트'],
   ),
   OnMoimMemoryRecord(
+    id: 'jeju-sea',
     author: '민수',
     title: '제주 바다',
     description: '바다 색이 진짜 예뻤던 날.',
@@ -274,6 +278,7 @@ const demoOnMoimMemories = [
     tags: ['여행', '사진', '바다'],
   ),
   OnMoimMemoryRecord(
+    id: 'gallery-day',
     author: '하린',
     title: '전시회 다녀왔어요',
     description: '조용히 둘러보기 좋았던 전시.',
@@ -281,6 +286,7 @@ const demoOnMoimMemories = [
     tags: ['기타', '기록', '전시'],
   ),
   OnMoimMemoryRecord(
+    id: 'han-river-picnic',
     author: '현우',
     title: '한강 피크닉',
     description: '다음에도 같이 가자!',
