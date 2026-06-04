@@ -28,7 +28,7 @@ class PlaceCandidatePage extends StatefulWidget {
 }
 
 class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
-  var _selectedDateIndex = 0;
+  final Set<String> _likedCandidateIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -37,15 +37,17 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
       showBackButton: true,
       onBack: () => context.pop(),
       action: TextButton(
-        onPressed: () => _goConfirmed(context),
-        child: const Text('완료'),
+        onPressed: () => context.push(
+          RoutePaths.onmoimMeetupPlaceVoteNew(widget.onmoimId, widget.meetupId),
+        ),
+        child: const Text('투표 만들기'),
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: '후보 추가',
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
-        onPressed: () => context.go(
+        onPressed: () => context.push(
           RoutePaths.onmoimMeetupPlaceMap(widget.onmoimId, widget.meetupId),
         ),
         child: const Icon(Icons.add),
@@ -59,7 +61,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                '일정 만들 때 이 후보 리스트에서 먼저 선택해요',
+                '약속 멤버가 함께 모은 장소 후보예요',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -70,18 +72,35 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
         _HeaderRow(showVoteResult: widget.showVoteResult),
         const SizedBox(height: AppSpacing.md),
         const _CategoryChips(),
-        const SizedBox(height: AppSpacing.md),
-        _DateTabs(
-          selectedIndex: _selectedDateIndex,
-          onChanged: (index) => setState(() => _selectedDateIndex = index),
-        ),
         const SizedBox(height: AppSpacing.lg),
         for (var index = 0; index < demoPlaceCandidates.length; index += 1) ...[
           _CandidateListCard(
             order: index + 1,
             candidate: demoPlaceCandidates[index],
-            selected: index == 0,
-            onTap: () => _goConfirmed(context),
+            liked: _likedCandidateIds.contains(demoPlaceCandidates[index].id),
+            favoriteCount:
+                _baseFavoriteCount(index) +
+                (_likedCandidateIds.contains(demoPlaceCandidates[index].id)
+                    ? 1
+                    : 0),
+            onFavoritePressed: () {
+              setState(() {
+                final candidateId = demoPlaceCandidates[index].id;
+                if (_likedCandidateIds.contains(candidateId)) {
+                  _likedCandidateIds.remove(candidateId);
+                } else {
+                  _likedCandidateIds.add(candidateId);
+                }
+              });
+            },
+            onDetailPressed: () => context.push(
+              RoutePaths.onmoimMeetupPlaceDetail(
+                widget.onmoimId,
+                widget.meetupId,
+                demoPlaceCandidates[index].id,
+              ),
+            ),
+            onRegisterPressed: () => _goConfirmed(context),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -94,6 +113,14 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
     context.go(
       '${RoutePaths.onmoimMeetupDetail(widget.onmoimId, widget.meetupId)}?place=confirmed',
     );
+  }
+
+  int _baseFavoriteCount(int index) {
+    return switch (index) {
+      0 => 3,
+      1 => 2,
+      _ => 1,
+    };
   }
 }
 
@@ -112,7 +139,6 @@ class _HeaderRow extends StatelessWidget {
           runSpacing: AppSpacing.xs,
           children: const [
             OnmuChip(label: '제주도 여행'),
-            OnmuChip(label: '6.7 - 6.9'),
             OnmuChip(label: '제주도 일대'),
           ],
         ),
@@ -167,74 +193,31 @@ class _CategoryChips extends StatelessWidget {
   }
 }
 
-class _DateTabs extends StatelessWidget {
-  const _DateTabs({required this.selectedIndex, required this.onChanged});
-
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    const tabs = ['6/7 토', '6/8 일', '6/9 월'];
-
-    return Row(
-      children: [
-        for (var index = 0; index < tabs.length; index += 1)
-          Expanded(
-            child: InkWell(
-              onTap: () => onChanged(index),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    tabs[index],
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.textSub,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 class _CandidateListCard extends StatelessWidget {
   const _CandidateListCard({
     required this.order,
     required this.candidate,
-    required this.selected,
-    required this.onTap,
+    required this.liked,
+    required this.favoriteCount,
+    required this.onFavoritePressed,
+    required this.onDetailPressed,
+    required this.onRegisterPressed,
   });
 
   final int order;
   final PlaceCandidate candidate;
-  final bool selected;
-  final VoidCallback onTap;
+  final bool liked;
+  final int favoriteCount;
+  final VoidCallback onFavoritePressed;
+  final VoidCallback onDetailPressed;
+  final VoidCallback onRegisterPressed;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      onTap: onTap,
-      backgroundColor: selected
-          ? AppColors.primaryPinkSoft
-          : AppColors.bgDefault,
-      borderColor: selected ? AppColors.linePink : AppColors.lineSoft,
+      onTap: onDetailPressed,
+      backgroundColor: liked ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+      borderColor: liked ? AppColors.linePink : AppColors.lineSoft,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -282,10 +265,21 @@ class _CandidateListCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
-                    IconButton(
-                      tooltip: '후보 더보기',
-                      onPressed: onTap,
-                      icon: const Icon(Icons.more_vert),
+                    Column(
+                      children: [
+                        IconButton(
+                          tooltip: liked ? '하트 취소' : '하트',
+                          onPressed: onFavoritePressed,
+                          icon: Icon(
+                            liked ? Icons.favorite : Icons.favorite_border,
+                            color: AppColors.accentRed,
+                          ),
+                        ),
+                        Text(
+                          '$favoriteCount',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -299,23 +293,12 @@ class _CandidateListCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Icon(
-                      selected ? Icons.check_circle : Icons.favorite_border,
-                      color: selected
-                          ? AppColors.accentRed
-                          : AppColors.primaryPink,
-                      size: 18,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      selected ? '인서 지정' : '${order + 1}',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    const Spacer(),
-                    TextButton(onPressed: onTap, child: const Text('일정에 넣기')),
-                  ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: onRegisterPressed,
+                    child: const Text('일정에 등록'),
+                  ),
                 ),
               ],
             ),

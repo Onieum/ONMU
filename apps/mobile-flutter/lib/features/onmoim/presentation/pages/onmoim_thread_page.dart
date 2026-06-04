@@ -73,7 +73,14 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
     return OnmuScaffold(
       title: group.name,
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDemo),
+      onBack: () {
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+
+        context.go(RoutePaths.onmoimDemo);
+      },
       action: IconButton(
         tooltip: '채팅 설정',
         onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),

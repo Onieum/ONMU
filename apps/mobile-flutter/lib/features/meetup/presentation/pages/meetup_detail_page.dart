@@ -60,7 +60,14 @@ class _DraftMeetupDetail extends StatelessWidget {
     return OnmuScaffold(
       title: '제주도 여행',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(onmoimId)),
+      onBack: () {
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+
+        context.go(RoutePaths.onmoimDetail(onmoimId));
+      },
       action: IconButton(
         tooltip: '더보기',
         onPressed: () {},
@@ -70,18 +77,20 @@ class _DraftMeetupDetail extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           OnmuPrimaryButton(
-            label: '장소 추가하기',
+            label: '장소 검색하기',
             icon: Icons.add_location_alt_outlined,
             color: AppColors.primaryPink,
             foregroundColor: AppColors.textInverse,
-            onPressed: () =>
-                context.go(RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId)),
+            onPressed: () => context.push(
+              RoutePaths.onmoimMeetupPlaceMap(onmoimId, meetupId),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           OnmuSecondaryButton(
-            label: '나중에 정하기',
-            icon: Icons.schedule,
-            onPressed: () => context.go(RoutePaths.onmoimDetail(onmoimId)),
+            label: '후보 리스트 보기',
+            icon: Icons.favorite_border,
+            onPressed: () =>
+                context.push(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
           ),
         ],
       ),
@@ -104,7 +113,7 @@ class _DraftMeetupDetail extends StatelessWidget {
                 Text('일정이 없어요', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '장소를 추가해볼까요?',
+                  '장소를 검색하거나 후보 리스트에서 골라볼까요?',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -139,7 +148,14 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
     return OnmuScaffold(
       title: '제주도 여행',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
+      onBack: () {
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+
+        context.go(RoutePaths.onmoimDetail(widget.onmoimId));
+      },
       action: IconButton(
         tooltip: '더보기',
         onPressed: () {},
@@ -163,14 +179,33 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
         Row(
           children: [
             Text('일정 타임라인', style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
-            OnmuSecondaryButton(
-              label: '동선 보기',
-              icon: Icons.route_outlined,
-              onPressed: () => context.go(
-                RoutePaths.onmoimMeetupRouteReview(
-                  widget.onmoimId,
-                  widget.meetupId,
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: OnmuSecondaryButton(
+                label: '후보 리스트 보기',
+                icon: Icons.favorite_border,
+                onPressed: () => context.push(
+                  RoutePaths.onmoimMeetupPlaces(
+                    widget.onmoimId,
+                    widget.meetupId,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: OnmuSecondaryButton(
+                label: '동선 보기',
+                icon: Icons.route_outlined,
+                onPressed: () => context.push(
+                  RoutePaths.onmoimMeetupRouteReview(
+                    widget.onmoimId,
+                    widget.meetupId,
+                  ),
                 ),
               ),
             ),
@@ -178,26 +213,6 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
         ),
         const SizedBox(height: AppSpacing.sm),
         _TimelineCard(visitPlan: mockMeetup.visitPlan),
-        const SizedBox(height: AppSpacing.md),
-        OnmuCard(
-          backgroundColor: AppColors.bgPaper,
-          borderColor: AppColors.lineWarm,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.lightbulb_outline,
-                color: AppColors.accentOrange,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '같은 순서 안에 좋아서 후보로 추가할 수 있어요!',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

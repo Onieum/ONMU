@@ -29,49 +29,36 @@ class PlaceDetailPage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '장소 상세',
-      subtitle: '지도 위 바텀시트처럼 후보 정보를 한 번에 확인합니다.',
-      bottom: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: OnmuPrimaryButton(
-            label: '후보에 추가하기',
-            icon: Icons.add,
-            color: AppColors.primaryPurple,
-            foregroundColor: AppColors.textInverse,
-            onPressed: () => context.go(
-              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+      showBackButton: true,
+      onBack: () => context.pop(),
+      bottom: Row(
+        children: [
+          Expanded(
+            child: OnmuSecondaryButton(
+              label: '후보에 추가하기',
+              icon: Icons.favorite_border,
+              onPressed: () =>
+                  context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
             ),
           ),
-        ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: OnmuPrimaryButton(
+              label: '일정에 바로 등록하기',
+              icon: Icons.event_available_outlined,
+              color: AppColors.primaryPink,
+              foregroundColor: AppColors.textInverse,
+              onPressed: () => context.go(
+                '${RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)}?place=confirmed',
+              ),
+            ),
+          ),
+        ],
       ),
       children: [
         _DetailMap(candidate: candidate),
         const SizedBox(height: AppSpacing.md),
         _DetailSheet(candidate: candidate),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '목록',
-                icon: Icons.arrow_back,
-                onPressed: () => context.go(
-                  RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OnmuSecondaryButton(
-                label: '리스크',
-                icon: Icons.warning_amber,
-                onPressed: () => context.go(
-                  RoutePaths.onmoimMeetupPlaceRisks(onmoimId, meetupId),
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -132,8 +119,6 @@ class _DetailSheet extends StatelessWidget {
           Row(
             children: [
               Text('장소 상세', style: Theme.of(context).textTheme.bodySmall),
-              const Spacer(),
-              _ScorePill(score: candidate.score),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -153,14 +138,13 @@ class _DetailSheet extends StatelessWidget {
             runSpacing: AppSpacing.xs,
             children: const [
               OnmuChip(label: '전화'),
-              OnmuChip(label: '지도앱'),
               OnmuChip(label: '인스타'),
             ],
           ),
           const Divider(height: AppSpacing.xl),
           _InfoBlock(
             title: candidate.openingLabel,
-            body: candidate.sourceLabel,
+            body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
             trailing: candidate.isOpen ? '영업중' : '확인 필요',
           ),
           const Divider(height: AppSpacing.xl),
@@ -175,11 +159,9 @@ class _DetailSheet extends StatelessWidget {
             ],
           ),
           const Divider(height: AppSpacing.xl),
-          Text('참여자 적합도', style: Theme.of(context).textTheme.titleSmall),
+          Text('참여자 선호', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
-          for (final fit in candidate.memberFits) PlaceMemberFitBar(fit: fit),
-          const Divider(height: AppSpacing.xl),
-          _RiskSummary(candidate: candidate),
+          MemberPreferenceList(candidate: candidate),
         ],
       ),
     );
@@ -214,68 +196,6 @@ class _InfoBlock extends StatelessWidget {
         ),
         OnmuChip(label: trailing, selected: true),
       ],
-    );
-  }
-}
-
-class _RiskSummary extends StatelessWidget {
-  const _RiskSummary({required this.candidate});
-
-  final PlaceCandidate candidate;
-
-  @override
-  Widget build(BuildContext context) {
-    final isStable = candidate.riskTone == 'none';
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isStable ? '운영 리스크 없음' : '운영 리스크 확인 필요',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                candidate.risks.join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-        OnmuChip(label: candidate.riskLabel, selected: true),
-      ],
-    );
-  }
-}
-
-class _ScorePill extends StatelessWidget {
-  const _ScorePill({required this.score});
-
-  final double score;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.primaryPurple,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Text(
-          '${score.toInt()}점',
-          style: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(color: AppColors.textInverse),
-        ),
-      ),
     );
   }
 }

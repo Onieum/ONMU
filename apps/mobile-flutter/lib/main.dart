@@ -9,6 +9,7 @@ import 'features/auth/login_page.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/character/character_start_page.dart';
 import 'features/home/home_page.dart';
+import 'features/home/presentation/pages/upcoming_meetups_page.dart';
 import 'features/launch/splash_page.dart';
 import 'features/meetup/presentation/pages/meetup_create_page.dart';
 import 'features/meetup/presentation/pages/meetup_detail_page.dart';
@@ -38,6 +39,7 @@ import 'features/place/presentation/pages/place_detail_page.dart';
 import 'features/place/presentation/pages/place_map_page.dart';
 import 'features/place/presentation/pages/place_risks_page.dart';
 import 'features/place/presentation/pages/place_search_filter_page.dart';
+import 'features/place/presentation/pages/place_vote_create_page.dart';
 import 'features/preferences/preference_intro_page.dart';
 import 'main_shell.dart';
 import 'shared/models/character_model.dart';
@@ -150,6 +152,10 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                 GoRoute(
                   path: RoutePaths.home,
                   builder: (context, state) => const HomePage(),
+                ),
+                GoRoute(
+                  path: RoutePaths.homeUpcomingMeetups,
+                  builder: (context, state) => const UpcomingMeetupsPage(),
                 ),
               ],
             ),
@@ -315,6 +321,16 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                                           ),
                                     ),
                                   ],
+                                ),
+                                GoRoute(
+                                  path: 'vote/new',
+                                  builder: (context, state) =>
+                                      PlaceVoteCreatePage(
+                                        onmoimId:
+                                            state.pathParameters['onmoimId']!,
+                                        meetupId:
+                                            state.pathParameters['meetupId']!,
+                                      ),
                                 ),
                                 GoRoute(
                                   path: ':placeId',
