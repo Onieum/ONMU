@@ -12,7 +12,9 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 
 class OnMoimCreatePage extends StatefulWidget {
-  const OnMoimCreatePage({super.key});
+  const OnMoimCreatePage({super.key, this.initialMemberNames = const []});
+
+  final List<String> initialMemberNames;
 
   @override
   State<OnMoimCreatePage> createState() => _OnMoimCreatePageState();
@@ -77,7 +79,7 @@ class _OnMoimCreatePageState extends State<OnMoimCreatePage> {
               const SizedBox(height: AppSpacing.lg),
               Text('멤버 초대', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.sm),
-              const _InvitePreviewRow(),
+              _InvitePreviewRow(initialMemberNames: widget.initialMemberNames),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 '함께할 멤버를 선택해 주세요 (최대 20명)',
@@ -179,18 +181,22 @@ class _LabeledInput extends StatelessWidget {
 }
 
 class _InvitePreviewRow extends StatelessWidget {
-  const _InvitePreviewRow();
+  const _InvitePreviewRow({required this.initialMemberNames});
+
+  final List<String> initialMemberNames;
 
   @override
   Widget build(BuildContext context) {
-    final members = demoOnMoimMemberProfiles.take(4).toList();
+    final memberNames = initialMemberNames.isNotEmpty
+        ? initialMemberNames
+        : demoOnMoimMemberProfiles.map((member) => member.name).take(4).toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (final member in members) ...[
-            _InviteAvatar(name: member.name),
+          for (final name in memberNames) ...[
+            _InviteAvatar(name: name),
             const SizedBox(width: AppSpacing.md),
           ],
           Column(

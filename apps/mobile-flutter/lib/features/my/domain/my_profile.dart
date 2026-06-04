@@ -32,6 +32,12 @@ class MyProfile {
     required this.favoritePlaces,
     required this.wantToGoPlaces,
     required this.dislikedPlaces,
+    this.favoriteFoodTags = const [],
+    this.dislikedFoodTags = const [],
+    this.favoritePlaceTags = const [],
+    this.dislikedPlaceTags = const [],
+    this.meetupStyles = const [],
+    this.preferredWeekdays = const [],
   });
 
   final String realName;
@@ -44,6 +50,20 @@ class MyProfile {
   final List<ProfilePlace> favoritePlaces;
   final List<ProfilePlace> wantToGoPlaces;
   final List<ProfilePlace> dislikedPlaces;
+  final List<String> favoriteFoodTags;
+  final List<String> dislikedFoodTags;
+  final List<String> favoritePlaceTags;
+  final List<String> dislikedPlaceTags;
+  final List<String> meetupStyles;
+  final List<String> preferredWeekdays;
+
+  List<String> get preferenceHighlights {
+    return [
+      ...favoriteFoodTags,
+      ...favoritePlaceTags,
+      ...meetupStyles,
+    ];
+  }
 
   MyProfile copyWith({
     String? realName,
@@ -53,6 +73,15 @@ class MyProfile {
     List<String>? preferredTimes,
     List<String>? availableDays,
     List<String>? unavailableDates,
+    List<ProfilePlace>? favoritePlaces,
+    List<ProfilePlace>? wantToGoPlaces,
+    List<ProfilePlace>? dislikedPlaces,
+    List<String>? favoriteFoodTags,
+    List<String>? dislikedFoodTags,
+    List<String>? favoritePlaceTags,
+    List<String>? dislikedPlaceTags,
+    List<String>? meetupStyles,
+    List<String>? preferredWeekdays,
   }) {
     return MyProfile(
       realName: realName ?? this.realName,
@@ -62,9 +91,15 @@ class MyProfile {
       preferredTimes: preferredTimes ?? this.preferredTimes,
       availableDays: availableDays ?? this.availableDays,
       unavailableDates: unavailableDates ?? this.unavailableDates,
-      favoritePlaces: favoritePlaces,
-      wantToGoPlaces: wantToGoPlaces,
-      dislikedPlaces: dislikedPlaces,
+      favoritePlaces: favoritePlaces ?? this.favoritePlaces,
+      wantToGoPlaces: wantToGoPlaces ?? this.wantToGoPlaces,
+      dislikedPlaces: dislikedPlaces ?? this.dislikedPlaces,
+      favoriteFoodTags: favoriteFoodTags ?? this.favoriteFoodTags,
+      dislikedFoodTags: dislikedFoodTags ?? this.dislikedFoodTags,
+      favoritePlaceTags: favoritePlaceTags ?? this.favoritePlaceTags,
+      dislikedPlaceTags: dislikedPlaceTags ?? this.dislikedPlaceTags,
+      meetupStyles: meetupStyles ?? this.meetupStyles,
+      preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
     );
   }
 }
