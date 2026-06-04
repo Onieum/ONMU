@@ -19,6 +19,9 @@ import 'features/my/my_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_group_home_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_group_settings_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_list_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_create_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_meetup_list_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_member_list_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_meetup_board_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
@@ -158,9 +161,25 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                   builder: (context, state) => const OnMoimListPage(),
                   routes: [
                     GoRoute(
+                      path: 'new',
+                      builder: (context, state) => const OnMoimCreatePage(),
+                    ),
+                    GoRoute(
                       path: ':onmoimId',
                       builder: (context, state) => const OnMoimGroupHomePage(),
                       routes: [
+                        GoRoute(
+                          path: 'members',
+                          builder: (context, state) => OnMoimMemberListPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                        ),
+                        GoRoute(
+                          path: 'invite',
+                          builder: (context, state) => OnMoimInvitePage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                        ),
                         GoRoute(
                           path: 'settings',
                           builder: (context, state) => OnMoimGroupSettingsPage(
@@ -179,6 +198,12 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                         GoRoute(
                           path: 'meetups/new/members',
                           builder: (context, state) => MeetupCreatePage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
+                        ),
+                        GoRoute(
+                          path: 'meetups',
+                          builder: (context, state) => OnMoimMeetupListPage(
                             onmoimId: state.pathParameters['onmoimId']!,
                           ),
                         ),
@@ -423,8 +448,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
             final character =
                 ref.read(userCharacterProvider) ?? const CharacterDraft();
             final existingRecord = state.extra as OotdRecord?;
-            final isDailyRecord =
-                state.uri.queryParameters['daily'] == '1';
+            final isDailyRecord = state.uri.queryParameters['daily'] == '1';
 
             return OotdRecordScreen(
               userCharacter: character,

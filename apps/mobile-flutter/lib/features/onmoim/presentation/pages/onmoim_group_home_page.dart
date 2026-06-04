@@ -28,7 +28,7 @@ class OnMoimGroupHomePage extends StatelessWidget {
         _SectionHeader(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoimDemoMeetup),
+          onTap: () => context.go(RoutePaths.onmoimMeetups(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupCard(
@@ -55,7 +55,7 @@ class OnMoimGroupHomePage extends StatelessWidget {
         _SectionHeader(
           title: '모임원',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+          onTap: () => context.go(RoutePaths.onmoimMembers(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _MemberStrip(group: group),
@@ -117,7 +117,7 @@ class _GroupHomeHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         InkWell(
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+          onTap: () => context.go(RoutePaths.onmoimMembers(group.id)),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -480,7 +480,7 @@ class _MemberStrip extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
           ],
           _InviteButton(
-            onTap: () => context.go(RoutePaths.onmoimSettings(group.id)),
+            onTap: () => context.go(RoutePaths.onmoimInvite(group.id)),
           ),
         ],
       ),

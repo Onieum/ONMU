@@ -29,7 +29,7 @@ class OnMoimListPage extends StatelessWidget {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textMain,
         shape: const CircleBorder(),
-        onPressed: () => context.go(RoutePaths.onmoimDemo),
+        onPressed: () => context.go(RoutePaths.onmoimNew),
         child: const Icon(Icons.add),
       ),
       children: [
