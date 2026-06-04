@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
 
 class OnmuTopBar extends StatelessWidget {
   const OnmuTopBar({
@@ -9,6 +10,7 @@ class OnmuTopBar extends StatelessWidget {
     this.showBackButton = false,
     this.onBack,
     this.action,
+    this.subtitle,
     super.key,
   });
 
@@ -16,13 +18,14 @@ class OnmuTopBar extends StatelessWidget {
   final bool showBackButton;
   final VoidCallback? onBack;
   final Widget? action;
+  final Widget? subtitle;
 
   @override
   Widget build(BuildContext context) {
     const sideWidth = 104.0;
 
     return SizedBox(
-      height: 56,
+      height: subtitle == null ? 56 : 76,
       child: Row(
         children: [
           SizedBox(
@@ -49,10 +52,19 @@ class OnmuTopBar extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  subtitle!,
+                ],
+              ],
             ),
           ),
           SizedBox(

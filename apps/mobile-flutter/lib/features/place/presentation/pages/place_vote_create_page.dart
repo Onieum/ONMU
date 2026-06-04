@@ -43,9 +43,7 @@ class _PlaceVoteCreatePageState extends State<PlaceVoteCreatePage> {
         foregroundColor: AppColors.textInverse,
         onPressed: _selectedCandidateIds.isEmpty
             ? null
-            : () => context.go(
-                '${RoutePaths.onmoimMeetupPlaces(widget.onmoimId, widget.meetupId)}?voteResult=1',
-              ),
+            : () => context.go(RoutePaths.onmoimVote(widget.onmoimId, 'demo')),
       ),
       children: [
         TextFormField(

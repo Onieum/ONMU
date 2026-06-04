@@ -95,7 +95,7 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
         const SizedBox(height: AppSpacing.md),
         _VoteNoticeCard(
           vote: demoOnMoimVoteCard,
-          onTap: () => context.go(RoutePaths.onmoimDemoMeetupPlaces),
+          onTap: () => context.push(RoutePaths.onmoimVote(group.id, 'demo')),
         ),
         const SizedBox(height: AppSpacing.md),
         const _DateDivider(label: '2024년 6월 2일'),
