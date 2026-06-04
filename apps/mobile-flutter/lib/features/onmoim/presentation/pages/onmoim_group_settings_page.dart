@@ -94,11 +94,12 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
         ),
         const SizedBox(height: AppSpacing.lg),
         _SettingsSection(
-          title: '함께하는 멤버',
+          title: '멤버 목록',
           children: [_MemberSummaryCard(members: _group.members)],
         ),
         const SizedBox(height: AppSpacing.lg),
         _LeaveGroupCard(onLeavePressed: _confirmLeaveGroup),
+        const SizedBox(height: 72),
       ],
     );
   }
@@ -211,7 +212,7 @@ class _GroupHeader extends StatelessWidget {
                   runSpacing: AppSpacing.xs,
                   children: [
                     OnmuChip(label: '${group.members.length}명'),
-                    const OnmuChip(label: '공동 모임'),
+                    const OnmuChip(label: '같은 권한'),
                   ],
                 ),
               ],
@@ -360,7 +361,7 @@ class _MemberSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '모두 같은 권한으로 약속과 기록을 함께 관리해요.',
+            '모임원 누구나 약속, 후보, 기록을 함께 추가할 수 있어요.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -385,39 +386,40 @@ class _LeaveGroupCard extends StatelessWidget {
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.linePink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.logout, color: AppColors.accentRed),
-              const SizedBox(width: AppSpacing.sm),
-              Text('모임 나가기', style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '나간 뒤에는 온모임 목록에서 이 모임이 보이지 않아요.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accentRed,
-                side: const BorderSide(color: AppColors.linePink),
-                minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+          const Icon(Icons.logout, color: AppColors.accentRed),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('모임 나가기', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '나간 뒤에는 목록에서 보이지 않아요.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                 ),
-              ),
-              onPressed: onLeavePressed,
-              icon: const Icon(Icons.logout),
-              label: const Text('모임 나가기'),
+              ],
             ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.accentRed,
+              side: const BorderSide(color: AppColors.linePink),
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+            ),
+            onPressed: onLeavePressed,
+            icon: const Icon(Icons.logout, size: 16),
+            label: const Text('나가기'),
           ),
         ],
       ),
