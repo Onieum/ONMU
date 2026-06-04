@@ -9,9 +9,9 @@ import '../../../../shared/models/meetup_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/onmu_top_bar.dart';
 
-class MeetupRouteReviewPage extends StatelessWidget {
+class MeetupRouteReviewPage extends StatefulWidget {
   const MeetupRouteReviewPage({
     required this.onmoimId,
     required this.meetupId,
@@ -22,89 +22,128 @@ class MeetupRouteReviewPage extends StatelessWidget {
   final String meetupId;
 
   @override
-  Widget build(BuildContext context) {
-    final meetup = mockMeetup;
+  State<MeetupRouteReviewPage> createState() => _MeetupRouteReviewPageState();
+}
 
-    return OnmuScaffold(
-      title: '동선 확인',
-      showBackButton: true,
-      onBack: () => context.pop(),
-      bottom: OnmuPrimaryButton(
-        label: '약속 완료',
-        icon: Icons.check,
-        onPressed: () =>
-            context.push(RoutePaths.onmoimMeetupComplete(onmoimId, meetup.id)),
-      ),
-      children: [
-        OnmuCard(
-          child: Row(
-            children: [
-              const Icon(Icons.route_outlined, color: AppColors.primaryPurple),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '방문 동선을 확인해요',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '일정과 이동 시간을 한 번 더 맞춰봤어요.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
+class _MeetupRouteReviewPageState extends State<MeetupRouteReviewPage> {
+  var _selectedDateIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bgWarm,
+      body: SafeArea(
+        child: Column(
+          children: [
+            OnmuTopBar(
+              title: '장소 동선',
+              showBackButton: true,
+              onBack: () => context.pop(),
+              action: IconButton(
+                tooltip: '동선 옵션',
+                onPressed: () {},
+                icon: const Icon(Icons.more_vert),
               ),
-            ],
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.xxl,
+                ),
+                children: [
+                  _RouteMap(onEditPressed: () {}),
+                  const SizedBox(height: AppSpacing.md),
+                  _DateTabs(
+                    selectedIndex: _selectedDateIndex,
+                    onChanged: (index) =>
+                        setState(() => _selectedDateIndex = index),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    '6/7 토 동선',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text('동선 목록', style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: AppSpacing.md),
+                  _RouteList(visitPlan: mockMeetup.visitPlan),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: OnmuPrimaryButton(
+            label: '상세로 돌아가기',
+            icon: Icons.check,
+            color: AppColors.primaryPink,
+            foregroundColor: AppColors.textInverse,
+            onPressed: () => context.go(
+              '${RoutePaths.onmoimMeetupDetail(widget.onmoimId, widget.meetupId)}?place=confirmed',
+            ),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        const _RouteSketch(),
-        const SizedBox(height: AppSpacing.md),
-        const _RouteSummaryCard(),
-        const SizedBox(height: AppSpacing.md),
-        _RouteTimelineCard(visitPlan: meetup.visitPlan),
-        const SizedBox(height: AppSpacing.md),
-        const _ReminderCard(),
-      ],
+      ),
     );
   }
 }
 
-class _RouteSketch extends StatelessWidget {
-  const _RouteSketch();
+class _RouteMap extends StatelessWidget {
+  const _RouteMap({required this.onEditPressed});
+
+  final VoidCallback onEditPressed;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
       padding: EdgeInsets.zero,
+      backgroundColor: AppColors.bgGrid,
+      borderColor: AppColors.lineSoft,
       child: SizedBox(
-        height: 180,
+        height: 260,
         child: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _RouteSketchPainter())),
+            Positioned.fill(child: CustomPaint(painter: _RouteMapPainter())),
             const Positioned(
-              left: 34,
-              top: 32,
-              child: _RoutePoint(order: 1, label: '13:00'),
+              left: 42,
+              top: 28,
+              child: _RoutePoint(order: 1, label: 'YYY 카페'),
             ),
             const Positioned(
-              right: 52,
-              top: 42,
-              child: _RoutePoint(order: 2, label: '14:45'),
+              right: 86,
+              top: 72,
+              child: _RoutePoint(order: 2, label: '무드카페'),
             ),
             const Positioned(
-              left: 86,
-              bottom: 38,
-              child: _RoutePoint(order: 3, label: '16:30'),
+              right: 56,
+              top: 136,
+              child: _RoutePoint(order: 3, label: '하루정원'),
             ),
             const Positioned(
-              right: 36,
+              right: 42,
               bottom: 24,
-              child: _RoutePoint(order: 4, label: '17:40'),
+              child: _RoutePoint(order: 4, label: '엔트릴 아이스크림'),
+            ),
+            Positioned(
+              top: AppSpacing.sm,
+              right: AppSpacing.sm,
+              child: OnmuSecondaryButton(
+                label: '날짜별 일정 동선보기',
+                icon: Icons.alt_route,
+                onPressed: onEditPressed,
+              ),
             ),
           ],
         ),
@@ -113,38 +152,30 @@ class _RouteSketch extends StatelessWidget {
   }
 }
 
-class _RouteSketchPainter extends CustomPainter {
+class _RouteMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = AppColors.bgGrid
+      ..color = AppColors.lineSoft
       ..strokeWidth = 1;
-
-    for (var x = 0.0; x < size.width; x += 28) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    for (var x = 24.0; x < size.width; x += 56) {
+      canvas.drawLine(Offset(x, 0), Offset(x + 30, size.height), gridPaint);
     }
-
-    for (var y = 0.0; y < size.height; y += 28) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    for (var y = 30.0; y < size.height; y += 48) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y - 18), gridPaint);
     }
 
     final path = Path()
-      ..moveTo(58, 58)
-      ..quadraticBezierTo(size.width * 0.46, 24, size.width - 78, 68)
-      ..quadraticBezierTo(size.width * 0.52, 116, 114, size.height - 52)
-      ..quadraticBezierTo(
-        size.width * 0.68,
-        size.height - 16,
-        size.width - 58,
-        size.height - 44,
-      );
+      ..moveTo(66, 58)
+      ..cubicTo(120, 96, 156, 42, size.width - 108, 96)
+      ..quadraticBezierTo(size.width - 58, 128, size.width - 72, 158)
+      ..quadraticBezierTo(size.width - 108, 190, size.width - 58, 224);
 
     final linePaint = Paint()
-      ..color = AppColors.linePurple
+      ..color = AppColors.primaryPink
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 4;
-
+      ..strokeWidth = 3;
     canvas.drawPath(path, linePaint);
   }
 
@@ -164,18 +195,18 @@ class _RoutePoint extends StatelessWidget {
       children: [
         DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.primaryPurple,
+            color: AppColors.primaryPink,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: AppColors.bgDefault, width: 3),
           ),
           child: SizedBox.square(
-            dimension: 38,
+            dimension: 32,
             child: Center(
               child: Text(
                 '$order',
                 style: Theme.of(
                   context,
-                ).textTheme.bodyLarge?.copyWith(color: AppColors.textInverse),
+                ).textTheme.labelMedium?.copyWith(color: AppColors.textInverse),
               ),
             ),
           ),
@@ -187,75 +218,55 @@ class _RoutePoint extends StatelessWidget {
   }
 }
 
-class _RouteSummaryCard extends StatelessWidget {
-  const _RouteSummaryCard();
+class _DateTabs extends StatelessWidget {
+  const _DateTabs({required this.selectedIndex, required this.onChanged});
+
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      child: Row(
-        children: const [
-          Expanded(
-            child: _SummaryItem(
-              icon: Icons.schedule,
-              label: '총 예상 시간',
-              value: '4시간 10분',
-            ),
-          ),
-          SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _SummaryItem(
-              icon: Icons.near_me_outlined,
-              label: '이동 시간',
-              value: '40분',
-            ),
-          ),
-          SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _SummaryItem(
-              icon: Icons.groups_rounded,
-              label: '참여자',
-              value: '4명',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+    const tabs = ['6/7 토', '6/8 일', '6/9 월'];
 
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        Icon(icon, color: AppColors.primaryPurple),
-        const SizedBox(height: AppSpacing.xs),
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
+        for (var index = 0; index < tabs.length; index += 1)
+          Expanded(
+            child: InkWell(
+              onTap: () => onChanged(index),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: index == selectedIndex
+                          ? AppColors.primaryPink
+                          : AppColors.lineSoft,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Text(
+                    tabs[index],
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: index == selectedIndex
+                          ? AppColors.primaryPink
+                          : AppColors.textSub,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
 }
 
-class _RouteTimelineCard extends StatelessWidget {
-  const _RouteTimelineCard({required this.visitPlan});
+class _RouteList extends StatelessWidget {
+  const _RouteList({required this.visitPlan});
 
   final List<VisitPlan> visitPlan;
 
@@ -264,146 +275,70 @@ class _RouteTimelineCard extends StatelessWidget {
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.format_list_bulleted,
-                color: AppColors.primaryPurple,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text('최종 일정표', style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (final plan in visitPlan) _RoutePlanTile(plan: plan),
+          for (var index = 0; index < visitPlan.length; index += 1)
+            _RouteListItem(order: index + 1, plan: visitPlan[index]),
         ],
       ),
     );
   }
 }
 
-class _RoutePlanTile extends StatelessWidget {
-  const _RoutePlanTile({required this.plan});
+class _RouteListItem extends StatelessWidget {
+  const _RouteListItem({required this.order, required this.plan});
 
+  final int order;
   final VisitPlan plan;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.bgPaper,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: AppColors.lineSoft),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 58,
-                child: Text(
-                  plan.time,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      plan.place,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      '${plan.kind} · ${plan.duration}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textMuted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReminderCard extends StatelessWidget {
-  const _ReminderCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.notifications_none,
-                color: AppColors.primaryPurple,
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPink,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: SizedBox.square(
+                  dimension: 26,
+                  child: Center(
+                    child: Text(
+                      '$order',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textInverse,
+                      ),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text('알림 설정', style: Theme.of(context).textTheme.titleMedium),
+              Expanded(
+                child: Text(
+                  plan.place,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Text(plan.endTime, style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          const _ReminderRow(
-            icon: Icons.calendar_month,
-            label: '약속 하루 전 알림',
-            value: '5월 25일 오후 7:00',
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.only(left: 38),
+            child: Text(
+              '${plan.kind} · ${plan.duration}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
-          const _ReminderRow(
-            icon: Icons.access_time,
-            label: '출발 시간 알림',
-            value: '5월 26일 오전 10:30',
-          ),
+          if (order != visitPlanLength) const SizedBox(height: AppSpacing.sm),
         ],
       ),
     );
   }
-}
 
-class _ReminderRow extends StatelessWidget {
-  const _ReminderRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: AppColors.primaryPurple),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Text(
-            value,
-            textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.primaryPurple),
-          ),
-        ],
-      ),
-    );
-  }
+  int get visitPlanLength => mockMeetup.visitPlan.length;
 }
