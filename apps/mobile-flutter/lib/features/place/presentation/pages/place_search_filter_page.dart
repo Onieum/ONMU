@@ -24,8 +24,8 @@ class PlaceSearchFilterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuScaffold(
-      title: '조건에 맞는 장소 찾기',
-      subtitle: '장소 API 검색 · 홍대 조용한 한식',
+      title: '장소 검색하기',
+      subtitle: '지도 화면에서 이어서 장소를 찾아요',
       children: [
         TextFormField(
           initialValue: '홍대 조용한 한식',
@@ -59,7 +59,6 @@ class PlaceSearchFilterPage extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text('검색 결과 24개', style: Theme.of(context).textTheme.titleMedium),
-            const ExternalSourceBadge(label: 'Kakao · Naver'),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -74,9 +73,11 @@ class PlaceSearchFilterPage extends StatelessWidget {
                 candidate.id,
               ),
             ),
-            onSelectPressed: () => context.go(
-              RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+            onRegisterPressed: () => context.go(
+              '${RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)}?place=confirmed',
             ),
+            onAddCandidatePressed: () =>
+                context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
           ),
           const SizedBox(height: AppSpacing.md),
         ],

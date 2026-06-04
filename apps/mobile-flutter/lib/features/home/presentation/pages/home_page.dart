@@ -64,15 +64,6 @@ class _HomePageState extends State<HomePage> {
     final meetup = mockMeetup;
 
     return OnmuScaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            context.push(RoutePaths.onmoimMeetupNewMembers('friends')),
-        icon: const Icon(Icons.add, size: 20),
-        label: const Text('약속 만들기'),
-        backgroundColor: AppColors.primaryPurple,
-        foregroundColor: AppColors.textInverse,
-        extendedPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      ),
       children: [
         if (!widget.showOnlyMeetups) ...[
           Row(
@@ -104,30 +95,38 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: AppSpacing.xxl),
         ],
+        const _SectionTitle(title: '진행 중인 약속'),
+        const SizedBox(height: AppSpacing.sm),
+        _ActiveMeetupCard(
+          meetup: meetup,
+          onTap: () =>
+              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
         _SectionTitle(
-          title: '진행 중인 약속',
+          title: '다가오는 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoim),
+          onTap: () => context.push(RoutePaths.homeUpcomingMeetups),
         ),
         const SizedBox(height: AppSpacing.sm),
-        _ActiveMeetupCard(meetup: meetup),
-        const SizedBox(height: AppSpacing.xxl),
-        _SectionTitle(title: '다가오는 약속', actionLabel: '전체 보기'),
-        const SizedBox(height: AppSpacing.sm),
-        const _UpcomingMeetupTile(
+        _UpcomingMeetupTile(
           date: '05.28',
           weekday: 'SAT',
           title: '한남 카페 투어',
           place: '한남동 일대',
           dday: 'D-2',
+          onTap: () =>
+              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
-        const _UpcomingMeetupTile(
+        _UpcomingMeetupTile(
           date: '05.30',
           weekday: 'MON',
           title: '홍대 전시회 구경',
           place: '홍대 일대',
           dday: 'D-4',
+          onTap: () =>
+              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
         ),
         const SizedBox(height: AppSpacing.xxl),
         _SectionTitle(title: '지난 약속 아카이브', actionLabel: '전체 보기'),
@@ -172,13 +171,15 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ActiveMeetupCard extends StatelessWidget {
-  const _ActiveMeetupCard({required this.meetup});
+  const _ActiveMeetupCard({required this.meetup, required this.onTap});
 
   final Meetup meetup;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      onTap: onTap,
       padding: EdgeInsets.zero,
       backgroundColor: AppColors.bgDefault,
       child: Column(
@@ -228,13 +229,6 @@ class _ActiveMeetupCard extends StatelessWidget {
                   PixelAvatar(label: member.name, size: 36),
                   const SizedBox(width: AppSpacing.xs),
                 ],
-                const Spacer(),
-                TextButton(
-                  onPressed: () => context.push(
-                    RoutePaths.onmoimMeetupDetail('friends', meetup.id),
-                  ),
-                  child: const Text('상세 보기'),
-                ),
               ],
             ),
           ),
@@ -289,6 +283,7 @@ class _UpcomingMeetupTile extends StatelessWidget {
     required this.title,
     required this.place,
     required this.dday,
+    required this.onTap,
   });
 
   final String date;
@@ -296,10 +291,12 @@ class _UpcomingMeetupTile extends StatelessWidget {
   final String title;
   final String place;
   final String dday;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
+      onTap: onTap,
       backgroundColor: AppColors.bgDefault,
       child: Row(
         children: [

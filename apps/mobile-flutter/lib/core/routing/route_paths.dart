@@ -8,6 +8,7 @@ class RoutePaths {
   static const preferenceIntro = '/preferences/intro';
   static const characterStart = '/character/start';
   static const home = '/home';
+  static const homeUpcomingMeetups = '/home/upcoming-meetups';
   static const onmoim = '/onmoim';
   static const onmoimDemo = '/onmoim/friends';
   static const onmoimDemoSettings = '/onmoim/friends/settings';
@@ -59,6 +60,9 @@ class RoutePaths {
 
   static String onmoimMeetupPlaceMap(String onmoimId, String meetupId) =>
       '/onmoim/$onmoimId/meetups/$meetupId/places/map';
+
+  static String onmoimMeetupPlaceVoteNew(String onmoimId, String meetupId) =>
+      '/onmoim/$onmoimId/meetups/$meetupId/places/vote/new';
 
   static String onmoimMeetupPlaceDetail(
     String onmoimId,
