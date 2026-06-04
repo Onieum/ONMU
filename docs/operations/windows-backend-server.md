@@ -518,6 +518,13 @@ docker compose -f infra/compose/docker-compose.yml logs -f redis
 docker compose -f infra/compose/docker-compose.yml logs -f minio
 ```
 
+API smoke server 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크 URL에 `client` 값을 붙여 공유합니다.
+
+```powershell
+curl "https://dev-api.onmu.cloud/healthz?client=geondong-mac"
+Get-Content logs\api-access.log -Tail 20
+```
+
 재시작:
 
 ```powershell
