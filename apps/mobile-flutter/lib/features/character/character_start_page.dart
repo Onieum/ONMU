@@ -153,7 +153,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   Text(
                     labels[index],
                     style: AppTextStyles.tiny.copyWith(
-                      color: isActive ? AppColors.textMain : AppColors.textMuted,
+                      color: isActive
+                          ? AppColors.textMain
+                          : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -276,13 +278,17 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   color: color,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? AppColors.primaryPink : AppColors.lineSoft,
+                    color: isSelected
+                        ? AppColors.primaryPink
+                        : AppColors.lineSoft,
                     width: isSelected ? 3.5 : 1.2,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: AppColors.primaryPink.withValues(alpha: 0.25),
+                            color: AppColors.primaryPink.withValues(
+                              alpha: 0.25,
+                            ),
                             blurRadius: 6,
                           ),
                         ]
@@ -350,9 +356,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             colors: CharacterDraft.eyeColors,
             labels: CharacterDraft.eyeColorLabels,
             selectedIndex: _draft.eyeColorIndex,
-            onSelect: (index) => setState(
-              () => _draft = _draft.copyWith(eyeColorIndex: index),
-            ),
+            onSelect: (index) =>
+                setState(() => _draft = _draft.copyWith(eyeColorIndex: index)),
           ),
         ] else
           _buildNotice('선택한 눈 스타일은 단일 색상만 지원합니다.'),
@@ -401,9 +406,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           colors: CharacterDraft.hairColors,
           labels: CharacterDraft.hairColorLabels,
           selectedIndex: _draft.hairColorIndex,
-          onSelect: (index) => setState(
-            () => _draft = _draft.copyWith(hairColorIndex: index),
-          ),
+          onSelect: (index) =>
+              setState(() => _draft = _draft.copyWith(hairColorIndex: index)),
         ),
       ],
     );
@@ -784,7 +788,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             TextButton(
               onPressed: _skipOnboarding,
               child: Text(
-                '건너뛰고 기본 캐릭터로 시작하기',
+                '나중에 할게요',
                 style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
                 ),
