@@ -237,6 +237,13 @@ void main() {
     expect(find.text('중복 선택'), findsOneWidget);
     expect(find.text('마감 날짜'), findsOneWidget);
     expect(find.text('마감 시간'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '투표 만들기').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표 보기'), findsOneWidget);
+    expect(find.text('후보별 투표 현황'), findsOneWidget);
+    expect(find.text('온무식당'), findsOneWidget);
   });
 
   testWidgets('place map actions show confirmation without navigation', (
