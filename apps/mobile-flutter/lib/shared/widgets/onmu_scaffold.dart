@@ -9,6 +9,7 @@ class OnmuScaffold extends StatelessWidget {
     required this.children,
     super.key,
     this.title,
+    this.titleSubtitle,
     this.subtitle,
     this.leading,
     this.actions = const [],
@@ -24,6 +25,7 @@ class OnmuScaffold extends StatelessWidget {
 
   final List<Widget> children;
   final String? title;
+  final Widget? titleSubtitle;
   final String? subtitle;
   final Widget? leading;
   final List<Widget> actions;
@@ -52,6 +54,7 @@ class OnmuScaffold extends StatelessWidget {
             if (title != null)
               OnmuTopBar(
                 title: title!,
+                subtitle: titleSubtitle,
                 showBackButton: showBackButton || leading != null,
                 onBack: onBack,
                 action:

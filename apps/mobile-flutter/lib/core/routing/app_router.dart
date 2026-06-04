@@ -146,6 +146,7 @@ final appRouter = GoRouter(
                       path: 'meetups/new/members',
                       builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
+                        editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                     ),
                     GoRoute(
@@ -158,12 +159,14 @@ final appRouter = GoRouter(
                       path: 'meetups/new/schedule',
                       builder: (context, state) => MeetupCreatePage(
                         onmoimId: state.pathParameters['onmoimId']!,
+                        editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                       routes: [
                         GoRoute(
                           path: 'calendar',
                           builder: (context, state) => MeetupCreatePage(
                             onmoimId: state.pathParameters['onmoimId']!,
+                            editingMeetupId: state.uri.queryParameters['edit'],
                           ),
                         ),
                       ],

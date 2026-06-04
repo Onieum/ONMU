@@ -120,6 +120,10 @@ void main() {
     final secondTabText = tester.widget<Text>(find.text('6/8 일'));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
+    expect(find.text('제주도 일대'), findsOneWidget);
+    expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
+    expect(find.text('협재 해수욕장'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsNothing);
   });
 
   testWidgets('draft meetup can open the shared candidate list', (
@@ -133,6 +137,17 @@ void main() {
 
     expect(find.text('장소 검색하기'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('제주도 일대'), findsOneWidget);
+    expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
+    expect(find.text('일정이 없어요'), findsNothing);
+    expect(find.text('일정 타임라인'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsOneWidget);
+
+    await tester.tap(find.text('6/8 일'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('협재 해수욕장'), findsOneWidget);
+    expect(find.text('다운타우너 성수'), findsNothing);
 
     final searchButtonRect = tester.getRect(
       find.byKey(const ValueKey('meetup-place-action-search')),
@@ -146,6 +161,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보 리스트'), findsOneWidget);
+  });
+
+  testWidgets('meetup detail more menu opens edit flow', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupDetail('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('더보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+
+    await tester.tap(find.text('약속 수정하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+    expect(find.text('수정 완료'), findsOneWidget);
+    expect(find.text('약속 이름'), findsOneWidget);
+    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('제주도 일대'), findsOneWidget);
   });
 
   testWidgets('confirmed meetup still exposes the shared candidate list', (
