@@ -3,6 +3,8 @@ class RoutePaths {
 
   static const splash = '/splash';
   static const start = '/start';
+  static const login = '/login';
+  static const onboarding = '/onboarding';
   static const preferenceIntro = '/preferences/intro';
   static const characterStart = '/character/start';
   static const home = '/home';
@@ -30,6 +32,9 @@ class RoutePaths {
   static String onmoimChat(String onmoimId) => '/onmoim/$onmoimId/chat';
 
   static String onmoimMemories(String onmoimId) => '/onmoim/$onmoimId/memories';
+
+  static String onmoimMeetupNew(String onmoimId) =>
+      '/onmoim/$onmoimId/meetups/new/members';
 
   static String onmoimMeetupNewMembers(String onmoimId) =>
       '/onmoim/$onmoimId/meetups/new/members';
