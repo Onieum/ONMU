@@ -3,6 +3,9 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 
+import { createDevContractRouter } from "./dev-contract-routes.mjs";
+import { createDevContractStore } from "./dev-contract-store.mjs";
+
 try {
   process.loadEnvFile();
 } catch {
@@ -17,14 +20,49 @@ const accessLogPath = path.isAbsolute(accessLogFile)
   ? accessLogFile
   : path.resolve(process.cwd(), accessLogFile);
 let accessLogDirReady = false;
+const devContractRouter = createDevContractRouter(createDevContractStore());
 
-function json(res, statusCode, body) {
+function allowedCorsOrigin(req) {
+  const origin = headerValue(req, "origin");
+  if (!origin) {
+    return "*";
+  }
+
+  if (
+    origin === "https://dev-api.onmu.cloud" ||
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+  ) {
+    return origin;
+  }
+
+  return "";
+}
+
+function responseHeaders(req, extra = {}) {
+  const corsOrigin = allowedCorsOrigin(req);
+  return {
+    ...(corsOrigin ? { "access-control-allow-origin": corsOrigin } : {}),
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "content-type,authorization,x-onmu-dev-client",
+    "access-control-max-age": "600",
+    vary: "origin",
+    ...extra,
+  };
+}
+
+function json(req, res, statusCode, body) {
   const payload = JSON.stringify(body, null, 2);
   res.writeHead(statusCode, {
+    ...responseHeaders(req),
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   });
   res.end(payload);
+}
+
+function noContent(req, res) {
+  res.writeHead(204, responseHeaders(req));
+  res.end();
 }
 
 function headerValue(req, name) {
@@ -190,8 +228,13 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   attachAccessLog(req, res, url, startTime);
 
+  if (req.method === "OPTIONS") {
+    noContent(req, res);
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/healthz") {
-    json(res, 200, {
+    json(req, res, 200, {
       ok: true,
       service: "onmu-api",
       env: process.env.ONMU_ENV || "local",
@@ -201,11 +244,17 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/readyz") {
     const result = await readiness();
-    json(res, result.ok ? 200 : 503, result);
+    json(req, res, result.ok ? 200 : 503, result);
     return;
   }
 
-  json(res, 404, {
+  const devContractResult = await devContractRouter(req, url);
+  if (devContractResult.handled) {
+    json(req, res, devContractResult.statusCode, devContractResult.body);
+    return;
+  }
+
+  json(req, res, 404, {
     ok: false,
     error: "not_found",
   });

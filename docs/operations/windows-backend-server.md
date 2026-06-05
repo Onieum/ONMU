@@ -32,7 +32,7 @@ Team devices
 
 | 영역 | Windows dev 서버 기준 |
 | --- | --- |
-| Main API | 현재는 `services/api/server.mjs` smoke API가 `/healthz`, `/readyz`를 제공하고, 이후 Spring Boot Main API도 같은 포트와 헬스 체크 계약을 유지합니다. |
+| Main API | 현재는 `services/api/server.mjs`가 `/healthz`, `/readyz`와 `/api/v1` contract stub을 제공합니다. 이후 Spring Boot 또는 FastAPI Main API로 바뀌더라도 같은 포트, health/readiness, `groups/plans` 계약을 유지합니다. |
 | Realtime Gateway | 1차 구현 전까지 별도 실행하지 않습니다. 구현 후에는 API 뒤에 두거나 개발용 포트를 별도로 정합니다. |
 | AI/Data Worker | 1차 Windows helper의 기본 실행 대상이 아닙니다. 추천/기록 worker가 생기면 Docker image 또는 별도 프로세스로 추가합니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
@@ -199,18 +199,20 @@ API 서비스가 생긴 뒤 실행 예시는 서비스별 README에 맞춥니다
 npm run dev --workspace services/api
 ```
 
-현재 저장소의 smoke test API는 아래처럼 실행합니다.
+현재 저장소의 Windows dev API는 아래처럼 실행합니다.
 
 ```powershell
 npm run api:dev
 ```
 
-이 smoke API는 현재 Windows dev 서버 연결 검증용입니다. 이후 Spring Boot Main API로 바뀌더라도 다음 계약은 유지합니다.
+이 Node API는 현재 Flutter mock repository를 API repository로 바꾸기 전의 contract stub입니다. PostgreSQL migration과 영구 CRUD를 구현한 Main API가 아니며, POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다. 이후 Spring Boot 또는 FastAPI Main API로 바뀌더라도 다음 계약은 유지합니다.
 
 | 계약 | 이유 |
 | --- | --- |
 | `GET /healthz` | 프로세스가 살아 있고 HTTP 요청을 받을 수 있는지 확인 |
 | `GET /readyz` | PostgreSQL, Redis, MinIO 등 로컬 의존성 연결 확인 |
+| `/api/v1` prefix | Flutter API repository 전환 시 운영 API 계약과 같은 base path를 쓰기 위함 |
+| `groups/plans` 리소스명 | PR #61 이후 Flutter route와 repository가 `Group`, `Plan` 중심으로 정리되었기 때문 |
 | 기본 포트 `8080` | Cloudflare Tunnel, LAN 테스트, 모바일 앱 dev base URL을 고정하기 위함 |
 | DB/Redis/MinIO 로컬 바인딩 | 데이터 계층을 인터넷과 LAN에 직접 노출하지 않기 위함 |
 
@@ -226,12 +228,20 @@ npm run api:dev
 
 ```powershell
 curl http://localhost:8080/healthz
+curl http://localhost:8080/readyz
+curl http://localhost:8080/api/v1/home/summary
+curl http://localhost:8080/api/v1/groups
+curl http://localhost:8080/api/v1/groups/1/plans/101
+curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+curl http://localhost:8080/api/v1/groups/1/votes/501
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 ```
 
 다른 PC나 휴대폰에서는 아래처럼 확인합니다.
 
 ```powershell
 curl http://<windows-lan-ip>:8080/healthz
+curl http://<windows-lan-ip>:8080/api/v1/home/summary
 ```
 
 ## 5. Windows IP 고정
@@ -386,6 +396,8 @@ npm run tunnel:cloudflare
 ```powershell
 curl https://dev-api.onmu.cloud/healthz
 curl https://dev-api.onmu.cloud/readyz
+curl https://dev-api.onmu.cloud/api/v1/home/summary
+curl https://dev-api.onmu.cloud/api/v1/groups/1/plans/101
 npm run tunnel:cloudflare:info
 ```
 
@@ -411,6 +423,8 @@ npm run tunnel:cloudflare:access-tcp
 - `cloudflared` 2026.5.1로 실행
 - `https://dev-api.onmu.cloud/healthz`가 `200 OK`
 - `https://dev-api.onmu.cloud/readyz`가 PostgreSQL `localhost:15432`, Redis `localhost:6379`, MinIO `localhost:9000` 모두 `ok`
+- `https://dev-api.onmu.cloud/api/v1/home/summary`가 `200 OK`
+- `https://dev-api.onmu.cloud/api/v1/groups/1/plans/101`이 PR #61 seed 기준 약속 데이터를 반환
 - quick tunnel은 정리하고 named tunnel connector 1개만 유지
 
 Cloudflare quick tunnel을 쓸 때도 저장소의 전용 config를 사용합니다. 이 PC에 이미 `~/.cloudflared/config.yml`이 있으면 기존 ingress 규칙이 섞여서 새 URL이 404를 반환할 수 있기 때문입니다.
@@ -518,10 +532,11 @@ docker compose -f infra/compose/docker-compose.yml logs -f redis
 docker compose -f infra/compose/docker-compose.yml logs -f minio
 ```
 
-API smoke server 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크 URL에 `client` 값을 붙여 공유합니다.
+API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
 
 ```powershell
 curl "https://dev-api.onmu.cloud/healthz?client=geondong-mac"
+curl "https://dev-api.onmu.cloud/api/v1/home/summary?client=geondong-mac"
 Get-Content logs\api-access.log -Tail 20
 ```
 
@@ -670,6 +685,7 @@ Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azur
 
 - API와 realtime gateway 또는 worker가 Docker image로 빌드됩니다.
 - `/healthz`, `/readyz`가 있습니다.
+- `/api/v1` contract stub이 실제 Main API 구현으로 대체됩니다.
 - DB migration이 자동화되어 있습니다.
 - GitHub Actions에서 image build와 test가 통과합니다.
 - Azure Container Apps 또는 AKS 중 배포 대상이 정해졌습니다.
