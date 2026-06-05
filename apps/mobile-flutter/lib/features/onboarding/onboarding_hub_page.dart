@@ -11,9 +11,10 @@ import '../../shared/providers/state_providers.dart';
 class OnboardingHubPage extends ConsumerWidget {
   const OnboardingHubPage({super.key});
 
+  static const _selectScreenAsset = 'assets/images/splash/Select_Screen.png';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final textTheme = Theme.of(context).textTheme;
     final user = ref.watch(authUserProvider);
     final hasCharacter = ref.watch(userCharacterProvider) != null;
     final hasPreference = ref.watch(preferenceProfileProvider) != null;
@@ -21,90 +22,127 @@ class OnboardingHubPage extends ConsumerWidget {
     final skippedPreference = ref.watch(skippedPreferenceProvider);
     final characterReady = hasCharacter || skippedCharacter;
     final preferenceReady = hasPreference || skippedPreference;
-    final displayName = user?.displayName ?? '온뮤 친구';
-    final completedCount = [
-      hasCharacter,
-      hasPreference,
-    ].where((completed) => completed).length;
-    final title = switch (completedCount) {
-      0 => '$displayName님,\n기록 준비를 해볼까요?',
-      1 => '$displayName님,\n하나 완료했어요.\n남은 설정도 해볼까요?',
-      _ => '$displayName님,\n준비가 끝났어요!',
-    };
-    final description = switch (completedCount) {
-      0 => '캐릭터와 취향은 지금 설정해도 좋고, 나중에 천천히 채워도 괜찮아요.',
-      1 => '남은 항목은 지금 이어서 해도 좋고, 나중에 천천히 채워도 괜찮아요.',
-      _ => '캐릭터와 취향 설정이 모두 준비됐어요. 이제 ONMU를 시작해볼까요?',
-    };
+    final rawDisplayName = user?.displayName.trim();
+    final displayName = rawDisplayName != null && rawDisplayName.isNotEmpty
+        ? rawDisplayName
+        : '카카오 친구';
 
     return Scaffold(
-      backgroundColor: AppColors.bgDefault,
+      backgroundColor: const Color(0xFFFFFCF8),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                children: [
-                  Text(
-                    title,
-                    style: textTheme.headlineSmall?.copyWith(
-                      color: AppColors.textMain,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final layout = _OnboardingLayout.from(constraints);
+
+            return Stack(
+              children: [
+                Positioned(
+                  top: layout.titleTop,
+                  left: 24,
+                  right: 24,
+                  child: _OnboardingTitle(
+                    displayName: displayName,
+                    compact: layout.compact,
+                  ),
+                ),
+                Positioned(
+                  top: layout.subtitleTop,
+                  left: 24,
+                  right: 24,
+                  child: Text(
+                    '캐릭터와 취향은 지금 설정해도 좋고,\n나중에 천천히 채워도 괜찮아요.',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: const Color(0xFF8A6F63),
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSub,
-                      height: 1.45,
+                ),
+                Positioned(
+                  top: layout.imageTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Image.asset(
+                      _selectScreenAsset,
+                      width: layout.imageWidth,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.none,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  const OnmuCharacterHero(compact: true),
-                  const SizedBox(height: 24),
-                  _OnboardingTaskCard(
-                    title: '캐릭터 만들기',
-                    description: 'OOTD 기록에 함께할 픽셀 캐릭터를 꾸며요.',
-                    icon: Icons.face_retouching_natural_outlined,
-                    state: _TaskState.from(hasCharacter, skippedCharacter),
-                    primaryLabel: _taskButtonLabel(
-                      completed: hasCharacter,
-                      skipped: skippedCharacter,
+                ),
+                Positioned(
+                  top: layout.firstCardTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: layout.contentWidth,
+                      child: _OnboardingTaskCard(
+                        compact: layout.compact,
+                        title: '캐릭터 만들기',
+                        description: 'OOTD 기록에 함께할 픽셀 캐릭터를\n꾸며요.',
+                        icon: Icons.face_retouching_natural_outlined,
+                        state: _TaskState.from(hasCharacter, skippedCharacter),
+                        primaryLabel: _taskButtonLabel(
+                          completed: hasCharacter,
+                          skipped: skippedCharacter,
+                        ),
+                        onPrimary: () => context.go(RoutePaths.characterStart),
+                      ),
                     ),
-                    onPrimary: () => context.go(RoutePaths.characterStart),
                   ),
-                  const SizedBox(height: 12),
-                  _OnboardingTaskCard(
-                    title: '취향 선택',
-                    description: '음식, 장소, 약속 스타일 추천에 쓸 취향을 골라요.',
-                    icon: Icons.tune,
-                    state: _TaskState.from(hasPreference, skippedPreference),
-                    primaryLabel: _taskButtonLabel(
-                      completed: hasPreference,
-                      skipped: skippedPreference,
+                ),
+                Positioned(
+                  top: layout.secondCardTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: layout.contentWidth,
+                      child: _OnboardingTaskCard(
+                        compact: layout.compact,
+                        title: '취향 선택',
+                        description: '음식, 장소, 약속 스타일 추천에 쓸\n취향을 골라요.',
+                        icon: Icons.tune_rounded,
+                        state: _TaskState.from(hasPreference, skippedPreference),
+                        primaryLabel: _taskButtonLabel(
+                          completed: hasPreference,
+                          skipped: skippedPreference,
+                        ),
+                        onPrimary: () => context.go(RoutePaths.preferenceIntro),
+                      ),
                     ),
-                    onPrimary: () => context.go(RoutePaths.preferenceIntro),
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: OnmuPrimaryButton(
-                label: '홈으로 가기',
-                onPressed: () {
-                  if (!characterReady) {
-                    ref.read(skippedCharacterProvider.notifier).state = true;
-                  }
-                  if (!preferenceReady) {
-                    ref.read(skippedPreferenceProvider.notifier).state = true;
-                  }
-                  context.go(RoutePaths.home);
-                },
-              ),
-            ),
-          ],
+                ),
+                Positioned(
+                  top: layout.homeTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: layout.homeWidth,
+                      child: _HomeButton(
+                        compact: layout.compact,
+                        onPressed: () {
+                          if (!characterReady) {
+                            ref.read(skippedCharacterProvider.notifier).state =
+                                true;
+                          }
+                          if (!preferenceReady) {
+                            ref.read(skippedPreferenceProvider.notifier).state =
+                                true;
+                          }
+                          context.go(RoutePaths.home);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -118,9 +156,9 @@ String _taskButtonLabel({required bool completed, required bool skipped}) {
 }
 
 enum _TaskState {
-  incomplete('미완료', AppColors.textMuted, AppColors.lineSoft),
+  incomplete('미완료', AppColors.primaryPurple, AppColors.primaryPinkSoft),
   completed('완료', AppColors.accentGreen, AppColors.accentGreen),
-  skipped('스킵됨', AppColors.accentOrange, AppColors.accentOrange);
+  skipped('건너뜀', AppColors.accentOrange, AppColors.accentOrange);
 
   const _TaskState(this.label, this.color, this.borderColor);
 
@@ -135,8 +173,101 @@ enum _TaskState {
   }
 }
 
+class _OnboardingLayout {
+  const _OnboardingLayout({
+    required this.compact,
+    required this.contentWidth,
+    required this.homeWidth,
+    required this.imageWidth,
+    required this.titleTop,
+    required this.subtitleTop,
+    required this.imageTop,
+    required this.firstCardTop,
+    required this.secondCardTop,
+    required this.homeTop,
+  });
+
+  final bool compact;
+  final double contentWidth;
+  final double homeWidth;
+  final double imageWidth;
+  final double titleTop;
+  final double subtitleTop;
+  final double imageTop;
+  final double firstCardTop;
+  final double secondCardTop;
+  final double homeTop;
+
+  static _OnboardingLayout from(BoxConstraints constraints) {
+    final width = constraints.maxWidth;
+    final height = constraints.maxHeight;
+    final compact = height < 720;
+    final contentWidth = (width - 48).clamp(300.0, 386.0);
+
+    return _OnboardingLayout(
+      compact: compact,
+      contentWidth: contentWidth,
+      homeWidth: (contentWidth * 0.7).clamp(230.0, 280.0),
+      imageWidth: width.clamp(210.0, compact ? 230.0 : 290.0),
+      titleTop: height * (compact ? 0.035 : 0.055),
+      subtitleTop: height * (compact ? 0.145 : 0.17),
+      imageTop: height * (compact ? 0.215 : 0.245),
+      firstCardTop: height * (compact ? 0.44 : 0.495),
+      secondCardTop: height * (compact ? 0.65 : 0.685),
+      homeTop: height * (compact ? 0.86 : 0.88),
+    );
+  }
+}
+
+class _OnboardingTitle extends StatelessWidget {
+  const _OnboardingTitle({required this.displayName, required this.compact});
+
+  final String displayName;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = (compact
+            ? AppTextStyles.titleLarge
+            : AppTextStyles.headlineMedium)
+        .copyWith(
+          color: const Color(0xFF4D3930),
+          fontWeight: FontWeight.w900,
+          height: 1.25,
+        );
+
+    return Column(
+      children: [
+        Text(
+          '$displayName님,',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: titleStyle,
+        ),
+        RichText(
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            style: titleStyle,
+            children: const [
+              TextSpan(
+                text: '기록 준비',
+                style: TextStyle(color: Color(0xFFFF637B)),
+              ),
+              TextSpan(text: '를 해볼까요?'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _OnboardingTaskCard extends StatelessWidget {
   const _OnboardingTaskCard({
+    required this.compact,
     required this.title,
     required this.description,
     required this.icon,
@@ -145,6 +276,7 @@ class _OnboardingTaskCard extends StatelessWidget {
     required this.onPrimary,
   });
 
+  final bool compact;
   final String title;
   final String description;
   final IconData icon;
@@ -154,14 +286,21 @@ class _OnboardingTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final iconSize = compact ? 42.0 : 50.0;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(compact ? 10 : 13),
       decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: AppColors.bgDefault.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.lineSoft),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x143A2A23),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,42 +309,79 @@ class _OnboardingTaskCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryPinkSoft,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  color: const Color(0xFFFFE2E8),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(icon, color: AppColors.primaryPurple),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFFFF637B),
+                  size: compact ? 23 : 28,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: AppColors.textMain,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: (compact
+                                    ? AppTextStyles.titleMedium
+                                    : AppTextStyles.titleLarge)
+                                .copyWith(
+                                  color: const Color(0xFF4D3930),
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatusBadge(state: state, compact: compact),
+                      ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       description,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSub,
-                        height: 1.35,
+                      maxLines: 2,
+                      overflow: TextOverflow.visible,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: const Color(0xFF8A6F63),
+                        height: compact ? 1.18 : 1.25,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _StatusBadge(state: state),
             ],
           ),
-          const SizedBox(height: 16),
-          OnmuSecondaryButton(label: primaryLabel, onPressed: onPrimary),
+          SizedBox(height: compact ? 8 : 10),
+          SizedBox(
+            height: compact ? 38 : 44,
+            child: OutlinedButton.icon(
+              onPressed: onPrimary,
+              iconAlignment: IconAlignment.end,
+              icon: const Icon(Icons.chevron_right_rounded, size: 22),
+              label: Text(primaryLabel),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFFF637B),
+                side: const BorderSide(color: Color(0xFFFFB4C0), width: 1.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                textStyle: AppTextStyles.titleSmall.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -213,14 +389,18 @@ class _OnboardingTaskCard extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.state});
+  const _StatusBadge({required this.state, required this.compact});
 
   final _TaskState state;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 5,
+      ),
       decoration: BoxDecoration(
         color: AppColors.bgDefault,
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -228,9 +408,39 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         state.label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: state.color),
+        style: AppTextStyles.labelMedium.copyWith(
+          color: state.color,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeButton extends StatelessWidget {
+  const _HomeButton({required this.onPressed, required this.compact});
+
+  final VoidCallback onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: compact ? 48 : 56,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.home_rounded, size: 24),
+        label: const Text('홈으로 가기'),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFFF637B),
+          foregroundColor: AppColors.textInverse,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 6,
+          shadowColor: const Color(0x66FF637B),
+          textStyle: AppTextStyles.titleMedium.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

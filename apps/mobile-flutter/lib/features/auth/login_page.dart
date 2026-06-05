@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_radius.dart';
 import '../../shared/onmu_design.dart';
+import '../../shared/widgets/asset_crop_image.dart';
 import 'data/social_auth_service.dart';
 import 'domain/auth_user.dart';
 import 'providers/auth_providers.dart';
@@ -18,6 +19,12 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
+  static const _splashLogoAsset =
+      'assets/images/splash/ONMU_splash_logo.png';
+  static const _splashImageSize = Size(1341, 1173);
+  static const _logoCrop = Rect.fromLTWH(420, 130, 520, 270);
+  static const _characterCrop = Rect.fromLTWH(180, 380, 980, 710);
+
   bool _isLoading = false;
   String? _errorMessage;
   StreamSubscription<AuthUser?>? _googleAuthSubscription;
@@ -36,83 +43,101 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
-      backgroundColor: AppColors.bgWarm,
+      backgroundColor: const Color(0xFFFFFCF8),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
-          children: [
-            Text(
-              'ONMU',
-              textAlign: TextAlign.center,
-              style: textTheme.displayMedium?.copyWith(
-                color: AppColors.primaryPurple,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '오늘의 코디와 약속 기록을\n귀여운 픽셀 캐릭터로 남겨봐요.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSub,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 28),
-            const OnmuCharacterHero(compact: true),
-            const SizedBox(height: 28),
-            _LoginButton(
-              label: '카카오로 시작하기',
-              backgroundColor: const Color(0xFFFEE500),
-              foregroundColor: AppColors.textMain,
-              iconAsset: 'assets/images/auth/kakao_logo.png',
-              fallbackIconLabel: 'T',
-              fallbackIconBackground: const Color(0xFF371D1E),
-              fallbackIconForeground: const Color(0xFFFEE500),
-              onPressed: _isLoading
-                  ? null
-                  : () => _signIn(_SocialProvider.kakao),
-            ),
-            const SizedBox(height: 12),
-            _buildGoogleSignInArea(context),
-            const SizedBox(height: 12),
-            _LoginButton(
-              label: '네이버로 시작하기',
-              backgroundColor: const Color(0xFF03C75A),
-              foregroundColor: AppColors.textInverse,
-              iconAsset: 'assets/images/auth/naver_logo.png',
-              fallbackIconLabel: 'N',
-              fallbackIconBackground: const Color(0xFF03C75A),
-              fallbackIconForeground: Colors.white,
-              onPressed: _isLoading
-                  ? null
-                  : () => _signIn(_SocialProvider.naver),
-            ),
-            if (_isLoading) ...[
-              const SizedBox(height: 20),
-              const Center(child: CircularProgressIndicator()),
-            ],
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPinkSoft,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.linePink),
-                ),
-                child: Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMain,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final layout = _LoginLayout.from(constraints);
+
+            return Stack(
+              children: [
+                const Positioned.fill(child: _LoginBackground()),
+                Positioned(
+                  top: layout.logoTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AssetCropImage(
+                      assetPath: _splashLogoAsset,
+                      imageSize: _splashImageSize,
+                      cropRect: _logoCrop,
+                      width: layout.logoWidth,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ],
+                Positioned(
+                  top: layout.characterTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AssetCropImage(
+                      assetPath: _splashLogoAsset,
+                      imageSize: _splashImageSize,
+                      cropRect: _characterCrop,
+                      width: layout.characterWidth,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: layout.buttonsTop,
+                  left: 0,
+                  right: 0,
+                  child: Column(
+                    children: [
+                      _LoginButton(
+                        width: layout.buttonWidth,
+                        height: layout.buttonHeight,
+                        label: '카카오로 시작하기',
+                        backgroundColor: AppColors.bgDefault,
+                        foregroundColor: Colors.black,
+                        borderColor: const Color(0xFFFF9CAD),
+                        iconAsset: 'assets/images/auth/kakao_logo.png',
+                        fallbackIconLabel: 'TALK',
+                        fallbackIconBackground: const Color(0xFFFEE500),
+                        fallbackIconForeground: const Color(0xFF371D1E),
+                        onPressed: _isLoading
+                            ? null
+                            : () => _signIn(_SocialProvider.kakao),
+                      ),
+                      SizedBox(height: layout.buttonGap),
+                      _buildGoogleSignInArea(layout),
+                      SizedBox(height: layout.buttonGap),
+                      _LoginButton(
+                        width: layout.buttonWidth,
+                        height: layout.buttonHeight,
+                        label: '네이버로 시작하기',
+                        backgroundColor: AppColors.bgDefault,
+                        foregroundColor: Colors.black,
+                        borderColor: const Color(0xFF8FE0A8),
+                        iconAsset: 'assets/images/auth/naver_logo.png',
+                        fallbackIconLabel: 'N',
+                        fallbackIconBackground: Colors.transparent,
+                        fallbackIconForeground: const Color(0xFF03C75A),
+                        onPressed: _isLoading
+                            ? null
+                            : () => _signIn(_SocialProvider.naver),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_isLoading)
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 96,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                if (_errorMessage != null)
+                  Positioned(
+                    left: 24,
+                    right: 24,
+                    bottom: 96,
+                    child: _ErrorMessage(message: _errorMessage!),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -179,15 +204,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Widget _buildGoogleSignInArea(BuildContext context) {
+  Widget _buildGoogleSignInArea(_LoginLayout layout) {
     final actions = ref.read(authActionProvider);
 
     if (!actions.isGoogleConfigured) {
       return _LoginButton(
+        width: layout.buttonWidth,
+        height: layout.buttonHeight,
         label: '구글로 시작하기',
         backgroundColor: AppColors.bgDefault,
-        foregroundColor: AppColors.textMain,
-        borderColor: AppColors.lineSoft,
+        foregroundColor: Colors.black,
+        borderColor: const Color(0xFFE2DAD5),
         iconAsset: 'assets/images/auth/google_logo.png',
         fallbackIconLabel: 'G',
         fallbackIconForeground: AppColors.primaryPurple,
@@ -206,17 +233,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       return Align(
         alignment: Alignment.center,
         child: SizedBox(
-          width: _LoginButton.width,
-          height: _LoginButton.height,
+          width: layout.buttonWidth,
+          height: layout.buttonHeight,
           child: Stack(
             fit: StackFit.expand,
             children: [
               IgnorePointer(
                 child: _LoginButton(
+                  width: layout.buttonWidth,
+                  height: layout.buttonHeight,
                   label: '구글로 시작하기',
                   backgroundColor: AppColors.bgDefault,
-                  foregroundColor: AppColors.textMain,
-                  borderColor: AppColors.lineSoft,
+                  foregroundColor: Colors.black,
+                  borderColor: const Color(0xFFE2DAD5),
                   iconAsset: 'assets/images/auth/google_logo.png',
                   fallbackIconLabel: 'G',
                   fallbackIconForeground: AppColors.primaryPurple,
@@ -231,10 +260,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
 
     return _LoginButton(
+      width: layout.buttonWidth,
+      height: layout.buttonHeight,
       label: '구글로 시작하기',
       backgroundColor: AppColors.bgDefault,
-      foregroundColor: AppColors.textMain,
-      borderColor: AppColors.lineSoft,
+      foregroundColor: Colors.black,
+      borderColor: const Color(0xFFE2DAD5),
       iconAsset: 'assets/images/auth/google_logo.png',
       fallbackIconLabel: 'G',
       fallbackIconForeground: AppColors.primaryPurple,
@@ -255,12 +286,61 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
 enum _SocialProvider { kakao, google, naver }
 
+class _LoginLayout {
+  const _LoginLayout({
+    required this.logoTop,
+    required this.logoWidth,
+    required this.taglineTop,
+    required this.characterTop,
+    required this.characterWidth,
+    required this.buttonsTop,
+    required this.buttonWidth,
+    required this.buttonHeight,
+    required this.buttonGap,
+  });
+
+  final double logoTop;
+  final double logoWidth;
+  final double taglineTop;
+  final double characterTop;
+  final double characterWidth;
+  final double buttonsTop;
+  final double buttonWidth;
+  final double buttonHeight;
+  final double buttonGap;
+
+  static _LoginLayout from(BoxConstraints constraints) {
+    final width = constraints.maxWidth;
+    final height = constraints.maxHeight;
+    final compact = height < 720;
+    final logoWidth = (width * 0.7).clamp(220.0, compact ? 250.0 : 310.0);
+    final characterWidth = (width * 0.92).clamp(
+      300.0,
+      compact ? 360.0 : 430.0,
+    );
+
+    return _LoginLayout(
+      logoTop: (height * 0.07).clamp(34.0, 72.0),
+      logoWidth: logoWidth,
+      taglineTop: height * (compact ? 0.24 : 0.22),
+      characterTop: height * (compact ? 0.28 : 0.32),
+      characterWidth: characterWidth,
+      buttonsTop: height * (compact ? 0.68 : 0.66),
+      buttonWidth: (width - 56).clamp(280.0, 338.0),
+      buttonHeight: compact ? 46.0 : 54.0,
+      buttonGap: compact ? 8.0 : 12.0,
+    );
+  }
+}
+
 class _LoginButton extends StatelessWidget {
   const _LoginButton({
     required this.label,
     required this.backgroundColor,
     required this.foregroundColor,
     required this.onPressed,
+    required this.width,
+    required this.height,
     this.borderColor,
     this.iconAsset,
     this.fallbackIconLabel,
@@ -272,21 +352,17 @@ class _LoginButton extends StatelessWidget {
   final Color backgroundColor;
   final Color foregroundColor;
   final VoidCallback? onPressed;
+  final double width;
+  final double height;
   final Color? borderColor;
   final String? iconAsset;
   final String? fallbackIconLabel;
   final Color? fallbackIconBackground;
   final Color? fallbackIconForeground;
 
-  static const double width = 240;
-  static const double height = 44;
-
   @override
   Widget build(BuildContext context) {
-    final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
-      color: foregroundColor,
-      fontWeight: FontWeight.w700,
-    );
+    final iconSize = height <= 48 ? 24.0 : 28.0;
 
     return Align(
       alignment: Alignment.center,
@@ -299,10 +375,13 @@ class _LoginButton extends StatelessWidget {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             disabledBackgroundColor: AppColors.lineSoft,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: borderColor ?? backgroundColor),
+              borderRadius: BorderRadius.circular(11),
+              side: BorderSide(
+                color: borderColor ?? backgroundColor,
+                width: 1.2,
+              ),
             ),
           ),
           child: Row(
@@ -310,8 +389,8 @@ class _LoginButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                width: 26,
-                height: 26,
+                width: iconSize,
+                height: iconSize,
                 child: _LoginButtonIcon(
                   iconAsset: iconAsset,
                   fallbackLabel: fallbackIconLabel,
@@ -319,13 +398,16 @@ class _LoginButton extends StatelessWidget {
                   fallbackForeground: fallbackIconForeground,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 26),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textStyle,
+                  style: AppTextStyles.titleSmall.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -355,8 +437,8 @@ class _LoginButtonIcon extends StatelessWidget {
       return Center(
         child: Image.asset(
           iconAsset!,
-          width: 22,
-          height: 22,
+          width: 24,
+          height: 24,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
           errorBuilder: (context, error, stackTrace) {
@@ -396,8 +478,8 @@ class _FallbackBrandIcon extends StatelessWidget {
     }
 
     return Container(
-      width: 22,
-      height: 22,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         color: background ?? Colors.transparent,
         shape: BoxShape.circle,
@@ -405,7 +487,7 @@ class _FallbackBrandIcon extends StatelessWidget {
       child: Center(
         child: Text(
           label!,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          style: AppTextStyles.micro.copyWith(
             color: foreground ?? AppColors.textMain,
             fontWeight: FontWeight.w900,
           ),
@@ -413,4 +495,62 @@ class _FallbackBrandIcon extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ErrorMessage extends StatelessWidget {
+  const _ErrorMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryPinkSoft,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMain),
+      ),
+    );
+  }
+}
+
+class _LoginBackground extends StatelessWidget {
+  const _LoginBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _SoftBackgroundPainter());
+  }
+}
+
+class _SoftBackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.bgPaper.withValues(alpha: 0.7)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawOval(
+      Rect.fromLTWH(-56, 8, size.width * 0.48, size.height * 0.1),
+      paint,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.74,
+        size.height * 0.9,
+        size.width * 0.38,
+        size.height * 0.1,
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

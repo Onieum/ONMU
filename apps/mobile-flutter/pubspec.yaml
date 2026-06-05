@@ -60,6 +60,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/splash/
     - assets/images/auth/
     - assets/images/auth/kakao_logo.png
     - assets/images/auth/google_logo.png
