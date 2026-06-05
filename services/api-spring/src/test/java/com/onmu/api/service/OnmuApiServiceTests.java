@@ -110,6 +110,7 @@ class OnmuApiServiceTests {
   @Test
   void creatingVoteRecordsOutboxEvent() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(voteRepository.findAll()).thenReturn(List.of(vote));
     when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -128,7 +129,106 @@ class OnmuApiServiceTests {
       any(),
       argThat(payload -> "1".equals(payload.get("groupId"))
         && "502".equals(payload.get("voteId"))
+        && "PLAN".equals(payload.get("targetType"))
         && "101".equals(payload.get("targetId")))
     );
+  }
+
+  @Test
+  void creatingGroupTargetVoteDoesNotAutofillPlanTargetId() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "GROUP",
+      null,
+      "Group vote",
+      List.of("A", "B")
+    ));
+
+    assertThat(created)
+      .containsEntry("targetType", "GROUP")
+      .containsEntry("targetId", null);
+    verify(outboxService).record(
+      eq("vote.created"),
+      eq("vote"),
+      any(),
+      argThat(payload -> "GROUP".equals(payload.get("targetType"))
+        && payload.containsKey("targetId")
+        && payload.get("targetId") == null)
+    );
+  }
+
+  @Test
+  void missingTargetTypeDefaultsToGroup() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      null,
+      null,
+      "Default group vote",
+      List.of("A", "B")
+    ));
+
+    assertThat(created)
+      .containsEntry("targetType", "GROUP")
+      .containsEntry("targetId", null);
+  }
+
+  @Test
+  void planTargetRequiresTargetId() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+
+    assertThatThrownBy(() -> service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      null,
+      "Missing target",
+      List.of("A", "B")
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("missing_vote_target_id");
+      });
+  }
+
+  @Test
+  void planTargetMustExistInsideSameGroup() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "not-found")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "not-found",
+      "Missing plan target",
+      List.of("A", "B")
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getReason()).isEqualTo("plan_not_found");
+      });
+  }
+
+  @Test
+  void unsupportedTargetTypeReturns400() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+
+    assertThatThrownBy(() -> service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "BOGUS",
+      "101",
+      "Invalid target",
+      List.of("A", "B")
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("invalid_vote_target_type");
+      });
   }
 }

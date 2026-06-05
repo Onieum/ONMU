@@ -22,19 +22,24 @@ public class ReadinessProbeService {
 
   private final DataSource dataSource;
   private final Environment environment;
-  private final HttpClient httpClient;
+  private final TcpConnector tcpConnector;
+  private final HttpStatusReader httpStatusReader;
 
   @Autowired
   public ReadinessProbeService(DataSource dataSource, Environment environment) {
-    this(dataSource, environment, HttpClient.newBuilder()
-      .connectTimeout(HTTP_TIMEOUT)
-      .build());
+    this(dataSource, environment, defaultTcpConnector(), defaultHttpStatusReader());
   }
 
-  ReadinessProbeService(DataSource dataSource, Environment environment, HttpClient httpClient) {
+  ReadinessProbeService(
+    DataSource dataSource,
+    Environment environment,
+    TcpConnector tcpConnector,
+    HttpStatusReader httpStatusReader
+  ) {
     this.dataSource = dataSource;
     this.environment = environment;
-    this.httpClient = httpClient;
+    this.tcpConnector = tcpConnector;
+    this.httpStatusReader = httpStatusReader;
   }
 
   public ReadinessReport check() {
@@ -77,8 +82,8 @@ public class ReadinessProbeService {
       return false;
     }
 
-    try (Socket socket = new Socket()) {
-      socket.connect(new InetSocketAddress(target.host(), target.port()), TCP_TIMEOUT_MILLIS);
+    try {
+      tcpConnector.connect(target.host(), target.port(), TCP_TIMEOUT_MILLIS);
       dependencies.put("redis", Map.of(
         "ok", true,
         "required", true,
@@ -109,11 +114,7 @@ public class ReadinessProbeService {
     }
 
     try {
-      HttpRequest request = HttpRequest.newBuilder(healthUri)
-        .timeout(HTTP_TIMEOUT)
-        .GET()
-        .build();
-      int status = httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+      int status = httpStatusReader.status(healthUri, HTTP_TIMEOUT);
       boolean ok = status >= 200 && status < 400;
       dependencies.put("minio", Map.of(
         "ok", ok,
@@ -151,6 +152,9 @@ public class ReadinessProbeService {
   private URI minioHealthUri() {
     String endpoint = firstText("OBJECT_STORAGE_ENDPOINT", "MINIO_ENDPOINT");
     URI base = URI.create(endpoint == null ? "http://localhost:9000" : endpoint);
+    if (base.getScheme() == null || base.getHost() == null) {
+      throw new IllegalArgumentException("MinIO endpoint must include scheme and host");
+    }
     String baseText = base.toString().replaceAll("/+$", "");
     return URI.create(baseText + "/minio/health/live");
   }
@@ -179,6 +183,37 @@ public class ReadinessProbeService {
   public record ReadinessReport(boolean ok, Map<String, Object> dependencies) {
   }
 
+  @FunctionalInterface
+  interface TcpConnector {
+    void connect(String host, int port, int timeoutMillis) throws Exception;
+  }
+
+  @FunctionalInterface
+  interface HttpStatusReader {
+    int status(URI uri, Duration timeout) throws Exception;
+  }
+
   private record RedisTarget(String host, int port) {
+  }
+
+  private static TcpConnector defaultTcpConnector() {
+    return (host, port, timeoutMillis) -> {
+      try (Socket socket = new Socket()) {
+        socket.connect(new InetSocketAddress(host, port), timeoutMillis);
+      }
+    };
+  }
+
+  private static HttpStatusReader defaultHttpStatusReader() {
+    HttpClient httpClient = HttpClient.newBuilder()
+      .connectTimeout(HTTP_TIMEOUT)
+      .build();
+    return (uri, timeout) -> {
+      HttpRequest request = HttpRequest.newBuilder(uri)
+        .timeout(timeout)
+        .GET()
+        .build();
+      return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    };
   }
 }

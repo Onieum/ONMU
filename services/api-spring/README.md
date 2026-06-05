@@ -117,6 +117,7 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다.
 - 정산, 기록, 장소 후보 영구 CRUD는 다음 API 구현 PR 범위입니다.
 - request log는 Node stub의 `logs/api-access.log`와 동등한 운영 관측성으로 후속 정리합니다.
+- Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 
 ## Smoke
 

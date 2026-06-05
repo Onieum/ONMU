@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -165,8 +166,8 @@ public class OnmuApiService {
     String publicId = nextPublicId(voteRepository.findAll().stream()
       .map(VoteEntity::getPublicId)
       .toList(), 501);
-    String targetType = stringOrDefault(request.targetType(), "PLAN");
-    String targetId = stringOrDefault(request.targetId(), firstPlanId(group));
+    String targetType = normalizeVoteTargetType(request.targetType());
+    String targetId = resolveVoteTargetId(group, targetType, request.targetId());
     List<String> options = request.options() == null || request.options().isEmpty()
       ? List.of("A", "B")
       : request.options();
@@ -180,12 +181,12 @@ public class OnmuApiService {
       request.title().trim(),
       toJson(Map.of("options", options))
     ));
-    outboxService.record("vote.created", "vote", vote.getId(), Map.of(
-      "groupId", group.getPublicId(),
-      "voteId", vote.getPublicId(),
-      "targetType", vote.getTargetType(),
-      "targetId", vote.getTargetId()
-    ));
+    Map<String, Object> outboxPayload = new LinkedHashMap<>();
+    outboxPayload.put("groupId", group.getPublicId());
+    outboxPayload.put("voteId", vote.getPublicId());
+    outboxPayload.put("targetType", vote.getTargetType());
+    outboxPayload.put("targetId", vote.getTargetId());
+    outboxService.record("vote.created", "vote", vote.getId(), outboxPayload);
     return voteCard(vote);
   }
 
@@ -249,11 +250,24 @@ public class OnmuApiService {
     return value;
   }
 
-  private String firstPlanId(GroupEntity group) {
-    return planRepository.findByGroupOrderByStartsAtAsc(group).stream()
-      .map(PlanEntity::getPublicId)
-      .findFirst()
-      .orElse("101");
+  private String normalizeVoteTargetType(String value) {
+    String targetType = stringOrDefault(value, "GROUP").toUpperCase(Locale.ROOT);
+    if (!"GROUP".equals(targetType) && !"PLAN".equals(targetType)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_vote_target_type");
+    }
+    return targetType;
+  }
+
+  private String resolveVoteTargetId(GroupEntity group, String targetType, String value) {
+    String targetId = value == null || value.isBlank() ? null : value.trim();
+    if ("GROUP".equals(targetType)) {
+      return null;
+    }
+    if (targetId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_vote_target_id");
+    }
+    planOrThrow(group, targetId);
+    return targetId;
   }
 
   private String nextPublicId(List<String> values, int fallbackStart) {
