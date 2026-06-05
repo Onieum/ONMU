@@ -103,7 +103,7 @@ class MemberPreferenceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const names = ['민서', '하린', '지우', '현우'];
+    final names = ['민서', '하린', '지우', '현우'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

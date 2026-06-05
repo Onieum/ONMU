@@ -38,7 +38,7 @@ class _PreferenceFlowPreviewHomeState extends State<PreferenceFlowPreviewHome> {
   @override
   Widget build(BuildContext context) {
     if (_showPreferenceFlow) {
-      return PreferenceIntroPage(profile: PreferenceProfile.mock());
+      return PreferenceIntroPage(profile: PreferenceProfile.empty());
     }
 
     return SplashPage(

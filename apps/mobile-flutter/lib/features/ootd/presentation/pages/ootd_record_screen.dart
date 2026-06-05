@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/routing/navigation_extensions.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -168,7 +170,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       ],
     );
     widget.onSave(record);
-    Navigator.of(context).pop();
+    context.popOrGo(RoutePaths.records);
   }
 
   // OOTD 스텝 인디케이터
@@ -248,9 +250,9 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   size: 20,
                 ),
                 onPressed: widget.isDailyRecord
-                    ? () => Navigator.of(context).pop()
+                    ? () => context.popOrGo(RoutePaths.records)
                     : _currentStep == 0
-                    ? () => Navigator.of(context).pop()
+                    ? () => context.popOrGo(RoutePaths.records)
                     : _back,
               ),
       ),

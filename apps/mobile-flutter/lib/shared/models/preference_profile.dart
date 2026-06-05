@@ -7,7 +7,7 @@ class PreferenceProfile {
   final List<String> dislikedPlaceTags;
   final String otherFavoritePlace;
   final String otherDislikedPlace;
-  final List<String> meetupStyles;
+  final List<String> planStyles;
   final List<String> preferredWeekdays;
   final List<String> preferredTimes;
 
@@ -20,24 +20,24 @@ class PreferenceProfile {
     required this.dislikedPlaceTags,
     required this.otherFavoritePlace,
     required this.otherDislikedPlace,
-    required this.meetupStyles,
+    required this.planStyles,
     required this.preferredWeekdays,
     required this.preferredTimes,
   });
 
-  factory PreferenceProfile.mock() {
-    return const PreferenceProfile(
-      favoriteFoodTags: ['한식', '디저트 카페'],
-      dislikedFoodTags: ['너무 매운 음식'],
+  factory PreferenceProfile.empty() {
+    return PreferenceProfile(
+      favoriteFoodTags: [],
+      dislikedFoodTags: [],
       otherFavoriteFood: '',
       otherDislikedFood: '',
-      favoritePlaceTags: ['조용한 대화 공간'],
-      dislikedPlaceTags: ['이동 시간이 긴 곳'],
+      favoritePlaceTags: [],
+      dislikedPlaceTags: [],
       otherFavoritePlace: '',
       otherDislikedPlace: '',
-      meetupStyles: ['미리 일정을 정하는 편'],
-      preferredWeekdays: ['토요일'],
-      preferredTimes: ['저녁'],
+      planStyles: [],
+      preferredWeekdays: [],
+      preferredTimes: [],
     );
   }
 
@@ -50,7 +50,7 @@ class PreferenceProfile {
     List<String>? dislikedPlaceTags,
     String? otherFavoritePlace,
     String? otherDislikedPlace,
-    List<String>? meetupStyles,
+    List<String>? planStyles,
     List<String>? preferredWeekdays,
     List<String>? preferredTimes,
   }) {
@@ -63,7 +63,7 @@ class PreferenceProfile {
       dislikedPlaceTags: dislikedPlaceTags ?? this.dislikedPlaceTags,
       otherFavoritePlace: otherFavoritePlace ?? this.otherFavoritePlace,
       otherDislikedPlace: otherDislikedPlace ?? this.otherDislikedPlace,
-      meetupStyles: meetupStyles ?? this.meetupStyles,
+      planStyles: planStyles ?? this.planStyles,
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       preferredTimes: preferredTimes ?? this.preferredTimes,
     );

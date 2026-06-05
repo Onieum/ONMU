@@ -46,7 +46,7 @@ class StartPage extends StatelessWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => PreferenceIntroPage(
-                        profile: PreferenceProfile.mock(),
+                        profile: PreferenceProfile.empty(),
                       ),
                     ),
                   );

@@ -505,7 +505,7 @@ class _OotdListPageState extends State<OotdListPage> {
   }
 
   String _getWeekdayName(DateTime date) {
-    const list = ['일', '월', '화', '수', '목', '금', '토'];
+    final list = ['일', '월', '화', '수', '목', '금', '토'];
     return list[date.weekday % 7];
   }
 
@@ -1315,7 +1315,7 @@ class _TimelineBottomSheetContentState
   }
 
   String _getWeekdayName(DateTime date) {
-    const list = ['일', '월', '화', '수', '목', '금', '토'];
+    final list = ['일', '월', '화', '수', '목', '금', '토'];
     return list[date.weekday % 7];
   }
 

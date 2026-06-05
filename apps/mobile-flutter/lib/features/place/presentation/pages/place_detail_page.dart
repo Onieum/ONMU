@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -9,37 +11,80 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
 
-class PlaceDetailPage extends StatelessWidget {
+class PlaceDetailPage extends ConsumerWidget {
   const PlaceDetailPage({
-    required this.onmoimId,
-    required this.meetupId,
+    required this.groupId,
+    required this.planId,
     required this.placeId,
     super.key,
   });
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
   final String placeId;
 
   @override
-  Widget build(BuildContext context) {
-    final candidate = findPlaceCandidate(placeId);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      placeCandidateDetailViewModelProvider((
+        groupId: groupId,
+        planId: planId,
+        candidateId: placeId,
+      )),
+    );
 
+    return state.when(
+      data: (candidate) => _PlaceDetailContent(
+        groupId: groupId,
+        planId: planId,
+        candidate: candidate,
+      ),
+      loading: () => const OnmuScaffold(
+        title: '장소 상세',
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '장소 상세',
+        children: [
+          Text(
+            '장소 정보를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceDetailContent extends StatelessWidget {
+  const _PlaceDetailContent({
+    required this.groupId,
+    required this.planId,
+    required this.candidate,
+  });
+
+  final String groupId;
+  final String planId;
+  final PlaceCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '장소 상세',
       showBackButton: true,
-      onBack: () => context.pop(),
+      onBack: () =>
+          context.popOrGo(RoutePaths.planPlaceCandidates(groupId, planId)),
       bottom: Row(
         children: [
           Expanded(
             child: OnmuSecondaryButton(
               label: '후보에 추가하기',
               icon: Icons.favorite_border,
-              onPressed: () => context.go(
-                RoutePaths.planPlaceCandidates(onmoimId, meetupId),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -50,7 +95,7 @@ class PlaceDetailPage extends StatelessWidget {
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
               onPressed: () =>
-                  context.go(RoutePaths.planItinerary(onmoimId, meetupId)),
+                  context.go(RoutePaths.planItinerary(groupId, planId)),
             ),
           ),
         ],

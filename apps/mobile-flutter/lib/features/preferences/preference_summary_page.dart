@@ -217,7 +217,7 @@ List<Widget> _summaryCards(PreferenceProfile profile) {
       ],
     ),
     const SizedBox(height: 12),
-    _SummaryCard(title: '약속 스타일', values: profile.meetupStyles),
+    _SummaryCard(title: '약속 스타일', values: profile.planStyles),
     const SizedBox(height: 12),
     _SummaryCard(title: '선호 요일', values: profile.preferredWeekdays),
     const SizedBox(height: 12),

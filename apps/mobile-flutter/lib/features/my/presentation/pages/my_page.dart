@@ -1,27 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
+import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../character/character_start_page.dart';
 import '../../domain/my_profile.dart';
 
-class MyPage extends StatefulWidget {
+class MyPage extends ConsumerStatefulWidget {
   const MyPage({super.key, this.resetToken});
 
   final String? resetToken;
 
   @override
-  State<MyPage> createState() => _MyPageState();
+  ConsumerState<MyPage> createState() => _MyPageState();
 }
 
-class _MyPageState extends State<MyPage> {
+class _MyPageState extends ConsumerState<MyPage> {
   var _selectedTab = _MyTab.profile;
-  var _profile = _mockProfile;
-  var _friends = _mockFriends;
+  var _profile = _createInitialProfile();
+  var _friends = _createInitialFriends();
   Set<String>? _favoriteFriendNames;
 
   Set<String> get _safeFavoriteFriendNames {
@@ -130,7 +132,10 @@ class _MyPageState extends State<MyPage> {
   Future<void> _showProfileEditor() async {
     final result = await Navigator.of(context).push<_ProfileEditResult>(
       MaterialPageRoute(
-        builder: (context) => _ProfileEditPage(profile: _profile),
+        builder: (context) => _ProfileEditPage(
+          profile: _profile,
+          onCharacterSaved: _saveCharacterDraft,
+        ),
       ),
     );
 
@@ -145,6 +150,11 @@ class _MyPageState extends State<MyPage> {
         favoriteKeywords: result.favoriteKeywords,
       );
     });
+  }
+
+  void _saveCharacterDraft(CharacterDraft draft) {
+    ref.read(userCharacterProvider.notifier).state = draft;
+    ref.read(skippedCharacterProvider.notifier).state = false;
   }
 
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {
@@ -165,7 +175,7 @@ class _MyPageState extends State<MyPage> {
         dislikedFoodTags: result.dislikedFoodTags,
         favoritePlaceTags: result.favoritePlaceTags,
         dislikedPlaceTags: result.dislikedPlaceTags,
-        meetupStyles: result.meetupStyles,
+        planStyles: result.planStyles,
         preferredWeekdays: result.preferredWeekdays,
         preferredTimes: result.preferredTimes,
         unavailableDates: result.unavailableDates,
@@ -569,7 +579,7 @@ class _ProfileTab extends StatelessWidget {
               label: '약속 스타일',
               trailingWidget: _KeywordScroller(
                 children: [
-                  for (final style in profile.meetupStyles)
+                  for (final style in profile.planStyles)
                     _KeywordChip(label: style, selected: true),
                 ],
               ),
@@ -1299,9 +1309,11 @@ class _FavoriteFriend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final characterIndex = _mockFriends
+    final friends = _createInitialFriends();
+    final characters = _createFriendCharacters();
+    final characterIndex = friends
         .indexWhere((item) => item.name == friend.name)
-        .clamp(0, _friendCharacters.length - 1)
+        .clamp(0, characters.length - 1)
         .toInt();
 
     return InkWell(
@@ -1318,7 +1330,7 @@ class _FavoriteFriend extends StatelessWidget {
                   opacity: 1,
                   child: _CharacterPortrait(
                     size: 54,
-                    character: _friendCharacters[characterIndex],
+                    character: characters[characterIndex],
                   ),
                 ),
                 Positioned(
@@ -1552,9 +1564,11 @@ class _FriendListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final index = _mockFriends.indexWhere((item) => item.name == friend.name);
-    final characterIndex = index.clamp(0, _friendCharacters.length - 1).toInt();
-    final character = _friendCharacters[characterIndex];
+    final friends = _createInitialFriends();
+    final characters = _createFriendCharacters();
+    final index = friends.indexWhere((item) => item.name == friend.name);
+    final characterIndex = index.clamp(0, characters.length - 1).toInt();
+    final character = characters[characterIndex];
 
     return InkWell(
       onTap: onTap,
@@ -1643,7 +1657,7 @@ class _FriendProfilePage extends StatelessWidget {
                         profile: profile,
                         onDelete: () =>
                             _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
-                        onCreateMeetup: () => context.go(
+                        onCreatePlan: () => context.go(
                           RoutePaths.groupNew,
                           extra: [friend.name],
                         ),
@@ -1711,13 +1725,13 @@ class _FriendProfileHero extends StatelessWidget {
     required this.friend,
     required this.profile,
     required this.onDelete,
-    required this.onCreateMeetup,
+    required this.onCreatePlan,
   });
 
   final FriendProfile friend;
   final MyProfile profile;
   final VoidCallback onDelete;
-  final VoidCallback onCreateMeetup;
+  final VoidCallback onCreatePlan;
 
   @override
   Widget build(BuildContext context) {
@@ -1818,7 +1832,7 @@ class _FriendProfileHero extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: FilledButton.icon(
-                onPressed: onCreateMeetup,
+                onPressed: onCreatePlan,
                 icon: const Icon(Icons.event_available_outlined, size: 22),
                 label: const Text('같이 약속 잡기'),
                 style: FilledButton.styleFrom(
@@ -1842,10 +1856,12 @@ class _FriendProfileHero extends StatelessWidget {
 }
 
 CharacterDraft _characterForFriend(FriendProfile friend) {
-  final index = _mockFriends.indexWhere((item) => item.name == friend.name);
-  final safeIndex = index.clamp(0, _friendCharacters.length - 1).toInt();
+  final friends = _createInitialFriends();
+  final characters = _createFriendCharacters();
+  final index = friends.indexWhere((item) => item.name == friend.name);
+  final safeIndex = index.clamp(0, characters.length - 1).toInt();
 
-  return _friendCharacters[safeIndex];
+  return characters[safeIndex];
 }
 
 class _FriendAddSheet extends StatefulWidget {
@@ -2034,7 +2050,7 @@ class _ProfileDetailPage extends StatelessWidget {
         _DetailChipSection(
           icon: Icons.handshake_outlined,
           title: '약속 스타일',
-          values: profile.meetupStyles,
+          values: profile.planStyles,
           selected: true,
         ),
         const SizedBox(height: 14),
@@ -2178,7 +2194,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
   late List<String> _dislikedFoodTags;
   late List<String> _favoritePlaceTags;
   late List<String> _dislikedPlaceTags;
-  late List<String> _meetupStyles;
+  late List<String> _planStyles;
   late List<String> _preferredTimes;
   late List<String> _preferredWeekdays;
   late List<String> _unavailableDates;
@@ -2190,7 +2206,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     _dislikedFoodTags = [...widget.profile.dislikedFoodTags];
     _favoritePlaceTags = [...widget.profile.favoritePlaceTags];
     _dislikedPlaceTags = [...widget.profile.dislikedPlaceTags];
-    _meetupStyles = [...widget.profile.meetupStyles];
+    _planStyles = [...widget.profile.planStyles];
     _preferredTimes = [...widget.profile.preferredTimes];
     _preferredWeekdays = [...widget.profile.preferredWeekdays];
     _unavailableDates = [...widget.profile.unavailableDates];
@@ -2235,7 +2251,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
   }
 
   Widget _buildKeywordEditor() {
-    const favoriteFoodOptions = [
+    final favoriteFoodOptions = [
       '한식',
       '일식',
       '양식',
@@ -2246,7 +2262,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       '비건/건강식',
       '상관 없어요',
     ];
-    const dislikedFoodOptions = [
+    final dislikedFoodOptions = [
       '너무 매운 음식',
       '해산물',
       '향신료 강한 음식',
@@ -2281,13 +2297,13 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
   }
 
   Widget _buildScheduleEditor() {
-    const styleOptions = [
+    final styleOptions = [
       '미리 일정을 정하는 편',
       '당일 번개 약속도 괜찮아요',
       '주말에 여유롭게 만나고 싶어요',
       '대기/웨이팅은 피하고 싶어요',
     ];
-    const weekdayOptions = [
+    final weekdayOptions = [
       '월요일',
       '화요일',
       '수요일',
@@ -2297,7 +2313,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       '일요일',
       '상관 없어요',
     ];
-    const timeOptions = ['오전', '점심', '오후', '저녁', '일정 보고 결정할게요'];
+    final timeOptions = ['오전', '점심', '오후', '저녁', '일정 보고 결정할게요'];
 
     return Column(
       children: [
@@ -2306,8 +2322,8 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
           label: '약속 스타일',
           child: _ToggleChipWrap(
             values: styleOptions,
-            selectedValues: _meetupStyles,
-            onToggle: (value) => _toggleValue(_meetupStyles, value),
+            selectedValues: _planStyles,
+            onToggle: (value) => _toggleValue(_planStyles, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2346,7 +2362,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
   }
 
   Widget _buildPlaceEditor() {
-    const favoritePlaceOptions = [
+    final favoritePlaceOptions = [
       '조용한 대화 공간',
       '감성 있는 사진 맛집',
       '가성비 좋은 곳',
@@ -2354,7 +2370,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       '넓고 쾌적한 공간',
       '상관 없어요',
     ];
-    const dislikedPlaceOptions = [
+    final dislikedPlaceOptions = [
       '이동 시간이 긴 곳',
       '소음이 큰 곳',
       '사람이 너무 많은 곳',
@@ -2428,7 +2444,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
         dislikedFoodTags: _dislikedFoodTags,
         favoritePlaceTags: _favoritePlaceTags,
         dislikedPlaceTags: _dislikedPlaceTags,
-        meetupStyles: _meetupStyles,
+        planStyles: _planStyles,
         preferredWeekdays: _preferredWeekdays,
         preferredTimes: _preferredTimes,
         unavailableDates: _unavailableDates,
@@ -2606,14 +2622,18 @@ class _CalendarDateSelector extends StatelessWidget {
 }
 
 String _formatKoreanDate(DateTime date) {
-  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
   return '${date.month}/${date.day} (${weekdays[date.weekday - 1]})';
 }
 
 class _ProfileEditPage extends StatefulWidget {
-  const _ProfileEditPage({required this.profile});
+  const _ProfileEditPage({
+    required this.profile,
+    required this.onCharacterSaved,
+  });
 
   final MyProfile profile;
+  final ValueChanged<CharacterDraft> onCharacterSaved;
 
   @override
   State<_ProfileEditPage> createState() => _ProfileEditPageState();
@@ -2918,7 +2938,10 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
             Navigator.of(context).pop();
             GoRouter.of(this.context).go(RoutePaths.onboarding);
           },
-          onCompleted: (_) => Navigator.of(context).pop(),
+          onCompleted: (draft) {
+            widget.onCharacterSaved(draft);
+            Navigator.of(context).pop();
+          },
         ),
       ),
     );
@@ -4090,7 +4113,7 @@ class _ProfileSectionEditResult {
     required this.dislikedFoodTags,
     required this.favoritePlaceTags,
     required this.dislikedPlaceTags,
-    required this.meetupStyles,
+    required this.planStyles,
     required this.preferredWeekdays,
     required this.preferredTimes,
     required this.unavailableDates,
@@ -4100,7 +4123,7 @@ class _ProfileSectionEditResult {
   final List<String> dislikedFoodTags;
   final List<String> favoritePlaceTags;
   final List<String> dislikedPlaceTags;
-  final List<String> meetupStyles;
+  final List<String> planStyles;
   final List<String> preferredWeekdays;
   final List<String> preferredTimes;
   final List<String> unavailableDates;
@@ -4139,121 +4162,131 @@ enum _ProfileDetailSection {
 
 enum _ProfilePhotoOption { character, album, camera }
 
-const _mockProfile = MyProfile(
-  realName: '온이음',
-  visibility: ProfileVisibility.friends,
-  favoriteKeywords: ['한식', '디저트 카페', '조용한 대화 공간', '감성 있는 사진 맛집', '주말 약속'],
-  dislikedKeywords: ['너무 매운 음식', '이동 시간이 긴 곳', '소음이 큰 곳'],
-  favoriteFoodTags: ['한식', '디저트 카페', '고기/구이'],
-  dislikedFoodTags: ['너무 매운 음식', '해산물'],
-  favoritePlaceTags: ['조용한 대화 공간', '감성 있는 사진 맛집', '넓고 쾌적한 공간'],
-  dislikedPlaceTags: ['이동 시간이 긴 곳', '소음이 큰 곳'],
-  meetupStyles: ['미리 일정을 정하는 편', '주말에 여유롭게 만나고 싶어요'],
-  preferredWeekdays: ['토요일', '일요일'],
-  preferredTimes: ['오후', '저녁'],
-  availableDays: ['토', '일'],
-  unavailableDates: ['5/25 (일)', '6/8 (일)', '6/22 (일)'],
-  favoritePlaces: [
-    ProfilePlace(
-      name: '성수 감성 카페',
-      category: '카페',
-      description: '조용하고 사진 찍기 좋은 곳',
+MyProfile _createInitialProfile() {
+  return MyProfile(
+    realName: '온이음',
+    visibility: ProfileVisibility.friends,
+    favoriteKeywords: ['한식', '디저트 카페', '조용한 대화 공간', '감성 있는 사진 맛집', '주말 약속'],
+    dislikedKeywords: ['너무 매운 음식', '이동 시간이 긴 곳', '소음이 큰 곳'],
+    favoriteFoodTags: ['한식', '디저트 카페', '고기/구이'],
+    dislikedFoodTags: ['너무 매운 음식', '해산물'],
+    favoritePlaceTags: ['조용한 대화 공간', '감성 있는 사진 맛집', '넓고 쾌적한 공간'],
+    dislikedPlaceTags: ['이동 시간이 긴 곳', '소음이 큰 곳'],
+    planStyles: ['미리 일정을 정하는 편', '주말에 여유롭게 만나고 싶어요'],
+    preferredWeekdays: ['토요일', '일요일'],
+    preferredTimes: ['오후', '저녁'],
+    availableDays: ['토', '일'],
+    unavailableDates: ['5/25 (일)', '6/8 (일)', '6/22 (일)'],
+    favoritePlaces: [
+      ProfilePlace(
+        name: '성수 감성 카페',
+        category: '카페',
+        description: '조용하고 사진 찍기 좋은 곳',
+      ),
+    ],
+    wantToGoPlaces: [
+      ProfilePlace(name: '한강 피크닉', category: '야외', description: '노을 보는 산책 코스'),
+    ],
+    dislikedPlaces: [
+      ProfilePlace(
+        name: '복잡한 번화가',
+        category: '혼잡',
+        description: '소음과 대기가 많은 곳',
+      ),
+    ],
+  );
+}
+
+List<FriendProfile> _createInitialFriends() {
+  return [
+    FriendProfile(
+      name: '지연',
+      preferenceSummary: '성수동 카페 투어 중  ☕',
+      isFriend: true,
+      memo: '@jiyoun',
     ),
-  ],
-  wantToGoPlaces: [
-    ProfilePlace(name: '한강 피크닉', category: '야외', description: '노을 보는 산책 코스'),
-  ],
-  dislikedPlaces: [
-    ProfilePlace(name: '복잡한 번화가', category: '혼잡', description: '소음과 대기가 많은 곳'),
-  ],
-);
+    FriendProfile(
+      name: '민수',
+      preferenceSummary: '전시회, 음악 좋아해요  🎨',
+      isFriend: true,
+      memo: '@minsu',
+    ),
+    FriendProfile(
+      name: '하린',
+      preferenceSummary: '맛집 탐방러  🍜',
+      isFriend: true,
+      memo: '@harin',
+    ),
+    FriendProfile(
+      name: '현우',
+      preferenceSummary: '산책과 사진 찍기  📷',
+      isFriend: true,
+      memo: '@hyunwoo',
+    ),
+    FriendProfile(
+      name: '소연',
+      preferenceSummary: '감성 장소 찾는 중  ✨',
+      isFriend: true,
+      memo: '@soyeon',
+    ),
+    FriendProfile(
+      name: '태오',
+      preferenceSummary: '여행을 좋아해요  ✈',
+      isFriend: true,
+      memo: '@taeo',
+    ),
+    FriendProfile(
+      name: '유나',
+      preferenceSummary: '주말 브런치 메이트',
+      isFriend: false,
+      memo: '@yuna',
+    ),
+  ];
+}
 
-const _mockFriends = [
-  FriendProfile(
-    name: '지연',
-    preferenceSummary: '성수동 카페 투어 중  ☕',
-    isFriend: true,
-    memo: '@jiyoun',
-  ),
-  FriendProfile(
-    name: '민수',
-    preferenceSummary: '전시회, 음악 좋아해요  🎨',
-    isFriend: true,
-    memo: '@minsu',
-  ),
-  FriendProfile(
-    name: '하린',
-    preferenceSummary: '맛집 탐방러  🍜',
-    isFriend: true,
-    memo: '@harin',
-  ),
-  FriendProfile(
-    name: '현우',
-    preferenceSummary: '산책과 사진 찍기  📷',
-    isFriend: true,
-    memo: '@hyunwoo',
-  ),
-  FriendProfile(
-    name: '소연',
-    preferenceSummary: '감성 장소 찾는 중  ✨',
-    isFriend: true,
-    memo: '@soyeon',
-  ),
-  FriendProfile(
-    name: '태오',
-    preferenceSummary: '여행을 좋아해요  ✈',
-    isFriend: true,
-    memo: '@taeo',
-  ),
-  FriendProfile(
-    name: '유나',
-    preferenceSummary: '주말 브런치 메이트',
-    isFriend: false,
-    memo: '@yuna',
-  ),
-];
-
-const _friendCharacters = [
-  CharacterDraft(
-    gender: 'male',
-    hairColorIndex: 0,
-    hairStyleIndex: 0,
-    topStyleIndex: 1,
-  ),
-  CharacterDraft(
-    gender: 'female',
-    hairColorIndex: 8,
-    hairStyleIndex: 1,
-    topStyleIndex: 2,
-  ),
-  CharacterDraft(
-    gender: 'female',
-    hairColorIndex: 5,
-    hairStyleIndex: 2,
-    topStyleIndex: 1,
-  ),
-  CharacterDraft(
-    gender: 'male',
-    hairColorIndex: 0,
-    hairStyleIndex: 1,
-    topStyleIndex: 2,
-  ),
-  CharacterDraft(
-    gender: 'female',
-    hairColorIndex: 1,
-    hairStyleIndex: 0,
-    topStyleIndex: 0,
-  ),
-  CharacterDraft(
-    gender: 'male',
-    hairColorIndex: 0,
-    hairStyleIndex: 0,
-    topStyleIndex: 2,
-  ),
-  CharacterDraft(
-    gender: 'female',
-    hairColorIndex: 4,
-    hairStyleIndex: 3,
-    topStyleIndex: 1,
-  ),
-];
+List<CharacterDraft> _createFriendCharacters() {
+  return [
+    CharacterDraft(
+      gender: 'male',
+      hairColorIndex: 0,
+      hairStyleIndex: 0,
+      topStyleIndex: 1,
+    ),
+    CharacterDraft(
+      gender: 'female',
+      hairColorIndex: 8,
+      hairStyleIndex: 1,
+      topStyleIndex: 2,
+    ),
+    CharacterDraft(
+      gender: 'female',
+      hairColorIndex: 5,
+      hairStyleIndex: 2,
+      topStyleIndex: 1,
+    ),
+    CharacterDraft(
+      gender: 'male',
+      hairColorIndex: 0,
+      hairStyleIndex: 1,
+      topStyleIndex: 2,
+    ),
+    CharacterDraft(
+      gender: 'female',
+      hairColorIndex: 1,
+      hairStyleIndex: 0,
+      topStyleIndex: 0,
+    ),
+    CharacterDraft(
+      gender: 'male',
+      hairColorIndex: 0,
+      hairStyleIndex: 0,
+      topStyleIndex: 2,
+    ),
+    CharacterDraft(
+      gender: 'female',
+      hairColorIndex: 4,
+      hairStyleIndex: 3,
+      topStyleIndex: 1,
+    ),
+  ];
+}

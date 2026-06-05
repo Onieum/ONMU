@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
+import '../../../../core/routing/navigation_extensions.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -129,7 +131,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   void _back() {
     FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep == 0) {
-      Navigator.of(context).pop();
+      context.popOrGo(RoutePaths.records);
       return;
     }
     setState(() => _currentStep--);
@@ -140,7 +142,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     await Future<void>.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
-    Navigator.of(context).pop(_savedRecord);
+    context.popOrGo(RoutePaths.records, result: _savedRecord);
   }
 
   void _addTag() {
@@ -1063,7 +1065,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   }
 
   static String _dateLabel(DateTime date) {
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
     return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} (${weekdays[date.weekday - 1]})';
   }
 
@@ -1105,7 +1107,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     this.ootdRecord,
   });
 
-  static const _backgrounds = [
+  static final _backgrounds = [
     'assets/images/diary_decorate/background/IMG_1911.PNG',
     'assets/images/diary_decorate/background/IMG_1964.PNG',
     'assets/images/diary_decorate/background/IMG_1966.PNG',
@@ -1116,7 +1118,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     'assets/images/diary_decorate/background/IMG_1971.PNG',
   ];
 
-  static const _clips = [
+  static final _clips = [
     'assets/images/diary_decorate/clip/IMG_1974.PNG',
     'assets/images/diary_decorate/clip/IMG_1975.PNG',
     'assets/images/diary_decorate/clip/IMG_1976.PNG',
@@ -1124,7 +1126,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     'assets/images/diary_decorate/clip/IMG_1978.PNG',
   ];
 
-  static const _tapes = [
+  static final _tapes = [
     'assets/images/diary_decorate/masking_tape/IMG_1914.PNG',
     'assets/images/diary_decorate/masking_tape/IMG_1917.PNG',
     'assets/images/diary_decorate/masking_tape/IMG_1923.PNG',
@@ -1133,7 +1135,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     'assets/images/diary_decorate/masking_tape/IMG_1952.PNG',
   ];
 
-  static const _scratchPapers = [
+  static final _scratchPapers = [
     'assets/images/diary_decorate/scratch_paper/IMG_1959.PNG',
     'assets/images/diary_decorate/scratch_paper/IMG_1960.PNG',
     'assets/images/diary_decorate/scratch_paper/IMG_1961.PNG',
@@ -1141,7 +1143,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     'assets/images/diary_decorate/scratch_paper/IMG_1981.PNG',
   ];
 
-  static const _stamps = [
+  static final _stamps = [
     'assets/images/diary_decorate/stamp/IMG_1987.PNG',
     'assets/images/diary_decorate/stamp/IMG_1988.PNG',
     'assets/images/diary_decorate/stamp/IMG_1990.PNG',
@@ -1308,7 +1310,7 @@ class _DiaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    final weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     return Column(
       children: [
         Text(

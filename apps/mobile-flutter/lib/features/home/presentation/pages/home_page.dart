@@ -1,34 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/meetup_models.dart';
+import '../../../../shared/models/group_models.dart';
+import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../view_model/home_view_model.dart';
 import '../../../preferences/preference_summary_page.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({
-    this.showOnlyMeetups = false,
-    this.summaryProfile,
-    super.key,
-  });
+class HomePage extends ConsumerStatefulWidget {
+  const HomePage({this.showOnlyPlans = false, this.summaryProfile, super.key});
 
-  final bool showOnlyMeetups;
+  final bool showOnlyPlans;
   final PreferenceProfile? summaryProfile;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   bool _summaryShown = false;
 
   @override
@@ -62,11 +60,48 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final meetup = mockMeetup;
+    final state = ref.watch(homeViewModelProvider);
 
+    return state.when(
+      data: (state) => _HomeContent(
+        showOnlyPlans: widget.showOnlyPlans,
+        groupId: state.groupId,
+        activePlan: state.activePlan,
+        upcomingPlans: state.upcomingPlans,
+      ),
+      loading: () => const OnmuScaffold(
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, stackTrace) => OnmuScaffold(
+        children: [
+          Text(
+            '홈 데이터를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeContent extends StatelessWidget {
+  const _HomeContent({
+    required this.showOnlyPlans,
+    required this.groupId,
+    required this.activePlan,
+    required this.upcomingPlans,
+  });
+
+  final bool showOnlyPlans;
+  final int groupId;
+  final Plan activePlan;
+  final List<GroupPlanSummary> upcomingPlans;
+
+  @override
+  Widget build(BuildContext context) {
     return OnmuScaffold(
       children: [
-        if (!widget.showOnlyMeetups) ...[
+        if (!showOnlyPlans) ...[
           _HomeHeader(
             onNotificationTap: () => context.push(RoutePaths.homeNotifications),
           ),
@@ -74,13 +109,11 @@ class _HomePageState extends State<HomePage> {
         ],
         const _SectionTitle(title: '진행 중인 약속'),
         const SizedBox(height: AppSpacing.sm),
-        _ActiveMeetupCard(
-          meetup: meetup,
-          onTap: () => context.push(
-            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
-          ),
-          onChatTap: () =>
-              context.push(RoutePaths.groupChat(DemoRouteSeeds.groupId)),
+        _ActivePlanCard(
+          plan: activePlan,
+          onTap: () =>
+              context.push(RoutePaths.planDetail(groupId, activePlan.id)),
+          onChatTap: () => context.push(RoutePaths.groupChat(groupId)),
         ),
         const SizedBox(height: AppSpacing.xxl),
         _SectionTitle(
@@ -89,28 +122,18 @@ class _HomePageState extends State<HomePage> {
           onTap: () => context.push(RoutePaths.homeUpcomingPlans),
         ),
         const SizedBox(height: AppSpacing.sm),
-        _UpcomingMeetupTile(
-          date: '05.28',
-          weekday: 'SAT',
-          title: '한남 카페 투어',
-          place: '한남동 일대',
-          dday: 'D-2',
-          onTap: () => context.push(
-            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
+        for (final plan in upcomingPlans.take(2)) ...[
+          _UpcomingPlanTile(
+            date: plan.dateLabel.split(' ').first,
+            weekday: plan.statusType,
+            title: plan.title,
+            place: plan.placeName,
+            dday: plan.statusLabel,
+            onTap: () => context.push(RoutePaths.planDetail(groupId, plan.id)),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _UpcomingMeetupTile(
-          date: '05.30',
-          weekday: 'MON',
-          title: '홍대 전시회 구경',
-          place: '홍대 일대',
-          dday: 'D-4',
-          onTap: () => context.push(
-            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
-          ),
-        ),
-        if (!widget.showOnlyMeetups) ...[
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        if (!showOnlyPlans) ...[
           const SizedBox(height: AppSpacing.xxl),
           _SectionTitle(
             title: '최근 기록',
@@ -262,14 +285,14 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _ActiveMeetupCard extends StatelessWidget {
-  const _ActiveMeetupCard({
-    required this.meetup,
+class _ActivePlanCard extends StatelessWidget {
+  const _ActivePlanCard({
+    required this.plan,
     required this.onTap,
     required this.onChatTap,
   });
 
-  final Meetup meetup;
+  final Plan plan;
   final VoidCallback onTap;
   final VoidCallback onChatTap;
 
@@ -292,21 +315,21 @@ class _ActiveMeetupCard extends StatelessWidget {
                     const OnmuChip(label: '진행 중', selected: true),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      '성수 저녁 약속',
+                      plan.title,
                       style: Theme.of(context).textTheme.titleLarge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '다운타우너 성수',
+                      plan.location,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSub,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '18:30 · 도착까지 20분',
+                      plan.dateTime,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -322,7 +345,7 @@ class _ActiveMeetupCard extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    for (final member in meetup.members.take(4)) ...[
+                    for (final member in plan.members.take(4)) ...[
                       PixelAvatar(label: member.name, size: 32),
                       const SizedBox(width: AppSpacing.xs),
                     ],
@@ -430,8 +453,8 @@ class _PaperScene extends StatelessWidget {
   }
 }
 
-class _UpcomingMeetupTile extends StatelessWidget {
-  const _UpcomingMeetupTile({
+class _UpcomingPlanTile extends StatelessWidget {
+  const _UpcomingPlanTile({
     required this.date,
     required this.weekday,
     required this.title,
@@ -507,22 +530,26 @@ class _UpcomingMeetupTile extends StatelessWidget {
 class _RecentRecordStrip extends StatelessWidget {
   const _RecentRecordStrip();
 
-  static const _records = [
-    _RecentRecordData('성수동 카페', '05.24', Icons.local_cafe_outlined, '12'),
-    _RecentRecordData('제주 바다', '05.16', Icons.water, '8'),
-    _RecentRecordData('한강 피크닉', '05.10', Icons.park_outlined, '15'),
-  ];
+  static List<_RecentRecordData> _createRecords() {
+    return [
+      _RecentRecordData('성수동 카페', '05.24', Icons.local_cafe_outlined, '12'),
+      _RecentRecordData('제주 바다', '05.16', Icons.water, '8'),
+      _RecentRecordData('한강 피크닉', '05.10', Icons.park_outlined, '15'),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final records = _createRecords();
+
     return SizedBox(
       height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _records.length,
+        itemCount: records.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) =>
-            _RecentRecordCard(record: _records[index]),
+            _RecentRecordCard(record: records[index]),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -10,34 +12,31 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
+import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
 
-class PlaceMapPage extends StatefulWidget {
-  const PlaceMapPage({
-    required this.onmoimId,
-    required this.meetupId,
-    super.key,
-  });
+class PlaceMapPage extends ConsumerStatefulWidget {
+  const PlaceMapPage({required this.groupId, required this.planId, super.key});
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
 
   @override
-  State<PlaceMapPage> createState() => _PlaceMapPageState();
+  ConsumerState<PlaceMapPage> createState() => _PlaceMapPageState();
 }
 
-class _PlaceMapPageState extends State<PlaceMapPage> {
-  static const _categories = ['전체', '한식', '카페', '전시', '술집'];
+class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
+  final _categories = ['전체', '한식', '카페', '전시', '술집'];
 
   bool _searchActive = false;
   String _query = '';
   String _selectedCategory = '전체';
   PlaceCandidate? _selectedCandidate;
 
-  List<PlaceCandidate> get _visibleCandidates {
+  List<PlaceCandidate> _visibleCandidates(List<PlaceCandidate> candidates) {
     final normalizedQuery = _query.trim().toLowerCase();
 
-    final results = demoPlaceCandidates.where((candidate) {
+    final results = candidates.where((candidate) {
       final matchesCategory =
           _selectedCategory == '전체' || candidate.category == _selectedCategory;
       final searchableText = [
@@ -65,20 +64,48 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
     });
   }
 
-  int? get _focusedOrder {
+  int? _focusedOrder(List<PlaceCandidate> candidates) {
     final candidate = _selectedCandidate;
     if (candidate == null) {
       return null;
     }
 
-    final index = demoPlaceCandidates.indexWhere(
-      (place) => place.id == candidate.id,
-    );
+    final index = candidates.indexWhere((place) => place.id == candidate.id);
     return index == -1 ? null : index + 1;
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(
+      placeCandidatesViewModelProvider((
+        groupId: widget.groupId,
+        planId: widget.planId,
+      )),
+    );
+
+    return state.when(
+      data: (state) => _buildContent(context, state.candidates),
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.bgGrid,
+        body: SafeArea(child: Center(child: CircularProgressIndicator())),
+      ),
+      error: (error, stackTrace) => Scaffold(
+        backgroundColor: AppColors.bgGrid,
+        body: SafeArea(
+          child: Center(
+            child: Text(
+              '장소 후보를 불러오지 못했어요.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
+    final visibleCandidates = _visibleCandidates(candidates);
+
     return Scaffold(
       backgroundColor: AppColors.bgGrid,
       body: SafeArea(
@@ -87,22 +114,18 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
             OnmuTopBar(
               title: '장소 검색하기',
               showBackButton: true,
-              onBack: () {
-                if (context.canPop()) {
-                  context.pop();
-                  return;
-                }
-
-                context.go(
-                  RoutePaths.planDetail(widget.onmoimId, widget.meetupId),
-                );
-              },
+              onBack: () => context.popOrGo(
+                RoutePaths.planDetail(widget.groupId, widget.planId),
+              ),
             ),
             Expanded(
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: _MapCanvas(focusedOrder: _focusedOrder),
+                    child: _MapCanvas(
+                      candidates: candidates,
+                      focusedOrder: _focusedOrder(candidates),
+                    ),
                   ),
                   Positioned(
                     left: AppSpacing.lg,
@@ -154,7 +177,7 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
                         key: const ValueKey('place-map-bottom-sheet'),
                         child: _RecommendationSheet(
                           controller: scrollController,
-                          candidates: _visibleCandidates,
+                          candidates: visibleCandidates,
                           searchActive: _searchActive,
                           query: _query,
                           selectedCategory: _selectedCategory,
@@ -174,8 +197,8 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
                             message: '일정에 등록되었어요!',
                             actionLabel: '일정 보러가기',
                             targetPath: RoutePaths.planItinerary(
-                              widget.onmoimId,
-                              widget.meetupId,
+                              widget.groupId,
+                              widget.planId,
                             ),
                           ),
                           onAddCandidatePressed: () => _showConfirmation(
@@ -183,8 +206,8 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
                             message: '후보에 추가되었어요!',
                             actionLabel: '후보 리스트 보러가기',
                             targetPath: RoutePaths.planPlaceCandidates(
-                              widget.onmoimId,
-                              widget.meetupId,
+                              widget.groupId,
+                              widget.planId,
                             ),
                           ),
                         ),
@@ -382,43 +405,39 @@ class _CategoryPill extends StatelessWidget {
 }
 
 class _MapCanvas extends StatelessWidget {
-  const _MapCanvas({required this.focusedOrder});
+  const _MapCanvas({required this.candidates, required this.focusedOrder});
 
+  final List<PlaceCandidate> candidates;
   final int? focusedOrder;
 
   @override
   Widget build(BuildContext context) {
+    final positions = [
+      (left: 92.0, top: 132.0, right: null, bottom: null),
+      (left: null, top: 220.0, right: 96.0, bottom: null),
+      (left: null, top: 128.0, right: 66.0, bottom: null),
+    ];
+
     return CustomPaint(
       painter: _MapCanvasPainter(),
       child: Stack(
         children: [
-          Positioned(
-            left: 92,
-            top: 132,
-            child: _MapPin(
-              order: 1,
-              focused: focusedOrder == 1,
-              candidateName: demoPlaceCandidates[0].name,
+          for (
+            var index = 0;
+            index < candidates.length && index < positions.length;
+            index += 1
+          )
+            Positioned(
+              left: positions[index].left,
+              top: positions[index].top,
+              right: positions[index].right,
+              bottom: positions[index].bottom,
+              child: _MapPin(
+                order: index + 1,
+                focused: focusedOrder == index + 1,
+                candidateName: candidates[index].name,
+              ),
             ),
-          ),
-          Positioned(
-            right: 96,
-            top: 220,
-            child: _MapPin(
-              order: 2,
-              focused: focusedOrder == 2,
-              candidateName: demoPlaceCandidates[1].name,
-            ),
-          ),
-          Positioned(
-            right: 66,
-            top: 128,
-            child: _MapPin(
-              order: 3,
-              focused: focusedOrder == 3,
-              candidateName: demoPlaceCandidates[2].name,
-            ),
-          ),
           const Positioned(left: 184, top: 176, child: _CurrentLocationDot()),
         ],
       ),
@@ -848,7 +867,7 @@ class _PlaceActionButtons extends StatelessWidget {
 
   static const _buttonHeight = 52.0;
 
-  final String candidateId;
+  final int candidateId;
   final VoidCallback onAddCandidatePressed;
   final VoidCallback onRegisterPressed;
 

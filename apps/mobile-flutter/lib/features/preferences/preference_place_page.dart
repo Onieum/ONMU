@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../shared/models/preference_profile.dart';
 import 'preference_flow_widgets.dart';
-import 'preference_meetup_style_page.dart';
+import 'preference_plan_style_page.dart';
 
 class PreferencePlacePage extends StatefulWidget {
   final PreferenceProfile profile;
@@ -14,7 +14,7 @@ class PreferencePlacePage extends StatefulWidget {
 }
 
 class _PreferencePlacePageState extends State<PreferencePlacePage> {
-  static const _favoriteOptions = [
+  final _favoriteOptions = [
     '조용한 대화 공간',
     '감성 있는 사진 맛집',
     '가성비 좋은 곳',
@@ -22,12 +22,7 @@ class _PreferencePlacePageState extends State<PreferencePlacePage> {
     '넓고 쾌적한 공간',
     '상관 없어요',
   ];
-  static const _dislikeOptions = [
-    '이동 시간이 긴 곳',
-    '소음이 큰 곳',
-    '사람이 너무 많은 곳',
-    '상관 없어요',
-  ];
+  final _dislikeOptions = ['이동 시간이 긴 곳', '소음이 큰 곳', '사람이 너무 많은 곳', '상관 없어요'];
 
   late final Set<String> _favorites = widget.profile.favoritePlaceTags.toSet();
   late final Set<String> _dislikes = widget.profile.dislikedPlaceTags.toSet();
@@ -54,7 +49,7 @@ class _PreferencePlacePageState extends State<PreferencePlacePage> {
           ? null
           : () => pushOnmuPage(
               context,
-              PreferenceMeetupStylePage(
+              PreferencePlanStylePage(
                 profile: widget.profile.copyWith(
                   favoritePlaceTags: _favorites.toList(),
                   dislikedPlaceTags: _dislikes.toList(),

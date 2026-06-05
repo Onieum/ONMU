@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
@@ -16,7 +17,7 @@ class MemoryDetailPage extends ConsumerWidget {
   const MemoryDetailPage({super.key, required this.memoryId});
 
   // Mock records generator helper (matching the ones in OotdListPage)
-  List<OotdRecord> _getMockRecords(CharacterDraft baseChar) {
+  List<OotdRecord> _createDefaultRecords(CharacterDraft baseChar) {
     return [
       OotdRecord(
         date: DateTime(2026, 10, 1),
@@ -141,9 +142,9 @@ class MemoryDetailPage extends ConsumerWidget {
   OotdRecord? _findRecord(WidgetRef ref, String key) {
     final character = ref.read(userCharacterProvider) ?? const CharacterDraft();
     final customRecords = ref.read(customRecordsProvider);
-    final mockRecords = _getMockRecords(character);
+    final defaultRecords = _createDefaultRecords(character);
 
-    final allRecords = [...mockRecords, ...customRecords];
+    final allRecords = [...defaultRecords, ...customRecords];
 
     try {
       return allRecords.firstWhere((r) {
@@ -181,7 +182,7 @@ class MemoryDetailPage extends ConsumerWidget {
             color: AppColors.textMain,
             size: 20,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => context.popOrGo(RoutePaths.records),
         ),
         title: Text(
           isDaily ? '하루 기억 상세' : 'OOTD 상세 기록',
