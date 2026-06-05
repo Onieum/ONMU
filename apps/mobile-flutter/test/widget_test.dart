@@ -148,6 +148,77 @@ void main() {
     expect(find.text('기록 카드 만들기'), findsOneWidget);
   });
 
+  testWidgets('onmoim group home uses create meetup fab only', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('대학 동기 여행단'), findsOneWidget);
+    expect(find.text('다가오는 약속'), findsOneWidget);
+    expect(find.byTooltip('약속 만들기'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('onmoim-home-create-meetup-fab')),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextButton, '약속 만들기'), findsNothing);
+    expect(find.text('모임원'), findsNothing);
+  });
+
+  testWidgets('onmoim group home create fab opens meetup creation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('onmoim-home-create-meetup-fab')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 만들기'), findsWidgets);
+    expect(find.text('약속 이름'), findsOneWidget);
+    expect(find.text('참여 멤버'), findsOneWidget);
+  });
+
+  testWidgets('onmoim group home member count opens member list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('멤버 8명'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('모임원'), findsOneWidget);
+    expect(find.text('대학 동기 여행단 · 8명'), findsOneWidget);
+    expect(find.text('멤버 검색'), findsOneWidget);
+  });
+
+  testWidgets('onmoim group home upcoming see all opens meetup list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('전체 보기').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속'), findsOneWidget);
+    expect(find.text('모임 약속 검색'), findsOneWidget);
+    expect(find.text('다가오는 약속'), findsOneWidget);
+  });
+
   testWidgets('confirmed meetup date tabs can be selected', (tester) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
