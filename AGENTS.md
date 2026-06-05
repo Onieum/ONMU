@@ -87,5 +87,6 @@ lib/features/<feature>/
 ## 검증
 
 - Flutter 코드를 바꾸면 가능한 범위에서 `flutter analyze`와 관련 `flutter test`를 실행한다.
+- ViewModel, mapper, repository처럼 로직이 있는 코드는 가능한 범위에서 단위 테스트를 추가한다.
 - 문서 링크나 이미지 경로를 바꾸면 로컬 링크를 확인한다.
 - 디자인 시스템을 바꾸면 관련 문서와 테스트를 함께 갱신한다.

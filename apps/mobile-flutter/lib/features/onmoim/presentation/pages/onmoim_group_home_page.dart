@@ -95,17 +95,6 @@ class _GroupHomeHeader extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
-                    tooltip: '모임 검색',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('모임 안 검색은 다음 단계에서 연결할게요.'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.search),
-                  ),
-                  IconButton(
                     tooltip: '모임 설정',
                     onPressed: () =>
                         context.go(RoutePaths.onmoimSettings(group.id)),

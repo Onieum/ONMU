@@ -32,6 +32,7 @@ import 'features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_thread_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_vote_list_page.dart';
 import 'features/onboarding/onboarding_hub_page.dart';
 import 'features/ootd/ootd_list_page.dart';
 import 'features/ootd/presentation/pages/daily_record_screen.dart';
@@ -133,6 +134,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         GoRoute(
           path: RoutePaths.characterStart,
           builder: (context, state) => CharacterStartPage(
+            onBackToOnboarding: () => context.go(RoutePaths.onboarding),
             onCompleted: (character) {
               ref.read(userCharacterProvider.notifier).state = character;
               ref.read(skippedCharacterProvider.notifier).state = false;
@@ -179,8 +181,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                     GoRoute(
                       path: 'new',
                       builder: (context, state) {
-                        final initialMemberNames =
-                            state.extra is List<String>
+                        final initialMemberNames = state.extra is List<String>
                             ? state.extra! as List<String>
                             : const <String>[];
 
@@ -214,6 +215,12 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                         GoRoute(
                           path: 'chat',
                           builder: (context, state) => const OnMoimThreadPage(),
+                        ),
+                        GoRoute(
+                          path: 'votes',
+                          builder: (context, state) => OnMoimVoteListPage(
+                            onmoimId: state.pathParameters['onmoimId']!,
+                          ),
                         ),
                         GoRoute(
                           path: 'votes/:voteId',
@@ -464,9 +471,8 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
               routes: [
                 GoRoute(
                   path: RoutePaths.my,
-                  builder: (context, state) => MyPage(
-                    resetToken: state.uri.queryParameters['reset'],
-                  ),
+                  builder: (context, state) =>
+                      MyPage(resetToken: state.uri.queryParameters['reset']),
                 ),
               ],
             ),

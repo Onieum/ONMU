@@ -53,7 +53,8 @@ class _MyPageState extends State<MyPage> {
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 sliver: SliverToBoxAdapter(
                   child: _PageHeader(
-                    onAlarmTap: _showComingSoon,
+                    onAlarmTap: () =>
+                        context.push(RoutePaths.homeNotifications),
                     onSettingTap: _openSettingsPage,
                   ),
                 ),
@@ -232,11 +233,6 @@ class _MyPageState extends State<MyPage> {
     });
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('곧 연결될 기능이에요.')));
-  }
 }
 
 class _PageHeader extends StatelessWidget {
@@ -2925,6 +2921,10 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CharacterStartPage(
+          onBackToOnboarding: () {
+            Navigator.of(context).pop();
+            GoRouter.of(this.context).go(RoutePaths.onboarding);
+          },
           onCompleted: (_) => Navigator.of(context).pop(),
         ),
       ),
