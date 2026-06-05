@@ -96,6 +96,38 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
             tooltip: '채팅 설정',
             onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
             icon: const Icon(Icons.more_vert),
+      action: PopupMenuButton<_ChatMenuAction>(
+        tooltip: '채팅 메뉴',
+        icon: const Icon(Icons.more_vert),
+        color: AppColors.bgDefault,
+        onSelected: (action) {
+          switch (action) {
+            case _ChatMenuAction.votes:
+              context.go(RoutePaths.onmoimVotes(group.id));
+            case _ChatMenuAction.meetup:
+              context.go(RoutePaths.onmoimMeetupDetail(group.id, 'demo'));
+            case _ChatMenuAction.settings:
+              context.go(RoutePaths.onmoimSettings(group.id));
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: _ChatMenuAction.votes,
+            child: _ChatMenuItem(
+              icon: Icons.how_to_vote_outlined,
+              label: '투표 목록',
+            ),
+          ),
+          const PopupMenuItem(
+            value: _ChatMenuAction.meetup,
+            child: _ChatMenuItem(
+              icon: Icons.event_note_outlined,
+              label: '약속 일정',
+            ),
+          ),
+          const PopupMenuItem(
+            value: _ChatMenuAction.settings,
+            child: _ChatMenuItem(icon: Icons.tune_outlined, label: '모임 설정'),
           ),
         ],
       ),
@@ -120,6 +152,26 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
           ChatMessageBubble(message: message),
           const SizedBox(height: AppSpacing.sm),
         ],
+      ],
+    );
+  }
+}
+
+enum _ChatMenuAction { votes, meetup, settings }
+
+class _ChatMenuItem extends StatelessWidget {
+  const _ChatMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primaryPink),
+        const SizedBox(width: AppSpacing.xs),
+        Text(label, style: Theme.of(context).textTheme.labelLarge),
       ],
     );
   }
