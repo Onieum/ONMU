@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -167,7 +168,12 @@ class _PlanCreateContent extends StatelessWidget {
     return OnmuScaffold(
       title: editing ? '약속 수정하기' : '약속 만들기',
       showBackButton: true,
-      onBack: () => context.pop(),
+      onBack: () {
+        final fallback = editing
+            ? RoutePaths.planDetail(groupId, editingPlanId!)
+            : RoutePaths.groupDetail(groupId);
+        context.popOrGo(fallback);
+      },
       bottom: OnmuPrimaryButton(
         label: editing ? '수정 완료' : '약속 만들기',
         icon: editing ? Icons.check : Icons.add_task,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -159,7 +160,7 @@ class _GroupSettingsContent extends StatelessWidget {
     return OnmuScaffold(
       title: '모임 설정',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.groupDetail(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(groupId)),
       useWarmBackground: false,
       children: [
         _SettingsHeroCard(group: group, groupName: groupName),
@@ -182,7 +183,7 @@ class _GroupSettingsContent extends StatelessWidget {
           icon: Icons.groups_outlined,
           title: '멤버 목록',
           subtitle: '모임원 목록을 확인할 수 있어요.',
-          onTap: () => context.go(RoutePaths.groupMembers(groupId)),
+          onTap: () => context.push(RoutePaths.groupMembers(groupId)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _SettingActionCard(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -114,14 +115,7 @@ class _ThreadContent extends StatelessWidget {
     return OnmuScaffold(
       title: group.name,
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.groupDetail(group.id));
-      },
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(group.id)),
       action: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -141,11 +135,11 @@ class _ThreadContent extends StatelessWidget {
             onSelected: (action) {
               switch (action) {
                 case _ChatMenuAction.votes:
-                  context.go(RoutePaths.groupVotes(group.id));
+                  context.push(RoutePaths.groupVotes(group.id));
                 case _ChatMenuAction.plan:
-                  context.go(RoutePaths.planDetail(group.id, state.planId));
+                  context.push(RoutePaths.planDetail(group.id, state.planId));
                 case _ChatMenuAction.settings:
-                  context.go(RoutePaths.groupSettings(group.id));
+                  context.push(RoutePaths.groupSettings(group.id));
               }
             },
             itemBuilder: (context) => [
@@ -178,7 +172,7 @@ class _ThreadContent extends StatelessWidget {
           _PlanChatAnchor(
             plan: state.pinnedPlan!,
             onTap: () =>
-                context.go(RoutePaths.planDetail(group.id, state.planId)),
+                context.push(RoutePaths.planDetail(group.id, state.planId)),
           ),
         const SizedBox(height: AppSpacing.md),
         _VoteNoticeCard(

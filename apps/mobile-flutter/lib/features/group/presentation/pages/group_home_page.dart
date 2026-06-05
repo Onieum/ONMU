@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -56,7 +57,7 @@ class _GroupHomeContent extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         key: const ValueKey('group-home-create-plan-fab'),
         tooltip: '약속 만들기',
-        onPressed: () => context.go(RoutePaths.planNew(group.id)),
+        onPressed: () => context.push(RoutePaths.planNew(group.id)),
         backgroundColor: AppColors.primaryPurple,
         foregroundColor: AppColors.textInverse,
         child: const Icon(Icons.add),
@@ -69,20 +70,20 @@ class _GroupHomeContent extends StatelessWidget {
         _SectionHeader(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.groupPlans(group.id)),
+          onTap: () => context.push(RoutePaths.groupPlans(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         if (pinnedPlan != null)
           _UpcomingPlanCard(
             plan: pinnedPlan,
             onTap: () =>
-                context.go(RoutePaths.planDetail(group.id, pinnedPlan.id)),
+                context.push(RoutePaths.planDetail(group.id, pinnedPlan.id)),
           ),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
           title: '최근 기록',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.groupMemories(group.id)),
+          onTap: () => context.push(RoutePaths.groupMemories(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _RecentMemoryStrip(group: group, memories: state.recentMemories),
@@ -90,12 +91,12 @@ class _GroupHomeContent extends StatelessWidget {
         _SectionHeader(
           title: '최근 대화',
           actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.groupChat(group.id)),
+          onTap: () => context.push(RoutePaths.groupChat(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _RecentChatPreview(
           message: state.recentMessage,
-          onTap: () => context.go(RoutePaths.groupChat(group.id)),
+          onTap: () => context.push(RoutePaths.groupChat(group.id)),
         ),
       ],
     );
@@ -121,7 +122,7 @@ class _GroupHomeHeader extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   tooltip: '온모임 목록으로 이동',
-                  onPressed: () => context.go(RoutePaths.groups),
+                  onPressed: () => context.popOrGo(RoutePaths.groups),
                   icon: const Icon(Icons.arrow_back),
                 ),
               ),
@@ -135,7 +136,7 @@ class _GroupHomeHeader extends StatelessWidget {
                   IconButton(
                     tooltip: '모임 설정',
                     onPressed: () =>
-                        context.go(RoutePaths.groupSettings(group.id)),
+                        context.push(RoutePaths.groupSettings(group.id)),
                     icon: const Icon(Icons.settings_outlined),
                   ),
                 ],
@@ -152,7 +153,7 @@ class _GroupHomeHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         InkWell(
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          onTap: () => context.go(RoutePaths.groupMembers(group.id)),
+          onTap: () => context.push(RoutePaths.groupMembers(group.id)),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -225,12 +226,12 @@ class _GroupTabs extends StatelessWidget {
         _GroupTab(
           label: '기록',
           selected: false,
-          onTap: () => context.go(RoutePaths.groupMemories(group.id)),
+          onTap: () => context.push(RoutePaths.groupMemories(group.id)),
         ),
         _GroupTab(
           label: '채팅',
           selected: false,
-          onTap: () => context.go(RoutePaths.groupChat(group.id)),
+          onTap: () => context.push(RoutePaths.groupChat(group.id)),
         ),
       ],
     );
@@ -412,7 +413,7 @@ class _RecentMemoryStrip extends StatelessWidget {
             icon: memory.$1,
             color: memory.$2,
             onTap: () =>
-                context.go(RoutePaths.groupMemoryDetail(group.id, record.id)),
+                context.push(RoutePaths.groupMemoryDetail(group.id, record.id)),
           );
         },
       ),

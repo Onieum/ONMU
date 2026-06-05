@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -90,14 +91,7 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         location: widget.detail.plan.location,
       ),
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.groupDetail(widget.groupId));
-      },
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         onEditPressed: () => context.push(
           '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',
@@ -223,14 +217,7 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         location: widget.detail.plan.location,
       ),
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.groupDetail(widget.groupId));
-      },
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         onEditPressed: () => context.push(
           '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',

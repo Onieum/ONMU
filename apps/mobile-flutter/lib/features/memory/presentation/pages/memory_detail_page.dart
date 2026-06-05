@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
@@ -181,7 +182,7 @@ class MemoryDetailPage extends ConsumerWidget {
             color: AppColors.textMain,
             size: 20,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => context.popOrGo(RoutePaths.records),
         ),
         title: Text(
           isDaily ? '하루 기억 상세' : 'OOTD 상세 기록',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -69,7 +70,7 @@ class _SettlementCreateContent extends StatelessWidget {
       title: '약속 정산 만들기',
       subtitle: '이 약속에서 쓴 비용만 항목별로 정리해요.',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.planDetail(groupId, planId)),
+      onBack: () => context.popOrGo(RoutePaths.planDetail(groupId, planId)),
       bottom: OnmuPrimaryButton(
         label: '최종 정산 미리보기',
         icon: Icons.visibility_outlined,
@@ -91,7 +92,7 @@ class _SettlementCreateContent extends StatelessWidget {
         for (final item in settlement.paymentItems) ...[
           _PaymentItemSummaryCard(
             item: item,
-            onTap: () => context.go(
+            onTap: () => context.push(
               RoutePaths.planSettlementTargets(groupId, planId, item.id),
             ),
           ),

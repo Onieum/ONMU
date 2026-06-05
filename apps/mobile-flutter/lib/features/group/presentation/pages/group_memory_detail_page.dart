@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -65,7 +65,7 @@ class _GroupMemoryDetailContent extends StatelessWidget {
     return OnmuScaffold(
       title: '기록',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.groupMemories(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupMemories(groupId)),
       action: IconButton(
         tooltip: '기록 옵션',
         onPressed: () {

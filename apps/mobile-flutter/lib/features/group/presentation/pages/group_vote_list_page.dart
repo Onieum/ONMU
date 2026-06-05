@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -84,14 +85,7 @@ class _VoteListContent extends StatelessWidget {
     return OnmuScaffold(
       title: '투표 목록',
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.groupChat(group.id));
-      },
+      onBack: () => context.popOrGo(RoutePaths.groupChat(group.id)),
       action: IconButton(
         tooltip: '투표 만들기',
         onPressed: () =>
@@ -157,7 +151,9 @@ class _VoteListContent extends StatelessWidget {
         ],
         if (ongoingVotes.isEmpty && closedVotes.isEmpty)
           _EmptyVoteState(filterLabel: selectedFilter.label),
-        _VoteListHint(onTap: () => context.go(RoutePaths.groupChat(group.id))),
+        _VoteListHint(
+          onTap: () => context.popOrGo(RoutePaths.groupChat(group.id)),
+        ),
       ],
     );
   }

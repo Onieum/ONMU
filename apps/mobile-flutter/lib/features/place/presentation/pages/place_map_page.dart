@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -113,16 +114,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
             OnmuTopBar(
               title: '장소 검색하기',
               showBackButton: true,
-              onBack: () {
-                if (context.canPop()) {
-                  context.pop();
-                  return;
-                }
-
-                context.go(
-                  RoutePaths.planDetail(widget.groupId, widget.planId),
-                );
-              },
+              onBack: () => context.popOrGo(
+                RoutePaths.planDetail(widget.groupId, widget.planId),
+              ),
             ),
             Expanded(
               child: Stack(

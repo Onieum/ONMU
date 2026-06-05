@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -55,10 +56,10 @@ class _GroupPlanListContent extends StatelessWidget {
     return OnmuScaffold(
       title: '약속',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.groupDetail(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(groupId)),
       action: IconButton(
         tooltip: '약속 만들기',
-        onPressed: () => context.go(RoutePaths.planNew(groupId)),
+        onPressed: () => context.push(RoutePaths.planNew(groupId)),
         icon: const Icon(Icons.add, color: AppColors.primaryPink),
       ),
       useWarmBackground: false,
@@ -68,14 +69,14 @@ class _GroupPlanListContent extends StatelessWidget {
         _PlanSectionTitle(
           title: '다가오는 약속',
           count: upcoming.length,
-          onCreateTap: () => context.go(RoutePaths.planNew(groupId)),
+          onCreateTap: () => context.push(RoutePaths.planNew(groupId)),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final plan in upcoming) ...[
           _PlanSummaryCard(
             plan: plan,
             members: state.members,
-            onTap: () => context.go(RoutePaths.planDetail(groupId, plan.id)),
+            onTap: () => context.push(RoutePaths.planDetail(groupId, plan.id)),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -87,7 +88,8 @@ class _GroupPlanListContent extends StatelessWidget {
             _PlanSummaryCard(
               plan: plan,
               members: state.members,
-              onTap: () => context.go(RoutePaths.planDetail(groupId, plan.id)),
+              onTap: () =>
+                  context.push(RoutePaths.planDetail(groupId, plan.id)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],

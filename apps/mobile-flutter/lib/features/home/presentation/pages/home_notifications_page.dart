@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -49,13 +50,7 @@ class _HomeNotificationsPageState extends ConsumerState<HomeNotificationsPage> {
         return OnmuScaffold(
           title: '알림',
           showBackButton: true,
-          onBack: () {
-            if (context.canPop()) {
-              context.pop();
-              return;
-            }
-            context.go(RoutePaths.home);
-          },
+          onBack: () => context.popOrGo(RoutePaths.home),
           action: IconButton(
             tooltip: '알림 설정',
             onPressed: () => _showSnack(context, '알림 설정은 다음 단계에서 연결할게요.'),

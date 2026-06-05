@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -68,7 +69,9 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
             OnmuTopBar(
               title: '장소 동선',
               showBackButton: true,
-              onBack: () => context.pop(),
+              onBack: () => context.popOrGo(
+                RoutePaths.planDetail(widget.groupId, widget.planId),
+              ),
               action: IconButton(
                 tooltip: '동선 옵션',
                 onPressed: () {},

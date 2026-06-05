@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -53,14 +54,7 @@ class _GroupMemoryBoardContent extends StatelessWidget {
     return OnmuScaffold(
       title: group.name,
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-
-        context.go(RoutePaths.groupDetail(group.id));
-      },
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(group.id)),
       action: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -75,7 +69,7 @@ class _GroupMemoryBoardContent extends StatelessWidget {
           ),
           IconButton(
             tooltip: '기록 옵션',
-            onPressed: () => context.go(RoutePaths.groupSettings(group.id)),
+            onPressed: () => context.push(RoutePaths.groupSettings(group.id)),
             icon: const Icon(Icons.more_vert),
           ),
         ],
@@ -120,13 +114,13 @@ class _GroupTabs extends StatelessWidget {
         _GroupTab(
           label: '약속',
           selected: false,
-          onTap: () => context.go(RoutePaths.groupDetail(group.id)),
+          onTap: () => context.push(RoutePaths.groupDetail(group.id)),
         ),
         _GroupTab(label: '기록', selected: true, onTap: () {}),
         _GroupTab(
           label: '채팅',
           selected: false,
-          onTap: () => context.go(RoutePaths.groupChat(group.id)),
+          onTap: () => context.push(RoutePaths.groupChat(group.id)),
         ),
       ],
     );
@@ -252,7 +246,8 @@ class _MemoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      onTap: () => context.go(RoutePaths.groupMemoryDetail(groupId, memory.id)),
+      onTap: () =>
+          context.push(RoutePaths.groupMemoryDetail(groupId, memory.id)),
       backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Column(

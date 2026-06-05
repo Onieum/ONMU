@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -146,14 +146,15 @@ class _SettlementTargetContent extends StatelessWidget {
       title: '정산 대상자 선택',
       subtitle: '${item.title} 비용을 함께 나눌 사람만 선택해요.',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.planSettlementNew(groupId, planId)),
+      onBack: () =>
+          context.popOrGo(RoutePaths.planSettlementNew(groupId, planId)),
       bottom: OnmuPrimaryButton(
         label: '이 항목 대상자 저장',
         icon: Icons.check_circle_outline,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         onPressed: () =>
-            context.go(RoutePaths.planSettlementNew(groupId, planId)),
+            context.popOrGo(RoutePaths.planSettlementNew(groupId, planId)),
       ),
       children: [
         _TargetItemHeader(item: item),

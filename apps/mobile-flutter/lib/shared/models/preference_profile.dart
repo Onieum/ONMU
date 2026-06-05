@@ -25,19 +25,19 @@ class PreferenceProfile {
     required this.preferredTimes,
   });
 
-  factory PreferenceProfile.mock() {
-    return const PreferenceProfile(
-      favoriteFoodTags: ['한식', '디저트 카페'],
-      dislikedFoodTags: ['너무 매운 음식'],
+  factory PreferenceProfile.empty() {
+    return PreferenceProfile(
+      favoriteFoodTags: [],
+      dislikedFoodTags: [],
       otherFavoriteFood: '',
       otherDislikedFood: '',
-      favoritePlaceTags: ['조용한 대화 공간'],
-      dislikedPlaceTags: ['이동 시간이 긴 곳'],
+      favoritePlaceTags: [],
+      dislikedPlaceTags: [],
       otherFavoritePlace: '',
       otherDislikedPlace: '',
-      planStyles: ['미리 일정을 정하는 편'],
-      preferredWeekdays: ['토요일'],
-      preferredTimes: ['저녁'],
+      planStyles: [],
+      preferredWeekdays: [],
+      preferredTimes: [],
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -77,7 +78,7 @@ class _SettlementShareContent extends StatelessWidget {
           ? '만들기 전에 최종 송금 방향만 가볍게 확인해요.'
           : '${settlement.planTitle} 정산 결과를 확인해요.',
       showBackButton: true,
-      onBack: () => context.go(
+      onBack: () => context.popOrGo(
         preview
             ? RoutePaths.planSettlementNew(groupId, planId)
             : RoutePaths.planDetail(groupId, planId),
@@ -89,7 +90,7 @@ class _SettlementShareContent extends StatelessWidget {
               label: '정산 수정',
               icon: Icons.edit_outlined,
               onPressed: () =>
-                  context.go(RoutePaths.planSettlementNew(groupId, planId)),
+                  context.push(RoutePaths.planSettlementNew(groupId, planId)),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),

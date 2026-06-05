@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -37,13 +38,7 @@ class _HomeRecentRecordsPageState extends State<HomeRecentRecordsPage> {
     return OnmuScaffold(
       title: '최근 기록',
       showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-        context.go(RoutePaths.home);
-      },
+      onBack: () => context.popOrGo(RoutePaths.home),
       action: IconButton(
         tooltip: '기록 필터',
         onPressed: () => _showSnack(context, '정렬과 검색은 다음 단계에서 연결할게요.'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -80,7 +81,7 @@ class _PlaceCandidateContent extends StatelessWidget {
     return OnmuScaffold(
       title: '장소 후보 리스트',
       showBackButton: true,
-      onBack: () => context.pop(),
+      onBack: () => context.popOrGo(RoutePaths.planDetail(groupId, planId)),
       action: TextButton(
         onPressed: () => context.push(RoutePaths.planVoteNew(groupId, planId)),
         child: const Text('투표 만들기'),

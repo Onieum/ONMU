@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -86,7 +87,9 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
     return OnmuScaffold(
       title: '투표 만들기',
       showBackButton: true,
-      onBack: () => context.pop(),
+      onBack: () => context.popOrGo(
+        RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),
+      ),
       bottom: OnmuPrimaryButton(
         label: '투표 만들기',
         icon: Icons.how_to_vote_outlined,

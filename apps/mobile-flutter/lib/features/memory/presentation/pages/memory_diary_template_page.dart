@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/grid_background.dart';
 
@@ -22,7 +23,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
             color: AppColors.textMain,
             size: 20,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => context.popOrGo(RoutePaths.recordDetail(memoryId)),
         ),
         title: Text(
           '다이어리 꾸미기 템플릿',
@@ -79,7 +80,7 @@ class MemoryDiaryTemplatePage extends StatelessWidget {
                           content: Text('다이어리 템플릿이 적용되어 최종 저장되었습니다!'),
                         ),
                       );
-                      context.pop(); // Pop back to detail screen
+                      context.popOrGo(RoutePaths.recordDetail(memoryId));
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryPink,

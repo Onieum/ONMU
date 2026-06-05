@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -74,7 +75,8 @@ class _PlaceDetailContent extends StatelessWidget {
     return OnmuScaffold(
       title: '장소 상세',
       showBackButton: true,
-      onBack: () => context.pop(),
+      onBack: () =>
+          context.popOrGo(RoutePaths.planPlaceCandidates(groupId, planId)),
       bottom: Row(
         children: [
           Expanded(

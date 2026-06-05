@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/routing/navigation_extensions.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -24,7 +26,7 @@ class OotdDetailScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textMain),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.popOrGo(RoutePaths.records),
         ),
         title: Text(
           '${record.date.year}.${record.date.month}.${record.date.day} 다이어리',

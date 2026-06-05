@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -55,7 +56,7 @@ class _GroupMemberListContent extends StatelessWidget {
       title: '모임원',
       subtitle: '${group.name} · ${group.members.length}명',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.groupDetail(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(groupId)),
       useWarmBackground: false,
       children: [
         const _MemberSearchField(),
@@ -75,7 +76,7 @@ class _GroupMemberListContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        _InviteCard(onTap: () => context.go(RoutePaths.groupInvite(groupId))),
+        _InviteCard(onTap: () => context.push(RoutePaths.groupInvite(groupId))),
         const SizedBox(height: 72),
       ],
     );
@@ -150,10 +151,10 @@ class _GroupInviteContent extends StatelessWidget {
     return OnmuScaffold(
       title: '친구 초대하기',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.groupMembers(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupMembers(groupId)),
       useWarmBackground: false,
       bottom: FilledButton.icon(
-        onPressed: () => context.go(RoutePaths.groupMembers(groupId)),
+        onPressed: () => context.popOrGo(RoutePaths.groupMembers(groupId)),
         icon: const Icon(Icons.person_add_outlined),
         label: Text('선택한 친구 초대하기 ${selectedNames.length}명'),
       ),

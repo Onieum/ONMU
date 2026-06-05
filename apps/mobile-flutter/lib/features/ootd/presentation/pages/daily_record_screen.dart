@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
+import '../../../../core/routing/navigation_extensions.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -129,7 +131,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   void _back() {
     FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep == 0) {
-      Navigator.of(context).pop();
+      context.popOrGo(RoutePaths.records);
       return;
     }
     setState(() => _currentStep--);
@@ -140,7 +142,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     await Future<void>.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
-    Navigator.of(context).pop(_savedRecord);
+    context.popOrGo(RoutePaths.records, result: _savedRecord);
   }
 
   void _addTag() {

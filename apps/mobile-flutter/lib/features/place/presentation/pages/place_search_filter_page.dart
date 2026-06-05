@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -111,7 +112,7 @@ class _PlaceSearchFilterContent extends StatelessWidget {
           PlaceCandidateCard(
             candidate: candidate,
             compact: true,
-            onDetailPressed: () => context.go(
+            onDetailPressed: () => context.push(
               RoutePaths.planPlaceCandidateDetail(
                 groupId,
                 planId,
@@ -120,8 +121,9 @@ class _PlaceSearchFilterContent extends StatelessWidget {
             ),
             onRegisterPressed: () =>
                 context.go(RoutePaths.planItinerary(groupId, planId)),
-            onAddCandidatePressed: () =>
-                context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
+            onAddCandidatePressed: () => context.popOrGo(
+              RoutePaths.planPlaceCandidates(groupId, planId),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -129,7 +131,7 @@ class _PlaceSearchFilterContent extends StatelessWidget {
           label: '추천 후보로 돌아가기',
           icon: Icons.arrow_back,
           onPressed: () =>
-              context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
+              context.popOrGo(RoutePaths.planPlaceCandidates(groupId, planId)),
         ),
       ],
     );

@@ -51,7 +51,7 @@ class _GroupListContent extends StatelessWidget {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textMain,
         shape: const CircleBorder(),
-        onPressed: () => context.go(RoutePaths.groupNew),
+        onPressed: () => context.push(RoutePaths.groupNew),
         child: const Icon(Icons.add),
       ),
       children: [
@@ -74,7 +74,7 @@ class _GroupListContent extends StatelessWidget {
         for (final group in state.groups) ...[
           GroupSummaryCard(
             group: group,
-            onTap: () => context.go(RoutePaths.groupDetail(group.id)),
+            onTap: () => context.push(RoutePaths.groupDetail(group.id)),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],

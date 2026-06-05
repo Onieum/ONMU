@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
+import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../character/character_start_page.dart';
 import '../../domain/my_profile.dart';
 
-class MyPage extends StatefulWidget {
+class MyPage extends ConsumerStatefulWidget {
   const MyPage({super.key, this.resetToken});
 
   final String? resetToken;
 
   @override
-  State<MyPage> createState() => _MyPageState();
+  ConsumerState<MyPage> createState() => _MyPageState();
 }
 
-class _MyPageState extends State<MyPage> {
+class _MyPageState extends ConsumerState<MyPage> {
   var _selectedTab = _MyTab.profile;
   var _profile = _createInitialProfile();
   var _friends = _createInitialFriends();
@@ -130,7 +132,10 @@ class _MyPageState extends State<MyPage> {
   Future<void> _showProfileEditor() async {
     final result = await Navigator.of(context).push<_ProfileEditResult>(
       MaterialPageRoute(
-        builder: (context) => _ProfileEditPage(profile: _profile),
+        builder: (context) => _ProfileEditPage(
+          profile: _profile,
+          onCharacterSaved: _saveCharacterDraft,
+        ),
       ),
     );
 
@@ -145,6 +150,11 @@ class _MyPageState extends State<MyPage> {
         favoriteKeywords: result.favoriteKeywords,
       );
     });
+  }
+
+  void _saveCharacterDraft(CharacterDraft draft) {
+    ref.read(userCharacterProvider.notifier).state = draft;
+    ref.read(skippedCharacterProvider.notifier).state = false;
   }
 
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {
@@ -2617,9 +2627,13 @@ String _formatKoreanDate(DateTime date) {
 }
 
 class _ProfileEditPage extends StatefulWidget {
-  const _ProfileEditPage({required this.profile});
+  const _ProfileEditPage({
+    required this.profile,
+    required this.onCharacterSaved,
+  });
 
   final MyProfile profile;
+  final ValueChanged<CharacterDraft> onCharacterSaved;
 
   @override
   State<_ProfileEditPage> createState() => _ProfileEditPageState();
@@ -2924,7 +2938,10 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
             Navigator.of(context).pop();
             GoRouter.of(this.context).go(RoutePaths.onboarding);
           },
-          onCompleted: (_) => Navigator.of(context).pop(),
+          onCompleted: (draft) {
+            widget.onCharacterSaved(draft);
+            Navigator.of(context).pop();
+          },
         ),
       ),
     );

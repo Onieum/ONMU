@@ -46,6 +46,7 @@ import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/providers/state_providers.dart';
+import 'navigation_extensions.dart';
 import 'route_paths.dart';
 
 final appRouter = GoRouter(
@@ -67,8 +68,14 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: RoutePaths.onboardingPreferences,
-      builder: (context, state) =>
-          PreferenceIntroPage(profile: PreferenceProfile.mock()),
+      builder: (context, state) => Consumer(
+        builder: (context, ref, child) {
+          final profile =
+              ref.watch(preferenceProfileProvider) ?? PreferenceProfile.empty();
+
+          return PreferenceIntroPage(profile: profile);
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.onboarding,
@@ -76,9 +83,15 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: RoutePaths.onboardingCharacter,
-      builder: (context, state) => CharacterStartPage(
-        onBackToOnboarding: () => context.go(RoutePaths.onboarding),
-        onCompleted: (_) => context.go(RoutePaths.onboarding),
+      builder: (context, state) => Consumer(
+        builder: (context, ref, child) => CharacterStartPage(
+          onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
+          onCompleted: (draft) {
+            ref.read(userCharacterProvider.notifier).state = draft;
+            ref.read(skippedCharacterProvider.notifier).state = false;
+            context.go(RoutePaths.onboarding);
+          },
+        ),
       ),
     ),
     StatefulShellRoute.indexedStack(

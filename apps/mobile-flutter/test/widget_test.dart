@@ -58,6 +58,85 @@ void main() {
     expect(find.text('마이'), findsWidgets);
   });
 
+  testWidgets('onboarding saves character completion from character flow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onboarding);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '시작하기').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '시작하기'));
+    await tester.pumpAndSettle();
+
+    for (var step = 0; step < 4; step += 1) {
+      await tester.tap(find.widgetWithText(ElevatedButton, '다음'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.enterText(find.byType(TextField), '테스트 캐릭터');
+    await tester.tap(find.widgetWithText(ElevatedButton, '다음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('꾸미기 완료!'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '첫 설정 페이지로 돌아가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('캐릭터 만들기'), findsOneWidget);
+    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('다시 설정'), findsOneWidget);
+  });
+
+  testWidgets('onboarding saves preference completion from preference flow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onboarding);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '시작하기').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('한식'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('조용한 대화 공간'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('미리 일정을 정하는 편'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('토요일'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저녁'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('요약 보기'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('취향 선택'), findsOneWidget);
+    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('다시 설정'), findsOneWidget);
+  });
+
   testWidgets('group plan creation route opens the create screen', (
     tester,
   ) async {
@@ -203,6 +282,33 @@ void main() {
     expect(find.text('약속 만들기'), findsWidgets);
     expect(find.text('약속 이름'), findsOneWidget);
     expect(find.text('참여 멤버'), findsOneWidget);
+  });
+
+  testWidgets('group plan detail back returns to the previous plan list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupDetail(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('전체 보기').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속'), findsOneWidget);
+    expect(find.text('모임 약속 검색'), findsOneWidget);
+
+    await tester.tap(find.text('제주도 여행').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('후보 리스트 보기'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('뒤로'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속'), findsOneWidget);
+    expect(find.text('모임 약속 검색'), findsOneWidget);
   });
 
   testWidgets('group creation persists the new group in repository state', (

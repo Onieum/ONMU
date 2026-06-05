@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -56,7 +57,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
           data: (state) => OnmuScaffold(
             title: '온모임 만들기',
             showBackButton: true,
-            onBack: () => context.go(RoutePaths.groups),
+            onBack: () => context.popOrGo(RoutePaths.groups),
             useWarmBackground: false,
             bottom: OnmuPrimaryButton(
               label: '온모임 만들기',
