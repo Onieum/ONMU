@@ -27,7 +27,7 @@ class OnMoimMemberListPage extends StatelessWidget {
       title: '모임원',
       subtitle: '${group.name} · ${group.members.length}명',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(onmoimId)),
+      onBack: () => context.go(RoutePaths.groupDetail(onmoimId)),
       useWarmBackground: false,
       children: [
         const _MemberSearchField(),
@@ -51,7 +51,7 @@ class OnMoimMemberListPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        _InviteCard(onTap: () => context.go(RoutePaths.onmoimInvite(onmoimId))),
+        _InviteCard(onTap: () => context.go(RoutePaths.groupInvite(onmoimId))),
         const SizedBox(height: 72),
       ],
     );
@@ -79,10 +79,10 @@ class _OnMoimInvitePageState extends State<OnMoimInvitePage> {
     return OnmuScaffold(
       title: '친구 초대하기',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimMembers(widget.onmoimId)),
+      onBack: () => context.go(RoutePaths.groupMembers(widget.onmoimId)),
       useWarmBackground: false,
       bottom: FilledButton.icon(
-        onPressed: () => context.go(RoutePaths.onmoimMembers(widget.onmoimId)),
+        onPressed: () => context.go(RoutePaths.groupMembers(widget.onmoimId)),
         icon: const Icon(Icons.person_add_outlined),
         label: Text('선택한 친구 초대하기 ${_selectedNames.length}명'),
       ),

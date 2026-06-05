@@ -4,6 +4,7 @@ import 'package:onmu_mobile/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:onmu_mobile/app/onmu_app.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
+import 'package:onmu_mobile/core/routing/demo_route_seeds.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/home/home_page.dart';
@@ -59,7 +60,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupNewMembers('friends'));
+    appRouter.go(RoutePaths.planNew(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     expect(find.text('약속 만들기'), findsWidgets);
@@ -170,7 +171,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    appRouter.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     expect(find.text('대학 동기 여행단'), findsOneWidget);
@@ -190,7 +191,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    appRouter.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(
@@ -209,7 +210,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    appRouter.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('멤버 8명'));
@@ -226,7 +227,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimDetail('friends'));
+    appRouter.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('전체 보기').first);
@@ -237,12 +238,12 @@ void main() {
     expect(find.text('다가오는 약속'), findsOneWidget);
   });
 
-  testWidgets('confirmed meetup date tabs can be selected', (tester) async {
+  testWidgets('plan itinerary date tabs can be selected', (tester) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(
-      '${RoutePaths.onmoimMeetupDetail('friends', 'demo')}?place=confirmed',
+      RoutePaths.planItinerary(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
     );
     await tester.pumpAndSettle();
 
@@ -252,10 +253,7 @@ void main() {
     final secondTabText = tester.widget<Text>(find.text('6/8 일'));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
-    expect(find.text('제주도 일대'), findsOneWidget);
-    expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
-    expect(find.text('협재 해수욕장'), findsOneWidget);
-    expect(find.text('다운타우너 성수'), findsNothing);
+    expect(find.text('장소 동선'), findsOneWidget);
   });
 
   testWidgets('draft meetup can open the shared candidate list', (
@@ -264,7 +262,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupDetail('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planDetail(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('장소 검색하기'), findsOneWidget);
@@ -299,7 +299,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupDetail('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planDetail(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('더보기'));
@@ -317,18 +319,27 @@ void main() {
     expect(find.text('제주도 일대'), findsOneWidget);
   });
 
-  testWidgets('confirmed meetup still exposes the shared candidate list', (
+  testWidgets('legacy onmoim plan routes redirect to operating screens', (
     tester,
   ) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(
-      '${RoutePaths.onmoimMeetupDetail('friends', 'demo')}?place=confirmed',
-    );
+    appRouter.go('/onmoim/friends');
     await tester.pumpAndSettle();
 
+    expect(find.text('대학 동기 여행단'), findsOneWidget);
+
+    appRouter.go('/onmoim/friends/meetups/demo');
+    await tester.pumpAndSettle();
+
+    expect(find.text('제주도 여행'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
+
+    appRouter.go('/onmoim/friends/meetups/demo?place=confirmed');
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 동선'), findsOneWidget);
   });
 
   testWidgets('place candidate list is meetup-scoped and supports actions', (
@@ -337,7 +348,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaces('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceCandidates(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('6/7 토'), findsNothing);
@@ -357,7 +373,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaces('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceCandidates(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('투표 만들기'));
@@ -384,7 +405,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearch(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('후보에 추가'), findsWidgets);
@@ -433,7 +456,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearch(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('후보에 추가').first);
@@ -446,7 +471,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('장소 검색하기'), findsOneWidget);
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearch(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('일정에 추가').first);
@@ -454,7 +481,7 @@ void main() {
     await tester.tap(find.text('일정 보러가기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('장소 동선'), findsOneWidget);
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
     expect(find.text('장소 검색하기'), findsOneWidget);
@@ -466,7 +493,12 @@ void main() {
       await tester.pumpWidget(const OnmuApp());
       await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-      appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+      appRouter.go(
+        RoutePaths.planPlaceSearch(
+          DemoRouteSeeds.groupId,
+          DemoRouteSeeds.planId,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('온무식당'));
@@ -497,7 +529,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearch(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('장소 옵션'), findsNothing);
@@ -523,7 +557,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceMap('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearch(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('전체'), findsOneWidget);
@@ -552,7 +588,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaces('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceCandidates(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.add));
@@ -573,7 +614,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaces('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceCandidates(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('투표 만들기'));
@@ -591,7 +637,11 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(
-      RoutePaths.onmoimMeetupPlaceDetail('friends', 'demo', 'onmu-diner'),
+      RoutePaths.planPlaceCandidateDetail(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+        DemoRouteSeeds.candidateId,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -610,7 +660,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupPlaceSearch('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planPlaceSearchResults(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Kakao'), findsNothing);
@@ -624,7 +679,9 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupRouteReview('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planItinerary(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('6/8 일'));
@@ -640,7 +697,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.lightTheme,
         home: const OnMoimMemoryDetailPage(
-          onmoimId: 'friends',
+          onmoimId: DemoRouteSeeds.groupId,
           memoryId: 'seongsu-cafe',
         ),
       ),
@@ -656,7 +713,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimChat('friends'));
+    appRouter.go(RoutePaths.groupChat(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), '확인 메시지');
@@ -670,7 +727,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimChat('friends'));
+    appRouter.go(RoutePaths.groupChat(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     expect(find.text('후보 보기'), findsNothing);
@@ -691,7 +748,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planSettlementNew(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('약속 정산 만들기'), findsOneWidget);
@@ -709,7 +771,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planSettlementNew(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('카페'), 240);
@@ -727,7 +794,12 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    appRouter.go(
+      RoutePaths.planSettlementNew(
+        DemoRouteSeeds.groupId,
+        DemoRouteSeeds.planId,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('최종 정산 미리보기'));
@@ -749,7 +821,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimChat('friends'));
+    appRouter.go(RoutePaths.groupChat(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     expect(find.text('ONMU 정산'), findsOneWidget);
@@ -786,7 +858,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimChat('friends'));
+    appRouter.go(RoutePaths.groupChat(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('채팅 메뉴'));
@@ -806,7 +878,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimVotes('friends'));
+    appRouter.go(RoutePaths.groupVotes(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('투표 확인하기'));
@@ -820,7 +892,7 @@ void main() {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.onmoimVotes('friends'));
+    appRouter.go(RoutePaths.groupVotes(DemoRouteSeeds.groupId));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('마감'));

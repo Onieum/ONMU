@@ -91,7 +91,7 @@ class _MeetupRouteReviewPageState extends State<MeetupRouteReviewPage> {
             color: AppColors.primaryPink,
             foregroundColor: AppColors.textInverse,
             onPressed: () => context.go(
-              '${RoutePaths.onmoimMeetupDetail(widget.onmoimId, widget.meetupId)}?place=confirmed',
+              RoutePaths.planDetail(widget.onmoimId, widget.meetupId),
             ),
           ),
         ),

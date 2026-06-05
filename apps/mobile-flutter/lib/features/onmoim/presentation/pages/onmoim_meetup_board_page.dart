@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -27,7 +28,12 @@ class OnMoimMeetupBoardPage extends StatelessWidget {
             label: '최종 장소 확정하기',
             icon: Icons.check_circle_outline,
             color: AppColors.primaryPink,
-            onPressed: () => context.go(RoutePaths.onmoimDemoMeetup),
+            onPressed: () => context.go(
+              RoutePaths.planDetail(
+                DemoRouteSeeds.groupId,
+                DemoRouteSeeds.planId,
+              ),
+            ),
           ),
         ),
       ),
@@ -81,8 +87,13 @@ class OnMoimMeetupBoardPage extends StatelessWidget {
         OnmuSecondaryButton(
           label: '장소 추천',
           icon: Icons.place_outlined,
-          onPressed: () =>
-              context.go('${RoutePaths.onmoimDemoMeetupPlaces}?voteResult=1'),
+          onPressed: () => context.go(
+            RoutePaths.planVote(
+              DemoRouteSeeds.groupId,
+              DemoRouteSeeds.planId,
+              DemoRouteSeeds.voteId,
+            ),
+          ),
         ),
       ],
     );

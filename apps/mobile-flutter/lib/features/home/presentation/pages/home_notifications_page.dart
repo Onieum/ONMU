@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -358,14 +359,16 @@ const _items = [
 void _handleNotificationTap(BuildContext context, _NotificationItem item) {
   switch (item.kind) {
     case '투표':
-      context.push(RoutePaths.onmoimMeetupPlaceVoteNew('friends', 'demo'));
+      context.push(
+        RoutePaths.planVoteNew(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+      );
       return;
     case '정산':
       context.push(
-        RoutePaths.onmoimMeetupSettlementShare(
-          'friends',
-          'demo',
-          'lunch-split',
+        RoutePaths.planSettlementDetail(
+          DemoRouteSeeds.groupId,
+          DemoRouteSeeds.planId,
+          DemoRouteSeeds.settlementId,
         ),
       );
       return;
@@ -373,7 +376,9 @@ void _handleNotificationTap(BuildContext context, _NotificationItem item) {
       context.push(RoutePaths.homeRecentRecords);
       return;
     default:
-      context.push(RoutePaths.onmoimMeetupDetail('friends', 'demo'));
+      context.push(
+        RoutePaths.planDetail(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+      );
       return;
   }
 }

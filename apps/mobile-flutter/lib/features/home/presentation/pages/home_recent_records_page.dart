@@ -71,7 +71,7 @@ class _HomeRecentRecordsPageState extends State<HomeRecentRecordsPage> {
         ),
         const SizedBox(height: AppSpacing.xl),
         FilledButton.icon(
-          onPressed: () => context.push(RoutePaths.ootdList),
+          onPressed: () => context.push(RoutePaths.records),
           icon: const Icon(Icons.add_photo_alternate_outlined),
           label: const Text('기록 카드 만들기'),
         ),

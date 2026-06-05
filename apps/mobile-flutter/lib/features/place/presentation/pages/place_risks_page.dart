@@ -37,7 +37,7 @@ class PlaceRisksPage extends StatelessWidget {
                   label: '그래도 후보 추가',
                   icon: Icons.add_circle_outline,
                   onPressed: () => context.go(
-                    RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+                    RoutePaths.planPlaceCandidates(onmoimId, meetupId),
                   ),
                 ),
               ),
@@ -49,7 +49,7 @@ class PlaceRisksPage extends StatelessWidget {
                   color: AppColors.primaryPurple,
                   foregroundColor: AppColors.textInverse,
                   onPressed: () => context.go(
-                    RoutePaths.onmoimMeetupPlaceSearch(onmoimId, meetupId),
+                    RoutePaths.planPlaceSearchResults(onmoimId, meetupId),
                   ),
                 ),
               ),
@@ -78,29 +78,18 @@ class PlaceRisksPage extends StatelessWidget {
           children: [
             ActionChip(
               label: const Text('비선호 키워드'),
-              onPressed: () => context.go(
-                RoutePaths.onmoimMeetupPlaceRisk(onmoimId, meetupId, 'keyword'),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planPlaceSearch(onmoimId, meetupId)),
             ),
             ActionChip(
               label: const Text('브레이크 타임'),
-              onPressed: () => context.go(
-                RoutePaths.onmoimMeetupPlaceRisk(
-                  onmoimId,
-                  meetupId,
-                  'break-time',
-                ),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planPlaceSearch(onmoimId, meetupId)),
             ),
             ActionChip(
               label: const Text('휴무일'),
-              onPressed: () => context.go(
-                RoutePaths.onmoimMeetupPlaceRisk(
-                  onmoimId,
-                  meetupId,
-                  'closed-day',
-                ),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planPlaceSearch(onmoimId, meetupId)),
             ),
           ],
         ),
@@ -343,7 +332,7 @@ class _RiskDialogCard extends StatelessWidget {
                   child: OnmuSecondaryButton(
                     label: copy.secondaryLabel,
                     onPressed: () => context.go(
-                      RoutePaths.onmoimMeetupPlaceRisks(onmoimId, meetupId),
+                      RoutePaths.planPlaceSearch(onmoimId, meetupId),
                     ),
                   ),
                 ),
@@ -353,7 +342,7 @@ class _RiskDialogCard extends StatelessWidget {
                     label: copy.primaryLabel,
                     color: AppColors.primaryPink,
                     onPressed: () => context.go(
-                      RoutePaths.onmoimMeetupPlaceCompare(onmoimId, meetupId),
+                      RoutePaths.planPlaceCandidates(onmoimId, meetupId),
                     ),
                   ),
                 ),

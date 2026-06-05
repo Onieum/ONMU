@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -87,7 +88,8 @@ class UpcomingMeetupsPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: '약속 만들기',
-        onPressed: () => context.push(RoutePaths.onmoimMeetupNew('friends')),
+        onPressed: () =>
+            context.push(RoutePaths.planNew(DemoRouteSeeds.groupId)),
         backgroundColor: AppColors.primaryPurple,
         foregroundColor: AppColors.textInverse,
         child: const Icon(Icons.add),
@@ -241,8 +243,9 @@ class _UpcomingMeetupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      onTap: () =>
-          context.push(RoutePaths.onmoimMeetupDetail('friends', 'demo')),
+      onTap: () => context.push(
+        RoutePaths.planDetail(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+      ),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
       padding: const EdgeInsets.all(AppSpacing.sm),

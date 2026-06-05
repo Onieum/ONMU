@@ -38,7 +38,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
       onBack: () => context.pop(),
       action: TextButton(
         onPressed: () => context.push(
-          RoutePaths.onmoimMeetupPlaceVoteNew(widget.onmoimId, widget.meetupId),
+          RoutePaths.planVoteNew(widget.onmoimId, widget.meetupId),
         ),
         child: const Text('투표 만들기'),
       ),
@@ -48,7 +48,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
         foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
         onPressed: () => context.push(
-          RoutePaths.onmoimMeetupPlaceMap(widget.onmoimId, widget.meetupId),
+          RoutePaths.planPlaceSearch(widget.onmoimId, widget.meetupId),
         ),
         child: const Icon(Icons.add),
       ),
@@ -94,7 +94,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
               });
             },
             onDetailPressed: () => context.push(
-              RoutePaths.onmoimMeetupPlaceDetail(
+              RoutePaths.planPlaceCandidateDetail(
                 widget.onmoimId,
                 widget.meetupId,
                 demoPlaceCandidates[index].id,
@@ -110,9 +110,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
   }
 
   void _goConfirmed(BuildContext context) {
-    context.go(
-      '${RoutePaths.onmoimMeetupDetail(widget.onmoimId, widget.meetupId)}?place=confirmed',
-    );
+    context.go(RoutePaths.planItinerary(widget.onmoimId, widget.meetupId));
   }
 
   int _baseFavoriteCount(int index) {

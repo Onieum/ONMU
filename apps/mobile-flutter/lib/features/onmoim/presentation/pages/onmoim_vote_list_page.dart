@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -47,12 +48,12 @@ class _OnMoimVoteListPageState extends State<OnMoimVoteListPage> {
           return;
         }
 
-        context.go(RoutePaths.onmoimChat(widget.onmoimId));
+        context.go(RoutePaths.groupChat(widget.onmoimId));
       },
       action: IconButton(
         tooltip: '투표 만들기',
         onPressed: () => context.push(
-          RoutePaths.onmoimMeetupPlaceVoteNew(widget.onmoimId, 'demo'),
+          RoutePaths.planVoteNew(widget.onmoimId, DemoRouteSeeds.planId),
         ),
         icon: const Icon(Icons.add_circle_outline),
       ),
@@ -95,7 +96,7 @@ class _OnMoimVoteListPageState extends State<OnMoimVoteListPage> {
             _VoteSummaryCard(
               vote: vote,
               onTap: () =>
-                  context.push(RoutePaths.onmoimVote(widget.onmoimId, vote.id)),
+                  context.push(RoutePaths.groupVote(widget.onmoimId, vote.id)),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -107,7 +108,7 @@ class _OnMoimVoteListPageState extends State<OnMoimVoteListPage> {
             _ClosedVoteRow(
               vote: vote,
               onTap: () =>
-                  context.push(RoutePaths.onmoimVote(widget.onmoimId, vote.id)),
+                  context.push(RoutePaths.groupVote(widget.onmoimId, vote.id)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -115,7 +116,7 @@ class _OnMoimVoteListPageState extends State<OnMoimVoteListPage> {
         ],
         if (ongoingVotes.isEmpty && closedVotes.isEmpty)
           _EmptyVoteState(filterLabel: _selectedFilter.label),
-        _VoteListHint(onTap: () => context.go(RoutePaths.onmoimChat(group.id))),
+        _VoteListHint(onTap: () => context.go(RoutePaths.groupChat(group.id))),
       ],
     );
   }

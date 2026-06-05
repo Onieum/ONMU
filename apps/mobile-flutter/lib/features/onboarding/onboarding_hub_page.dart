@@ -89,7 +89,8 @@ class OnboardingHubPage extends ConsumerWidget {
                           completed: hasCharacter,
                           skipped: skippedCharacter,
                         ),
-                        onPrimary: () => context.go(RoutePaths.characterStart),
+                        onPrimary: () =>
+                            context.go(RoutePaths.onboardingCharacter),
                       ),
                     ),
                   ),
@@ -106,12 +107,16 @@ class OnboardingHubPage extends ConsumerWidget {
                         title: '취향 선택',
                         description: '음식, 장소, 약속 스타일 추천에 쓸\n취향을 골라요.',
                         icon: Icons.tune_rounded,
-                        state: _TaskState.from(hasPreference, skippedPreference),
+                        state: _TaskState.from(
+                          hasPreference,
+                          skippedPreference,
+                        ),
                         primaryLabel: _taskButtonLabel(
                           completed: hasPreference,
                           skipped: skippedPreference,
                         ),
-                        onPrimary: () => context.go(RoutePaths.preferenceIntro),
+                        onPrimary: () =>
+                            context.go(RoutePaths.onboardingPreferences),
                       ),
                     ),
                   ),
@@ -227,14 +232,13 @@ class _OnboardingTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = (compact
-            ? AppTextStyles.titleLarge
-            : AppTextStyles.headlineMedium)
-        .copyWith(
-          color: const Color(0xFF4D3930),
-          fontWeight: FontWeight.w900,
-          height: 1.25,
-        );
+    final titleStyle =
+        (compact ? AppTextStyles.titleLarge : AppTextStyles.headlineMedium)
+            .copyWith(
+              color: const Color(0xFF4D3930),
+              fontWeight: FontWeight.w900,
+              height: 1.25,
+            );
 
     return Column(
       children: [
@@ -333,13 +337,14 @@ class _OnboardingTaskCard extends StatelessWidget {
                             title,
                             maxLines: 1,
                             softWrap: false,
-                            style: (compact
-                                    ? AppTextStyles.titleMedium
-                                    : AppTextStyles.titleLarge)
-                                .copyWith(
-                                  color: const Color(0xFF4D3930),
-                                  fontWeight: FontWeight.w900,
-                                ),
+                            style:
+                                (compact
+                                        ? AppTextStyles.titleMedium
+                                        : AppTextStyles.titleLarge)
+                                    .copyWith(
+                                      color: const Color(0xFF4D3930),
+                                      fontWeight: FontWeight.w900,
+                                    ),
                           ),
                         ),
                         const SizedBox(width: 8),

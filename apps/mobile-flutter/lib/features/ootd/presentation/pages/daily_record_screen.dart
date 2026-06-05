@@ -474,11 +474,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               width: 92,
               child: ElevatedButton(
                 onPressed: _addTag,
-                child: const Text(
-                  '추가',
-                  maxLines: 1,
-                  softWrap: false,
-                ),
+                child: const Text('추가', maxLines: 1, softWrap: false),
               ),
             ),
           ],
@@ -516,10 +512,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           width: photo.hasPhoto ? 1.8 : 1,
         ),
         boxShadow: [
-                BoxShadow(
-                  color: AppColors.textMain.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                ),
+          BoxShadow(
+            color: AppColors.textMain.withValues(alpha: 0.02),
+            blurRadius: 8,
+          ),
         ],
       ),
       child: Column(
@@ -898,7 +894,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               onPressed: _next,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryPink,
-                  foregroundColor: AppColors.textInverse,
+                foregroundColor: AppColors.textInverse,
               ),
               child: Text(label),
             ),
@@ -1863,10 +1859,10 @@ class _CleanPhotoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.lineSoft),
         boxShadow: [
-            BoxShadow(
-              color: AppColors.textMain.withValues(alpha: 0.03),
-              blurRadius: 10,
-            ),
+          BoxShadow(
+            color: AppColors.textMain.withValues(alpha: 0.03),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: Row(

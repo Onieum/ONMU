@@ -5,126 +5,105 @@ class RoutePaths {
   static const start = '/start';
   static const login = '/login';
   static const onboarding = '/onboarding';
-  static const preferenceIntro = '/preferences/intro';
-  static const characterStart = '/character/start';
+  static const onboardingPreferences = '/onboarding/preferences';
+  static const onboardingCharacter = '/onboarding/character';
   static const home = '/home';
-  static const homeUpcomingMeetups = '/home/upcoming-meetups';
+  static const homeUpcomingPlans = '/home/upcoming-plans';
   static const homeNotifications = '/home/notifications';
   static const homeRecentRecords = '/home/recent-records';
-  static const onmoim = '/onmoim';
-  static const onmoimNew = '/onmoim/new';
-  static const onmoimDemo = '/onmoim/friends';
-  static const onmoimDemoSettings = '/onmoim/friends/settings';
-  static const onmoimDemoChat = '/onmoim/friends/chat';
-  static const onmoimDemoMemories = '/onmoim/friends/memories';
-  static const onmoimDemoVotes = '/onmoim/friends/votes';
-  static const onmoimDemoVote = '/onmoim/friends/votes/demo';
-  static const onmoimDemoMeetup = '/onmoim/friends/meetups/demo';
-  static const onmoimDemoMeetupBoard = '/onmoim/friends/meetups/demo/board';
-  static const onmoimDemoMeetupPlaces = '/onmoim/friends/meetups/demo/places';
-  static const onmoimDemoMeetupPlaceMap =
-      '/onmoim/friends/meetups/demo/places/map';
-  static const onmoimDemoMeetupSettlementNew =
-      '/onmoim/friends/meetups/demo/settlements/new';
-  static const onmoimDemoMeetupSettlementShare =
-      '/onmoim/friends/meetups/demo/settlements/lunch-split';
-  static const ootdList = '/ootd/list';
+  static const groups = '/groups';
+  static const groupNew = '/groups/new';
+  static const records = '/records';
+  static const recordNewDaily = '/records/new/daily';
+  static const recordNewOotd = '/records/new/ootd';
   static const my = '/my';
 
-  static String onmoimDetail(String onmoimId) => '/onmoim/$onmoimId';
+  static String groupDetail(String groupId) => '/groups/$groupId';
 
-  static String onmoimMembers(String onmoimId) => '/onmoim/$onmoimId/members';
+  static String groupMembers(String groupId) => '/groups/$groupId/members';
 
-  static String onmoimInvite(String onmoimId) => '/onmoim/$onmoimId/invite';
+  static String groupInvite(String groupId) => '/groups/$groupId/invite';
 
-  static String onmoimSettings(String onmoimId) => '/onmoim/$onmoimId/settings';
+  static String groupSettings(String groupId) => '/groups/$groupId/settings';
 
-  static String onmoimChat(String onmoimId) => '/onmoim/$onmoimId/chat';
+  static String groupChat(String groupId) => '/groups/$groupId/chat';
 
-  static String onmoimVotes(String onmoimId) => '/onmoim/$onmoimId/votes';
+  static String groupVotes(String groupId) => '/groups/$groupId/votes';
 
-  static String onmoimVote(String onmoimId, String voteId) =>
-      '/onmoim/$onmoimId/votes/$voteId';
+  static String groupVote(String groupId, String voteId) =>
+      '/groups/$groupId/votes/$voteId';
 
-  static String onmoimMemories(String onmoimId) => '/onmoim/$onmoimId/memories';
+  static String groupMemories(String groupId) => '/groups/$groupId/memories';
 
-  static String onmoimMemoryDetail(String onmoimId, String memoryId) =>
-      '/onmoim/$onmoimId/memories/$memoryId';
+  static String groupMemoryDetail(String groupId, String memoryId) =>
+      '/groups/$groupId/memories/$memoryId';
 
-  static String onmoimMeetups(String onmoimId) => '/onmoim/$onmoimId/meetups';
+  static String groupPlans(String groupId) => '/groups/$groupId/plans';
 
-  static String onmoimMeetupNew(String onmoimId) =>
-      '/onmoim/$onmoimId/meetups/new/members';
+  static String planNew(String groupId) => '/groups/$groupId/plans/new';
 
-  static String onmoimMeetupNewMembers(String onmoimId) =>
-      '/onmoim/$onmoimId/meetups/new/members';
+  static String planNewSchedule(String groupId) =>
+      '/groups/$groupId/plans/new/schedule';
 
-  static String onmoimMeetupNewSchedule(String onmoimId) =>
-      '/onmoim/$onmoimId/meetups/new/schedule';
+  static String planNewCalendar(String groupId) =>
+      '/groups/$groupId/plans/new/schedule/calendar';
 
-  static String onmoimMeetupNewCalendar(String onmoimId) =>
-      '/onmoim/$onmoimId/meetups/new/schedule/calendar';
+  static String planDetail(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId';
 
-  static String onmoimMeetupDetail(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId';
+  static String planEdit(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/edit';
 
-  static String onmoimMeetupBoard(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/board';
+  static String planBoard(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/board';
 
-  static String onmoimMeetupPlaces(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/places';
+  static String planPlaceCandidates(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/place-candidates';
 
-  static String onmoimMeetupPlaceSearch(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/places/search';
+  static String planPlaceSearch(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/place-search';
 
-  static String onmoimMeetupPlaceMap(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/places/map';
+  static String planPlaceSearchResults(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/place-search/results';
 
-  static String onmoimMeetupPlaceVoteNew(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/places/vote/new';
+  static String planVoteNew(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/votes/new';
 
-  static String onmoimMeetupPlaceDetail(
-    String onmoimId,
-    String meetupId,
-    String placeId,
-  ) => '/onmoim/$onmoimId/meetups/$meetupId/places/$placeId';
+  static String planVotes(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/votes';
 
-  static String onmoimMeetupPlaceRisks(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/places/risks';
+  static String planVote(String groupId, String planId, String voteId) =>
+      '/groups/$groupId/plans/$planId/votes/$voteId';
 
-  static String onmoimMeetupPlaceRisk(
-    String onmoimId,
-    String meetupId,
-    String riskKind,
-  ) => '/onmoim/$onmoimId/meetups/$meetupId/places/risks/$riskKind';
+  static String planPlaceCandidateDetail(
+    String groupId,
+    String planId,
+    String candidateId,
+  ) => '/groups/$groupId/plans/$planId/place-candidates/$candidateId';
 
-  static String onmoimMeetupPlaceCompare(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/place-compare';
+  static String planItinerary(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/itinerary';
 
-  static String onmoimMeetupRouteReview(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/route-review';
+  static String planSettlementNew(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/settlements/new';
 
-  static String onmoimMeetupComplete(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/complete';
-
-  static String onmoimMeetupSettlementNew(String onmoimId, String meetupId) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/settlements/new';
-
-  static String onmoimMeetupSettlementTargets(
-    String onmoimId,
-    String meetupId,
+  static String planSettlementTargets(
+    String groupId,
+    String planId,
     String itemId,
-  ) =>
-      '/onmoim/$onmoimId/meetups/$meetupId/settlements/new/items/$itemId/targets';
+  ) => '/groups/$groupId/plans/$planId/settlements/new/items/$itemId/targets';
 
-  static String onmoimMeetupSettlementPreview(
-    String onmoimId,
-    String meetupId,
-  ) => '/onmoim/$onmoimId/meetups/$meetupId/settlements/new/preview';
+  static String planSettlementPreview(String groupId, String planId) =>
+      '/groups/$groupId/plans/$planId/settlements/new/preview';
 
-  static String onmoimMeetupSettlementShare(
-    String onmoimId,
-    String meetupId,
+  static String planSettlementDetail(
+    String groupId,
+    String planId,
     String settlementId,
-  ) => '/onmoim/$onmoimId/meetups/$meetupId/settlements/$settlementId';
+  ) => '/groups/$groupId/plans/$planId/settlements/$settlementId';
+
+  static String recordDetail(String recordId) => '/records/$recordId';
+
+  static String recordDiaryTemplate(String recordId) =>
+      '/records/$recordId/template-diary';
 }

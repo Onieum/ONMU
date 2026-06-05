@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -601,7 +602,7 @@ class MemoryDetailPage extends ConsumerWidget {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                context.push('/memories/$memoryId/template-diary');
+                context.push(RoutePaths.recordDiaryTemplate(memoryId));
               },
               icon: const Icon(Icons.palette_outlined, size: 16),
               label: Text('다이어리 꾸미기'),

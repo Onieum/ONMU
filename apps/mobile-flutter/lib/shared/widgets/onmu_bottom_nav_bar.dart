@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_theme.dart';
 
 class OnmuBottomNavBar extends StatelessWidget {
@@ -10,6 +9,7 @@ class OnmuBottomNavBar extends StatelessWidget {
     this.navigationShell,
     this.currentIndex,
     this.onTap,
+    this.onMyTabReselected,
   }) : assert(
          navigationShell != null || (currentIndex != null && onTap != null),
          'navigationShell 또는 currentIndex/onTap을 전달해야 합니다.',
@@ -18,6 +18,7 @@ class OnmuBottomNavBar extends StatelessWidget {
   final StatefulNavigationShell? navigationShell;
   final int? currentIndex;
   final ValueChanged<int>? onTap;
+  final VoidCallback? onMyTabReselected;
 
   static const _items = [
     _BottomNavItem(
@@ -73,9 +74,7 @@ class OnmuBottomNavBar extends StatelessWidget {
 
                     if (isCurrentBranch && isMyBranch) {
                       navigationShell!.goBranch(index, initialLocation: true);
-                      context.go(
-                        '${RoutePaths.my}?reset=${DateTime.now().microsecondsSinceEpoch}',
-                      );
+                      onMyTabReselected?.call();
                       return;
                     }
 

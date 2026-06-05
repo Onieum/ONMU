@@ -34,7 +34,7 @@ class PlaceComparePage extends StatelessWidget {
             color: AppColors.primaryPurple,
             foregroundColor: AppColors.textInverse,
             onPressed: () =>
-                context.go(RoutePaths.onmoimMeetupBoard(onmoimId, meetupId)),
+                context.go(RoutePaths.planBoard(onmoimId, meetupId)),
           ),
         ),
       ),

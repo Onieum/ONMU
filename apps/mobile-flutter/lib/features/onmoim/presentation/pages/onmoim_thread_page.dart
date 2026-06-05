@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -79,7 +80,7 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
           return;
         }
 
-        context.go(RoutePaths.onmoimDemo);
+        context.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId));
       },
       action: Row(
         mainAxisSize: MainAxisSize.min,
@@ -100,11 +101,13 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
             onSelected: (action) {
               switch (action) {
                 case _ChatMenuAction.votes:
-                  context.go(RoutePaths.onmoimVotes(group.id));
+                  context.go(RoutePaths.groupVotes(group.id));
                 case _ChatMenuAction.meetup:
-                  context.go(RoutePaths.onmoimMeetupDetail(group.id, 'demo'));
+                  context.go(
+                    RoutePaths.planDetail(group.id, DemoRouteSeeds.planId),
+                  );
                 case _ChatMenuAction.settings:
-                  context.go(RoutePaths.onmoimSettings(group.id));
+                  context.go(RoutePaths.groupSettings(group.id));
               }
             },
             itemBuilder: (context) => [
@@ -136,19 +139,25 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
       ),
       scrollController: _scrollController,
       children: [
-        _MeetupChatAnchor(onTap: () => context.go(RoutePaths.onmoimDemoMeetup)),
+        _MeetupChatAnchor(
+          onTap: () => context.go(
+            RoutePaths.planDetail(group.id, DemoRouteSeeds.planId),
+          ),
+        ),
         const SizedBox(height: AppSpacing.md),
         _VoteNoticeCard(
           vote: demoOnMoimVoteCard,
-          onTap: () => context.push(RoutePaths.onmoimVote(group.id, 'demo')),
+          onTap: () => context.push(
+            RoutePaths.groupVote(group.id, DemoRouteSeeds.voteId),
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         _SettlementNoticeCard(
           settlement: demoSettlementSummary,
           onTap: () => context.push(
-            RoutePaths.onmoimMeetupSettlementShare(
+            RoutePaths.planSettlementDetail(
               group.id,
-              'demo',
+              DemoRouteSeeds.planId,
               demoSettlementSummary.id,
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -43,7 +44,13 @@ class _PlaceVoteCreatePageState extends State<PlaceVoteCreatePage> {
         foregroundColor: AppColors.textInverse,
         onPressed: _selectedCandidateIds.isEmpty
             ? null
-            : () => context.go(RoutePaths.onmoimVote(widget.onmoimId, 'demo')),
+            : () => context.go(
+                RoutePaths.planVote(
+                  widget.onmoimId,
+                  widget.meetupId,
+                  DemoRouteSeeds.voteId,
+                ),
+              ),
       ),
       children: [
         TextFormField(
