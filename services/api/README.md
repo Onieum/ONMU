@@ -105,7 +105,7 @@ runtime 선택 우선순위는 다음과 같습니다.
 
 공유 Windows dev 서버에서 `AZURE_KEY_VAULT_NAME`이 설정되어 있으면 CD 스크립트가 필요한 환경변수를 Key Vault에서 조용히 로드합니다. secret 값은 로그에 출력하지 않습니다. 로컬 단일 개발 환경에서는 현재 환경변수나 `.env.example` 기반의 임시 기본값으로도 stub을 실행할 수 있습니다.
 
-나중에 Spring Boot Main API가 실제 실행 가능한 프로젝트로 들어오면 workflow input 또는 `ONMU_BACKEND_RUNTIME=spring`으로 runtime을 전환합니다. 그 전까지 `spring` runtime은 scaffold 상태를 확인하고 일반 실행에서는 실패하도록 둡니다.
+`services/api-spring`에는 실행 가능한 Spring Boot Main API scaffold가 들어왔습니다. 다만 이 stacked branch 단계에서는 PR #63의 자동 배포 기본 runtime을 계속 `node-stub`으로 유지합니다. `spring` runtime은 수동 선택으로 검증할 수 있으며, PR #63이 `dev`에 merge된 뒤 별도 PR에서 팀 합의에 따라 기본 runtime 전환 여부를 결정합니다.
 
 ## 검증
 
@@ -139,8 +139,8 @@ Get-Content logs\api-access.log -Tail 20
 
 ## 주의
 
-- 이 서버는 Windows backend-host 검증용 contract stub입니다.
-- PostgreSQL 테이블, migration, 인증/인가, 영구 CRUD는 Spring Boot Main API에서 구현합니다.
+- 이 서버는 Windows backend-host 검증용 contract stub이자 Spring Boot 전환 전 fallback입니다.
+- PostgreSQL 테이블, migration, 인증/인가, 영구 CRUD 기준은 Spring Boot Main API입니다.
 - POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다.
 - 장소 후보 stub은 하트/선호 참고, 후보 추가, 일정 등록, 투표 생성 흐름을 위한 최소 데이터만 제공합니다.
 - secret, API key, credential은 `.env`, 문서, PR 본문에 남기지 않습니다.
