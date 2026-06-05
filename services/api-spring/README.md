@@ -121,6 +121,14 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 
 ## Smoke
 
+### Fresh DB 기준 smoke
+
+최종 smoke 검증은 기존 Docker volume이 아니라 fresh DB 기준으로 수행합니다. 이전 smoke에서 생성된 vote/outbox row가 남아 있으면 `group summary`나 outbox 검증에 섞여 실제 contract 오류를 가릴 수 있습니다.
+
+공용 Windows dev runtime이나 팀원이 사용하는 compose volume은 삭제하지 않습니다. `docker compose down -v`는 smoke 전용 compose project 또는 smoke 전용 volume에서만 사용하고, 일반 검증에서는 별도 임시 컨테이너/포트(예: PostgreSQL `16543`, Redis `16379`, MinIO `19000`, Spring `18080`)로 격리합니다.
+
+Windows dev backend CD의 기본 runtime은 아직 `node-stub`입니다. Spring Boot Main API는 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring`으로 수동 선택하는 옵션 runtime이며, dev merge와 팀 합의 전까지 기본값으로 전환하지 않습니다.
+
 ```powershell
 curl http://localhost:8080/healthz
 curl http://localhost:8080/readyz
