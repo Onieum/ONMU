@@ -4,6 +4,15 @@
 
 확정 백엔드 구조는 `Spring Boot Main API + FastAPI Worker`입니다. Flutter 앱은 Spring Boot Main API만 직접 호출하고, FastAPI Worker는 Spring Boot 뒤에서 AI/Data 작업을 처리하는 내부 worker로 둡니다. 제품 도메인 API, 인증/인가, DB transaction, migration, 영구 CRUD 구현 기준은 Spring Boot Main API입니다.
 
+확정된 세부 기준은 다음과 같습니다.
+
+- 첫 OAuth provider는 Naver입니다.
+- 인증은 access token + refresh token 방식이며, Flutter는 secure storage에 저장합니다.
+- Spring Boot와 FastAPI Worker는 queue/outbox로 연결합니다.
+- FastAPI Worker 위치는 `services/workers/ai-data-worker`입니다.
+- 투표 생성 canonical API는 `POST /api/v1/groups/{groupId}/votes`입니다.
+- 장소 검색 canonical API는 `POST /api/v1/place-search`입니다.
+
 ## Node Stub이 검증하는 계약
 
 - `GET /healthz`: Windows backend-host의 HTTP 프로세스 생존 확인
@@ -43,7 +52,7 @@ Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes`
-- `POST /api/v1/groups/{groupId}/plans/{planId}/votes`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/votes` (dev compatibility)
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes/{voteId}`
 - `GET /api/v1/groups/{groupId}/votes`
 - `GET /api/v1/groups/{groupId}/votes/{voteId}`
@@ -57,6 +66,8 @@ Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 - `GET /api/v1/place-search?query=...`
 - `POST /api/v1/place-search`
+
+`POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...`는 기존 mock/화면 전환 검증을 위한 임시 호환 route입니다. 운영 API의 canonical 계약은 [API Contract Map](../../docs/architecture/api-contract-map.md)의 `POST /api/v1/groups/{groupId}/votes`, `POST /api/v1/place-search`를 따릅니다.
 
 Seed ID는 Flutter `InMemoryOnmuStore`와 맞춰 `groupId=1`, `planId=101`, `voteId=501`을 기본 검증값으로 사용합니다. 없는 ID는 mock store처럼 첫 번째 seed로 fallback합니다.
 

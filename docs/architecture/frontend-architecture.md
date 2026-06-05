@@ -14,8 +14,8 @@
 | Theme | `AppTheme`, `AppColors`, ONMU typography |
 | Bottom tabs | 홈, 온모임, 기록, 마이 |
 | Route contract | `RoutePaths` |
-| Legacy URL | `legacy_route_redirects.dart`에서 redirect |
-| Demo seed | `DemoRouteSeeds` |
+| Legacy URL | 별도 legacy redirect 파일 없이 필요한 경우 `app_router.dart`에 명시적으로 추가 |
+| Demo seed | 실제 route helper에 넣지 않고 mock repository seed로만 관리 |
 
 ## Route 계층
 
@@ -69,6 +69,8 @@ lib/features/<feature>/
 - navigation, snackbar, dialog는 View 또는 UI event 패턴으로 처리한다.
 
 ## Mock to API 전환
+
+Flutter repository가 호출하는 실제 서버는 Spring Boot Main API다. FastAPI Worker 결과는 Spring Boot API read model을 통해 전달받고, Flutter 앱에서 Worker를 직접 호출하지 않는다.
 
 | 단계 | 작업 |
 | --- | --- |
