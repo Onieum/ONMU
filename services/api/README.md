@@ -1,8 +1,19 @@
-# 메인 API
+# 개발용 Node Smoke/Contract Stub API
 
-API는 identity, profile, social, group, plan, place, decision, memory, settlement, privacy, share, notification, audit 도메인의 transaction boundary를 담당합니다.
+`services/api/server.mjs`는 최종 백엔드 Main API가 아닙니다. 이 Node 서버는 Windows backend-host, Cloudflare Tunnel, `/healthz`, `/readyz`, CORS, request log, Flutter mock-to-API contract를 빠르게 검증하기 위한 임시 smoke/contract stub입니다.
 
-현재 `server.mjs`는 Windows dev 서버와 Flutter mock-to-API 전환을 위한 Node 기반 contract stub입니다. 최종 Main API 스택은 아직 확정하지 않았고, 문서의 임시 추천안은 Spring Boot Main API + FastAPI Worker입니다.
+확정 백엔드 구조는 `Spring Boot Main API + FastAPI Worker`입니다. Flutter 앱은 Spring Boot Main API만 직접 호출하고, FastAPI Worker는 Spring Boot 뒤에서 AI/Data 작업을 처리하는 내부 worker로 둡니다. 제품 도메인 API, 인증/인가, DB transaction, migration, 영구 CRUD 구현 기준은 Spring Boot Main API입니다.
+
+## Node Stub이 검증하는 계약
+
+- `GET /healthz`: Windows backend-host의 HTTP 프로세스 생존 확인
+- `GET /readyz`: PostgreSQL, Redis, MinIO 로컬 의존성 연결 확인
+- `dev-api.onmu.cloud -> localhost:8080`: Cloudflare Tunnel 경로 확인
+- `logs/api-access.log`: request log와 `?client=` / `x-onmu-dev-client` 추적 확인
+- dev CORS와 `OPTIONS` preflight: Flutter web/dev 클라이언트 연결 확인
+- `/api/v1` contract: Flutter repository를 API repository로 전환하기 전 최소 shape 확인
+
+Spring Boot Main API가 준비되면 위 계약은 Spring Boot로 넘깁니다. Node stub은 그 전까지만 Windows 개발 서버 연결 검증에 사용합니다.
 
 ## 현재 제공 범위
 
@@ -11,7 +22,7 @@ API는 identity, profile, social, group, plan, place, decision, memory, settleme
 - `GET /healthz`
 - `GET /readyz`
 
-Flutter PR #61 기준 contract stub:
+Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 
 - `GET /api/v1/home/summary`
 - `GET /api/v1/groups`
@@ -28,18 +39,24 @@ Flutter PR #61 기준 contract stub:
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/itinerary`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}`
-- `GET /api/v1/groups/{groupId}/plans/{planId}/place-risks`
-- `GET /api/v1/groups/{groupId}/plans/{planId}/place-vote-result`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/votes`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes/{voteId}`
 - `GET /api/v1/groups/{groupId}/votes`
 - `GET /api/v1/groups/{groupId}/votes/{voteId}`
 - `GET /api/v1/groups/{groupId}/votes/{voteId}/voters`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 - `GET /api/v1/place-search?query=...`
+- `POST /api/v1/place-search`
 
 Seed ID는 Flutter `InMemoryOnmuStore`와 맞춰 `groupId=1`, `planId=101`, `voteId=501`을 기본 검증값으로 사용합니다. 없는 ID는 mock store처럼 첫 번째 seed로 fallback합니다.
 
@@ -60,7 +77,7 @@ npm run api:dev:keyvault
 npm run tunnel:cloudflare
 ```
 
-Cloudflare Tunnel은 이 API/gateway만 `dev-api.onmu.cloud`로 노출하고, DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 별도 Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
+Cloudflare Tunnel은 Node stub 또는 이후 Spring Boot Main API의 HTTP gateway만 `dev-api.onmu.cloud`로 노출합니다. DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 별도 Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
 
 ## 검증
 
@@ -71,19 +88,25 @@ curl http://localhost:8080/api/v1/home/summary
 curl http://localhost:8080/api/v1/groups
 curl http://localhost:8080/api/v1/groups/1/plans/101
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
-curl http://localhost:8080/api/v1/groups/1/votes/501
-curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
+$candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
+[System.IO.File]::WriteAllText($candidateBody, '{"name":"new place","category":"cafe"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
+$previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
+[System.IO.File]::WriteAllText($previewBody, '{}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
 ```
 
 요청 로그:
 
 ```powershell
+curl "https://dev-api.onmu.cloud/api/v1/home/summary?client=team-check"
 Get-Content logs\api-access.log -Tail 20
 ```
 
 ## 주의
 
-- 이 서버는 contract stub입니다. PostgreSQL 테이블, migration, 영구 CRUD는 아직 구현하지 않습니다.
-- 응답 필드는 Flutter model과 맞춘 camelCase JSON입니다.
+- 이 서버는 Windows backend-host 검증용 contract stub입니다.
+- PostgreSQL 테이블, migration, 인증/인가, 영구 CRUD는 Spring Boot Main API에서 구현합니다.
 - POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다.
+- 장소 후보 stub은 하트/선호 참고, 후보 추가, 일정 등록, 투표 생성 흐름을 위한 최소 데이터만 제공합니다.
 - secret, API key, credential은 `.env`, 문서, PR 본문에 남기지 않습니다.

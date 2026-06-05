@@ -2,15 +2,16 @@
 
 ## 목적
 
-프론트 화면이 요구하는 API와 read model을 화면 단위로 정리한다. 실제 서버 기술스택이 Spring Boot든 FastAPI든 이 계약은 먼저 맞춘다.
+프론트 화면이 요구하는 API와 read model을 화면 단위로 정리한다. 이 계약은 확정 백엔드인 Spring Boot Main API가 구현한다. FastAPI Worker는 Spring Boot 뒤의 내부 AI/Data worker이며 Flutter 앱에서 직접 호출하지 않는다.
 
 ## 공통 원칙
 
 - API prefix는 `/api/v1`를 사용한다.
 - UI 용어가 `온모임`, `약속`이어도 API 리소스는 `groups`, `plans`를 우선한다.
-- 정산은 반드시 `plans/{planId}` 하위에 둔다.
+- 정산은 반드시 `groups/{groupId}/plans/{planId}/settlements` 하위에 둔다.
 - 장소 후보(`place-candidates`)와 일정 등록 장소(`schedule places`)를 분리한다.
 - 채팅/알림은 domain action의 side effect를 activity event로 받는다.
+- Windows 개발용 Node smoke/contract stub은 이 `/api/v1` shape만 임시 검증한다. 제품 도메인 API 구현 기준은 Spring Boot Main API다.
 
 ## Auth / User
 

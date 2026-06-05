@@ -79,102 +79,68 @@ function placeCandidates() {
       name: "온무식당",
       category: "한식",
       summary: "영업중 · 브레이크타임 없음",
-      score: 92,
-      matchPercent: 88,
       distanceLabel: "홍대입구역 도보 7분",
       travelTimeLabel: "도보 7분",
       priceLabel: "1인 16,000원대",
       isOpen: true,
       address: "서울 마포구 와우산로 24",
       openingLabel: "오늘 11:30-21:00 · LO 20:30",
-      sourceLabel: "Mock Places · 2시간 전 동기화",
-      riskLabel: "안정",
-      riskTone: "none",
-      memberFits: [
-        { label: "A", score: 95, note: "조용한, 담백한" },
-        { label: "B", score: 88, note: "한식, 웨이팅 짧음" },
+      addedBy: "지민",
+      candidateStatusLabel: "후보",
+      heartCount: 4,
+      likedByMe: true,
+      preferenceNotes: [
+        { memberLabel: "A", note: "조용한, 담백한" },
+        { memberLabel: "B", note: "한식, 웨이팅 짧음" },
       ],
       tags: ["조용한", "한식", "단체가능"],
-      reasons: ["평균 점수와 운영 안정성이 가장 높아요.", "약속 시간과 영업시간 충돌이 없어요."],
-      risks: ["운영 리스크 없음"],
+      notes: ["함께 이야기해 볼 만한 한식 후보예요.", "약속 시간대에 방문하기 쉬운 편이에요."],
     },
     {
       id: 202,
       name: "무드카페",
       category: "카페",
       summary: "라스트오더 19:30 임박",
-      score: 84,
-      matchPercent: 82,
       distanceLabel: "합정역 도보 5분",
       travelTimeLabel: "도보 5분",
       priceLabel: "1인 12,000원대",
       isOpen: true,
       address: "서울 마포구 독막로 17",
       openingLabel: "오늘 12:00-20:00 · LO 19:30",
-      sourceLabel: "Mock Places · 12일 전 동기화",
-      riskLabel: "주의",
-      riskTone: "medium",
-      memberFits: [
-        { label: "A", score: 82, note: "디저트" },
-        { label: "B", score: 91, note: "역 가까움" },
+      addedBy: "민수",
+      candidateStatusLabel: "후보",
+      heartCount: 2,
+      likedByMe: false,
+      preferenceNotes: [
+        { memberLabel: "A", note: "디저트" },
+        { memberLabel: "B", note: "역 가까움" },
       ],
       tags: ["디저트", "뷰좋은", "웨이팅"],
-      reasons: ["합정역에서 가장 가까워요.", "라스트오더까지 여유가 짧아 확인이 필요해요."],
-      risks: ["라스트오더 충돌 가능성", "운영시간 정보 오래됨"],
+      notes: ["합정역에서 가까운 카페 후보예요.", "디저트를 같이 먹기 좋은 선택지예요."],
     },
     {
       id: 203,
       name: "하루정원",
       category: "카페",
       summary: "마지막 동기화 12일 전",
-      score: 79,
-      matchPercent: 74,
       distanceLabel: "홍대입구역 도보 11분",
       travelTimeLabel: "도보 11분",
       priceLabel: "1인 14,000원대",
       isOpen: false,
       address: "서울 마포구 양화로 8",
       openingLabel: "영업시간 확인 필요",
-      sourceLabel: "Mock Places · 12일 전 동기화",
-      riskLabel: "확인필요",
-      riskTone: "unknown",
-      memberFits: [
-        { label: "A", score: 78, note: "디저트" },
-        { label: "B", score: 73, note: "조용한" },
+      addedBy: "하린",
+      candidateStatusLabel: "후보",
+      heartCount: 1,
+      likedByMe: false,
+      preferenceNotes: [
+        { memberLabel: "A", note: "디저트" },
+        { memberLabel: "B", note: "조용한" },
       ],
       tags: ["확인 필요", "뷰좋은", "디저트"],
-      reasons: ["사진 기록과 잘 어울리는 공간이에요.", "방문 전 직접 확인이 필요해요."],
-      risks: ["운영시간 정보 오래됨", "휴무일 가능성"],
+      notes: ["사진 기록과 잘 어울리는 공간이에요.", "방문 전 함께 확인해 볼 후보예요."],
     },
   ];
-}
-
-function placeRisks() {
-  return [
-    {
-      title: "라스트오더 충돌 가능성",
-      description: "예상 도착 19:20, 라스트오더 19:30이라 여유 시간이 10분뿐이에요.",
-      level: "blocker",
-      actionLabel: "그래도 후보 추가",
-      evidence: "지도 API · 2026.05.19 갱신",
-    },
-    {
-      title: "운영시간 정보 오래됨",
-      description: "마지막 동기화 12일 전이라 방문 전 직접 확인을 권장합니다.",
-      level: "warning",
-      actionLabel: "전화 확인",
-      evidence: "장소 공지 링크 있음 · 신뢰도 0.72",
-    },
-  ];
-}
-
-function placeVoteResult() {
-  return {
-    title: "온모임 투표 결과",
-    selectedPlaceName: "온무식당",
-    voters: ["민서", "지훈", "하린"],
-    note: "온모임에서 3명이 안정적인 한식 장소에 투표했어요.",
-  };
 }
 
 function settlementSummary() {
@@ -257,6 +223,47 @@ function settlementSummary() {
       { fromName: "준호", toName: "지민", amountLabel: "20,666원" },
     ],
     shareMessage: "주말 나들이 약속 정산입니다. 최종 송금 금액만 확인해 주세요.",
+  };
+}
+
+function settlementDraft(planId = 101) {
+  const summary = settlementSummary();
+  return {
+    planId: parseId(planId),
+    currency: "KRW",
+    memo: "약속 비용을 함께 확인하는 draft입니다.",
+    items: summary.paymentItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      amountLabel: item.amountLabel,
+      payerShares: item.payerShares,
+      targetNames: item.participants.filter((participant) => participant.included).map((participant) => participant.name),
+      targetLabel: item.targetLabel,
+      splitType: item.splitType,
+    })),
+    updatedAtLabel: "방금",
+  };
+}
+
+function placeCandidateFromInput(input = {}, id) {
+  return {
+    id,
+    name: String(input.name || "새 후보 장소").trim(),
+    category: String(input.category || "장소").trim(),
+    summary: String(input.summary || "팀원이 추가한 후보").trim(),
+    distanceLabel: String(input.distanceLabel || "거리 미정").trim(),
+    travelTimeLabel: String(input.travelTimeLabel || "이동 시간 미정").trim(),
+    priceLabel: String(input.priceLabel || "가격대 미정").trim(),
+    isOpen: input.isOpen ?? true,
+    address: String(input.address || "주소 미정").trim(),
+    openingLabel: String(input.openingLabel || "영업시간 미정").trim(),
+    addedBy: String(input.addedBy || "나").trim(),
+    candidateStatusLabel: String(input.candidateStatusLabel || "후보").trim(),
+    heartCount: Number.parseInt(String(input.heartCount ?? 0), 10) || 0,
+    likedByMe: Boolean(input.likedByMe ?? false),
+    preferenceNotes: Array.isArray(input.preferenceNotes) ? input.preferenceNotes : [],
+    tags: Array.isArray(input.tags) ? input.tags : [],
+    notes: Array.isArray(input.notes) ? input.notes : [],
   };
 }
 
@@ -441,12 +448,10 @@ export function createDevContractStore() {
   }
 
   const candidatesByPlanId = new Map();
-  const risksByPlanId = new Map();
-  const voteResultsByPlanId = new Map();
+  const scheduledPlacesByPlanId = new Map();
   for (const planId of [101, 102, 103, 104, 105]) {
     candidatesByPlanId.set(planId, placeCandidates());
-    risksByPlanId.set(planId, placeRisks());
-    voteResultsByPlanId.set(planId, placeVoteResult());
+    scheduledPlacesByPlanId.set(planId, []);
   }
 
   const votesByGroupId = new Map([
@@ -489,10 +494,14 @@ export function createDevContractStore() {
   ]);
   const voteVotersByVoteId = new Map([[501, { 201: ["민서", "하린"], 202: ["지훈"] }]]);
   const settlementsByPlanId = new Map([[101, settlementSummary()], [102, settlementSummary()], [103, settlementSummary()]]);
+  const settlementDraftsByPlanId = new Map([[101, settlementDraft(101)], [102, settlementDraft(102)], [103, settlementDraft(103)]]);
 
   let nextGroupId = 4;
   let nextPlanId = 106;
+  let nextPlaceCandidateId = 204;
+  let nextScheduledPlaceId = 701;
   let nextVoteId = 505;
+  let nextSettlementId = 302;
 
   const groupById = (groupId) => groups.find((group) => group.id === parseId(groupId)) || firstOrThrow(groups, "No groups seeded");
   const planById = (planId) => plansById.get(parseId(planId)) || firstOrThrow([...plansById.values()], "No plans seeded");
@@ -581,9 +590,9 @@ export function createDevContractStore() {
         ...groupPlans(groupId),
       ]);
       candidatesByPlanId.set(plan.id, placeCandidates());
-      risksByPlanId.set(plan.id, placeRisks());
-      voteResultsByPlanId.set(plan.id, placeVoteResult());
+      scheduledPlacesByPlanId.set(plan.id, []);
       settlementsByPlanId.set(plan.id, settlementSummary());
+      settlementDraftsByPlanId.set(plan.id, settlementDraft(plan.id));
       if (!pinnedPlansByGroupId.has(groupId)) {
         pinnedPlansByGroupId.set(groupId, {
           id: plan.id,
@@ -616,8 +625,33 @@ export function createDevContractStore() {
       const candidates = candidatesByPlanId.get(parseId(planId)) || [];
       return candidates.find((candidate) => candidate.id === parseId(candidateId)) || firstOrThrow(candidates, "No place candidates seeded");
     },
-    fetchPlaceRisks: ({ planId }) => risksByPlanId.get(parseId(planId)) || [],
-    fetchPlaceVoteResult: ({ planId }) => voteResultsByPlanId.get(parseId(planId)) || placeVoteResult(),
+    addPlaceCandidate({ planId, input = {} }) {
+      const planKey = parseId(planId);
+      const candidate = placeCandidateFromInput(input, nextPlaceCandidateId++);
+      candidatesByPlanId.set(planKey, [candidate, ...(candidatesByPlanId.get(planKey) || [])]);
+      return candidate;
+    },
+    addSchedulePlace({ planId, input = {} }) {
+      const planKey = parseId(planId);
+      const candidates = candidatesByPlanId.get(planKey) || [];
+      const candidateId = parseId(input.candidateId);
+      const candidate = candidates.find((item) => item.id === candidateId) || null;
+      const schedulePlace = {
+        id: nextScheduledPlaceId++,
+        candidateId: candidate?.id ?? (candidateId || null),
+        name: String(input.name || candidate?.name || "일정 장소").trim(),
+        category: String(input.category || candidate?.category || "장소").trim(),
+        startTime: String(input.startTime || "시간 미정").trim(),
+        endTime: String(input.endTime || "").trim(),
+        order: Number.parseInt(String(input.order ?? (scheduledPlacesByPlanId.get(planKey)?.length || 0) + 1), 10) || 1,
+        note: String(input.note || "").trim(),
+      };
+      scheduledPlacesByPlanId.set(planKey, [...(scheduledPlacesByPlanId.get(planKey) || []), schedulePlace]);
+      return {
+        schedulePlace,
+        schedulePlaces: scheduledPlacesByPlanId.get(planKey) || [],
+      };
+    },
     searchPlaces(query = "") {
       const keyword = String(query).trim();
       const candidates = placeCandidates();
@@ -663,6 +697,63 @@ export function createDevContractStore() {
       },
     fetchVoteVoters: ({ voteId }) => voteVotersByVoteId.get(parseId(voteId)) || {},
     fetchSettlement: ({ planId }) => settlementsByPlanId.get(parseId(planId)) || firstOrThrow([...settlementsByPlanId.values()], "No settlements seeded"),
+    fetchSettlementDraft({ planId }) {
+      const planKey = parseId(planId);
+      if (!settlementDraftsByPlanId.has(planKey)) {
+        settlementDraftsByPlanId.set(planKey, settlementDraft(planKey));
+      }
+      return settlementDraftsByPlanId.get(planKey);
+    },
+    updateSettlementDraft({ planId, input = {} }) {
+      const planKey = parseId(planId);
+      const previous = this.fetchSettlementDraft({ planId: planKey });
+      const draft = {
+        ...previous,
+        ...input,
+        planId: planKey,
+        items: Array.isArray(input.items) ? input.items : previous.items,
+        updatedAtLabel: "방금",
+      };
+      settlementDraftsByPlanId.set(planKey, draft);
+      return draft;
+    },
+    updateSettlementDraftTargets({ planId, itemId, input = {} }) {
+      const planKey = parseId(planId);
+      const draft = this.fetchSettlementDraft({ planId: planKey });
+      const targetNames = Array.isArray(input.targetNames) ? input.targetNames : [];
+      const items = draft.items.map((item) =>
+        item.id === parseId(itemId)
+          ? {
+              ...item,
+              targetNames,
+              targetLabel: `${targetNames.length}명`,
+            }
+          : item,
+      );
+      const updated = { ...draft, items, updatedAtLabel: "방금" };
+      settlementDraftsByPlanId.set(planKey, updated);
+      return updated;
+    },
+    previewSettlement({ planId, input = {} }) {
+      const draft = input.items || input.memo ? this.updateSettlementDraft({ planId, input }) : this.fetchSettlementDraft({ planId });
+      return {
+        draft,
+        preview: settlementsByPlanId.get(parseId(planId)) || settlementSummary(),
+      };
+    },
+    createSettlement({ planId, input = {} }) {
+      const planKey = parseId(planId);
+      if (input.items || input.memo) {
+        this.updateSettlementDraft({ planId: planKey, input });
+      }
+      const summary = {
+        ...(settlementsByPlanId.get(planKey) || settlementSummary()),
+        id: nextSettlementId++,
+        createdDateLabel: "정산일 방금",
+      };
+      settlementsByPlanId.set(planKey, summary);
+      return summary;
+    },
     fetchHomeSummary() {
       let group = groups[0];
       let pinnedPlan = pinnedPlansByGroupId.get(group.id);

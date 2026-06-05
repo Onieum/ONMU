@@ -1,4 +1,4 @@
-# ONMU 현재 아키텍처 다이어그램과 기술 스택 권장안
+# ONMU 현재 아키텍처 다이어그램과 기술 스택 결정안
 
 ## 1. 문서 목적
 
@@ -18,7 +18,7 @@
 | Integration Architecture | API contract, repository, full social OAuth, realtime event, notification, file upload | 다음 설계/구현 대상 |
 | Target Operation Architecture | Azure edge, API Management, Main API, optional Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
 
-Flutter는 확정 스택이다. 백엔드 Main API는 Spring Boot, FastAPI, Spring Boot + FastAPI Worker 조합 중 팀 spike와 논의로 확정한다.
+Flutter는 확정 프론트엔드 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker`로 확정한다. Flutter 앱은 Spring Boot Main API만 직접 호출하고, FastAPI Worker는 Spring Boot 뒤의 내부 AI/Data worker로 둔다.
 
 ## 2. 다이어그램 관리 방식
 
@@ -47,9 +47,9 @@ flowchart LR
     end
 
     subgraph app["애플리케이션 서비스 경계"]
-        ingress --> mainApi["Main API 후보\nSpring Boot 또는 FastAPI"]
+        ingress --> mainApi["Spring Boot Main API"]
         ingress --> realtime["Realtime Gateway"]
-        mainApi --> worker["Optional AI/Data Worker\nFastAPI 등"]
+        mainApi --> worker["FastAPI AI/Data Worker"]
     end
 
     subgraph data["데이터/상태 경계"]
@@ -91,7 +91,7 @@ flowchart LR
 | --- | --- |
 | 클라이언트 경계 | 사용자가 직접 만나는 영역이다. 핵심 제품은 Flutter 앱이고, 웹은 브랜드/프로젝트 소개만 담당한다. |
 | Azure 보안/진입 경계 | 외부 요청이 처음 들어오는 곳이다. WAF, API 정책, 인증 검증, rate limit을 이 계층에서 설명한다. |
-| 애플리케이션 서비스 경계 | Main API는 트랜잭션과 도메인 계약, optional Worker는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
+| 애플리케이션 서비스 경계 | Spring Boot Main API는 트랜잭션과 도메인 계약, FastAPI Worker는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
 | 외부 API 경계 | 네이버 지도/장소, 공유 채널, 외부 공지 정보는 내부 데이터가 아니므로 호출, 캐시, 장애 대응 정책을 따로 둔다. |
 
 ## 4. 제품 데이터 흐름
@@ -149,7 +149,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     local["로컬 개발자 PC"] --> compose["Docker Compose"]
-    compose --> localApi["Spring Boot / FastAPI / Redis / PostgreSQL / MinIO"]
+    compose --> localApi["Spring Boot / FastAPI Worker / Redis / PostgreSQL / MinIO"]
 
     localApi --> devServer["Windows 개발 서버"]
     devServer --> tunnel["Cloudflare Tunnel 또는 제한된 방화벽 포트"]
@@ -194,8 +194,8 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 모바일 앱 | Flutter, go_router, Riverpod, Dio, freezed/json_serializable | iOS/Android를 한 코드베이스로 만들고, 화면/상태/API 모델을 분리하기 좋다. | 즉시 |
 | 프로토타입 | FlutterFlow | 스토리보드와 화면 이동 검증에 빠르다. 단, 최종 앱은 Flutter 코드 품질 기준으로 관리한다. | 즉시 |
 | 브랜드 웹 | 정적 웹, Azure Static Web Apps 또는 Vercel | 제품 소개/팀 소개만 담당하므로 복잡한 웹앱이 필요 없다. | 발표 전 |
-| 메인 API | 선택지: Spring Boot 3 또는 FastAPI | 약속, 참여자, 장소 후보, 정산, 공개 범위를 처리한다. 팀 spike 후 확정한다. | Sprint 0-1 |
-| AI/Data Worker | 선택지: FastAPI 등 Python worker | 장소 추천 설명, OOTD 분석, 기록 설명 생성처럼 비동기/AI 작업을 분리할 때 사용한다. | Sprint 2 |
+| 메인 API | Spring Boot 3 | 약속, 참여자, 장소 후보, 정산, 공개 범위를 처리한다. Flutter 앱이 직접 호출하는 공식 API다. | Sprint 0-1 |
+| AI/Data Worker | FastAPI Python worker | 장소 추천 설명, OOTD 분석, 기록 설명 생성처럼 비동기/AI 작업을 Spring Boot 뒤에서 처리한다. | Sprint 2 |
 | 실시간 상태 | Spring WebSocket 또는 별도 Realtime Gateway, Redis pub/sub | 출발/도착/지각/미확인 상태를 빠르게 fan-out한다. | Sprint 2 |
 | API 경계 | Azure API Management | 모바일 앱과 백엔드 사이에서 인증, rate limit, API 정책을 설명하기 좋다. | Staging |
 | WAF/Edge | Azure Front Door WAF 또는 Application Gateway WAF | 외부 요청의 첫 보안 경계를 명확히 보여준다. | Staging |
@@ -235,17 +235,15 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | Flyway | DB migration | 테이블 생성/변경 이력 | 팀원이 같은 DB 스키마로 개발하고, staging/prod 배포 때 변경을 추적한다. |
 | FastAPI | AI/Data Worker | 장소 후보 설명, OOTD 분석, 추천 설명, 비동기 데이터 처리 | Python AI/데이터 라이브러리와 붙이기 쉽고, Main API와 역할을 분리할 수 있다. |
 
-Spring Boot와 FastAPI를 나누는 기준은 단순하다. 사용자 요청에 즉시 일관성 있게 처리되어야 하는 것은 Main API가 맡고, 시간이 걸리거나 AI/분석 성격이 강한 작업은 optional Worker로 넘긴다.
+Spring Boot와 FastAPI를 나누는 기준은 단순하다. 사용자 요청에 즉시 일관성 있게 처리되어야 하는 것은 Spring Boot Main API가 맡고, 시간이 걸리거나 AI/분석 성격이 강한 작업은 FastAPI Worker로 넘긴다. Flutter 앱은 FastAPI Worker를 직접 호출하지 않는다.
 
-### 7.2.1 백엔드 Main API 선택지
+### 7.2.1 확정 백엔드 구조
 
-| 선택지 | 설명 | 추천 상황 |
+| 구성 | 설명 | 책임 |
 | --- | --- | --- |
-| Spring Boot Main API 단독 | 인증, 권한, 정산, 트랜잭션을 Spring Boot 한 서비스에서 처리 | 운영형 백엔드 기준선과 정합성을 우선할 때 |
-| FastAPI Main API 단독 | API와 AI/Data 성격 작업을 Python 한 서비스에서 빠르게 구현 | 팀이 Python 중심이고 prototype 속도가 중요할 때 |
-| Spring Boot Main API + FastAPI Worker | Spring Boot는 공식 API, FastAPI는 AI/추천/분석 담당 | 권한/정산 안정성과 AI 확장을 함께 가져갈 때 |
-
-현재 임시 추천안은 `Spring Boot Main API + FastAPI Worker`다. 단, 최종 결정은 Sprint 0에서 OAuth, `groups/plans`, 장소 후보 API를 양쪽으로 짧게 spike한 뒤 팀이 결정한다.
+| Spring Boot Main API | Flutter 앱이 직접 호출하는 공식 API | 인증/인가, groups, plans, place-candidates, votes, settlements, records, privacy |
+| FastAPI Worker | Spring Boot 뒤에서 호출되는 내부 worker | AI/추천/분석, 이미지/OOTD 처리, 비동기 데이터 작업 |
+| Node smoke/contract stub | Windows backend-host 검증용 임시 서버 | `/healthz`, `/readyz`, `dev-api.onmu.cloud`, CORS, request log, `/api/v1` contract shape 검증 |
 
 ### 7.3 데이터 저장소
 
@@ -337,7 +335,7 @@ Azure OpenAI는 의사결정을 대신하는 도구가 아니라 설명과 보�
 | 약속 | `/groups/{groupId}/plans` | `Plan` | 장소, 투표, 정산의 기준 단위다. |
 | 장소 후보 | `/place-candidates` | `PlaceCandidate` | 후보 리스트와 실제 일정 등록 장소를 분리한다. |
 | 기록 | `/records` | `Record`, `Memory` | 전역 기록과 모임 기록을 같은 기록 계층에서 연결한다. |
-| 정산 | `/plans/{planId}/settlements` | `Settlement` | 모임 단위가 아니라 약속 단위로만 생성한다. |
+| 정산 | `/groups/{groupId}/plans/{planId}/settlements` | `Settlement` | 모임 단위가 아니라 약속 단위로만 생성한다. |
 
 하단 탭은 `홈 / 온모임 / 기록 / 마이`로 유지한다. route contract는 `RoutePaths`를 기준으로 관리하고, 기존 prototype URL은 `legacy_route_redirects.dart`에서 흡수한다.
 
@@ -381,16 +379,16 @@ Azure OpenAI는 의사결정을 대신하는 도구가 아니라 설명과 보�
 Flutter 앱에서 약속과 취향, 장소 후보, 사진, 정산 정보를 입력한다.
 Main API가 도메인 트랜잭션과 권한을 처리하고,
 PostgreSQL/PostGIS가 약속/장소/정산/공개 범위를 저장한다.
-Optional FastAPI Worker는 Azure OpenAI와 장소 데이터를 활용해 추천과 기록 설명을 생성한다.
+FastAPI Worker는 Spring Boot 뒤에서 Azure OpenAI와 장소 데이터를 활용해 추천과 기록 설명을 생성한다.
 Azure API Management, WAF, Key Vault, Monitor가 보안과 운영 경계를 담당한다.
 Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 ```
 
-## 12. 아직 결정해야 할 것
+## 12. 운영 시 더 정할 것
 
 | 결정 항목 | 추천 기본값 | 나중에 바꿀 수 있는 대안 |
 | --- | --- | --- |
-| 백엔드 Main API | Spring Boot Main API + FastAPI Worker를 임시 추천 | 팀이 Python 중심이면 FastAPI Main API 단독 |
+| 백엔드 구조 | Spring Boot Main API + FastAPI Worker 확정 | Node stub은 Windows backend-host 검증까지만 유지 |
 | 운영 컴퓨트 | Staging은 Container Apps, Production 목표는 AKS | 비용/운영 부담이 크면 Production도 Container Apps |
 | 인증 제공자 | Google/Kakao/Naver full social OAuth + server session | Provider 추가/제거는 auth identity 테이블로 흡수 |
 | 검색 엔진 | PostgreSQL 검색으로 시작 | Azure AI Search, OpenSearch |
@@ -403,7 +401,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | --- | --- |
 | [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
-| [백엔드 기술스택 선택지](./backend-stack-options.md) | Spring Boot/FastAPI/hybrid 선택지와 추천안 |
+| [백엔드 기술스택 결정](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정 구조 |
 | [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |
 | [장소 플로우](../product/place-flow.md) | 후보 리스트, 지도 검색, 일정 등록, 투표 생성 |
 | [정산 플로우](../product/settlement-flow.md) | 약속 단위 정산 생성, 미리보기, 결과, 공유 |

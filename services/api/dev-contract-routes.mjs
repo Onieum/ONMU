@@ -175,9 +175,13 @@ async function planRoutes(store, req, method, groupId, segments) {
   }
 
   if (segments.length === 2 && segments[1] === "place-candidates") {
-    return method === "GET"
-      ? ok(store.fetchPlaceCandidates({ groupId, planId }))
-      : methodNotAllowed(["GET"]);
+    if (method === "GET") {
+      return ok(store.fetchPlaceCandidates({ groupId, planId }));
+    }
+    if (method === "POST") {
+      return ok(store.addPlaceCandidate({ groupId, planId, input: await readJson(req) }), 201);
+    }
+    return methodNotAllowed(["GET", "POST"]);
   }
 
   if (segments.length === 3 && segments[1] === "place-candidates") {
@@ -186,16 +190,11 @@ async function planRoutes(store, req, method, groupId, segments) {
       : methodNotAllowed(["GET"]);
   }
 
-  if (segments.length === 2 && segments[1] === "place-risks") {
-    return method === "GET"
-      ? ok(store.fetchPlaceRisks({ groupId, planId }))
-      : methodNotAllowed(["GET"]);
-  }
-
-  if (segments.length === 2 && segments[1] === "place-vote-result") {
-    return method === "GET"
-      ? ok(store.fetchPlaceVoteResult({ groupId, planId }))
-      : methodNotAllowed(["GET"]);
+  if (segments.length === 2 && segments[1] === "schedule-places") {
+    if (method === "POST") {
+      return ok(store.addSchedulePlace({ groupId, planId, input: await readJson(req) }), 201);
+    }
+    return methodNotAllowed(["POST"]);
   }
 
   if (segments.length === 2 && segments[1] === "votes") {
@@ -214,10 +213,36 @@ async function planRoutes(store, req, method, groupId, segments) {
       : methodNotAllowed(["GET"]);
   }
 
+  if (segments.length === 2 && segments[1] === "settlement-draft") {
+    if (method === "GET") {
+      return ok(store.fetchSettlementDraft({ groupId, planId }));
+    }
+    if (method === "PATCH") {
+      return ok(store.updateSettlementDraft({ groupId, planId, input: await readJson(req) }));
+    }
+    return methodNotAllowed(["GET", "PATCH"]);
+  }
+
+  if (segments.length === 5 && segments[1] === "settlement-draft" && segments[2] === "items" && segments[4] === "targets") {
+    return method === "PATCH"
+      ? ok(store.updateSettlementDraftTargets({ groupId, planId, itemId: segments[3], input: await readJson(req) }))
+      : methodNotAllowed(["PATCH"]);
+  }
+
   if (segments.length === 2 && segments[1] === "settlements") {
-    return method === "GET"
-      ? ok(store.fetchSettlement({ groupId, planId }))
-      : methodNotAllowed(["GET"]);
+    if (method === "GET") {
+      return ok(store.fetchSettlement({ groupId, planId }));
+    }
+    if (method === "POST") {
+      return ok(store.createSettlement({ groupId, planId, input: await readJson(req) }), 201);
+    }
+    return methodNotAllowed(["GET", "POST"]);
+  }
+
+  if (segments.length === 3 && segments[1] === "settlements" && segments[2] === "preview") {
+    return method === "POST"
+      ? ok(store.previewSettlement({ groupId, planId, input: await readJson(req) }))
+      : methodNotAllowed(["POST"]);
   }
 
   if (segments.length === 3 && segments[1] === "settlements") {
