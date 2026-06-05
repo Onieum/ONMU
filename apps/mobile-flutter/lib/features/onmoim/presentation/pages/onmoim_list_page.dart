@@ -17,16 +17,6 @@ class OnMoimListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온모임',
-      actions: [
-        IconButton(
-          tooltip: '온모임 검색',
-          onPressed: () => _showOnMoimListSnack(
-            context,
-            '검색은 입력창에서 모임, 멤버, 약속을 함께 찾는 흐름으로 연결할게요.',
-          ),
-          icon: const Icon(Icons.search),
-        ),
-      ],
       floatingActionButton: FloatingActionButton(
         tooltip: '온모임 만들기',
         backgroundColor: AppColors.primaryPink,
