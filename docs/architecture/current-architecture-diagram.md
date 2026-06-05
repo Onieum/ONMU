@@ -10,6 +10,16 @@
 
 초기 구현은 Flutter 모바일 앱을 중심으로 진행하고, 백엔드는 로컬 Docker 환경에서 시작하되 Azure 운영 환경으로 옮길 수 있는 구조를 전제로 둔다.
 
+2026년 6월 현재 Flutter 프론트가 먼저 구체화되면서, 아키텍처는 아래 세 계층을 구분해서 설명한다.
+
+| 계층 | 설명 | 현재 상태 |
+| --- | --- | --- |
+| Frontend-first Prototype | Flutter route, mock data, 화면 흐름, 디자인 시스템 | 구현 중 |
+| Integration Architecture | API contract, repository, full social OAuth, realtime event, notification, file upload | 다음 설계/구현 대상 |
+| Target Operation Architecture | Azure edge, API Management, Main API, optional Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
+
+Flutter는 확정 스택이다. 백엔드 Main API는 Spring Boot, FastAPI, Spring Boot + FastAPI Worker 조합 중 팀 spike와 논의로 확정한다.
+
 ## 2. 다이어그램 관리 방식
 
 현재 저장소에서는 이 문서의 Mermaid 블록을 다이어그램 원본으로 관리한다. 발표 자료나 Notion에 이미지가 필요할 때만 Mermaid를 PNG/SVG로 렌더링해서 별도 산출물로 만든다.
@@ -37,9 +47,9 @@ flowchart LR
     end
 
     subgraph app["애플리케이션 서비스 경계"]
-        ingress --> mainApi["Spring Boot Main API"]
+        ingress --> mainApi["Main API 후보\nSpring Boot 또는 FastAPI"]
         ingress --> realtime["Realtime Gateway"]
-        mainApi --> worker["FastAPI AI/Data Worker"]
+        mainApi --> worker["Optional AI/Data Worker\nFastAPI 등"]
     end
 
     subgraph data["데이터/상태 경계"]
@@ -81,18 +91,18 @@ flowchart LR
 | --- | --- |
 | 클라이언트 경계 | 사용자가 직접 만나는 영역이다. 핵심 제품은 Flutter 앱이고, 웹은 브랜드/프로젝트 소개만 담당한다. |
 | Azure 보안/진입 경계 | 외부 요청이 처음 들어오는 곳이다. WAF, API 정책, 인증 검증, rate limit을 이 계층에서 설명한다. |
-| 애플리케이션 서비스 경계 | Spring Boot는 트랜잭션과 도메인 계약, FastAPI는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
+| 애플리케이션 서비스 경계 | Main API는 트랜잭션과 도메인 계약, optional Worker는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
 | 외부 API 경계 | 네이버 지도/장소, 공유 채널, 외부 공지 정보는 내부 데이터가 아니므로 호출, 캐시, 장애 대응 정책을 따로 둔다. |
 
 ## 4. 제품 데이터 흐름
 
 ```mermaid
 flowchart TD
-    profile["사용자 프로필/취향 입력"] --> api["Spring Boot Main API"]
+    profile["사용자 프로필/취향 입력"] --> api["Main API"]
     meetup["약속 생성/참여자 초대"] --> api
     place["장소 검색/후보 추가"] --> api
     ootd["사진/OOTD/기록 입력"] --> api
-    settlement["모임 비용/정산 입력"] --> api
+    settlement["약속 단위 비용/정산 입력"] --> api
     privacy["공개 범위 설정"] --> api
 
     api --> tx["도메인 트랜잭션 처리"]
@@ -106,13 +116,13 @@ flowchart TD
     event --> bus["Service Bus 또는 Event Hubs"]
     bus --> worker["FastAPI Worker"]
 
-    worker --> recommend["참여자 취향 병합/장소 점수화"]
-    worker --> risk["휴무일/브레이크타임/비선호 키워드 경고"]
+    worker --> recommend["참여자 취향 병합/장소 후보 설명"]
+    worker --> placeCheck["휴무일/브레이크타임/공지 확인"]
     worker --> aiRecord["OOTD/기록 설명 생성"]
 
     recommend --> openai["Azure OpenAI"]
     aiRecord --> openai
-    risk --> db
+    placeCheck --> db
 
     ootd --> blob["Blob Storage"]
     settlement --> settlementTable["정산 상태 테이블"]
@@ -129,9 +139,9 @@ flowchart TD
 | --- | --- | --- |
 | 프로필/취향 | PostgreSQL, 추천 워커 | 개인화 장소 추천의 근거 |
 | 약속/참여자 | PostgreSQL, Redis, Realtime Gateway | 실시간 협업과 상태 공유 |
-| 장소/외부 API | Naver API, PostGIS, 캐시 | 장소 후보, 거리, 영업 정보, 리스크 판단 |
+| 장소/외부 API | Naver API, PostGIS, 캐시 | 장소 후보, 거리, 영업 정보, 선택 보조 정보 |
 | 사진/OOTD | Blob Storage, FastAPI Worker | 기록, 공유, 재방문 유도 |
-| 정산/비용 | PostgreSQL 트랜잭션 | 실용성 보강, 모임 완료 흐름 |
+| 정산/비용 | PostgreSQL 트랜잭션 | 약속 완료 후 공유/알림까지 이어지는 실용 흐름 |
 | 공개 범위 | 권한 테이블, API 정책 | 개인정보 보호와 공유 정책 |
 
 ## 5. 로컬 개발에서 Azure 운영까지
@@ -184,8 +194,8 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 모바일 앱 | Flutter, go_router, Riverpod, Dio, freezed/json_serializable | iOS/Android를 한 코드베이스로 만들고, 화면/상태/API 모델을 분리하기 좋다. | 즉시 |
 | 프로토타입 | FlutterFlow | 스토리보드와 화면 이동 검증에 빠르다. 단, 최종 앱은 Flutter 코드 품질 기준으로 관리한다. | 즉시 |
 | 브랜드 웹 | 정적 웹, Azure Static Web Apps 또는 Vercel | 제품 소개/팀 소개만 담당하므로 복잡한 웹앱이 필요 없다. | 발표 전 |
-| 메인 API | Spring Boot 3, Java 21, Spring Security, JPA/Querydsl, Flyway | 약속, 참여자, 정산, 공개 범위 같은 트랜잭션 도메인에 적합하다. | Sprint 1 |
-| AI/Data Worker | FastAPI, Pydantic, Python worker | 장소 점수화, OOTD 분석, 추천 설명 생성처럼 비동기/AI 작업을 분리하기 좋다. | Sprint 2 |
+| 메인 API | 선택지: Spring Boot 3 또는 FastAPI | 약속, 참여자, 장소 후보, 정산, 공개 범위를 처리한다. 팀 spike 후 확정한다. | Sprint 0-1 |
+| AI/Data Worker | 선택지: FastAPI 등 Python worker | 장소 추천 설명, OOTD 분석, 기록 설명 생성처럼 비동기/AI 작업을 분리할 때 사용한다. | Sprint 2 |
 | 실시간 상태 | Spring WebSocket 또는 별도 Realtime Gateway, Redis pub/sub | 출발/도착/지각/미확인 상태를 빠르게 fan-out한다. | Sprint 2 |
 | API 경계 | Azure API Management | 모바일 앱과 백엔드 사이에서 인증, rate limit, API 정책을 설명하기 좋다. | Staging |
 | WAF/Edge | Azure Front Door WAF 또는 Application Gateway WAF | 외부 요청의 첫 보안 경계를 명확히 보여준다. | Staging |
@@ -196,7 +206,7 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 검색/RAG | 초기에는 PostgreSQL 검색, 확장 시 Azure AI Search | 처음부터 검색 엔진을 크게 가져가지 않고, 발표용 AI/RAG 확장성을 보여줄 수 있다. | Sprint 2 이후 |
 | 이벤트/큐 | Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | 일반 업무 이벤트는 Service Bus가 단순하고, Kafka 호환/스트리밍 강조가 필요하면 Event Hubs를 붙인다. | Sprint 2 이후 |
 | AI | Azure OpenAI | 추천 설명, 기록 문장 생성, OOTD 분석 결과 요약에 사용한다. 앱에서 직접 호출하지 않고 worker 뒤에 둔다. | Sprint 2 이후 |
-| 인증 | Microsoft Entra External ID 또는 Firebase Auth 추상화 | Azure 발표 관점은 Entra External ID가 좋고, 한국형 소셜 로그인은 provider 추상화로 확장한다. | Sprint 1 |
+| 인증 | full social OAuth + server session | Google/Kakao/Naver provider를 Flutter에서 시작하고 서버가 session/refresh를 관리한다. | Sprint 0 |
 | 비밀값 | Azure Key Vault, Managed Identity | 외부 API 키와 DB 비밀번호를 코드/GitHub/Jira에 남기지 않는다. | Staging |
 | 관측성 | Azure Monitor, Application Insights, OpenTelemetry | Spring/FastAPI/Realtime의 요청 흐름을 trace로 묶어 보여준다. | Sprint 1부터 |
 | IaC/CI | Terraform, GitHub Actions, Dependabot | 로컬에서 Azure로 옮기는 과정을 반복 가능하게 만들고, 공개 저장소 운영 기준을 세운다. | Sprint 0부터 |
@@ -223,9 +233,19 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | Spring Security | Main API 인증/인가 | 로그인 사용자 식별, role/permission, API 보호 | 공개/비공개 기록, 참여자 전용 데이터 같은 권한 판단이 필요하다. |
 | JPA/Querydsl | Main API 데이터 접근 | 약속 목록, 장소 후보, 기록 조회, 정산 상태 조회 | 일반 CRUD와 조건 검색을 타입 안정성 있게 관리한다. |
 | Flyway | DB migration | 테이블 생성/변경 이력 | 팀원이 같은 DB 스키마로 개발하고, staging/prod 배포 때 변경을 추적한다. |
-| FastAPI | AI/Data Worker | 장소 점수화, OOTD 분석, 추천 설명, 비동기 데이터 처리 | Python AI/데이터 라이브러리와 붙이기 쉽고, Spring API와 역할을 분리할 수 있다. |
+| FastAPI | AI/Data Worker | 장소 후보 설명, OOTD 분석, 추천 설명, 비동기 데이터 처리 | Python AI/데이터 라이브러리와 붙이기 쉽고, Main API와 역할을 분리할 수 있다. |
 
-Spring Boot와 FastAPI를 나누는 기준은 단순하다. 사용자 요청에 즉시 일관성 있게 처리되어야 하는 것은 Spring Boot가 맡고, 시간이 걸리거나 AI/분석 성격이 강한 작업은 FastAPI Worker로 넘긴다.
+Spring Boot와 FastAPI를 나누는 기준은 단순하다. 사용자 요청에 즉시 일관성 있게 처리되어야 하는 것은 Main API가 맡고, 시간이 걸리거나 AI/분석 성격이 강한 작업은 optional Worker로 넘긴다.
+
+### 7.2.1 백엔드 Main API 선택지
+
+| 선택지 | 설명 | 추천 상황 |
+| --- | --- | --- |
+| Spring Boot Main API 단독 | 인증, 권한, 정산, 트랜잭션을 Spring Boot 한 서비스에서 처리 | 운영형 백엔드 기준선과 정합성을 우선할 때 |
+| FastAPI Main API 단독 | API와 AI/Data 성격 작업을 Python 한 서비스에서 빠르게 구현 | 팀이 Python 중심이고 prototype 속도가 중요할 때 |
+| Spring Boot Main API + FastAPI Worker | Spring Boot는 공식 API, FastAPI는 AI/추천/분석 담당 | 권한/정산 안정성과 AI 확장을 함께 가져갈 때 |
+
+현재 임시 추천안은 `Spring Boot Main API + FastAPI Worker`다. 단, 최종 결정은 Sprint 0에서 OAuth, `groups/plans`, 장소 후보 API를 양쪽으로 짧게 spike한 뒤 팀이 결정한다.
 
 ### 7.3 데이터 저장소
 
@@ -266,17 +286,17 @@ Redis는 영구 데이터의 원본이 아니다. ONMU에서 원본은 PostgreSQ
 | --- | --- | --- | --- |
 | PostgreSQL Full Text/Search | 초기 검색 | 장소명, 태그, 기록 제목, 메모 검색 | 초기에는 별도 검색 엔진 없이 단순하게 시작한다. |
 | Azure AI Search | 확장 검색/RAG | 기록 검색, 취향 기반 후보 검색, AI 답변 근거 검색 | 발표용 AI/RAG 확장성과 운영형 검색 구조를 보여줄 수 있다. |
-| Azure OpenAI | AI 기능 | 추천 설명 생성, OOTD/기록 문장 생성, 장소 선택 이유 요약 | 단순 점수보다 사용자가 납득할 수 있는 설명을 만든다. |
+| Azure OpenAI | AI 기능 | 추천 설명 생성, OOTD/기록 문장 생성, 장소 선택 이유 요약 | 사용자가 납득할 수 있는 보조 설명을 만든다. |
 | FastAPI Worker | AI 호출 중간 계층 | prompt 구성, 결과 검증, fallback, 비용 제어 | 모바일 앱이나 Spring API가 AI 모델을 직접 호출하지 않게 한다. |
 
-Azure OpenAI는 의사결정을 대신하는 도구가 아니라 설명과 보조 판단을 만드는 계층으로 둔다. 장소 후보 점수 자체는 취향, 거리, 시간, 휴무, 정산/모임 유형 같은 구조화 데이터와 함께 계산한다.
+Azure OpenAI는 의사결정을 대신하는 도구가 아니라 설명과 보조 판단을 만드는 계층으로 둔다. 장소 후보 설명은 취향, 거리, 시간, 휴무, 정산/모임 유형 같은 구조화 데이터를 근거로 만든다.
 
 ### 7.7 외부 API
 
 | 기술 | ONMU에서 쓰는 위치 | 처리하는 것 | 선택 이유 |
 | --- | --- | --- | --- |
 | Naver Maps/Place API | 장소 도메인 | 장소 검색, 좌표, 카테고리, 주소, 지도 표시용 데이터 | 국내 장소 데이터와 사용자 친숙도가 높다. |
-| 외부 공지/휴무 정보 | 장소 리스크 판단 | 휴무일, 브레이크타임, 공지성 정보 | 장소 선택 실패를 줄이기 위한 보조 데이터다. |
+| 외부 공지/휴무 정보 | 장소 선택 보조 | 휴무일, 브레이크타임, 공지성 정보 | 장소 선택 실패를 줄이기 위한 보조 데이터다. |
 | Kakao/Instagram 공유 | Share 도메인 | 공유 카드, 이미지 저장, 외부 공유 | 기록/라이프로그의 확산과 재방문을 유도한다. |
 
 외부 API 응답은 그대로 믿지 않고, 캐시 시간과 출처를 함께 저장한다. 장애가 나면 최근 캐시 또는 수동 입력으로 fallback한다.
@@ -307,59 +327,91 @@ Azure OpenAI는 의사결정을 대신하는 도구가 아니라 설명과 보�
 
 개발 순서는 `Docker Compose로 로컬 통합 -> Windows 개발 서버로 팀 테스트 -> Container Apps staging -> AKS 목표 구조`가 가장 현실적이다.
 
-## 8. 기능 피드백을 아키텍처에 반영하는 방법
+## 8. Frontend-first Prototype 반영
+
+현재 Flutter route는 운영 API보다 먼저 구체화됐다. 그래서 화면 용어와 서버 리소스명을 아래처럼 구분한다.
+
+| 사용자-facing 용어 | Flutter route 기준 | 운영 API/DB 권장명 | 이유 |
+| --- | --- | --- | --- |
+| 온모임 | `/groups`, 기존 legacy `/onmoim` redirect | `Group` | UI 이름이 바뀌어도 모임 리소스는 안정적으로 유지된다. |
+| 약속 | `/groups/{groupId}/plans` | `Plan` | 장소, 투표, 정산의 기준 단위다. |
+| 장소 후보 | `/place-candidates` | `PlaceCandidate` | 후보 리스트와 실제 일정 등록 장소를 분리한다. |
+| 기록 | `/records` | `Record`, `Memory` | 전역 기록과 모임 기록을 같은 기록 계층에서 연결한다. |
+| 정산 | `/plans/{planId}/settlements` | `Settlement` | 모임 단위가 아니라 약속 단위로만 생성한다. |
+
+하단 탭은 `홈 / 온모임 / 기록 / 마이`로 유지한다. route contract는 `RoutePaths`를 기준으로 관리하고, 기존 prototype URL은 `legacy_route_redirects.dart`에서 흡수한다.
+
+## 9. 기능 피드백을 아키텍처에 반영하는 방법
 
 | 피드백 | 아키텍처 반영 |
 | --- | --- |
-| 모임통장/N분의 1 정산 | `Settlement` 도메인 추가, 비용 입력/분담금/입금 상태를 PostgreSQL 트랜잭션으로 관리 |
+| 약속 단위 N분의 1 정산 | `Settlement`를 `Plan` 하위 도메인으로 두고 비용 항목, 대상자, 미리보기, 최종 결과를 PostgreSQL 트랜잭션으로 관리 |
 | 공개/비공개/공유 범위 | `Privacy` 또는 `VisibilityPolicy` 테이블 추가, API 응답마다 권한 필터 적용 |
 | 기존 앱과의 차별점 | 카카오톡/지도/캘린더/사진첩/정산 앱에 흩어진 흐름을 하나의 이벤트 흐름으로 설명 |
 | Azure 중심 아키텍처 | API Management, Key Vault, Azure Monitor, Azure OpenAI, Azure Database for PostgreSQL을 중심에 배치 |
+| 장소 흐름 | 장소 검색은 지도 화면 안에서 이어가고, 후보 추가와 일정 바로 등록을 모두 지원한다. 점수, 운영 리스크, 후보 비교 화면은 현재 합의에서 제외한다. |
 | 외부 API 경계 | Naver API와 공유 채널은 외부 영역으로 분리하고, 캐시/장애/fallback 정책을 명시 |
 | 보안 경계 | WAF, 인증, API 정책, 비밀값 관리, private network, 로그 마스킹을 별도 계층으로 표시 |
 
-## 9. 지금 바로 추가하면 좋은 도메인
+## 10. 지금 바로 추가하면 좋은 도메인
 
 현재 도메인 경계에 아래 세 가지를 추가하면 피드백 반영력이 좋아진다.
 
 | 도메인 | 책임 |
 | --- | --- |
-| Settlement | 모임 총비용, 참여자별 분담금, 입금 상태, 정산 완료 여부 |
+| ChatActivity | 채팅 메시지, 투표 카드, 정산 카드, 약속 변경 알림 |
+| Settlement | 약속 단위 결제 항목, 대상자, 미리보기, 최종 송금 요약, 정산 완료 여부 |
 | Privacy | 기록 공개 범위, 항목별 공개 여부, 외부 공유 정책 |
 | Share | 카카오톡 공유 카드, 인스타그램 저장 이미지, 공유 링크 |
+| Notification | 약속, 투표, 정산, 기록 이벤트의 사용자별 알림 |
 
 초기 구현 범위는 작게 잡는다.
 
-1. 모임별 총비용 입력
-2. 참여자별 N분의 1 자동 계산
-3. 참여자별 정산 상태 체크
-4. 기록 상세 화면에 정산 요약 표시
+1. 약속별 결제 항목 입력
+2. 결제 항목별 정산 대상자 선택
+3. 최종 정산 미리보기와 결과 저장
+4. 채팅과 알림에 정산 결과 카드 공유
 5. 기록 공개 범위 `나만 보기`, `참여자만 보기`, `외부 공유용 이미지`부터 지원
 
-## 10. 발표용 한 장 요약 문구
+## 11. 발표용 한 장 요약 문구
 
 발표에서는 기술을 나열하기보다 아래 흐름으로 설명한다.
 
 ```text
 Flutter 앱에서 약속과 취향, 장소 후보, 사진, 정산 정보를 입력한다.
-Spring Boot API가 도메인 트랜잭션과 권한을 처리하고,
+Main API가 도메인 트랜잭션과 권한을 처리하고,
 PostgreSQL/PostGIS가 약속/장소/정산/공개 범위를 저장한다.
-FastAPI Worker는 Azure OpenAI와 장소 데이터를 활용해 추천과 기록 설명을 생성한다.
+Optional FastAPI Worker는 Azure OpenAI와 장소 데이터를 활용해 추천과 기록 설명을 생성한다.
 Azure API Management, WAF, Key Vault, Monitor가 보안과 운영 경계를 담당한다.
 Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 ```
 
-## 11. 아직 결정해야 할 것
+## 12. 아직 결정해야 할 것
 
 | 결정 항목 | 추천 기본값 | 나중에 바꿀 수 있는 대안 |
 | --- | --- | --- |
+| 백엔드 Main API | Spring Boot Main API + FastAPI Worker를 임시 추천 | 팀이 Python 중심이면 FastAPI Main API 단독 |
 | 운영 컴퓨트 | Staging은 Container Apps, Production 목표는 AKS | 비용/운영 부담이 크면 Production도 Container Apps |
-| 인증 제공자 | Entra External ID를 기준으로 설계하고 provider 추상화 | Firebase Auth, Kakao/Naver OAuth 직접 연동 |
+| 인증 제공자 | Google/Kakao/Naver full social OAuth + server session | Provider 추가/제거는 auth identity 테이블로 흡수 |
 | 검색 엔진 | PostgreSQL 검색으로 시작 | Azure AI Search, OpenSearch |
 | 이벤트 브로커 | Service Bus로 시작 | Kafka 호환성이 필요하면 Event Hubs |
-| 정산 범위 | 기록형 정산 상태 관리 | 실제 결제/송금 연동은 Toss Payments/PortOne 등 별도 검토 |
+| 정산 범위 | 약속 단위 정산 상태 관리 | 실제 결제/송금 연동은 Toss Payments/PortOne 등 별도 검토 |
 
-## 12. 공식 참고 문서
+## 13. 함께 관리하는 세부 문서
+
+| 문서 | 역할 |
+| --- | --- |
+| [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
+| [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
+| [백엔드 기술스택 선택지](./backend-stack-options.md) | Spring Boot/FastAPI/hybrid 선택지와 추천안 |
+| [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |
+| [장소 플로우](../product/place-flow.md) | 후보 리스트, 지도 검색, 일정 등록, 투표 생성 |
+| [정산 플로우](../product/settlement-flow.md) | 약속 단위 정산 생성, 미리보기, 결과, 공유 |
+| [Flutter Routing 운영 규칙](../development/flutter-routing.md) | `RoutePaths`, legacy redirect, demo seed 규칙 |
+| [Flutter UI QA 체크리스트](../development/flutter-ui-qa.md) | iPhone 17 viewport와 화면 깨짐 점검 |
+| [Mock to API Migration](../development/mock-to-api-migration.md) | mock repository에서 실제 API로 전환하는 단계 |
+
+## 14. 공식 참고 문서
 
 - [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps/services)
 - [What is Azure Kubernetes Service](https://learn.microsoft.com/en-us/azure/aks/what-is-aks)
