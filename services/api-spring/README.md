@@ -15,28 +15,28 @@
 - Flyway
 - Test
 
-Maven을 선택한 이유는 이 저장소의 Spring 앱이 아직 작고, `pom.xml` 한 파일에서 의존성/Java target/plugin을 읽기 쉬우며, 이 Windows PC에 Maven/Gradle이 설치되어 있지 않아 wrapper 기반 재현성이 중요하기 때문입니다.
+Maven을 선택한 이유는 이 저장소의 Spring 앱이 아직 작고, `pom.xml` 한 파일에서 의존성/Java target/plugin을 읽기 쉬우며, 로컬 PC에 Maven/Gradle이 없어도 wrapper로 같은 명령을 재현하기 쉽기 때문입니다.
 
 ## 실행
 
 로컬 의존성 실행:
 
 ```powershell
-cd C:\Users\EL035\dataschool\ONMU
+cd C:\dev\ONMU
 npm run host:windows
 ```
 
 Spring Boot 실행:
 
 ```powershell
-cd C:\Users\EL035\dataschool\ONMU\services\api-spring
+cd C:\dev\ONMU\services\api-spring
 .\mvnw.cmd spring-boot:run
 ```
 
 빌드와 테스트:
 
 ```powershell
-cd C:\Users\EL035\dataschool\ONMU\services\api-spring
+cd C:\dev\ONMU\services\api-spring
 .\mvnw.cmd test
 .\mvnw.cmd -DskipTests package
 ```
@@ -53,6 +53,10 @@ cd C:\Users\EL035\dataschool\ONMU\services\api-spring
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:${POSTGRES_HOST_PORT}/onmu` | Spring JDBC URL |
 | `SPRING_DATASOURCE_USERNAME` | `onmu` | DB 사용자 |
 | `SPRING_DATASOURCE_PASSWORD` | `POSTGRES_PASSWORD` 또는 dev 기본값 | DB 비밀번호 |
+| `REDIS_URL` | 없음 | Redis readiness 우선 연결 문자열 |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | `REDIS_URL`이 없을 때 Redis TCP check 대상 |
+| `OBJECT_STORAGE_ENDPOINT` | 없음 | MinIO readiness 우선 endpoint |
+| `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
@@ -74,6 +78,8 @@ Health:
 
 - `GET /healthz`
 - `GET /readyz`
+
+`/readyz`는 PostgreSQL, Redis, MinIO를 모두 필수 의존성으로 확인합니다. Redis는 TCP socket으로, MinIO는 `{endpoint}/minio/health/live` HTTP 요청으로 검사합니다. 하나라도 실패하면 HTTP 503을 반환하고, 응답에는 dependency별 `ok`, `required`, `detail` 또는 `error`만 포함합니다.
 
 Core API:
 
@@ -119,6 +125,12 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/readyz
 curl http://localhost:8080/api/v1/home/summary
 curl http://localhost:8080/api/v1/groups
+curl http://localhost:8080/api/v1/groups/1/summary
+curl -i http://localhost:8080/api/v1/groups/not-found/summary
+curl http://localhost:8080/api/v1/groups/1/plans/101
+curl -i http://localhost:8080/api/v1/groups/1/plans/not-found
+curl http://localhost:8080/api/v1/groups/1/votes/501
+curl -i http://localhost:8080/api/v1/groups/1/votes/not-found
 curl.exe -X POST http://localhost:8080/api/v1/groups -H "Content-Type: application/json" --data-binary '{ "name": "새 모임" }'
 curl http://localhost:8080/api/v1/groups/1/plans
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans -H "Content-Type: application/json" --data-binary '{ "title": "새 약속" }'

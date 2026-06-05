@@ -112,7 +112,7 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> groupSummary(String groupId) {
-    GroupEntity group = groupOrFallback(groupId);
+    GroupEntity group = groupOrThrow(groupId);
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("group", groupCard(group));
     value.put("plans", plans(group.getPublicId()));
@@ -122,13 +122,13 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> plans(String groupId) {
-    GroupEntity group = groupOrFallback(groupId);
+    GroupEntity group = groupOrThrow(groupId);
     return planRepository.findByGroupOrderByStartsAtAsc(group).stream().map(this::planCard).toList();
   }
 
   @Transactional
   public Map<String, Object> createPlan(String groupId, CreatePlanRequest request) {
-    GroupEntity group = groupOrFallback(groupId);
+    GroupEntity group = groupOrThrow(groupId);
     String publicId = nextPublicId(planRepository.findAll().stream()
       .map(PlanEntity::getPublicId)
       .toList(), 101);
@@ -150,18 +150,18 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> plan(String groupId, String planId) {
-    return planCard(planOrFallback(groupOrFallback(groupId), planId));
+    return planCard(planOrThrow(groupOrThrow(groupId), planId));
   }
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> votes(String groupId) {
-    GroupEntity group = groupOrFallback(groupId);
+    GroupEntity group = groupOrThrow(groupId);
     return voteRepository.findByGroupOrderByCreatedAtAsc(group).stream().map(this::voteCard).toList();
   }
 
   @Transactional
   public Map<String, Object> createVote(String groupId, CreateVoteRequest request) {
-    GroupEntity group = groupOrFallback(groupId);
+    GroupEntity group = groupOrThrow(groupId);
     String publicId = nextPublicId(voteRepository.findAll().stream()
       .map(VoteEntity::getPublicId)
       .toList(), 501);
@@ -191,28 +191,25 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> vote(String groupId, String voteId) {
-    return voteCard(voteOrFallback(groupOrFallback(groupId), voteId));
+    return voteCard(voteOrThrow(groupOrThrow(groupId), voteId));
   }
 
   private UserEntity currentUser() {
     return userRepository.findFirstByOrderByCreatedAtAsc().orElseThrow(this::noSeedData);
   }
 
-  private GroupEntity groupOrFallback(String groupId) {
+  private GroupEntity groupOrThrow(String groupId) {
     return groupRepository.findByPublicId(groupId)
-      .or(() -> groupRepository.findAllByOrderByCreatedAtAsc().stream().findFirst())
-      .orElseThrow(this::noSeedData);
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
   }
 
-  private PlanEntity planOrFallback(GroupEntity group, String planId) {
+  private PlanEntity planOrThrow(GroupEntity group, String planId) {
     return planRepository.findByGroupAndPublicId(group, planId)
-      .or(() -> planRepository.findByGroupOrderByStartsAtAsc(group).stream().findFirst())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
   }
 
-  private VoteEntity voteOrFallback(GroupEntity group, String voteId) {
+  private VoteEntity voteOrThrow(GroupEntity group, String voteId) {
     return voteRepository.findByGroupAndPublicId(group, voteId)
-      .or(() -> voteRepository.findByGroupOrderByCreatedAtAsc(group).stream().findFirst())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "vote_not_found"));
   }
 
