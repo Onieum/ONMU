@@ -20,6 +20,14 @@ class OnMoimGroupHomePage extends StatelessWidget {
 
     return OnmuScaffold(
       useWarmBackground: false,
+      floatingActionButton: FloatingActionButton(
+        key: const ValueKey('onmoim-home-create-meetup-fab'),
+        tooltip: '약속 만들기',
+        onPressed: () => context.go(RoutePaths.onmoimMeetupNew(group.id)),
+        backgroundColor: AppColors.primaryPurple,
+        foregroundColor: AppColors.textInverse,
+        child: const Icon(Icons.add),
+      ),
       children: [
         _GroupHomeHeader(group: group),
         const SizedBox(height: AppSpacing.md),
@@ -29,10 +37,6 @@ class OnMoimGroupHomePage extends StatelessWidget {
           title: '다가오는 약속',
           actionLabel: '전체 보기',
           onTap: () => context.go(RoutePaths.onmoimMeetups(group.id)),
-          secondaryLabel: '약속 만들기',
-          secondaryIcon: Icons.add,
-          onSecondaryTap: () =>
-              context.go(RoutePaths.onmoimMeetupNew(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupCard(
@@ -55,14 +59,6 @@ class OnMoimGroupHomePage extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         _RecentChatPreview(onTap: () => context.go(RoutePaths.onmoimDemoChat)),
-        const SizedBox(height: AppSpacing.lg),
-        _SectionHeader(
-          title: '모임원',
-          actionLabel: '전체 보기',
-          onTap: () => context.go(RoutePaths.onmoimMembers(group.id)),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _MemberStrip(group: group),
       ],
     );
   }
@@ -75,12 +71,14 @@ class _GroupHomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const sideActionWidth = 104.0;
+
     return Column(
       children: [
         Row(
           children: [
             SizedBox(
-              width: 92,
+              width: sideActionWidth,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
@@ -92,7 +90,7 @@ class _GroupHomeHeader extends StatelessWidget {
             ),
             Expanded(child: _HeaderAvatarCluster(members: group.members)),
             SizedBox(
-              width: 92,
+              width: sideActionWidth,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -258,17 +256,11 @@ class _SectionHeader extends StatelessWidget {
     required this.title,
     required this.actionLabel,
     required this.onTap,
-    this.secondaryLabel,
-    this.secondaryIcon,
-    this.onSecondaryTap,
   });
 
   final String title;
   final String actionLabel;
   final VoidCallback onTap;
-  final String? secondaryLabel;
-  final IconData? secondaryIcon;
-  final VoidCallback? onSecondaryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -277,20 +269,6 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
-        if (secondaryLabel != null && onSecondaryTap != null) ...[
-          TextButton.icon(
-            onPressed: onSecondaryTap,
-            icon: Icon(secondaryIcon ?? Icons.add, size: 16),
-            label: Text(secondaryLabel!),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryPink,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              minimumSize: const Size(0, 32),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-        ],
         TextButton.icon(
           onPressed: onTap,
           icon: Text(actionLabel),
@@ -512,89 +490,6 @@ class _RecentChatPreview extends StatelessWidget {
             const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _MemberStrip extends StatelessWidget {
-  const _MemberStrip({required this.group});
-
-  final OnMoimGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final member in group.members.take(4)) ...[
-            _MemberAvatar(member: member),
-            const SizedBox(width: AppSpacing.md),
-          ],
-          _InviteButton(
-            onTap: () => context.go(RoutePaths.onmoimInvite(group.id)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberAvatar extends StatelessWidget {
-  const _MemberAvatar({required this.member});
-
-  final String member;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      child: Column(
-        children: [
-          PixelAvatar(label: member, size: 46),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            member,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InviteButton extends StatelessWidget {
-  const _InviteButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      child: Column(
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            onTap: onTap,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: AppColors.lineBrown),
-              ),
-              child: const SizedBox.square(
-                dimension: 46,
-                child: Icon(Icons.add, color: AppColors.accentBrown),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text('초대', style: Theme.of(context).textTheme.labelMedium),
-        ],
       ),
     );
   }
