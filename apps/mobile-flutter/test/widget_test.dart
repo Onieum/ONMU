@@ -686,4 +686,54 @@ void main() {
     expect(find.text('온무식당'), findsOneWidget);
     expect(find.text('민서님 선택'), findsOneWidget);
   });
+
+  testWidgets('onmoim chat menu opens vote list', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimChat('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 메뉴'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표 목록'), findsOneWidget);
+
+    await tester.tap(find.text('투표 목록'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('대학 동기 여행단 · 채팅에서 만든 투표'), findsOneWidget);
+    expect(find.text('진행 중인 투표'), findsOneWidget);
+    expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
+  });
+
+  testWidgets('onmoim vote list opens vote detail', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimVotes('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('투표 확인하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표 보기'), findsOneWidget);
+    expect(find.text('후보별 투표 현황'), findsOneWidget);
+  });
+
+  testWidgets('onmoim vote list filter shows closed votes', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimVotes('friends'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마감'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('지난 투표'), findsOneWidget);
+    expect(find.text('한강 피크닉 메뉴'), findsOneWidget);
+    expect(find.text('보드게임 모임 장소'), findsOneWidget);
+    expect(find.text('제주도 여행 장소 투표'), findsNothing);
+  });
 }
