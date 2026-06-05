@@ -6,6 +6,7 @@ import 'package:onmu_mobile/app/onmu_app.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
+import 'package:onmu_mobile/features/home/home_page.dart';
 import 'package:onmu_mobile/features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 
 void main() {
@@ -78,7 +79,7 @@ void main() {
     appRouter.go(RoutePaths.home);
     await tester.pumpAndSettle();
 
-    expect(find.text('상세 보기'), findsOneWidget);
+    expect(find.text('상세 보기'), findsNothing);
 
     await tester.tap(find.text('성수 저녁 약속'));
     await tester.pumpAndSettle();
@@ -86,6 +87,25 @@ void main() {
     expect(find.text('제주도 여행'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
   });
+
+  testWidgets(
+    'home header shows ONMU logo and active card fits compact width',
+    (tester) async {
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      await binding.setSurfaceSize(const Size(360, 780));
+      addTearDown(() => binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.lightTheme, home: const HomePage()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('ONMU'), findsOneWidget);
+      expect(find.text('상세 보기'), findsNothing);
+      expect(find.text('채팅'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('upcoming meetup see all opens the full upcoming list', (
     tester,

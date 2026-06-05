@@ -77,8 +77,6 @@ class _HomePageState extends State<HomePage> {
           meetup: meetup,
           onTap: () =>
               context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
-          onDetailTap: () =>
-              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
           onChatTap: () => context.push(RoutePaths.onmoimChat('friends')),
         ),
         const SizedBox(height: AppSpacing.xxl),
@@ -129,51 +127,101 @@ class _HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PixelAvatar(label: '지', size: 64),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '안녕하세요, 지우님',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '오늘은 2개의 약속이 있어요',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
-          ),
-        ),
-        Stack(
-          clipBehavior: Clip.none,
+        Row(
           children: [
-            IconButton(
-              tooltip: '알림',
-              onPressed: onNotificationTap,
-              icon: const Icon(Icons.notifications_none),
-            ),
-            Positioned(
-              right: 11,
-              top: 9,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPink,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: AppColors.bgWarm, width: 2),
+            const _HomeLogo(),
+            const Spacer(),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  tooltip: '알림',
+                  onPressed: onNotificationTap,
+                  icon: const Icon(Icons.notifications_none),
                 ),
-                child: const SizedBox.square(dimension: 10),
+                Positioned(
+                  right: 11,
+                  top: 9,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPink,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: AppColors.bgWarm, width: 2),
+                    ),
+                    child: const SizedBox.square(dimension: 10),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            const PixelAvatar(label: '지', size: 64),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '안녕하세요, 지우님',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    '오늘은 2개의 약속이 있어요',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSub,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _HomeLogo extends StatelessWidget {
+  const _HomeLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'ONMU 로고',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.primaryPinkSoft,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: AppColors.linePink),
+            ),
+            child: const SizedBox.square(
+              dimension: 28,
+              child: Icon(
+                Icons.favorite,
+                size: 16,
+                color: AppColors.primaryPurple,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            'ONMU',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: AppColors.primaryPurpleDark,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -213,13 +261,11 @@ class _ActiveMeetupCard extends StatelessWidget {
   const _ActiveMeetupCard({
     required this.meetup,
     required this.onTap,
-    required this.onDetailTap,
     required this.onChatTap,
   });
 
   final Meetup meetup;
   final VoidCallback onTap;
-  final VoidCallback onDetailTap;
   final VoidCallback onChatTap;
 
   @override
@@ -268,16 +314,15 @@ class _ActiveMeetupCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              for (final member in meetup.members.take(4)) ...[
-                PixelAvatar(label: member.name, size: 32),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              const Spacer(),
-              _CompactHomeButton(
-                label: '상세 보기',
-                icon: Icons.arrow_forward_ios,
-                filled: true,
-                onTap: onDetailTap,
+              Expanded(
+                child: Row(
+                  children: [
+                    for (final member in meetup.members.take(4)) ...[
+                      PixelAvatar(label: member.name, size: 32),
+                      const SizedBox(width: AppSpacing.xs),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               _CompactHomeButton(
@@ -298,19 +343,14 @@ class _CompactHomeButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onTap,
-    this.filled = false,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-  final bool filled;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = filled ? AppColors.textInverse : AppColors.primaryPurple;
-    final background = filled ? AppColors.primaryPurple : AppColors.bgDefault;
-
     return Material(
       color: AppColors.transparent,
       child: InkWell(
@@ -318,7 +358,7 @@ class _CompactHomeButton extends StatelessWidget {
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: background,
+            color: AppColors.bgDefault,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: AppColors.linePink),
           ),
@@ -334,10 +374,12 @@ class _CompactHomeButton extends StatelessWidget {
                   label,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelMedium?.copyWith(color: foreground),
+                  ).textTheme.labelMedium?.copyWith(
+                    color: AppColors.primaryPurple,
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.xxs),
-                Icon(icon, size: 13, color: foreground),
+                Icon(icon, size: 13, color: AppColors.primaryPurple),
               ],
             ),
           ),
