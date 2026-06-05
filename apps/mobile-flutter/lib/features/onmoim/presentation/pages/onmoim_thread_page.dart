@@ -80,10 +80,24 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
 
         context.go(RoutePaths.onmoimDemo);
       },
-      action: IconButton(
-        tooltip: '채팅 설정',
-        onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
-        icon: const Icon(Icons.more_vert),
+      action: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: '채팅 검색',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('채팅 검색은 다음 단계에서 연결할게요.')),
+              );
+            },
+            icon: const Icon(Icons.search),
+          ),
+          IconButton(
+            tooltip: '채팅 설정',
+            onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
+            icon: const Icon(Icons.more_vert),
+          ),
+        ],
       ),
       bottom: _MessageInput(
         controller: _messageController,

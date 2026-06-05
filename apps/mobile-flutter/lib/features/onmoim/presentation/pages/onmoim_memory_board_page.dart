@@ -29,10 +29,24 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
 
         context.go(RoutePaths.onmoimDemo);
       },
-      action: IconButton(
-        tooltip: '기록 옵션',
-        onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
-        icon: const Icon(Icons.more_vert),
+      action: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: '기록 검색',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('기록 검색은 다음 단계에서 연결할게요.')),
+              );
+            },
+            icon: const Icon(Icons.search),
+          ),
+          IconButton(
+            tooltip: '기록 옵션',
+            onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
+            icon: const Icon(Icons.more_vert),
+          ),
+        ],
       ),
       useWarmBackground: false,
       children: [
