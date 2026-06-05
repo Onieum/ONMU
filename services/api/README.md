@@ -91,6 +91,22 @@ npm run tunnel:cloudflare
 
 Cloudflare Tunnel은 Node stub 또는 이후 Spring Boot Main API의 HTTP gateway만 `dev-api.onmu.cloud`로 노출합니다. DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 별도 Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
 
+## Windows dev backend CD
+
+PR #63 범위에서 GitHub Actions CD의 기본 runtime은 `node-stub`입니다. `dev` 브랜치에 merge되면 self-hosted Windows runner가 `scripts/windows/deploy-dev-backend.ps1`를 실행해 이 Node stub을 재시작하고, `dev-api.onmu.cloud` 공개 smoke endpoint를 검증합니다.
+
+runtime 선택 우선순위는 다음과 같습니다.
+
+1. `scripts/windows/deploy-dev-backend.ps1 -Runtime <value>` CLI 파라미터
+2. `ONMU_BACKEND_RUNTIME` 환경변수
+3. 기본값 `node-stub`
+
+`node-stub` runtime은 현재 `services/api/server.mjs`를 실행합니다. CD 스크립트는 `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정해 기존 Node 서버의 우선순위(`API_HOST`/`API_PORT` 먼저, 없으면 `HOST`/`PORT`)와 맞춥니다. 기본값은 `127.0.0.1:8080`이며, Cloudflare Tunnel은 별도 서비스로 떠 있다고 보고 중복 실행하지 않습니다.
+
+공유 Windows dev 서버에서 `AZURE_KEY_VAULT_NAME`이 설정되어 있으면 CD 스크립트가 필요한 환경변수를 Key Vault에서 조용히 로드합니다. secret 값은 로그에 출력하지 않습니다. 로컬 단일 개발 환경에서는 현재 환경변수나 `.env.example` 기반의 임시 기본값으로도 stub을 실행할 수 있습니다.
+
+나중에 Spring Boot Main API가 실제 실행 가능한 프로젝트로 들어오면 workflow input 또는 `ONMU_BACKEND_RUNTIME=spring`으로 runtime을 전환합니다. 그 전까지 `spring` runtime은 scaffold 상태를 확인하고 일반 실행에서는 실패하도록 둡니다.
+
 ## 검증
 
 ```powershell

@@ -4,6 +4,18 @@
 
 현재 PR 범위에서는 실행 가능한 Spring Boot 프로젝트를 완성하지 않고, 다음 구현자가 바로 시작할 수 있도록 책임, endpoint TODO, Flyway migration ownership, outbox contract만 먼저 고정합니다.
 
+PR #63에서는 이 디렉터리를 CD 실행 대상으로 보지 않습니다. Windows dev backend CD의 기본 runtime은 `node-stub`이고, `spring` runtime은 다음 PR에서 실행 가능한 Spring Boot 앱이 추가된 뒤 전환합니다. 현재 `scripts/windows/deploy-dev-backend.ps1 -Runtime spring`은 dry-run에서는 예정 명령만 보여주고, 일반 실행에서는 실행 가능한 Gradle/Maven 프로젝트가 없다는 명확한 메시지와 함께 실패합니다.
+
+Spring Boot 구현 PR에서 넘겨받아야 하는 운영 계약은 다음과 같습니다.
+
+- `GET /healthz`
+- `GET /readyz`
+- `dev-api.onmu.cloud -> localhost:8080`
+- `logs/api-access.log`에 준하는 request log 또는 동등한 관측성
+- `/api/v1` canonical API 계약
+- `POST /api/v1/groups/{groupId}/votes`
+- `POST /api/v1/place-search`
+
 ## 확정 책임
 
 - Spring Boot 3 + Java 21

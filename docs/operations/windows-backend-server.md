@@ -452,6 +452,91 @@ npm run tunnel:cloudflare:quick
 
 `cloudflared tunnel route dns`에서 `Authentication error`가 나면 현재 `~/.cloudflared/cert.pem`이 새 zone 권한을 갖고 있지 않은 상태입니다. 기존 인증서는 백업해 두고 `cloudflared login`을 다시 실행한 뒤 `onmu.cloud`를 선택해서 승인합니다.
 
+### GitHub Actions Windows dev backend CD
+
+PR #63 범위에서는 Windows dev backend를 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반만 둡니다. Spring Boot 실제 앱 구현은 다음 PR 범위이므로, 현재 기본 배포 runtime은 Node smoke/contract stub입니다.
+
+workflow 파일:
+
+```text
+.github/workflows/deploy-dev-backend.yml
+```
+
+자동 배포 trigger:
+
+- `push` to `dev`
+- `workflow_dispatch`
+
+`pull_request`에서는 실행하지 않습니다. ONMU 저장소는 public repo이므로 fork PR이나 리뷰 전 코드가 self-hosted Windows runner에서 실행되면 runner PC의 파일, 네트워크, 로컬 서비스, 캐시가 노출될 수 있습니다. 그래서 배포 workflow는 PR 검증 CI와 분리하고, merge된 `dev` 또는 권한 있는 사용자의 수동 실행만 허용합니다.
+
+권장 self-hosted runner label:
+
+```text
+self-hosted
+Windows
+onmu-dev-backend
+```
+
+runner 등록 개요:
+
+1. GitHub repository settings에서 Actions runner를 추가합니다.
+2. Windows x64 runner를 내려받아 서버 PC에 설치합니다.
+3. runner 이름은 서버 역할이 드러나게 정합니다. 예: `onmu-dev-backend-win`
+4. label에 `self-hosted`, `Windows`, `onmu-dev-backend`가 포함되는지 확인합니다.
+5. runner는 가능한 전용 Windows 계정으로 실행하고, 관리자 권한은 필요한 작업에만 제한합니다.
+6. `.env`, runner registration token, GitHub token, Cloudflare token, Azure credential은 파일이나 workflow에 커밋하지 않습니다.
+
+수동 배포 명령:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime node-stub
+```
+
+dry-run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime node-stub
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime spring
+```
+
+runtime 선택 우선순위:
+
+1. CLI 파라미터: `-Runtime node-stub` 또는 `-Runtime spring`
+2. 환경변수: `ONMU_BACKEND_RUNTIME=node-stub` 또는 `ONMU_BACKEND_RUNTIME=spring`
+3. 기본값: `node-stub`
+
+runtime별 동작:
+
+| Runtime | 현재 동작 |
+| --- | --- |
+| `node-stub` | `services/api/server.mjs`를 `127.0.0.1:8080`에서 재시작합니다. `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정하고, PID 파일과 8080 port owner를 기준으로 기존 ONMU API 프로세스를 정리합니다. |
+| `spring` | 현재 PR에서는 실행 가능한 Spring Boot 앱이 없으므로 일반 실행은 실패합니다. dry-run은 실패하지 않고 다음 PR에서 실행할 예정 명령만 보여줍니다. |
+
+Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `dev-api.onmu.cloud -> localhost:8080` tunnel connector는 별도 서비스로 이미 떠 있다고 보고, 배포 스크립트는 API runtime만 교체한 뒤 같은 공개 endpoint를 smoke test합니다.
+
+CD smoke test:
+
+```text
+GET  https://dev-api.onmu.cloud/healthz?client=github-actions-cd
+GET  https://dev-api.onmu.cloud/readyz?client=github-actions-cd
+GET  https://dev-api.onmu.cloud/api/v1/home/summary?client=github-actions-cd
+POST https://dev-api.onmu.cloud/api/v1/place-search?client=github-actions-cd
+POST https://dev-api.onmu.cloud/api/v1/groups/1/votes?client=github-actions-cd
+```
+
+smoke test가 실패하면 GitHub Actions job도 실패합니다. `readyz`는 PostgreSQL, Redis, MinIO 연결까지 확인하므로 Docker Desktop과 로컬 compose 의존성이 먼저 정상이어야 합니다.
+
+로그 확인:
+
+```powershell
+Get-Content logs\deploy-dev-backend.log -Tail 80
+Get-Content logs\dev-backend-api.out.log -Tail 80
+Get-Content logs\dev-backend-api.err.log -Tail 80
+Get-Content logs\api-access.log -Tail 20
+```
+
+`logs\api-access.log`에서 `dev_client` 값이 `github-actions-cd`인 요청을 찾으면 Cloudflare를 거친 CD smoke 요청이 Windows API까지 도달한 것입니다.
+
 ### Cloudflare Access TCP로 개발 DB 접속
 
 DB를 클라우드처럼 팀원이 점검해야 할 때도 PostgreSQL 포트를 인터넷에 직접 열지 않습니다. ONMU 개발 서버의 권장 구조는 다음과 같습니다.
