@@ -21,6 +21,7 @@ class SettlementPaymentParticipant {
 
 class SettlementPaymentItem {
   const SettlementPaymentItem({
+    required this.id,
     required this.title,
     required this.amountLabel,
     required this.payerShares,
@@ -29,6 +30,7 @@ class SettlementPaymentItem {
     required this.participants,
   });
 
+  final String id;
   final String title;
   final String amountLabel;
   final List<SettlementPayerShare> payerShares;
@@ -38,8 +40,14 @@ class SettlementPaymentItem {
 
   String get payerLabel => payerShares.map((payer) => payer.name).join(', ');
 
+  List<SettlementPaymentParticipant> get includedParticipants =>
+      participants.where((participant) => participant.included).toList();
+
+  String get targetModeLabel =>
+      splitType == SettlementSplitType.equal ? '전체 참여자' : '직접 선택';
+
   String get splitTypeLabel =>
-      splitType == SettlementSplitType.equal ? '1/N' : '참여자별 금액';
+      splitType == SettlementSplitType.equal ? '1/N' : '개별 금액';
 }
 
 class SettlementTransferSummary {
@@ -119,6 +127,7 @@ const demoSettlementSummary = SettlementSummary(
   mySummaryLabel: '나는 103,333원을 받아요',
   paymentItems: [
     SettlementPaymentItem(
+      id: 'dinner',
       title: '저녁',
       amountLabel: '124,000원',
       payerShares: [SettlementPayerShare(name: '지민', amountLabel: '124,000원')],
@@ -127,6 +136,7 @@ const demoSettlementSummary = SettlementSummary(
       participants: _allParticipants,
     ),
     SettlementPaymentItem(
+      id: 'cafe',
       title: '카페',
       amountLabel: '62,000원',
       payerShares: [

@@ -30,6 +30,7 @@ import 'features/onmoim/presentation/pages/onmoim_memory_board_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_memory_detail_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_create_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
+import 'features/onmoim/presentation/pages/onmoim_settlement_target_selection_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_thread_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
 import 'features/onmoim/presentation/pages/onmoim_vote_list_page.dart';
@@ -411,6 +412,24 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
                                   OnMoimSettlementCreatePage(
                                     onmoimId: state.pathParameters['onmoimId']!,
                                     meetupId: state.pathParameters['meetupId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/items/:itemId/targets',
+                              builder: (context, state) =>
+                                  OnMoimSettlementTargetSelectionPage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                    itemId: state.pathParameters['itemId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/preview',
+                              builder: (context, state) =>
+                                  OnMoimSettlementSharePage(
+                                    onmoimId: state.pathParameters['onmoimId']!,
+                                    meetupId: state.pathParameters['meetupId']!,
+                                    preview: true,
                                   ),
                             ),
                             GoRoute(

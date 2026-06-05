@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/onmoim_models.dart';
+import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -140,6 +141,17 @@ class _OnMoimThreadPageState extends State<OnMoimThreadPage> {
         _VoteNoticeCard(
           vote: demoOnMoimVoteCard,
           onTap: () => context.push(RoutePaths.onmoimVote(group.id, 'demo')),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _SettlementNoticeCard(
+          settlement: demoSettlementSummary,
+          onTap: () => context.push(
+            RoutePaths.onmoimMeetupSettlementShare(
+              group.id,
+              'demo',
+              demoSettlementSummary.id,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         const _DateDivider(label: '2024년 6월 2일'),
@@ -277,6 +289,78 @@ class _VoteNoticeCard extends StatelessWidget {
                 onPressed: onTap,
                 icon: const Icon(Icons.place_outlined, size: 16),
                 label: Text(vote.actionLabel),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettlementNoticeCard extends StatelessWidget {
+  const _SettlementNoticeCard({required this.settlement, required this.onTap});
+
+  final SettlementSummary settlement;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 336),
+        child: OnmuCard(
+          backgroundColor: AppColors.bgDefault,
+          borderColor: AppColors.lineWarm,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.receipt_long_outlined,
+                    size: 18,
+                    color: AppColors.primaryPink,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'ONMU 정산',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.primaryPink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${settlement.meetupTitle} 정산이 만들어졌어요.',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                '총 ${settlement.totalAmountLabel} · ${settlement.finalSummaryLabel}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryPink,
+                  foregroundColor: AppColors.textInverse,
+                  minimumSize: const Size.fromHeight(36),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                  ),
+                ),
+                onPressed: onTap,
+                icon: const Icon(Icons.payments_outlined, size: 16),
+                label: const Text('정산 확인하기'),
               ),
             ],
           ),
