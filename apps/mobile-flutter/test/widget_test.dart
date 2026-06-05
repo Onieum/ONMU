@@ -13,11 +13,9 @@ void main() {
   testWidgets('starts with splash and opens login', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: app.OnmuApp()));
 
-    expect(find.text('ONMU'), findsOneWidget);
-    expect(find.text('약속을 잡고,'), findsOneWidget);
-    expect(find.text('함께한 순간을 기록해요'), findsOneWidget);
+    expect(find.text('약속을 잡고,\n함께한 순간을 기록해요'), findsOneWidget);
 
-    await tester.tap(find.text('ONMU'));
+    await tester.tapAt(tester.getCenter(find.byType(Scaffold).first));
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     expect(find.text('카카오로 시작하기'), findsOneWidget);
@@ -30,14 +28,14 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: app.OnmuApp()));
 
-    await tester.tap(find.text('ONMU'));
+    await tester.tapAt(tester.getCenter(find.byType(Scaffold).first));
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     await tester.tap(find.text('네이버로 시작하기'));
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('기록 준비를 해볼까요?'), findsOneWidget);
+    expect(find.textContaining('기록 준비', findRichText: true), findsOneWidget);
     expect(find.text('캐릭터 만들기'), findsOneWidget);
     expect(find.text('취향 선택'), findsOneWidget);
 
