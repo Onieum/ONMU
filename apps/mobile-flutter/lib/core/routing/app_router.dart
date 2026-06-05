@@ -25,6 +25,7 @@ import '../../features/onmoim/presentation/pages/onmoim_settlement_create_page.d
 import '../../features/onmoim/presentation/pages/onmoim_settlement_share_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_thread_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
+import '../../features/onboarding/onboarding_hub_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_compare_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -57,9 +58,15 @@ final appRouter = GoRouter(
           PreferenceIntroPage(profile: PreferenceProfile.mock()),
     ),
     GoRoute(
+      path: RoutePaths.onboarding,
+      builder: (context, state) => const OnboardingHubPage(),
+    ),
+    GoRoute(
       path: RoutePaths.characterStart,
-      builder: (context, state) =>
-          CharacterStartPage(onCompleted: (_) => context.go(RoutePaths.home)),
+      builder: (context, state) => CharacterStartPage(
+        onBackToOnboarding: () => context.go(RoutePaths.onboarding),
+        onCompleted: (_) => context.go(RoutePaths.onboarding),
+      ),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
