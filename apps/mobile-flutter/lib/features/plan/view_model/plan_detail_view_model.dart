@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../group/view_model/group_plan_list_view_model.dart';
+import '../../home/view_model/home_view_model.dart';
 import '../../../shared/models/plan_models.dart';
 import '../repository/plan_repository.dart';
 
@@ -34,8 +36,11 @@ class PlanDetailState {
 
 class PlanDetailViewModel
     extends FamilyAsyncNotifier<PlanDetailState, PlanScope> {
+  late PlanScope _scope;
+
   @override
   Future<PlanDetailState> build(PlanScope arg) async {
+    _scope = arg;
     final repository = ref.watch(planRepositoryProvider);
     final plan = await repository.fetchPlan(
       groupId: arg.groupId,
@@ -55,5 +60,19 @@ class PlanDetailViewModel
         visitPlansByDate.map(List<VisitPlan>.unmodifiable),
       ),
     );
+  }
+
+  Future<Plan> savePlan({
+    required PlanCreateInput input,
+    required bool editing,
+  }) async {
+    final repository = ref.read(planRepositoryProvider);
+    final plan = editing
+        ? await repository.updatePlan(planId: _scope.planId, input: input)
+        : await repository.createPlan(input);
+
+    ref.invalidate(groupPlanListViewModelProvider(_scope.groupId));
+    ref.invalidate(homeViewModelProvider);
+    return plan;
   }
 }

@@ -50,14 +50,16 @@ class GroupChatViewModel extends FamilyAsyncNotifier<GroupChatState, String> {
 
     final pinnedPlan = await groupRepository.fetchPinnedPlan(arg);
     final plans = await groupRepository.fetchPlans(arg);
-    final planId = pinnedPlan?.id ?? plans.first.id;
+    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
+    final votes = await groupRepository.fetchVotes(arg);
+    final voteId = votes.isEmpty ? 0 : votes.first.id;
 
     return GroupChatState(
       group: await groupRepository.fetchGroup(arg),
       pinnedPlan: pinnedPlan,
       messages: await groupRepository.fetchMessages(arg),
-      vote: await groupRepository.fetchVoteCard(arg),
-      voteId: 501,
+      vote: await groupRepository.fetchVoteCard(groupId: arg, voteId: voteId),
+      voteId: voteId,
       planId: planId,
       settlement: await settlementRepository.fetchSettlement(
         groupId: arg,

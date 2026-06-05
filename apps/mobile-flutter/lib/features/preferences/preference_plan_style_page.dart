@@ -15,7 +15,7 @@ class PreferencePlanStylePage extends StatefulWidget {
 }
 
 class _PreferencePlanStylePageState extends State<PreferencePlanStylePage> {
-  static const _options = [
+  final _options = [
     '미리 일정을 정하는 편',
     '당일 번개 약속도 괜찮아요',
     '주말에 여유롭게 만나고 싶어요',

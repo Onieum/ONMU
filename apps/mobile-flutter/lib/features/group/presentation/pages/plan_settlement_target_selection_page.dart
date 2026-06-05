@@ -247,13 +247,15 @@ class _TargetModeSegmentedControl extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  static const _modes = ['전체 참여자', '직접 선택', '금액 다르게'];
+  List<String> _createModes() => ['전체 참여자', '직접 선택', '금액 다르게'];
 
   @override
   Widget build(BuildContext context) {
+    final modes = _createModes();
+
     return Row(
       children: [
-        for (final mode in _modes) ...[
+        for (final mode in modes) ...[
           Expanded(
             child: _TargetModeButton(
               label: mode,
@@ -261,7 +263,7 @@ class _TargetModeSegmentedControl extends StatelessWidget {
               onTap: () => onSelected(mode),
             ),
           ),
-          if (mode != _modes.last) const SizedBox(width: AppSpacing.xs),
+          if (mode != modes.last) const SizedBox(width: AppSpacing.xs),
         ],
       ],
     );

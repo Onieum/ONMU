@@ -401,7 +401,7 @@ class _DateTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['6/7 토', '6/8 일', '6/9 월'];
+    final tabs = ['6/7 토', '6/8 일', '6/9 월'];
 
     return Row(
       children: [

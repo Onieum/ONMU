@@ -1,15 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
+import '../../../shared/models/vote_models.dart';
+import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final groupRepositoryProvider = Provider<GroupRepository>(
-  (ref) => const MockGroupRepository(),
+  (ref) => MockGroupRepository(ref.watch(inMemoryOnmuStoreProvider)),
 );
 
 abstract interface class GroupRepository {
   Future<List<GroupSummary>> fetchGroups();
 
   Future<GroupSummary> fetchGroup(Object groupId);
+
+  Future<GroupSummary> createGroup(GroupCreateInput input);
 
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId);
 
@@ -21,7 +25,19 @@ abstract interface class GroupRepository {
 
   Future<List<GroupMessage>> fetchMessages(Object groupId);
 
-  Future<VoteCard> fetchVoteCard(Object groupId);
+  Future<List<VoteSummary>> fetchVotes(Object groupId);
+
+  Future<VoteSummary> createVote(VoteCreateInput input);
+
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  });
+
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  });
 
   Future<GroupMemoryRecord> fetchMemory({
     required Object groupId,
@@ -30,39 +46,43 @@ abstract interface class GroupRepository {
 }
 
 class MockGroupRepository implements GroupRepository {
-  const MockGroupRepository();
+  MockGroupRepository(this._store);
+
+  final InMemoryOnmuStore _store;
 
   @override
   Future<GroupSummary> fetchGroup(Object groupId) async {
-    return mockGroups.firstWhere(
-      (group) => group.id.toString() == groupId.toString(),
-      orElse: () => mockGroups.first,
-    );
+    return _store.fetchGroup(groupId);
+  }
+
+  @override
+  Future<GroupSummary> createGroup(GroupCreateInput input) async {
+    return _store.createGroup(input);
   }
 
   @override
   Future<List<GroupSummary>> fetchGroups() async {
-    return List.unmodifiable(mockGroups);
+    return _store.fetchGroups();
   }
 
   @override
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
-    return List.unmodifiable(mockGroupPlans);
+    return _store.fetchGroupPlans(groupId);
   }
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
-    return List.unmodifiable(mockGroupMemories);
+    return _store.fetchMemories(groupId);
   }
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
-    return List.unmodifiable(mockGroupMemberProfiles);
+    return _store.fetchMembers(groupId);
   }
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return List.unmodifiable(mockGroupMessages);
+    return _store.fetchMessages(groupId);
   }
 
   @override
@@ -70,19 +90,37 @@ class MockGroupRepository implements GroupRepository {
     required Object groupId,
     required Object memoryId,
   }) async {
-    return mockGroupMemories.firstWhere(
-      (memory) => memory.id.toString() == memoryId.toString(),
-      orElse: () => mockGroupMemories.first,
-    );
+    return _store.fetchMemory(groupId: groupId, memoryId: memoryId);
   }
 
   @override
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
-    return mockPinnedPlan;
+    return _store.fetchPinnedPlan(groupId);
   }
 
   @override
-  Future<VoteCard> fetchVoteCard(Object groupId) async {
-    return mockVoteCard;
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
+    return _store.fetchVotes(groupId);
+  }
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) async {
+    return _store.createVote(input);
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return _store.fetchVoteCard(groupId: groupId, voteId: voteId);
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return _store.fetchVoteVoters(groupId: groupId, voteId: voteId);
   }
 }

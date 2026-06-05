@@ -391,7 +391,7 @@ class _RecentMemoryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const memories = [
+    final iconStyles = [
       (Icons.park_outlined, AppColors.accentGreen),
       (Icons.water, AppColors.accentBlue),
       (Icons.nightlight_round, AppColors.accentBrown),
@@ -402,11 +402,11 @@ class _RecentMemoryStrip extends StatelessWidget {
       height: 82,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: this.memories.length,
+        itemCount: memories.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
-          final memory = memories[index];
-          final record = this.memories[index];
+          final memory = iconStyles[index % iconStyles.length];
+          final record = memories[index];
 
           return _MemoryThumb(
             icon: memory.$1,

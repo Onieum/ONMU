@@ -28,10 +28,19 @@ class PlaceVoteCreatePage extends ConsumerStatefulWidget {
 }
 
 class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
-  static const _createdVoteId = 501;
-
+  final _titleController = TextEditingController(text: '제주도 여행 장소 투표');
+  final _deadlineDateController = TextEditingController(text: '2026.06.08');
+  final _deadlineTimeController = TextEditingController(text: '18:00');
   final Set<int> _selectedCandidateIds = {};
   var _voteMode = '단일 선택';
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _deadlineDateController.dispose();
+    _deadlineTimeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +78,11 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
   }
 
   Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
+    final provider = placeCandidatesViewModelProvider((
+      groupId: widget.groupId,
+      planId: widget.planId,
+    ));
+
     return OnmuScaffold(
       title: '투표 만들기',
       showBackButton: true,
@@ -80,17 +94,27 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         foregroundColor: AppColors.textInverse,
         onPressed: _selectedCandidateIds.isEmpty
             ? null
-            : () => context.go(
-                RoutePaths.planVote(
-                  widget.groupId,
-                  widget.planId,
-                  _createdVoteId,
-                ),
-              ),
+            : () async {
+                final voteId = await ref
+                    .read(provider.notifier)
+                    .createPlaceVote(
+                      title: _titleController.text,
+                      modeLabel: _voteMode,
+                      deadlineDate: _deadlineDateController.text,
+                      deadlineTime: _deadlineTimeController.text,
+                      selectedCandidateIds: _selectedCandidateIds,
+                    );
+                if (!context.mounted) {
+                  return;
+                }
+                context.go(
+                  RoutePaths.planVote(widget.groupId, widget.planId, voteId),
+                );
+              },
       ),
       children: [
         TextFormField(
-          initialValue: '제주도 여행 장소 투표',
+          controller: _titleController,
           decoration: const InputDecoration(
             labelText: '투표 제목',
             hintText: '투표 제목을 입력해 주세요',
@@ -138,7 +162,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
                 children: [
                   Expanded(
                     child: TextFormField(
-                      initialValue: '2026.06.08',
+                      controller: _deadlineDateController,
                       decoration: const InputDecoration(
                         labelText: '마감 날짜',
                         prefixIcon: Icon(Icons.calendar_today_outlined),
@@ -148,7 +172,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: TextFormField(
-                      initialValue: '18:00',
+                      controller: _deadlineTimeController,
                       decoration: const InputDecoration(
                         labelText: '마감 시간',
                         prefixIcon: Icon(Icons.access_time),

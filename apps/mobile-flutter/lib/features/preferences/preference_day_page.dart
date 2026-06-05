@@ -13,7 +13,7 @@ class PreferenceDayPage extends StatefulWidget {
 }
 
 class _PreferenceDayPageState extends State<PreferenceDayPage> {
-  static const _weekdayOptions = [
+  final _weekdayOptions = [
     '월요일',
     '화요일',
     '수요일',
@@ -24,7 +24,7 @@ class _PreferenceDayPageState extends State<PreferenceDayPage> {
     '상관 없어요',
   ];
 
-  static const _timeOptions = ['오전', '점심', '오후', '저녁', '일정 보고 결정할게요'];
+  final _timeOptions = ['오전', '점심', '오후', '저녁', '일정 보고 결정할게요'];
 
   late final Set<String> _selectedWeekdays = widget.profile.preferredWeekdays
       .toSet();

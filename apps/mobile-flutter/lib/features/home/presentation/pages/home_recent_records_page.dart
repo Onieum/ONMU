@@ -21,10 +21,11 @@ class _HomeRecentRecordsPageState extends State<HomeRecentRecordsPage> {
   String _selectedFilter = '전체';
 
   List<_HomeRecord> get _records {
+    final records = _createHomeRecords();
     if (_selectedFilter == '전체') {
-      return _allRecords;
+      return records;
     }
-    return _allRecords
+    return records
         .where((record) => record.category == _selectedFilter)
         .toList();
   }
@@ -49,7 +50,7 @@ class _HomeRecentRecordsPageState extends State<HomeRecentRecordsPage> {
         icon: const Icon(Icons.tune),
       ),
       children: [
-        _RecordHeader(totalCount: _allRecords.length),
+        _RecordHeader(totalCount: _createHomeRecords().length),
         const SizedBox(height: AppSpacing.lg),
         _RecordFilters(
           selected: _selectedFilter,
@@ -115,7 +116,7 @@ class _RecordHeader extends StatelessWidget {
 class _RecordFilters extends StatelessWidget {
   const _RecordFilters({required this.selected, required this.onChanged});
 
-  static const _filters = ['전체', '사진', '카페', '여행', '기타'];
+  List<String> _createFilters() => ['전체', '사진', '카페', '여행', '기타'];
 
   final String selected;
   final ValueChanged<String> onChanged;
@@ -126,7 +127,7 @@ class _RecordFilters extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (final filter in _filters) ...[
+          for (final filter in _createFilters()) ...[
             _FilterChipButton(
               label: filter,
               selected: selected == filter,
@@ -311,50 +312,52 @@ class _HomeRecord {
   final bool liked;
 }
 
-const _allRecords = [
-  _HomeRecord(
-    author: '지연',
-    title: '성수동 카페',
-    date: '2024.05.24',
-    category: '카페',
-    icon: Icons.local_cafe_outlined,
-    backgroundColor: AppColors.photoFrameRoseBg,
-    iconColor: AppColors.accentBrown,
-    likes: '12',
-    liked: true,
-  ),
-  _HomeRecord(
-    author: '민수',
-    title: '제주 바다',
-    date: '2024.05.16',
-    category: '여행',
-    icon: Icons.water,
-    backgroundColor: AppColors.calendarDateBlueBg,
-    iconColor: AppColors.accentBlue,
-    likes: '8',
-  ),
-  _HomeRecord(
-    author: '하린',
-    title: '전시회 다녀왔어요',
-    date: '2024.05.10',
-    category: '사진',
-    icon: Icons.image_outlined,
-    backgroundColor: AppColors.photoFrameGreenBg,
-    iconColor: AppColors.accentGreen,
-    likes: '5',
-  ),
-  _HomeRecord(
-    author: '현우',
-    title: '한강 피크닉',
-    date: '2024.05.10',
-    category: '기타',
-    icon: Icons.park_outlined,
-    backgroundColor: AppColors.photoFrameYellowBg,
-    iconColor: AppColors.accentOrange,
-    likes: '15',
-    liked: true,
-  ),
-];
+List<_HomeRecord> _createHomeRecords() {
+  return [
+    _HomeRecord(
+      author: '지연',
+      title: '성수동 카페',
+      date: '2024.05.24',
+      category: '카페',
+      icon: Icons.local_cafe_outlined,
+      backgroundColor: AppColors.photoFrameRoseBg,
+      iconColor: AppColors.accentBrown,
+      likes: '12',
+      liked: true,
+    ),
+    _HomeRecord(
+      author: '민수',
+      title: '제주 바다',
+      date: '2024.05.16',
+      category: '여행',
+      icon: Icons.water,
+      backgroundColor: AppColors.calendarDateBlueBg,
+      iconColor: AppColors.accentBlue,
+      likes: '8',
+    ),
+    _HomeRecord(
+      author: '하린',
+      title: '전시회 다녀왔어요',
+      date: '2024.05.10',
+      category: '사진',
+      icon: Icons.image_outlined,
+      backgroundColor: AppColors.photoFrameGreenBg,
+      iconColor: AppColors.accentGreen,
+      likes: '5',
+    ),
+    _HomeRecord(
+      author: '현우',
+      title: '한강 피크닉',
+      date: '2024.05.10',
+      category: '기타',
+      icon: Icons.park_outlined,
+      backgroundColor: AppColors.photoFrameYellowBg,
+      iconColor: AppColors.accentOrange,
+      likes: '15',
+      liked: true,
+    ),
+  ];
+}
 
 void _showSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));

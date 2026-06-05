@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/place_models.dart';
+import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final placeRepositoryProvider = Provider<PlaceRepository>(
-  (ref) => const MockPlaceRepository(),
+  (ref) => MockPlaceRepository(ref.watch(inMemoryOnmuStoreProvider)),
 );
 
 abstract interface class PlaceRepository {
@@ -30,7 +31,9 @@ abstract interface class PlaceRepository {
 }
 
 class MockPlaceRepository implements PlaceRepository {
-  const MockPlaceRepository();
+  MockPlaceRepository(this._store);
+
+  final InMemoryOnmuStore _store;
 
   @override
   Future<PlaceCandidate> fetchCandidate({
@@ -38,7 +41,11 @@ class MockPlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
   }) async {
-    return findPlaceCandidate(candidateId.toString());
+    return _store.fetchPlaceCandidate(
+      groupId: groupId,
+      planId: planId,
+      candidateId: candidateId,
+    );
   }
 
   @override
@@ -46,7 +53,7 @@ class MockPlaceRepository implements PlaceRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return List.unmodifiable(mockPlaceCandidates);
+    return _store.fetchPlaceCandidates(groupId: groupId, planId: planId);
   }
 
   @override
@@ -54,7 +61,7 @@ class MockPlaceRepository implements PlaceRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return List.unmodifiable(mockPlaceRisks);
+    return _store.fetchPlaceRisks(groupId: groupId, planId: planId);
   }
 
   @override
@@ -62,6 +69,6 @@ class MockPlaceRepository implements PlaceRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return mockPlaceVoteResult;
+    return _store.fetchPlaceVoteResult(groupId: groupId, planId: planId);
   }
 }

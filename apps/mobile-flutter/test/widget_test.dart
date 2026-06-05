@@ -205,6 +205,30 @@ void main() {
     expect(find.text('참여 멤버'), findsOneWidget);
   });
 
+  testWidgets('group creation persists the new group in repository state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groups);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('온모임 만들기'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '테스트 모임');
+    await tester.enterText(find.byType(TextField).at(1), '생성 흐름 검증');
+    await tester.tap(find.widgetWithText(FilledButton, '온모임 만들기'));
+    await tester.pumpAndSettle();
+
+    appRouter.go(RoutePaths.groups);
+    await tester.pumpAndSettle();
+
+    expect(find.text('테스트 모임'), findsOneWidget);
+    expect(find.text('생성 흐름 검증'), findsOneWidget);
+  });
+
   testWidgets('group home member count opens member list', (tester) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));

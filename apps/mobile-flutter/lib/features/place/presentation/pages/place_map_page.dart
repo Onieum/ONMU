@@ -25,7 +25,7 @@ class PlaceMapPage extends ConsumerStatefulWidget {
 }
 
 class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
-  static const _categories = ['전체', '한식', '카페', '전시', '술집'];
+  final _categories = ['전체', '한식', '카페', '전시', '술집'];
 
   bool _searchActive = false;
   String _query = '';
@@ -418,7 +418,7 @@ class _MapCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const positions = [
+    final positions = [
       (left: 92.0, top: 132.0, right: null, bottom: null),
       (left: null, top: 220.0, right: 96.0, bottom: null),
       (left: null, top: 128.0, right: 66.0, bottom: null),

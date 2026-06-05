@@ -60,8 +60,23 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
             useWarmBackground: false,
             bottom: OnmuPrimaryButton(
               label: '온모임 만들기',
-              onPressed: () =>
-                  context.go(RoutePaths.groupDetail(state.createdGroupId)),
+              onPressed: _nameController.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      final created = await ref
+                          .read(groupCreateViewModelProvider.notifier)
+                          .createGroup(
+                            name: _nameController.text,
+                            description: _descriptionController.text,
+                            memberNames: widget.initialMemberNames.isNotEmpty
+                                ? widget.initialMemberNames
+                                : state.recommendedMemberNames,
+                          );
+                      if (!context.mounted) {
+                        return;
+                      }
+                      context.go(RoutePaths.groupDetail(created.id));
+                    },
             ),
             children: [
               OnmuCard(

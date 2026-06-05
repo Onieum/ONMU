@@ -99,18 +99,22 @@ class _UpcomingPlansContent extends StatelessWidget {
 class _MonthHeader extends StatelessWidget {
   const _MonthHeader();
 
-  static const _days = [
-    ('24', '월', false),
-    ('25', '화', false),
-    ('26', '수', false),
-    ('27', '목', false),
-    ('28', '금', true),
-    ('29', '토', false),
-    ('30', '일', false),
-  ];
+  List<(String, String, bool)> _createDays() {
+    return [
+      ('24', '월', false),
+      ('25', '화', false),
+      ('26', '수', false),
+      ('27', '목', false),
+      ('28', '금', true),
+      ('29', '토', false),
+      ('30', '일', false),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final days = _createDays();
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
@@ -122,7 +126,7 @@ class _MonthHeader extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              for (final day in _days)
+              for (final day in days)
                 Expanded(
                   child: _DayPill(
                     day: day.$1,

@@ -24,10 +24,11 @@ class _HomeNotificationsPageState extends ConsumerState<HomeNotificationsPage> {
   String _selectedFilter = '전체';
 
   List<_NotificationItem> get _filteredItems {
+    final items = _createNotificationItems();
     if (_selectedFilter == '전체') {
-      return _items;
+      return items;
     }
-    return _items.where((item) => item.kind == _selectedFilter).toList();
+    return items.where((item) => item.kind == _selectedFilter).toList();
   }
 
   @override
@@ -111,7 +112,7 @@ class _HomeNotificationsPageState extends ConsumerState<HomeNotificationsPage> {
 class _NotificationFilters extends StatelessWidget {
   const _NotificationFilters({required this.selected, required this.onChanged});
 
-  static const _filters = ['전체', '약속', '투표', '정산', '기록'];
+  List<String> _createFilters() => ['전체', '약속', '투표', '정산', '기록'];
 
   final String selected;
   final ValueChanged<String> onChanged;
@@ -122,7 +123,7 @@ class _NotificationFilters extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (final filter in _filters) ...[
+          for (final filter in _createFilters()) ...[
             _FilterChipButton(
               label: filter,
               selected: selected == filter,
@@ -344,70 +345,72 @@ class _NotificationRouteScope {
   final int settlementId;
 }
 
-const _items = [
-  _NotificationItem(
-    group: '오늘',
-    kind: '약속',
-    title: '성수 저녁 약속이 30분 뒤 시작돼요',
-    body: '다운타우너 성수 · 18:30 · 도착까지 20분',
-    time: '방금 전',
-    icon: Icons.event_available_outlined,
-    color: AppColors.primaryPurple,
-    actionLabel: '약속 상세 보기',
-    unread: true,
-  ),
-  _NotificationItem(
-    group: '오늘',
-    kind: '투표',
-    title: '제주도 여행 장소 투표가 열렸어요',
-    body: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
-    time: '12분 전',
-    icon: Icons.how_to_vote_outlined,
-    color: AppColors.accentBlue,
-    actionLabel: '투표 확인하기',
-    unread: true,
-  ),
-  _NotificationItem(
-    group: '오늘',
-    kind: '정산',
-    title: '주말 나들이 정산이 만들어졌어요',
-    body: '나는 103,333원을 받아요 · 총 186,000원',
-    time: '25분 전',
-    icon: Icons.receipt_long_outlined,
-    color: AppColors.primaryPink,
-    actionLabel: '정산 확인하기',
-    unread: true,
-  ),
-  _NotificationItem(
-    group: '오늘',
-    kind: '기록',
-    title: '민수님이 최근 기록에 댓글을 남겼어요',
-    body: '“분위기 좋다! 어디야?”',
-    time: '오전 10:24',
-    icon: Icons.chat_bubble_outline,
-    color: AppColors.accentBrown,
-    actionLabel: '기록 보기',
-  ),
-  _NotificationItem(
-    group: '어제',
-    kind: '약속',
-    title: '한남 카페 투어 일정이 확정됐어요',
-    body: '5월 28일 토요일 오후 2시 · 한남동 일대',
-    time: '오후 6:12',
-    icon: Icons.check_circle_outline,
-    color: AppColors.accentGreen,
-    actionLabel: '약속 확인하기',
-  ),
-  _NotificationItem(
-    group: '어제',
-    kind: '기록',
-    title: '하린님이 제주 바다 기록에 좋아요를 눌렀어요',
-    body: '대학 동기 여행단 · 최근 기록',
-    time: '오후 2:03',
-    icon: Icons.favorite_border,
-    color: AppColors.primaryPink,
-  ),
-];
+List<_NotificationItem> _createNotificationItems() {
+  return [
+    _NotificationItem(
+      group: '오늘',
+      kind: '약속',
+      title: '성수 저녁 약속이 30분 뒤 시작돼요',
+      body: '다운타우너 성수 · 18:30 · 도착까지 20분',
+      time: '방금 전',
+      icon: Icons.event_available_outlined,
+      color: AppColors.primaryPurple,
+      actionLabel: '약속 상세 보기',
+      unread: true,
+    ),
+    _NotificationItem(
+      group: '오늘',
+      kind: '투표',
+      title: '제주도 여행 장소 투표가 열렸어요',
+      body: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
+      time: '12분 전',
+      icon: Icons.how_to_vote_outlined,
+      color: AppColors.accentBlue,
+      actionLabel: '투표 확인하기',
+      unread: true,
+    ),
+    _NotificationItem(
+      group: '오늘',
+      kind: '정산',
+      title: '주말 나들이 정산이 만들어졌어요',
+      body: '나는 103,333원을 받아요 · 총 186,000원',
+      time: '25분 전',
+      icon: Icons.receipt_long_outlined,
+      color: AppColors.primaryPink,
+      actionLabel: '정산 확인하기',
+      unread: true,
+    ),
+    _NotificationItem(
+      group: '오늘',
+      kind: '기록',
+      title: '민수님이 최근 기록에 댓글을 남겼어요',
+      body: '“분위기 좋다! 어디야?”',
+      time: '오전 10:24',
+      icon: Icons.chat_bubble_outline,
+      color: AppColors.accentBrown,
+      actionLabel: '기록 보기',
+    ),
+    _NotificationItem(
+      group: '어제',
+      kind: '약속',
+      title: '한남 카페 투어 일정이 확정됐어요',
+      body: '5월 28일 토요일 오후 2시 · 한남동 일대',
+      time: '오후 6:12',
+      icon: Icons.check_circle_outline,
+      color: AppColors.accentGreen,
+      actionLabel: '약속 확인하기',
+    ),
+    _NotificationItem(
+      group: '어제',
+      kind: '기록',
+      title: '하린님이 제주 바다 기록에 좋아요를 눌렀어요',
+      body: '대학 동기 여행단 · 최근 기록',
+      time: '오후 2:03',
+      icon: Icons.favorite_border,
+      color: AppColors.primaryPink,
+    ),
+  ];
+}
 
 void _handleNotificationTap(
   BuildContext context,

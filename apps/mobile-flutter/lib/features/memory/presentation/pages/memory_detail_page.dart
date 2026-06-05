@@ -16,7 +16,7 @@ class MemoryDetailPage extends ConsumerWidget {
   const MemoryDetailPage({super.key, required this.memoryId});
 
   // Mock records generator helper (matching the ones in OotdListPage)
-  List<OotdRecord> _getMockRecords(CharacterDraft baseChar) {
+  List<OotdRecord> _createDefaultRecords(CharacterDraft baseChar) {
     return [
       OotdRecord(
         date: DateTime(2026, 10, 1),
@@ -141,9 +141,9 @@ class MemoryDetailPage extends ConsumerWidget {
   OotdRecord? _findRecord(WidgetRef ref, String key) {
     final character = ref.read(userCharacterProvider) ?? const CharacterDraft();
     final customRecords = ref.read(customRecordsProvider);
-    final mockRecords = _getMockRecords(character);
+    final defaultRecords = _createDefaultRecords(character);
 
-    final allRecords = [...mockRecords, ...customRecords];
+    final allRecords = [...defaultRecords, ...customRecords];
 
     try {
       return allRecords.firstWhere((r) {

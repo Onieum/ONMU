@@ -32,9 +32,23 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
     final groups = await groupRepository.fetchGroups();
-    final group = groups.first;
-    final pinnedPlan = await groupRepository.fetchPinnedPlan(group.id);
-    final plans = await groupRepository.fetchPlans(group.id);
+    var group = groups.first;
+    var pinnedPlan = await groupRepository.fetchPinnedPlan(group.id);
+    var plans = await groupRepository.fetchPlans(group.id);
+    for (final candidateGroup in groups) {
+      final candidatePinnedPlan = await groupRepository.fetchPinnedPlan(
+        candidateGroup.id,
+      );
+      final candidatePlans = await groupRepository.fetchPlans(
+        candidateGroup.id,
+      );
+      if (candidatePinnedPlan != null || candidatePlans.isNotEmpty) {
+        group = candidateGroup;
+        pinnedPlan = candidatePinnedPlan;
+        plans = candidatePlans;
+        break;
+      }
+    }
     final activePlanId = pinnedPlan?.id ?? plans.first.id;
     final activePlan = await planRepository.fetchPlan(
       groupId: group.id,

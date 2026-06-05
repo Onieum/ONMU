@@ -14,7 +14,7 @@ class PreferenceFoodPage extends StatefulWidget {
 }
 
 class _PreferenceFoodPageState extends State<PreferenceFoodPage> {
-  static const _favoriteOptions = [
+  final _favoriteOptions = [
     '한식',
     '일식',
     '양식',
@@ -25,7 +25,7 @@ class _PreferenceFoodPageState extends State<PreferenceFoodPage> {
     '비건/건강식',
     '상관 없어요',
   ];
-  static const _dislikeOptions = [
+  final _dislikeOptions = [
     '너무 매운 음식',
     '해산물',
     '향신료 강한 음식',

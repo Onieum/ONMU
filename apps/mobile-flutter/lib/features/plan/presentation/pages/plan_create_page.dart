@@ -13,27 +13,113 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/plan_detail_view_model.dart';
 
-class PlanCreatePage extends ConsumerWidget {
+class PlanCreatePage extends ConsumerStatefulWidget {
   const PlanCreatePage({required this.groupId, super.key, this.editingPlanId});
 
   final String groupId;
   final String? editingPlanId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlanCreatePage> createState() => _PlanCreatePageState();
+}
+
+class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
+  final _titleController = TextEditingController();
+  final _startController = TextEditingController();
+  final _endController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _memoController = TextEditingController();
+  int? _loadedPlanId;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [
+      _titleController,
+      _startController,
+      _endController,
+      _locationController,
+      _memoController,
+    ]) {
+      controller.addListener(_sync);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _titleController,
+      _startController,
+      _endController,
+      _locationController,
+      _memoController,
+    ]) {
+      controller
+        ..removeListener(_sync)
+        ..dispose();
+    }
+    super.dispose();
+  }
+
+  void _sync() => setState(() {});
+
+  void _loadPlanIntoForm(Plan plan) {
+    if (_loadedPlanId == plan.id) {
+      return;
+    }
+    _loadedPlanId = plan.id;
+    _titleController.text = plan.title;
+    _startController.text = plan.dateTime;
+    _endController.text = plan.dateTime;
+    _locationController.text = plan.location;
+    _memoController.text = plan.memo;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final provider = planDetailViewModelProvider((
-      groupId: groupId,
-      planId: editingPlanId ?? '101',
+      groupId: widget.groupId,
+      planId: widget.editingPlanId ?? '101',
     ));
     final state = ref.watch(provider);
 
     return state.when(
-      data: (state) => _PlanCreateContent(
-        groupId: groupId,
-        editingPlanId: editingPlanId,
-        plan: state.plan,
-        selectedMembers: state.selectedMembers,
-      ),
+      data: (state) {
+        _loadPlanIntoForm(state.plan);
+
+        return _PlanCreateContent(
+          groupId: widget.groupId,
+          editingPlanId: widget.editingPlanId,
+          titleController: _titleController,
+          startController: _startController,
+          endController: _endController,
+          locationController: _locationController,
+          memoController: _memoController,
+          selectedMembers: state.selectedMembers,
+          onSave: _titleController.text.trim().isEmpty
+              ? null
+              : () async {
+                  final plan = await ref
+                      .read(provider.notifier)
+                      .savePlan(
+                        editing: widget.editingPlanId != null,
+                        input: PlanCreateInput(
+                          groupId: widget.groupId,
+                          title: _titleController.text,
+                          dateTime:
+                              '${_startController.text} - ${_endController.text}',
+                          location: _locationController.text,
+                          memo: _memoController.text,
+                          members: state.plan.members,
+                        ),
+                      );
+                  if (!context.mounted) {
+                    return;
+                  }
+                  context.go(RoutePaths.planDetail(widget.groupId, plan.id));
+                },
+        );
+      },
       loading: () => const OnmuScaffold(
         title: '약속 만들기',
         children: [Center(child: CircularProgressIndicator())],
@@ -54,15 +140,25 @@ class PlanCreatePage extends ConsumerWidget {
 class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({
     required this.groupId,
-    required this.plan,
+    required this.titleController,
+    required this.startController,
+    required this.endController,
+    required this.locationController,
+    required this.memoController,
     required this.selectedMembers,
+    required this.onSave,
     this.editingPlanId,
   });
 
   final String groupId;
   final String? editingPlanId;
-  final Plan plan;
+  final TextEditingController titleController;
+  final TextEditingController startController;
+  final TextEditingController endController;
+  final TextEditingController locationController;
+  final TextEditingController memoController;
   final List<PlanMember> selectedMembers;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -77,24 +173,24 @@ class _PlanCreateContent extends StatelessWidget {
         icon: editing ? Icons.check : Icons.add_task,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: () => context.go(
-          RoutePaths.planDetail(groupId, editingPlanId ?? plan.id),
-        ),
+        onPressed: onSave,
       ),
       children: [
-        _LabeledField(label: '약속 이름', value: plan.title),
+        _LabeledField(label: '약속 이름', controller: titleController),
         const SizedBox(height: AppSpacing.lg),
         Text('날짜와 시간', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
-        const _DateTimeField(label: '시작', value: '2024.06.07 (금)  오전 10:00'),
+        _DateTimeField(label: '시작', controller: startController),
         const SizedBox(height: AppSpacing.sm),
-        const _DateTimeField(label: '끝', value: '2024.06.09 (일)  오후 6:00'),
+        _DateTimeField(label: '끝', controller: endController),
         const SizedBox(height: AppSpacing.lg),
-        _LocationField(value: plan.location),
+        _LocationField(controller: locationController),
         const SizedBox(height: AppSpacing.lg),
         Text('참여 멤버', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         _MemberPickerRow(members: selectedMembers),
+        const SizedBox(height: AppSpacing.lg),
+        _LabeledField(label: '메모', controller: memoController),
         const SizedBox(height: AppSpacing.xl),
         OnmuCard(
           backgroundColor: AppColors.bgDefault,
@@ -120,10 +216,10 @@ class _PlanCreateContent extends StatelessWidget {
 }
 
 class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.value});
+  const _LabeledField({required this.label, required this.controller});
 
   final String label;
-  final String value;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -132,22 +228,22 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(label, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
-        TextFormField(initialValue: value),
+        TextFormField(controller: controller),
       ],
     );
   }
 }
 
 class _DateTimeField extends StatelessWidget {
-  const _DateTimeField({required this.label, required this.value});
+  const _DateTimeField({required this.label, required this.controller});
 
   final String label;
-  final String value;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      initialValue: value,
+      controller: controller,
       decoration: InputDecoration(
         labelText: label,
         suffixIcon: const Icon(Icons.calendar_month_outlined),
@@ -157,9 +253,9 @@ class _DateTimeField extends StatelessWidget {
 }
 
 class _LocationField extends StatelessWidget {
-  const _LocationField({required this.value});
+  const _LocationField({required this.controller});
 
-  final String value;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +265,7 @@ class _LocationField extends StatelessWidget {
         Text('지역', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
-          initialValue: value,
+          controller: controller,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.location_on_outlined),
             suffixIcon: Icon(Icons.cancel),

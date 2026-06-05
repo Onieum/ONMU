@@ -1,9 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/place_models.dart';
+import '../../../shared/models/vote_models.dart';
+import '../../group/repository/group_repository.dart';
+import '../../group/view_model/vote_view_model.dart';
 import '../repository/place_repository.dart';
 
 typedef PlaceScope = ({String groupId, String planId});
+typedef PlaceCandidateDetailScope = ({
+  String groupId,
+  String planId,
+  String candidateId,
+});
 
 final placeCandidatesViewModelProvider =
     AsyncNotifierProvider.family<
@@ -11,6 +19,13 @@ final placeCandidatesViewModelProvider =
       PlaceCandidatesState,
       PlaceScope
     >(PlaceCandidatesViewModel.new);
+
+final placeCandidateDetailViewModelProvider =
+    AsyncNotifierProvider.family<
+      PlaceCandidateDetailViewModel,
+      PlaceCandidate,
+      PlaceCandidateDetailScope
+    >(PlaceCandidateDetailViewModel.new);
 
 class PlaceCandidatesState {
   const PlaceCandidatesState({
@@ -46,8 +61,11 @@ class PlaceCandidatesState {
 
 class PlaceCandidatesViewModel
     extends FamilyAsyncNotifier<PlaceCandidatesState, PlaceScope> {
+  late PlaceScope _scope;
+
   @override
   Future<PlaceCandidatesState> build(PlaceScope arg) async {
+    _scope = arg;
     final repository = ref.watch(placeRepositoryProvider);
     final candidates = await repository.fetchCandidates(
       groupId: arg.groupId,
@@ -56,7 +74,7 @@ class PlaceCandidatesViewModel
 
     return PlaceCandidatesState(
       candidates: List.unmodifiable(candidates),
-      likedCandidateIds: const {},
+      likedCandidateIds: <int>{},
       baseFavoriteCounts: _favoriteCountsFor(candidates),
     );
   }
@@ -70,6 +88,34 @@ class PlaceCandidatesViewModel
     state = AsyncData(value.toggledFavorite(candidateId));
   }
 
+  Future<int> createPlaceVote({
+    required String title,
+    required String modeLabel,
+    required String deadlineDate,
+    required String deadlineTime,
+    required Set<int> selectedCandidateIds,
+  }) async {
+    final value = state.requireValue;
+    final candidateNames = value.candidates
+        .where((candidate) => selectedCandidateIds.contains(candidate.id))
+        .map((candidate) => candidate.name)
+        .toList(growable: false);
+    final repository = ref.read(groupRepositoryProvider);
+    final vote = await repository.createVote(
+      VoteCreateInput(
+        groupId: _scope.groupId,
+        planId: _scope.planId,
+        title: title,
+        modeLabel: modeLabel,
+        deadlineDate: deadlineDate,
+        deadlineTime: deadlineTime,
+        candidateNames: candidateNames,
+      ),
+    );
+    ref.invalidate(voteListViewModelProvider(_scope.groupId));
+    return vote.id;
+  }
+
   Map<int, int> _favoriteCountsFor(List<PlaceCandidate> candidates) {
     return {
       for (var index = 0; index < candidates.length; index += 1)
@@ -79,5 +125,18 @@ class PlaceCandidatesViewModel
           _ => 1,
         },
     };
+  }
+}
+
+class PlaceCandidateDetailViewModel
+    extends FamilyAsyncNotifier<PlaceCandidate, PlaceCandidateDetailScope> {
+  @override
+  Future<PlaceCandidate> build(PlaceCandidateDetailScope arg) async {
+    final repository = ref.watch(placeRepositoryProvider);
+    return repository.fetchCandidate(
+      groupId: arg.groupId,
+      planId: arg.planId,
+      candidateId: arg.candidateId,
+    );
   }
 }

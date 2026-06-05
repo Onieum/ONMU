@@ -530,22 +530,26 @@ class _UpcomingPlanTile extends StatelessWidget {
 class _RecentRecordStrip extends StatelessWidget {
   const _RecentRecordStrip();
 
-  static const _records = [
-    _RecentRecordData('성수동 카페', '05.24', Icons.local_cafe_outlined, '12'),
-    _RecentRecordData('제주 바다', '05.16', Icons.water, '8'),
-    _RecentRecordData('한강 피크닉', '05.10', Icons.park_outlined, '15'),
-  ];
+  static List<_RecentRecordData> _createRecords() {
+    return [
+      _RecentRecordData('성수동 카페', '05.24', Icons.local_cafe_outlined, '12'),
+      _RecentRecordData('제주 바다', '05.16', Icons.water, '8'),
+      _RecentRecordData('한강 피크닉', '05.10', Icons.park_outlined, '15'),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final records = _createRecords();
+
     return SizedBox(
       height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _records.length,
+        itemCount: records.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) =>
-            _RecentRecordCard(record: _records[index]),
+            _RecentRecordCard(record: records[index]),
       ),
     );
   }

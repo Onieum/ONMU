@@ -179,7 +179,7 @@ class _MemoryFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const filters = ['전체', '사진', '카페', '여행', '기타'];
+    final filters = ['전체', '사진', '카페', '여행', '기타'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

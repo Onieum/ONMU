@@ -197,7 +197,7 @@ class _CategoryChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const categories = ['전체', '카페', '식사', '관광', '숙소'];
+    final categories = ['전체', '카페', '식사', '관광', '숙소'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

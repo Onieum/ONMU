@@ -183,21 +183,22 @@ class _SettlementStepStrip extends StatelessWidget {
 
   final int activeIndex;
 
-  static const _steps = ['항목', '대상자', '미리보기'];
+  List<String> _createSteps() => ['항목', '대상자', '미리보기'];
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var index = 0; index < _steps.length; index++) ...[
+        for (var index = 0; index < _createSteps().length; index++) ...[
           Expanded(
             child: _SettlementStepPill(
               number: index + 1,
-              label: _steps[index],
+              label: _createSteps()[index],
               active: index == activeIndex,
             ),
           ),
-          if (index != _steps.length - 1) const SizedBox(width: AppSpacing.xs),
+          if (index != _createSteps().length - 1)
+            const SizedBox(width: AppSpacing.xs),
         ],
       ],
     );

@@ -4,10 +4,12 @@ import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/place/view_model/place_candidates_view_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 void main() {
   test('온모임 목록 ViewModel은 repository override 데이터를 그대로 노출한다', () async {
@@ -73,10 +75,23 @@ void main() {
     expect(updated.isLiked(9901), isTrue);
     expect(updated.favoriteCountFor(9901), 4);
   });
+
+  test('투표 상세 ViewModel은 voteId로 투표 카드와 후보를 조회한다', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((groupId: '1', voteId: '501')).future,
+    );
+
+    expect(state.vote.title, '제주도 여행 장소 투표');
+    expect(state.candidates.first.name, '온무식당');
+    expect(state.votersFor(201), contains('민서'));
+  });
 }
 
 class _FakeGroupRepository implements GroupRepository {
-  static const _group = GroupSummary(
+  static final _group = GroupSummary(
     id: 9001,
     name: 'Spring API 전환 모임',
     description: 'repository 교체만으로 서버 데이터를 읽는 구조',
@@ -90,21 +105,31 @@ class _FakeGroupRepository implements GroupRepository {
   Future<GroupSummary> fetchGroup(Object groupId) async => _group;
 
   @override
-  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+  Future<GroupSummary> createGroup(GroupCreateInput input) async =>
+      GroupSummary(
+        id: 9002,
+        name: input.name,
+        description: input.description,
+        members: input.memberNames,
+        lastMessage: '생성됨',
+        unreadCount: 0,
+        pinnedPlanTitle: '첫 약속 없음',
+      );
 
   @override
-  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => const [];
+  Future<List<GroupSummary>> fetchGroups() async => [_group];
 
   @override
-  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async =>
-      const [];
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
 
   @override
-  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async =>
-      const [];
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
 
   @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async => const [];
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
 
   @override
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
@@ -118,13 +143,32 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<VoteCard> fetchVoteCard(Object groupId) {
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) {
     throw UnimplementedError();
   }
 }
 
 class _FakePlaceRepository implements PlaceRepository {
-  static const _candidate = PlaceCandidate(
+  static final _candidate = PlaceCandidate(
     id: 9901,
     name: '목업 카페',
     category: '카페',
@@ -150,7 +194,7 @@ class _FakePlaceRepository implements PlaceRepository {
   Future<List<PlaceCandidate>> fetchCandidates({
     required Object groupId,
     required Object planId,
-  }) async => const [_candidate];
+  }) async => [_candidate];
 
   @override
   Future<PlaceCandidate> fetchCandidate({
@@ -163,13 +207,13 @@ class _FakePlaceRepository implements PlaceRepository {
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,
-  }) async => const [];
+  }) async => [];
 
   @override
   Future<PlaceVoteResult> fetchVoteResult({
     required Object groupId,
     required Object planId,
-  }) async => const PlaceVoteResult(
+  }) async => PlaceVoteResult(
     title: '테스트 투표',
     selectedPlaceName: '목업 카페',
     voters: ['지우'],
