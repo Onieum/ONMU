@@ -34,6 +34,49 @@
 - 공통 버튼, 카드, 입력, 선택 칩, 단계 표시기는 `shared/widgets`의 컴포넌트를 우선 사용한다.
 - 한 화면을 하나의 거대한 build method로 만들지 말고 작은 widget으로 분리한다.
 
+## Flutter 아키텍처 규칙
+
+- Flutter 기능 구현은 MVVM 구조를 기본으로 한다.
+- 새 화면, 새 기능, 큰 UI 변경을 만들 때는 View, ViewModel, Model/Data 역할을 분리한다.
+- View는 화면 렌더링과 사용자 입력 전달만 담당한다.
+- `Widget` 안에서 API 호출, DB 접근, 복잡한 비즈니스 로직, 데이터 가공 로직을 직접 작성하지 않는다.
+- View는 ViewModel의 상태를 읽고, 사용자 이벤트를 ViewModel 메서드로 위임한다.
+- ViewModel은 화면 상태, 사용자 액션 처리, 유효성 검증, 로딩/에러 상태 전환을 담당한다.
+- ViewModel은 특정 Widget 구현에 의존하지 않는다.
+- ViewModel에 `BuildContext`를 저장하지 않는다.
+- navigation, snackbar, dialog 같은 UI 효과는 View 또는 별도 UI event 패턴으로 처리한다.
+- API, local storage, Firebase, database 접근은 ViewModel이나 View에서 직접 하지 않고 repository/service를 통해 수행한다.
+- 기능 단위 구조는 기존 코드 패턴을 우선하되, 새 구조가 필요하면 다음 형태를 기준으로 한다.
+
+```text
+lib/features/<feature>/
+  view/
+  view_model/
+  model/
+  repository/ 또는 service/
+  widgets/
+```
+
+## Flutter OOP 및 재사용성 규칙
+
+- 클래스와 위젯은 단일 책임 원칙을 따른다.
+- 하나의 `build` method가 커지면 private widget method보다 재사용 가능한 작은 `Widget` 클래스로 분리하는 것을 우선한다.
+- 중복 UI는 `shared/widgets`의 공통 컴포넌트로 추출하거나 기존 공통 컴포넌트를 재사용한다.
+- 중복 비즈니스 로직은 ViewModel에 복사하지 않고 service, repository, use case, helper 등 명확한 책임의 객체로 분리한다.
+- 의존성은 구체 구현보다 추상 역할에 의존하도록 설계한다. 단, 실제 중복이나 교체 가능성이 없는 경우 불필요한 추상화는 만들지 않는다.
+- 생성자 주입을 우선 사용해 테스트 가능한 구조로 만든다.
+- 상태 객체는 가능한 불변 객체로 다루고, 상태 변경 흐름이 ViewModel 안에서 추적 가능해야 한다.
+- 클래스명, 파일명, 메서드명은 역할이 드러나게 작성한다.
+- 모호한 이름인 `Manager`, `Helper`, `Util`, `Data`는 구체적 책임이 없으면 사용하지 않는다.
+
+## Flutter 변경 전 체크리스트
+
+- 이 로직이 View에 있어야 하는가, ViewModel에 있어야 하는가, repository/service에 있어야 하는가?
+- 기존 `shared/widgets`, theme, token, extension으로 해결 가능한 UI인가?
+- 새 클래스가 하나의 책임만 갖는가?
+- 테스트하기 어려운 구조가 생기지 않았는가?
+- 같은 로직이나 UI가 다른 화면에 이미 존재하지 않는가?
+
 ## 보안
 
 - secret, API key, credential, 실제 사용자 데이터, 실제 위치/사진/정산 데이터를 커밋하지 않는다.
@@ -44,5 +87,6 @@
 ## 검증
 
 - Flutter 코드를 바꾸면 가능한 범위에서 `flutter analyze`와 관련 `flutter test`를 실행한다.
+- ViewModel, mapper, repository처럼 로직이 있는 코드는 가능한 범위에서 단위 테스트를 추가한다.
 - 문서 링크나 이미지 경로를 바꾸면 로컬 링크를 확인한다.
 - 디자인 시스템을 바꾸면 관련 문서와 테스트를 함께 갱신한다.
