@@ -687,6 +687,103 @@ void main() {
     expect(find.text('민서님 선택'), findsOneWidget);
   });
 
+  testWidgets('settlement create screen uses compact item cards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산 만들기'), findsOneWidget);
+    expect(find.text('저녁'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('카페'), 240);
+    expect(find.text('카페'), findsOneWidget);
+    expect(find.text('개별 금액'), findsOneWidget);
+    expect(find.text('최종 정산 미리보기'), findsOneWidget);
+    expect(find.textContaining('참여자별'), findsNothing);
+  });
+
+  testWidgets('settlement item card opens target selection screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('카페'), 240);
+    await tester.tap(find.text('카페'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('정산 대상자 선택'), findsOneWidget);
+    expect(find.text('직접 선택'), findsWidgets);
+    expect(find.text('금액 다르게'), findsOneWidget);
+    expect(find.text('선택 4명 · 직접 선택'), findsOneWidget);
+    expect(find.text('이 항목 대상자 저장'), findsOneWidget);
+  });
+
+  testWidgets('settlement preview can create final settlement', (tester) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimMeetupSettlementNew('friends', 'demo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('최종 정산 미리보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('정산 미리보기'), findsOneWidget);
+    expect(find.text('정산 만들기'), findsOneWidget);
+
+    await tester.tap(find.text('정산 만들기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산'), findsOneWidget);
+    expect(find.text('약속 상세'), findsOneWidget);
+  });
+
+  testWidgets('onmoim chat settlement card opens settlement result', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.onmoimChat('friends'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ONMU 정산'), findsOneWidget);
+
+    await tester.tap(find.text('정산 확인하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산'), findsOneWidget);
+    expect(find.text('내 정산 결과'), findsOneWidget);
+  });
+
+  testWidgets('home notification settlement card opens settlement result', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeNotifications);
+    await tester.pumpAndSettle();
+
+    expect(find.text('정산'), findsWidgets);
+    expect(find.text('주말 나들이 정산이 만들어졌어요'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('주말 나들이 정산이 만들어졌어요'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('주말 나들이 정산이 만들어졌어요'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산'), findsOneWidget);
+    expect(find.text('내 정산 결과'), findsOneWidget);
+  });
+
   testWidgets('onmoim chat menu opens vote list', (tester) async {
     await tester.pumpWidget(const OnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));

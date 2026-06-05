@@ -9,7 +9,6 @@ import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 
 class OnMoimSettlementCreatePage extends StatelessWidget {
@@ -28,81 +27,116 @@ class OnMoimSettlementCreatePage extends StatelessWidget {
 
     return OnmuScaffold(
       title: '약속 정산 만들기',
-      subtitle: '${settlement.meetupTitle}에서 쓴 결제 항목을 약속 단위로 정리해요.',
+      subtitle: '이 약속에서 쓴 비용만 항목별로 정리해요.',
+      showBackButton: true,
+      onBack: () =>
+          context.go(RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)),
       bottom: OnmuPrimaryButton(
         label: '최종 정산 미리보기',
         icon: Icons.visibility_outlined,
         color: AppColors.primaryPink,
+        foregroundColor: AppColors.textInverse,
         onPressed: () => context.go(
-          RoutePaths.onmoimMeetupSettlementShare(
-            onmoimId,
-            meetupId,
-            settlement.id,
-          ),
+          RoutePaths.onmoimMeetupSettlementPreview(onmoimId, meetupId),
         ),
       ),
       children: [
-        _MeetupSettlementScopeCard(settlement: settlement),
-        const SizedBox(height: AppSpacing.md),
+        _SettlementScopeCard(settlement: settlement),
+        const SizedBox(height: AppSpacing.lg),
+        const _SettlementStepStrip(activeIndex: 0),
+        const SizedBox(height: AppSpacing.xl),
+        _SectionHeader(
+          title: '결제 항목',
+          trailing: '${settlement.paymentItems.length}개',
+        ),
+        const SizedBox(height: AppSpacing.sm),
         for (final item in settlement.paymentItems) ...[
-          _PaymentItemEditorCard(
+          _PaymentItemSummaryCard(
             item: item,
-            itemNumber: settlement.paymentItems.indexOf(item) + 1,
+            onTap: () => context.go(
+              RoutePaths.onmoimMeetupSettlementTargets(
+                onmoimId,
+                meetupId,
+                item.id,
+              ),
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
         ],
         const _AddPaymentItemCard(),
-        const SizedBox(height: AppSpacing.md),
-        _PaymentItemListCard(items: settlement.paymentItems),
-        const SizedBox(height: AppSpacing.md),
-        _ValidationCard(
-          totalAmountLabel: settlement.totalAmountLabel,
-          participantCount: settlement.memberResults.length,
-        ),
+        const SizedBox(height: AppSpacing.lg),
+        const _SettlementGuideCard(),
       ],
     );
   }
 }
 
-class _MeetupSettlementScopeCard extends StatelessWidget {
-  const _MeetupSettlementScopeCard({required this.settlement});
+class _SettlementScopeCard extends StatelessWidget {
+  const _SettlementScopeCard({required this.settlement});
 
   final SettlementSummary settlement;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
+      backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineWarm,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const OnmuPixelBuddy(size: 56),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  settlement.meetupTitle,
-                  style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPinkSoft,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.linePink),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '모임 전체가 아니라 이 약속에서 발생한 비용만 정산합니다.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                child: const SizedBox.square(
+                  dimension: 44,
+                  child: Icon(
+                    Icons.receipt_long_outlined,
+                    color: AppColors.primaryPink,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OnmuChip(label: settlement.itemCountLabel),
-                    const OnmuChip(label: '참여자 6명'),
-                    const OnmuChip(label: '항목별 대상자 선택'),
+                    Text(
+                      settlement.meetupTitle,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '${settlement.createdDateLabel.replaceFirst('정산일 ', '')} · 참여자 6명',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              Text(
+                settlement.totalAmountLabel,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: AppColors.primaryPink),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              OnmuChip(label: settlement.itemCountLabel, selected: true),
+              const OnmuChip(label: '항목별 대상자'),
+              const OnmuChip(label: '약속 단위 정산'),
+            ],
           ),
         ],
       ),
@@ -110,137 +144,193 @@ class _MeetupSettlementScopeCard extends StatelessWidget {
   }
 }
 
-class _PaymentItemEditorCard extends StatelessWidget {
-  const _PaymentItemEditorCard({required this.item, required this.itemNumber});
+class _SettlementStepStrip extends StatelessWidget {
+  const _SettlementStepStrip({required this.activeIndex});
 
-  final SettlementPaymentItem item;
-  final int itemNumber;
+  final int activeIndex;
+
+  static const _steps = ['항목', '대상자', '미리보기'];
 
   @override
   Widget build(BuildContext context) {
-    final isCustom = item.splitType == SettlementSplitType.custom;
+    return Row(
+      children: [
+        for (var index = 0; index < _steps.length; index++) ...[
+          Expanded(
+            child: _SettlementStepPill(
+              number: index + 1,
+              label: _steps[index],
+              active: index == activeIndex,
+            ),
+          ),
+          if (index != _steps.length - 1) const SizedBox(width: AppSpacing.xs),
+        ],
+      ],
+    );
+  }
+}
+
+class _SettlementStepPill extends StatelessWidget {
+  const _SettlementStepPill({
+    required this.number,
+    required this.label,
+    required this.active,
+  });
+
+  final int number;
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: active ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: active ? AppColors.linePink : AppColors.lineSoft,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '$number',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: active ? AppColors.primaryPink : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: active ? AppColors.primaryPink : AppColors.textSub,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.trailing});
+
+  final String title;
+  final String trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        ),
+        Text(
+          trailing,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentItemSummaryCard extends StatelessWidget {
+  const _PaymentItemSummaryCard({required this.item, required this.onTap});
+
+  final SettlementPaymentItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final participants = item.includedParticipants;
 
     return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.linePink,
+      onTap: onTap,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PaymentItemHeader(itemNumber: itemNumber),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            decoration: InputDecoration(
-              labelText: '결제 항목명',
-              hintText: item.title,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const _PaymentItemIcon(),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: '결제 금액',
-                    hintText: item.amountLabel,
-                  ),
-                  keyboardType: TextInputType.number,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        Text(
+                          item.amountLabel,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(color: AppColors.primaryPink),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${item.payerLabel} 결제 · 대상 ${item.targetLabel}',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: '대표 결제자',
-                    hintText: item.payerLabel,
-                  ),
-                ),
-              ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '결제자별 결제 금액',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              Text(
-                '여러 명 가능',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          for (final payer in item.payerShares) ...[
-            _PayerShareRow(payer: payer),
-            const SizedBox(height: AppSpacing.xs),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: OnmuSecondaryButton(
-              label: '결제자 추가',
-              icon: Icons.person_add_alt_1_outlined,
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('결제자별 금액 입력 UI를 열어요.')),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text('정산 방식', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: _SplitModePill(label: '1/N으로 나누기', selected: !isCustom),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _SplitModePill(label: '참여자별 금액 다르게', selected: isCustom),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '정산 대상자',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              Text(
-                isCustom
-                    ? '${item.targetLabel} · 직접 입력'
-                    : '${item.targetLabel} · 자동 계산',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final participant in item.participants)
-                OnmuChip(
-                  label: participant.name,
-                  selected: participant.included,
-                ),
+              OnmuChip(label: item.targetModeLabel, selected: true),
+              OnmuChip(label: item.splitTypeLabel),
+              for (final participant in participants.take(4))
+                OnmuChip(label: participant.name),
+              if (participants.length > 4)
+                OnmuChip(label: '+${participants.length - 4}명'),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          for (final participant in item.participants) ...[
-            _ParticipantAmountRow(participant: participant, isCustom: isCustom),
-            const SizedBox(height: AppSpacing.xs),
-          ],
-          _ItemValidationNote(item: item),
         ],
+      ),
+    );
+  }
+}
+
+class _PaymentItemIcon extends StatelessWidget {
+  const _PaymentItemIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: const SizedBox.square(
+        dimension: 40,
+        child: Icon(Icons.payments_outlined, color: AppColors.primaryPink),
       ),
     );
   }
@@ -252,397 +342,46 @@ class _AddPaymentItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
-      borderColor: AppColors.lineWarm,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.add_circle_outline,
-                color: AppColors.primaryPink,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '저녁, 카페, 택시처럼 결제 항목을 계속 추가할 수 있어요.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OnmuSecondaryButton(
-              label: '결제 항목 추가',
-              icon: Icons.add,
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('결제 항목 추가 UI를 열어요.')),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PaymentItemHeader extends StatelessWidget {
-  const _PaymentItemHeader({required this.itemNumber});
-
-  final int itemNumber;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(
-          Icons.receipt_long_outlined,
-          size: 20,
-          color: AppColors.primaryPink,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          '결제 항목 $itemNumber',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-      ],
-    );
-  }
-}
-
-class _PayerShareRow extends StatelessWidget {
-  const _PayerShareRow({required this.payer});
-
-  final SettlementPayerShare payer;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.person_outline,
-              size: 18,
-              color: AppColors.textSub,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                payer.name,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            Text(
-              payer.amountLabel,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.primaryPink),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SplitModePill extends StatelessWidget {
-  const _SplitModePill({required this.label, this.selected = false});
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primaryPurpleSoft : AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: selected ? AppColors.linePurple : AppColors.lineSoft,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: selected ? AppColors.primaryPurpleDark : AppColors.textSub,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ParticipantAmountRow extends StatelessWidget {
-  const _ParticipantAmountRow({
-    required this.participant,
-    required this.isCustom,
-  });
-
-  final SettlementPaymentParticipant participant;
-  final bool isCustom;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          participant.included ? Icons.check_circle : Icons.remove_circle,
-          size: 18,
-          color: participant.included
-              ? AppColors.primaryPink
-              : AppColors.textMuted,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            participant.name,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: participant.included
-                  ? AppColors.textMain
-                  : AppColors.textMuted,
-            ),
-          ),
-        ),
-        _AmountFieldPreview(
-          label: participant.included ? participant.owedAmountLabel : '제외',
-          enabled: participant.included,
-          editable: participant.included && isCustom,
-        ),
-      ],
-    );
-  }
-}
-
-class _AmountFieldPreview extends StatelessWidget {
-  const _AmountFieldPreview({
-    required this.label,
-    required this.enabled,
-    required this.editable,
-  });
-
-  final String label;
-  final bool enabled;
-  final bool editable;
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor = editable ? AppColors.linePink : AppColors.lineSoft;
-    final backgroundColor = editable ? AppColors.bgDefault : AppColors.bgPaper;
-    final foregroundColor = enabled
-        ? AppColors.primaryPink
-        : AppColors.textMuted;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (editable) ...[
-              const Icon(
-                Icons.edit_outlined,
-                size: 13,
-                color: AppColors.primaryPink,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-            ],
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: foregroundColor),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ItemValidationNote extends StatelessWidget {
-  const _ItemValidationNote({required this.item});
-
-  final SettlementPaymentItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final isCustom = item.splitType == SettlementSplitType.custom;
-    final message = isCustom
-        ? '참여자별 입력 합계가 ${item.amountLabel}와 일치해요.'
-        : '${item.targetLabel} 기준 1/N 금액이 자동으로 계산됐어요.';
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.primaryPinkSoft.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.linePink),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              size: 18,
-              color: AppColors.primaryPink,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textMain),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PaymentItemListCard extends StatelessWidget {
-  const _PaymentItemListCard({required this.items});
-
-  final List<SettlementPaymentItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
-      borderColor: AppColors.lineWarm,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('결제 항목 요약', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.sm),
-          for (final item in items) ...[
-            _PaymentItemSummaryRow(item: item),
-            if (item != items.last) const Divider(height: AppSpacing.lg),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PaymentItemSummaryRow extends StatelessWidget {
-  const _PaymentItemSummaryRow({required this.item});
-
-  final SettlementPaymentItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.payments_outlined, color: AppColors.primaryPink),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item.title, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '${item.amountLabel} · 결제자 ${item.payerLabel}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '정산 대상 ${item.targetLabel} · ${item.splitTypeLabel}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final payer in item.payerShares)
-                    OnmuChip(
-                      label: '${payer.name} ${payer.amountLabel}',
-                      icon: Icons.person_outline,
-                      color: AppColors.primaryPurple,
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ValidationCard extends StatelessWidget {
-  const _ValidationCard({
-    required this.totalAmountLabel,
-    required this.participantCount,
-  });
-
-  final String totalAmountLabel;
-  final int participantCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      child: Column(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: TextButton.icon(
+        onPressed: () => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('결제 항목 추가 UI를 열어요.'))),
+        icon: const Icon(Icons.add_circle_outline),
+        label: const Text('결제 항목 추가'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryPink,
+          minimumSize: const Size.fromHeight(44),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettlementGuideCard extends StatelessWidget {
+  const _SettlementGuideCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.primaryPinkSoft.withValues(alpha: 0.34),
+      borderColor: AppColors.linePink,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.verified_outlined, color: AppColors.accentGreen),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '저장 전 확인',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ],
+          const Icon(
+            Icons.tips_and_updates_outlined,
+            color: AppColors.primaryPink,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '총 $totalAmountLabel · 정산 대상 $participantCount명 · 참여자별 합계 정상',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OnmuSecondaryButton(
-            label: '영수증으로 자동 입력',
-            icon: Icons.document_scanner_outlined,
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('영수증 OCR은 후순위 확장으로 연결해요.')),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              '대상자가 다른 비용은 항목 카드에서 따로 선택해요. 최종 송금은 미리보기에서 한 번에 확인합니다.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
             ),
           ),
         ],

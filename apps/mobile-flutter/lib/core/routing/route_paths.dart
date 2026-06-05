@@ -110,6 +110,18 @@ class RoutePaths {
   static String onmoimMeetupSettlementNew(String onmoimId, String meetupId) =>
       '/onmoim/$onmoimId/meetups/$meetupId/settlements/new';
 
+  static String onmoimMeetupSettlementTargets(
+    String onmoimId,
+    String meetupId,
+    String itemId,
+  ) =>
+      '/onmoim/$onmoimId/meetups/$meetupId/settlements/new/items/$itemId/targets';
+
+  static String onmoimMeetupSettlementPreview(
+    String onmoimId,
+    String meetupId,
+  ) => '/onmoim/$onmoimId/meetups/$meetupId/settlements/new/preview';
+
   static String onmoimMeetupSettlementShare(
     String onmoimId,
     String meetupId,
