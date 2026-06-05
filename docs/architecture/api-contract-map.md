@@ -11,7 +11,7 @@
 - FastAPI Worker는 모바일 앱에서 직접 호출하지 않고, Spring Boot가 내부 작업 요청과 결과 반영을 관리한다.
 - 현재 Node smoke API의 `/healthz`, `/readyz`는 개발 서버 연결 검증용 계약이며, 제품 도메인 API 계약으로 보지 않는다.
 - UI 용어가 `온모임`, `약속`이어도 API 리소스는 `groups`, `plans`를 우선한다.
-- 정산은 반드시 `plans/{planId}` 하위에 둔다.
+- 정산은 반드시 `groups/{groupId}/plans/{planId}` 하위에 둔다.
 - 장소 후보(`place-candidates`)와 일정 등록 장소(`schedule places`)를 분리한다.
 - 채팅/알림은 domain action의 side effect를 activity event로 받는다.
 - 첫 OAuth provider는 Naver를 우선 구현한다.

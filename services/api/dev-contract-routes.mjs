@@ -123,7 +123,13 @@ async function groupRoutes(store, req, method, segments) {
   }
 
   if (segments.length === 3 && segments[2] === "votes") {
-    return method === "GET" ? ok(store.fetchVotes(groupId)) : methodNotAllowed(["GET"]);
+    if (method === "GET") {
+      return ok(store.fetchVotes(groupId));
+    }
+    if (method === "POST") {
+      return ok(store.createVote({ ...(await readJson(req)), groupId }), 201);
+    }
+    return methodNotAllowed(["GET", "POST"]);
   }
 
   if (segments.length === 4 && segments[2] === "votes") {
@@ -202,7 +208,18 @@ async function planRoutes(store, req, method, groupId, segments) {
       return ok(store.fetchVotes(groupId));
     }
     if (method === "POST") {
-      return ok(store.createVote({ ...(await readJson(req)), groupId, planId }), 201);
+      return ok(
+        store.createVote({
+          ...(await readJson(req)),
+          groupId,
+          planId,
+          targetType: "PLAN",
+          targetId: planId,
+          compatibilityRoute: true,
+          canonicalPath: `/api/v1/groups/${groupId}/votes`,
+        }),
+        201,
+      );
     }
     return methodNotAllowed(["GET", "POST"]);
   }
@@ -254,12 +271,28 @@ async function planRoutes(store, req, method, groupId, segments) {
   return null;
 }
 
-function placeSearchRoutes(store, method, segments, url) {
+async function placeSearchRoutes(store, req, method, segments, url) {
   if (segments.length === 1 && segments[0] === "place-search") {
     if (method !== "GET" && method !== "POST") {
       return methodNotAllowed(["GET", "POST"]);
     }
+    if (method === "POST") {
+      const input = await readJson(req);
+      return ok({
+        canonicalRoute: true,
+        query: input.query || input.keyword || "",
+        filters: input.filters || {},
+        context: {
+          groupId: input.groupId || null,
+          planId: input.planId || null,
+          bounds: input.bounds || null,
+        },
+        results: store.searchPlaces(input.query || input.keyword || ""),
+      });
+    }
     return ok({
+      compatibilityRoute: true,
+      canonicalPath: "POST /api/v1/place-search",
       query: url.searchParams.get("query") || "",
       results: store.searchPlaces(url.searchParams.get("query") || ""),
     });
@@ -280,7 +313,7 @@ export function createDevContractRouter(store) {
       const result =
         homeRoutes(store, method, segments) ||
         (await groupRoutes(store, req, method, segments)) ||
-        placeSearchRoutes(store, method, segments, url);
+        (await placeSearchRoutes(store, req, method, segments, url));
 
       return { handled: true, ...(result || notFound(url.pathname)) };
     } catch (error) {

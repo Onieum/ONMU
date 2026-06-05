@@ -42,6 +42,10 @@ Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 - `GET /api/v1/groups/{groupId}/messages`
 - `GET /api/v1/groups/{groupId}/memories`
 - `GET /api/v1/groups/{groupId}/memories/{memoryId}`
+- `GET /api/v1/groups/{groupId}/votes`
+- `POST /api/v1/groups/{groupId}/votes`
+- `GET /api/v1/groups/{groupId}/votes/{voteId}`
+- `GET /api/v1/groups/{groupId}/votes/{voteId}/voters`
 - `GET /api/v1/groups/{groupId}/plans`
 - `POST /api/v1/groups/{groupId}/plans`
 - `GET /api/v1/groups/{groupId}/plans/{planId}`
@@ -54,9 +58,6 @@ Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/votes` (dev compatibility)
 - `GET /api/v1/groups/{groupId}/plans/{planId}/votes/{voteId}`
-- `GET /api/v1/groups/{groupId}/votes`
-- `GET /api/v1/groups/{groupId}/votes/{voteId}`
-- `GET /api/v1/groups/{groupId}/votes/{voteId}/voters`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
@@ -64,8 +65,8 @@ Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
-- `GET /api/v1/place-search?query=...`
 - `POST /api/v1/place-search`
+- `GET /api/v1/place-search?query=...` (dev compatibility)
 
 `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...`는 기존 mock/화면 전환 검증을 위한 임시 호환 route입니다. 운영 API의 canonical 계약은 [API Contract Map](../../docs/architecture/api-contract-map.md)의 `POST /api/v1/groups/{groupId}/votes`, `POST /api/v1/place-search`를 따릅니다.
 
@@ -99,6 +100,12 @@ curl http://localhost:8080/api/v1/home/summary
 curl http://localhost:8080/api/v1/groups
 curl http://localhost:8080/api/v1/groups/1/plans/101
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+$placeSearchBody = Join-Path $env:TEMP "onmu-place-search.json"
+[System.IO.File]::WriteAllText($placeSearchBody, '{"query":"cafe","planId":"101"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary "@$placeSearchBody"
+$voteBody = Join-Path $env:TEMP "onmu-vote.json"
+[System.IO.File]::WriteAllText($voteBody, '{"voteType":"PLACE","targetType":"PLAN","targetId":"101","title":"place vote","options":["cafe","restaurant"]}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary "@$voteBody"
 $candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
 [System.IO.File]::WriteAllText($candidateBody, '{"name":"new place","category":"cafe"}', [System.Text.UTF8Encoding]::new($false))
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"

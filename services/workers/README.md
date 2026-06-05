@@ -1,13 +1,15 @@
-# 워커 서비스
+# Worker Services
 
-워커 서비스는 메인 API를 막지 않아야 하는 비동기 작업을 처리합니다.
+Worker services handle asynchronous work that should not block Spring Boot Main API requests.
 
-| 워커 | 책임 |
-| --- | --- |
-| `recommendation` | 취향 매칭, 그룹 점수, 후보 설명 |
-| `place-risk` | 영업시간 충돌, 임시 휴무 리스크, 오래된 API 데이터 |
-| `route-departure` | Directions API, ETA, 출발 알림 |
-| `photo-memory` | 사진 metadata와 기억 카드 보조 |
-| `notification` | push 준비, 재시도, 전송 기록 |
+The confirmed first worker is `services/workers/ai-data-worker`.
 
-워커는 idempotent해야 하며 안전하게 재시도할 수 있어야 합니다.
+| Worker | Status | Responsibility |
+| --- | --- | --- |
+| `ai-data-worker` | Scaffold | AI/Data jobs behind Spring Boot: place explanation, recommendation helper data, record/OOTD summary, worker job metadata |
+| `notification-worker` | Future only | Push and notification retries after MVP scope is clearer |
+| `media-worker` | Future only | Media thumbnails and heavier image processing after MVP scope is clearer |
+
+Workers are internal services. Flutter must not call them directly. Spring Boot writes domain events and worker requests to `outbox_events`; workers consume through queue/outbox and write only to their owned schema.
+
+Current PR scope only records the worker boundary and ownership. Future analytics/reporting work stays in the architecture roadmap until the core product flow is ready.

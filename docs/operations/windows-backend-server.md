@@ -238,6 +238,12 @@ curl http://localhost:8080/api/v1/home/summary
 curl http://localhost:8080/api/v1/groups
 curl http://localhost:8080/api/v1/groups/1/plans/101
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+$placeSearchBody = Join-Path $env:TEMP "onmu-place-search.json"
+[System.IO.File]::WriteAllText($placeSearchBody, '{"query":"cafe","planId":"101"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary "@$placeSearchBody"
+$voteBody = Join-Path $env:TEMP "onmu-vote.json"
+[System.IO.File]::WriteAllText($voteBody, '{"voteType":"PLACE","targetType":"PLAN","targetId":"101","title":"place vote","options":["cafe","restaurant"]}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary "@$voteBody"
 $candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
 [System.IO.File]::WriteAllText($candidateBody, '{"name":"new place","category":"cafe"}', [System.Text.UTF8Encoding]::new($false))
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"

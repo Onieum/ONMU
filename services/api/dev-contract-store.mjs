@@ -663,20 +663,34 @@ export function createDevContractStore() {
     fetchVotes: groupVotes,
     createVote(input = {}) {
       const groupId = parseId(input.groupId);
-      const plan = planById(input.planId);
-      const candidateNames = Array.isArray(input.candidateNames) ? input.candidateNames : [];
+      const targetType = String(input.targetType || (input.planId || input.targetId ? "PLAN" : "GROUP")).toUpperCase();
+      const targetId = input.targetId ?? input.planId ?? null;
+      const targetPlan = targetType === "PLAN" && targetId ? planById(targetId) : null;
+      const optionLabels = Array.isArray(input.candidateNames)
+        ? input.candidateNames
+        : Array.isArray(input.options)
+          ? input.options.map((option) => (typeof option === "string" ? option : option.label || option.name || "선택지"))
+          : [];
       const vote = {
         id: nextVoteId++,
         title: String(input.title || "새 투표").trim(),
+        voteType: String(input.voteType || (targetType === "PLAN" ? "PLACE" : "GENERAL")).toUpperCase(),
+        targetType,
+        targetId,
         statusLabel: "진행 중",
-        description: `${candidateNames.join(", ")} · ${input.modeLabel || "단일 선택"}`,
-        planLabel: plan.title,
-        planMeta: `${plan.dateTime} · ${plan.location}`,
+        description: String(input.description || `${optionLabels.join(", ")} · ${input.modeLabel || "단일 선택"}`).trim(),
+        planLabel: targetPlan?.title || input.targetLabel || "모임 투표",
+        planMeta: targetPlan ? `${targetPlan.dateTime} · ${targetPlan.location}` : input.targetMeta || "모임 전체",
         participants: groupById(groupId).members.slice(0, 4),
-        options: candidateNames.map((label) => ({ label, countLabel: "0표", progress: 0 })),
+        options: optionLabels.map((label) => ({ label, countLabel: "0표", progress: 0 })),
         closed: false,
         joinedByMe: true,
         actionLabel: "투표 확인하기",
+        canonicalPath: `/api/v1/groups/${groupId}/votes`,
+        compatibilityRoute: Boolean(input.compatibilityRoute),
+        compatibilityNote: input.compatibilityRoute
+          ? "Plan 하위 vote 생성 route는 dev compatibility alias입니다."
+          : undefined,
       };
       votesByGroupId.set(groupId, [vote, ...groupVotes(groupId)]);
       voteCardsByVoteId.set(vote.id, {
