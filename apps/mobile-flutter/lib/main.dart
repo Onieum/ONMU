@@ -134,6 +134,7 @@ class _OnmuAppState extends ConsumerState<OnmuApp> {
         GoRoute(
           path: RoutePaths.characterStart,
           builder: (context, state) => CharacterStartPage(
+            onBackToOnboarding: () => context.go(RoutePaths.onboarding),
             onCompleted: (character) {
               ref.read(userCharacterProvider.notifier).state = character;
               ref.read(skippedCharacterProvider.notifier).state = false;

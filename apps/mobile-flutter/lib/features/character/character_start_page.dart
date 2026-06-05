@@ -7,8 +7,13 @@ import '../../shared/widgets/pixel_character.dart';
 
 class CharacterStartPage extends StatefulWidget {
   final Function(CharacterDraft) onCompleted;
+  final VoidCallback? onBackToOnboarding;
 
-  const CharacterStartPage({super.key, required this.onCompleted});
+  const CharacterStartPage({
+    super.key,
+    required this.onCompleted,
+    this.onBackToOnboarding,
+  });
 
   @override
   State<CharacterStartPage> createState() => _CharacterStartPageState();
@@ -48,10 +53,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     setState(() => _currentStep--);
   }
 
-  void _skipOnboarding() {
-    widget.onCompleted(
-      const CharacterDraft(gender: 'female', nickname: '온뮤', topStyleIndex: -1),
-    );
+  void _backToStart() {
+    if (_currentStep == 0) return;
+    setState(() => _currentStep = 0);
+  }
+
+  void _returnToOnboarding() {
+    widget.onBackToOnboarding?.call();
   }
 
   @override
@@ -69,7 +77,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                   color: AppColors.textMain,
                   size: 20,
                 ),
-                onPressed: _back,
+                onPressed: _backToStart,
               ),
             ),
       body: SafeArea(
@@ -396,7 +404,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               onTap: () => setState(
                 () => _draft = _draft.copyWith(hairStyleIndex: index),
               ),
-              child: _buildHairStylePreview(previewChar),
+              child: _buildHairStylePreview(
+                previewChar,
+                topOffset: index == 4 || index == 5 ? -5 : -15,
+              ),
             );
           },
         ),
@@ -614,7 +625,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     );
   }
 
-  Widget _buildHairStylePreview(CharacterDraft character) {
+  Widget _buildHairStylePreview(
+    CharacterDraft character, {
+    double topOffset = -15,
+  }) {
     return SizedBox(
       width: 76,
       height: 56,
@@ -624,7 +638,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           children: [
             Positioned(
               left: -12,
-              top: -15,
+              top: topOffset,
               child: PixelCharacterWidget(
                 character: character,
                 size: 100,
@@ -746,7 +760,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildBottomCta() {
     final isStart = _currentStep == 0;
     final isLast = _currentStep == _lastStep;
-    final label = isLast ? '시작하기' : '다음';
+    final label = isLast ? '첫 설정 페이지로 돌아가기' : '다음';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -786,9 +800,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
           if (_currentStep == 0) ...[
             const SizedBox(height: 10),
             TextButton(
-              onPressed: _skipOnboarding,
+              onPressed: _returnToOnboarding,
               child: Text(
-                '홈으로 가기',
+                '첫 설정 페이지로 돌아가기',
                 style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
                 ),
