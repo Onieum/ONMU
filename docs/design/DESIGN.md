@@ -44,7 +44,7 @@ ONMU
 - 픽셀 캐릭터가 브랜드의 핵심 시각 요소로 반복 등장해야 한다.
 - 카드와 입력창은 종이 조각, 기록지, 다이어리 페이지처럼 부드럽게 보여야 한다.
 - 하트, 별, 반짝이, 구름, 리본, 옷걸이, 카메라, 커피컵, 마스킹 테이프 같은 장식 요소를 사용한다.
-- 버튼과 선택 상태는 핑크 또는 보라 계열 포인트를 사용한다.
+- 버튼과 선택 상태는 코랄 또는 핑크 계열 포인트를 사용한다.
 - 화면은 정보가 많아도 복잡하거나 차갑게 보이면 안 된다.
 
 ### Avoid
@@ -62,8 +62,8 @@ ONMU
 
 ## 3. Color System
 
-ONMU는 흰색 배경을 중심으로 핑크, 보라, 브라운, 웜 파스텔을 사용한다.
-보라는 브랜드 포인트, 핑크는 감성/선택/CTA, 브라운은 다이어리와 텍스트의 따뜻함을 담당한다.
+ONMU는 흰색 배경을 중심으로 코랄 핑크, 핑크, 브라운, 웜 파스텔을 사용한다.
+현재 Flutter 코드의 `AppColors.primaryPurple` 이름은 남아 있지만 실제 색상은 코랄 계열이다. 새 화면에서는 토큰 이름보다 실제 역할을 기준으로 이해한다.
 
 ### Background
 
@@ -79,9 +79,9 @@ ONMU는 흰색 배경을 중심으로 핑크, 보라, 브라운, 웜 파스텔�
 
 | Token | Color | Usage |
 | --- | --- | --- |
-| `primary.purple` | `#8B5CF6` | ONMU 로고, 메인 브랜드 포인트 |
-| `primary.purpleDark` | `#6D3FE8` | 강한 CTA, 활성 상태 |
-| `primary.purpleSoft` | `#EDE4FF` | 보라색 선택 배경 |
+| `primary.purple` | `#E86D75` | 코드상 이름은 purple이지만 실제 사용은 코랄 메인 브랜드 포인트 |
+| `primary.purpleDark` | `#C94C56` | 강한 CTA, 활성 상태 |
+| `primary.purpleSoft` | `#FAD8DC` | 코랄 선택 배경 |
 | `primary.pink` | `#FF8FA3` | OOTD, 기록, 선택 상태 |
 | `primary.pinkSoft` | `#FFE3E8` | 핑크 선택 배경, 탭 활성 배경 |
 
@@ -92,7 +92,7 @@ ONMU는 흰색 배경을 중심으로 핑크, 보라, 브라운, 웜 파스텔�
 | `text.main` | `#3A2A23` | 제목, 본문 |
 | `text.sub` | `#7A6258` | 보조 설명 |
 | `text.muted` | `#A9948A` | placeholder, 비활성 |
-| `text.inverse` | `#FFFFFF` | 보라/핑크 버튼 위 텍스트 |
+| `text.inverse` | `#FFFFFF` | 코랄/핑크 버튼 위 텍스트 |
 
 ### Line / Border
 
@@ -200,7 +200,8 @@ Example:
 
 ### Mobile Base
 
-- 기준 화면: iPhone 390px width
+- 기준 화면: iPhone 17 QA viewport `402 x 874`
+- 보조 기준 화면: iPhone 390px width
 - 기본 좌우 여백: 20px
 - 작은 요소 간격: 8px
 - 컴포넌트 간격: 12-16px
@@ -220,12 +221,12 @@ Example:
 
 | Feature | Mood |
 | --- | --- |
-| Onboarding | 보라색 브랜드 포인트, 귀여운 캐릭터, 가볍고 설레는 느낌 |
+| Onboarding | 코랄 브랜드 포인트, 귀여운 캐릭터, 가볍고 설레는 느낌 |
 | Character Create | 흰 배경, 픽셀 캐릭터 중심, 선택 타일 |
 | OOTD Record | 다이어리 페이지, 스티커, 손글씨 메모 |
 | Calendar | 픽셀 캐릭터 아카이브, 날짜별 수집감 |
 | Daily Record | 스크랩북, 사진 콜라주, 장소/기분/날씨 기록 |
-| Place / Promise | 보라 포인트, 카드형 추천, 명확한 정보 구조 |
+| Place / Promise | 코랄 포인트, 카드형 정보 구조, 명확한 흐름 |
 | My Page / Stats | 흰 배경, 부드러운 카드, 캐릭터와 기록 요약 |
 
 ---
@@ -279,23 +280,26 @@ Example:
 ### Selection Tiles
 
 - 선택 전: 흰색 배경, 얇은 테두리
-- 선택 후: 핑크/보라 테두리, 체크 배지
+- 선택 후: 코랄/핑크 테두리, 체크 배지
 - 캐릭터 커스터마이징 옵션은 4열 또는 5열 그리드를 사용한다.
 - 음식, 취향, 장소 선택은 아이콘 또는 이미지가 들어간 카드 그리드를 사용한다.
 
 ### Progress Stepper
 
 - 원형 번호와 얇은 라인으로 구성한다.
-- 현재 단계는 핑크 또는 보라 배경으로 표시한다.
-- 완료/비활성 단계는 흰색 배경과 브라운 또는 보라 라인을 사용한다.
+- 현재 단계는 코랄 또는 핑크 배경으로 표시한다.
+- 완료/비활성 단계는 흰색 배경과 브라운 또는 코랄 라인을 사용한다.
 - 단계명은 작게 표시한다.
 
 ### Bottom Navigation
 
 - 배경: 흰색
 - 아이콘 + 라벨 구조
-- 활성 탭은 핑크 또는 보라 포인트를 사용한다.
-- 주요 탭 예시: 홈, 장소, 약속, 기록, 마이
+- 활성 탭은 코랄 또는 핑크 포인트를 사용한다.
+- 주요 탭: 홈, 온모임, 기록, 마이
+- 온모임 아이콘은 여러 사람을 뜻하는 `Icons.groups_*` 계열을 사용한다.
+- 기록 아이콘은 달력 느낌의 `Icons.calendar_month_*` 계열을 사용한다.
+- 직접 그린 아이콘은 겹침, 왜곡, stroke 불일치가 생기기 쉬우므로 Material/Lucide 등 검증된 아이콘을 우선한다.
 - OOTD/기록 추가 버튼은 중앙 플로팅 버튼으로 사용할 수 있다.
 
 ---
@@ -340,10 +344,10 @@ Example:
 
 ### Onboarding
 
-- ONMU 로고는 보라색을 사용한다.
-- 화면은 흰 배경 또는 아주 연한 보라 배경을 사용한다.
+- ONMU 로고는 코랄 포인트를 사용한다.
+- 화면은 흰 배경 또는 아주 연한 코랄/핑크 배경을 사용한다.
 - 캐릭터 일러스트 또는 픽셀 캐릭터를 중앙에 둔다.
-- CTA는 보라색 버튼을 우선 사용한다.
+- CTA는 코랄 버튼을 우선 사용한다.
 - 장식은 별, 하트, 테이프, 작은 말풍선을 사용한다.
 
 ### Character Create
@@ -351,7 +355,7 @@ Example:
 - 흰 배경에 캐릭터를 크게 보여준다.
 - 상단에는 단계 표시를 둔다.
 - 선택지는 카드 또는 타일 그리드로 배치한다.
-- 선택 상태는 체크 배지와 핑크/보라 테두리로 표시한다.
+- 선택 상태는 체크 배지와 코랄/핑크 테두리로 표시한다.
 - 완료 화면은 폴라로이드나 종이 카드 느낌으로 만든다.
 
 ### Calendar
@@ -379,10 +383,28 @@ Example:
 
 ### Place / Promise Recommendation
 
-- 팀원 화면과 맞춰 보라색 CTA와 카드형 정보 구조를 사용한다.
-- 정보는 명확한 라벨, 점수, 태그, 추천 이유로 정리한다.
-- 배경은 흰색 또는 아주 연한 보라/회색 톤을 사용한다.
-- 캐릭터나 작은 스티커를 보조 장식으로 활용한다.
+- 코랄 CTA와 카드형 정보 구조를 사용한다.
+- 점수, 운영 리스크, 후보 비교 화면은 현재 제품 합의에서 제외한다.
+- 장소 검색은 지도 화면 상단 검색바와 지도 위 하단 시트 안에서 이어간다.
+- 장소 추가 액션은 `일정에 추가`와 `후보에 추가`를 모두 제공한다.
+- 후보 리스트는 약속 단위 공유 리스트이므로 날짜 탭을 넣지 않는다.
+- 배경은 흰색 또는 아주 연한 회색 톤을 사용한다.
+- 캐릭터나 작은 스티커는 정보 판독을 방해하지 않는 보조 장식으로만 활용한다.
+
+### OnMoim
+
+- 온모임 목록은 스크롤을 많이 하지 않아도 모임명, 멤버 수, 다가오는 약속, 최근 대화, unread count가 보이도록 조밀하게 만든다.
+- 모임 홈 제목은 `모임 홈` 같은 설명 문구가 아니라 실제 모임 이름을 사용한다.
+- 모임 홈은 `다가오는 약속`, `최근 기록`, `최근 대화`를 먼저 보여주고, 중복되는 모임원 하단 섹션은 만들지 않는다.
+- 약속 만들기는 우하단 FAB 또는 명확한 단일 CTA로 제공한다.
+
+### Settlement
+
+- 정산은 모임 단위가 아니라 약속 단위 화면에서만 진입한다.
+- 정산 만들기는 긴 입력 폼보다 결제 항목 카드 리스트와 하단 CTA를 우선한다.
+- `참여자별`보다 `개별 금액`, `대상자`처럼 사용자가 바로 이해하는 말을 쓴다.
+- 결과 화면은 총액 카드가 과하게 커지지 않게 압축형 요약으로 보여준다.
+- 정산 결과는 채팅 카드와 알림 카드로 공유될 수 있어야 한다.
 
 ---
 
@@ -445,7 +467,7 @@ AI로 앱 화면을 만들 때 아래 규칙을 반드시 따른다.
 - ONMU mobile app screen
 - white background
 - cute pixel character
-- soft pastel pink and purple accents
+- soft pastel coral and pink accents
 - diary scrapbook mood
 - rounded cards
 - hand-drawn stickers
@@ -463,11 +485,15 @@ AI로 앱 화면을 만들 때 아래 규칙을 반드시 따른다.
 - heavy gradients
 - overly glossy UI
 - too many decorative stickers
+- 점수 중심 장소 추천
+- 운영 리스크 문구
+- 후보 비교 화면
+- 장소 후보 리스트의 날짜 탭
 
 ### Example Prompt
 
 ```text
-Create a Korean mobile app screen for ONMU, a cute pixel OOTD diary app. Use a clean white background, soft pastel pink and purple accents, rounded paper-like cards, pixel character avatar, hand-drawn heart and sparkle stickers, masking tape decorations, and cozy scrapbook diary mood. Keep the UI readable, warm, cute, and consistent with a fashion daily record app.
+Create a Korean mobile app screen for ONMU, a cute pixel OOTD diary app. Use a clean white background, soft pastel coral and pink accents, rounded paper-like cards, pixel character avatar, hand-drawn heart and sparkle stickers, masking tape decorations, and cozy scrapbook diary mood. Keep the UI readable, warm, cute, and consistent with a fashion daily record app.
 ```
 
 ---
@@ -482,9 +508,9 @@ Create a Korean mobile app screen for ONMU, a cute pixel OOTD diary app. Use a c
   --bg-grid: #fff7ef;
   --bg-purple-soft: #f6f1ff;
 
-  --primary-purple: #8b5cf6;
-  --primary-purple-dark: #6d3fe8;
-  --primary-purple-soft: #ede4ff;
+  --primary-purple: #e86d75;
+  --primary-purple-dark: #c94c56;
+  --primary-purple-soft: #fad8dc;
   --primary-pink: #ff8fa3;
   --primary-pink-soft: #ffe3e8;
 
@@ -525,7 +551,7 @@ Create a Korean mobile app screen for ONMU, a cute pixel OOTD diary app. Use a c
 ## 14. Final Checklist
 
 - 흰색 배경을 기본으로 사용했는가?
-- ONMU의 보라색 브랜드 포인트가 필요한 곳에 들어갔는가?
+- ONMU의 코랄 브랜드 포인트가 필요한 곳에 들어갔는가?
 - OOTD/기록 화면에서는 핑크와 브라운 감성이 잘 보이는가?
 - 픽셀 캐릭터가 화면의 핵심 시각 요소로 사용되었는가?
 - 카드, 입력창, 버튼이 둥글고 부드러운가?
