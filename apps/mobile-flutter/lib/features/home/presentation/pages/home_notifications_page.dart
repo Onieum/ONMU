@@ -50,7 +50,7 @@ class _HomeNotificationsPageState extends State<HomeNotificationsPage> {
       ),
       children: [
         Text(
-          '약속, 투표, 기록 업데이트가 최신순으로 쌓여요.',
+          '약속, 투표, 정산, 기록 업데이트가 최신순으로 쌓여요.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
@@ -76,7 +76,7 @@ class _HomeNotificationsPageState extends State<HomeNotificationsPage> {
 class _NotificationFilters extends StatelessWidget {
   const _NotificationFilters({required this.selected, required this.onChanged});
 
-  static const _filters = ['전체', '약속', '투표', '기록'];
+  static const _filters = ['전체', '약속', '투표', '정산', '기록'];
 
   final String selected;
   final ValueChanged<String> onChanged;
@@ -315,6 +315,17 @@ const _items = [
   ),
   _NotificationItem(
     group: '오늘',
+    kind: '정산',
+    title: '주말 나들이 정산이 만들어졌어요',
+    body: '나는 103,333원을 받아요 · 총 186,000원',
+    time: '25분 전',
+    icon: Icons.receipt_long_outlined,
+    color: AppColors.primaryPink,
+    actionLabel: '정산 확인하기',
+    unread: true,
+  ),
+  _NotificationItem(
+    group: '오늘',
     kind: '기록',
     title: '민수님이 최근 기록에 댓글을 남겼어요',
     body: '“분위기 좋다! 어디야?”',
@@ -348,6 +359,15 @@ void _handleNotificationTap(BuildContext context, _NotificationItem item) {
   switch (item.kind) {
     case '투표':
       context.push(RoutePaths.onmoimMeetupPlaceVoteNew('friends', 'demo'));
+      return;
+    case '정산':
+      context.push(
+        RoutePaths.onmoimMeetupSettlementShare(
+          'friends',
+          'demo',
+          'lunch-split',
+        ),
+      );
       return;
     case '기록':
       context.push(RoutePaths.homeRecentRecords);
