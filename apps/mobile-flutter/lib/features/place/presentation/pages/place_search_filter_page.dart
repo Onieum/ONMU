@@ -67,17 +67,16 @@ class PlaceSearchFilterPage extends StatelessWidget {
             candidate: candidate,
             compact: true,
             onDetailPressed: () => context.go(
-              RoutePaths.onmoimMeetupPlaceDetail(
+              RoutePaths.planPlaceCandidateDetail(
                 onmoimId,
                 meetupId,
                 candidate.id,
               ),
             ),
-            onRegisterPressed: () => context.go(
-              '${RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)}?place=confirmed',
-            ),
+            onRegisterPressed: () =>
+                context.go(RoutePaths.planItinerary(onmoimId, meetupId)),
             onAddCandidatePressed: () =>
-                context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
+                context.go(RoutePaths.planPlaceCandidates(onmoimId, meetupId)),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -85,7 +84,7 @@ class PlaceSearchFilterPage extends StatelessWidget {
           label: '추천 후보로 돌아가기',
           icon: Icons.arrow_back,
           onPressed: () =>
-              context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
+              context.go(RoutePaths.planPlaceCandidates(onmoimId, meetupId)),
         ),
       ],
     );

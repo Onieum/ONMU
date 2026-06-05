@@ -32,7 +32,7 @@ class OnMoimMemoryDetailPage extends StatelessWidget {
     return OnmuScaffold(
       title: '기록',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimMemories(onmoimId)),
+      onBack: () => context.go(RoutePaths.groupMemories(onmoimId)),
       action: IconButton(
         tooltip: '기록 옵션',
         onPressed: () {

@@ -36,8 +36,8 @@ class OnMoimSettlementSharePage extends StatelessWidget {
       showBackButton: true,
       onBack: () => context.go(
         preview
-            ? RoutePaths.onmoimMeetupSettlementNew(onmoimId, meetupId)
-            : RoutePaths.onmoimMeetupDetail(onmoimId, meetupId),
+            ? RoutePaths.planSettlementNew(onmoimId, meetupId)
+            : RoutePaths.planDetail(onmoimId, meetupId),
       ),
       bottom: Row(
         children: [
@@ -45,9 +45,8 @@ class OnMoimSettlementSharePage extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '정산 수정',
               icon: Icons.edit_outlined,
-              onPressed: () => context.go(
-                RoutePaths.onmoimMeetupSettlementNew(onmoimId, meetupId),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planSettlementNew(onmoimId, meetupId)),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -61,12 +60,12 @@ class OnMoimSettlementSharePage extends StatelessWidget {
               foregroundColor: AppColors.textInverse,
               onPressed: () => context.go(
                 preview
-                    ? RoutePaths.onmoimMeetupSettlementShare(
+                    ? RoutePaths.planSettlementDetail(
                         onmoimId,
                         meetupId,
                         settlement.id,
                       )
-                    : RoutePaths.onmoimMeetupDetail(onmoimId, meetupId),
+                    : RoutePaths.planDetail(onmoimId, meetupId),
               ),
             ),
           ),

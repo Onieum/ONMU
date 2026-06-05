@@ -27,7 +27,7 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
           return;
         }
 
-        context.go(RoutePaths.onmoimDemo);
+        context.go(RoutePaths.groupDetail(group.id));
       },
       action: Row(
         mainAxisSize: MainAxisSize.min,
@@ -43,7 +43,7 @@ class OnMoimMemoryBoardPage extends StatelessWidget {
           ),
           IconButton(
             tooltip: '기록 옵션',
-            onPressed: () => context.go(RoutePaths.onmoimSettings(group.id)),
+            onPressed: () => context.go(RoutePaths.groupSettings(group.id)),
             icon: const Icon(Icons.more_vert),
           ),
         ],
@@ -88,13 +88,13 @@ class _GroupTabs extends StatelessWidget {
         _GroupTab(
           label: '약속',
           selected: false,
-          onTap: () => context.go(RoutePaths.onmoimDetail(group.id)),
+          onTap: () => context.go(RoutePaths.groupDetail(group.id)),
         ),
         _GroupTab(label: '기록', selected: true, onTap: () {}),
         _GroupTab(
           label: '채팅',
           selected: false,
-          onTap: () => context.go(RoutePaths.onmoimChat(group.id)),
+          onTap: () => context.go(RoutePaths.groupChat(group.id)),
         ),
       ],
     );
@@ -221,7 +221,7 @@ class _MemoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuCard(
       onTap: () =>
-          context.go(RoutePaths.onmoimMemoryDetail(onmoimId, memory.id)),
+          context.go(RoutePaths.groupMemoryDetail(onmoimId, memory.id)),
       backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Column(

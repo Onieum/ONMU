@@ -29,16 +29,16 @@ import '../../features/onmoim/presentation/pages/onmoim_vote_detail_page.dart';
 import '../../features/onboarding/onboarding_hub_page.dart';
 import '../../features/onmoim/presentation/pages/onmoim_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
-import '../../features/place/presentation/pages/place_compare_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
 import '../../features/place/presentation/pages/place_map_page.dart';
-import '../../features/place/presentation/pages/place_risks_page.dart';
 import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../features/place/presentation/pages/place_vote_create_page.dart';
 import '../../features/preferences/preference_intro_page.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/widgets/onmu_bottom_nav_bar.dart';
 import '../../shared/widgets/prototype_placeholder_page.dart';
+import 'demo_route_seeds.dart';
+import 'legacy_route_redirects.dart';
 import 'route_paths.dart';
 
 final appRouter = GoRouter(
@@ -47,15 +47,16 @@ final appRouter = GoRouter(
     GoRoute(path: '/', redirect: (context, state) => RoutePaths.splash),
     GoRoute(
       path: RoutePaths.splash,
-      builder: (context, state) =>
-          SplashPage(onTimeout: () => context.go(RoutePaths.preferenceIntro)),
+      builder: (context, state) => SplashPage(
+        onTimeout: () => context.go(RoutePaths.onboardingPreferences),
+      ),
     ),
     GoRoute(
       path: RoutePaths.start,
       builder: (context, state) => const StartPage(),
     ),
     GoRoute(
-      path: RoutePaths.preferenceIntro,
+      path: RoutePaths.onboardingPreferences,
       builder: (context, state) =>
           PreferenceIntroPage(profile: PreferenceProfile.mock()),
     ),
@@ -64,12 +65,13 @@ final appRouter = GoRouter(
       builder: (context, state) => const OnboardingHubPage(),
     ),
     GoRoute(
-      path: RoutePaths.characterStart,
+      path: RoutePaths.onboardingCharacter,
       builder: (context, state) => CharacterStartPage(
         onBackToOnboarding: () => context.go(RoutePaths.onboarding),
         onCompleted: (_) => context.go(RoutePaths.onboarding),
       ),
     ),
+    ...legacyRedirectRoutes(),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return Scaffold(
@@ -91,7 +93,7 @@ final appRouter = GoRouter(
               ),
             ),
             GoRoute(
-              path: RoutePaths.homeUpcomingMeetups,
+              path: RoutePaths.homeUpcomingPlans,
               builder: (context, state) => const UpcomingMeetupsPage(),
             ),
             GoRoute(
@@ -107,7 +109,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: RoutePaths.onmoim,
+              path: RoutePaths.groups,
               builder: (context, state) => const OnMoimListPage(),
               routes: [
                 GoRoute(
@@ -123,25 +125,25 @@ final appRouter = GoRouter(
                   },
                 ),
                 GoRoute(
-                  path: ':onmoimId',
+                  path: ':groupId',
                   builder: (context, state) => const OnMoimGroupHomePage(),
                   routes: [
                     GoRoute(
                       path: 'members',
                       builder: (context, state) => OnMoimMemberListPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                       ),
                     ),
                     GoRoute(
                       path: 'invite',
                       builder: (context, state) => OnMoimInvitePage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                       ),
                     ),
                     GoRoute(
                       path: 'settings',
                       builder: (context, state) => OnMoimGroupSettingsPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                       ),
                     ),
                     GoRoute(
@@ -151,14 +153,16 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'votes',
                       builder: (context, state) => OnMoimVoteListPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                       ),
                     ),
                     GoRoute(
                       path: 'votes/:voteId',
                       builder: (context, state) => OnMoimVoteDetailPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
-                        voteId: state.pathParameters['voteId'] ?? 'demo',
+                        onmoimId: state.pathParameters['groupId']!,
+                        voteId:
+                            state.pathParameters['voteId'] ??
+                            DemoRouteSeeds.voteId,
                       ),
                     ),
                     GoRoute(
@@ -169,48 +173,46 @@ final appRouter = GoRouter(
                         GoRoute(
                           path: ':memoryId',
                           builder: (context, state) => OnMoimMemoryDetailPage(
-                            onmoimId: state.pathParameters['onmoimId']!,
+                            onmoimId: state.pathParameters['groupId']!,
                             memoryId: state.pathParameters['memoryId']!,
                           ),
                         ),
                       ],
                     ),
                     GoRoute(
-                      path: 'meetups/new/members',
+                      path: 'plans/new',
                       builder: (context, state) => MeetupCreatePage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                         editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                     ),
                     GoRoute(
-                      path: 'meetups',
+                      path: 'plans',
                       builder: (context, state) => OnMoimMeetupListPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                       ),
                     ),
                     GoRoute(
-                      path: 'meetups/new/schedule',
+                      path: 'plans/new/schedule',
                       builder: (context, state) => MeetupCreatePage(
-                        onmoimId: state.pathParameters['onmoimId']!,
+                        onmoimId: state.pathParameters['groupId']!,
                         editingMeetupId: state.uri.queryParameters['edit'],
                       ),
                       routes: [
                         GoRoute(
                           path: 'calendar',
                           builder: (context, state) => MeetupCreatePage(
-                            onmoimId: state.pathParameters['onmoimId']!,
+                            onmoimId: state.pathParameters['groupId']!,
                             editingMeetupId: state.uri.queryParameters['edit'],
                           ),
                         ),
                       ],
                     ),
                     GoRoute(
-                      path: 'meetups/:meetupId',
+                      path: 'plans/:planId',
                       builder: (context, state) => MeetupDetailPage(
-                        onmoimId: state.pathParameters['onmoimId']!,
-                        meetupId: state.pathParameters['meetupId']!,
-                        placeConfirmed:
-                            state.uri.queryParameters['place'] == 'confirmed',
+                        onmoimId: state.pathParameters['groupId']!,
+                        meetupId: state.pathParameters['planId']!,
                       ),
                       routes: [
                         GoRoute(
@@ -219,129 +221,80 @@ final appRouter = GoRouter(
                               const OnMoimMeetupBoardPage(),
                         ),
                         GoRoute(
-                          path: 'places',
+                          path: 'place-candidates',
                           builder: (context, state) {
                             return PlaceCandidatePage(
-                              onmoimId: state.pathParameters['onmoimId']!,
-                              meetupId: state.pathParameters['meetupId']!,
-                              showVoteResult:
-                                  state.uri.queryParameters['voteResult'] ==
-                                  '1',
+                              onmoimId: state.pathParameters['groupId']!,
+                              meetupId: state.pathParameters['planId']!,
                             );
                           },
                           routes: [
                             GoRoute(
-                              path: 'search',
-                              builder: (context, state) =>
-                                  PlaceSearchFilterPage(
-                                    onmoimId: state.pathParameters['onmoimId']!,
-                                    meetupId: state.pathParameters['meetupId']!,
-                                  ),
-                            ),
-                            GoRoute(
-                              path: 'map',
-                              builder: (context, state) => PlaceMapPage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
-                              ),
-                            ),
-                            GoRoute(
-                              path: 'risks',
-                              builder: (context, state) => PlaceRisksPage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
-                              ),
-                              routes: [
-                                GoRoute(
-                                  path: 'keyword',
-                                  builder: (context, state) =>
-                                      PlaceRiskDialogPreviewPage(
-                                        onmoimId:
-                                            state.pathParameters['onmoimId']!,
-                                        meetupId:
-                                            state.pathParameters['meetupId']!,
-                                        kind: PlaceRiskDialogKind.keyword,
-                                      ),
-                                ),
-                                GoRoute(
-                                  path: 'break-time',
-                                  builder: (context, state) =>
-                                      PlaceRiskDialogPreviewPage(
-                                        onmoimId:
-                                            state.pathParameters['onmoimId']!,
-                                        meetupId:
-                                            state.pathParameters['meetupId']!,
-                                        kind: PlaceRiskDialogKind.breakTime,
-                                      ),
-                                ),
-                                GoRoute(
-                                  path: 'closed-day',
-                                  builder: (context, state) =>
-                                      PlaceRiskDialogPreviewPage(
-                                        onmoimId:
-                                            state.pathParameters['onmoimId']!,
-                                        meetupId:
-                                            state.pathParameters['meetupId']!,
-                                        kind: PlaceRiskDialogKind.closedDay,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            GoRoute(
-                              path: 'vote/new',
-                              builder: (context, state) => PlaceVoteCreatePage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
-                              ),
-                            ),
-                            GoRoute(
-                              path: ':placeId',
+                              path: ':candidateId',
                               builder: (context, state) => PlaceDetailPage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
+                                onmoimId: state.pathParameters['groupId']!,
+                                meetupId: state.pathParameters['planId']!,
                                 placeId:
-                                    state.pathParameters['placeId'] ??
-                                    'onmu-diner',
+                                    state.pathParameters['candidateId'] ??
+                                    DemoRouteSeeds.candidateId,
                               ),
                             ),
                           ],
                         ),
                         GoRoute(
-                          path: 'place-compare',
-                          builder: (context, state) => PlaceComparePage(
-                            onmoimId: state.pathParameters['onmoimId']!,
-                            meetupId: state.pathParameters['meetupId']!,
+                          path: 'place-search',
+                          builder: (context, state) => PlaceMapPage(
+                            onmoimId: state.pathParameters['groupId']!,
+                            meetupId: state.pathParameters['planId']!,
+                          ),
+                          routes: [
+                            GoRoute(
+                              path: 'results',
+                              builder: (context, state) =>
+                                  PlaceSearchFilterPage(
+                                    onmoimId: state.pathParameters['groupId']!,
+                                    meetupId: state.pathParameters['planId']!,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        GoRoute(
+                          path: 'votes/new',
+                          builder: (context, state) => PlaceVoteCreatePage(
+                            onmoimId: state.pathParameters['groupId']!,
+                            meetupId: state.pathParameters['planId']!,
                           ),
                         ),
                         GoRoute(
-                          path: 'route-review',
+                          path: 'votes/:voteId',
+                          builder: (context, state) => OnMoimVoteDetailPage(
+                            onmoimId: state.pathParameters['groupId']!,
+                            voteId:
+                                state.pathParameters['voteId'] ??
+                                DemoRouteSeeds.voteId,
+                          ),
+                        ),
+                        GoRoute(
+                          path: 'itinerary',
                           builder: (context, state) => MeetupRouteReviewPage(
-                            onmoimId: state.pathParameters['onmoimId']!,
-                            meetupId: state.pathParameters['meetupId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'complete',
-                          builder: (context, state) => MeetupDetailPage(
-                            onmoimId: state.pathParameters['onmoimId']!,
-                            meetupId: state.pathParameters['meetupId']!,
-                            placeConfirmed: true,
+                            onmoimId: state.pathParameters['groupId']!,
+                            meetupId: state.pathParameters['planId']!,
                           ),
                         ),
                         GoRoute(
                           path: 'settlements/new',
                           builder: (context, state) =>
                               OnMoimSettlementCreatePage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
+                                onmoimId: state.pathParameters['groupId']!,
+                                meetupId: state.pathParameters['planId']!,
                               ),
                         ),
                         GoRoute(
                           path: 'settlements/new/items/:itemId/targets',
                           builder: (context, state) =>
                               OnMoimSettlementTargetSelectionPage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
+                                onmoimId: state.pathParameters['groupId']!,
+                                meetupId: state.pathParameters['planId']!,
                                 itemId: state.pathParameters['itemId']!,
                               ),
                         ),
@@ -349,8 +302,8 @@ final appRouter = GoRouter(
                           path: 'settlements/new/preview',
                           builder: (context, state) =>
                               OnMoimSettlementSharePage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
+                                onmoimId: state.pathParameters['groupId']!,
+                                meetupId: state.pathParameters['planId']!,
                                 preview: true,
                               ),
                         ),
@@ -358,8 +311,8 @@ final appRouter = GoRouter(
                           path: 'settlements/:settlementId',
                           builder: (context, state) =>
                               OnMoimSettlementSharePage(
-                                onmoimId: state.pathParameters['onmoimId']!,
-                                meetupId: state.pathParameters['meetupId']!,
+                                onmoimId: state.pathParameters['groupId']!,
+                                meetupId: state.pathParameters['planId']!,
                               ),
                         ),
                       ],
@@ -373,7 +326,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: RoutePaths.ootdList,
+              path: RoutePaths.records,
               builder: (context, state) => const PrototypePlaceholderPage(
                 title: '기록',
                 description: 'OOTD와 기억 상세 플로우가 들어갈 탭입니다.',
@@ -385,8 +338,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.my,
-              builder: (context, state) =>
-                  MyPage(resetToken: state.uri.queryParameters['reset']),
+              builder: (context, state) => const MyPage(),
             ),
           ],
         ),

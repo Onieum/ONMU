@@ -26,10 +26,10 @@ class OnMoimMeetupListPage extends StatelessWidget {
     return OnmuScaffold(
       title: '약속',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(onmoimId)),
+      onBack: () => context.go(RoutePaths.groupDetail(onmoimId)),
       action: IconButton(
         tooltip: '약속 만들기',
-        onPressed: () => context.go(RoutePaths.onmoimMeetupNew(onmoimId)),
+        onPressed: () => context.go(RoutePaths.planNew(onmoimId)),
         icon: const Icon(Icons.add, color: AppColors.primaryPink),
       ),
       useWarmBackground: false,
@@ -39,14 +39,13 @@ class OnMoimMeetupListPage extends StatelessWidget {
         _MeetupSectionTitle(
           title: '다가오는 약속',
           count: upcoming.length,
-          onCreateTap: () => context.go(RoutePaths.onmoimMeetupNew(onmoimId)),
+          onCreateTap: () => context.go(RoutePaths.planNew(onmoimId)),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final meetup in upcoming) ...[
           _MeetupSummaryCard(
             meetup: meetup,
-            onTap: () =>
-                context.go(RoutePaths.onmoimMeetupDetail(onmoimId, meetup.id)),
+            onTap: () => context.go(RoutePaths.planDetail(onmoimId, meetup.id)),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -57,9 +56,8 @@ class OnMoimMeetupListPage extends StatelessWidget {
           for (final meetup in past) ...[
             _MeetupSummaryCard(
               meetup: meetup,
-              onTap: () => context.go(
-                RoutePaths.onmoimMeetupDetail(onmoimId, meetup.id),
-              ),
+              onTap: () =>
+                  context.go(RoutePaths.planDetail(onmoimId, meetup.id)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -50,11 +51,12 @@ class _OnMoimCreatePageState extends State<OnMoimCreatePage> {
     return OnmuScaffold(
       title: '온모임 만들기',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoim),
+      onBack: () => context.go(RoutePaths.groups),
       useWarmBackground: false,
       bottom: OnmuPrimaryButton(
         label: '온모임 만들기',
-        onPressed: () => context.go(RoutePaths.onmoimDetail('friends')),
+        onPressed: () =>
+            context.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId)),
       ),
       children: [
         OnmuCard(
@@ -189,7 +191,10 @@ class _InvitePreviewRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final memberNames = initialMemberNames.isNotEmpty
         ? initialMemberNames
-        : demoOnMoimMemberProfiles.map((member) => member.name).take(4).toList();
+        : demoOnMoimMemberProfiles
+              .map((member) => member.name)
+              .take(4)
+              .toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

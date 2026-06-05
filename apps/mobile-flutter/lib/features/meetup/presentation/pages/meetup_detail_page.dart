@@ -73,19 +73,19 @@ class _DraftMeetupDetailState extends State<_DraftMeetupDetail> {
           return;
         }
 
-        context.go(RoutePaths.onmoimDetail(widget.onmoimId));
+        context.go(RoutePaths.groupDetail(widget.onmoimId));
       },
       action: _MeetupMoreMenu(
         onEditPressed: () => context.push(
-          '${RoutePaths.onmoimMeetupNewMembers(widget.onmoimId)}?edit=${widget.meetupId}',
+          '${RoutePaths.planNew(widget.onmoimId)}?edit=${widget.meetupId}',
         ),
       ),
       bottom: _DraftPlaceActions(
         onSearchPressed: () => context.push(
-          RoutePaths.onmoimMeetupPlaceMap(widget.onmoimId, widget.meetupId),
+          RoutePaths.planPlaceSearch(widget.onmoimId, widget.meetupId),
         ),
         onCandidatesPressed: () => context.push(
-          RoutePaths.onmoimMeetupPlaces(widget.onmoimId, widget.meetupId),
+          RoutePaths.planPlaceCandidates(widget.onmoimId, widget.meetupId),
         ),
       ),
       children: [
@@ -202,11 +202,11 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
           return;
         }
 
-        context.go(RoutePaths.onmoimDetail(widget.onmoimId));
+        context.go(RoutePaths.groupDetail(widget.onmoimId));
       },
       action: _MeetupMoreMenu(
         onEditPressed: () => context.push(
-          '${RoutePaths.onmoimMeetupNewMembers(widget.onmoimId)}?edit=${widget.meetupId}',
+          '${RoutePaths.planNew(widget.onmoimId)}?edit=${widget.meetupId}',
         ),
       ),
       bottom: OnmuPrimaryButton(
@@ -214,7 +214,7 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
         icon: Icons.check,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
+        onPressed: () => context.go(RoutePaths.groupDetail(widget.onmoimId)),
       ),
       children: [
         _MeetupMemberSection(members: widget.members),
@@ -237,7 +237,7 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
                 label: '후보 리스트 보기',
                 icon: Icons.favorite_border,
                 onPressed: () => context.push(
-                  RoutePaths.onmoimMeetupPlaces(
+                  RoutePaths.planPlaceCandidates(
                     widget.onmoimId,
                     widget.meetupId,
                   ),
@@ -250,10 +250,7 @@ class _ConfirmedMeetupDetailState extends State<_ConfirmedMeetupDetail> {
                 label: '동선 보기',
                 icon: Icons.route_outlined,
                 onPressed: () => context.push(
-                  RoutePaths.onmoimMeetupRouteReview(
-                    widget.onmoimId,
-                    widget.meetupId,
-                  ),
+                  RoutePaths.planItinerary(widget.onmoimId, widget.meetupId),
                 ),
               ),
             ),

@@ -150,10 +150,8 @@ class _MyPageState extends State<MyPage> {
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {
     final result = await Navigator.of(context).push<_ProfileSectionEditResult>(
       MaterialPageRoute(
-        builder: (context) => _ProfileSectionEditPage(
-          section: section,
-          profile: _profile,
-        ),
+        builder: (context) =>
+            _ProfileSectionEditPage(section: section, profile: _profile),
       ),
     );
 
@@ -178,10 +176,8 @@ class _MyPageState extends State<MyPage> {
   void _openProfileDetailPage(_ProfileDetailSection section) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _ProfileDetailPage(
-          section: section,
-          profile: _profile,
-        ),
+        builder: (context) =>
+            _ProfileDetailPage(section: section, profile: _profile),
       ),
     );
   }
@@ -232,7 +228,6 @@ class _MyPageState extends State<MyPage> {
       ];
     });
   }
-
 }
 
 class _PageHeader extends StatelessWidget {
@@ -321,10 +316,7 @@ class _HeaderIconButton extends StatelessWidget {
 }
 
 class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({
-    required this.profile,
-    required this.onEdit,
-  });
+  const _ProfileHero({required this.profile, required this.onEdit});
 
   final MyProfile profile;
   final VoidCallback onEdit;
@@ -402,6 +394,7 @@ class _ProfileHero extends StatelessWidget {
     );
   }
 }
+
 class _CharacterPortrait extends StatelessWidget {
   const _CharacterPortrait({required this.size, this.character});
 
@@ -670,19 +663,25 @@ class _ProfileTab extends StatelessWidget {
               icon: Icons.favorite_rounded,
               iconColor: AppColors.primaryPink,
               label: '좋아하는 장소',
-              places: profile.favoritePlaces.map((place) => place.name).toList(),
+              places: profile.favoritePlaces
+                  .map((place) => place.name)
+                  .toList(),
             ),
             _PlacePreferenceRowData(
               icon: Icons.star_rounded,
               iconColor: AppColors.primaryPurple,
               label: '가고싶은 장소',
-              places: profile.wantToGoPlaces.map((place) => place.name).toList(),
+              places: profile.wantToGoPlaces
+                  .map((place) => place.name)
+                  .toList(),
             ),
             _PlacePreferenceRowData(
               icon: Icons.close_rounded,
               iconColor: AppColors.textMuted,
               label: '싫어하는 장소',
-              places: profile.dislikedPlaces.map((place) => place.name).toList(),
+              places: profile.dislikedPlaces
+                  .map((place) => place.name)
+                  .toList(),
             ),
           ],
         ),
@@ -900,7 +899,9 @@ class _FriendsTabState extends State<_FriendsTab> {
     );
   }
 
-  Future<void> _showFavoriteFriendPicker(Set<String> favoriteFriendNames) async {
+  Future<void> _showFavoriteFriendPicker(
+    Set<String> favoriteFriendNames,
+  ) async {
     final candidates = widget.friends
         .where((friend) => !favoriteFriendNames.contains(friend.name))
         .toList();
@@ -948,7 +949,7 @@ class _KeywordPreferenceCard extends StatelessWidget {
             actionLabel: showAction ? '편집' : null,
             onAction: showAction ? onEdit : null,
           ),
-        const SizedBox(height: 18),
+          const SizedBox(height: 18),
           _InfoRow(
             icon: Icons.restaurant_menu_rounded,
             label: '선호 음식/메뉴',
@@ -1154,7 +1155,7 @@ class _InfoRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1517,7 +1518,10 @@ class _FavoriteFriendCandidateTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            _CharacterPortrait(size: 46, character: _characterForFriend(friend)),
+            _CharacterPortrait(
+              size: 46,
+              character: _characterForFriend(friend),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -1621,45 +1625,43 @@ class _FriendProfilePage extends StatelessWidget {
         child: GridBackground(
           child: CustomScrollView(
             slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-              sliver: SliverToBoxAdapter(
-                child: _FriendProfileTopBar(
-                  onBack: () => Navigator.of(context).pop(),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _FriendProfileTopBar(
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
                 ),
               ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    _FriendProfileHero(
-                      friend: friend,
-                      profile: profile,
-                      onDelete: () =>
-                          _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
-                      onCreateMeetup: () => context.go(
-                        RoutePaths.onmoimNew,
-                        extra: [friend.name],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      _FriendProfileHero(
+                        friend: friend,
+                        profile: profile,
+                        onDelete: () =>
+                            _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
+                        onCreateMeetup: () => context.go(
+                          RoutePaths.groupNew,
+                          extra: [friend.name],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    _ProfileTab(
-                      profile: profile,
-                      onKeywordEdit: () {},
-                      onScheduleEdit: () {},
-                      onPlaceEdit: () {},
-                      onDetail: (section) => _openFriendProfileDetail(
-                        context,
-                        section,
+                      const SizedBox(height: 18),
+                      _ProfileTab(
+                        profile: profile,
+                        onKeywordEdit: () {},
+                        onScheduleEdit: () {},
+                        onPlaceEdit: () {},
+                        onDetail: (section) =>
+                            _openFriendProfileDetail(context, section),
+                        showActions: false,
                       ),
-                      showActions: false,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             ],
           ),
         ),
@@ -1679,10 +1681,8 @@ class _FriendProfilePage extends StatelessWidget {
   ) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _ProfileDetailPage(
-          section: section,
-          profile: profile,
-        ),
+        builder: (context) =>
+            _ProfileDetailPage(section: section, profile: profile),
       ),
     );
   }
@@ -1984,23 +1984,24 @@ class _ProfileDetailPage extends StatelessWidget {
       body: SafeArea(
         child: GridBackground(
           child: Column(
-          children: [
-            _SettingsTopBar(
-              title: section.title,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                child: switch (section) {
-                  _ProfileDetailSection.keywords => _buildKeywordDetail(),
-                  _ProfileDetailSection.schedule => _buildScheduleDetail(),
-                  _ProfileDetailSection.places => _buildPlaceDetail(),
-                  _ProfileDetailSection.savedPlaces => _buildSavedPlaceDetail(),
-                },
+            children: [
+              _SettingsTopBar(
+                title: section.title,
+                onBack: () => Navigator.of(context).pop(),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                  child: switch (section) {
+                    _ProfileDetailSection.keywords => _buildKeywordDetail(),
+                    _ProfileDetailSection.schedule => _buildScheduleDetail(),
+                    _ProfileDetailSection.places => _buildPlaceDetail(),
+                    _ProfileDetailSection.savedPlaces =>
+                      _buildSavedPlaceDetail(),
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2162,10 +2163,7 @@ class _DetailChipSection extends StatelessWidget {
 }
 
 class _ProfileSectionEditPage extends StatefulWidget {
-  const _ProfileSectionEditPage({
-    required this.section,
-    required this.profile,
-  });
+  const _ProfileSectionEditPage({required this.section, required this.profile});
 
   final _ProfileEditSection section;
   final MyProfile profile;
@@ -2205,31 +2203,31 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       body: SafeArea(
         child: GridBackground(
           child: Column(
-          children: [
-            _EditPageTopBar(
-              title: widget.section.title,
-              actionLabel: '저장',
-              onBack: () => Navigator.of(context).pop(),
-              onAction: _save,
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionEditIntro(section: widget.section),
-                    const SizedBox(height: 16),
-                    switch (widget.section) {
-                      _ProfileEditSection.keywords => _buildKeywordEditor(),
-                      _ProfileEditSection.schedule => _buildScheduleEditor(),
-                      _ProfileEditSection.places => _buildPlaceEditor(),
-                    },
-                  ],
+            children: [
+              _EditPageTopBar(
+                title: widget.section.title,
+                actionLabel: '저장',
+                onBack: () => Navigator.of(context).pop(),
+                onAction: _save,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionEditIntro(section: widget.section),
+                      const SizedBox(height: 16),
+                      switch (widget.section) {
+                        _ProfileEditSection.keywords => _buildKeywordEditor(),
+                        _ProfileEditSection.schedule => _buildScheduleEditor(),
+                        _ProfileEditSection.places => _buildPlaceEditor(),
+                      },
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -2299,13 +2297,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       '일요일',
       '상관 없어요',
     ];
-    const timeOptions = [
-      '오전',
-      '점심',
-      '오후',
-      '저녁',
-      '일정 보고 결정할게요',
-    ];
+    const timeOptions = ['오전', '점심', '오후', '저녁', '일정 보고 결정할게요'];
 
     return Column(
       children: [
@@ -2662,205 +2654,208 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       body: SafeArea(
         child: GridBackground(
           child: Column(
-          children: [
-            _EditPageTopBar(
-              title: '프로필 수정',
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                child: Column(
-                  children: [
-                    InkWell(
-                      onTap: _showProfilePhotoOptions,
-                      borderRadius: BorderRadius.circular(999),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const _CharacterPortrait(size: 132),
-                          Positioned(
-                            right: 4,
-                            bottom: 10,
-                            child: Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryPink,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.bgDefault,
-                                  width: 3,
+            children: [
+              _EditPageTopBar(
+                title: '프로필 수정',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        onTap: _showProfilePhotoOptions,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const _CharacterPortrait(size: 132),
+                            Positioned(
+                              right: 4,
+                              bottom: 10,
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryPink,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.bgDefault,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.photo_camera_outlined,
+                                  color: AppColors.textInverse,
+                                  size: 22,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.photo_camera_outlined,
-                                color: AppColors.textInverse,
-                                size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: _showProfilePhotoOptions,
+                        icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                        label: const Text('프로필 사진 변경'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryPurple,
+                          textStyle: AppTextStyles.labelLarge.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _openCharacterEditor,
+                        icon: const Icon(
+                          Icons.face_retouching_natural_outlined,
+                        ),
+                        label: const Text('캐릭터 수정'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primaryPurple,
+                          side: const BorderSide(color: AppColors.linePink),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _EditFieldCard(
+                        icon: Icons.badge_outlined,
+                        label: '이름',
+                        child: _CountedTextField(
+                          controller: _nameController,
+                          maxLength: 10,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _EditFieldCard(
+                        icon: Icons.edit_outlined,
+                        label: '소개',
+                        child: _CountedTextField(
+                          controller: _introController,
+                          maxLength: 50,
+                          maxLines: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _EditFieldCard(
+                        icon: Icons.location_on_outlined,
+                        label: '지역',
+                        child: _RegionSelector(controller: _regionController),
+                      ),
+                      const SizedBox(height: 14),
+                      _EditFieldCard(
+                        icon: Icons.favorite_border,
+                        label: '관심사',
+                        subLabel: '(최대 5개)',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final interest in _interests)
+                                    _RemovableInterestChip(
+                                      label: interest,
+                                      onRemove: () {
+                                        setState(
+                                          () => _interests.remove(interest),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: _showProfilePhotoOptions,
-                      icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-                      label: const Text('프로필 사진 변경'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primaryPurple,
-                        textStyle: AppTextStyles.labelLarge.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _openCharacterEditor,
-                      icon: const Icon(Icons.face_retouching_natural_outlined),
-                      label: const Text('캐릭터 수정'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primaryPurple,
-                        side: const BorderSide(color: AppColors.linePink),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _EditFieldCard(
-                      icon: Icons.badge_outlined,
-                      label: '이름',
-                      child: _CountedTextField(
-                        controller: _nameController,
-                        maxLength: 10,
-                        maxLines: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _EditFieldCard(
-                      icon: Icons.edit_outlined,
-                      label: '소개',
-                      child: _CountedTextField(
-                        controller: _introController,
-                        maxLength: 50,
-                        maxLines: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _EditFieldCard(
-                      icon: Icons.location_on_outlined,
-                      label: '지역',
-                      child: _RegionSelector(controller: _regionController),
-                    ),
-                    const SizedBox(height: 14),
-                    _EditFieldCard(
-                      icon: Icons.favorite_border,
-                      label: '관심사',
-                      subLabel: '(최대 5개)',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
+                            const SizedBox(height: 12),
+                            Row(
                               children: [
-                                for (final interest in _interests)
-                                  _RemovableInterestChip(
-                                    label: interest,
-                                    onRemove: () {
-                                      setState(
-                                        () => _interests.remove(interest),
-                                      );
-                                    },
+                                Expanded(
+                                  child: TextField(
+                                    controller: _interestController,
+                                    enabled: _interests.length < 5,
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) => _addInterest(),
+                                    decoration: InputDecoration(
+                                      hintText: _interests.length < 5
+                                          ? '관심사 입력'
+                                          : '관심사는 최대 5개까지 가능해요',
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
+                                    ),
                                   ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  height: 46,
+                                  child: FilledButton(
+                                    onPressed: _interests.length < 5
+                                        ? _addInterest
+                                        : null,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primaryPink,
+                                      foregroundColor: AppColors.textInverse,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '추가',
+                                      style: AppTextStyles.labelLarge.copyWith(
+                                        color: AppColors.textInverse,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _interestController,
-                                  enabled: _interests.length < 5,
-                                  textInputAction: TextInputAction.done,
-                                  onSubmitted: (_) => _addInterest(),
-                                  decoration: InputDecoration(
-                                    hintText: _interests.length < 5
-                                        ? '관심사 입력'
-                                        : '관심사는 최대 5개까지 가능해요',
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                height: 46,
-                                child: FilledButton(
-                                  onPressed: _interests.length < 5
-                                      ? _addInterest
-                                      : null,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppColors.primaryPink,
-                                    foregroundColor: AppColors.textInverse,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '추가',
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      color: AppColors.textInverse,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: FilledButton.icon(
-                        onPressed: _save,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primaryPink,
-                          foregroundColor: AppColors.textInverse,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          ],
                         ),
-                        icon: const Icon(Icons.save_outlined),
-                        label: Text(
-                          '저장하기',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textInverse,
+                      ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 58,
+                        child: FilledButton.icon(
+                          onPressed: _save,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primaryPink,
+                            foregroundColor: AppColors.textInverse,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.save_outlined),
+                          label: Text(
+                            '저장하기',
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.textInverse,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -2881,9 +2876,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
 
   void _addInterest() {
     final value = _interestController.text.trim();
-    if (value.isEmpty ||
-        _interests.contains(value) ||
-        _interests.length >= 5) {
+    if (value.isEmpty || _interests.contains(value) || _interests.length >= 5) {
       return;
     }
 
@@ -3068,68 +3061,68 @@ class _SettingsPage extends StatelessWidget {
       body: SafeArea(
         child: GridBackground(
           child: Column(
-          children: [
-            _SettingsTopBar(
-              title: '설정',
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 36, 22, 28),
-                child: Column(
-                  children: [
-                    _SettingsMenuCard(
-                      items: const [
-                        _SettingsMenuItemData(
-                          type: _SettingsDetailType.account,
-                          icon: Icons.person_outline,
-                          title: '계정',
-                          subtitle: '이메일, 비밀번호, 휴대폰 번호 등',
-                        ),
-                        _SettingsMenuItemData(
-                          type: _SettingsDetailType.privacy,
-                          icon: Icons.verified_user_outlined,
-                          title: '개인정보 및 보안',
-                          subtitle: '개인정보 설정, 차단, 공개 범위 등',
-                        ),
-                        _SettingsMenuItemData(
-                          type: _SettingsDetailType.notification,
-                          icon: Icons.notifications_none_rounded,
-                          title: '알림',
-                          subtitle: '푸시 알림, 알림 시간, 소식 알림 등',
-                        ),
-                        _SettingsMenuItemData(
-                          type: _SettingsDetailType.app,
-                          icon: Icons.palette_outlined,
-                          title: '앱 설정',
-                          subtitle: '테마, 언어, 다크 모드, 글자 크기 등',
-                        ),
-                        _SettingsMenuItemData(
-                          type: _SettingsDetailType.support,
-                          icon: Icons.help_outline_rounded,
-                          title: '고객 지원',
-                          subtitle: '고객센터, FAQ, 이용약관 등',
-                        ),
-                      ],
-                      onSelected: (item) => _openDetail(context, item.type),
-                    ),
-                    const SizedBox(height: 28),
-                    _AccountActionCard(
-                      onTap: () => _showSettingsToast(context),
-                    ),
-                    const SizedBox(height: 28),
-                    Text(
-                      'v1.2.0',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w700,
+            children: [
+              _SettingsTopBar(
+                title: '설정',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 36, 22, 28),
+                  child: Column(
+                    children: [
+                      _SettingsMenuCard(
+                        items: const [
+                          _SettingsMenuItemData(
+                            type: _SettingsDetailType.account,
+                            icon: Icons.person_outline,
+                            title: '계정',
+                            subtitle: '이메일, 비밀번호, 휴대폰 번호 등',
+                          ),
+                          _SettingsMenuItemData(
+                            type: _SettingsDetailType.privacy,
+                            icon: Icons.verified_user_outlined,
+                            title: '개인정보 및 보안',
+                            subtitle: '개인정보 설정, 차단, 공개 범위 등',
+                          ),
+                          _SettingsMenuItemData(
+                            type: _SettingsDetailType.notification,
+                            icon: Icons.notifications_none_rounded,
+                            title: '알림',
+                            subtitle: '푸시 알림, 알림 시간, 소식 알림 등',
+                          ),
+                          _SettingsMenuItemData(
+                            type: _SettingsDetailType.app,
+                            icon: Icons.palette_outlined,
+                            title: '앱 설정',
+                            subtitle: '테마, 언어, 다크 모드, 글자 크기 등',
+                          ),
+                          _SettingsMenuItemData(
+                            type: _SettingsDetailType.support,
+                            icon: Icons.help_outline_rounded,
+                            title: '고객 지원',
+                            subtitle: '고객센터, FAQ, 이용약관 등',
+                          ),
+                        ],
+                        onSelected: (item) => _openDetail(context, item.type),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 28),
+                      _AccountActionCard(
+                        onTap: () => _showSettingsToast(context),
+                      ),
+                      const SizedBox(height: 28),
+                      Text(
+                        'v1.2.0',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -3256,18 +3249,18 @@ class _SettingsDetailPage extends StatelessWidget {
       body: SafeArea(
         child: GridBackground(
           child: Column(
-          children: [
-            _SettingsTopBar(
-              title: type.title,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
-                child: _buildContent(context),
+            children: [
+              _SettingsTopBar(
+                title: type.title,
+                onBack: () => Navigator.of(context).pop(),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
+                  child: _buildContent(context),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -4123,18 +4116,9 @@ enum _MyTab {
 }
 
 enum _ProfileEditSection {
-  keywords(
-    '음식/메뉴 취향 편집',
-    '처음 취향 설정에서 고른 기준에 맞춰 좋아하는 메뉴와 피하고 싶은 메뉴를 관리해요.',
-  ),
-  schedule(
-    '약속 스타일 편집',
-    '약속 스타일, 선호 요일과 시간대를 조정하고 불가능한 날짜도 관리해요.',
-  ),
-  places(
-    '장소/분위기 취향 편집',
-    '처음 취향 설정에서 고른 장소 분위기와 피하고 싶은 조건을 관리해요.',
-  );
+  keywords('음식/메뉴 취향 편집', '처음 취향 설정에서 고른 기준에 맞춰 좋아하는 메뉴와 피하고 싶은 메뉴를 관리해요.'),
+  schedule('약속 스타일 편집', '약속 스타일, 선호 요일과 시간대를 조정하고 불가능한 날짜도 관리해요.'),
+  places('장소/분위기 취향 편집', '처음 취향 설정에서 고른 장소 분위기와 피하고 싶은 조건을 관리해요.');
 
   const _ProfileEditSection(this.title, this.description);
 

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'core/routing/route_paths.dart';
 import 'shared/widgets/onmu_bottom_nav_bar.dart';
 
 class MainShell extends StatelessWidget {
-  final StatefulNavigationShell navigationShell;
+  const MainShell({
+    super.key,
+    required this.navigationShell,
+    this.onMyTabReselected,
+  });
 
-  const MainShell({super.key, required this.navigationShell});
+  final StatefulNavigationShell navigationShell;
+  final VoidCallback? onMyTabReselected;
 
   @override
   Widget build(BuildContext context) {
@@ -21,16 +25,11 @@ class MainShell extends StatelessWidget {
 
           if (isCurrentBranch && isMyBranch) {
             navigationShell.goBranch(index, initialLocation: true);
-            context.go(
-              '${RoutePaths.my}?reset=${DateTime.now().microsecondsSinceEpoch}',
-            );
+            onMyTabReselected?.call();
             return;
           }
 
-          navigationShell.goBranch(
-            index,
-            initialLocation: isCurrentBranch,
-          );
+          navigationShell.goBranch(index, initialLocation: isCurrentBranch);
         },
       ),
     );

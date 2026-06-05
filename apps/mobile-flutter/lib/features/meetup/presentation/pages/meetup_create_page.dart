@@ -38,10 +38,7 @@ class MeetupCreatePage extends StatelessWidget {
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         onPressed: () => context.go(
-          RoutePaths.onmoimMeetupDetail(
-            onmoimId,
-            editingMeetupId ?? mockMeetup.id,
-          ),
+          RoutePaths.planDetail(onmoimId, editingMeetupId ?? mockMeetup.id),
         ),
       ),
       children: [

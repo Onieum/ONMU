@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -22,7 +23,7 @@ class OnMoimListPage extends StatelessWidget {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textMain,
         shape: const CircleBorder(),
-        onPressed: () => context.go(RoutePaths.onmoimNew),
+        onPressed: () => context.go(RoutePaths.groupNew),
         child: const Icon(Icons.add),
       ),
       children: [
@@ -45,7 +46,8 @@ class OnMoimListPage extends StatelessWidget {
         for (final group in demoOnMoimGroups) ...[
           OnMoimGroupCard(
             group: group,
-            onTap: () => context.go(RoutePaths.onmoimDemo),
+            onTap: () =>
+                context.go(RoutePaths.groupDetail(DemoRouteSeeds.groupId)),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],

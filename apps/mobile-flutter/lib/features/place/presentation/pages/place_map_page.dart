@@ -94,10 +94,7 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
                 }
 
                 context.go(
-                  RoutePaths.onmoimMeetupDetail(
-                    widget.onmoimId,
-                    widget.meetupId,
-                  ),
+                  RoutePaths.planDetail(widget.onmoimId, widget.meetupId),
                 );
               },
             ),
@@ -176,14 +173,16 @@ class _PlaceMapPageState extends State<PlaceMapPage> {
                             context,
                             message: '일정에 등록되었어요!',
                             actionLabel: '일정 보러가기',
-                            targetPath:
-                                '${RoutePaths.onmoimMeetupDetail(widget.onmoimId, widget.meetupId)}?place=confirmed',
+                            targetPath: RoutePaths.planItinerary(
+                              widget.onmoimId,
+                              widget.meetupId,
+                            ),
                           ),
                           onAddCandidatePressed: () => _showConfirmation(
                             context,
                             message: '후보에 추가되었어요!',
                             actionLabel: '후보 리스트 보러가기',
-                            targetPath: RoutePaths.onmoimMeetupPlaces(
+                            targetPath: RoutePaths.planPlaceCandidates(
                               widget.onmoimId,
                               widget.meetupId,
                             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -75,15 +76,17 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: AppSpacing.sm),
         _ActiveMeetupCard(
           meetup: meetup,
-          onTap: () =>
-              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
-          onChatTap: () => context.push(RoutePaths.onmoimChat('friends')),
+          onTap: () => context.push(
+            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
+          ),
+          onChatTap: () =>
+              context.push(RoutePaths.groupChat(DemoRouteSeeds.groupId)),
         ),
         const SizedBox(height: AppSpacing.xxl),
         _SectionTitle(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
-          onTap: () => context.push(RoutePaths.homeUpcomingMeetups),
+          onTap: () => context.push(RoutePaths.homeUpcomingPlans),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupTile(
@@ -92,8 +95,9 @@ class _HomePageState extends State<HomePage> {
           title: '한남 카페 투어',
           place: '한남동 일대',
           dday: 'D-2',
-          onTap: () =>
-              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
+          onTap: () => context.push(
+            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         _UpcomingMeetupTile(
@@ -102,8 +106,9 @@ class _HomePageState extends State<HomePage> {
           title: '홍대 전시회 구경',
           place: '홍대 일대',
           dday: 'D-4',
-          onTap: () =>
-              context.push(RoutePaths.onmoimMeetupDetail('friends', meetup.id)),
+          onTap: () => context.push(
+            RoutePaths.planDetail(DemoRouteSeeds.groupId, meetup.id),
+          ),
         ),
         if (!widget.showOnlyMeetups) ...[
           const SizedBox(height: AppSpacing.xxl),
@@ -174,9 +179,9 @@ class _HomeHeader extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     '오늘은 2개의 약속이 있어요',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSub,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
                   ),
                 ],
               ),
@@ -372,9 +377,7 @@ class _CompactHomeButton extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: AppColors.primaryPurple,
                   ),
                 ),

@@ -29,16 +29,14 @@ class OnMoimSettlementCreatePage extends StatelessWidget {
       title: '약속 정산 만들기',
       subtitle: '이 약속에서 쓴 비용만 항목별로 정리해요.',
       showBackButton: true,
-      onBack: () =>
-          context.go(RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)),
+      onBack: () => context.go(RoutePaths.planDetail(onmoimId, meetupId)),
       bottom: OnmuPrimaryButton(
         label: '최종 정산 미리보기',
         icon: Icons.visibility_outlined,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: () => context.go(
-          RoutePaths.onmoimMeetupSettlementPreview(onmoimId, meetupId),
-        ),
+        onPressed: () =>
+            context.go(RoutePaths.planSettlementPreview(onmoimId, meetupId)),
       ),
       children: [
         _SettlementScopeCard(settlement: settlement),
@@ -54,11 +52,7 @@ class OnMoimSettlementCreatePage extends StatelessWidget {
           _PaymentItemSummaryCard(
             item: item,
             onTap: () => context.go(
-              RoutePaths.onmoimMeetupSettlementTargets(
-                onmoimId,
-                meetupId,
-                item.id,
-              ),
+              RoutePaths.planSettlementTargets(onmoimId, meetupId, item.id),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

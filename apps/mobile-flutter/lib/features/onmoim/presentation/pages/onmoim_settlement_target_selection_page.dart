@@ -80,7 +80,7 @@ class _OnMoimSettlementTargetSelectionPageState
       subtitle: '${_item.title} 비용을 함께 나눌 사람만 선택해요.',
       showBackButton: true,
       onBack: () => context.go(
-        RoutePaths.onmoimMeetupSettlementNew(widget.onmoimId, widget.meetupId),
+        RoutePaths.planSettlementNew(widget.onmoimId, widget.meetupId),
       ),
       bottom: OnmuPrimaryButton(
         label: '이 항목 대상자 저장',
@@ -88,10 +88,7 @@ class _OnMoimSettlementTargetSelectionPageState
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         onPressed: () => context.go(
-          RoutePaths.onmoimMeetupSettlementNew(
-            widget.onmoimId,
-            widget.meetupId,
-          ),
+          RoutePaths.planSettlementNew(widget.onmoimId, widget.meetupId),
         ),
       ),
       children: [

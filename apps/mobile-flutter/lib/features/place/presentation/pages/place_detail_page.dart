@@ -37,8 +37,9 @@ class PlaceDetailPage extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '후보에 추가하기',
               icon: Icons.favorite_border,
-              onPressed: () =>
-                  context.go(RoutePaths.onmoimMeetupPlaces(onmoimId, meetupId)),
+              onPressed: () => context.go(
+                RoutePaths.planPlaceCandidates(onmoimId, meetupId),
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -48,9 +49,8 @@ class PlaceDetailPage extends StatelessWidget {
               icon: Icons.event_available_outlined,
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
-              onPressed: () => context.go(
-                '${RoutePaths.onmoimMeetupDetail(onmoimId, meetupId)}?place=confirmed',
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planItinerary(onmoimId, meetupId)),
             ),
           ),
         ],

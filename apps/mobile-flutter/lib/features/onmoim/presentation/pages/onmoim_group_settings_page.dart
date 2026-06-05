@@ -33,7 +33,7 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
     return OnmuScaffold(
       title: '모임 설정',
       showBackButton: true,
-      onBack: () => context.go(RoutePaths.onmoimDetail(widget.onmoimId)),
+      onBack: () => context.go(RoutePaths.groupDetail(widget.onmoimId)),
       useWarmBackground: false,
       children: [
         _SettingsHeroCard(group: _group, groupName: _groupName),
@@ -56,7 +56,7 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
           icon: Icons.groups_outlined,
           title: '멤버 목록',
           subtitle: '모임원 목록을 확인할 수 있어요.',
-          onTap: () => context.go(RoutePaths.onmoimMembers(widget.onmoimId)),
+          onTap: () => context.go(RoutePaths.groupMembers(widget.onmoimId)),
         ),
         const SizedBox(height: AppSpacing.sm),
         _SettingActionCard(
@@ -141,7 +141,7 @@ class _OnMoimGroupSettingsPageState extends State<OnMoimGroupSettingsPage> {
       return;
     }
 
-    context.go(RoutePaths.onmoim);
+    context.go(RoutePaths.groups);
   }
 }
 
