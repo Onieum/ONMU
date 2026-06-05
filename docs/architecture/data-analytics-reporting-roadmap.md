@@ -104,4 +104,3 @@ FastAPI Alembic은 core domain table을 수정하지 않는다. worker schema는
 | Sprint 2 | ai-data-worker 실제 작업, AI 요약/추천 설명, worker job 상태 관리 |
 | After MVP | Databricks/lakehouse 연결, 비식별 이벤트 적재, 주간/월간 리포트 |
 | Business Pilot | 광고 세그먼트, 기업 리포트, OOTD/persona feature 검증 |
-
