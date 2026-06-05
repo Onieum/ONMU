@@ -165,7 +165,7 @@ class _MyPageState extends State<MyPage> {
         dislikedFoodTags: result.dislikedFoodTags,
         favoritePlaceTags: result.favoritePlaceTags,
         dislikedPlaceTags: result.dislikedPlaceTags,
-        meetupStyles: result.meetupStyles,
+        planStyles: result.planStyles,
         preferredWeekdays: result.preferredWeekdays,
         preferredTimes: result.preferredTimes,
         unavailableDates: result.unavailableDates,
@@ -569,7 +569,7 @@ class _ProfileTab extends StatelessWidget {
               label: '약속 스타일',
               trailingWidget: _KeywordScroller(
                 children: [
-                  for (final style in profile.meetupStyles)
+                  for (final style in profile.planStyles)
                     _KeywordChip(label: style, selected: true),
                 ],
               ),
@@ -1643,7 +1643,7 @@ class _FriendProfilePage extends StatelessWidget {
                         profile: profile,
                         onDelete: () =>
                             _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
-                        onCreateMeetup: () => context.go(
+                        onCreatePlan: () => context.go(
                           RoutePaths.groupNew,
                           extra: [friend.name],
                         ),
@@ -1711,13 +1711,13 @@ class _FriendProfileHero extends StatelessWidget {
     required this.friend,
     required this.profile,
     required this.onDelete,
-    required this.onCreateMeetup,
+    required this.onCreatePlan,
   });
 
   final FriendProfile friend;
   final MyProfile profile;
   final VoidCallback onDelete;
-  final VoidCallback onCreateMeetup;
+  final VoidCallback onCreatePlan;
 
   @override
   Widget build(BuildContext context) {
@@ -1818,7 +1818,7 @@ class _FriendProfileHero extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: FilledButton.icon(
-                onPressed: onCreateMeetup,
+                onPressed: onCreatePlan,
                 icon: const Icon(Icons.event_available_outlined, size: 22),
                 label: const Text('같이 약속 잡기'),
                 style: FilledButton.styleFrom(
@@ -2034,7 +2034,7 @@ class _ProfileDetailPage extends StatelessWidget {
         _DetailChipSection(
           icon: Icons.handshake_outlined,
           title: '약속 스타일',
-          values: profile.meetupStyles,
+          values: profile.planStyles,
           selected: true,
         ),
         const SizedBox(height: 14),
@@ -2178,7 +2178,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
   late List<String> _dislikedFoodTags;
   late List<String> _favoritePlaceTags;
   late List<String> _dislikedPlaceTags;
-  late List<String> _meetupStyles;
+  late List<String> _planStyles;
   late List<String> _preferredTimes;
   late List<String> _preferredWeekdays;
   late List<String> _unavailableDates;
@@ -2190,7 +2190,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     _dislikedFoodTags = [...widget.profile.dislikedFoodTags];
     _favoritePlaceTags = [...widget.profile.favoritePlaceTags];
     _dislikedPlaceTags = [...widget.profile.dislikedPlaceTags];
-    _meetupStyles = [...widget.profile.meetupStyles];
+    _planStyles = [...widget.profile.planStyles];
     _preferredTimes = [...widget.profile.preferredTimes];
     _preferredWeekdays = [...widget.profile.preferredWeekdays];
     _unavailableDates = [...widget.profile.unavailableDates];
@@ -2306,8 +2306,8 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
           label: '약속 스타일',
           child: _ToggleChipWrap(
             values: styleOptions,
-            selectedValues: _meetupStyles,
-            onToggle: (value) => _toggleValue(_meetupStyles, value),
+            selectedValues: _planStyles,
+            onToggle: (value) => _toggleValue(_planStyles, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2428,7 +2428,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
         dislikedFoodTags: _dislikedFoodTags,
         favoritePlaceTags: _favoritePlaceTags,
         dislikedPlaceTags: _dislikedPlaceTags,
-        meetupStyles: _meetupStyles,
+        planStyles: _planStyles,
         preferredWeekdays: _preferredWeekdays,
         preferredTimes: _preferredTimes,
         unavailableDates: _unavailableDates,
@@ -4090,7 +4090,7 @@ class _ProfileSectionEditResult {
     required this.dislikedFoodTags,
     required this.favoritePlaceTags,
     required this.dislikedPlaceTags,
-    required this.meetupStyles,
+    required this.planStyles,
     required this.preferredWeekdays,
     required this.preferredTimes,
     required this.unavailableDates,
@@ -4100,7 +4100,7 @@ class _ProfileSectionEditResult {
   final List<String> dislikedFoodTags;
   final List<String> favoritePlaceTags;
   final List<String> dislikedPlaceTags;
-  final List<String> meetupStyles;
+  final List<String> planStyles;
   final List<String> preferredWeekdays;
   final List<String> preferredTimes;
   final List<String> unavailableDates;
@@ -4148,7 +4148,7 @@ const _mockProfile = MyProfile(
   dislikedFoodTags: ['너무 매운 음식', '해산물'],
   favoritePlaceTags: ['조용한 대화 공간', '감성 있는 사진 맛집', '넓고 쾌적한 공간'],
   dislikedPlaceTags: ['이동 시간이 긴 곳', '소음이 큰 곳'],
-  meetupStyles: ['미리 일정을 정하는 편', '주말에 여유롭게 만나고 싶어요'],
+  planStyles: ['미리 일정을 정하는 편', '주말에 여유롭게 만나고 싶어요'],
   preferredWeekdays: ['토요일', '일요일'],
   preferredTimes: ['오후', '저녁'],
   availableDays: ['토', '일'],

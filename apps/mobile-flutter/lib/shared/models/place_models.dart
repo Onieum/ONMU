@@ -21,7 +21,7 @@ class PlaceCandidate {
     required this.risks,
   });
 
-  final String id;
+  final int id;
   final String name;
   final String category;
   final String summary;
@@ -86,9 +86,9 @@ class PlaceRisk {
 
 enum PlaceRiskLevel { notice, warning, blocker }
 
-const demoPlaceCandidates = [
+const mockPlaceCandidates = [
   PlaceCandidate(
-    id: 'onmu-diner',
+    id: 201,
     name: '온무식당',
     category: '한식',
     summary: '영업중 · 브레이크타임 없음',
@@ -118,7 +118,7 @@ const demoPlaceCandidates = [
     risks: ['운영 리스크 없음'],
   ),
   PlaceCandidate(
-    id: 'mood-cafe',
+    id: 202,
     name: '무드카페',
     category: '카페',
     summary: '라스트오더 19:30 임박',
@@ -148,7 +148,7 @@ const demoPlaceCandidates = [
     risks: ['라스트오더 충돌 가능성', '운영시간 정보 오래됨'],
   ),
   PlaceCandidate(
-    id: 'daily-garden',
+    id: 203,
     name: '하루정원',
     category: '카페',
     summary: '마지막 동기화 12일 전',
@@ -179,14 +179,14 @@ const demoPlaceCandidates = [
   ),
 ];
 
-const demoPlaceVoteResult = PlaceVoteResult(
+const mockPlaceVoteResult = PlaceVoteResult(
   title: '온모임 투표 결과',
   selectedPlaceName: '온무식당',
   voters: ['민서', '지훈', '하린'],
   note: '온모임에서 3명이 안정적인 한식 장소에 투표했어요. 후보 상단에 이어서 보여줍니다.',
 );
 
-const demoPlaceRisks = [
+const mockPlaceRisks = [
   PlaceRisk(
     title: '라스트오더 충돌 가능성',
     description: '예상 도착 19:20, 라스트오더 19:30이라 여유 시간이 10분뿐이에요.',
@@ -211,8 +211,8 @@ const demoPlaceRisks = [
 ];
 
 PlaceCandidate findPlaceCandidate(String id) {
-  return demoPlaceCandidates.firstWhere(
-    (candidate) => candidate.id == id,
-    orElse: () => demoPlaceCandidates.first,
+  return mockPlaceCandidates.firstWhere(
+    (candidate) => candidate.id.toString() == id,
+    orElse: () => mockPlaceCandidates.first,
   );
 }

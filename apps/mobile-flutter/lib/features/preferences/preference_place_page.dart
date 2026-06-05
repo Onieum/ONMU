@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../shared/models/preference_profile.dart';
 import 'preference_flow_widgets.dart';
-import 'preference_meetup_style_page.dart';
+import 'preference_plan_style_page.dart';
 
 class PreferencePlacePage extends StatefulWidget {
   final PreferenceProfile profile;
@@ -54,7 +54,7 @@ class _PreferencePlacePageState extends State<PreferencePlacePage> {
           ? null
           : () => pushOnmuPage(
               context,
-              PreferenceMeetupStylePage(
+              PreferencePlanStylePage(
                 profile: widget.profile.copyWith(
                   favoritePlaceTags: _favorites.toList(),
                   dislikedPlaceTags: _dislikes.toList(),

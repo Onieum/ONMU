@@ -36,7 +36,7 @@ class MyProfile {
     this.dislikedFoodTags = const [],
     this.favoritePlaceTags = const [],
     this.dislikedPlaceTags = const [],
-    this.meetupStyles = const [],
+    this.planStyles = const [],
     this.preferredWeekdays = const [],
   });
 
@@ -54,15 +54,11 @@ class MyProfile {
   final List<String> dislikedFoodTags;
   final List<String> favoritePlaceTags;
   final List<String> dislikedPlaceTags;
-  final List<String> meetupStyles;
+  final List<String> planStyles;
   final List<String> preferredWeekdays;
 
   List<String> get preferenceHighlights {
-    return [
-      ...favoriteFoodTags,
-      ...favoritePlaceTags,
-      ...meetupStyles,
-    ];
+    return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
   }
 
   MyProfile copyWith({
@@ -80,7 +76,7 @@ class MyProfile {
     List<String>? dislikedFoodTags,
     List<String>? favoritePlaceTags,
     List<String>? dislikedPlaceTags,
-    List<String>? meetupStyles,
+    List<String>? planStyles,
     List<String>? preferredWeekdays,
   }) {
     return MyProfile(
@@ -98,7 +94,7 @@ class MyProfile {
       dislikedFoodTags: dislikedFoodTags ?? this.dislikedFoodTags,
       favoritePlaceTags: favoritePlaceTags ?? this.favoritePlaceTags,
       dislikedPlaceTags: dislikedPlaceTags ?? this.dislikedPlaceTags,
-      meetupStyles: meetupStyles ?? this.meetupStyles,
+      planStyles: planStyles ?? this.planStyles,
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
     );
   }

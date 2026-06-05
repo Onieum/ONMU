@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
@@ -10,25 +11,69 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../view_model/place_candidates_view_model.dart';
 
-class PlaceCandidatePage extends StatefulWidget {
+class PlaceCandidatePage extends ConsumerWidget {
   const PlaceCandidatePage({
-    required this.onmoimId,
-    required this.meetupId,
+    required this.groupId,
+    required this.planId,
     super.key,
     this.showVoteResult = false,
   });
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
   final bool showVoteResult;
 
   @override
-  State<PlaceCandidatePage> createState() => _PlaceCandidatePageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = placeCandidatesViewModelProvider((
+      groupId: groupId,
+      planId: planId,
+    ));
+    final state = ref.watch(provider);
+
+    return state.when(
+      data: (state) => _PlaceCandidateContent(
+        groupId: groupId,
+        planId: planId,
+        showVoteResult: showVoteResult,
+        state: state,
+        onFavoritePressed: (candidateId) {
+          ref.read(provider.notifier).toggleFavorite(candidateId);
+        },
+      ),
+      loading: () => const OnmuScaffold(
+        title: '장소 후보 리스트',
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '장소 후보 리스트',
+        children: [
+          Text(
+            '장소 후보를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
-  final Set<String> _likedCandidateIds = {};
+class _PlaceCandidateContent extends StatelessWidget {
+  const _PlaceCandidateContent({
+    required this.groupId,
+    required this.planId,
+    required this.showVoteResult,
+    required this.state,
+    required this.onFavoritePressed,
+  });
+
+  final String groupId;
+  final String planId;
+  final bool showVoteResult;
+  final PlaceCandidatesState state;
+  final ValueChanged<int> onFavoritePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +82,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
       showBackButton: true,
       onBack: () => context.pop(),
       action: TextButton(
-        onPressed: () => context.push(
-          RoutePaths.planVoteNew(widget.onmoimId, widget.meetupId),
-        ),
+        onPressed: () => context.push(RoutePaths.planVoteNew(groupId, planId)),
         child: const Text('투표 만들기'),
       ),
       floatingActionButton: FloatingActionButton(
@@ -47,9 +90,8 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
-        onPressed: () => context.push(
-          RoutePaths.planPlaceSearch(widget.onmoimId, widget.meetupId),
-        ),
+        onPressed: () =>
+            context.push(RoutePaths.planPlaceSearch(groupId, planId)),
         child: const Icon(Icons.add),
       ),
       bottom: OnmuCard(
@@ -69,35 +111,23 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
         ),
       ),
       children: [
-        _HeaderRow(showVoteResult: widget.showVoteResult),
+        _HeaderRow(showVoteResult: showVoteResult),
         const SizedBox(height: AppSpacing.md),
         const _CategoryChips(),
         const SizedBox(height: AppSpacing.lg),
-        for (var index = 0; index < demoPlaceCandidates.length; index += 1) ...[
+        for (var index = 0; index < state.candidates.length; index += 1) ...[
           _CandidateListCard(
             order: index + 1,
-            candidate: demoPlaceCandidates[index],
-            liked: _likedCandidateIds.contains(demoPlaceCandidates[index].id),
-            favoriteCount:
-                _baseFavoriteCount(index) +
-                (_likedCandidateIds.contains(demoPlaceCandidates[index].id)
-                    ? 1
-                    : 0),
-            onFavoritePressed: () {
-              setState(() {
-                final candidateId = demoPlaceCandidates[index].id;
-                if (_likedCandidateIds.contains(candidateId)) {
-                  _likedCandidateIds.remove(candidateId);
-                } else {
-                  _likedCandidateIds.add(candidateId);
-                }
-              });
-            },
+            candidate: state.candidates[index],
+            liked: state.isLiked(state.candidates[index].id),
+            favoriteCount: state.favoriteCountFor(state.candidates[index].id),
+            onFavoritePressed: () =>
+                onFavoritePressed(state.candidates[index].id),
             onDetailPressed: () => context.push(
               RoutePaths.planPlaceCandidateDetail(
-                widget.onmoimId,
-                widget.meetupId,
-                demoPlaceCandidates[index].id,
+                groupId,
+                planId,
+                state.candidates[index].id,
               ),
             ),
             onRegisterPressed: () => _goConfirmed(context),
@@ -110,15 +140,7 @@ class _PlaceCandidatePageState extends State<PlaceCandidatePage> {
   }
 
   void _goConfirmed(BuildContext context) {
-    context.go(RoutePaths.planItinerary(widget.onmoimId, widget.meetupId));
-  }
-
-  int _baseFavoriteCount(int index) {
-    return switch (index) {
-      0 => 3,
-      1 => 2,
-      _ => 1,
-    };
+    context.go(RoutePaths.planItinerary(groupId, planId));
   }
 }
 

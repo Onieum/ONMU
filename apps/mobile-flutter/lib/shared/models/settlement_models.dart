@@ -30,7 +30,7 @@ class SettlementPaymentItem {
     required this.participants,
   });
 
-  final String id;
+  final int id;
   final String title;
   final String amountLabel;
   final List<SettlementPayerShare> payerShares;
@@ -83,7 +83,7 @@ class SettlementMemberResult {
 class SettlementSummary {
   const SettlementSummary({
     required this.id,
-    required this.meetupTitle,
+    required this.planTitle,
     required this.totalAmountLabel,
     required this.createdDateLabel,
     required this.itemCountLabel,
@@ -95,8 +95,8 @@ class SettlementSummary {
     required this.shareMessage,
   });
 
-  final String id;
-  final String meetupTitle;
+  final int id;
+  final String planTitle;
   final String totalAmountLabel;
   final String createdDateLabel;
   final String itemCountLabel;
@@ -117,9 +117,9 @@ const _allParticipants = [
   SettlementPaymentParticipant(name: '혜진', owedAmountLabel: '20,666원'),
 ];
 
-const demoSettlementSummary = SettlementSummary(
-  id: 'lunch-split',
-  meetupTitle: '주말 나들이',
+const mockSettlementSummary = SettlementSummary(
+  id: 301,
+  planTitle: '주말 나들이',
   totalAmountLabel: '186,000원',
   createdDateLabel: '정산일 2025.05.28',
   itemCountLabel: '결제 항목 2개',
@@ -127,7 +127,7 @@ const demoSettlementSummary = SettlementSummary(
   mySummaryLabel: '나는 103,333원을 받아요',
   paymentItems: [
     SettlementPaymentItem(
-      id: 'dinner',
+      id: 401,
       title: '저녁',
       amountLabel: '124,000원',
       payerShares: [SettlementPayerShare(name: '지민', amountLabel: '124,000원')],
@@ -136,7 +136,7 @@ const demoSettlementSummary = SettlementSummary(
       participants: _allParticipants,
     ),
     SettlementPaymentItem(
-      id: 'cafe',
+      id: 402,
       title: '카페',
       amountLabel: '62,000원',
       payerShares: [

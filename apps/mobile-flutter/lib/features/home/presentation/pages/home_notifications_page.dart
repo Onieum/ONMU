@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -10,15 +10,17 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../view_model/home_view_model.dart';
 
-class HomeNotificationsPage extends StatefulWidget {
+class HomeNotificationsPage extends ConsumerStatefulWidget {
   const HomeNotificationsPage({super.key});
 
   @override
-  State<HomeNotificationsPage> createState() => _HomeNotificationsPageState();
+  ConsumerState<HomeNotificationsPage> createState() =>
+      _HomeNotificationsPageState();
 }
 
-class _HomeNotificationsPageState extends State<HomeNotificationsPage> {
+class _HomeNotificationsPageState extends ConsumerState<HomeNotificationsPage> {
   String _selectedFilter = '전체';
 
   List<_NotificationItem> get _filteredItems {
@@ -30,46 +32,78 @@ class _HomeNotificationsPageState extends State<HomeNotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final homeState = ref.watch(homeViewModelProvider);
     final items = _filteredItems;
     final todayItems = items.where((item) => item.group == '오늘').toList();
     final yesterdayItems = items.where((item) => item.group == '어제').toList();
 
-    return OnmuScaffold(
-      title: '알림',
-      showBackButton: true,
-      onBack: () {
-        if (context.canPop()) {
-          context.pop();
-          return;
-        }
-        context.go(RoutePaths.home);
+    return homeState.when(
+      data: (homeState) {
+        final routeScope = _NotificationRouteScope(
+          groupId: homeState.groupId,
+          planId: homeState.activePlan.id,
+          settlementId: homeState.settlementId,
+        );
+
+        return OnmuScaffold(
+          title: '알림',
+          showBackButton: true,
+          onBack: () {
+            if (context.canPop()) {
+              context.pop();
+              return;
+            }
+            context.go(RoutePaths.home);
+          },
+          action: IconButton(
+            tooltip: '알림 설정',
+            onPressed: () => _showSnack(context, '알림 설정은 다음 단계에서 연결할게요.'),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          children: [
+            Text(
+              '약속, 투표, 정산, 기록 업데이트가 최신순으로 쌓여요.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _NotificationFilters(
+              selected: _selectedFilter,
+              onChanged: (value) => setState(() => _selectedFilter = value),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            if (todayItems.isNotEmpty)
+              _NotificationGroup(
+                title: '오늘',
+                items: todayItems,
+                routeScope: routeScope,
+              ),
+            if (todayItems.isNotEmpty && yesterdayItems.isNotEmpty)
+              const SizedBox(height: AppSpacing.xxl),
+            if (yesterdayItems.isNotEmpty)
+              _NotificationGroup(
+                title: '어제',
+                items: yesterdayItems,
+                routeScope: routeScope,
+              ),
+            if (items.isEmpty) const _EmptyNotificationState(),
+          ],
+        );
       },
-      action: IconButton(
-        tooltip: '알림 설정',
-        onPressed: () => _showSnack(context, '알림 설정은 다음 단계에서 연결할게요.'),
-        icon: const Icon(Icons.settings_outlined),
+      loading: () => const OnmuScaffold(
+        title: '알림',
+        children: [Center(child: CircularProgressIndicator())],
       ),
-      children: [
-        Text(
-          '약속, 투표, 정산, 기록 업데이트가 최신순으로 쌓여요.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _NotificationFilters(
-          selected: _selectedFilter,
-          onChanged: (value) => setState(() => _selectedFilter = value),
-        ),
-        const SizedBox(height: AppSpacing.xxl),
-        if (todayItems.isNotEmpty)
-          _NotificationGroup(title: '오늘', items: todayItems),
-        if (todayItems.isNotEmpty && yesterdayItems.isNotEmpty)
-          const SizedBox(height: AppSpacing.xxl),
-        if (yesterdayItems.isNotEmpty)
-          _NotificationGroup(title: '어제', items: yesterdayItems),
-        if (items.isEmpty) const _EmptyNotificationState(),
-      ],
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '알림',
+        children: [
+          Text(
+            '알림 이동 정보를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -127,10 +161,15 @@ class _FilterChipButton extends StatelessWidget {
 }
 
 class _NotificationGroup extends StatelessWidget {
-  const _NotificationGroup({required this.title, required this.items});
+  const _NotificationGroup({
+    required this.title,
+    required this.items,
+    required this.routeScope,
+  });
 
   final String title;
   final List<_NotificationItem> items;
+  final _NotificationRouteScope routeScope;
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +179,7 @@ class _NotificationGroup extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.sm),
         for (final item in items) ...[
-          _NotificationCard(item: item),
+          _NotificationCard(item: item, routeScope: routeScope),
           const SizedBox(height: AppSpacing.sm),
         ],
       ],
@@ -149,14 +188,15 @@ class _NotificationGroup extends StatelessWidget {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item});
+  const _NotificationCard({required this.item, required this.routeScope});
 
   final _NotificationItem item;
+  final _NotificationRouteScope routeScope;
 
   @override
   Widget build(BuildContext context) {
     return OnmuCard(
-      onTap: () => _handleNotificationTap(context, item),
+      onTap: () => _handleNotificationTap(context, item, routeScope),
       backgroundColor: item.unread ? AppColors.bgPaper : AppColors.bgDefault,
       borderColor: item.unread ? AppColors.linePink : AppColors.lineSoft,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -198,7 +238,8 @@ class _NotificationCard extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
-                      onPressed: () => _handleNotificationTap(context, item),
+                      onPressed: () =>
+                          _handleNotificationTap(context, item, routeScope),
                       icon: const Icon(Icons.arrow_forward_ios, size: 12),
                       label: Text(item.actionLabel!),
                       style: TextButton.styleFrom(
@@ -291,6 +332,18 @@ class _NotificationItem {
   final bool unread;
 }
 
+class _NotificationRouteScope {
+  const _NotificationRouteScope({
+    required this.groupId,
+    required this.planId,
+    required this.settlementId,
+  });
+
+  final int groupId;
+  final int planId;
+  final int settlementId;
+}
+
 const _items = [
   _NotificationItem(
     group: '오늘',
@@ -356,19 +409,23 @@ const _items = [
   ),
 ];
 
-void _handleNotificationTap(BuildContext context, _NotificationItem item) {
+void _handleNotificationTap(
+  BuildContext context,
+  _NotificationItem item,
+  _NotificationRouteScope routeScope,
+) {
   switch (item.kind) {
     case '투표':
       context.push(
-        RoutePaths.planVoteNew(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+        RoutePaths.planVoteNew(routeScope.groupId, routeScope.planId),
       );
       return;
     case '정산':
       context.push(
         RoutePaths.planSettlementDetail(
-          DemoRouteSeeds.groupId,
-          DemoRouteSeeds.planId,
-          DemoRouteSeeds.settlementId,
+          routeScope.groupId,
+          routeScope.planId,
+          routeScope.settlementId,
         ),
       );
       return;
@@ -377,7 +434,7 @@ void _handleNotificationTap(BuildContext context, _NotificationItem item) {
       return;
     default:
       context.push(
-        RoutePaths.planDetail(DemoRouteSeeds.groupId, DemoRouteSeeds.planId),
+        RoutePaths.planDetail(routeScope.groupId, routeScope.planId),
       );
       return;
   }

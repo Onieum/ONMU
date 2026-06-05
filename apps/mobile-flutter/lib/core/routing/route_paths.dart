@@ -18,88 +18,88 @@ class RoutePaths {
   static const recordNewOotd = '/records/new/ootd';
   static const my = '/my';
 
-  static String groupDetail(String groupId) => '/groups/$groupId';
+  static String groupDetail(Object groupId) => '/groups/$groupId';
 
-  static String groupMembers(String groupId) => '/groups/$groupId/members';
+  static String groupMembers(Object groupId) => '/groups/$groupId/members';
 
-  static String groupInvite(String groupId) => '/groups/$groupId/invite';
+  static String groupInvite(Object groupId) => '/groups/$groupId/invite';
 
-  static String groupSettings(String groupId) => '/groups/$groupId/settings';
+  static String groupSettings(Object groupId) => '/groups/$groupId/settings';
 
-  static String groupChat(String groupId) => '/groups/$groupId/chat';
+  static String groupChat(Object groupId) => '/groups/$groupId/chat';
 
-  static String groupVotes(String groupId) => '/groups/$groupId/votes';
+  static String groupVotes(Object groupId) => '/groups/$groupId/votes';
 
-  static String groupVote(String groupId, String voteId) =>
+  static String groupVote(Object groupId, Object voteId) =>
       '/groups/$groupId/votes/$voteId';
 
-  static String groupMemories(String groupId) => '/groups/$groupId/memories';
+  static String groupMemories(Object groupId) => '/groups/$groupId/memories';
 
-  static String groupMemoryDetail(String groupId, String memoryId) =>
+  static String groupMemoryDetail(Object groupId, Object memoryId) =>
       '/groups/$groupId/memories/$memoryId';
 
-  static String groupPlans(String groupId) => '/groups/$groupId/plans';
+  static String groupPlans(Object groupId) => '/groups/$groupId/plans';
 
-  static String planNew(String groupId) => '/groups/$groupId/plans/new';
+  static String planNew(Object groupId) => '/groups/$groupId/plans/new';
 
-  static String planNewSchedule(String groupId) =>
+  static String planNewSchedule(Object groupId) =>
       '/groups/$groupId/plans/new/schedule';
 
-  static String planNewCalendar(String groupId) =>
+  static String planNewCalendar(Object groupId) =>
       '/groups/$groupId/plans/new/schedule/calendar';
 
-  static String planDetail(String groupId, String planId) =>
+  static String planDetail(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId';
 
-  static String planEdit(String groupId, String planId) =>
+  static String planEdit(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/edit';
 
-  static String planBoard(String groupId, String planId) =>
+  static String planBoard(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/board';
 
-  static String planPlaceCandidates(String groupId, String planId) =>
+  static String planPlaceCandidates(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/place-candidates';
 
-  static String planPlaceSearch(String groupId, String planId) =>
+  static String planPlaceSearch(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/place-search';
 
-  static String planPlaceSearchResults(String groupId, String planId) =>
+  static String planPlaceSearchResults(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/place-search/results';
 
-  static String planVoteNew(String groupId, String planId) =>
+  static String planVoteNew(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/votes/new';
 
-  static String planVotes(String groupId, String planId) =>
+  static String planVotes(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/votes';
 
-  static String planVote(String groupId, String planId, String voteId) =>
+  static String planVote(Object groupId, Object planId, Object voteId) =>
       '/groups/$groupId/plans/$planId/votes/$voteId';
 
   static String planPlaceCandidateDetail(
-    String groupId,
-    String planId,
-    String candidateId,
+    Object groupId,
+    Object planId,
+    Object candidateId,
   ) => '/groups/$groupId/plans/$planId/place-candidates/$candidateId';
 
-  static String planItinerary(String groupId, String planId) =>
+  static String planItinerary(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/itinerary';
 
-  static String planSettlementNew(String groupId, String planId) =>
+  static String planSettlementNew(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/settlements/new';
 
   static String planSettlementTargets(
-    String groupId,
-    String planId,
-    String itemId,
+    Object groupId,
+    Object planId,
+    Object itemId,
   ) => '/groups/$groupId/plans/$planId/settlements/new/items/$itemId/targets';
 
-  static String planSettlementPreview(String groupId, String planId) =>
+  static String planSettlementPreview(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/settlements/new/preview';
 
   static String planSettlementDetail(
-    String groupId,
-    String planId,
-    String settlementId,
+    Object groupId,
+    Object planId,
+    Object settlementId,
   ) => '/groups/$groupId/plans/$planId/settlements/$settlementId';
 
   static String recordDetail(String recordId) => '/records/$recordId';

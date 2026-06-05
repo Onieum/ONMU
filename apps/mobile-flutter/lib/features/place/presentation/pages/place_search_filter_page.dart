@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/route_paths.dart';
@@ -9,17 +10,58 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
 
-class PlaceSearchFilterPage extends StatelessWidget {
+class PlaceSearchFilterPage extends ConsumerWidget {
   const PlaceSearchFilterPage({
-    required this.onmoimId,
-    required this.meetupId,
+    required this.groupId,
+    required this.planId,
     super.key,
   });
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      placeCandidatesViewModelProvider((groupId: groupId, planId: planId)),
+    );
+
+    return state.when(
+      data: (state) => _PlaceSearchFilterContent(
+        groupId: groupId,
+        planId: planId,
+        candidates: state.candidates,
+      ),
+      loading: () => const OnmuScaffold(
+        title: '장소 검색하기',
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '장소 검색하기',
+        children: [
+          Text(
+            '검색 결과를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceSearchFilterContent extends StatelessWidget {
+  const _PlaceSearchFilterContent({
+    required this.groupId,
+    required this.planId,
+    required this.candidates,
+  });
+
+  final String groupId;
+  final String planId;
+  final List<PlaceCandidate> candidates;
 
   @override
   Widget build(BuildContext context) {
@@ -58,25 +100,28 @@ class PlaceSearchFilterPage extends StatelessWidget {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('검색 결과 24개', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '검색 결과 ${candidates.length}개',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final candidate in demoPlaceCandidates.take(2)) ...[
+        for (final candidate in candidates.take(2)) ...[
           PlaceCandidateCard(
             candidate: candidate,
             compact: true,
             onDetailPressed: () => context.go(
               RoutePaths.planPlaceCandidateDetail(
-                onmoimId,
-                meetupId,
+                groupId,
+                planId,
                 candidate.id,
               ),
             ),
             onRegisterPressed: () =>
-                context.go(RoutePaths.planItinerary(onmoimId, meetupId)),
+                context.go(RoutePaths.planItinerary(groupId, planId)),
             onAddCandidatePressed: () =>
-                context.go(RoutePaths.planPlaceCandidates(onmoimId, meetupId)),
+                context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -84,7 +129,7 @@ class PlaceSearchFilterPage extends StatelessWidget {
           label: '추천 후보로 돌아가기',
           icon: Icons.arrow_back,
           onPressed: () =>
-              context.go(RoutePaths.planPlaceCandidates(onmoimId, meetupId)),
+              context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
         ),
       ],
     );

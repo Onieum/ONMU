@@ -14,8 +14,7 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  static const _splashLogoAsset =
-      'assets/images/splash/ONMU_splash_logo.png';
+  static const _splashLogoAsset = 'assets/images/splash/ONMU_splash_logo.png';
   static const _splashImageSize = Size(1341, 1173);
   static const _logoCrop = Rect.fromLTWH(420, 130, 520, 270);
   static const _characterCrop = Rect.fromLTWH(180, 380, 980, 710);
@@ -135,10 +134,7 @@ class _SplashLayout {
     final height = constraints.maxHeight;
     final compact = height < 720;
     final logoWidth = (width * 0.7).clamp(220.0, compact ? 250.0 : 310.0);
-    final characterWidth = (width * 0.92).clamp(
-      300.0,
-      compact ? 360.0 : 430.0,
-    );
+    final characterWidth = (width * 0.92).clamp(300.0, compact ? 360.0 : 430.0);
 
     return _SplashLayout(
       logoTop: (height * 0.07).clamp(34.0, 72.0),

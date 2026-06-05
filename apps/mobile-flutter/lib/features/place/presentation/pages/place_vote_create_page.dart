@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/routing/demo_route_seeds.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -10,29 +10,65 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../view_model/place_candidates_view_model.dart';
 
-class PlaceVoteCreatePage extends StatefulWidget {
+class PlaceVoteCreatePage extends ConsumerStatefulWidget {
   const PlaceVoteCreatePage({
-    required this.onmoimId,
-    required this.meetupId,
+    required this.groupId,
+    required this.planId,
     super.key,
   });
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
 
   @override
-  State<PlaceVoteCreatePage> createState() => _PlaceVoteCreatePageState();
+  ConsumerState<PlaceVoteCreatePage> createState() =>
+      _PlaceVoteCreatePageState();
 }
 
-class _PlaceVoteCreatePageState extends State<PlaceVoteCreatePage> {
-  final Set<String> _selectedCandidateIds = {
-    for (final candidate in demoPlaceCandidates) candidate.id,
-  };
+class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
+  static const _createdVoteId = 501;
+
+  final Set<int> _selectedCandidateIds = {};
   var _voteMode = '단일 선택';
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(
+      placeCandidatesViewModelProvider((
+        groupId: widget.groupId,
+        planId: widget.planId,
+      )),
+    );
+
+    return state.when(
+      data: (state) {
+        if (_selectedCandidateIds.isEmpty) {
+          _selectedCandidateIds.addAll(
+            state.candidates.map((candidate) => candidate.id),
+          );
+        }
+
+        return _buildContent(context, state.candidates);
+      },
+      loading: () => const OnmuScaffold(
+        title: '투표 만들기',
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '투표 만들기',
+        children: [
+          Text(
+            '투표 후보를 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
     return OnmuScaffold(
       title: '투표 만들기',
       showBackButton: true,
@@ -46,9 +82,9 @@ class _PlaceVoteCreatePageState extends State<PlaceVoteCreatePage> {
             ? null
             : () => context.go(
                 RoutePaths.planVote(
-                  widget.onmoimId,
-                  widget.meetupId,
-                  DemoRouteSeeds.voteId,
+                  widget.groupId,
+                  widget.planId,
+                  _createdVoteId,
                 ),
               ),
       ),
@@ -132,7 +168,7 @@ class _PlaceVoteCreatePageState extends State<PlaceVoteCreatePage> {
         const SizedBox(height: AppSpacing.md),
         Text('투표 후보', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
-        for (final candidate in demoPlaceCandidates) ...[
+        for (final candidate in candidates) ...[
           _VoteCandidateTile(
             candidate: candidate,
             selected: _selectedCandidateIds.contains(candidate.id),

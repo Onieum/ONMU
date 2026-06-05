@@ -13,14 +13,14 @@ import '../widgets/place_candidate_card.dart';
 
 class PlaceDetailPage extends StatelessWidget {
   const PlaceDetailPage({
-    required this.onmoimId,
-    required this.meetupId,
+    required this.groupId,
+    required this.planId,
     required this.placeId,
     super.key,
   });
 
-  final String onmoimId;
-  final String meetupId;
+  final String groupId;
+  final String planId;
   final String placeId;
 
   @override
@@ -37,9 +37,8 @@ class PlaceDetailPage extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '후보에 추가하기',
               icon: Icons.favorite_border,
-              onPressed: () => context.go(
-                RoutePaths.planPlaceCandidates(onmoimId, meetupId),
-              ),
+              onPressed: () =>
+                  context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -50,7 +49,7 @@ class PlaceDetailPage extends StatelessWidget {
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
               onPressed: () =>
-                  context.go(RoutePaths.planItinerary(onmoimId, meetupId)),
+                  context.go(RoutePaths.planItinerary(groupId, planId)),
             ),
           ),
         ],

@@ -5,24 +5,17 @@ import 'package:onmu_mobile/core/routing/route_paths.dart';
 
 void main() {
   test('RoutePaths builds operating plan and record routes', () {
-    expect(RoutePaths.planDetail('g1', 'p1'), '/groups/g1/plans/p1');
-    expect(
-      RoutePaths.planItinerary('g1', 'p1'),
-      '/groups/g1/plans/p1/itinerary',
-    );
+    expect(RoutePaths.planDetail(1, 101), '/groups/1/plans/101');
+    expect(RoutePaths.planItinerary(1, 101), '/groups/1/plans/101/itinerary');
     expect(RoutePaths.records, '/records');
   });
 
-  test('RoutePaths does not carry demo seeds or legacy route segments', () {
+  test('RoutePaths uses operating route segments only', () {
     final source = File('lib/core/routing/route_paths.dart').readAsStringSync();
 
     for (final forbidden in [
       'friends',
-      'demo',
       'lunch-split',
-      'onmoimDemo',
-      '/onmoim',
-      '/meetups',
       '/ootd/list',
       'planPlaceCompare',
       'planPlaceRisks',

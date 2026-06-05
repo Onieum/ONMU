@@ -95,15 +95,12 @@ class PixelCharacterWidget extends StatelessWidget {
       return 'assets/images/character/female/eyes/girl_eye_03.PNG';
     }
 
-    final colorName = CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
+    final colorName =
+        CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
     return 'assets/images/character/$genderPath/eyes/$eyePrefix${character.eyeShapeIndex + 1}_$colorName.PNG';
   }
 
-  Widget _asset(
-    String path, {
-    Color? color,
-    BlendMode? colorBlendMode,
-  }) {
+  Widget _asset(String path, {Color? color, BlendMode? colorBlendMode}) {
     return Image.asset(
       path,
       width: size,

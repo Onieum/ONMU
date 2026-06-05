@@ -341,12 +341,12 @@ class OotdDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-                    color: AppColors.bgDefault,
+        color: AppColors.bgDefault,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.lineSoft, width: 1),
         boxShadow: [
           BoxShadow(
-                color: AppColors.textMain.withValues(alpha: 0.03),
+            color: AppColors.textMain.withValues(alpha: 0.03),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
