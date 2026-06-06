@@ -9,6 +9,7 @@ import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../widgets/record_flow_navigation.dart';
 
 class DailyRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
@@ -230,57 +231,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     final labels = ['사진', '해시태그', 'OOTD', '크루', '꾸미기', '완료'];
     final active = _currentStep == 0 ? 0 : (_currentStep - 1).clamp(0, 5);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-      child: Row(
-        children: List.generate(labels.length, (index) {
-          final isActive = active == index;
-          final isDone = active > index;
-          return Expanded(
-            child: Column(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? AppColors.primaryPink
-                        : isDone
-                        ? AppColors.primaryPinkSoft
-                        : AppColors.bgPaper,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isActive || isDone
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${index + 1}',
-                    style: AppTextStyles.sticker.copyWith(
-                      color: isActive
-                          ? AppColors.textInverse
-                          : AppColors.textSub,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  labels[index],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.sticker.copyWith(
-                    color: isActive ? AppColors.textMain : AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
+    return RecordFlowStepIndicator(labels: labels, activeIndex: active);
   }
 
   @override
@@ -292,14 +243,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         backgroundColor: AppColors.transparent,
         elevation: 0,
         leading: _currentStep == 7
-            ? SizedBox()
-            : IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: AppColors.textMain,
-                  size: 20,
-                ),
-                onPressed: _back,
+            ? const SizedBox()
+            : RecordFlowExitButton(
+                onPressed: () => context.popOrGo(RoutePaths.records),
               ),
         title: Text(
           '하루 일과 기록',
@@ -358,53 +304,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   }
 
   Widget _buildEntryPage() {
-    return Column(
-      children: [
-        SizedBox(height: 12),
-        const Icon(
-          Icons.auto_stories_outlined,
-          color: AppColors.primaryPink,
-          size: 30,
-        ),
-        SizedBox(height: 10),
-        Text(
-          '오늘 하루를 한 장씩 남겨볼까요?',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.headlineSmall.copyWith(
-            color: AppColors.textMain,
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          _dateLabel(widget.recordDate),
-          style: AppTextStyles.labelLarge.copyWith(
-            color: AppColors.primaryPink,
-          ),
-        ),
-        SizedBox(height: 28),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.bgPaper,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineSoft),
-          ),
-          child: Column(
-            children: [
-              PixelCharacterWidget(character: widget.userCharacter, size: 112),
-              SizedBox(height: 16),
-              Text(
-                '사진, 메모, 기분, 날씨, OOTD, 함께한 크루까지 차례대로 기록해요.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSub,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return RecordEntryIntro(
+      character: widget.userCharacter,
+      title: '오늘 하루 기록하기',
+      subtitle: '${_dateLabel(widget.recordDate)}\n하루를 한 장씩 남겨볼까요?',
+      bannerText: '사진, 메모, 기분, 날씨, OOTD,\n함께한 크루까지 차례대로 기록해요.',
+      topLeftIcon: Icons.auto_stories_outlined,
+      topLeftColor: AppColors.primaryPink,
+      bottomRightIcon: Icons.edit_note_outlined,
+      bottomRightColor: AppColors.textMuted,
     );
   }
 
@@ -871,38 +779,11 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         ? '저장하기'
         : '다음';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.bgWarm,
-      child: Row(
-        children: [
-          if (_currentStep > 0 && _currentStep < 7) ...[
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _back,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.bgDefault,
-                  foregroundColor: AppColors.textMain,
-                  side: const BorderSide(color: AppColors.lineSoft),
-                ),
-                child: Text('이전'),
-              ),
-            ),
-            SizedBox(width: 12),
-          ],
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              onPressed: _next,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryPink,
-                foregroundColor: AppColors.textInverse,
-              ),
-              child: Text(label),
-            ),
-          ),
-        ],
-      ),
+    return RecordFlowBottomBar(
+      primaryLabel: label,
+      onPrimaryPressed: _next,
+      onBackPressed: _back,
+      showBackButton: _currentStep > 0 && _currentStep < 7,
     );
   }
 
