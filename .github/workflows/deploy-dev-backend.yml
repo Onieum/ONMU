@@ -1,0 +1,53 @@
+name: Deploy Windows dev backend
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: Backend runtime to deploy on the Windows dev backend host.
+        required: true
+        default: node-stub
+        type: choice
+        options:
+          - node-stub
+          - spring
+      dry_run:
+        description: Print deployment steps without stopping or starting backend processes.
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-dev-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy-windows-dev-backend:
+    name: Deploy Windows dev backend
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, Windows, onmu-dev-backend]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v6
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Deploy selected backend runtime
+        shell: powershell
+        env:
+          ONMU_BACKEND_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime || 'node-stub' }}
+          ONMU_DEPLOY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        run: |
+          $deployArgs = @("-Runtime", $env:ONMU_BACKEND_RUNTIME)
+          if ($env:ONMU_DEPLOY_DRY_RUN -eq "true") {
+            $deployArgs += "-DryRun"
+          }
+
+          & .\scripts\windows\deploy-dev-backend.ps1 @deployArgs

@@ -32,9 +32,9 @@ Team devices
 
 | 영역 | Windows dev 서버 기준 |
 | --- | --- |
-| Main API | 현재는 `services/api/server.mjs` smoke API가 `/healthz`, `/readyz`를 제공하고, 이후 Spring Boot Main API도 같은 포트와 헬스 체크 계약을 유지합니다. |
+| Main API | 확정 제품 API는 Spring Boot Main API입니다. 현재는 `services/api/server.mjs` Node smoke/contract stub이 `/healthz`, `/readyz`, CORS, request log, `/api/v1` contract shape만 임시로 검증합니다. Spring Boot Main API가 준비되면 같은 포트와 tunnel 계약을 Spring Boot로 넘깁니다. |
 | Realtime Gateway | 1차 구현 전까지 별도 실행하지 않습니다. 구현 후에는 API 뒤에 두거나 개발용 포트를 별도로 정합니다. |
-| AI/Data Worker | 1차 Windows helper의 기본 실행 대상이 아닙니다. 추천/기록 worker가 생기면 Docker image 또는 별도 프로세스로 추가합니다. |
+| AI/Data Worker | FastAPI Worker로 확정합니다. 모바일 앱에서 직접 호출하지 않고 Spring Boot Main API 뒤의 내부 worker로 둡니다. 1차 Windows helper의 기본 실행 대상은 아닙니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
 | Redis | Naver Place API 캐시, 실시간 presence, WebSocket fan-out, rate limit 보조에만 사용합니다. 원본 저장소로 쓰지 않습니다. |
 | MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지 개발 테스트에 사용합니다. |
@@ -199,18 +199,25 @@ API 서비스가 생긴 뒤 실행 예시는 서비스별 README에 맞춥니다
 npm run dev --workspace services/api
 ```
 
-현재 저장소의 smoke test API는 아래처럼 실행합니다.
+현재 저장소의 Windows dev API는 아래처럼 실행합니다.
 
 ```powershell
 npm run api:dev
 ```
 
-이 smoke API는 현재 Windows dev 서버 연결 검증용입니다. 이후 Spring Boot Main API로 바뀌더라도 다음 계약은 유지합니다.
+이 Node API는 현재 Flutter mock repository를 API repository로 바꾸기 전의 Windows backend-host smoke/contract stub입니다. 최종 백엔드는 `Spring Boot Main API + FastAPI Worker`로 확정되어 있으며, Flutter 앱은 Spring Boot Main API만 직접 호출합니다. Node stub은 PostgreSQL migration, 인증/인가, 영구 CRUD를 구현한 Main API가 아니고, POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다.
+
+Spring Boot Main API가 준비되면 아래 계약은 Spring Boot로 넘깁니다. FastAPI Worker는 Spring Boot 뒤의 내부 AI/Data worker로 두고 모바일 앱이나 Cloudflare 공개 API가 직접 호출하지 않습니다.
 
 | 계약 | 이유 |
 | --- | --- |
 | `GET /healthz` | 프로세스가 살아 있고 HTTP 요청을 받을 수 있는지 확인 |
 | `GET /readyz` | PostgreSQL, Redis, MinIO 등 로컬 의존성 연결 확인 |
+| `dev-api.onmu.cloud -> localhost:8080` | Cloudflare Tunnel을 통한 외부 팀 검증 경로 고정 |
+| `logs/api-access.log` | 팀원별 request log와 `?client=` / `x-onmu-dev-client` 추적 |
+| dev CORS와 `OPTIONS` preflight | Flutter web/dev 클라이언트 연결 검증 |
+| `/api/v1` prefix | Flutter API repository 전환 시 운영 API 계약과 같은 base path를 쓰기 위함 |
+| `groups/plans` 리소스명 | PR #61 이후 Flutter route와 repository가 `Group`, `Plan` 중심으로 정리되었기 때문 |
 | 기본 포트 `8080` | Cloudflare Tunnel, LAN 테스트, 모바일 앱 dev base URL을 고정하기 위함 |
 | DB/Redis/MinIO 로컬 바인딩 | 데이터 계층을 인터넷과 LAN에 직접 노출하지 않기 위함 |
 
@@ -226,12 +233,32 @@ npm run api:dev
 
 ```powershell
 curl http://localhost:8080/healthz
+curl http://localhost:8080/readyz
+curl http://localhost:8080/api/v1/home/summary
+curl http://localhost:8080/api/v1/groups
+curl http://localhost:8080/api/v1/groups/1/plans/101
+curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+$placeSearchBody = Join-Path $env:TEMP "onmu-place-search.json"
+[System.IO.File]::WriteAllText($placeSearchBody, '{"query":"cafe","planId":"101"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary "@$placeSearchBody"
+$voteBody = Join-Path $env:TEMP "onmu-vote.json"
+[System.IO.File]::WriteAllText($voteBody, '{"voteType":"PLACE","targetType":"PLAN","targetId":"101","title":"place vote","options":["cafe","restaurant"]}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary "@$voteBody"
+$candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
+[System.IO.File]::WriteAllText($candidateBody, '{"name":"new place","category":"cafe"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
+curl http://localhost:8080/api/v1/groups/1/votes/501
+$previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
+[System.IO.File]::WriteAllText($previewBody, '{}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 ```
 
 다른 PC나 휴대폰에서는 아래처럼 확인합니다.
 
 ```powershell
 curl http://<windows-lan-ip>:8080/healthz
+curl http://<windows-lan-ip>:8080/api/v1/home/summary
 ```
 
 ## 5. Windows IP 고정
@@ -386,6 +413,8 @@ npm run tunnel:cloudflare
 ```powershell
 curl https://dev-api.onmu.cloud/healthz
 curl https://dev-api.onmu.cloud/readyz
+curl https://dev-api.onmu.cloud/api/v1/home/summary
+curl https://dev-api.onmu.cloud/api/v1/groups/1/plans/101
 npm run tunnel:cloudflare:info
 ```
 
@@ -411,6 +440,8 @@ npm run tunnel:cloudflare:access-tcp
 - `cloudflared` 2026.5.1로 실행
 - `https://dev-api.onmu.cloud/healthz`가 `200 OK`
 - `https://dev-api.onmu.cloud/readyz`가 PostgreSQL `localhost:15432`, Redis `localhost:6379`, MinIO `localhost:9000` 모두 `ok`
+- `https://dev-api.onmu.cloud/api/v1/home/summary`가 `200 OK`
+- `https://dev-api.onmu.cloud/api/v1/groups/1/plans/101`이 PR #61 seed 기준 약속 데이터를 반환
 - quick tunnel은 정리하고 named tunnel connector 1개만 유지
 
 Cloudflare quick tunnel을 쓸 때도 저장소의 전용 config를 사용합니다. 이 PC에 이미 `~/.cloudflared/config.yml`이 있으면 기존 ingress 규칙이 섞여서 새 URL이 404를 반환할 수 있기 때문입니다.
@@ -420,6 +451,91 @@ npm run tunnel:cloudflare:quick
 ```
 
 `cloudflared tunnel route dns`에서 `Authentication error`가 나면 현재 `~/.cloudflared/cert.pem`이 새 zone 권한을 갖고 있지 않은 상태입니다. 기존 인증서는 백업해 두고 `cloudflared login`을 다시 실행한 뒤 `onmu.cloud`를 선택해서 승인합니다.
+
+### GitHub Actions Windows dev backend CD
+
+PR #63 범위에서는 Windows dev backend를 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반만 둡니다. Spring Boot 실제 앱 구현은 다음 PR 범위이므로, 현재 기본 배포 runtime은 Node smoke/contract stub입니다.
+
+workflow 파일:
+
+```text
+.github/workflows/deploy-dev-backend.yml
+```
+
+자동 배포 trigger:
+
+- `push` to `dev`
+- `workflow_dispatch`
+
+`pull_request`에서는 실행하지 않습니다. ONMU 저장소는 public repo이므로 fork PR이나 리뷰 전 코드가 self-hosted Windows runner에서 실행되면 runner PC의 파일, 네트워크, 로컬 서비스, 캐시가 노출될 수 있습니다. 그래서 배포 workflow는 PR 검증 CI와 분리하고, merge된 `dev` 또는 권한 있는 사용자의 수동 실행만 허용합니다.
+
+권장 self-hosted runner label:
+
+```text
+self-hosted
+Windows
+onmu-dev-backend
+```
+
+runner 등록 개요:
+
+1. GitHub repository settings에서 Actions runner를 추가합니다.
+2. Windows x64 runner를 내려받아 서버 PC에 설치합니다.
+3. runner 이름은 서버 역할이 드러나게 정합니다. 예: `onmu-dev-backend-win`
+4. label에 `self-hosted`, `Windows`, `onmu-dev-backend`가 포함되는지 확인합니다.
+5. runner는 가능한 전용 Windows 계정으로 실행하고, 관리자 권한은 필요한 작업에만 제한합니다.
+6. `.env`, runner registration token, GitHub token, Cloudflare token, Azure credential은 파일이나 workflow에 커밋하지 않습니다.
+
+수동 배포 명령:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime node-stub
+```
+
+dry-run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime node-stub
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime spring
+```
+
+runtime 선택 우선순위:
+
+1. CLI 파라미터: `-Runtime node-stub` 또는 `-Runtime spring`
+2. 환경변수: `ONMU_BACKEND_RUNTIME=node-stub` 또는 `ONMU_BACKEND_RUNTIME=spring`
+3. 기본값: `node-stub`
+
+runtime별 동작:
+
+| Runtime | 현재 동작 |
+| --- | --- |
+| `node-stub` | `services/api/server.mjs`를 `127.0.0.1:8080`에서 재시작합니다. `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정하고, PID 파일과 8080 port owner를 기준으로 기존 ONMU API 프로세스를 정리합니다. |
+| `spring` | 현재 PR에서는 실행 가능한 Spring Boot 앱이 없으므로 일반 실행은 실패합니다. dry-run은 실패하지 않고 다음 PR에서 실행할 예정 명령만 보여줍니다. |
+
+Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `dev-api.onmu.cloud -> localhost:8080` tunnel connector는 별도 서비스로 이미 떠 있다고 보고, 배포 스크립트는 API runtime만 교체한 뒤 같은 공개 endpoint를 smoke test합니다.
+
+CD smoke test:
+
+```text
+GET  https://dev-api.onmu.cloud/healthz?client=github-actions-cd
+GET  https://dev-api.onmu.cloud/readyz?client=github-actions-cd
+GET  https://dev-api.onmu.cloud/api/v1/home/summary?client=github-actions-cd
+POST https://dev-api.onmu.cloud/api/v1/place-search?client=github-actions-cd
+POST https://dev-api.onmu.cloud/api/v1/groups/1/votes?client=github-actions-cd
+```
+
+smoke test가 실패하면 GitHub Actions job도 실패합니다. `readyz`는 PostgreSQL, Redis, MinIO 연결까지 확인하므로 Docker Desktop과 로컬 compose 의존성이 먼저 정상이어야 합니다.
+
+로그 확인:
+
+```powershell
+Get-Content logs\deploy-dev-backend.log -Tail 80
+Get-Content logs\dev-backend-api.out.log -Tail 80
+Get-Content logs\dev-backend-api.err.log -Tail 80
+Get-Content logs\api-access.log -Tail 20
+```
+
+`logs\api-access.log`에서 `dev_client` 값이 `github-actions-cd`인 요청을 찾으면 Cloudflare를 거친 CD smoke 요청이 Windows API까지 도달한 것입니다.
 
 ### Cloudflare Access TCP로 개발 DB 접속
 
@@ -518,10 +634,11 @@ docker compose -f infra/compose/docker-compose.yml logs -f redis
 docker compose -f infra/compose/docker-compose.yml logs -f minio
 ```
 
-API smoke server 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크 URL에 `client` 값을 붙여 공유합니다.
+API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
 
 ```powershell
 curl "https://dev-api.onmu.cloud/healthz?client=geondong-mac"
+curl "https://dev-api.onmu.cloud/api/v1/home/summary?client=geondong-mac"
 Get-Content logs\api-access.log -Tail 20
 ```
 
@@ -670,6 +787,7 @@ Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azur
 
 - API와 realtime gateway 또는 worker가 Docker image로 빌드됩니다.
 - `/healthz`, `/readyz`가 있습니다.
+- `/api/v1` Node contract stub이 Spring Boot Main API 구현으로 대체됩니다.
 - DB migration이 자동화되어 있습니다.
 - GitHub Actions에서 image build와 test가 통과합니다.
 - Azure Container Apps 또는 AKS 중 배포 대상이 정해졌습니다.

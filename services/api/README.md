@@ -1,49 +1,146 @@
-# 메인 API
+# 개발용 Node Smoke/Contract Stub API
 
-API는 다음 도메인의 transaction boundary를 담당합니다.
+`services/api/server.mjs`는 최종 백엔드 Main API가 아닙니다. 이 Node 서버는 Windows backend-host, Cloudflare Tunnel, `/healthz`, `/readyz`, CORS, request log, Flutter mock-to-API contract를 빠르게 검증하기 위한 임시 smoke/contract stub입니다.
 
-- identity
-- profile
-- social
-- meetup
-- place
-- decision
-- memory
-- settlement
-- privacy
-- share
-- notification
-- audit
+확정 백엔드 구조는 `Spring Boot Main API + FastAPI Worker`입니다. Flutter 앱은 Spring Boot Main API만 직접 호출하고, FastAPI Worker는 Spring Boot 뒤에서 AI/Data 작업을 처리하는 내부 worker로 둡니다. 제품 도메인 API, 인증/인가, DB transaction, migration, 영구 CRUD 구현 기준은 Spring Boot Main API입니다.
 
-첫 구현은 modular monolith로 시작할 수 있습니다. 다만 나중에 필요할 때 서비스를 분리할 수 있도록 module boundary는 릴리스 아키텍처의 도메인 경계와 맞춰야 합니다.
+확정된 세부 기준은 다음과 같습니다.
 
-첫 세로 prototype에 필요한 endpoint:
+- 첫 OAuth provider는 Naver입니다.
+- 인증은 access token + refresh token 방식이며, Flutter는 secure storage에 저장합니다.
+- Spring Boot와 FastAPI Worker는 queue/outbox로 연결합니다.
+- FastAPI Worker 위치는 `services/workers/ai-data-worker`입니다.
+- 투표 생성 canonical API는 `POST /api/v1/groups/{groupId}/votes`입니다.
+- 장소 검색 canonical API는 `POST /api/v1/place-search`입니다.
 
-- `POST /profiles/me/preferences`
-- `POST /meetups`
-- `POST /meetups/{meetupId}/participants`
-- `GET /meetups/{meetupId}`
-- `GET /meetups/{meetupId}/place-candidates`
-- `POST /meetups/{meetupId}/place-candidates`
-- `POST /meetups/{meetupId}/decision`
-- `POST /meetups/{meetupId}/memories`
-- `POST /meetups/{meetupId}/settlements`
-- `GET /meetups/{meetupId}/settlements`
+## Node Stub이 검증하는 계약
+
+- `GET /healthz`: Windows backend-host의 HTTP 프로세스 생존 확인
+- `GET /readyz`: PostgreSQL, Redis, MinIO 로컬 의존성 연결 확인
+- `dev-api.onmu.cloud -> localhost:8080`: Cloudflare Tunnel 경로 확인
+- `logs/api-access.log`: request log와 `?client=` / `x-onmu-dev-client` 추적 확인
+- dev CORS와 `OPTIONS` preflight: Flutter web/dev 클라이언트 연결 확인
+- `/api/v1` contract: Flutter repository를 API repository로 전환하기 전 최소 shape 확인
+
+Spring Boot Main API가 준비되면 위 계약은 Spring Boot로 넘깁니다. Node stub은 그 전까지만 Windows 개발 서버 연결 검증에 사용합니다.
+
+## 현재 제공 범위
+
+기존 smoke endpoint:
+
 - `GET /healthz`
 - `GET /readyz`
 
-현재 Windows backend-host smoke test용으로 `server.mjs`가 `/healthz`와 `/readyz`를 제공합니다.
+Flutter PR #61과 `docs/architecture/api-contract-map.md` 기준 contract stub:
+
+- `GET /api/v1/home/summary`
+- `GET /api/v1/groups`
+- `POST /api/v1/groups`
+- `GET /api/v1/groups/{groupId}`
+- `GET /api/v1/groups/{groupId}/summary`
+- `GET /api/v1/groups/{groupId}/members`
+- `GET /api/v1/groups/{groupId}/messages`
+- `GET /api/v1/groups/{groupId}/memories`
+- `GET /api/v1/groups/{groupId}/memories/{memoryId}`
+- `GET /api/v1/groups/{groupId}/votes`
+- `POST /api/v1/groups/{groupId}/votes`
+- `GET /api/v1/groups/{groupId}/votes/{voteId}`
+- `GET /api/v1/groups/{groupId}/votes/{voteId}/voters`
+- `GET /api/v1/groups/{groupId}/plans`
+- `POST /api/v1/groups/{groupId}/plans`
+- `GET /api/v1/groups/{groupId}/plans/{planId}`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/itinerary`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/votes`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/votes` (dev compatibility)
+- `GET /api/v1/groups/{groupId}/plans/{planId}/votes/{voteId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
+- `POST /api/v1/place-search`
+- `GET /api/v1/place-search?query=...` (dev compatibility)
+
+`POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...`는 기존 mock/화면 전환 검증을 위한 임시 호환 route입니다. 운영 API의 canonical 계약은 [API Contract Map](../../docs/architecture/api-contract-map.md)의 `POST /api/v1/groups/{groupId}/votes`, `POST /api/v1/place-search`를 따릅니다.
+
+Seed ID는 Flutter `InMemoryOnmuStore`와 맞춰 `groupId=1`, `planId=101`, `voteId=501`을 기본 검증값으로 사용합니다. 없는 ID는 mock store처럼 첫 번째 seed로 fallback합니다.
+
+## 실행
+
+개인 로컬 테스트:
 
 ```powershell
 npm run host:windows
 npm run api:dev
 ```
 
-개인 로컬 테스트는 `.env.example`의 임시값을 복사해서 쓸 수 있습니다. 공유 Windows dev 서버는 실제 DB 비밀번호와 외부 API key를 `.env`에 두지 않고 Azure Key Vault에서 읽어 시작합니다.
+공유 Windows dev 서버:
 
 ```powershell
 npm run host:windows:keyvault
 npm run api:dev:keyvault
+npm run tunnel:cloudflare
 ```
 
-Cloudflare Tunnel은 이 API/gateway만 `dev-api.onmu.cloud`로 노출하고, DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 `db-dev.onmu.cloud` Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
+Cloudflare Tunnel은 Node stub 또는 이후 Spring Boot Main API의 HTTP gateway만 `dev-api.onmu.cloud`로 노출합니다. DB/Redis/MinIO 포트는 외부에 열지 않습니다. DB 점검은 별도 Cloudflare Access TCP와 개인별 DB 계정으로 제한합니다.
+
+## Windows dev backend CD
+
+PR #63 범위에서 GitHub Actions CD의 기본 runtime은 `node-stub`입니다. `dev` 브랜치에 merge되면 self-hosted Windows runner가 `scripts/windows/deploy-dev-backend.ps1`를 실행해 이 Node stub을 재시작하고, `dev-api.onmu.cloud` 공개 smoke endpoint를 검증합니다.
+
+runtime 선택 우선순위는 다음과 같습니다.
+
+1. `scripts/windows/deploy-dev-backend.ps1 -Runtime <value>` CLI 파라미터
+2. `ONMU_BACKEND_RUNTIME` 환경변수
+3. 기본값 `node-stub`
+
+`node-stub` runtime은 현재 `services/api/server.mjs`를 실행합니다. CD 스크립트는 `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정해 기존 Node 서버의 우선순위(`API_HOST`/`API_PORT` 먼저, 없으면 `HOST`/`PORT`)와 맞춥니다. 기본값은 `127.0.0.1:8080`이며, Cloudflare Tunnel은 별도 서비스로 떠 있다고 보고 중복 실행하지 않습니다.
+
+공유 Windows dev 서버에서 `AZURE_KEY_VAULT_NAME`이 설정되어 있으면 CD 스크립트가 필요한 환경변수를 Key Vault에서 조용히 로드합니다. secret 값은 로그에 출력하지 않습니다. 로컬 단일 개발 환경에서는 현재 환경변수나 `.env.example` 기반의 임시 기본값으로도 stub을 실행할 수 있습니다.
+
+나중에 Spring Boot Main API가 실제 실행 가능한 프로젝트로 들어오면 workflow input 또는 `ONMU_BACKEND_RUNTIME=spring`으로 runtime을 전환합니다. 그 전까지 `spring` runtime은 scaffold 상태를 확인하고 일반 실행에서는 실패하도록 둡니다.
+
+## 검증
+
+```powershell
+curl http://localhost:8080/healthz
+curl http://localhost:8080/readyz
+curl http://localhost:8080/api/v1/home/summary
+curl http://localhost:8080/api/v1/groups
+curl http://localhost:8080/api/v1/groups/1/plans/101
+curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+$placeSearchBody = Join-Path $env:TEMP "onmu-place-search.json"
+[System.IO.File]::WriteAllText($placeSearchBody, '{"query":"cafe","planId":"101"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary "@$placeSearchBody"
+$voteBody = Join-Path $env:TEMP "onmu-vote.json"
+[System.IO.File]::WriteAllText($voteBody, '{"voteType":"PLACE","targetType":"PLAN","targetId":"101","title":"place vote","options":["cafe","restaurant"]}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary "@$voteBody"
+$candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
+[System.IO.File]::WriteAllText($candidateBody, '{"name":"new place","category":"cafe"}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
+$previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
+[System.IO.File]::WriteAllText($previewBody, '{}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
+```
+
+요청 로그:
+
+```powershell
+curl "https://dev-api.onmu.cloud/api/v1/home/summary?client=team-check"
+Get-Content logs\api-access.log -Tail 20
+```
+
+## 주의
+
+- 이 서버는 Windows backend-host 검증용 contract stub입니다.
+- PostgreSQL 테이블, migration, 인증/인가, 영구 CRUD는 Spring Boot Main API에서 구현합니다.
+- POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다.
+- 장소 후보 stub은 하트/선호 참고, 후보 추가, 일정 등록, 투표 생성 흐름을 위한 최소 데이터만 제공합니다.
+- secret, API key, credential은 `.env`, 문서, PR 본문에 남기지 않습니다.
