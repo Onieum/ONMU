@@ -6,6 +6,7 @@ import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../../shared/widgets/grid_background.dart';
+import '../widgets/record_flow_navigation.dart';
 
 class OotdRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
@@ -62,6 +63,18 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
     AppColors.calendarDateYellowBg,
     AppColors.calendarDateBlueBg,
   ];
+
+  Color? get _selectedBackgroundColor {
+    if (_selectedBgColorIndex < 0) return null;
+    final safeIndex = _selectedBgColorIndex
+        .clamp(0, _bgColors.length - 1)
+        .toInt();
+    return _bgColors[safeIndex];
+  }
+
+  Color get _characterPreviewBackground {
+    return _selectedBackgroundColor?.withOpacity(0.3) ?? AppColors.transparent;
+  }
 
   @override
   void initState() {
@@ -175,63 +188,10 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   // OOTD 스텝 인디케이터
   Widget _buildStepIndicator() {
-    // 3개 대그룹: 1 입력방법 -> 2 상세정보 -> 3 마무리
-    int activeGroup = 1;
-    if (_currentStep >= 3 && _currentStep <= 4) {
-      activeGroup = 2;
-    } else if (_currentStep >= 5) {
-      activeGroup = 3;
-    }
+    final labels = ['방법', '입력', '정보', '스타일', '완료'];
+    final active = _currentStep == 0 ? 0 : (_currentStep - 1).clamp(0, 4);
 
-    final labels = ['입력 방법', '상세 정보', '마무리'];
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(3, (index) {
-          final groupNum = index + 1;
-          final isActive = activeGroup == groupNum;
-          final isPassed = activeGroup > groupNum;
-
-          return Row(
-            children: [
-              CircleAvatar(
-                radius: 11,
-                backgroundColor: isActive
-                    ? AppColors.primaryPink
-                    : isPassed
-                    ? AppColors.primaryPinkSoft
-                    : AppColors.bgWarm,
-                child: Text(
-                  groupNum.toString(),
-                  style: AppTextStyles.sticker.copyWith(
-                    color: isActive
-                        ? AppColors.textInverse
-                        : isPassed
-                        ? AppColors.primaryPink
-                        : AppColors.textMuted,
-                  ),
-                ),
-              ),
-              SizedBox(width: 6),
-              Text(
-                labels[index],
-                style: AppTextStyles.sticker.copyWith(
-                  color: isActive ? AppColors.textMain : AppColors.textMuted,
-                ),
-              ),
-              if (index < 2)
-                Container(
-                  width: 30,
-                  height: 1.5,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: isPassed ? AppColors.primaryPink : AppColors.lineSoft,
-                ),
-            ],
-          );
-        }),
-      ),
-    );
+    return RecordFlowStepIndicator(labels: labels, activeIndex: active);
   }
 
   @override
@@ -242,19 +202,15 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         backgroundColor: AppColors.transparent,
         elevation: 0,
         leading: _currentStep == 6
-            ? SizedBox()
-            : IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: AppColors.textMain,
-                  size: 20,
-                ),
-                onPressed: widget.isDailyRecord
-                    ? () => context.popOrGo(RoutePaths.records)
-                    : _currentStep == 0
-                    ? () => context.popOrGo(RoutePaths.records)
-                    : _back,
+            ? const SizedBox()
+            : RecordFlowExitButton(
+                onPressed: () => context.popOrGo(RoutePaths.records),
               ),
+        title: Text(
+          'OOTD 기록',
+          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
@@ -303,73 +259,15 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   // 0. OotdEntryPage (새 OOTD 기록하기 시작)
   Widget _buildEntryPage() {
-    return Column(
-      children: [
-        SizedBox(height: 10),
-        const Icon(Icons.star_outline, color: AppColors.accentOrange, size: 24),
-        SizedBox(height: 8),
-        Text(
-          '새 OOTD 기록하기',
-          style: AppTextStyles.headlineMedium.copyWith(
-            color: AppColors.textMain,
-          ),
-        ),
-        SizedBox(height: 6),
-        Text(
-          '오늘 입은 코디를 기록하고\n나만의 캐릭터를 꾸며보세요!',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSub,
-            height: 1.4,
-          ),
-        ),
-        SizedBox(height: 30),
-        // 데코 아이콘들이 흩어진 아바타 영역
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            PixelCharacterWidget(character: widget.userCharacter, size: 140),
-            Positioned(
-              top: 0,
-              left: 10,
-              child: const Icon(
-                Icons.cloud_outlined,
-                color: AppColors.accentBlue,
-                size: 20,
-              ),
-            ),
-            Positioned(
-              bottom: 20,
-              right: 10,
-              child: const Icon(
-                Icons.camera_alt_outlined,
-                color: AppColors.textMuted,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 30),
-        // 설명 배너
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.bgPaper,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.lineSoft),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '사진을 올리거나 코디 설명을 입력하면\n캐릭터를 자동으로 꾸며드려요!',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.textSub,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
+    return RecordEntryIntro(
+      character: widget.userCharacter,
+      title: '새 OOTD 기록하기',
+      subtitle: '오늘 입은 코디를 기록하고\n나만의 캐릭터를 꾸며보세요!',
+      bannerText: '사진을 올리거나 코디 설명을 입력하면\n캐릭터를 자동으로 꾸며드려요!',
+      topLeftIcon: Icons.cloud_outlined,
+      topLeftColor: AppColors.accentBlue,
+      bottomRightIcon: Icons.camera_alt_outlined,
+      bottomRightColor: AppColors.textMuted,
     );
   }
 
@@ -608,8 +506,6 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           ),
           child: Row(
             children: [
-              PixelCharacterWidget(character: widget.userCharacter, size: 36),
-              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '💡 TIP: 구체적으로 작성할수록 더 정확하게 캐릭터가 완성돼요!',
@@ -834,7 +730,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _bgColors[_selectedBgColorIndex].withOpacity(0.3),
+              color: _characterPreviewBackground,
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.lineSoft, width: 1.5),
             ),
@@ -853,22 +749,35 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           height: 40,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: _bgColors.length,
+            itemCount: _bgColors.length + 1,
             itemBuilder: (context, index) {
-              final isSel = _selectedBgColorIndex == index;
+              final colorIndex = index - 1;
+              final isNoBackground = colorIndex < 0;
+              final isSel = _selectedBgColorIndex == colorIndex;
               return GestureDetector(
-                onTap: () => setState(() => _selectedBgColorIndex = index),
+                onTap: () => setState(() => _selectedBgColorIndex = colorIndex),
                 child: Container(
                   width: 40,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    color: _bgColors[index],
+                    color: isNoBackground
+                        ? AppColors.bgDefault
+                        : _bgColors[colorIndex],
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: isSel ? AppColors.primaryPink : AppColors.lineSoft,
                       width: isSel ? 3.0 : 1.0,
                     ),
                   ),
+                  child: isNoBackground
+                      ? Icon(
+                          Icons.close_rounded,
+                          color: isSel
+                              ? AppColors.primaryPink
+                              : AppColors.textMuted,
+                          size: 20,
+                        )
+                      : null,
                 ),
               );
             },
@@ -1205,7 +1114,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _bgColors[_selectedBgColorIndex].withOpacity(0.3),
+                  color: _characterPreviewBackground,
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.lineSoft, width: 1.0),
                 ),
@@ -1255,47 +1164,20 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       return SizedBox(height: 30);
     }
 
-    String label = '다음 ➔';
+    String label = '다음';
     if (_currentStep == 0) {
       label = '시작하기';
     } else if (_currentStep == 4) {
-      label = '기록 분석 요청 ➔';
+      label = '기록 분석 요청';
     } else if (_currentStep == 6) {
       label = widget.isDailyRecord ? '이어서 하루 일과 작성하기' : '홈으로 가기';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          if (_currentStep > 0 && _currentStep < 5) ...[
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _back,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.bgDefault,
-                  foregroundColor: AppColors.textMain,
-                  side: const BorderSide(color: AppColors.lineSoft),
-                ),
-                child: Text('이전'),
-              ),
-            ),
-            SizedBox(width: 12),
-          ],
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              onPressed: _next,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: (_currentStep == 0 || _currentStep == 6)
-                    ? AppColors.primaryPink
-                    : AppColors.primaryPurple,
-              ),
-              child: Text(label),
-            ),
-          ),
-        ],
-      ),
+    return RecordFlowBottomBar(
+      primaryLabel: label,
+      onPrimaryPressed: _next,
+      onBackPressed: _back,
+      showBackButton: _currentStep > 0 && _currentStep < 5,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import 'grid_background.dart';
 import 'onmu_top_bar.dart';
 
 class OnmuScaffold extends StatelessWidget {
@@ -19,7 +20,7 @@ class OnmuScaffold extends StatelessWidget {
     this.bottom,
     this.floatingActionButton,
     this.scrollController,
-    this.useGridBackground = false,
+    this.useGridBackground = true,
     this.useWarmBackground = true,
   });
 
@@ -40,50 +41,48 @@ class OnmuScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final content = SafeArea(
+      child: Column(
+        children: [
+          if (title != null)
+            OnmuTopBar(
+              title: title!,
+              subtitle: titleSubtitle,
+              showBackButton: showBackButton || leading != null,
+              onBack: onBack,
+              action: action ?? (actions.isEmpty ? null : Row(children: actions)),
+            ),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xxl,
+              ),
+              children: [
+                if (subtitle != null) ...[
+                  Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+                ...children,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Scaffold(
       backgroundColor: useGridBackground
-          ? AppColors.bgGrid
+          ? AppColors.bgDefault
           : useWarmBackground
           ? AppColors.bgWarm
           : AppColors.bgDefault,
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (title != null)
-              OnmuTopBar(
-                title: title!,
-                subtitle: titleSubtitle,
-                showBackButton: showBackButton || leading != null,
-                onBack: onBack,
-                action:
-                    action ?? (actions.isEmpty ? null : Row(children: actions)),
-              ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.xxl,
-                ),
-                children: [
-                  if (subtitle != null) ...[
-                    Text(
-                      subtitle!,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                  ...children,
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: useGridBackground ? GridBackground(child: content) : content,
       bottomNavigationBar: bottom == null
           ? null
           : SafeArea(

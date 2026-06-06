@@ -26,9 +26,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   static const _logoCrop = Rect.fromLTWH(420, 130, 520, 270);
   static const _characterCrop = Rect.fromLTWH(180, 380, 980, 710);
 
-  bool _isLoading = false;
+  _SocialProvider? _loadingProvider;
   String? _errorMessage;
   StreamSubscription<AuthUser?>? _googleAuthSubscription;
+
+  bool get _isLoading => _loadingProvider != null;
 
   @override
   void initState() {
@@ -97,9 +99,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         fallbackIconLabel: 'TALK',
                         fallbackIconBackground: const Color(0xFFFEE500),
                         fallbackIconForeground: const Color(0xFF371D1E),
-                        onPressed: _isLoading
-                            ? null
-                            : () => _signIn(_SocialProvider.kakao),
+                        isLoading: _loadingProvider == _SocialProvider.kakao,
+                        onPressed: () => _signIn(_SocialProvider.kakao),
                       ),
                       SizedBox(height: layout.buttonGap),
                       _buildGoogleSignInArea(layout),
@@ -115,18 +116,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         fallbackIconLabel: 'N',
                         fallbackIconBackground: Colors.transparent,
                         fallbackIconForeground: const Color(0xFF03C75A),
-                        onPressed: _isLoading
-                            ? null
-                            : () => _signIn(_SocialProvider.naver),
+                        isLoading: _loadingProvider == _SocialProvider.naver,
+                        onPressed: () => _signIn(_SocialProvider.naver),
                       ),
                     ],
                   ),
                 ),
                 if (_isLoading)
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 96,
+                  const Positioned.fill(
                     child: Center(child: CircularProgressIndicator()),
                   ),
                 if (_errorMessage != null)
@@ -145,8 +142,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _signIn(_SocialProvider provider) async {
+    if (_isLoading) {
+      return;
+    }
+
     setState(() {
-      _isLoading = true;
+      _loadingProvider = provider;
       _errorMessage = null;
     });
 
@@ -171,7 +172,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _loadingProvider = null;
         });
       }
     }
@@ -222,14 +223,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         iconAsset: 'assets/images/auth/google_logo.png',
         fallbackIconLabel: 'G',
         fallbackIconForeground: AppColors.primaryPurple,
-        onPressed: _isLoading
-            ? null
-            : () {
-                setState(() {
-                  _errorMessage =
-                      'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
-                });
-              },
+        isLoading: _loadingProvider == _SocialProvider.google,
+        onPressed: () {
+          if (_isLoading) {
+            return;
+          }
+
+          setState(() {
+            _errorMessage =
+                'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
+          });
+        },
       );
     }
 
@@ -253,6 +257,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   iconAsset: 'assets/images/auth/google_logo.png',
                   fallbackIconLabel: 'G',
                   fallbackIconForeground: AppColors.primaryPurple,
+                  isLoading: _loadingProvider == _SocialProvider.google,
                   onPressed: () {},
                 ),
               ),
@@ -273,7 +278,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       iconAsset: 'assets/images/auth/google_logo.png',
       fallbackIconLabel: 'G',
       fallbackIconForeground: AppColors.primaryPurple,
-      onPressed: _isLoading ? null : () => _signIn(_SocialProvider.google),
+      isLoading: _loadingProvider == _SocialProvider.google,
+      onPressed: () => _signIn(_SocialProvider.google),
     );
   }
 
@@ -347,6 +353,7 @@ class _LoginButton extends StatelessWidget {
     this.fallbackIconLabel,
     this.fallbackIconBackground,
     this.fallbackIconForeground,
+    this.isLoading = false,
   });
 
   final String label;
@@ -360,10 +367,17 @@ class _LoginButton extends StatelessWidget {
   final String? fallbackIconLabel;
   final Color? fallbackIconBackground;
   final Color? fallbackIconForeground;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final iconSize = height <= 48 ? 24.0 : 28.0;
+    final effectiveBackgroundColor = isLoading
+        ? AppColors.primaryPinkSoft
+        : backgroundColor;
+    final effectiveBorderColor = isLoading
+        ? AppColors.primaryPink
+        : borderColor ?? backgroundColor;
 
     return Align(
       alignment: Alignment.center,
@@ -373,45 +387,47 @@ class _LoginButton extends StatelessWidget {
         child: FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: backgroundColor,
+            backgroundColor: effectiveBackgroundColor,
             foregroundColor: foregroundColor,
-            disabledBackgroundColor: AppColors.lineSoft,
+            disabledBackgroundColor: effectiveBackgroundColor,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(11),
               side: BorderSide(
-                color: borderColor ?? backgroundColor,
+                color: effectiveBorderColor,
                 width: 1.2,
               ),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: iconSize,
-                height: iconSize,
-                child: _LoginButtonIcon(
-                  iconAsset: iconAsset,
-                  fallbackLabel: fallbackIconLabel,
-                  fallbackBackground: fallbackIconBackground,
-                  fallbackForeground: fallbackIconForeground,
-                ),
-              ),
-              const SizedBox(width: 26),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: foregroundColor,
-                    fontWeight: FontWeight.w700,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  height: iconSize,
+                  child: _LoginButtonIcon(
+                    iconAsset: iconAsset,
+                    fallbackLabel: fallbackIconLabel,
+                    fallbackBackground: fallbackIconBackground,
+                    fallbackForeground: fallbackIconForeground,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.left,
+                    style: AppTextStyles.titleSmall.copyWith(
+                      color: foregroundColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

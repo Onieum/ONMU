@@ -129,7 +129,7 @@ void main() {
     await tester.tap(find.text('요약 보기'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('시작하기'));
+    await tester.tap(find.text('첫 설정 페이지로 돌아가기'));
     await tester.pumpAndSettle();
 
     expect(find.text('취향 선택'), findsOneWidget);

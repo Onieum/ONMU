@@ -11,7 +11,7 @@ class AppColors {
   static const bgSticker = Color(0xFFFFF0F4);
   static const bgTape = Color(0xFFFFE6B8);
   static const calendarDatePinkBg = primaryPinkSoft;
-  static const calendarDatePurpleBg = primaryPurple;
+  static const calendarDatePurpleBg = Color(0xFFF3E5F5);
   static const calendarDateGreenBg = Color(0xFFE8F5E9);
   static const calendarDateYellowBg = Color(0xFFFFFDE7);
   static const calendarDateBlueBg = Color(0xFFE3F2FD);

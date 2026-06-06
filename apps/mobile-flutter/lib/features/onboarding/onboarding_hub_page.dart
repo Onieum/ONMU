@@ -7,6 +7,7 @@ import '../../core/theme/app_radius.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../shared/onmu_design.dart';
 import '../../shared/providers/state_providers.dart';
+import '../../shared/widgets/grid_background.dart';
 
 class OnboardingHubPage extends ConsumerWidget {
   const OnboardingHubPage({super.key});
@@ -28,9 +29,10 @@ class OnboardingHubPage extends ConsumerWidget {
         : '카카오 친구';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFCF8),
+      backgroundColor: AppColors.bgWarm,
       body: SafeArea(
-        child: LayoutBuilder(
+        child: GridBackground(
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final layout = _OnboardingLayout.from(constraints);
 
@@ -82,7 +84,7 @@ class OnboardingHubPage extends ConsumerWidget {
                       child: _OnboardingTaskCard(
                         compact: layout.compact,
                         title: '캐릭터 만들기',
-                        description: 'OOTD 기록에 함께할 픽셀 캐릭터를\n꾸며요.',
+                        description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
                         icon: Icons.face_retouching_natural_outlined,
                         state: _TaskState.from(hasCharacter, skippedCharacter),
                         primaryLabel: _taskButtonLabel(
@@ -105,7 +107,7 @@ class OnboardingHubPage extends ConsumerWidget {
                       child: _OnboardingTaskCard(
                         compact: layout.compact,
                         title: '취향 선택',
-                        description: '음식, 장소, 약속 스타일 추천에 쓸\n취향을 골라요.',
+                        description: '음식, 장소, 약속 스타일\n추천에 쓸 취향을 골라요.',
                         icon: Icons.tune_rounded,
                         state: _TaskState.from(
                           hasPreference,
@@ -148,6 +150,7 @@ class OnboardingHubPage extends ConsumerWidget {
               ],
             );
           },
+          ),
         ),
       ),
     );
@@ -219,7 +222,7 @@ class _OnboardingLayout {
       imageTop: height * (compact ? 0.215 : 0.245),
       firstCardTop: height * (compact ? 0.44 : 0.495),
       secondCardTop: height * (compact ? 0.65 : 0.685),
-      homeTop: height * (compact ? 0.86 : 0.88),
+      homeTop: height * (compact ? 0.88 : 0.905),
     );
   }
 }
@@ -293,7 +296,10 @@ class _OnboardingTaskCard extends StatelessWidget {
     final iconSize = compact ? 42.0 : 50.0;
 
     return Container(
-      padding: EdgeInsets.all(compact ? 10 : 13),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 13,
+        vertical: compact ? 14 : 18,
+      ),
       decoration: BoxDecoration(
         color: AppColors.bgDefault.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(12),
@@ -367,7 +373,7 @@ class _OnboardingTaskCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: compact ? 8 : 10),
+          SizedBox(height: compact ? 12 : 14),
           SizedBox(
             height: compact ? 38 : 44,
             child: OutlinedButton.icon(
