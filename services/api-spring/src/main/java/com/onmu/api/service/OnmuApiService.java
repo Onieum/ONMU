@@ -305,6 +305,7 @@ public class OnmuApiService {
   ) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
+    requireSettlementItems(request.items());
     SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
       .orElseGet(() -> new SettlementDraftEntity(
         nextPublicId(settlementDraftRepository.findAll().stream()
@@ -321,11 +322,8 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public Map<String, Object> previewSettlement(String groupId, String planId, SettlementPreviewRequest request) {
     PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
-    Map<String, Object> payload = request.items() == null || request.items().isEmpty()
-      ? readObject(settlementDraftRepository.findByPlan(plan)
-        .map(SettlementDraftEntity::getPayload)
-        .orElse(defaultSettlementPayload(plan)))
-      : settlementPayloadFromItems(plan, request.items());
+    requireSettlementItems(request.items());
+    Map<String, Object> payload = settlementPayloadFromItems(plan, request.items());
     return settlementSummaryCard("preview", plan, payload, true);
   }
 
@@ -333,11 +331,8 @@ public class OnmuApiService {
   public Map<String, Object> createSettlement(String groupId, String planId, SettlementPreviewRequest request) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
-    Map<String, Object> payload = request.items() == null || request.items().isEmpty()
-      ? readObject(settlementDraftRepository.findByPlan(plan)
-        .map(SettlementDraftEntity::getPayload)
-        .orElse(defaultSettlementPayload(plan)))
-      : settlementPayloadFromItems(plan, request.items());
+    requireSettlementItems(request.items());
+    Map<String, Object> payload = settlementPayloadFromItems(plan, request.items());
     String publicId = nextPublicId(settlementRepository.findAll().stream()
       .map(SettlementEntity::getPublicId)
       .toList(), 301);
@@ -391,6 +386,12 @@ public class OnmuApiService {
   private PlaceCandidateEntity placeCandidateOrThrow(PlanEntity plan, String candidateId) {
     return placeCandidateRepository.findByPlanAndPublicId(plan, candidateId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "place_candidate_not_found"));
+  }
+
+  private void requireSettlementItems(List<SettlementDraftItemRequest> items) {
+    if (items == null || items.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_items");
+    }
   }
 
   private Map<String, Object> groupCard(GroupEntity group) {

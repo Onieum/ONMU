@@ -105,7 +105,7 @@ class ApiPlaceRepository implements PlaceRepository {
     }
     return candidates.firstWhere(
       (candidate) => candidate.id.toString() == candidateId.toString(),
-      orElse: () => candidates.first,
+      orElse: () => _emptyCandidate(candidateId),
     );
   }
 
@@ -136,29 +136,29 @@ class ApiPlaceRepository implements PlaceRepository {
       name: OnmuJson.readString(json, 'name', '장소 후보'),
       category: OnmuJson.readString(json, 'category', '장소'),
       summary: OnmuJson.readString(json, 'summary', 'Spring API 장소 후보'),
-      score: OnmuJson.readDouble(json, 'score'),
-      matchPercent: OnmuJson.readInt(json, 'matchPercent'),
+      score: 0,
+      matchPercent: 0,
       distanceLabel: OnmuJson.readString(json, 'distanceLabel', '거리 정보 준비 중'),
       travelTimeLabel: OnmuJson.readString(json, 'travelTimeLabel', '이동 시간 준비 중'),
       priceLabel: OnmuJson.readString(json, 'priceLabel', '가격 정보 준비 중'),
       isOpen: OnmuJson.readBool(json, 'isOpen', true),
       address: OnmuJson.readString(json, 'address'),
       openingLabel: OnmuJson.readString(json, 'openingLabel', '영업 정보 확인 중'),
-      sourceLabel: OnmuJson.readString(json, 'sourceLabel', 'Spring API'),
-      riskLabel: OnmuJson.readString(json, 'riskLabel'),
-      riskTone: OnmuJson.readString(json, 'riskTone', 'none'),
+      sourceLabel: '',
+      riskLabel: '',
+      riskTone: 'none',
       memberFits: OnmuJson.asMapList(json['memberFits'])
           .map(
             (fit) => MemberFit(
               label: OnmuJson.readString(fit, 'label'),
-              score: OnmuJson.readInt(fit, 'score'),
+              score: 0,
               note: OnmuJson.readString(fit, 'note'),
             ),
           )
           .toList(growable: false),
       tags: OnmuJson.stringList(json['tags']),
       reasons: OnmuJson.stringList(json['reasons']),
-      risks: OnmuJson.stringList(json['risks']),
+      risks: const [],
     );
   }
 
@@ -176,7 +176,7 @@ class ApiPlaceRepository implements PlaceRepository {
       isOpen: true,
       address: '',
       openingLabel: '영업 정보 확인 중',
-      sourceLabel: 'Spring API',
+      sourceLabel: '',
       riskLabel: '',
       riskTone: 'none',
       memberFits: const [],

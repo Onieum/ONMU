@@ -508,7 +508,7 @@ function Invoke-SmokeTests {
     -Method "POST" `
     -Url "$base/api/v1/groups/1/plans/101/settlements/preview" `
     -ExpectedStatus @(200) `
-    -Body '{}'
+    -Body '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
 }
 
 Assert-RepoRoot

@@ -25,6 +25,7 @@ import com.onmu.api.domain.VoteEntity;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
+import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import java.time.Instant;
 import java.util.List;
@@ -287,7 +288,7 @@ class OnmuApiServiceTests {
     ));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var created = service.createSettlement("1", "101", new SettlementPreviewRequest(List.of()));
+    var created = service.createSettlement("1", "101", new SettlementPreviewRequest(List.of(settlementItem())));
 
     assertThat(created).containsEntry("id", "302").containsEntry("preview", false);
     verify(outboxService).record(
@@ -302,6 +303,29 @@ class OnmuApiServiceTests {
       any(),
       argThat(payload -> "activity".equals(payload.get("channel"))
         && "302".equals(payload.get("settlementId")))
+    );
+  }
+
+  @Test
+  void emptySettlementRequestReturns400() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    assertThatThrownBy(() -> service.createSettlement("1", "101", new SettlementPreviewRequest(List.of())))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("missing_settlement_items");
+      });
+  }
+
+  private SettlementDraftItemRequest settlementItem() {
+    return new SettlementDraftItemRequest(
+      "401",
+      "Coffee",
+      12000,
+      "Jimin",
+      "equal",
+      List.of("Jimin", "Minsu")
     );
   }
 }
