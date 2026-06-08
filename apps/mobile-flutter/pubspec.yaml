@@ -32,7 +32,7 @@ dependencies:
   # iOS style icon이 필요할 때 CupertinoIcons class와 함께 사용합니다.
   cupertino_icons: ^1.0.8
   go_router: ^17.3.0
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.3.1
   google_sign_in: ^7.2.0
   google_sign_in_web: ^1.1.3
 
