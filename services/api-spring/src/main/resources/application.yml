@@ -1,0 +1,26 @@
+server:
+  address: ${SERVER_ADDRESS:${API_HOST:127.0.0.1}}
+  port: ${SERVER_PORT:${API_PORT:8080}}
+
+spring:
+  application:
+    name: onmu-api-spring
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_HOST_PORT:15432}/onmu}
+    username: ${SPRING_DATASOURCE_USERNAME:onmu}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:onmu-local-only}}
+  flyway:
+    enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

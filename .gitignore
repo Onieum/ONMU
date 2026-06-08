@@ -32,6 +32,10 @@ build/
 .turbo/
 coverage/
 
+# Java / Spring
+**/target/
+**/.mvn/wrapper/dists/
+
 # Flutter / Dart
 .dart_tool/
 .flutter-plugins
