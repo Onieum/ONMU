@@ -70,43 +70,50 @@ enum VoteFilter {
   }
 }
 
-class VoteListViewModel extends FamilyAsyncNotifier<VoteListState, String> {
+class VoteListViewModel extends AsyncNotifier<VoteListState> {
+  VoteListViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<VoteListState> build(String arg) async {
+  Future<VoteListState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final group = await repository.fetchGroup(arg);
-    final pinnedPlan = await repository.fetchPinnedPlan(arg);
-    final plans = await repository.fetchPlans(arg);
+    final group = await repository.fetchGroup(groupId);
+    final pinnedPlan = await repository.fetchPinnedPlan(groupId);
+    final plans = await repository.fetchPlans(groupId);
 
     return VoteListState(
       group: group,
       planId: pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id),
-      votes: await repository.fetchVotes(arg),
+      votes: await repository.fetchVotes(groupId),
     );
   }
 }
 
-class VoteDetailViewModel
-    extends FamilyAsyncNotifier<VoteDetailState, VoteScope> {
+class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
+  VoteDetailViewModel(this.scope);
+
+  final VoteScope scope;
+
   @override
-  Future<VoteDetailState> build(VoteScope arg) async {
+  Future<VoteDetailState> build() async {
     final groupRepository = ref.watch(groupRepositoryProvider);
     final placeRepository = ref.watch(placeRepositoryProvider);
-    final pinnedPlan = await groupRepository.fetchPinnedPlan(arg.groupId);
-    final plans = await groupRepository.fetchPlans(arg.groupId);
+    final pinnedPlan = await groupRepository.fetchPinnedPlan(scope.groupId);
+    final plans = await groupRepository.fetchPlans(scope.groupId);
 
     return VoteDetailState(
       vote: await groupRepository.fetchVoteCard(
-        groupId: arg.groupId,
-        voteId: arg.voteId,
+        groupId: scope.groupId,
+        voteId: scope.voteId,
       ),
       candidates: await placeRepository.fetchCandidates(
-        groupId: arg.groupId,
+        groupId: scope.groupId,
         planId: pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id),
       ),
       votersByCandidateId: await groupRepository.fetchVoteVoters(
-        groupId: arg.groupId,
-        voteId: arg.voteId,
+        groupId: scope.groupId,
+        voteId: scope.voteId,
       ),
     );
   }

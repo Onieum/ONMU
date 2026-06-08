@@ -22,14 +22,18 @@ class GroupHomeState {
   final GroupMessage? recentMessage;
 }
 
-class GroupHomeViewModel extends FamilyAsyncNotifier<GroupHomeState, String> {
+class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
+  GroupHomeViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<GroupHomeState> build(String arg) async {
+  Future<GroupHomeState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final group = await repository.fetchGroup(arg);
-    final pinnedPlan = await repository.fetchPinnedPlan(arg);
-    final memories = await repository.fetchMemories(arg);
-    final messages = await repository.fetchMessages(arg);
+    final group = await repository.fetchGroup(groupId);
+    final pinnedPlan = await repository.fetchPinnedPlan(groupId);
+    final memories = await repository.fetchMemories(groupId);
+    final messages = await repository.fetchMessages(groupId);
 
     return GroupHomeState(
       group: group,

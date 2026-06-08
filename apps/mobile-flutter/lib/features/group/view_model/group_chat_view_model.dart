@@ -42,27 +42,34 @@ class GroupChatState {
   }
 }
 
-class GroupChatViewModel extends FamilyAsyncNotifier<GroupChatState, String> {
+class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
+  GroupChatViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<GroupChatState> build(String arg) async {
+  Future<GroupChatState> build() async {
     final groupRepository = ref.watch(groupRepositoryProvider);
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
-    final pinnedPlan = await groupRepository.fetchPinnedPlan(arg);
-    final plans = await groupRepository.fetchPlans(arg);
+    final pinnedPlan = await groupRepository.fetchPinnedPlan(groupId);
+    final plans = await groupRepository.fetchPlans(groupId);
     final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
-    final votes = await groupRepository.fetchVotes(arg);
+    final votes = await groupRepository.fetchVotes(groupId);
     final voteId = votes.isEmpty ? 0 : votes.first.id;
 
     return GroupChatState(
-      group: await groupRepository.fetchGroup(arg),
+      group: await groupRepository.fetchGroup(groupId),
       pinnedPlan: pinnedPlan,
-      messages: await groupRepository.fetchMessages(arg),
-      vote: await groupRepository.fetchVoteCard(groupId: arg, voteId: voteId),
+      messages: await groupRepository.fetchMessages(groupId),
+      vote: await groupRepository.fetchVoteCard(
+        groupId: groupId,
+        voteId: voteId,
+      ),
       voteId: voteId,
       planId: planId,
       settlement: await settlementRepository.fetchSettlement(
-        groupId: arg,
+        groupId: groupId,
         planId: planId,
       ),
     );

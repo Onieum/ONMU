@@ -27,17 +27,21 @@ class GroupPlanBoardState {
 }
 
 class GroupPlanBoardViewModel
-    extends FamilyAsyncNotifier<GroupPlanBoardState, GroupPlanBoardScope> {
+    extends AsyncNotifier<GroupPlanBoardState> {
+  GroupPlanBoardViewModel(this.scope);
+
+  final GroupPlanBoardScope scope;
+
   @override
-  Future<GroupPlanBoardState> build(GroupPlanBoardScope arg) async {
+  Future<GroupPlanBoardState> build() async {
     final groupRepository = ref.watch(groupRepositoryProvider);
     final placeRepository = ref.watch(placeRepositoryProvider);
 
     return GroupPlanBoardState(
-      pinnedPlan: await groupRepository.fetchPinnedPlan(arg.groupId),
+      pinnedPlan: await groupRepository.fetchPinnedPlan(scope.groupId),
       candidates: await placeRepository.fetchCandidates(
-        groupId: arg.groupId,
-        planId: arg.planId,
+        groupId: scope.groupId,
+        planId: scope.planId,
       ),
       voteId: 501,
     );

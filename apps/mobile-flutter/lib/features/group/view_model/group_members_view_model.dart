@@ -23,12 +23,16 @@ class GroupMembersState {
 }
 
 class GroupMembersViewModel
-    extends FamilyAsyncNotifier<GroupMembersState, String> {
+    extends AsyncNotifier<GroupMembersState> {
+  GroupMembersViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<GroupMembersState> build(String arg) async {
+  Future<GroupMembersState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final group = await repository.fetchGroup(arg);
-    final members = await repository.fetchMembers(arg);
+    final group = await repository.fetchGroup(groupId);
+    final members = await repository.fetchMembers(groupId);
 
     return GroupMembersState(
       group: group,
