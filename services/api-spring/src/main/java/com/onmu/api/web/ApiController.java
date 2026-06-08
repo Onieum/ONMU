@@ -3,9 +3,13 @@ package com.onmu.api.web;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import com.onmu.api.web.dto.CreateGroupRequest;
+import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
+import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
+import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -99,5 +104,79 @@ public class ApiController {
   @GetMapping("/groups/{groupId}/votes/{voteId}")
   public Map<String, Object> vote(@PathVariable String groupId, @PathVariable String voteId) {
     return onmuApiService.vote(groupId, voteId);
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/place-candidates")
+  public List<Map<String, Object>> placeCandidates(@PathVariable String groupId, @PathVariable String planId) {
+    return onmuApiService.placeCandidates(groupId, planId);
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/place-candidates")
+  public ResponseEntity<Map<String, Object>> createPlaceCandidate(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @Valid @RequestBody CreatePlaceCandidateRequest request
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+      .body(onmuApiService.createPlaceCandidate(groupId, planId, request));
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/schedule-places")
+  public ResponseEntity<Map<String, Object>> createSchedulePlace(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @Valid @RequestBody CreateSchedulePlaceRequest request
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+      .body(onmuApiService.createSchedulePlace(groupId, planId, request));
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
+  public Map<String, Object> settlementDraft(@PathVariable String groupId, @PathVariable String planId) {
+    return onmuApiService.settlementDraft(groupId, planId);
+  }
+
+  @PatchMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
+  public Map<String, Object> updateSettlementDraft(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) UpdateSettlementDraftRequest request
+  ) {
+    return onmuApiService.updateSettlementDraft(
+      groupId,
+      planId,
+      request == null ? new UpdateSettlementDraftRequest(List.of(), null) : request
+    );
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/settlements/preview")
+  public Map<String, Object> previewSettlement(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) SettlementPreviewRequest request
+  ) {
+    return onmuApiService.previewSettlement(
+      groupId,
+      planId,
+      request == null ? new SettlementPreviewRequest(List.of()) : request
+    );
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/settlements")
+  public ResponseEntity<Map<String, Object>> createSettlement(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) SettlementPreviewRequest request
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createSettlement(
+      groupId,
+      planId,
+      request == null ? new SettlementPreviewRequest(List.of()) : request
+    ));
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/settlements")
+  public Map<String, Object> settlement(@PathVariable String groupId, @PathVariable String planId) {
+    return onmuApiService.settlement(groupId, planId);
   }
 }
