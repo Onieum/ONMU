@@ -12,12 +12,15 @@ final settlementViewModelProvider =
       SettlementScope
     >(SettlementViewModel.new);
 
-class SettlementViewModel
-    extends FamilyAsyncNotifier<SettlementSummary, SettlementScope> {
+class SettlementViewModel extends AsyncNotifier<SettlementSummary> {
+  SettlementViewModel(this.scope);
+
+  final SettlementScope scope;
+
   @override
-  Future<SettlementSummary> build(SettlementScope arg) {
+  Future<SettlementSummary> build() {
     return ref
         .watch(settlementRepositoryProvider)
-        .fetchSettlement(groupId: arg.groupId, planId: arg.planId);
+        .fetchSettlement(groupId: scope.groupId, planId: scope.planId);
   }
 }

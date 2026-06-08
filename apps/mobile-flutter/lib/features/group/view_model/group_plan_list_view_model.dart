@@ -23,12 +23,16 @@ class GroupPlanListState {
 }
 
 class GroupPlanListViewModel
-    extends FamilyAsyncNotifier<GroupPlanListState, String> {
+    extends AsyncNotifier<GroupPlanListState> {
+  GroupPlanListViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<GroupPlanListState> build(String arg) async {
+  Future<GroupPlanListState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final plans = await repository.fetchPlans(arg);
-    final members = await repository.fetchMembers(arg);
+    final plans = await repository.fetchPlans(groupId);
+    final members = await repository.fetchMembers(groupId);
 
     return GroupPlanListState(
       upcomingPlans: plans.where((plan) => !plan.isPast).toList(),

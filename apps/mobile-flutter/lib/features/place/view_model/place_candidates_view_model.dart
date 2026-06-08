@@ -60,16 +60,17 @@ class PlaceCandidatesState {
 }
 
 class PlaceCandidatesViewModel
-    extends FamilyAsyncNotifier<PlaceCandidatesState, PlaceScope> {
-  late PlaceScope _scope;
+    extends AsyncNotifier<PlaceCandidatesState> {
+  PlaceCandidatesViewModel(this.scope);
+
+  final PlaceScope scope;
 
   @override
-  Future<PlaceCandidatesState> build(PlaceScope arg) async {
-    _scope = arg;
+  Future<PlaceCandidatesState> build() async {
     final repository = ref.watch(placeRepositoryProvider);
     final candidates = await repository.fetchCandidates(
-      groupId: arg.groupId,
-      planId: arg.planId,
+      groupId: scope.groupId,
+      planId: scope.planId,
     );
 
     return PlaceCandidatesState(
@@ -80,7 +81,7 @@ class PlaceCandidatesViewModel
   }
 
   void toggleFavorite(int candidateId) {
-    final value = state.valueOrNull;
+    final value = state.asData?.value;
     if (value == null) {
       return;
     }
@@ -103,8 +104,8 @@ class PlaceCandidatesViewModel
     final repository = ref.read(groupRepositoryProvider);
     final vote = await repository.createVote(
       VoteCreateInput(
-        groupId: _scope.groupId,
-        planId: _scope.planId,
+        groupId: scope.groupId,
+        planId: scope.planId,
         title: title,
         modeLabel: modeLabel,
         deadlineDate: deadlineDate,
@@ -112,7 +113,7 @@ class PlaceCandidatesViewModel
         candidateNames: candidateNames,
       ),
     );
-    ref.invalidate(voteListViewModelProvider(_scope.groupId));
+    ref.invalidate(voteListViewModelProvider(scope.groupId));
     return vote.id;
   }
 
@@ -129,14 +130,18 @@ class PlaceCandidatesViewModel
 }
 
 class PlaceCandidateDetailViewModel
-    extends FamilyAsyncNotifier<PlaceCandidate, PlaceCandidateDetailScope> {
+    extends AsyncNotifier<PlaceCandidate> {
+  PlaceCandidateDetailViewModel(this.scope);
+
+  final PlaceCandidateDetailScope scope;
+
   @override
-  Future<PlaceCandidate> build(PlaceCandidateDetailScope arg) async {
+  Future<PlaceCandidate> build() async {
     final repository = ref.watch(placeRepositoryProvider);
     return repository.fetchCandidate(
-      groupId: arg.groupId,
-      planId: arg.planId,
-      candidateId: arg.candidateId,
+      groupId: scope.groupId,
+      planId: scope.planId,
+      candidateId: scope.candidateId,
     );
   }
 }

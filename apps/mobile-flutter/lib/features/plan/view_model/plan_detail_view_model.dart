@@ -34,21 +34,21 @@ class PlanDetailState {
   }
 }
 
-class PlanDetailViewModel
-    extends FamilyAsyncNotifier<PlanDetailState, PlanScope> {
-  late PlanScope _scope;
+class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
+  PlanDetailViewModel(this.scope);
+
+  final PlanScope scope;
 
   @override
-  Future<PlanDetailState> build(PlanScope arg) async {
-    _scope = arg;
+  Future<PlanDetailState> build() async {
     final repository = ref.watch(planRepositoryProvider);
     final plan = await repository.fetchPlan(
-      groupId: arg.groupId,
-      planId: arg.planId,
+      groupId: scope.groupId,
+      planId: scope.planId,
     );
     final visitPlansByDate = await repository.fetchVisitPlansByDate(
-      groupId: arg.groupId,
-      planId: arg.planId,
+      groupId: scope.groupId,
+      planId: scope.planId,
     );
 
     return PlanDetailState(
@@ -68,10 +68,10 @@ class PlanDetailViewModel
   }) async {
     final repository = ref.read(planRepositoryProvider);
     final plan = editing
-        ? await repository.updatePlan(planId: _scope.planId, input: input)
+        ? await repository.updatePlan(planId: scope.planId, input: input)
         : await repository.createPlan(input);
 
-    ref.invalidate(groupPlanListViewModelProvider(_scope.groupId));
+    ref.invalidate(groupPlanListViewModelProvider(scope.groupId));
     ref.invalidate(homeViewModelProvider);
     return plan;
   }

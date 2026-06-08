@@ -37,25 +37,33 @@ class GroupMemoryDetailState {
 }
 
 class GroupMemoryBoardViewModel
-    extends FamilyAsyncNotifier<GroupMemoryBoardState, String> {
+    extends AsyncNotifier<GroupMemoryBoardState> {
+  GroupMemoryBoardViewModel(this.groupId);
+
+  final String groupId;
+
   @override
-  Future<GroupMemoryBoardState> build(String arg) async {
+  Future<GroupMemoryBoardState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final group = await repository.fetchGroup(arg);
-    final memories = await repository.fetchMemories(arg);
+    final group = await repository.fetchGroup(groupId);
+    final memories = await repository.fetchMemories(groupId);
 
     return GroupMemoryBoardState(group: group, memories: memories);
   }
 }
 
 class GroupMemoryDetailViewModel
-    extends FamilyAsyncNotifier<GroupMemoryDetailState, GroupMemoryScope> {
+    extends AsyncNotifier<GroupMemoryDetailState> {
+  GroupMemoryDetailViewModel(this.scope);
+
+  final GroupMemoryScope scope;
+
   @override
-  Future<GroupMemoryDetailState> build(GroupMemoryScope arg) async {
+  Future<GroupMemoryDetailState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final memories = await repository.fetchMemories(arg.groupId);
+    final memories = await repository.fetchMemories(scope.groupId);
     final memoryIndex = memories.indexWhere(
-      (memory) => memory.id.toString() == arg.memoryId,
+      (memory) => memory.id.toString() == scope.memoryId,
     );
     final safeIndex = memoryIndex < 0 ? 0 : memoryIndex;
 
