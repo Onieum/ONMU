@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+MAVEN_VERSION="3.9.16"
+DIST_DIR="$SCRIPT_DIR/.mvn/wrapper/dists/apache-maven-$MAVEN_VERSION"
+ARCHIVE="$SCRIPT_DIR/.mvn/wrapper/dists/apache-maven-$MAVEN_VERSION-bin.zip"
+URL="https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/$MAVEN_VERSION/apache-maven-$MAVEN_VERSION-bin.zip"
+
+if [ ! -x "$DIST_DIR/apache-maven-$MAVEN_VERSION/bin/mvn" ]; then
+  mkdir -p "$(dirname "$ARCHIVE")"
+  if [ ! -f "$ARCHIVE" ]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$URL" -o "$ARCHIVE"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$URL" -O "$ARCHIVE"
+    else
+      echo "curl or wget is required to download Maven $MAVEN_VERSION." >&2
+      exit 1
+    fi
+  fi
+
+  rm -rf "$DIST_DIR"
+  mkdir -p "$DIST_DIR"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q "$ARCHIVE" -d "$DIST_DIR"
+  else
+    python3 -m zipfile -e "$ARCHIVE" "$DIST_DIR"
+  fi
+fi
+
+exec "$DIST_DIR/apache-maven-$MAVEN_VERSION/bin/mvn" "$@"

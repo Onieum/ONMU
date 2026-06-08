@@ -208,10 +208,10 @@ function Stop-ExistingBackend {
   }
 }
 
-function Import-KeyVaultEnvForNodeStub {
+function Import-KeyVaultEnvForBackend {
   $loader = Join-Path $RepoRoot "scripts\load-key-vault-env.ps1"
   if (-not $env:AZURE_KEY_VAULT_NAME) {
-    Write-DeployLog "AZURE_KEY_VAULT_NAME is not set. Node stub will use current environment or local defaults."
+    Write-DeployLog "AZURE_KEY_VAULT_NAME is not set. Backend will use current environment or local defaults."
     return
   }
 
@@ -254,7 +254,7 @@ function Start-LocalDependencies {
 }
 
 function Start-NodeStubBackend {
-  Import-KeyVaultEnvForNodeStub
+  Import-KeyVaultEnvForBackend
   Start-LocalDependencies
   Stop-ExistingBackend
 
@@ -313,11 +313,63 @@ function Test-SpringExecutableProject {
   )
 }
 
+function Set-SpringDatasourceFromDatabaseUrl {
+  if (-not $env:DATABASE_URL) {
+    return
+  }
+
+  $uri = [System.Uri]::new($env:DATABASE_URL)
+  if ($uri.Scheme -notin @("postgres", "postgresql")) {
+    throw "DATABASE_URL must use postgres or postgresql scheme for Spring runtime."
+  }
+
+  $databaseName = $uri.AbsolutePath.TrimStart("/")
+  if (-not $databaseName) {
+    throw "DATABASE_URL must include a database name for Spring runtime."
+  }
+
+  $port = if ($uri.Port -gt 0) { $uri.Port } else { 5432 }
+  $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://$($uri.Host):${port}/${databaseName}$($uri.Query)"
+
+  if ($uri.UserInfo) {
+    $parts = $uri.UserInfo.Split(":", 2)
+    if ($parts.Length -ge 1 -and $parts[0]) {
+      $env:SPRING_DATASOURCE_USERNAME = [System.Uri]::UnescapeDataString($parts[0])
+    }
+    if ($parts.Length -ge 2 -and $parts[1]) {
+      $env:SPRING_DATASOURCE_PASSWORD = [System.Uri]::UnescapeDataString($parts[1])
+    }
+  }
+}
+
+function Set-SpringEnvironment {
+  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { "local" }
+  $env:SERVER_ADDRESS = $ApiHost
+  $env:SERVER_PORT = [string]$ApiPort
+  $env:API_HOST = $ApiHost
+  $env:API_PORT = [string]$ApiPort
+  if (-not $env:POSTGRES_HOST_PORT) {
+    $env:POSTGRES_HOST_PORT = "15432"
+  }
+  if (-not $env:SPRING_DATASOURCE_PASSWORD -and $env:POSTGRES_PASSWORD) {
+    $env:SPRING_DATASOURCE_PASSWORD = $env:POSTGRES_PASSWORD
+  }
+
+  Set-SpringDatasourceFromDatabaseUrl
+  Write-DeployLog "Spring environment prepared for ${ApiHost}:${ApiPort}. Secret values are not printed."
+}
+
 function Start-SpringBackend {
+  Import-KeyVaultEnvForBackend
+  Start-LocalDependencies
+
   if ($DryRun) {
     Stop-ExistingBackend
-    Write-DeployLog "[dry-run] Check services/api-spring for Gradle or Maven executable project."
-    Write-DeployLog "[dry-run] Future command will start Spring Boot Main API on ${ApiHost}:${ApiPort} after the next PR adds the executable app."
+    Write-DeployLog "[dry-run] Check services/api-spring for Maven executable project."
+    Write-DeployLog "[dry-run] Prepare SERVER_ADDRESS/SERVER_PORT and Spring datasource env without printing secret values."
+    Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+    Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
+    Write-DeployLog "[dry-run] Write PID to $PidFile"
     return
   }
 
@@ -325,7 +377,51 @@ function Start-SpringBackend {
     throw "Spring runtime scaffold exists, but executable Spring Boot app is not implemented yet."
   }
 
-  throw "Spring runtime executable project was detected, but the Spring startup command is intentionally left for the next implementation PR."
+  $mavenWrapper = Join-Path $SpringDir "mvnw.cmd"
+  $mavenPom = Join-Path $SpringDir "pom.xml"
+  if (-not (Test-Path $mavenWrapper) -or -not (Test-Path $mavenPom)) {
+    throw "Spring runtime currently expects Maven wrapper files at services/api-spring/mvnw.cmd and pom.xml."
+  }
+
+  Set-SpringEnvironment
+
+  Push-Location $SpringDir
+  try {
+    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "package")
+  } finally {
+    Pop-Location
+  }
+
+  Stop-ExistingBackend
+
+  $jar = Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
+    Where-Object { $_.Name -notlike "*.original" } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+
+  if (-not $jar) {
+    throw "Spring Boot jar was not found after Maven package."
+  }
+
+  Write-DeployLog "Starting Spring Boot Main API on ${ApiHost}:${ApiPort}."
+  $process = Start-Process `
+    -FilePath "java" `
+    -ArgumentList @("-jar", $jar.FullName) `
+    -WorkingDirectory $SpringDir `
+    -RedirectStandardOutput $StdoutLogFile `
+    -RedirectStandardError $StderrLogFile `
+    -PassThru `
+    -WindowStyle Hidden
+
+  Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
+  Write-DeployLog "Spring Boot Main API started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
+
+  Start-Sleep -Seconds 5
+  $startedProcess = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+  if (-not $startedProcess) {
+    $stderr = if (Test-Path $StderrLogFile) { Get-Content -LiteralPath $StderrLogFile -Tail 40 } else { @() }
+    throw "Spring Boot Main API exited during startup. Recent stderr: $($stderr -join ' ')"
+  }
 }
 
 function New-TempJsonFile {

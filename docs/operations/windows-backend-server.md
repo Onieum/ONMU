@@ -454,7 +454,7 @@ npm run tunnel:cloudflare:quick
 
 ### GitHub Actions Windows dev backend CD
 
-PR #63 범위에서는 Windows dev backend를 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반만 둡니다. Spring Boot 실제 앱 구현은 다음 PR 범위이므로, 현재 기본 배포 runtime은 Node smoke/contract stub입니다.
+PR #63 범위에서는 Windows dev backend를 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반을 둡니다. SCRUM-40 stacked branch에서는 `services/api-spring`의 Spring Boot Main API가 실행 가능한 scaffold로 추가되지만, PR #63이 아직 `dev`에 merge되지 않았으므로 자동 배포 기본 runtime은 계속 Node smoke/contract stub입니다. Spring runtime은 수동 선택으로 검증합니다.
 
 workflow 파일:
 
@@ -490,6 +490,7 @@ runner 등록 개요:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime node-stub
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime spring
 ```
 
 dry-run:
@@ -510,9 +511,11 @@ runtime별 동작:
 | Runtime | 현재 동작 |
 | --- | --- |
 | `node-stub` | `services/api/server.mjs`를 `127.0.0.1:8080`에서 재시작합니다. `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정하고, PID 파일과 8080 port owner를 기준으로 기존 ONMU API 프로세스를 정리합니다. |
-| `spring` | 현재 PR에서는 실행 가능한 Spring Boot 앱이 없으므로 일반 실행은 실패합니다. dry-run은 실패하지 않고 다음 PR에서 실행할 예정 명령만 보여줍니다. |
+| `spring` | `services/api-spring` Maven wrapper로 jar를 build한 뒤 Spring Boot Main API를 `127.0.0.1:8080`에서 실행합니다. `SERVER_ADDRESS`, `SERVER_PORT`, `API_HOST`, `API_PORT`를 함께 설정하고, `DATABASE_URL`이 있으면 Spring datasource 환경변수로 변환합니다. |
 
 Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `dev-api.onmu.cloud -> localhost:8080` tunnel connector는 별도 서비스로 이미 떠 있다고 보고, 배포 스크립트는 API runtime만 교체한 뒤 같은 공개 endpoint를 smoke test합니다.
+
+주의: `deploy-dev-backend.ps1`는 배포용 스크립트라 실행 중 `git switch dev`, `git pull --ff-only origin dev`를 수행합니다. PR #63 또는 SCRUM-40이 `dev`에 merge되기 전에는 실제 공용 Windows backend-host 변경 대신 dry-run이나 로컬 수동 Spring smoke를 우선합니다.
 
 CD smoke test:
 
