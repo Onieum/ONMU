@@ -801,3 +801,31 @@ Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azur
 - `dev-api.onmu.cloud`가 로컬 터널인지 Azure staging인지 팀원이 혼동하지 않게 DNS와 문서를 갱신합니다.
 
 Windows 서버에서 검증한 compose 설정은 Azure Container Apps, AKS manifest, Helm/Kustomize 설정을 만들 때 기준 입력으로 사용합니다. Azure staging으로 옮긴 뒤에는 Cloudflare Tunnel을 끄고, `onmu.cloud` 또는 `www.onmu.cloud`는 제품/비즈니스 소개 페이지로만 사용합니다.
+
+## Spring Runtime 전환 전 인증/CORS 체크
+
+현재 public dev backend의 기본 runtime은 계속 `node-stub`입니다. Spring Boot Main API는 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring`으로 수동 smoke할 수 있지만, 팀 테스트에 영향을 주므로 사용자 승인 없이 기본값으로 전환하지 않습니다.
+
+Spring runtime은 `/api/v1/**` 보호 API에 dev bearer token을 요구합니다. 공유 Windows backend-host에서는 토큰을 코드, `.env`, 문서, 로그에 남기지 말고 Key Vault 또는 실행 프로세스 환경변수로만 주입합니다.
+
+```powershell
+$env:ONMU_DEV_ACCESS_TOKEN="<local-smoke-token>"
+$env:ONMU_DEV_REFRESH_TOKEN="<local-refresh-token>"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime spring
+```
+
+dry-run은 토큰 값 없이도 실행 계획만 확인할 수 있고, Authorization 헤더는 `<redacted>`로만 표시합니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime spring
+```
+
+Spring 전환 전 체크리스트:
+
+- `ONMU_DEV_ACCESS_TOKEN`, `ONMU_DEV_REFRESH_TOKEN`이 Key Vault 또는 안전한 로컬 환경변수에서 주입됩니다.
+- `GET /api/v1/auth/session`이 토큰 없이는 `authenticated: false`, 유효한 token으로는 `authenticated: true`를 반환합니다.
+- 보호된 `/api/v1/**` smoke가 bearer token 없이는 401, 유효한 token으로는 200/201을 반환합니다.
+- CORS allowed origin은 `ONMU_DEV_CORS_ORIGINS` 또는 Spring property로 명시되며 wildcard origin/header를 사용하지 않습니다.
+- `DELETE /api/v1/auth/session` preflight가 허용 origin에서 통과합니다.
+- `logs\api-access.log` 수준의 요청 추적을 Spring runtime에서도 맞출지 별도 PR에서 결정합니다.
+- Cloudflare Tunnel은 계속 `dev-api.onmu.cloud -> localhost:8080` API gateway만 노출하고 DB/Redis/MinIO 포트는 외부에 열지 않습니다.

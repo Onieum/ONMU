@@ -356,6 +356,10 @@ function Set-SpringEnvironment {
   }
 
   Set-SpringDatasourceFromDatabaseUrl
+  if (-not $env:ONMU_DEV_ACCESS_TOKEN) {
+    throw "Spring runtime requires ONMU_DEV_ACCESS_TOKEN for protected /api/v1 smoke tests. Set it from Key Vault or the local process environment."
+  }
+
   Write-DeployLog "Spring environment prepared for ${ApiHost}:${ApiPort}. Secret values are not printed."
 }
 
@@ -444,7 +448,8 @@ function Invoke-SmokeRequest {
     [string]$Method,
     [string]$Url,
     [int[]]$ExpectedStatus,
-    [string]$Body
+    [string]$Body,
+    [switch]$UseApiAuth
   )
 
   $targetUrl = Add-SmokeClientQuery -Url $Url
@@ -453,13 +458,26 @@ function Invoke-SmokeRequest {
 
   try {
     $curlArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
+    $displayArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
+    if ($UseApiAuth) {
+      if (-not $env:ONMU_DEV_ACCESS_TOKEN -and -not $DryRun) {
+        throw "ONMU_DEV_ACCESS_TOKEN is required for authenticated Spring smoke requests."
+      }
+
+      if ($env:ONMU_DEV_ACCESS_TOKEN) {
+        $curlArgs += @("-H", "Authorization: Bearer $env:ONMU_DEV_ACCESS_TOKEN")
+      }
+      $displayArgs += @("-H", "Authorization: Bearer <redacted>")
+    }
+
     if ($Body) {
       $bodyFile = New-TempJsonFile -Json $Body
       $curlArgs += @("-H", "Content-Type: application/json", "--data-binary", "@$bodyFile")
+      $displayArgs += @("-H", "Content-Type: application/json", "--data-binary", "@$bodyFile")
     }
 
     if ($DryRun) {
-      Write-DeployLog "[dry-run] curl.exe $($curlArgs -join ' ')"
+      Write-DeployLog "[dry-run] curl.exe $($displayArgs -join ' ')"
       return
     }
 
@@ -486,29 +504,33 @@ function Invoke-SmokeRequest {
 function Invoke-SmokeTests {
   $base = $PublicBaseUrl.TrimEnd("/")
   Write-DeployLog "Running public smoke tests against $base with client=$Client."
+  $useApiAuth = $selectedRuntime -eq "spring"
 
   Invoke-SmokeRequest -Method "GET" -Url "$base/healthz" -ExpectedStatus @(200)
   Invoke-SmokeRequest -Method "GET" -Url "$base/readyz" -ExpectedStatus @(200)
-  Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/home/summary" -ExpectedStatus @(200)
-  Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/groups/1/plans/101/place-candidates" -ExpectedStatus @(200)
+  Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/home/summary" -ExpectedStatus @(200) -UseApiAuth:$useApiAuth
+  Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/groups/1/plans/101/place-candidates" -ExpectedStatus @(200) -UseApiAuth:$useApiAuth
 
   Invoke-SmokeRequest `
     -Method "POST" `
     -Url "$base/api/v1/place-search" `
     -ExpectedStatus @(200) `
-    -Body '{ "query": "카페", "groupId": "1", "planId": "101" }'
+    -Body '{ "query": "카페", "groupId": "1", "planId": "101" }' `
+    -UseApiAuth:$useApiAuth
 
   Invoke-SmokeRequest `
     -Method "POST" `
     -Url "$base/api/v1/groups/1/votes" `
     -ExpectedStatus @(200, 201) `
-    -Body '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "CD smoke vote", "options": ["A", "B"] }'
+    -Body '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "CD smoke vote", "options": ["A", "B"] }' `
+    -UseApiAuth:$useApiAuth
 
   Invoke-SmokeRequest `
     -Method "POST" `
     -Url "$base/api/v1/groups/1/plans/101/settlements/preview" `
     -ExpectedStatus @(200) `
-    -Body '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
+    -Body '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }' `
+    -UseApiAuth:$useApiAuth
 }
 
 Assert-RepoRoot
