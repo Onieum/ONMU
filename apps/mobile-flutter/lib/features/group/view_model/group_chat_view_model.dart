@@ -76,7 +76,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   }
 
   void sendMessage(String text) {
-    final value = state.valueOrNull;
+    final value = state.asData?.value;
     if (value == null) {
       return;
     }

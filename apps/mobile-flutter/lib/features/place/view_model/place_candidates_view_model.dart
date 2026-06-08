@@ -81,7 +81,7 @@ class PlaceCandidatesViewModel
   }
 
   void toggleFavorite(int candidateId) {
-    final value = state.valueOrNull;
+    final value = state.asData?.value;
     if (value == null) {
       return;
     }
