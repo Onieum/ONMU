@@ -249,7 +249,7 @@ $candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
 curl http://localhost:8080/api/v1/groups/1/votes/501
 $previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
-[System.IO.File]::WriteAllText($previewBody, '{}', [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($previewBody, '{"items":[{"title":"Coffee","amount":12000,"payerName":"Jimin","targetNames":["Jimin","Minsu"]}]}', [System.Text.UTF8Encoding]::new($false))
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 ```
@@ -454,7 +454,7 @@ npm run tunnel:cloudflare:quick
 
 ### GitHub Actions Windows dev backend CD
 
-PR #63 범위에서는 Windows dev backend를 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반을 둡니다. SCRUM-40 stacked branch에서는 `services/api-spring`의 Spring Boot Main API가 실행 가능한 scaffold로 추가되지만, PR #63이 아직 `dev`에 merge되지 않았으므로 자동 배포 기본 runtime은 계속 Node smoke/contract stub입니다. Spring runtime은 수동 선택으로 검증합니다.
+Windows dev backend는 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반을 둡니다. 현재 자동 배포 기본 runtime은 계속 Node smoke/contract stub이고, `services/api-spring` Spring Boot Main API는 `-Runtime spring`으로 수동 선택해 세로 흐름 smoke를 검증합니다. 팀 합의 전까지 public dev backend 기본 runtime을 Spring으로 전환하지 않습니다.
 
 workflow 파일:
 
@@ -515,7 +515,7 @@ runtime별 동작:
 
 Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `dev-api.onmu.cloud -> localhost:8080` tunnel connector는 별도 서비스로 이미 떠 있다고 보고, 배포 스크립트는 API runtime만 교체한 뒤 같은 공개 endpoint를 smoke test합니다.
 
-주의: `deploy-dev-backend.ps1`는 배포용 스크립트라 실행 중 `git switch dev`, `git pull --ff-only origin dev`를 수행합니다. PR #63 또는 SCRUM-40이 `dev`에 merge되기 전에는 실제 공용 Windows backend-host 변경 대신 dry-run이나 로컬 수동 Spring smoke를 우선합니다.
+주의: `deploy-dev-backend.ps1`는 배포용 스크립트라 실행 중 `git switch dev`, `git pull --ff-only origin dev`를 수행합니다. 기능 브랜치에서 검증할 때는 실제 공용 Windows backend-host 변경 대신 dry-run이나 로컬 수동 Spring smoke를 우선합니다.
 
 CD smoke test:
 
@@ -523,8 +523,10 @@ CD smoke test:
 GET  https://dev-api.onmu.cloud/healthz?client=github-actions-cd
 GET  https://dev-api.onmu.cloud/readyz?client=github-actions-cd
 GET  https://dev-api.onmu.cloud/api/v1/home/summary?client=github-actions-cd
+GET  https://dev-api.onmu.cloud/api/v1/groups/1/plans/101/place-candidates?client=github-actions-cd
 POST https://dev-api.onmu.cloud/api/v1/place-search?client=github-actions-cd
 POST https://dev-api.onmu.cloud/api/v1/groups/1/votes?client=github-actions-cd
+POST https://dev-api.onmu.cloud/api/v1/groups/1/plans/101/settlements/preview?client=github-actions-cd
 ```
 
 smoke test가 실패하면 GitHub Actions job도 실패합니다. `readyz`는 PostgreSQL, Redis, MinIO 연결까지 확인하므로 Docker Desktop과 로컬 compose 의존성이 먼저 정상이어야 합니다.

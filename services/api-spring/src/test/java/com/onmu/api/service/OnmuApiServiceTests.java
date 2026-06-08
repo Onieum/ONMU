@@ -12,12 +12,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.PlaceCandidateEntity;
+import com.onmu.api.domain.PlaceCandidateRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceRepository;
+import com.onmu.api.domain.SettlementDraftRepository;
+import com.onmu.api.domain.SettlementEntity;
+import com.onmu.api.domain.SettlementRepository;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
 import com.onmu.api.domain.VoteRepository;
+import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
+import com.onmu.api.web.dto.SettlementDraftItemRequest;
+import com.onmu.api.web.dto.SettlementPreviewRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +51,14 @@ class OnmuApiServiceTests {
   @Mock
   private VoteRepository voteRepository;
   @Mock
+  private PlaceCandidateRepository placeCandidateRepository;
+  @Mock
+  private SchedulePlaceRepository schedulePlaceRepository;
+  @Mock
+  private SettlementDraftRepository settlementDraftRepository;
+  @Mock
+  private SettlementRepository settlementRepository;
+  @Mock
   private OutboxService outboxService;
 
   private OnmuApiService service;
@@ -57,6 +74,10 @@ class OnmuApiServiceTests {
       groupRepository,
       planRepository,
       voteRepository,
+      placeCandidateRepository,
+      schedulePlaceRepository,
+      settlementDraftRepository,
+      settlementRepository,
       outboxService,
       new ObjectMapper()
     );
@@ -230,5 +251,81 @@ class OnmuApiServiceTests {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(exception.getReason()).isEqualTo("invalid_vote_target_type");
       });
+  }
+
+  @Test
+  void creatingPlaceCandidateRecordsOutboxEvent() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findAll()).thenReturn(List.of(
+      new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}")
+    ));
+    when(placeCandidateRepository.save(any(PlaceCandidateEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createPlaceCandidate(
+      "1",
+      "101",
+      new CreatePlaceCandidateRequest("새 후보", "카페", "서울", "후보 설명", List.of("카페"))
+    );
+
+    assertThat(created).containsEntry("id", "202").containsEntry("name", "새 후보");
+    verify(outboxService).record(
+      eq("place_candidate.created"),
+      eq("place_candidate"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "202".equals(payload.get("candidateId")))
+    );
+  }
+
+  @Test
+  void creatingSettlementRecordsSettlementAndNotificationOutboxEvents() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findAll()).thenReturn(List.of(
+      new SettlementEntity("301", group, plan, "{}")
+    ));
+    when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createSettlement("1", "101", new SettlementPreviewRequest(List.of(settlementItem())));
+
+    assertThat(created).containsEntry("id", "302").containsEntry("preview", false);
+    verify(outboxService).record(
+      eq("settlement.created"),
+      eq("settlement"),
+      any(),
+      argThat(payload -> "302".equals(payload.get("settlementId")))
+    );
+    verify(outboxService).record(
+      eq("notification.requested"),
+      eq("settlement"),
+      any(),
+      argThat(payload -> "activity".equals(payload.get("channel"))
+        && "302".equals(payload.get("settlementId")))
+    );
+  }
+
+  @Test
+  void emptySettlementRequestReturns400() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    assertThatThrownBy(() -> service.createSettlement("1", "101", new SettlementPreviewRequest(List.of())))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("missing_settlement_items");
+      });
+  }
+
+  private SettlementDraftItemRequest settlementItem() {
+    return new SettlementDraftItemRequest(
+      "401",
+      "Coffee",
+      12000,
+      "Jimin",
+      "equal",
+      List.of("Jimin", "Minsu")
+    );
   }
 }

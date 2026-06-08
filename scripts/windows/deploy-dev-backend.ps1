@@ -490,6 +490,7 @@ function Invoke-SmokeTests {
   Invoke-SmokeRequest -Method "GET" -Url "$base/healthz" -ExpectedStatus @(200)
   Invoke-SmokeRequest -Method "GET" -Url "$base/readyz" -ExpectedStatus @(200)
   Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/home/summary" -ExpectedStatus @(200)
+  Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/groups/1/plans/101/place-candidates" -ExpectedStatus @(200)
 
   Invoke-SmokeRequest `
     -Method "POST" `
@@ -502,6 +503,12 @@ function Invoke-SmokeTests {
     -Url "$base/api/v1/groups/1/votes" `
     -ExpectedStatus @(200, 201) `
     -Body '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "CD smoke vote", "options": ["A", "B"] }'
+
+  Invoke-SmokeRequest `
+    -Method "POST" `
+    -Url "$base/api/v1/groups/1/plans/101/settlements/preview" `
+    -ExpectedStatus @(200) `
+    -Body '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
 }
 
 Assert-RepoRoot

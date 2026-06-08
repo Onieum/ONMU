@@ -95,10 +95,21 @@ Core API:
 - `GET /api/v1/groups/{groupId}/votes`
 - `POST /api/v1/groups/{groupId}/votes`
 - `GET /api/v1/groups/{groupId}/votes/{voteId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
 
 Auth scaffold:
 
 - `POST /api/v1/auth/oauth/{provider}`
+- `GET /api/v1/auth/session`
+- `POST /api/v1/auth/refresh`
+- `DELETE /api/v1/auth/session`
 
 Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...`는 Node stub의 dev compatibility route이며, 이 Spring scaffold에는 추가하지 않았습니다.
 
@@ -108,14 +119,33 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 
 - `plan.created`
 - `vote.created`
+- `place_candidate.created`
+- `settlement.created`
+- `notification.requested`
 
 아직 queue publisher/consumer가 없으므로 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
+
+## Flutter API Mode
+
+Flutter 앱은 기본적으로 mock repository를 사용합니다. Spring Main API를 직접 호출하려면 실행 시 Dart define으로 API mode를 켭니다.
+
+```powershell
+cd C:\dev\ONMU\apps\mobile-flutter
+flutter run `
+  --dart-define=ONMU_DATA_SOURCE=api `
+  --dart-define=ONMU_API_BASE_URL=http://127.0.0.1:8080
+```
+
+Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
+
+현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement summary입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
 ## 아직 Dev/Mock인 부분
 
 - Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
+- Spring을 public dev 기본 runtime으로 전환하기 전 OAuth PR에서 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 실제 정책으로 좁힙니다.
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다.
-- 정산, 기록, 장소 후보 영구 CRUD는 다음 API 구현 PR 범위입니다.
+- 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
 - request log는 Node stub의 `logs/api-access.log`와 동등한 운영 관측성으로 후속 정리합니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 
@@ -145,4 +175,12 @@ curl http://localhost:8080/api/v1/groups/1/plans
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans -H "Content-Type: application/json" --data-binary '{ "title": "새 약속" }'
 curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary '{ "query": "카페", "groupId": "1", "planId": "101" }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "장소 투표", "options": ["A", "B"] }'
+curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary '{ "name": "새 후보", "category": "카페", "address": "서울" }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/schedule-places -H "Content-Type: application/json" --data-binary '{ "candidateId": "201", "name": "온무식당" }'
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
 ```
+
+`POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
