@@ -58,6 +58,7 @@ cd C:\dev\ONMU\services\api-spring
 | `OBJECT_STORAGE_ENDPOINT` | 없음 | MinIO readiness 우선 endpoint |
 | `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
+| `ONMU_ACCESS_LOG_PATH` | `logs/api-access.log` | Spring request-level access log JSONL 파일 경로 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
 
@@ -147,10 +148,10 @@ Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 �
 ## 아직 Dev/Mock인 부분
 
 - Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
-- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. public dev 기본 runtime 전환 전에는 Naver OAuth 실제 token exchange, refresh token 저장/회전, Spring request log parity를 별도 PR에서 보강합니다.
+- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. public dev 기본 runtime 전환 전에는 Naver OAuth 실제 token exchange, refresh token 저장/회전을 별도 PR에서 보강합니다.
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다.
 - 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
-- request log는 Node stub의 `logs/api-access.log`와 동등한 운영 관측성으로 후속 정리합니다.
+- request log는 Node stub과 같은 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 
 ## Smoke
@@ -214,4 +215,4 @@ CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 �
 $env:ONMU_DEV_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud"
 ```
 
-Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정, Access log parity를 별도 PR에서 다시 검증합니다.
+Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정을 별도 PR에서 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.
