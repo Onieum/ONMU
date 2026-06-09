@@ -9,7 +9,8 @@ param(
   [int]$HealthzWaitTimeoutSeconds = 60,
   [int]$HealthzWaitIntervalSeconds = 2,
   [switch]$SkipDependencyStart,
-  [switch]$SkipPublicSmoke
+  [switch]$SkipPublicSmoke,
+  [switch]$StopOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +39,9 @@ if ($SkipDependencyStart) {
 }
 if ($SkipPublicSmoke) {
   $deployArgs.SkipPublicSmoke = $true
+}
+if ($StopOnly) {
+  $deployArgs.StopOnly = $true
 }
 
 & $deployScript @deployArgs

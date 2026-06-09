@@ -11,7 +11,8 @@ param(
   [int]$HealthzWaitTimeoutSeconds = 60,
   [int]$HealthzWaitIntervalSeconds = 2,
   [switch]$SkipDependencyStart,
-  [switch]$SkipPublicSmoke
+  [switch]$SkipPublicSmoke,
+  [switch]$StopOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -216,6 +217,18 @@ function Stop-OnmuBackendProcess {
   if ($DryRun) {
     Write-DeployLog "[dry-run] Stop-Process -Id $ProcessId"
     return
+  }
+
+  $childProcesses = @(
+    Get-CimInstance Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue
+  )
+  foreach ($childProcess in $childProcesses) {
+    $childProcessId = [int]$childProcess.ProcessId
+    if (Test-OnmuBackendProcess -ProcessId $childProcessId) {
+      Stop-OnmuBackendProcess -ProcessId $childProcessId
+    } else {
+      Write-DeployLog "Skipping child process $childProcessId because it does not look like an ONMU backend process."
+    }
   }
 
   Write-DeployLog "Stopping ONMU backend process $ProcessId."
@@ -795,6 +808,13 @@ Write-DeployLog "Runtime priority: CLI -Runtime, then ONMU_BACKEND_RUNTIME, then
 Write-DeployLog "Public base URL: $PublicBaseUrl"
 Write-DeployLog "Logs directory: $LogsDir"
 Write-DeployLog "DryRun: $DryRun"
+Write-DeployLog "StopOnly: $StopOnly"
+
+if ($StopOnly) {
+  Stop-ExistingBackend
+  Write-DeployLog "Windows $Environment backend stop finished."
+  return
+}
 
 if ($Environment -eq "dev") {
   Sync-DevBranch

@@ -144,10 +144,7 @@ Get-Content logs\integration\api-access.log -Tail 20
 integration 실패 시 dev는 건드리지 않고 integration process와 route만 정리한다.
 
 ```powershell
-$pidPath = "logs\integration\integration-backend-api.pid"
-if (Test-Path $pidPath) {
-  Stop-Process -Id ([int](Get-Content $pidPath -Raw)) -Force
-}
+npm run api:integration:stop
 npm run compose:down:integration:windows
 ```
 

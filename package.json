@@ -21,6 +21,7 @@
     "api:dev:keyvault": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-api-with-key-vault.ps1",
     "api:integration:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1",
     "api:integration:deploy:dry-run": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1 -DryRun",
+    "api:integration:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1 -StopOnly",
     "host:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1",
     "host:windows:keyvault": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -UseKeyVault",
     "host:windows:lan": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -AllowLan",
