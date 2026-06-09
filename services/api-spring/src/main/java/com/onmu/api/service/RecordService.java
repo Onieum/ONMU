@@ -165,6 +165,18 @@ public class RecordService {
     if (!groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
     }
+
+    String visibility = record.getVisibility() != null ? record.getVisibility().toLowerCase() : "participants";
+    if ("private".equals(visibility)) {
+      if (!record.getAuthor().getId().equals(user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "private_record_access_denied");
+      }
+    } else if ("participants".equals(visibility)) {
+      if (!planRepository.isUserParticipant(record.getPlan().getPublicId(), user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_plan_participant");
+      }
+    }
+
     return getRecordCard(record);
   }
 

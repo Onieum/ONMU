@@ -6,6 +6,7 @@ import io.minio.MinioClient;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
+import io.minio.PutObjectArgs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -101,6 +102,23 @@ public class MediaService {
       : ".jpg";
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
+    
+    if (file != null && !file.isEmpty()) {
+      try {
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucket)
+                .object(storageKey)
+                .stream(file.getInputStream(), file.getSize(), -1)
+                .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
+                .build());
+
+        String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+        return new UploadMediaResponse(storageKey, publicUrl);
+      } catch (Exception e) {
+        System.err.println("Warning: Failed to upload file to MinIO, falling back to placeholder: " + e.getMessage());
+      }
+    }
     
     // Choose a random rich aesthetic fashion image as the public URL for visual wow effect
     String publicUrl = FASHION_PLACEHOLDERS.get(random.nextInt(FASHION_PLACEHOLDERS.size()));

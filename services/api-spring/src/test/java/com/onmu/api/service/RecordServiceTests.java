@@ -251,4 +251,69 @@ class RecordServiceTests {
       ))
     );
   }
+
+  @Test
+  void getRecordDetailSuccessWhenPublicAndGroupMember() {
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "public title", "public", "{}", "[]");
+    when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+
+    var detail = service.getRecordDetail("rec_1");
+    assertThat(detail).containsKey("id");
+    assertThat(detail.get("title")).isEqualTo("public title");
+  }
+
+  @Test
+  void getRecordDetailFailsWhenPrivateAndUserNotAuthor() {
+    UserEntity otherUser = org.mockito.Mockito.mock(UserEntity.class);
+    when(otherUser.getId()).thenReturn(java.util.UUID.fromString("22222222-2222-2222-2222-222222222222"));
+    
+    RecordEntity record = new RecordEntity("rec_1", group, plan, otherUser, "private title", "private", "{}", "[]");
+    when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+      org.springframework.web.server.ResponseStatusException.class,
+      () -> service.getRecordDetail("rec_1")
+    );
+  }
+
+  @Test
+  void getRecordDetailSuccessWhenPrivateAndUserIsAuthor() {
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "private title", "private", "{}", "[]");
+    when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+
+    var detail = service.getRecordDetail("rec_1");
+    assertThat(detail.get("title")).isEqualTo("private title");
+  }
+
+  @Test
+  void getRecordDetailFailsWhenParticipantsAndUserNotParticipant() {
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "participants title", "participants", "{}", "[]");
+    when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.isUserParticipant("101", user.getId())).thenReturn(false);
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+      org.springframework.web.server.ResponseStatusException.class,
+      () -> service.getRecordDetail("rec_1")
+    );
+  }
+
+  @Test
+  void getRecordDetailSuccessWhenParticipantsAndUserIsParticipant() {
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "participants title", "participants", "{}", "[]");
+    when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.isUserParticipant("101", user.getId())).thenReturn(true);
+
+    var detail = service.getRecordDetail("rec_1");
+    assertThat(detail.get("title")).isEqualTo("participants title");
+  }
 }

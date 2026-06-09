@@ -92,6 +92,22 @@ public class OutboxService {
     }
   }
 
+  @Transactional
+  @Scheduled(fixedDelay = 60000)
+  public void recoverFailedEvents() {
+    List<OutboxEventEntity> failedEvents = outboxEventRepository.findByStatusOrderByCreatedAtAsc("failed");
+    Instant oneMinuteAgo = Instant.now().minusSeconds(60);
+    for (OutboxEventEntity event : failedEvents) {
+      if (event.getLockedAt() != null && event.getLockedAt().isBefore(oneMinuteAgo)) {
+        event.setStatus("pending");
+        event.setRetryCount(0);
+        event.setLockedAt(null);
+        event.setLastError(null);
+        outboxEventRepository.save(event);
+      }
+    }
+  }
+
   private String toJson(Map<String, Object> payload) {
     try {
       return objectMapper.writeValueAsString(payload);
