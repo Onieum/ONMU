@@ -190,6 +190,7 @@ function Test-OnmuBackendProcess {
   return (
     $commandLine -match "services[\\/]+api[\\/]+server\.mjs" -or
     $commandLine -match "services[\\/]+api-spring" -or
+    $commandLine -match "com\.onmu\.api\.OnmuApiApplication" -or
     $commandLine -match $normalizedRoot
   )
 }
@@ -557,11 +558,11 @@ function Start-SpringBackend {
     Write-DeployLog "[dry-run] Check services/api-spring for Maven executable project."
     Write-DeployLog "[dry-run] Prepare SERVER_ADDRESS/SERVER_PORT and Spring datasource env without printing secret values."
     if ($Environment -eq "integration") {
-      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests -Dspring-boot.repackage.classifier=integration package"
+      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests spring-boot:run"
     } else {
       Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+      Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     }
-    Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     Write-DeployLog "[dry-run] Write PID to $PidFile"
     Wait-BackendHealthz -ProcessId 0 -RuntimeName "Spring Boot Main API"
     return
@@ -580,29 +581,35 @@ function Start-SpringBackend {
   Set-SpringEnvironment
   Stop-ExistingBackend
 
-  $mavenArgs = if ($Environment -eq "integration") {
-    @("-DskipTests", "-Dspring-boot.repackage.classifier=integration", "package")
-  } else {
-    @("-DskipTests", "package")
+  if ($Environment -eq "integration") {
+    Write-DeployLog "Starting integration Spring Boot Main API with Maven spring-boot:run on ${ApiHost}:${ApiPort}."
+    $process = Start-Process `
+      -FilePath $mavenWrapper `
+      -ArgumentList @("-DskipTests", "spring-boot:run") `
+      -WorkingDirectory $SpringDir `
+      -RedirectStandardOutput $StdoutLogFile `
+      -RedirectStandardError $StderrLogFile `
+      -PassThru `
+      -WindowStyle Hidden
+
+    Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
+    Write-DeployLog "Integration Spring Boot Main API started via Maven. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
+
+    Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Spring Boot Main API"
+    return
   }
 
   Push-Location $SpringDir
   try {
-    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList $mavenArgs
+    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "package")
   } finally {
     Pop-Location
   }
 
-  $jar = if ($Environment -eq "integration") {
-    Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*-integration.jar" |
-      Sort-Object LastWriteTime -Descending |
-      Select-Object -First 1
-  } else {
-    Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
-      Where-Object { $_.Name -notlike "*.original" -and $_.Name -notlike "*-integration.jar" } |
-      Sort-Object LastWriteTime -Descending |
-      Select-Object -First 1
-  }
+  $jar = Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
+    Where-Object { $_.Name -notlike "*.original" -and $_.Name -notlike "*-integration.jar" } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 
   if (-not $jar) {
     throw "Spring Boot jar was not found after Maven package."
