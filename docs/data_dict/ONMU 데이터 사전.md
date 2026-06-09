@@ -505,7 +505,8 @@
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 외부 장소 ID | UUID | 내부 캐시 row 식별자 | PK |
-| `provider` | 제공자 | Varchar(30) | `NAVER`, `KAKAO`, `MANUAL` | Not Null |
+| `public_id` | 공개 외부 장소 ID | Text | API contract용 안정 ID | Unique |
+| `provider` | 제공자 | Varchar(30) | `NAVER`, `KAKAO`, `GOOGLE`, `MANUAL`, `AI_EXTRACT`, `CRAWLER` | Not Null |
 | `provider_place_id` | Provider 장소 ID | Text | 외부 API의 장소 ID | Nullable |
 | `name` | 장소명 | Text | 장소 이름 | Not Null |
 | `category` | 카테고리 | Text | 음식점, 카페 등 | Nullable |
@@ -513,13 +514,67 @@
 | `road_address` | 도로명 주소 | Text | 도로명 주소 | Nullable |
 | `latitude` | 위도 | Numeric(10,7) | 지도 표시/거리 계산 | Nullable |
 | `longitude` | 경도 | Numeric(10,7) | 지도 표시/거리 계산 | Nullable |
-| `phone` | 전화번호 | Text | 장소 전화번호 | Nullable |
-| `opening_hours` | 영업시간 | JSONB | 외부 API/크롤링 영업시간 | Nullable |
-| `source_payload` | 원본 payload | JSONB | 외부 응답 중 필요한 최소 정보 | 민감값 제외 |
-| `fetched_at` | 수집 시각 | Timestamptz | 외부 API 조회 시각 | Not Null |
-| `expires_at` | 캐시 만료 시각 | Timestamptz | 재조회 기준 | Nullable |
+| `phone_label` | 전화번호 라벨 | Text | 앱 표시용 전화번호 문자열 | Nullable |
+| `homepage_url` | 대표 홈페이지 URL | Text | 외부 장소의 대표 홈페이지 | Nullable |
+| `link_summary` | 링크 요약 캐시 | JSONB | API 응답에서 빠르게 사용할 링크 read model | Not Null, Default `[]` |
+| `provider_payload` | Provider 요약 payload | JSONB | 외부 응답 중 장소 캐시에 필요한 최소 정보 | Not Null, 민감값 제외 |
+| `created_at` | 생성 시각 | Timestamptz | 내부 캐시 row 생성 시각 | Not Null |
+| `updated_at` | 수정 시각 | Timestamptz | 내부 캐시 row 수정 시각 | Not Null |
 
 > UNIQUE 후보: `(provider, provider_place_id)`
+> `link_summary`는 앱/API 표시용 캐시이며 canonical 원장은 `external_place_links`다. `instagram`, `reservation`, `menu`, `blog`, `homepage`, `naver_place`, `kakao_place` 같은 링크 요약만 담고 secret/token/개인정보는 저장하지 않는다.
+
+예시:
+
+```json
+[
+  {
+    "type": "instagram",
+    "url": "https://example.test/onmu-place-instagram",
+    "label": "인스타그램",
+    "status": "active",
+    "source": "provider"
+  },
+  {
+    "type": "reservation",
+    "provider": "catchtable",
+    "url": "https://example.test/onmu-place-reservation",
+    "label": "예약"
+  }
+]
+```
+
+## `external_place_links` (다음 구현)
+
+> 장소별 외부 링크 canonical 원장이다. 링크 중복 제거, 상태 관리, 검증 시각, 만료, 표시 순서를 구조화해 관리한다.
+
+| 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
+| --- | --- | --- | --- | --- |
+| `id` | 외부 장소 링크 ID | UUID | 링크 row 식별자 | PK |
+| `external_place_id` | 외부 장소 ID | UUID | 연결 외부 장소 | FK, Not Null |
+| `link_type` | 링크 유형 | Varchar(40) | `homepage`, `instagram`, `baemin`, `catchtable`, `menu`, `blog`, `naver_place`, `kakao_place`, `reservation`, `other` | Not Null |
+| `url` | 원본 URL | Text | 앱/서버가 참조할 외부 링크 | Not Null |
+| `normalized_url` | 정규화 URL | Text | 중복 제거용 정규화 링크 | Nullable |
+| `label` | 표시 라벨 | Text | 앱에서 보이는 링크 라벨 | Nullable |
+| `provider` | 링크 제공자 | Varchar(30) | `NAVER`, `KAKAO`, `GOOGLE`, `MANUAL`, `AI_EXTRACT`, `CRAWLER` | Nullable |
+| `source_type` | 링크 출처 유형 | Varchar(30) | `provider`, `manual`, `crawler`, `ai_extract` | Not Null |
+| `status` | 링크 상태 | Varchar(20) | `active`, `inactive`, `broken`, `hidden` | Not Null |
+| `display_order` | 표시 순서 | Integer | 같은 장소 안에서 링크 노출 순서 | Not Null |
+| `confidence` | 신뢰도 | Numeric(5,4) | AI/크롤러 추출 링크 신뢰도 | Nullable, 0~1 |
+| `fetched_at` | 수집 시각 | Timestamptz | Provider/크롤러 수집 시각 | Nullable |
+| `verified_at` | 검증 시각 | Timestamptz | 링크가 마지막으로 확인된 시각 | Nullable |
+| `expires_at` | 만료 시각 | Timestamptz | 재검증 또는 숨김 판단 기준 | Nullable |
+| `metadata` | 보조 metadata | JSONB | provider별 동적 링크 세부 정보 | Not Null, Default `{}` |
+| `created_at` | 생성 시각 | Timestamptz | 링크 row 생성 시각 | Not Null |
+| `updated_at` | 수정 시각 | Timestamptz | 링크 row 수정 시각 | Not Null |
+
+역할 분리:
+
+- `external_places.link_summary`: 앱/API 응답에서 빠르게 사용할 표시용 캐시/read model.
+- `external_place_links`: 중복 제거, 검증, 상태, 만료, 표시 순서를 관리하는 canonical 링크 원장.
+- `place_source_snapshots`: provider 원본 응답, 크롤러 원본, AI 추출 이력을 저장하는 source history.
+
+`metadata`에는 provider별 동적 정보만 저장하며 secret/token/개인정보를 넣지 않는다. 중복 방지는 `(external_place_id, normalized_url)` partial unique와 `(external_place_id, link_type, url)` unique를 우선한다.
 
 ## `place_candidates` (구현됨, 확장 필요)
 
@@ -1391,7 +1446,7 @@
 | 친구 코드 | `user_codes(code)` unique, `friend_requests(target_user_id, status, created_at)` |
 | 친구 관계 | `friendships(user_low_id, user_high_id)` unique, `friend_settings(friendship_id, user_id)` unique, `friend_settings(user_id)`, `friend_settings(friend_user_id)` |
 | 정산 | `settlement_items(settlement_id)`, `settlement_transfers(settlement_id, from_user_id)` |
-| 장소 | `place_candidates(plan_id, created_at)`, `external_places(provider, provider_place_id)` |
+| 장소 | `place_candidates(plan_id, created_at)`, `external_places(provider, provider_place_id)`, `external_place_links(external_place_id, status, display_order)`, `external_place_links(link_type, status)`, `external_place_links(provider, source_type)` |
 
 ## 파티셔닝 후보
 
@@ -1473,6 +1528,9 @@
 | Enum | 값 |
 | --- | --- |
 | `place_candidate_status` | `candidate`, `selected`, `archived`, `removed` |
+| `external_place_link_type` | `homepage`, `instagram`, `baemin`, `catchtable`, `menu`, `blog`, `naver_place`, `kakao_place`, `reservation`, `other` |
+| `external_place_link_source_type` | `provider`, `manual`, `crawler`, `ai_extract` |
+| `external_place_link_status` | `active`, `inactive`, `broken`, `hidden` |
 | `vote_type` | `PLACE`, `TIME`, `SETTLEMENT`, `GENERAL`, `CHECKLIST` |
 | `vote_status` | `open`, `closed`, `canceled` |
 | `settlement_status` | `created`, `shared`, `completed`, `canceled` |
@@ -1501,7 +1559,7 @@
 | 2 | `friend_requests`, `friendships`, `friend_settings` | 랜덤 사용자 코드 방식의 첫 친구 추가 구현과 canonical pair 관계 원장 |
 | 3 | `groups`, `group_members`, `group_invites` | 온모임 목록/홈/멤버/초대 API 기준 |
 | 4 | `plans`, `plan_participants` | 약속 생성/상세/참여자 API 기준 |
-| 5 | `place_candidates`, `schedule_places`, `external_places` | 후보 추가와 일정 등록 흐름 |
+| 5 | `place_candidates`, `schedule_places`, `external_places`, `external_place_links` | 후보 추가, 일정 등록, 외부 장소 링크 표시 흐름 |
 | 6 | `votes`, `vote_options`, `vote_responses` | 장소/일반 투표 정규화 |
 | 7 | `settlement_drafts`, `settlement_items`, `settlement_item_targets`, `settlements`, `settlement_transfers` | 정산 만들기와 결과 공유 |
 
