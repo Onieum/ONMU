@@ -11,7 +11,9 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
+import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -112,6 +115,41 @@ public class ApiController {
     return onmuApiService.plan(groupId, planId);
   }
 
+  @PatchMapping("/groups/{groupId}/plans/{planId}")
+  public Map<String, Object> updatePlan(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) UpdatePlanRequest request
+  ) {
+    return onmuApiService.updatePlan(groupId, planId, request);
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/participants")
+  public List<Map<String, Object>> planParticipants(
+    @PathVariable String groupId,
+    @PathVariable String planId
+  ) {
+    return onmuApiService.planParticipants(groupId, planId);
+  }
+
+  @PutMapping("/groups/{groupId}/plans/{planId}/participants/me")
+  public Map<String, Object> putMyPlanParticipant(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) UpsertPlanParticipantRequest request
+  ) {
+    return onmuApiService.upsertMyPlanParticipant(groupId, planId, request);
+  }
+
+  @PatchMapping("/groups/{groupId}/plans/{planId}/participants/me")
+  public Map<String, Object> patchMyPlanParticipant(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @RequestBody(required = false) UpsertPlanParticipantRequest request
+  ) {
+    return onmuApiService.upsertMyPlanParticipant(groupId, planId, request);
+  }
+
   @PostMapping("/place-search")
   public Map<String, Object> placeSearch(@Valid @RequestBody PlaceSearchRequest request) {
     return Map.of(
@@ -162,6 +200,11 @@ public class ApiController {
   ) {
     return ResponseEntity.status(HttpStatus.CREATED)
       .body(onmuApiService.createSchedulePlace(groupId, planId, request));
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/schedule-places")
+  public List<Map<String, Object>> schedulePlaces(@PathVariable String groupId, @PathVariable String planId) {
+    return onmuApiService.schedulePlaces(groupId, planId);
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlement-draft")

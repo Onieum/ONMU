@@ -8,6 +8,8 @@ import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
 import com.onmu.api.domain.PlaceCandidateRepository;
+import com.onmu.api.domain.PlanParticipantEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.SchedulePlaceEntity;
@@ -27,7 +29,9 @@ import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -55,6 +59,7 @@ public class OnmuApiService {
   private final VoteRepository voteRepository;
   private final PlaceCandidateRepository placeCandidateRepository;
   private final SchedulePlaceRepository schedulePlaceRepository;
+  private final PlanParticipantRepository planParticipantRepository;
   private final SettlementDraftRepository settlementDraftRepository;
   private final SettlementRepository settlementRepository;
   private final OutboxService outboxService;
@@ -68,6 +73,7 @@ public class OnmuApiService {
     VoteRepository voteRepository,
     PlaceCandidateRepository placeCandidateRepository,
     SchedulePlaceRepository schedulePlaceRepository,
+    PlanParticipantRepository planParticipantRepository,
     SettlementDraftRepository settlementDraftRepository,
     SettlementRepository settlementRepository,
     OutboxService outboxService,
@@ -80,6 +86,7 @@ public class OnmuApiService {
     this.voteRepository = voteRepository;
     this.placeCandidateRepository = placeCandidateRepository;
     this.schedulePlaceRepository = schedulePlaceRepository;
+    this.planParticipantRepository = planParticipantRepository;
     this.settlementDraftRepository = settlementDraftRepository;
     this.settlementRepository = settlementRepository;
     this.outboxService = outboxService;
@@ -179,6 +186,65 @@ public class OnmuApiService {
     return planCard(planOrThrow(groupOrThrow(groupId), planId));
   }
 
+  @Transactional
+  public Map<String, Object> updatePlan(String groupId, String planId, UpdatePlanRequest request) {
+    GroupEntity group = groupOrThrow(groupId);
+    PlanEntity plan = planOrThrow(group, planId);
+    UpdatePlanRequest safeRequest = request == null ? new UpdatePlanRequest(null, null, null) : request;
+    if (safeRequest.title() != null && safeRequest.title().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_plan_title");
+    }
+    String title = safeRequest.title() == null ? plan.getTitle() : safeRequest.title().trim();
+    Instant startsAt = safeRequest.startsAt() == null ? plan.getStartsAt() : parseNullableInstant(safeRequest.startsAt());
+    String status = safeRequest.status() == null || safeRequest.status().isBlank()
+      ? plan.getStatus()
+      : safeRequest.status().trim();
+    plan.update(title, startsAt, status);
+    outboxService.record("plan.updated", "plan", plan.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "planId", plan.getPublicId(),
+      "title", plan.getTitle(),
+      "status", plan.getStatus()
+    ));
+    return planCard(plan);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> planParticipants(String groupId, String planId) {
+    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    List<PlanParticipantEntity> participants = planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan);
+    if (participants.isEmpty()) {
+      return List.of(participantFallbackCard(currentUser()));
+    }
+    return participants.stream().map(this::participantCard).toList();
+  }
+
+  @Transactional
+  public Map<String, Object> upsertMyPlanParticipant(
+    String groupId,
+    String planId,
+    UpsertPlanParticipantRequest request
+  ) {
+    GroupEntity group = groupOrThrow(groupId);
+    PlanEntity plan = planOrThrow(group, planId);
+    UserEntity user = currentUser();
+    UpsertPlanParticipantRequest safeRequest = request == null
+      ? new UpsertPlanParticipantRequest(null, null)
+      : request;
+    PlanParticipantEntity participant = planParticipantRepository.findByPlanAndUser(plan, user)
+      .orElseGet(() -> new PlanParticipantEntity(plan, user, "joined", "accepted"));
+    participant.update(safeRequest.status(), safeRequest.response());
+    PlanParticipantEntity saved = planParticipantRepository.save(participant);
+    outboxService.record("plan.participant_updated", "plan_participant", saved.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "planId", plan.getPublicId(),
+      "userId", user.getId().toString(),
+      "status", saved.getStatus(),
+      "response", saved.getResponse()
+    ));
+    return participantCard(saved);
+  }
+
   @Transactional(readOnly = true)
   public List<Map<String, Object>> votes(String groupId) {
     GroupEntity group = groupOrThrow(groupId);
@@ -273,6 +339,12 @@ public class OnmuApiService {
     PlaceCandidateEntity candidate = request.candidateId() == null || request.candidateId().isBlank()
       ? null
       : placeCandidateOrThrow(plan, request.candidateId());
+    String placeName = request.name() == null || request.name().isBlank()
+      ? candidate == null ? null : candidate.getName()
+      : request.name().trim();
+    if (placeName == null || placeName.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_schedule_place_name");
+    }
     String publicId = nextPublicId(schedulePlaceRepository.findAll().stream()
       .map(SchedulePlaceEntity::getPublicId)
       .toList(), 701);
@@ -282,11 +354,31 @@ public class OnmuApiService {
       group,
       plan,
       candidate,
-      request.name().trim(),
+      placeName,
       parseNullableInstant(request.startsAt()),
-      sortOrder
+      parseNullableInstant(request.endsAt()),
+      sortOrder,
+      blankToNull(request.note())
     ));
+    Map<String, Object> outboxPayload = new LinkedHashMap<>();
+    outboxPayload.put("groupId", group.getPublicId());
+    outboxPayload.put("planId", plan.getPublicId());
+    outboxPayload.put("schedulePlaceId", schedulePlace.getPublicId());
+    outboxPayload.put(
+      "candidateId",
+      schedulePlace.getPlaceCandidate() == null ? null : schedulePlace.getPlaceCandidate().getPublicId()
+    );
+    outboxPayload.put("name", schedulePlace.getName());
+    outboxService.record("schedule_place.created", "schedule_place", schedulePlace.getId(), outboxPayload);
     return schedulePlaceCard(group, plan, schedulePlace);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> schedulePlaces(String groupId, String planId) {
+    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    return schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan).stream()
+      .map(schedulePlace -> schedulePlaceCard(plan.getGroup(), plan, schedulePlace))
+      .toList();
   }
 
   @Transactional(readOnly = true)
@@ -459,9 +551,41 @@ public class OnmuApiService {
     value.put("planId", plan.getPublicId());
     value.put("candidateId", schedulePlace.getPlaceCandidate() == null ? null : schedulePlace.getPlaceCandidate().getPublicId());
     value.put("name", schedulePlace.getName());
+    value.put("placeName", schedulePlace.getName());
     value.put("startsAt", schedulePlace.getStartsAt() == null ? null : schedulePlace.getStartsAt().toString());
+    value.put("endsAt", schedulePlace.getEndsAt() == null ? null : schedulePlace.getEndsAt().toString());
+    value.put("note", schedulePlace.getNote());
     value.put("sortOrder", schedulePlace.getSortOrder());
     return value;
+  }
+
+  private Map<String, Object> participantCard(PlanParticipantEntity participant) {
+    UserEntity user = participant.getUser();
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", participant.getId().toString());
+    value.put("userId", user.getId().toString());
+    value.put("displayName", displayName(user));
+    value.put("status", participant.getStatus());
+    value.put("response", participant.getResponse());
+    value.put("joinedAt", participant.getJoinedAt() == null ? null : participant.getJoinedAt().toString());
+    value.put("fallback", false);
+    return value;
+  }
+
+  private Map<String, Object> participantFallbackCard(UserEntity user) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", "current-user");
+    value.put("userId", user.getId().toString());
+    value.put("displayName", displayName(user));
+    value.put("status", "joined");
+    value.put("response", "accepted");
+    value.put("joinedAt", null);
+    value.put("fallback", true);
+    return value;
+  }
+
+  private String displayName(UserEntity user) {
+    return stringOrDefault(user.getNickname(), stringOrDefault(user.getDisplayName(), "나"));
   }
 
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft) {
@@ -717,6 +841,10 @@ public class OnmuApiService {
 
   private String stringOrDefault(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
+  }
+
+  private String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 
   private List<String> readOptions(String payload) {

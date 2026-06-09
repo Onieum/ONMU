@@ -25,6 +25,11 @@ public class UserEntity {
   protected UserEntity() {
   }
 
+  public UserEntity(UUID id, String displayName) {
+    this.id = id;
+    this.displayName = displayName;
+  }
+
   public UUID getId() {
     return id;
   }

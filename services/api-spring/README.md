@@ -101,6 +101,10 @@ Core API:
 - `GET /api/v1/groups/{groupId}/plans`
 - `POST /api/v1/groups/{groupId}/plans`
 - `GET /api/v1/groups/{groupId}/plans/{planId}`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/participants`
+- `PUT /api/v1/groups/{groupId}/plans/{planId}/participants/me`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me`
 - `POST /api/v1/place-search`
 - `GET /api/v1/groups/{groupId}/votes`
 - `POST /api/v1/groups/{groupId}/votes`
@@ -108,6 +112,7 @@ Core API:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
@@ -128,8 +133,11 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 `outbox_events` table을 유지하고, 현재는 다음 이벤트를 같은 DB transaction 안에서 기록합니다.
 
 - `plan.created`
+- `plan.updated`
+- `plan.participant_updated`
 - `vote.created`
 - `place_candidate.created`
+- `schedule_place.created`
 - `settlement.created`
 - `notification.requested`
 - `group.created`

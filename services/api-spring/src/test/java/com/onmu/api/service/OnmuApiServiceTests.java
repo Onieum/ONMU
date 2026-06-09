@@ -14,19 +14,26 @@ import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
 import com.onmu.api.domain.PlaceCandidateRepository;
+import com.onmu.api.domain.PlanParticipantEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceEntity;
 import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.domain.SettlementDraftRepository;
 import com.onmu.api.domain.SettlementEntity;
 import com.onmu.api.domain.SettlementRepository;
+import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
+import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +62,8 @@ class OnmuApiServiceTests {
   @Mock
   private SchedulePlaceRepository schedulePlaceRepository;
   @Mock
+  private PlanParticipantRepository planParticipantRepository;
+  @Mock
   private SettlementDraftRepository settlementDraftRepository;
   @Mock
   private SettlementRepository settlementRepository;
@@ -76,6 +85,7 @@ class OnmuApiServiceTests {
       voteRepository,
       placeCandidateRepository,
       schedulePlaceRepository,
+      planParticipantRepository,
       settlementDraftRepository,
       settlementRepository,
       outboxService,
@@ -116,6 +126,48 @@ class OnmuApiServiceTests {
     assertThatThrownBy(() -> service.plan("1", "not-found"))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+  }
+
+  @Test
+  void updatePlanRejectsBlankTitle() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    assertThatThrownBy(() -> service.updatePlan(
+      "1",
+      "101",
+      new UpdatePlanRequest(" ", null, null)
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("blank_plan_title");
+      });
+  }
+
+  @Test
+  void updatePlanRecordsOutboxEvent() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    var updated = service.updatePlan(
+      "1",
+      "101",
+      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "draft")
+    );
+
+    assertThat(updated)
+      .containsEntry("id", "101")
+      .containsEntry("title", "업데이트 약속")
+      .containsEntry("startsAt", "2026-06-13T01:00:00Z")
+      .containsEntry("status", "draft");
+    verify(outboxService).record(
+      eq("plan.updated"),
+      eq("plan"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "업데이트 약속".equals(payload.get("title")))
+    );
   }
 
   @Test
@@ -254,6 +306,56 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void participantsFallbackToCurrentUserWhenNoRowsExist() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of());
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+
+    var participants = service.planParticipants("1", "101");
+
+    assertThat(participants).singleElement()
+      .satisfies(participant -> assertThat(participant)
+        .containsEntry("userId", user.getId().toString())
+        .containsEntry("displayName", "테스트 사용자")
+        .containsEntry("status", "joined")
+        .containsEntry("response", "accepted")
+        .containsEntry("fallback", true));
+  }
+
+  @Test
+  void upsertingMyParticipantResponseCreatesAndUpdatesOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(planParticipantRepository.findByPlanAndUser(plan, user)).thenReturn(Optional.empty());
+    when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.upsertMyPlanParticipant(
+      "1",
+      "101",
+      new UpsertPlanParticipantRequest("joined", "accepted")
+    );
+
+    assertThat(created)
+      .containsEntry("userId", user.getId().toString())
+      .containsEntry("status", "joined")
+      .containsEntry("response", "accepted");
+    verify(outboxService).record(
+      eq("plan.participant_updated"),
+      eq("plan_participant"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && user.getId().toString().equals(payload.get("userId"))
+        && "joined".equals(payload.get("status"))
+        && "accepted".equals(payload.get("response")))
+    );
+  }
+
+  @Test
   void creatingPlaceCandidateRecordsOutboxEvent() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
@@ -276,6 +378,42 @@ class OnmuApiServiceTests {
       argThat(payload -> "1".equals(payload.get("groupId"))
         && "101".equals(payload.get("planId"))
         && "202".equals(payload.get("candidateId")))
+    );
+  }
+
+  @Test
+  void creatingSchedulePlaceRecordsOutboxEventAndReturnsScheduleFields() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(schedulePlaceRepository.findAll()).thenReturn(List.of(
+      new SchedulePlaceEntity("701", group, plan, candidate, "기존 장소", null, 1)
+    ));
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
+    when(schedulePlaceRepository.save(any(SchedulePlaceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createSchedulePlace(
+      "1",
+      "101",
+      new CreateSchedulePlaceRequest("201", null, "2026-06-12T02:00:00Z", "2026-06-12T03:00:00Z", "점심")
+    );
+
+    assertThat(created)
+      .containsEntry("id", "702")
+      .containsEntry("candidateId", "201")
+      .containsEntry("placeName", "온무식당")
+      .containsEntry("startsAt", "2026-06-12T02:00:00Z")
+      .containsEntry("endsAt", "2026-06-12T03:00:00Z")
+      .containsEntry("note", "점심");
+    verify(outboxService).record(
+      eq("schedule_place.created"),
+      eq("schedule_place"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "702".equals(payload.get("schedulePlaceId"))
+        && "201".equals(payload.get("candidateId")))
     );
   }
 
@@ -327,5 +465,9 @@ class OnmuApiServiceTests {
       "equal",
       List.of("Jimin", "Minsu")
     );
+  }
+
+  private UserEntity user(String id, String displayName) {
+    return new UserEntity(java.util.UUID.fromString(id), displayName);
   }
 }

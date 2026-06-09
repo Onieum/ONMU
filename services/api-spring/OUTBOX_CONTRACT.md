@@ -10,7 +10,10 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 | `group.updated` | Spring Boot Main API | future notification/realtime |
 | `group.member_left` | Spring Boot Main API | future notification/realtime |
 | `plan.created` | Spring Boot Main API | future notification/realtime |
+| `plan.updated` | Spring Boot Main API | future notification/realtime |
+| `plan.participant_updated` | Spring Boot Main API | future notification/realtime |
 | `place_candidate.created` | Spring Boot Main API | FastAPI ai-data-worker |
+| `schedule_place.created` | Spring Boot Main API | future notification/realtime |
 | `vote.created` | Spring Boot Main API | future notification/realtime |
 | `settlement.created` | Spring Boot Main API | future notification/realtime |
 | `record.created` | Spring Boot Main API | FastAPI ai-data-worker |
@@ -42,3 +45,12 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 | `group.created` | `group` | `groupId`, `name`, `ownerUserId` |
 | `group.updated` | `group` | `groupId`, `name`, `description` |
 | `group.member_left` | `group` | `groupId`, `userId` |
+
+## Plan Event Payloads
+
+| Event type | Aggregate type | Payload |
+| --- | --- | --- |
+| `plan.created` | `plan` | `groupId`, `planId`, `title` |
+| `plan.updated` | `plan` | `groupId`, `planId`, `title`, `status` |
+| `plan.participant_updated` | `plan_participant` | `groupId`, `planId`, `userId`, `status`, `response` |
+| `schedule_place.created` | `schedule_place` | `groupId`, `planId`, `schedulePlaceId`, `candidateId`, `name` |

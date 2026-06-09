@@ -57,7 +57,8 @@
 | 약속 만들기 | `POST /api/v1/groups/{groupId}/plans` |
 | 약속 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}` |
 | 약속 수정 | `PATCH /api/v1/groups/{groupId}/plans/{planId}` |
-| 참여자 변경 | `POST/DELETE /api/v1/groups/{groupId}/plans/{planId}/participants` |
+| 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` |
+| 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
 
 ## Place
 
@@ -67,8 +68,11 @@
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` |
 | 장소 검색 | `POST /api/v1/place-search` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
+| 일정 등록 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
+
+일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.
 
 ## Votes
 
