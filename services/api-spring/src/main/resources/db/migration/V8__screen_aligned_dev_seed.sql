@@ -350,6 +350,7 @@ values
   ('00000000-0000-0000-0000-000000000827', '00000000-0000-0000-0000-000000000806', 'blog', 'https://example.test/place/hyeopjae/blog', 'https://example.test/place/hyeopjae/blog', '여행 메모', 'MANUAL', 'manual', 'active', 10, 0.8800, '2026-06-09T12:25:00+09:00', null, '{"placeholder":true}'),
   ('00000000-0000-0000-0000-000000000828', '00000000-0000-0000-0000-000000000807', 'kakao_place', 'https://example.test/place/boardgame/kakao', 'https://example.test/place/boardgame/kakao', '카카오맵', 'KAKAO', 'provider', 'active', 10, 0.9000, '2026-06-09T12:30:00+09:00', null, '{"placeholder":true}')
 on conflict (id) do update set
+  external_place_id = excluded.external_place_id,
   link_type = excluded.link_type,
   url = excluded.url,
   normalized_url = excluded.normalized_url,
@@ -485,7 +486,7 @@ values (
   '301',
   '00000000-0000-0000-0000-000000000201',
   '00000000-0000-0000-0000-000000000303',
-  '{"items":[{"id":"401","title":"저녁","amount":124000,"payerName":"지민","payerShares":[{"name":"지민","amount":124000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"]},{"id":"402","title":"카페","amount":62000,"payerName":"민수","payerShares":[{"name":"민수","amount":42000},{"name":"지민","amount":20000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"]}],"memo":"Flutter mock 주말 나들이 정산을 한강 피크닉 완료 약속에 매핑했습니다.","shareMessage":"한강 피크닉 약속 정산입니다.","transfers":[{"fromName":"소연","toName":"지민","amount":32667},{"fromName":"현우","toName":"지민","amount":32667},{"fromName":"준호","toName":"지민","amount":20666},{"fromName":"혜진","toName":"지민","amount":17333},{"fromName":"혜진","toName":"민수","amount":3333}]}',
+  '{"items":[{"id":"401","title":"저녁","amount":124000,"payerName":"지민","payerShares":[{"name":"지민","amount":124000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"],"participants":[{"name":"지민","amount":20667,"included":true},{"name":"민수","amount":20667,"included":true},{"name":"소연","amount":20667,"included":true},{"name":"현우","amount":20667,"included":true},{"name":"준호","amount":20666,"included":true},{"name":"혜진","amount":20666,"included":true}]},{"id":"402","title":"카페","amount":62000,"payerName":"민수","payerShares":[{"name":"민수","amount":42000},{"name":"지민","amount":20000}],"splitType":"custom","targetNames":["지민","민수","소연","현우"],"participants":[{"name":"지민","amount":20000,"included":true},{"name":"민수","amount":18000,"included":true},{"name":"소연","amount":12000,"included":true},{"name":"현우","amount":12000,"included":true},{"name":"준호","included":false},{"name":"혜진","included":false}]}],"memo":"Flutter mock 주말 나들이 정산을 한강 피크닉 완료 약속에 매핑했습니다.","shareMessage":"한강 피크닉 약속 정산입니다.","transfers":[{"fromName":"소연","toName":"지민","amount":32667},{"fromName":"현우","toName":"지민","amount":32667},{"fromName":"준호","toName":"지민","amount":20666},{"fromName":"혜진","toName":"지민","amount":17333},{"fromName":"혜진","toName":"민수","amount":3333}],"receiveSummary":[{"name":"지민","amount":103333},{"name":"민수","amount":3333}]}',
   '00000000-0000-0000-0000-000000000002',
   'draft',
   '2026-05-10T18:10:00+09:00'
@@ -504,7 +505,7 @@ values (
   '301',
   '00000000-0000-0000-0000-000000000201',
   '00000000-0000-0000-0000-000000000303',
-  '{"items":[{"id":"401","title":"저녁","amount":124000,"payerName":"지민","payerShares":[{"name":"지민","amount":124000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"]},{"id":"402","title":"카페","amount":62000,"payerName":"민수","payerShares":[{"name":"민수","amount":42000},{"name":"지민","amount":20000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"]}],"memo":"Flutter mock 주말 나들이 정산을 한강 피크닉 완료 약속에 매핑했습니다.","shareMessage":"한강 피크닉 약속 정산입니다.","transfers":[{"fromName":"소연","toName":"지민","amount":32667},{"fromName":"현우","toName":"지민","amount":32667},{"fromName":"준호","toName":"지민","amount":20666},{"fromName":"혜진","toName":"지민","amount":17333},{"fromName":"혜진","toName":"민수","amount":3333}]}',
+  '{"items":[{"id":"401","title":"저녁","amount":124000,"payerName":"지민","payerShares":[{"name":"지민","amount":124000}],"splitType":"equal","targetNames":["지민","민수","소연","현우","준호","혜진"],"participants":[{"name":"지민","amount":20667,"included":true},{"name":"민수","amount":20667,"included":true},{"name":"소연","amount":20667,"included":true},{"name":"현우","amount":20667,"included":true},{"name":"준호","amount":20666,"included":true},{"name":"혜진","amount":20666,"included":true}]},{"id":"402","title":"카페","amount":62000,"payerName":"민수","payerShares":[{"name":"민수","amount":42000},{"name":"지민","amount":20000}],"splitType":"custom","targetNames":["지민","민수","소연","현우"],"participants":[{"name":"지민","amount":20000,"included":true},{"name":"민수","amount":18000,"included":true},{"name":"소연","amount":12000,"included":true},{"name":"현우","amount":12000,"included":true},{"name":"준호","included":false},{"name":"혜진","included":false}]}],"memo":"Flutter mock 주말 나들이 정산을 한강 피크닉 완료 약속에 매핑했습니다.","shareMessage":"한강 피크닉 약속 정산입니다.","transfers":[{"fromName":"소연","toName":"지민","amount":32667},{"fromName":"현우","toName":"지민","amount":32667},{"fromName":"준호","toName":"지민","amount":20666},{"fromName":"혜진","toName":"지민","amount":17333},{"fromName":"혜진","toName":"민수","amount":3333}],"receiveSummary":[{"name":"지민","amount":103333},{"name":"민수","amount":3333}]}',
   '00000000-0000-0000-0000-000000000002',
   'created'
 )
@@ -518,7 +519,7 @@ on conflict (public_id) do update set
 insert into settlement_items (id, settlement_draft_id, settlement_id, public_id, title, amount_cents, currency, split_type, memo)
 values
   ('00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000701', '401', '저녁', 124000, 'KRW', 'equal', 'payer=지민; targets=지민,민수,소연,현우,준호,혜진'),
-  ('00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000701', '402', '카페', 62000, 'KRW', 'equal', 'payers=민수 42000, 지민 20000; targets=지민,민수,소연,현우,준호,혜진')
+  ('00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000701', '402', '카페', 62000, 'KRW', 'custom', 'payers=민수 42000, 지민 20000; targets=지민 20000, 민수 18000, 소연 12000, 현우 12000; excluded=준호,혜진')
 on conflict (public_id) do update set
   settlement_draft_id = excluded.settlement_draft_id,
   settlement_id = excluded.settlement_id,
@@ -553,12 +554,10 @@ values
   ('00000000-0000-0000-0000-000000001014', '00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000005', 20667, 'pending'),
   ('00000000-0000-0000-0000-000000001015', '00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000006', 20666, 'pending'),
   ('00000000-0000-0000-0000-000000001016', '00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000007', 20666, 'pending'),
-  ('00000000-0000-0000-0000-000000001017', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000002', 10334, 'pending'),
-  ('00000000-0000-0000-0000-000000001018', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000003', 10334, 'pending'),
-  ('00000000-0000-0000-0000-000000001019', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000004', 10333, 'pending'),
-  ('00000000-0000-0000-0000-000000001020', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000005', 10333, 'pending'),
-  ('00000000-0000-0000-0000-000000001026', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000006', 10333, 'pending'),
-  ('00000000-0000-0000-0000-000000001027', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000007', 10333, 'pending')
+  ('00000000-0000-0000-0000-000000001017', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000002', 20000, 'pending'),
+  ('00000000-0000-0000-0000-000000001018', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000003', 18000, 'pending'),
+  ('00000000-0000-0000-0000-000000001019', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000004', 12000, 'pending'),
+  ('00000000-0000-0000-0000-000000001020', '00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000005', 12000, 'pending')
 on conflict (settlement_item_id, user_id) do update set
   amount_cents = excluded.amount_cents,
   status = excluded.status,
