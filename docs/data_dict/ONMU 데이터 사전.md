@@ -1389,7 +1389,7 @@
 | 목록 조회 | `plans(group_id, starts_at)`, `records(user_id, created_at)`, `notifications(user_id, created_at)` |
 | 상태 조회 | `outbox_events(status, created_at)`, `ai_job_runs(status, created_at)` |
 | 친구 코드 | `user_codes(code)` unique, `friend_requests(target_user_id, status, created_at)` |
-| 친구 관계 | `friendships(user_low_id, user_high_id)` unique, `friend_settings(user_id, friend_user_id)` |
+| 친구 관계 | `friendships(user_low_id, user_high_id)` unique, `friend_settings(friendship_id, user_id)` unique, `friend_settings(user_id)`, `friend_settings(friend_user_id)` |
 | 정산 | `settlement_items(settlement_id)`, `settlement_transfers(settlement_id, from_user_id)` |
 | 장소 | `place_candidates(plan_id, created_at)`, `external_places(provider, provider_place_id)` |
 
