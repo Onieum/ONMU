@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +14,8 @@ import com.onmu.api.domain.AuthIdentityRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
+import com.onmu.api.domain.PlaceCandidateHeartEntity;
+import com.onmu.api.domain.PlaceCandidateHeartRepository;
 import com.onmu.api.domain.PlaceCandidateRepository;
 import com.onmu.api.domain.PlanParticipantEntity;
 import com.onmu.api.domain.PlanParticipantRepository;
@@ -33,6 +36,7 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.util.List;
@@ -60,6 +64,8 @@ class OnmuApiServiceTests {
   @Mock
   private PlaceCandidateRepository placeCandidateRepository;
   @Mock
+  private PlaceCandidateHeartRepository placeCandidateHeartRepository;
+  @Mock
   private SchedulePlaceRepository schedulePlaceRepository;
   @Mock
   private PlanParticipantRepository planParticipantRepository;
@@ -84,6 +90,7 @@ class OnmuApiServiceTests {
       planRepository,
       voteRepository,
       placeCandidateRepository,
+      placeCandidateHeartRepository,
       schedulePlaceRepository,
       planParticipantRepository,
       settlementDraftRepository,
@@ -357,12 +364,16 @@ class OnmuApiServiceTests {
 
   @Test
   void creatingPlaceCandidateRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(placeCandidateRepository.findAll()).thenReturn(List.of(
       new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}")
     ));
     when(placeCandidateRepository.save(any(PlaceCandidateEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateHeartRepository.countByCandidate(any(PlaceCandidateEntity.class))).thenReturn(0L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(any(PlaceCandidateEntity.class), eq(user))).thenReturn(false);
 
     var created = service.createPlaceCandidate(
       "1",
@@ -370,7 +381,11 @@ class OnmuApiServiceTests {
       new CreatePlaceCandidateRequest("새 후보", "카페", "서울", "후보 설명", List.of("카페"))
     );
 
-    assertThat(created).containsEntry("id", "202").containsEntry("name", "새 후보");
+    assertThat(created)
+      .containsEntry("id", "202")
+      .containsEntry("name", "새 후보")
+      .containsEntry("heartCount", 0)
+      .containsEntry("myHearted", false);
     verify(outboxService).record(
       eq("place_candidate.created"),
       eq("place_candidate"),
@@ -379,6 +394,127 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "202".equals(payload.get("candidateId")))
     );
+  }
+
+  @Test
+  void placeCandidateDetailReturnsHeartStateAndDisplayFields() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"source\":\"manual\",\"lat\":37.5665,\"lng\":126.9780,\"favoriteCount\":3}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(4L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var detail = service.placeCandidate("1", "101", "201");
+
+    assertThat(detail)
+      .containsEntry("id", "201")
+      .containsEntry("name", "온무식당")
+      .containsEntry("address", "서울")
+      .containsEntry("source", "manual")
+      .containsEntry("heartCount", 4)
+      .containsEntry("myHearted", true)
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
+    assertThat(detail).containsKey("createdAt");
+  }
+
+  @Test
+  void placeCandidateListIncludesHeartState() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"favoriteCount\":3}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(5L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var candidates = service.placeCandidates("1", "101");
+
+    assertThat(candidates).singleElement()
+      .satisfies(value -> assertThat(value)
+        .containsEntry("id", "201")
+        .containsEntry("heartCount", 5)
+        .containsEntry("myHearted", true));
+  }
+
+  @Test
+  void upsertingMyPlaceCandidateHeartCreatesHeartOnceAndRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.empty());
+    when(placeCandidateHeartRepository.save(any(PlaceCandidateHeartEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var result = service.upsertMyPlaceCandidateHeart(
+      "1",
+      "101",
+      "201",
+      new UpsertPlaceCandidateHeartRequest(true)
+    );
+
+    assertThat(result)
+      .containsEntry("id", "201")
+      .containsEntry("heartCount", 1)
+      .containsEntry("myHearted", true);
+    verify(placeCandidateHeartRepository, times(1)).save(any(PlaceCandidateHeartEntity.class));
+    verify(outboxService).record(
+      eq("place_candidate.heart_updated"),
+      eq("place_candidate"),
+      eq(candidate.getId()),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "201".equals(payload.get("candidateId"))
+        && Boolean.TRUE.equals(payload.get("hearted")))
+    );
+  }
+
+  @Test
+  void upsertingExistingHeartDoesNotCreateDuplicateHeart() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    PlaceCandidateHeartEntity existingHeart = new PlaceCandidateHeartEntity(candidate, user);
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.of(existingHeart));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var result = service.upsertMyPlaceCandidateHeart(
+      "1",
+      "101",
+      "201",
+      new UpsertPlaceCandidateHeartRequest(true)
+    );
+
+    assertThat(result).containsEntry("heartCount", 1).containsEntry("myHearted", true);
+    verify(placeCandidateHeartRepository, times(0)).save(any(PlaceCandidateHeartEntity.class));
   }
 
   @Test

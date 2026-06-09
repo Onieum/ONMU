@@ -7,6 +7,8 @@ import com.onmu.api.domain.AuthIdentityRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
+import com.onmu.api.domain.PlaceCandidateHeartEntity;
+import com.onmu.api.domain.PlaceCandidateHeartRepository;
 import com.onmu.api.domain.PlaceCandidateRepository;
 import com.onmu.api.domain.PlanParticipantEntity;
 import com.onmu.api.domain.PlanParticipantRepository;
@@ -31,6 +33,7 @@ import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -58,6 +61,7 @@ public class OnmuApiService {
   private final PlanRepository planRepository;
   private final VoteRepository voteRepository;
   private final PlaceCandidateRepository placeCandidateRepository;
+  private final PlaceCandidateHeartRepository placeCandidateHeartRepository;
   private final SchedulePlaceRepository schedulePlaceRepository;
   private final PlanParticipantRepository planParticipantRepository;
   private final SettlementDraftRepository settlementDraftRepository;
@@ -72,6 +76,7 @@ public class OnmuApiService {
     PlanRepository planRepository,
     VoteRepository voteRepository,
     PlaceCandidateRepository placeCandidateRepository,
+    PlaceCandidateHeartRepository placeCandidateHeartRepository,
     SchedulePlaceRepository schedulePlaceRepository,
     PlanParticipantRepository planParticipantRepository,
     SettlementDraftRepository settlementDraftRepository,
@@ -85,6 +90,7 @@ public class OnmuApiService {
     this.planRepository = planRepository;
     this.voteRepository = voteRepository;
     this.placeCandidateRepository = placeCandidateRepository;
+    this.placeCandidateHeartRepository = placeCandidateHeartRepository;
     this.schedulePlaceRepository = schedulePlaceRepository;
     this.planParticipantRepository = planParticipantRepository;
     this.settlementDraftRepository = settlementDraftRepository;
@@ -289,9 +295,16 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public List<Map<String, Object>> placeCandidates(String groupId, String planId) {
     PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    UserEntity user = currentUser();
     return placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan).stream()
-      .map(this::placeCandidateCard)
+      .map(candidate -> placeCandidateCard(candidate, user))
       .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> placeCandidate(String groupId, String planId, String candidateId) {
+    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    return placeCandidateCard(placeCandidateOrThrow(plan, candidateId), currentUser());
   }
 
   @Transactional
@@ -325,7 +338,36 @@ public class OnmuApiService {
       "candidateId", candidate.getPublicId(),
       "name", candidate.getName()
     ));
-    return placeCandidateCard(candidate);
+    return placeCandidateCard(candidate, currentUser());
+  }
+
+  @Transactional
+  public Map<String, Object> upsertMyPlaceCandidateHeart(
+    String groupId,
+    String planId,
+    String candidateId,
+    UpsertPlaceCandidateHeartRequest request
+  ) {
+    GroupEntity group = groupOrThrow(groupId);
+    PlanEntity plan = planOrThrow(group, planId);
+    PlaceCandidateEntity candidate = placeCandidateOrThrow(plan, candidateId);
+    UserEntity user = currentUser();
+    boolean hearted = request == null || request.hearted() == null || request.hearted();
+    var existingHeart = placeCandidateHeartRepository.findByCandidateAndUser(candidate, user);
+    if (hearted && existingHeart.isEmpty()) {
+      placeCandidateHeartRepository.save(new PlaceCandidateHeartEntity(candidate, user));
+    }
+    if (!hearted) {
+      existingHeart.ifPresent(placeCandidateHeartRepository::delete);
+    }
+    outboxService.record("place_candidate.heart_updated", "place_candidate", candidate.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "planId", plan.getPublicId(),
+      "candidateId", candidate.getPublicId(),
+      "userId", user.getId().toString(),
+      "hearted", hearted
+    ));
+    return placeCandidateCard(candidate, user);
   }
 
   @Transactional
@@ -522,8 +564,11 @@ public class OnmuApiService {
     return value;
   }
 
-  private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate) {
+  private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate, UserEntity user) {
     Map<String, Object> payload = readObject(candidate.getPayload());
+    int payloadFavoriteCount = intOrDefault(payload.get("favoriteCount"), 0);
+    int heartCount = Math.max(payloadFavoriteCount, Math.toIntExact(placeCandidateHeartRepository.countByCandidate(candidate)));
+    boolean myHearted = placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user);
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", candidate.getPublicId());
     value.put("groupId", candidate.getGroup().getPublicId());
@@ -531,12 +576,19 @@ public class OnmuApiService {
     value.put("name", candidate.getName());
     value.put("category", stringOrDefault(candidate.getCategory(), "장소"));
     value.put("summary", stringOrDefault(asString(payload.get("summary")), "약속 장소 후보입니다."));
-    value.put("favoriteCount", intOrDefault(payload.get("favoriteCount"), 0));
+    value.put("favoriteCount", heartCount);
+    value.put("heartCount", heartCount);
+    value.put("myHearted", myHearted);
     value.put("distanceLabel", stringOrDefault(asString(payload.get("distanceLabel")), "거리 정보 준비 중"));
     value.put("travelTimeLabel", stringOrDefault(asString(payload.get("travelTimeLabel")), "이동 시간 준비 중"));
     value.put("priceLabel", stringOrDefault(asString(payload.get("priceLabel")), "가격 정보 준비 중"));
     value.put("isOpen", true);
     value.put("address", stringOrDefault(candidate.getAddress(), ""));
+    value.put("source", stringOrDefault(asString(payload.get("source")), "manual"));
+    value.put("sourceLabel", stringOrDefault(asString(payload.get("sourceLabel")), "직접 추가"));
+    value.put("lat", payload.get("lat"));
+    value.put("lng", payload.get("lng"));
+    value.put("createdAt", candidate.getCreatedAt() == null ? null : candidate.getCreatedAt().toString());
     value.put("openingLabel", stringOrDefault(asString(payload.get("openingLabel")), "영업 정보 확인 중"));
     value.put("memberFits", List.of());
     value.put("tags", stringList(payload.get("tags")));

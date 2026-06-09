@@ -66,11 +66,15 @@
 | --- | --- |
 | 후보 리스트 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates` |
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` |
+| 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` |
+| 내 후보 하트 설정 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` |
 | 장소 검색 | `POST /api/v1/place-search` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 | 일정 등록 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
+
+장소 후보 응답은 목록/추가/상세에서 `id`, `name`, `category`, `address`, `source`, `lat`, `lng`, `heartCount`, `myHearted`, `createdAt`을 가능한 범위에서 포함한다. `PUT .../heart`는 body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 내 하트를 끈다. 같은 사용자가 같은 후보에 여러 번 하트를 켜도 중복 row를 만들지 않는다.
 
 일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.
 
@@ -111,6 +115,7 @@
 | --- | --- |
 | `plan.created` | 약속 생성 |
 | `place_candidate.created` | 장소 후보 추가 |
+| `place_candidate.heart_updated` | 장소 후보 하트 변경 |
 | `vote.created` | 투표 생성 |
 | `vote.closed` | 투표 종료 |
 | `settlement.created` | 정산 최종 생성 |

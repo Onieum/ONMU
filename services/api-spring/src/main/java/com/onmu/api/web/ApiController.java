@@ -13,6 +13,7 @@ import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -155,7 +156,15 @@ public class ApiController {
     return Map.of(
       "query", request.query(),
       "canonical", true,
-      "results", placeSearchService.search(request.query(), request.groupId(), request.planId())
+      "results", placeSearchService.search(
+        request.query(),
+        request.groupId(),
+        request.planId(),
+        request.lat(),
+        request.lng(),
+        request.radius(),
+        request.category()
+      )
     );
   }
 
@@ -190,6 +199,25 @@ public class ApiController {
   ) {
     return ResponseEntity.status(HttpStatus.CREATED)
       .body(onmuApiService.createPlaceCandidate(groupId, planId, request));
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}")
+  public Map<String, Object> placeCandidate(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String candidateId
+  ) {
+    return onmuApiService.placeCandidate(groupId, planId, candidateId);
+  }
+
+  @PutMapping("/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart")
+  public Map<String, Object> putMyPlaceCandidateHeart(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String candidateId,
+    @RequestBody(required = false) UpsertPlaceCandidateHeartRequest request
+  ) {
+    return onmuApiService.upsertMyPlaceCandidateHeart(groupId, planId, candidateId, request);
   }
 
   @PostMapping("/groups/{groupId}/plans/{planId}/schedule-places")
