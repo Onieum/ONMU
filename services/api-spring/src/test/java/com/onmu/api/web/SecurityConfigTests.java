@@ -32,7 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestPropertySource(properties = {
   "onmu.security.dev-access-token=test-access-token",
   "onmu.security.dev-refresh-token=test-refresh-token",
-  "onmu.security.cors.allowed-origins=http://localhost:5173"
+  "onmu.security.cors.allowed-origins=http://localhost:5173",
+  "onmu.access-log.path=target/test-security-config-api-access.log"
 })
 class SecurityConfigTests {
   @Autowired
@@ -125,12 +126,35 @@ class SecurityConfigTests {
   void deleteCorsPreflightAllowsConfiguredOrigin() throws Exception {
     mvc.perform(options("/api/v1/auth/session")
         .header(HttpHeaders.ORIGIN, "http://localhost:5173")
-        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "DELETE"))
+        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
+        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,x-request-id,x-correlation-id"))
       .andExpect(status().isOk())
       .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
       .andExpect(header().string(
         HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
         Matchers.containsString("DELETE")
+      ))
+      .andExpect(header().string(
+        HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+        Matchers.containsString("x-request-id")
+      ))
+      .andExpect(header().string(
+        HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+        Matchers.containsString("x-correlation-id")
+      ));
+  }
+
+  @Test
+  void corsResponseExposesRequestIdHeader() throws Exception {
+    mvc.perform(get("/api/v1/auth/session")
+        .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
+        .header("X-Request-Id", "request-id-from-client"))
+      .andExpect(status().isOk())
+      .andExpect(header().string("X-Request-Id", "request-id-from-client"))
+      .andExpect(header().string(
+        HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
+        Matchers.containsString("X-Request-Id")
       ));
   }
 }

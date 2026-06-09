@@ -1,5 +1,6 @@
 package com.onmu.api.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,10 +32,16 @@ public class SecurityConfig {
 
   private final DevTokenAuthenticationFilter devTokenAuthenticationFilter;
   private final Environment environment;
+  private final ObjectMapper objectMapper;
 
-  public SecurityConfig(DevTokenAuthenticationFilter devTokenAuthenticationFilter, Environment environment) {
+  public SecurityConfig(
+    DevTokenAuthenticationFilter devTokenAuthenticationFilter,
+    Environment environment,
+    ObjectMapper objectMapper
+  ) {
     this.devTokenAuthenticationFilter = devTokenAuthenticationFilter;
     this.environment = environment;
+    this.objectMapper = objectMapper;
   }
 
   @Bean
@@ -56,6 +63,7 @@ public class SecurityConfig {
         .requestMatchers("/api/v1/**").authenticated()
         .anyRequest().denyAll())
       .addFilterBefore(devTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+      .addFilterBefore(new SpringAccessLogFilter(objectMapper, environment), DevTokenAuthenticationFilter.class)
       .build();
   }
 
@@ -75,9 +83,11 @@ public class SecurityConfig {
       "Accept",
       "Origin",
       "X-Requested-With",
-      "X-Onmu-Dev-Client"
+      "X-Onmu-Dev-Client",
+      "X-Request-Id",
+      "X-Correlation-Id"
     ));
-    configuration.setExposedHeaders(List.of("Location"));
+    configuration.setExposedHeaders(List.of("Location", "X-Request-Id"));
     configuration.setAllowCredentials(false);
     configuration.setMaxAge(3600L);
 
