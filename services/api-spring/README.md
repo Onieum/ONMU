@@ -73,6 +73,7 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V5__core_seed_data_dictionary.sql`: 데이터사전 검증용 synthetic seed
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
+- `V8__screen_aligned_dev_seed.sql`: Flutter mock 화면과 맞춘 synthetic seed와 정산 item/target/transfer seed 보강
 
 `public_id`는 Flutter/Node stub의 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
@@ -106,9 +107,11 @@ Core API:
 - `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 
 Auth scaffold:
 
@@ -144,7 +147,7 @@ flutter run `
 
 Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
 
-현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement summary입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
+현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement draft/preview/create/result입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
 ## 아직 Dev/Mock인 부분
 
@@ -185,11 +188,19 @@ curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary '{ "name": "새 후보", "category": "카페", "address": "서울" }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/schedule-places -H "Content-Type: application/json" --data-binary '{ "candidateId": "201", "name": "온무식당" }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
+curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/103/settlement-draft/items/401/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
+curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
 ```
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
+정산 draft/result 응답은 `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 우선 읽고, JSON `payload`는 payer user id 같은 계산 보조 필드와 이전 Flutter mock contract 호환 용도로 유지합니다. 요청은 `payerUserId`, `targetUserIds`를 우선 사용하며, `payerName`, `targetNames`는 dev seed 호환 fallback입니다. 이름 fallback이 중복 이름을 만나면 `400 ambiguous_settlement_member_name`을 반환합니다.
+
+`GET /settlement-draft`가 저장되지 않은 synthetic draft를 반환할 때는 `persisted=false`, `targetPatchAvailable=false`입니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다.
+
+현재 DB 컬럼명은 `amount_cents`지만 정산 API의 `amountWon`/호환 `amount` 값은 KRW 원 단위 integer입니다. `mySummaryLabel`과 `memberResults[].isMe`는 실제 사용자 인증 주입 전까지 dev seed의 첫 사용자 기준으로 계산되는 dev-only 한계가 있습니다.
 
 ## Dev Token 인증과 CORS 기준
 

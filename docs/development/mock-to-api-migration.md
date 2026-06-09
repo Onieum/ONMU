@@ -36,7 +36,7 @@ Flutter 화면이 mock data에 직접 묶여 있는 상태에서 실제 API로 �
 3. Plan list/detail
 4. Place candidate/search
 5. Group vote list/detail/create
-6. Settlement draft/preview/result
+6. Settlement draft/preview/create/result
 7. Chat activity
 8. Notification
 
@@ -46,3 +46,5 @@ Flutter 화면이 mock data에 직접 묶여 있는 상태에서 실제 API로 �
 - mapper 단위 테스트
 - 주요 route widget test
 - API contract fixture 테스트
+
+Settlement API mode는 최신 결과 조회뿐 아니라 `settlement-draft`, `settlements/preview`, `settlements`, `settlements/{settlementId}`를 같은 mapper로 읽어 `SettlementSummary`에 맞춘다. UI 대개편 전에는 mock repository 화면 흐름을 유지하고, API repository 메서드만 먼저 확장해 Spring contract를 검증한다. 정산 요청 mapper는 `payerUserId`, `targetUserIds`, `amountWon`을 우선 전송하고, 이름 필드는 표시와 dev seed fallback 용도로만 둔다.

@@ -13,6 +13,9 @@ public class UserEntity {
   @Id
   private UUID id;
 
+  @Column(name = "public_id", nullable = false, unique = true)
+  private String publicId;
+
   @Column(name = "display_name", nullable = false)
   private String displayName;
 
@@ -24,6 +27,10 @@ public class UserEntity {
 
   public UUID getId() {
     return id;
+  }
+
+  public String getPublicId() {
+    return publicId;
   }
 
   public String getDisplayName() {

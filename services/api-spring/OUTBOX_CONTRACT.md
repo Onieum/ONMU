@@ -10,6 +10,7 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 | `place_candidate.created` | Spring Boot Main API | FastAPI ai-data-worker |
 | `vote.created` | Spring Boot Main API | future notification/realtime |
 | `settlement.created` | Spring Boot Main API | future notification/realtime |
+| `notification.requested` | Spring Boot Main API | future notification-worker |
 | `record.created` | Spring Boot Main API | FastAPI ai-data-worker |
 | `ai.summary.requested` | Spring Boot Main API | FastAPI ai-data-worker |
 

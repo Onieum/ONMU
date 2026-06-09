@@ -99,7 +99,14 @@
 | 대상자 선택 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` |
 | 미리보기 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` |
 | 최종 생성 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` |
+| 최신 결과 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` |
 | 결과 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` |
+
+Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `settlements`의 `payload`만으로 만들지 않고 `settlement_items`, `settlement_item_targets`, `settlement_transfers` read/write 결과를 우선 사용한다. `payload`는 payer user id 같은 표시/계산 보조 필드와 이전 Flutter mock contract 호환을 위한 compact 백업으로 유지한다.
+
+정산 create/preview/update 요청은 `payerUserId`, `targetUserIds` 같은 안정적인 사용자 public id를 우선 사용한다. `payerName`, `targetNames`는 dev seed와 기존 mock 호환용 fallback이며, 이름이 중복되면 API는 조용히 오배정하지 않고 `400 ambiguous_settlement_member_name`을 반환한다. 금액 필드는 `amountWon`을 권장하고, 과거 `amount`는 호환용으로 허용한다. 현재 DB 컬럼명은 `amount_cents`지만 ONMU 정산 API에서는 KRW 원 단위 integer를 저장한다.
+
+`GET /settlement-draft`는 저장되지 않은 synthetic draft를 만들 수 있으며 이때 `persisted=false`, `targetPatchAvailable=false`를 반환한다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item이 생긴 뒤에만 가능하다.
 
 ## Activity / Notification
 
