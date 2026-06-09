@@ -67,6 +67,10 @@ Spring Boot Flyway가 core schema를 소유합니다.
 
 - `V1__core_schema_scaffold.sql`: core table 초안
 - `V2__dev_seed_data.sql`: contract smoke용 synthetic seed와 `public_id` 보강
+- `V3__vertical_slice_contract_tables.sql`: Spring 세로 흐름 smoke용 장소/투표 contract seed
+- `V4__core_schema_data_dictionary.sql`: 데이터사전 기반 core app schema 확장
+- `V5__core_seed_data_dictionary.sql`: 데이터사전 검증용 synthetic seed
+- `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 
 `public_id`는 Flutter/Node stub의 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
