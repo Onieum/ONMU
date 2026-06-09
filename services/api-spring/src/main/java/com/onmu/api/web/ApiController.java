@@ -1,5 +1,6 @@
 package com.onmu.api.web;
 
+import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import com.onmu.api.web.dto.CreateGroupRequest;
@@ -9,6 +10,7 @@ import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,10 +31,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1")
 public class ApiController {
+  private final GroupApiService groupApiService;
   private final OnmuApiService onmuApiService;
   private final PlaceSearchService placeSearchService;
 
-  public ApiController(OnmuApiService onmuApiService, PlaceSearchService placeSearchService) {
+  public ApiController(
+    GroupApiService groupApiService,
+    OnmuApiService onmuApiService,
+    PlaceSearchService placeSearchService
+  ) {
+    this.groupApiService = groupApiService;
     this.onmuApiService = onmuApiService;
     this.placeSearchService = placeSearchService;
   }
@@ -53,7 +62,31 @@ public class ApiController {
 
   @PostMapping("/groups")
   public ResponseEntity<Map<String, Object>> createGroup(@Valid @RequestBody CreateGroupRequest request) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createGroup(request));
+    return ResponseEntity.status(HttpStatus.CREATED).body(groupApiService.createGroup(request.name()));
+  }
+
+  @GetMapping("/groups/{groupId}")
+  public Map<String, Object> groupDetail(@PathVariable String groupId) {
+    return groupApiService.groupDetail(groupId);
+  }
+
+  @PatchMapping("/groups/{groupId}")
+  public Map<String, Object> updateGroup(
+    @PathVariable String groupId,
+    @RequestBody(required = false) UpdateGroupRequest request
+  ) {
+    return groupApiService.updateGroup(groupId, request);
+  }
+
+  @GetMapping("/groups/{groupId}/members")
+  public List<Map<String, Object>> groupMembers(@PathVariable String groupId) {
+    return groupApiService.members(groupId);
+  }
+
+  @DeleteMapping("/groups/{groupId}/members/me")
+  public ResponseEntity<Void> leaveGroup(@PathVariable String groupId) {
+    groupApiService.leaveGroup(groupId);
+    return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/groups/{groupId}/summary")

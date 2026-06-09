@@ -16,6 +16,9 @@ public class UserEntity {
   @Column(name = "display_name", nullable = false)
   private String displayName;
 
+  @Column(name = "nickname")
+  private String nickname;
+
   @Column(name = "created_at", insertable = false, updatable = false)
   private Instant createdAt;
 
@@ -28,6 +31,10 @@ public class UserEntity {
 
   public String getDisplayName() {
     return displayName;
+  }
+
+  public String getNickname() {
+    return nickname;
   }
 
   public Instant getCreatedAt() {

@@ -6,6 +6,9 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 
 | Event type | Producer | Consumer |
 | --- | --- | --- |
+| `group.created` | Spring Boot Main API | future notification/realtime |
+| `group.updated` | Spring Boot Main API | future notification/realtime |
+| `group.member_left` | Spring Boot Main API | future notification/realtime |
 | `plan.created` | Spring Boot Main API | future notification/realtime |
 | `place_candidate.created` | Spring Boot Main API | FastAPI ai-data-worker |
 | `vote.created` | Spring Boot Main API | future notification/realtime |
@@ -31,3 +34,11 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 - Prefer aggregate ids and compact metadata.
 - For analytics future use, keep consent and privacy flags explicit.
 - FastAPI Worker may store derived result metadata in `worker_ai`, but must not mutate core tables directly.
+
+## Group Event Payloads
+
+| Event type | Aggregate type | Payload |
+| --- | --- | --- |
+| `group.created` | `group` | `groupId`, `name`, `ownerUserId` |
+| `group.updated` | `group` | `groupId`, `name`, `description` |
+| `group.member_left` | `group` | `groupId`, `userId` |

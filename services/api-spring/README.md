@@ -93,6 +93,10 @@ Core API:
 - `GET /api/v1/users/me`
 - `GET /api/v1/groups`
 - `POST /api/v1/groups`
+- `GET /api/v1/groups/{groupId}`
+- `PATCH /api/v1/groups/{groupId}`
+- `GET /api/v1/groups/{groupId}/members`
+- `DELETE /api/v1/groups/{groupId}/members/me`
 - `GET /api/v1/groups/{groupId}/summary`
 - `GET /api/v1/groups/{groupId}/plans`
 - `POST /api/v1/groups/{groupId}/plans`
@@ -128,6 +132,9 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `place_candidate.created`
 - `settlement.created`
 - `notification.requested`
+- `group.created`
+- `group.updated`
+- `group.member_left`
 
 아직 queue publisher/consumer가 없으므로 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
 
