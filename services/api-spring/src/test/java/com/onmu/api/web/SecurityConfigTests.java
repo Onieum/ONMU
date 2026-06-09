@@ -9,13 +9,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.onmu.api.config.DevTokenAuthService;
-import com.onmu.api.config.DevTokenAuthenticationFilter;
 import com.onmu.api.config.SecurityConfig;
+import com.onmu.api.domain.UserEntity;
+import com.onmu.api.domain.UserRepository;
+import com.onmu.api.security.AccessTokenVerifier;
+import com.onmu.api.security.BearerTokenAuthenticationFilter;
+import com.onmu.api.service.AuthService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,16 +27,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
-@WebMvcTest(controllers = {ApiController.class, AuthController.class})
-@Import({SecurityConfig.class, DevTokenAuthenticationFilter.class, DevTokenAuthService.class})
+@WebMvcTest(controllers = {ApiController.class, AuthController.class, SessionController.class})
+@Import({SecurityConfig.class, BearerTokenAuthenticationFilter.class})
 @TestPropertySource(properties = {
-  "onmu.security.dev-access-token=test-access-token",
-  "onmu.security.dev-refresh-token=test-refresh-token",
   "onmu.security.cors.allowed-origins=http://localhost:5173",
+  "onmu.auth.access-token-secret=test-access-token-secret-with-enough-length",
   "onmu.access-log.path=target/test-security-config-api-access.log"
 })
 class SecurityConfigTests {
@@ -45,16 +50,26 @@ class SecurityConfigTests {
   @MockBean
   private PlaceSearchService placeSearchService;
 
+  @MockBean
+  private AuthService authService;
+
+  @MockBean
+  private AccessTokenVerifier accessTokenVerifier;
+
+  @MockBean
+  private UserRepository userRepository;
+
   @Test
   void protectedApiRequiresBearerToken() throws Exception {
     mvc.perform(get("/api/v1/groups"))
       .andExpect(status().isUnauthorized())
-      .andExpect(jsonPath("$.error").value("missing_bearer_token"))
-      .andExpect(jsonPath("$.authenticated").value(false));
+      .andExpect(jsonPath("$.ok").value(false))
+      .andExpect(jsonPath("$.error").value("authentication_required"));
   }
 
   @Test
   void protectedApiAcceptsValidBearerToken() throws Exception {
+    authenticatedUser();
     when(onmuApiService.groups()).thenReturn(List.of(Map.of("id", "1", "name", "ONMU Dev")));
 
     mvc.perform(get("/api/v1/groups")
@@ -65,74 +80,81 @@ class SecurityConfigTests {
 
   @Test
   void invalidBearerTokenIsRejected() throws Exception {
+    when(accessTokenVerifier.verify("wrong-token"))
+      .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_token"));
+
     mvc.perform(get("/api/v1/groups")
         .header(HttpHeaders.AUTHORIZATION, "Bearer wrong-token"))
       .andExpect(status().isUnauthorized())
-      .andExpect(jsonPath("$.error").value("invalid_bearer_token"));
+      .andExpect(jsonPath("$.ok").value(false))
+      .andExpect(jsonPath("$.error").value("invalid_token"));
   }
 
   @Test
-  void sessionReturnsAnonymousWithoutToken() throws Exception {
+  void sessionRequiresAuthentication() throws Exception {
     mvc.perform(get("/api/v1/auth/session"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$.authenticated").value(false))
-      .andExpect(jsonPath("$.status").value("anonymous"));
+      .andExpect(status().isUnauthorized())
+      .andExpect(jsonPath("$.error").value("authentication_required"));
   }
 
   @Test
-  void sessionReturnsAuthenticatedWithValidToken() throws Exception {
+  void sessionReturnsAuthenticatedUserWithValidToken() throws Exception {
+    authenticatedUser();
+
     mvc.perform(get("/api/v1/auth/session")
         .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.authenticated").value(true))
-      .andExpect(jsonPath("$.authMode").value("spring-dev-token"));
+      .andExpect(jsonPath("$.user.id").value("usr_test"));
   }
 
   @Test
-  void refreshRejectsInvalidRefreshToken() throws Exception {
-    mvc.perform(post("/api/v1/auth/refresh")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content("{\"refreshToken\":\"wrong-refresh-token\"}"))
-      .andExpect(status().isUnauthorized())
-      .andExpect(jsonPath("$.error").value("invalid_refresh_token"));
-  }
+  void refreshEndpointIsPublicAndDelegatesToAuthService() throws Exception {
+    when(authService.refresh("test-refresh-token", "127.0.0.1", null))
+      .thenReturn(Map.of("ok", true, "authenticated", true));
 
-  @Test
-  void refreshAcceptsConfiguredRefreshToken() throws Exception {
     mvc.perform(post("/api/v1/auth/refresh")
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"refreshToken\":\"test-refresh-token\"}"))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$.status").value("scaffold"))
-      .andExpect(jsonPath("$.tokenType").value("Bearer"))
-      .andExpect(jsonPath("$.accessToken").isNotEmpty());
+      .andExpect(jsonPath("$.ok").value(true));
   }
 
   @Test
-  void deleteSessionRequiresAuthentication() throws Exception {
-    mvc.perform(delete("/api/v1/auth/session"))
-      .andExpect(status().isUnauthorized());
-  }
+  void logoutEndpointIsPublic() throws Exception {
+    when(authService.logout("test-refresh-token"))
+      .thenReturn(Map.of("ok", true, "authenticated", false));
 
-  @Test
-  void deleteSessionWorksWithValidToken() throws Exception {
-    mvc.perform(delete("/api/v1/auth/session")
-        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+    mvc.perform(post("/api/v1/auth/logout")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"refreshToken\":\"test-refresh-token\"}"))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$.deleted").value(true));
+      .andExpect(jsonPath("$.authenticated").value(false));
   }
 
   @Test
-  void deleteCorsPreflightAllowsConfiguredOrigin() throws Exception {
+  void contractDeleteSessionEndpointIsPublic() throws Exception {
+    when(authService.logout("test-refresh-token"))
+      .thenReturn(Map.of("ok", true, "authenticated", false));
+
+    mvc.perform(delete("/api/v1/auth/session")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"refreshToken\":\"test-refresh-token\"}"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.authenticated").value(false));
+  }
+
+  @Test
+  void corsPreflightAllowsConfiguredOriginAndRequestHeaders() throws Exception {
     mvc.perform(options("/api/v1/auth/session")
         .header(HttpHeaders.ORIGIN, "http://localhost:5173")
-        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
+        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PATCH")
         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,x-request-id,x-correlation-id"))
       .andExpect(status().isOk())
       .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
       .andExpect(header().string(
         HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
-        Matchers.containsString("DELETE")
+        Matchers.containsString("PATCH")
       ))
       .andExpect(header().string(
         HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
@@ -146,6 +168,8 @@ class SecurityConfigTests {
 
   @Test
   void corsResponseExposesRequestIdHeader() throws Exception {
+    authenticatedUser();
+
     mvc.perform(get("/api/v1/auth/session")
         .header(HttpHeaders.ORIGIN, "http://localhost:5173")
         .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
@@ -156,5 +180,11 @@ class SecurityConfigTests {
         HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
         Matchers.containsString("X-Request-Id")
       ));
+  }
+
+  private void authenticatedUser() {
+    when(accessTokenVerifier.verify("test-access-token")).thenReturn("usr_test");
+    when(userRepository.findByPublicIdAndDeletedAtIsNull("usr_test"))
+      .thenReturn(Optional.of(new UserEntity("usr_test", "ONMU User", null, null)));
   }
 }

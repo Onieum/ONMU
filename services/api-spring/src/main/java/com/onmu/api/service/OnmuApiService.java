@@ -28,6 +28,7 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -89,19 +90,49 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public Map<String, Object> userMe() {
     UserEntity user = currentUser();
+    return userMe(user);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> userMe(java.util.UUID userId) {
+    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+    return userMe(user);
+  }
+
+  private Map<String, Object> userMe(UserEntity user) {
     AuthIdentityEntity identity = authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(user).orElse(null);
 
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("id", user.getId().toString());
+    value.put("id", user.getPublicId());
     value.put("displayName", user.getDisplayName());
+    value.put("email", user.getEmail());
+    value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
+    value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
+    value.put("onboardingStatus", user.getOnboardingStatus());
     value.put("authProvider", identity == null ? "NAVER" : identity.getProvider());
-    value.put("authStatus", "dev-scaffold");
+    value.put("authStatus", "authenticated");
     value.put("tokenContract", Map.of(
       "accessToken", "issued-by-spring-main-api",
       "refreshToken", "issued-by-spring-main-api",
       "clientStorage", "flutter-secure-storage"
     ));
     return value;
+  }
+
+  @Transactional
+  public Map<String, Object> updateUserProfile(java.util.UUID userId, UpdateUserProfileRequest request) {
+    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+    user.updateProfile(
+      request.displayName(),
+      request.profileImageUrl(),
+      request.preferenceProfile() == null ? null : toJson(request.preferenceProfile()),
+      request.pixelCharacter() == null ? null : toJson(request.pixelCharacter()),
+      request.onboardingStatus()
+    );
+    return userMe(user);
   }
 
   @Transactional(readOnly = true)
@@ -731,6 +762,20 @@ public class OnmuApiService {
       return List.of();
     } catch (JsonProcessingException exception) {
       return List.of();
+    }
+  }
+
+  private Map<String, Object> readJsonObject(String payload) {
+    if (payload == null || payload.isBlank()) {
+      return Map.of();
+    }
+    try {
+      Map<?, ?> parsed = objectMapper.readValue(payload, Map.class);
+      Map<String, Object> values = new LinkedHashMap<>();
+      parsed.forEach((key, value) -> values.put(String.valueOf(key), value));
+      return values;
+    } catch (JsonProcessingException exception) {
+      return Map.of();
     }
   }
 

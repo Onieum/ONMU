@@ -1,13 +1,12 @@
 package com.onmu.api.web;
 
-import com.onmu.api.config.DevTokenAuthService;
-import java.util.Locale;
+import com.onmu.api.service.AuthService;
+import com.onmu.api.web.dto.OAuthLoginRequest;
+import com.onmu.api.web.dto.RefreshTokenRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,69 +16,36 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
-  private final DevTokenAuthService devTokenAuthService;
+  private final AuthService authService;
 
-  public AuthController(DevTokenAuthService devTokenAuthService) {
-    this.devTokenAuthService = devTokenAuthService;
+  public AuthController(AuthService authService) {
+    this.authService = authService;
   }
 
   @PostMapping("/oauth/{provider}")
-  public ResponseEntity<Map<String, Object>> oauthScaffold(@PathVariable String provider) {
-    return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
-      "provider", provider.toUpperCase(Locale.ROOT),
-      "status", "scaffold",
-      "implemented", false,
-      "tokenContract", Map.of(
-        "accessToken", "spring-main-api-todo",
-        "refreshToken", "spring-main-api-todo",
-        "clientStorage", "flutter-secure-storage"
-      )
-    ));
-  }
-
-  @GetMapping("/session")
-  public Map<String, Object> sessionScaffold(Authentication authentication) {
-    if (authentication == null || !authentication.isAuthenticated()) {
-      return Map.of(
-        "authenticated", false,
-        "status", "anonymous"
-      );
-    }
-
-    return Map.of(
-      "authenticated", true,
-      "status", "dev-token",
-      "authMode", "spring-dev-token",
-      "provider", "NAVER",
-      "user", Map.of(
-        "id", "dev-user",
-        "displayName", "ONMU Dev User"
-      )
-    );
+  public Map<String, Object> oauthLogin(
+    @PathVariable String provider,
+    @Valid @RequestBody OAuthLoginRequest request,
+    HttpServletRequest servletRequest
+  ) {
+    return authService.oauthLogin(provider, request, servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
   }
 
   @PostMapping("/refresh")
-  public ResponseEntity<Map<String, Object>> refreshScaffold(
-    @RequestBody(required = false) RefreshTokenRequest request
+  public Map<String, Object> refresh(
+    @Valid @RequestBody RefreshTokenRequest request,
+    HttpServletRequest servletRequest
   ) {
-    if (request == null || !devTokenAuthService.isValidRefreshToken(request.refreshToken())) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-        "error", "invalid_refresh_token",
-        "authenticated", false
-      ));
-    }
+    return authService.refresh(request.refreshToken().trim(), servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
+  }
 
-    return ResponseEntity.ok(devTokenAuthService.issueTokenResponse());
+  @PostMapping("/logout")
+  public Map<String, Object> logout(@RequestBody(required = false) RefreshTokenRequest request) {
+    return authService.logout(request == null ? null : request.refreshToken());
   }
 
   @DeleteMapping("/session")
-  public ResponseEntity<Map<String, Object>> logoutScaffold(Authentication authentication) {
-    return ResponseEntity.ok(Map.of(
-      "status", "scaffold",
-      "deleted", authentication != null && authentication.isAuthenticated()
-    ));
-  }
-
-  public record RefreshTokenRequest(String refreshToken) {
+  public Map<String, Object> deleteSession(@RequestBody(required = false) RefreshTokenRequest request) {
+    return authService.logout(request == null ? null : request.refreshToken());
   }
 }

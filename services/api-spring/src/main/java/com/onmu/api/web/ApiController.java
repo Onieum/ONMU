@@ -10,11 +10,13 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.onmu.api.security.AuthenticatedUser;
 
 @Validated
 @RestController
@@ -42,8 +45,16 @@ public class ApiController {
   }
 
   @GetMapping("/users/me")
-  public Map<String, Object> userMe() {
-    return onmuApiService.userMe();
+  public Map<String, Object> userMe(@AuthenticationPrincipal AuthenticatedUser user) {
+    return onmuApiService.userMe(user.userId());
+  }
+
+  @PatchMapping("/users/me")
+  public Map<String, Object> updateUserProfile(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody UpdateUserProfileRequest request
+  ) {
+    return onmuApiService.updateUserProfile(user.userId(), request);
   }
 
   @GetMapping("/groups")
