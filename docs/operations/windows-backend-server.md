@@ -32,7 +32,7 @@ Team devices
 
 | 영역 | Windows dev 서버 기준 |
 | --- | --- |
-| Main API | 확정 제품 API는 Spring Boot Main API입니다. 현재는 `services/api/server.mjs` Node smoke/contract stub이 `/healthz`, `/readyz`, CORS, request log, `/api/v1` contract shape만 임시로 검증합니다. Spring Boot Main API가 준비되면 같은 포트와 tunnel 계약을 Spring Boot로 넘깁니다. |
+| Main API | 확정 제품 API는 Spring Boot Main API입니다. `services/api/server.mjs` Node smoke/contract stub은 rollback/dev compatibility 용도로 남기고, Spring Boot Main API는 같은 `/healthz`, `/readyz`, CORS, request log, `/api/v1` 계약을 이어받습니다. |
 | Realtime Gateway | 1차 구현 전까지 별도 실행하지 않습니다. 구현 후에는 API 뒤에 두거나 개발용 포트를 별도로 정합니다. |
 | AI/Data Worker | FastAPI Worker로 확정합니다. 모바일 앱에서 직접 호출하지 않고 Spring Boot Main API 뒤의 내부 worker로 둡니다. 1차 Windows helper의 기본 실행 대상은 아닙니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
@@ -214,7 +214,7 @@ Spring Boot Main API가 준비되면 아래 계약은 Spring Boot로 넘깁니�
 | `GET /healthz` | 프로세스가 살아 있고 HTTP 요청을 받을 수 있는지 확인 |
 | `GET /readyz` | PostgreSQL, Redis, MinIO 등 로컬 의존성 연결 확인 |
 | `dev-api.onmu.cloud -> localhost:8080` | Cloudflare Tunnel을 통한 외부 팀 검증 경로 고정 |
-| `logs/api-access.log` | 팀원별 request log와 `?client=` / `x-onmu-dev-client` 추적 |
+| `logs/api-access.log` | Node stub과 Spring runtime 공통 request log. 팀원별 `?client=` / `x-onmu-dev-client` 추적 |
 | dev CORS와 `OPTIONS` preflight | Flutter web/dev 클라이언트 연결 검증 |
 | `/api/v1` prefix | Flutter API repository 전환 시 운영 API 계약과 같은 base path를 쓰기 위함 |
 | `groups/plans` 리소스명 | PR #61 이후 Flutter route와 repository가 `Group`, `Plan` 중심으로 정리되었기 때문 |
@@ -542,7 +542,7 @@ Get-Content logs\dev-backend-api.err.log -Tail 80
 Get-Content logs\api-access.log -Tail 20
 ```
 
-`logs\api-access.log`에서 `dev_client` 값이 `github-actions-cd`인 요청을 찾으면 Cloudflare를 거친 CD smoke 요청이 Windows API까지 도달한 것입니다.
+`logs\api-access.log`에서 `dev_client` 값이 `github-actions-cd`인 요청을 찾으면 Cloudflare를 거친 CD smoke 요청이 Windows API까지 도달한 것입니다. Spring runtime도 같은 파일에 JSONL 형식으로 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime`을 남깁니다. Authorization, bearer token, refresh token, request body, 개인정보는 기록하지 않습니다.
 
 ### Cloudflare Access TCP로 개발 DB 접속
 
@@ -641,7 +641,7 @@ docker compose -f infra/compose/docker-compose.yml logs -f redis
 docker compose -f infra/compose/docker-compose.yml logs -f minio
 ```
 
-API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
+API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. Node stub과 Spring runtime 모두 같은 경로를 사용합니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
 
 ```powershell
 curl "https://dev-api.onmu.cloud/healthz?client=geondong-mac"
@@ -829,5 +829,5 @@ Spring 전환 전 체크리스트:
 - 보호된 `/api/v1/**` smoke가 bearer token 없이는 401, 유효한 token으로는 200/201을 반환합니다.
 - CORS allowed origin은 `ONMU_DEV_CORS_ORIGINS` 또는 Spring property로 명시되며 wildcard origin/header를 사용하지 않습니다.
 - `DELETE /api/v1/auth/session` preflight가 허용 origin에서 통과합니다.
-- `logs\api-access.log` 수준의 요청 추적을 Spring runtime에서도 맞출지 별도 PR에서 결정합니다.
+- Spring runtime도 `logs\api-access.log`에 request-level access log를 남깁니다. `dev_client`, `origin`, `request_id`로 smoke 요청을 추적하되 token과 request body는 기록하지 않습니다.
 - Cloudflare Tunnel은 계속 `dev-api.onmu.cloud -> localhost:8080` API gateway만 노출하고 DB/Redis/MinIO 포트는 외부에 열지 않습니다.
