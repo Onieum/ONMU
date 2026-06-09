@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$Runtime,
+  [ValidateSet("dev", "integration")]
+  [string]$Environment = "dev",
   [switch]$DryRun,
   [int]$ApiPort = 8080,
   [string]$ApiHost = "127.0.0.1",
@@ -8,24 +10,53 @@ param(
   [string]$Client = "github-actions-cd",
   [int]$HealthzWaitTimeoutSeconds = 60,
   [int]$HealthzWaitIntervalSeconds = 2,
-  [switch]$SkipDependencyStart
+  [switch]$SkipDependencyStart,
+  [switch]$SkipPublicSmoke
 )
 
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$LogsDir = Join-Path $RepoRoot "logs"
-$DeployLogFile = Join-Path $LogsDir "deploy-dev-backend.log"
-$PidFile = Join-Path $LogsDir "dev-backend-api.pid"
-$StdoutLogFile = Join-Path $LogsDir "dev-backend-api.out.log"
-$StderrLogFile = Join-Path $LogsDir "dev-backend-api.err.log"
+$ApiPortWasProvided = $PSBoundParameters.ContainsKey("ApiPort")
+$PublicBaseUrlWasProvided = $PSBoundParameters.ContainsKey("PublicBaseUrl")
+$Environment = $Environment.ToLowerInvariant()
+
+if ($Environment -eq "integration" -and -not $ApiPortWasProvided) {
+  $ApiPort = 18080
+}
+
+$LogsDir = if ($Environment -eq "integration") {
+  Join-Path $RepoRoot "logs\integration"
+} else {
+  Join-Path $RepoRoot "logs"
+}
+$DeployLogFile = Join-Path $LogsDir "deploy-$Environment-backend.log"
+$PidFile = Join-Path $LogsDir "$Environment-backend-api.pid"
+$StdoutLogFile = Join-Path $LogsDir "$Environment-backend-api.out.log"
+$StderrLogFile = Join-Path $LogsDir "$Environment-backend-api.err.log"
 $AccessLogFile = Join-Path $LogsDir "api-access.log"
-$ComposeFile = Join-Path $RepoRoot "infra\compose\docker-compose.yml"
+$ComposeFile = if ($Environment -eq "integration") {
+  Join-Path $RepoRoot "infra\compose\docker-compose.integration.yml"
+} else {
+  Join-Path $RepoRoot "infra\compose\docker-compose.yml"
+}
 $SpringDir = Join-Path $RepoRoot "services\api-spring"
 $RuntimeWasProvided = $PSBoundParameters.ContainsKey("Runtime")
+$SecretPrefix = if ($Environment -eq "integration") { "int" } else { "dev" }
+$PostgresHostPort = if ($Environment -eq "integration") { 16432 } else { 15432 }
+$RedisHostPort = if ($Environment -eq "integration") { 6380 } else { 6379 }
+$MinioApiPort = if ($Environment -eq "integration") { 9100 } else { 9000 }
+$DatabaseName = if ($Environment -eq "integration") { "onmu_integration" } else { "onmu" }
+$DatabaseUser = if ($Environment -eq "integration") { "onmu_int" } else { "onmu" }
+$DefaultOnmuEnv = if ($Environment -eq "integration") { "integration" } else { "local" }
+$DefaultPublicBaseUrl = if ($Environment -eq "integration") {
+  if ($env:ONMU_INT_API_BASE_URL) { $env:ONMU_INT_API_BASE_URL } else { "https://int-api.onmu.cloud" }
+} else {
+  if ($env:ONMU_DEV_API_BASE_URL) { $env:ONMU_DEV_API_BASE_URL } else { "https://dev-api.onmu.cloud" }
+}
 
-if (-not $PublicBaseUrl) {
-  $PublicBaseUrl = "https://dev-api.onmu.cloud"
+if (-not $PublicBaseUrl -or -not $PublicBaseUrlWasProvided) {
+  $PublicBaseUrl = $DefaultPublicBaseUrl
 }
 
 function Write-DeployLog {
@@ -61,6 +92,8 @@ function Resolve-BackendRuntime {
     $candidate = $Runtime
   } elseif ($env:ONMU_BACKEND_RUNTIME) {
     $candidate = $env:ONMU_BACKEND_RUNTIME
+  } elseif ($Environment -eq "integration") {
+    $candidate = "spring"
   } else {
     $candidate = "node-stub"
   }
@@ -223,24 +256,48 @@ function Import-KeyVaultEnvForBackend {
   }
 
   Write-DeployLog "Loading API and dependency environment variables from Azure Key Vault. Secret values are not printed."
-  . $loader `
-    -VaultName $env:AZURE_KEY_VAULT_NAME `
-    -EnvName @(
-      "DATABASE_URL",
-      "POSTGRES_PASSWORD",
-      "REDIS_URL",
-      "OBJECT_STORAGE_ENDPOINT",
-      "OBJECT_STORAGE_BUCKET",
-      "MINIO_ROOT_USER",
-      "MINIO_ROOT_PASSWORD",
+  $envNames = @(
+    "ONMU_API_ACCESS_TOKEN",
+    "ONMU_API_REFRESH_TOKEN",
+    "ONMU_CORS_ORIGINS",
+    "DATABASE_URL",
+    "POSTGRES_PASSWORD",
+    "REDIS_URL",
+    "OBJECT_STORAGE_ENDPOINT",
+    "OBJECT_STORAGE_BUCKET",
+    "MINIO_ROOT_USER",
+    "MINIO_ROOT_PASSWORD"
+  )
+  if ($Environment -eq "dev") {
+    $envNames += @(
+      "ONMU_DEV_ACCESS_TOKEN",
+      "ONMU_DEV_REFRESH_TOKEN",
+      "ONMU_DEV_CORS_ORIGINS",
       "KAKAO_REST_API_KEY",
       "NAVER_CLIENT_ID",
       "NAVER_CLIENT_SECRET",
       "GOOGLE_MAPS_API_KEY",
       "FCM_PROJECT_ID",
       "APNS_TEAM_ID"
-    ) `
-    -RequiredEnv @("DATABASE_URL") `
+    )
+  }
+
+  $requiredEnv = if ($Environment -eq "integration") {
+    @(
+      "ONMU_API_ACCESS_TOKEN",
+      "ONMU_API_REFRESH_TOKEN",
+      "DATABASE_URL",
+      "POSTGRES_PASSWORD"
+    )
+  } else {
+    @("DATABASE_URL")
+  }
+
+  . $loader `
+    -VaultName $env:AZURE_KEY_VAULT_NAME `
+    -SecretPrefix $SecretPrefix `
+    -EnvName $envNames `
+    -RequiredEnv $requiredEnv `
     -Quiet
 }
 
@@ -250,7 +307,34 @@ function Start-LocalDependencies {
     return
   }
 
-  $env:POSTGRES_HOST_PORT = "15432"
+  if ($Environment -eq "integration") {
+    $env:INT_POSTGRES_HOST_PORT = [string]$PostgresHostPort
+    $env:INT_POSTGRES_DB = $DatabaseName
+    $env:INT_POSTGRES_USER = $DatabaseUser
+    $env:INT_REDIS_HOST_PORT = [string]$RedisHostPort
+    $env:INT_MINIO_API_HOST_PORT = [string]$MinioApiPort
+    $env:INT_MINIO_CONSOLE_HOST_PORT = "9101"
+    if ($env:POSTGRES_PASSWORD -and -not $env:INT_POSTGRES_PASSWORD) {
+      $env:INT_POSTGRES_PASSWORD = $env:POSTGRES_PASSWORD
+    }
+    if (-not $env:INT_POSTGRES_PASSWORD) {
+      $env:INT_POSTGRES_PASSWORD = "onmu-integration-local-only"
+    }
+    if ($env:MINIO_ROOT_USER -and -not $env:INT_MINIO_ROOT_USER) {
+      $env:INT_MINIO_ROOT_USER = $env:MINIO_ROOT_USER
+    }
+    if (-not $env:INT_MINIO_ROOT_USER) {
+      $env:INT_MINIO_ROOT_USER = "onmu-int"
+    }
+    if ($env:MINIO_ROOT_PASSWORD -and -not $env:INT_MINIO_ROOT_PASSWORD) {
+      $env:INT_MINIO_ROOT_PASSWORD = $env:MINIO_ROOT_PASSWORD
+    }
+    if (-not $env:INT_MINIO_ROOT_PASSWORD) {
+      $env:INT_MINIO_ROOT_PASSWORD = "onmu-integration-local-only"
+    }
+  } else {
+    $env:POSTGRES_HOST_PORT = [string]$PostgresHostPort
+  }
   Invoke-NativeCommand -FilePath "docker" -ArgumentList @("compose", "-f", $ComposeFile, "up", "-d", "postgres", "redis", "minio")
   Invoke-NativeCommand -FilePath "docker" -ArgumentList @("compose", "-f", $ComposeFile, "ps")
 }
@@ -309,11 +393,25 @@ function Start-NodeStubBackend {
   Start-LocalDependencies
   Stop-ExistingBackend
 
-  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { "local" }
+  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { $DefaultOnmuEnv }
   $env:API_HOST = $ApiHost
   $env:HOST = $ApiHost
   $env:API_PORT = [string]$ApiPort
   $env:PORT = [string]$ApiPort
+  if ($Environment -eq "integration") {
+    if (-not $env:DATABASE_URL) {
+      $env:DATABASE_URL = "postgresql://${DatabaseUser}@localhost:${PostgresHostPort}/${DatabaseName}"
+    }
+    if (-not $env:REDIS_URL) {
+      $env:REDIS_URL = "redis://localhost:${RedisHostPort}/0"
+    }
+    if (-not $env:OBJECT_STORAGE_ENDPOINT) {
+      $env:OBJECT_STORAGE_ENDPOINT = "http://localhost:${MinioApiPort}"
+    }
+    if (-not $env:OBJECT_STORAGE_BUCKET) {
+      $env:OBJECT_STORAGE_BUCKET = "onmu-integration"
+    }
+  }
   if (-not $env:ACCESS_LOG_FILE) {
     $env:ACCESS_LOG_FILE = $AccessLogFile
   }
@@ -389,8 +487,21 @@ function Set-SpringDatasourceFromDatabaseUrl {
   }
 }
 
+function Get-ApiAccessToken {
+  if ($env:ONMU_API_ACCESS_TOKEN) {
+    return $env:ONMU_API_ACCESS_TOKEN
+  }
+  if ($env:ONMU_DEV_ACCESS_TOKEN) {
+    return $env:ONMU_DEV_ACCESS_TOKEN
+  }
+  return ""
+}
+
 function Set-SpringEnvironment {
-  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { "local" }
+  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { $DefaultOnmuEnv }
+  if ($Environment -eq "integration" -and -not $env:SPRING_PROFILES_ACTIVE) {
+    $env:SPRING_PROFILES_ACTIVE = "integration"
+  }
   $env:SERVER_ADDRESS = $ApiHost
   $env:SERVER_PORT = [string]$ApiPort
   $env:API_HOST = $ApiHost
@@ -399,18 +510,42 @@ function Set-SpringEnvironment {
     $env:ONMU_ACCESS_LOG_PATH = $AccessLogFile
   }
   if (-not $env:POSTGRES_HOST_PORT) {
-    $env:POSTGRES_HOST_PORT = "15432"
+    $env:POSTGRES_HOST_PORT = [string]$PostgresHostPort
+  }
+  if ($Environment -eq "integration") {
+    if (-not $env:SPRING_DATASOURCE_URL -and -not $env:DATABASE_URL) {
+      $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:${PostgresHostPort}/${DatabaseName}"
+    }
+    if (-not $env:SPRING_DATASOURCE_USERNAME) {
+      $env:SPRING_DATASOURCE_USERNAME = $DatabaseUser
+    }
+    if (-not $env:REDIS_URL) {
+      $env:REDIS_URL = "redis://localhost:${RedisHostPort}/0"
+    }
+    if (-not $env:OBJECT_STORAGE_ENDPOINT -and -not $env:MINIO_ENDPOINT) {
+      $env:OBJECT_STORAGE_ENDPOINT = "http://localhost:${MinioApiPort}"
+    }
+    if (-not $env:OBJECT_STORAGE_BUCKET) {
+      $env:OBJECT_STORAGE_BUCKET = "onmu-integration"
+    }
   }
   if (-not $env:SPRING_DATASOURCE_PASSWORD -and $env:POSTGRES_PASSWORD) {
     $env:SPRING_DATASOURCE_PASSWORD = $env:POSTGRES_PASSWORD
   }
-
-  Set-SpringDatasourceFromDatabaseUrl
-  if (-not $env:ONMU_DEV_ACCESS_TOKEN) {
-    throw "Spring runtime requires ONMU_DEV_ACCESS_TOKEN for protected /api/v1 smoke tests. Set it from Key Vault or the local process environment."
+  if ($Environment -eq "integration" -and -not $env:SPRING_DATASOURCE_PASSWORD) {
+    if ($env:INT_POSTGRES_PASSWORD) {
+      $env:SPRING_DATASOURCE_PASSWORD = $env:INT_POSTGRES_PASSWORD
+    } else {
+      $env:SPRING_DATASOURCE_PASSWORD = "onmu-integration-local-only"
+    }
   }
 
-  Write-DeployLog "Spring environment prepared for ${ApiHost}:${ApiPort}. Secret values are not printed."
+  Set-SpringDatasourceFromDatabaseUrl
+  if (-not (Get-ApiAccessToken)) {
+    throw "Spring runtime requires ONMU_API_ACCESS_TOKEN or ONMU_DEV_ACCESS_TOKEN for protected /api/v1 smoke tests. Set it from Key Vault or the local process environment."
+  }
+
+  Write-DeployLog "Spring environment prepared for $Environment on ${ApiHost}:${ApiPort}. Secret values are not printed."
 }
 
 function Start-SpringBackend {
@@ -421,7 +556,11 @@ function Start-SpringBackend {
     Stop-ExistingBackend
     Write-DeployLog "[dry-run] Check services/api-spring for Maven executable project."
     Write-DeployLog "[dry-run] Prepare SERVER_ADDRESS/SERVER_PORT and Spring datasource env without printing secret values."
-    Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+    if ($Environment -eq "integration") {
+      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests -Dspring-boot.repackage.classifier=integration package"
+    } else {
+      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+    }
     Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     Write-DeployLog "[dry-run] Write PID to $PidFile"
     Wait-BackendHealthz -ProcessId 0 -RuntimeName "Spring Boot Main API"
@@ -441,17 +580,29 @@ function Start-SpringBackend {
   Set-SpringEnvironment
   Stop-ExistingBackend
 
+  $mavenArgs = if ($Environment -eq "integration") {
+    @("-DskipTests", "-Dspring-boot.repackage.classifier=integration", "package")
+  } else {
+    @("-DskipTests", "package")
+  }
+
   Push-Location $SpringDir
   try {
-    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "package")
+    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList $mavenArgs
   } finally {
     Pop-Location
   }
 
-  $jar = Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
-    Where-Object { $_.Name -notlike "*.original" } |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
+  $jar = if ($Environment -eq "integration") {
+    Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*-integration.jar" |
+      Sort-Object LastWriteTime -Descending |
+      Select-Object -First 1
+  } else {
+    Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
+      Where-Object { $_.Name -notlike "*.original" -and $_.Name -notlike "*-integration.jar" } |
+      Sort-Object LastWriteTime -Descending |
+      Select-Object -First 1
+  }
 
   if (-not $jar) {
     throw "Spring Boot jar was not found after Maven package."
@@ -505,12 +656,13 @@ function Invoke-SmokeRequest {
     $curlArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
     $displayArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
     if ($UseApiAuth) {
-      if (-not $env:ONMU_DEV_ACCESS_TOKEN -and -not $DryRun) {
-        throw "ONMU_DEV_ACCESS_TOKEN is required for authenticated Spring smoke requests."
+      $apiAccessToken = Get-ApiAccessToken
+      if (-not $apiAccessToken -and -not $DryRun) {
+        throw "ONMU_API_ACCESS_TOKEN or ONMU_DEV_ACCESS_TOKEN is required for authenticated Spring smoke requests."
       }
 
-      if ($env:ONMU_DEV_ACCESS_TOKEN) {
-        $curlArgs += @("-H", "Authorization: Bearer $env:ONMU_DEV_ACCESS_TOKEN")
+      if ($apiAccessToken) {
+        $curlArgs += @("-H", "Authorization: Bearer $apiAccessToken")
       }
       $displayArgs += @("-H", "Authorization: Bearer <redacted>")
     }
@@ -546,6 +698,52 @@ function Invoke-SmokeRequest {
   }
 }
 
+function Invoke-CorsPreflightSmoke {
+  $base = $PublicBaseUrl.TrimEnd("/")
+  $origin = if ($env:ONMU_SMOKE_CORS_ORIGIN) { $env:ONMU_SMOKE_CORS_ORIGIN } else { $base }
+  $targetUrl = Add-SmokeClientQuery -Url "$base/api/v1/home/summary"
+  $responseFile = [System.IO.Path]::GetTempFileName()
+
+  try {
+    $curlArgs = @(
+      "-sS",
+      "-o",
+      $responseFile,
+      "-w",
+      "%{http_code}",
+      "-X",
+      "OPTIONS",
+      $targetUrl,
+      "-H",
+      "Origin: $origin",
+      "-H",
+      "Access-Control-Request-Method: GET",
+      "-H",
+      "Access-Control-Request-Headers: Authorization, Content-Type"
+    )
+
+    if ($DryRun) {
+      Write-DeployLog "[dry-run] curl.exe $($curlArgs -join ' ')"
+      return
+    }
+
+    $statusText = & curl.exe @curlArgs
+    if ($LASTEXITCODE -ne 0) {
+      throw "curl failed for CORS preflight $targetUrl"
+    }
+
+    $status = [int]$statusText
+    if (@(200, 204) -notcontains $status) {
+      $responseBody = [System.IO.File]::ReadAllText($responseFile, [System.Text.Encoding]::UTF8)
+      throw "CORS preflight failed: OPTIONS $targetUrl returned $status. Body=$responseBody"
+    }
+
+    Write-DeployLog "Smoke passed: OPTIONS $targetUrl -> $status"
+  } finally {
+    Remove-Item -LiteralPath $responseFile -ErrorAction SilentlyContinue
+  }
+}
+
 function Invoke-SmokeTests {
   $base = $PublicBaseUrl.TrimEnd("/")
   Write-DeployLog "Running public smoke tests against $base with client=$Client."
@@ -553,6 +751,10 @@ function Invoke-SmokeTests {
 
   Invoke-SmokeRequest -Method "GET" -Url "$base/healthz" -ExpectedStatus @(200)
   Invoke-SmokeRequest -Method "GET" -Url "$base/readyz" -ExpectedStatus @(200)
+  if ($useApiAuth) {
+    Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/home/summary" -ExpectedStatus @(401)
+    Invoke-CorsPreflightSmoke
+  }
   Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/home/summary" -ExpectedStatus @(200) -UseApiAuth:$useApiAuth
   Invoke-SmokeRequest -Method "GET" -Url "$base/api/v1/groups/1/plans/101/place-candidates" -ExpectedStatus @(200) -UseApiAuth:$useApiAuth
 
@@ -580,11 +782,18 @@ function Invoke-SmokeTests {
 
 Assert-RepoRoot
 $selectedRuntime = Resolve-BackendRuntime
+Write-DeployLog "Selected deploy environment: $Environment"
 Write-DeployLog "Selected backend runtime: $selectedRuntime"
-Write-DeployLog "Runtime priority: CLI -Runtime, then ONMU_BACKEND_RUNTIME, then node-stub."
+Write-DeployLog "Runtime priority: CLI -Runtime, then ONMU_BACKEND_RUNTIME, then environment default."
+Write-DeployLog "Public base URL: $PublicBaseUrl"
+Write-DeployLog "Logs directory: $LogsDir"
 Write-DeployLog "DryRun: $DryRun"
 
-Sync-DevBranch
+if ($Environment -eq "dev") {
+  Sync-DevBranch
+} else {
+  Write-DeployLog "Skipping git dev branch sync for integration deployment; using current checkout."
+}
 
 switch ($selectedRuntime) {
   "node-stub" {
@@ -595,5 +804,9 @@ switch ($selectedRuntime) {
   }
 }
 
-Invoke-SmokeTests
-Write-DeployLog "Windows dev backend deployment finished."
+if ($SkipPublicSmoke) {
+  Write-DeployLog "Skipping public smoke tests because -SkipPublicSmoke was provided."
+} else {
+  Invoke-SmokeTests
+}
+Write-DeployLog "Windows $Environment backend deployment finished."

@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$VaultName = $env:AZURE_KEY_VAULT_NAME,
+  [ValidateSet("dev", "int")]
+  [string]$SecretPrefix = "dev",
   [string[]]$EnvName = @(),
   [string[]]$RequiredEnv = @(),
   [switch]$Quiet
@@ -13,23 +15,32 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
-  DATABASE_URL = "dev-database-url"
-  POSTGRES_PASSWORD = "dev-postgres-password"
-  REDIS_URL = "dev-redis-url"
-  OBJECT_STORAGE_ENDPOINT = "dev-object-storage-endpoint"
-  OBJECT_STORAGE_BUCKET = "dev-object-storage-bucket"
-  MINIO_ROOT_USER = "dev-minio-root-user"
-  MINIO_ROOT_PASSWORD = "dev-minio-root-password"
-  CLOUDFLARE_API_TOKEN = "dev-cloudflare-api-token"
-  KAKAO_REST_API_KEY = "dev-kakao-rest-api-key"
-  NAVER_CLIENT_ID = "dev-naver-client-id"
-  NAVER_CLIENT_SECRET = "dev-naver-client-secret"
-  GOOGLE_MAPS_API_KEY = "dev-google-maps-api-key"
-  FCM_PROJECT_ID = "dev-fcm-project-id"
-  APNS_TEAM_ID = "dev-apns-team-id"
-  JIRA_EMAIL = "dev-jira-email"
-  JIRA_API_TOKEN = "dev-jira-api-token"
-  NOTION_TOKEN = "dev-notion-token"
+  ONMU_API_ACCESS_TOKEN = "$SecretPrefix-api-access-token"
+  ONMU_API_REFRESH_TOKEN = "$SecretPrefix-api-refresh-token"
+  ONMU_CORS_ORIGINS = "$SecretPrefix-cors-origins"
+  DATABASE_URL = "$SecretPrefix-database-url"
+  POSTGRES_PASSWORD = "$SecretPrefix-postgres-password"
+  REDIS_URL = "$SecretPrefix-redis-url"
+  OBJECT_STORAGE_ENDPOINT = "$SecretPrefix-object-storage-endpoint"
+  OBJECT_STORAGE_BUCKET = "$SecretPrefix-object-storage-bucket"
+  MINIO_ROOT_USER = "$SecretPrefix-minio-root-user"
+  MINIO_ROOT_PASSWORD = "$SecretPrefix-minio-root-password"
+}
+
+if ($SecretPrefix -eq "dev") {
+  $secretMap.ONMU_DEV_ACCESS_TOKEN = "dev-api-access-token"
+  $secretMap.ONMU_DEV_REFRESH_TOKEN = "dev-api-refresh-token"
+  $secretMap.ONMU_DEV_CORS_ORIGINS = "dev-cors-origins"
+  $secretMap.CLOUDFLARE_API_TOKEN = "dev-cloudflare-api-token"
+  $secretMap.KAKAO_REST_API_KEY = "dev-kakao-rest-api-key"
+  $secretMap.NAVER_CLIENT_ID = "dev-naver-client-id"
+  $secretMap.NAVER_CLIENT_SECRET = "dev-naver-client-secret"
+  $secretMap.GOOGLE_MAPS_API_KEY = "dev-google-maps-api-key"
+  $secretMap.FCM_PROJECT_ID = "dev-fcm-project-id"
+  $secretMap.APNS_TEAM_ID = "dev-apns-team-id"
+  $secretMap.JIRA_EMAIL = "dev-jira-email"
+  $secretMap.JIRA_API_TOKEN = "dev-jira-api-token"
+  $secretMap.NOTION_TOKEN = "dev-notion-token"
 }
 
 $loaded = New-Object System.Collections.Generic.List[string]

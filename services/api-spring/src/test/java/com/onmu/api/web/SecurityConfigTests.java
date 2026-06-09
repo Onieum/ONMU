@@ -30,6 +30,11 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(controllers = {ApiController.class, AuthController.class})
 @Import({SecurityConfig.class, DevTokenAuthenticationFilter.class, DevTokenAuthService.class})
 @TestPropertySource(properties = {
+  "ONMU_API_ACCESS_TOKEN=test-access-token",
+  "ONMU_API_REFRESH_TOKEN=test-refresh-token",
+  "ONMU_CORS_ORIGINS=http://localhost:5173",
+  "onmu.security.access-token=test-access-token",
+  "onmu.security.refresh-token=test-refresh-token",
   "onmu.security.dev-access-token=test-access-token",
   "onmu.security.dev-refresh-token=test-refresh-token",
   "onmu.security.cors.allowed-origins=http://localhost:5173",

@@ -39,24 +39,27 @@ public class DevTokenAuthService {
 
   private String accessToken() {
     return firstPresent(
+      environment.getProperty("ONMU_API_ACCESS_TOKEN"),
       environment.getProperty("ONMU_DEV_ACCESS_TOKEN"),
+      environment.getProperty("onmu.security.access-token"),
       environment.getProperty("onmu.security.dev-access-token")
     );
   }
 
   private String refreshToken() {
     return firstPresent(
+      environment.getProperty("ONMU_API_REFRESH_TOKEN"),
       environment.getProperty("ONMU_DEV_REFRESH_TOKEN"),
+      environment.getProperty("onmu.security.refresh-token"),
       environment.getProperty("onmu.security.dev-refresh-token")
     );
   }
 
-  private String firstPresent(String first, String second) {
-    if (StringUtils.hasText(first)) {
-      return first;
-    }
-    if (StringUtils.hasText(second)) {
-      return second;
+  private String firstPresent(String... candidates) {
+    for (String candidate : candidates) {
+      if (StringUtils.hasText(candidate)) {
+        return candidate;
+      }
     }
     return "";
   }
