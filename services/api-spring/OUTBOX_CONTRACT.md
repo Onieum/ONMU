@@ -62,3 +62,11 @@ Spring Boot Main API owns `outbox_events`. FastAPI Worker consumes AI/Data event
 | --- | --- | --- |
 | `place_candidate.created` | `place_candidate` | `groupId`, `planId`, `candidateId`, `name` |
 | `place_candidate.heart_updated` | `place_candidate` | `groupId`, `planId`, `candidateId`, `userId`, `hearted` |
+
+## Vote Event Payloads
+
+| Event type | Aggregate type | Payload |
+| --- | --- | --- |
+| `vote.created` | `vote` | `groupId`, `voteId`, `targetType`, `targetId`, `options`, `candidateIds` |
+
+`candidateIds`는 장소 후보 기반 투표일 때 후보 public id 배열로 기록한다. 일반 문자열 투표는 빈 배열을 기록하고, `options`에는 표시용 option label 배열을 보존한다.

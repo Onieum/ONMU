@@ -23,6 +23,9 @@ import com.onmu.api.domain.SettlementRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
+import com.onmu.api.domain.VoteOptionEntity;
+import com.onmu.api.domain.VoteOptionRepository;
+import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
@@ -66,6 +69,8 @@ public class OnmuApiService {
   private final PlanParticipantRepository planParticipantRepository;
   private final SettlementDraftRepository settlementDraftRepository;
   private final SettlementRepository settlementRepository;
+  private final VoteOptionRepository voteOptionRepository;
+  private final VoteResponseRepository voteResponseRepository;
   private final OutboxService outboxService;
   private final ObjectMapper objectMapper;
 
@@ -81,6 +86,8 @@ public class OnmuApiService {
     PlanParticipantRepository planParticipantRepository,
     SettlementDraftRepository settlementDraftRepository,
     SettlementRepository settlementRepository,
+    VoteOptionRepository voteOptionRepository,
+    VoteResponseRepository voteResponseRepository,
     OutboxService outboxService,
     ObjectMapper objectMapper
   ) {
@@ -95,6 +102,8 @@ public class OnmuApiService {
     this.planParticipantRepository = planParticipantRepository;
     this.settlementDraftRepository = settlementDraftRepository;
     this.settlementRepository = settlementRepository;
+    this.voteOptionRepository = voteOptionRepository;
+    this.voteResponseRepository = voteResponseRepository;
     this.outboxService = outboxService;
     this.objectMapper = objectMapper;
   }
@@ -265,9 +274,16 @@ public class OnmuApiService {
       .toList(), 501);
     String targetType = normalizeVoteTargetType(request.targetType());
     String targetId = resolveVoteTargetId(group, targetType, request.targetId());
-    List<String> options = request.options() == null || request.options().isEmpty()
+    PlanEntity targetPlan = "PLAN".equals(targetType) ? planOrThrow(group, targetId) : null;
+    List<String> requestedOptions = request.options() == null || request.options().isEmpty()
       ? List.of("A", "B")
       : request.options();
+    List<String> candidateIds = voteCandidateIds(request, requestedOptions, targetPlan);
+    List<String> options = candidateIds.isEmpty()
+      ? requestedOptions
+      : candidateIds.stream()
+        .map(candidateId -> placeCandidateOrThrow(targetPlan, candidateId).getName())
+        .toList();
 
     VoteEntity vote = voteRepository.save(new VoteEntity(
       publicId,
@@ -278,13 +294,16 @@ public class OnmuApiService {
       request.title().trim(),
       toJson(Map.of("options", options))
     ));
+    List<VoteOptionEntity> savedOptions = saveVoteOptions(vote, targetPlan, options, candidateIds);
     Map<String, Object> outboxPayload = new LinkedHashMap<>();
     outboxPayload.put("groupId", group.getPublicId());
     outboxPayload.put("voteId", vote.getPublicId());
     outboxPayload.put("targetType", vote.getTargetType());
     outboxPayload.put("targetId", vote.getTargetId());
+    outboxPayload.put("options", options);
+    outboxPayload.put("candidateIds", candidateIds);
     outboxService.record("vote.created", "vote", vote.getId(), outboxPayload);
-    return voteCard(vote);
+    return voteCard(vote, savedOptions);
   }
 
   @Transactional(readOnly = true)
@@ -551,6 +570,10 @@ public class OnmuApiService {
   }
 
   private Map<String, Object> voteCard(VoteEntity vote) {
+    return voteCard(vote, null);
+  }
+
+  private Map<String, Object> voteCard(VoteEntity vote, List<VoteOptionEntity> optionRows) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", vote.getPublicId());
     value.put("groupId", vote.getGroup().getPublicId());
@@ -560,14 +583,70 @@ public class OnmuApiService {
     value.put("targetId", vote.getTargetId());
     value.put("status", vote.getStatus());
     value.put("closed", !"open".equalsIgnoreCase(vote.getStatus()));
-    value.put("options", readOptions(vote.getPayload()));
+    value.put("options", optionRows == null ? voteOptions(vote) : optionRows.stream().map(this::voteOptionCard).toList());
     return value;
+  }
+
+  private List<?> voteOptions(VoteEntity vote) {
+    List<VoteOptionEntity> optionRows = voteOptionRepository.findByVoteOrderBySortOrderAsc(vote);
+    if (optionRows != null && !optionRows.isEmpty()) {
+      return optionRows.stream().map(this::voteOptionCard).toList();
+    }
+    return readOptions(vote.getPayload());
+  }
+
+  private Map<String, Object> voteOptionCard(VoteOptionEntity option) {
+    if ("PLACE_CANDIDATE".equalsIgnoreCase(option.getTargetType()) && option.getVote().getTargetId() != null) {
+      return placeCandidateVoteOptionCard(option);
+    }
+    Map<String, Object> value = textVoteOptionCard(option.getLabel());
+    value.put("id", option.getPublicId());
+    value.put("targetType", stringOrDefault(option.getTargetType(), "TEXT"));
+    value.put("targetId", option.getTargetId());
+    putVoteResultFields(value, option);
+    return value;
+  }
+
+  private Map<String, Object> placeCandidateVoteOptionCard(VoteOptionEntity option) {
+    GroupEntity group = option.getVote().getGroup();
+    PlanEntity plan = planOrThrow(group, option.getVote().getTargetId());
+    PlaceCandidateEntity candidate = placeCandidateOrThrow(plan, option.getTargetId());
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", option.getPublicId());
+    value.put("label", candidate.getName());
+    value.put("targetType", option.getTargetType());
+    value.put("targetId", option.getTargetId());
+    value.put("candidateId", candidate.getPublicId());
+    value.put("candidateName", candidate.getName());
+    value.put("name", candidate.getName());
+    value.put("category", stringOrDefault(candidate.getCategory(), "장소"));
+    value.put("address", stringOrDefault(candidate.getAddress(), ""));
+    value.put("heartCount", candidateHeartCount(candidate));
+    putVoteResultFields(value, option);
+    return value;
+  }
+
+  private Map<String, Object> textVoteOptionCard(String label) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("label", label);
+    value.put("targetType", "TEXT");
+    value.put("responseCount", 0);
+    value.put("countLabel", "0표");
+    value.put("progress", 0);
+    return value;
+  }
+
+  private void putVoteResultFields(Map<String, Object> value, VoteOptionEntity option) {
+    long totalResponses = voteResponseRepository.countByVote(option.getVote());
+    long optionResponses = voteResponseRepository.countByVoteOption(option);
+    value.put("responseCount", Math.toIntExact(optionResponses));
+    value.put("countLabel", optionResponses + "표");
+    value.put("progress", totalResponses == 0 ? 0 : (double) optionResponses / totalResponses);
   }
 
   private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate, UserEntity user) {
     Map<String, Object> payload = readObject(candidate.getPayload());
-    int payloadFavoriteCount = intOrDefault(payload.get("favoriteCount"), 0);
-    int heartCount = Math.max(payloadFavoriteCount, Math.toIntExact(placeCandidateHeartRepository.countByCandidate(candidate)));
+    int heartCount = candidateHeartCount(candidate);
     boolean myHearted = placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user);
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", candidate.getPublicId());
@@ -596,6 +675,12 @@ public class OnmuApiService {
     return value;
   }
 
+  private int candidateHeartCount(PlaceCandidateEntity candidate) {
+    Map<String, Object> payload = readObject(candidate.getPayload());
+    int payloadFavoriteCount = intOrDefault(payload.get("favoriteCount"), 0);
+    return Math.max(payloadFavoriteCount, Math.toIntExact(placeCandidateHeartRepository.countByCandidate(candidate)));
+  }
+
   private Map<String, Object> schedulePlaceCard(GroupEntity group, PlanEntity plan, SchedulePlaceEntity schedulePlace) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", schedulePlace.getPublicId());
@@ -609,6 +694,78 @@ public class OnmuApiService {
     value.put("note", schedulePlace.getNote());
     value.put("sortOrder", schedulePlace.getSortOrder());
     return value;
+  }
+
+  private List<String> voteCandidateIds(
+    CreateVoteRequest request,
+    List<String> requestedOptions,
+    PlanEntity targetPlan
+  ) {
+    List<String> explicitCandidateIds = compactStrings(request.placeCandidateIds());
+    if (!explicitCandidateIds.isEmpty()) {
+      requirePlanTargetForCandidateVote(targetPlan);
+      explicitCandidateIds.forEach(candidateId -> placeCandidateOrThrow(targetPlan, candidateId));
+      return explicitCandidateIds;
+    }
+    List<String> optionCandidateIds = compactStrings(requestedOptions);
+    if (
+      targetPlan != null
+        && "PLACE".equalsIgnoreCase(request.voteType())
+        && !optionCandidateIds.isEmpty()
+        && optionCandidateIds.stream().allMatch(this::looksLikePublicCandidateId)
+    ) {
+      optionCandidateIds.forEach(candidateId -> placeCandidateOrThrow(targetPlan, candidateId));
+      return optionCandidateIds;
+    }
+    return List.of();
+  }
+
+  private List<VoteOptionEntity> saveVoteOptions(
+    VoteEntity vote,
+    PlanEntity targetPlan,
+    List<String> options,
+    List<String> candidateIds
+  ) {
+    List<VoteOptionEntity> savedOptions = new ArrayList<>();
+    for (int index = 0; index < options.size(); index += 1) {
+      String candidateId = index < candidateIds.size() ? candidateIds.get(index) : null;
+      PlaceCandidateEntity candidate = candidateId == null ? null : placeCandidateOrThrow(targetPlan, candidateId);
+      String label = candidate == null ? options.get(index) : candidate.getName();
+      String targetType = candidate == null ? "TEXT" : "PLACE_CANDIDATE";
+      String targetId = candidate == null ? label : candidate.getPublicId();
+      VoteOptionEntity option = new VoteOptionEntity(
+        vote,
+        "vopt-" + vote.getPublicId() + "-" + (index + 1),
+        label,
+        targetType,
+        targetId,
+        index + 1,
+        candidate == null ? "{}" : toJson(Map.of("candidateId", candidate.getPublicId()))
+      );
+      VoteOptionEntity savedOption = voteOptionRepository.save(option);
+      savedOptions.add(savedOption == null ? option : savedOption);
+    }
+    return savedOptions;
+  }
+
+  private void requirePlanTargetForCandidateVote(PlanEntity targetPlan) {
+    if (targetPlan == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_vote_plan_for_place_candidate");
+    }
+  }
+
+  private boolean looksLikePublicCandidateId(String value) {
+    return value != null && value.matches("\\d+");
+  }
+
+  private List<String> compactStrings(List<String> values) {
+    if (values == null) {
+      return List.of();
+    }
+    return values.stream()
+      .filter(value -> value != null && !value.isBlank())
+      .map(String::trim)
+      .toList();
   }
 
   private Map<String, Object> participantCard(PlanParticipantEntity participant) {

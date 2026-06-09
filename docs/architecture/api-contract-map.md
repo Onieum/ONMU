@@ -93,7 +93,27 @@
   "voteType": "PLACE",
   "targetType": "PLAN",
   "targetId": "101",
-  "title": "제주도 여행 장소 투표"
+  "title": "제주도 여행 장소 투표",
+  "placeCandidateIds": ["201", "202"]
+}
+```
+
+장소 후보 기반 투표는 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE` 조합을 기준으로 연결한다. 요청은 기존 `options: ["카페", "식당"]` 문자열 방식을 계속 허용하고, 후보 기반 생성에는 `placeCandidateIds`를 우선 사용한다. 호환을 위해 `options`에 후보 public id 문자열만 들어온 경우에도 후보 option으로 연결할 수 있다.
+
+투표 목록/상세의 `options`는 문자열 fallback을 유지하되, 후보 option이면 다음 필드를 포함한 object를 반환한다.
+
+```json
+{
+  "label": "온무식당",
+  "targetType": "PLACE_CANDIDATE",
+  "targetId": "201",
+  "candidateId": "201",
+  "candidateName": "온무식당",
+  "address": "서울",
+  "heartCount": 3,
+  "responseCount": 0,
+  "countLabel": "0표",
+  "progress": 0
 }
 ```
 

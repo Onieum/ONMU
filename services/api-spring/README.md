@@ -171,6 +171,7 @@ Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 �
 - Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. public dev 기본 runtime 전환 전에는 Naver OAuth 실제 token exchange, refresh token 저장/회전을 별도 PR에서 보강합니다.
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`를 받을 수 있고, 응답 결과는 dev mock `source`, 합성 좌표, `heartCount`, `myHearted`를 포함합니다.
 - 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.
+- 장소 후보 기반 투표는 `POST /api/v1/groups/{groupId}/votes`에서 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE`, `placeCandidateIds`를 받습니다. 기존 `options` 문자열 방식은 계속 허용하며, 후보 option 응답에는 `candidateId`, `candidateName`, `address`, `heartCount`, `responseCount`, `countLabel`, `progress`를 포함합니다.
 - 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
 - request log는 Node stub과 같은 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
@@ -201,6 +202,7 @@ curl http://localhost:8080/api/v1/groups/1/plans
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans -H "Content-Type: application/json" --data-binary '{ "title": "새 약속" }'
 curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary '{ "query": "카페", "groupId": "1", "planId": "101", "lat": 37.5665, "lng": 126.9780, "radius": 1000, "category": "cafe" }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "장소 투표", "options": ["A", "B"] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "후보 기반 장소 투표", "placeCandidateIds": ["201", "202"] }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary '{ "name": "새 후보", "category": "카페", "address": "서울" }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201

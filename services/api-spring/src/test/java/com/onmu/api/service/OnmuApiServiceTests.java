@@ -29,6 +29,9 @@ import com.onmu.api.domain.SettlementRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
+import com.onmu.api.domain.VoteOptionEntity;
+import com.onmu.api.domain.VoteOptionRepository;
+import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
@@ -74,6 +77,10 @@ class OnmuApiServiceTests {
   @Mock
   private SettlementRepository settlementRepository;
   @Mock
+  private VoteOptionRepository voteOptionRepository;
+  @Mock
+  private VoteResponseRepository voteResponseRepository;
+  @Mock
   private OutboxService outboxService;
 
   private OnmuApiService service;
@@ -95,6 +102,8 @@ class OnmuApiServiceTests {
       planParticipantRepository,
       settlementDraftRepository,
       settlementRepository,
+      voteOptionRepository,
+      voteResponseRepository,
       outboxService,
       new ObjectMapper()
     );
@@ -188,6 +197,17 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void voteDetailKeepsStringOptionsWhenNoVoteOptionRowsExist() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupAndPublicId(group, "501")).thenReturn(Optional.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of());
+
+    var detail = service.vote("1", "501");
+
+    assertThat(detail.get("options")).isEqualTo(List.of("카페", "식당"));
+  }
+
+  @Test
   void creatingVoteRecordsOutboxEvent() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
@@ -211,6 +231,162 @@ class OnmuApiServiceTests {
         && "502".equals(payload.get("voteId"))
         && "PLAN".equals(payload.get("targetType"))
         && "101".equals(payload.get("targetId")))
+    );
+  }
+
+  @Test
+  void creatingPlaceCandidateVoteConnectsCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"favoriteCount\":2}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(voteOptionRepository.save(any(VoteOptionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(3L);
+
+    var created = service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "장소 후보 투표",
+      List.of("201")
+    ));
+
+    assertThat(created).containsEntry("id", "502");
+    assertThat(created.get("options")).asList()
+      .singleElement()
+      .satisfies(option -> {
+        assertThat(option).isInstanceOf(java.util.Map.class);
+        java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) option;
+        assertThat(optionMap.get("candidateId")).isEqualTo("201");
+        assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        assertThat(optionMap.get("address")).isEqualTo("서울");
+        assertThat(optionMap.get("heartCount")).isEqualTo(3);
+      });
+  }
+
+  @Test
+  void voteDetailReturnsPlaceCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    VoteOptionEntity option = new VoteOptionEntity(
+      vote,
+      "vopt-501-1",
+      "온무식당",
+      "PLACE_CANDIDATE",
+      "201",
+      1,
+      "{\"candidateId\":\"201\"}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupAndPublicId(group, "501")).thenReturn(Optional.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of(option));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(2L);
+    when(voteResponseRepository.countByVote(vote)).thenReturn(4L);
+    when(voteResponseRepository.countByVoteOption(option)).thenReturn(3L);
+
+    var detail = service.vote("1", "501");
+
+    assertThat(detail.get("options")).asList()
+      .singleElement()
+      .satisfies(rawOption -> {
+        java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) rawOption;
+        assertThat(optionMap.get("label")).isEqualTo("온무식당");
+        assertThat(optionMap.get("candidateId")).isEqualTo("201");
+        assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        assertThat(optionMap.get("address")).isEqualTo("서울");
+        assertThat(optionMap.get("heartCount")).isEqualTo(2);
+        assertThat(optionMap.get("responseCount")).isEqualTo(3);
+        assertThat(optionMap.get("countLabel")).isEqualTo("3표");
+        assertThat(optionMap.get("progress")).isEqualTo(0.75);
+      });
+  }
+
+  @Test
+  void voteListReturnsPlaceCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    VoteOptionEntity option = new VoteOptionEntity(
+      vote,
+      "vopt-501-1",
+      "온무식당",
+      "PLACE_CANDIDATE",
+      "201",
+      1,
+      "{\"candidateId\":\"201\"}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of(option));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(2L);
+
+    var votes = service.votes("1");
+
+    assertThat(votes).singleElement()
+      .satisfies(rawVote -> assertThat((List<?>) rawVote.get("options"))
+        .singleElement()
+        .satisfies(rawOption -> {
+          java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) rawOption;
+          assertThat(optionMap.get("candidateId")).isEqualTo("201");
+          assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        }));
+  }
+
+  @Test
+  void creatingPlaceCandidateVoteRejectsInvalidCandidateId() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "999")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "잘못된 후보 투표",
+      List.of(),
+      List.of("999")
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getReason()).isEqualTo("place_candidate_not_found");
+      });
+  }
+
+  @Test
+  void voteCreatedOutboxPayloadPreservesCandidateIdsAndOptions() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+
+    service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "장소 후보 투표",
+      List.of(),
+      List.of("201")
+    ));
+
+    verify(outboxService).record(
+      eq("vote.created"),
+      eq("vote"),
+      any(),
+      argThat(payload -> List.of("201").equals(payload.get("candidateIds"))
+        && List.of("온무식당").equals(payload.get("options")))
     );
   }
 
