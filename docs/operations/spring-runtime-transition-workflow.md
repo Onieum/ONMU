@@ -37,14 +37,15 @@ ONMU의 백엔드 개발은 이제 본격적으로 시작되는 단계다. 그�
 
 | 순서 | 문서 | 이 문서에서 쓰는 이유 |
 | --- | --- | --- |
-| 1 | [GitHub 작업 흐름](../development/git-workflow.md) | dev/main 직접 push 금지, Jira branch, PR, CI, review 기준을 확인한다. |
-| 2 | [Windows 백엔드 서버](./windows-backend-server.md) | `dev-api.onmu.cloud`, Cloudflare Tunnel, Windows host, 배포 스크립트의 기준 문서다. |
-| 3 | [현재 아키텍처 다이어그램](../architecture/current-architecture-diagram.md) | 모바일, public API, Windows backend, worker, storage의 연결 관계를 본다. |
-| 4 | [API Contract Map](../architecture/api-contract-map.md) | Spring이 구현해야 할 canonical `/api/v1` route 기준이다. |
-| 5 | [Mock to API Migration](../development/mock-to-api-migration.md) | Flutter가 mock repository에서 API repository로 넘어가는 기준이다. |
-| 6 | [Spring Boot Main API](../../services/api-spring/README.md) | Spring runtime의 endpoint, smoke, local 실행, scaffold 범위를 확인한다. |
-| 7 | [Node Smoke/Contract Stub](../../services/api/README.md) | 기존 public 안정 endpoint와 rollback runtime의 역할을 이해한다. |
-| 8 | [Outbox Contract](../../services/api-spring/OUTBOX_CONTRACT.md) | Spring과 worker 사이 event boundary를 확인한다. |
+| 1 | [Agent Rules](../../AGENTS.md) | dev API/dev DB secret 사용, PR, 검증 원칙의 최상위 기준이다. |
+| 2 | [GitHub 작업 흐름](../development/git-workflow.md) | dev/main 직접 push 금지, Jira branch, PR, CI, review 기준을 확인한다. |
+| 3 | [Windows 백엔드 서버](./windows-backend-server.md) | `dev-api.onmu.cloud`, Cloudflare Tunnel, Windows host, 배포 스크립트의 기준 문서다. |
+| 4 | [현재 아키텍처 다이어그램](../architecture/current-architecture-diagram.md) | 모바일, public API, Windows backend, worker, storage의 연결 관계를 본다. |
+| 5 | [API Contract Map](../architecture/api-contract-map.md) | Spring이 구현해야 할 canonical `/api/v1` route 기준이다. |
+| 6 | [Mock to API Migration](../development/mock-to-api-migration.md) | Flutter가 mock repository에서 API repository로 넘어가는 기준이다. |
+| 7 | [Spring Boot Main API](../../services/api-spring/README.md) | Spring runtime의 endpoint, smoke, local 실행, scaffold 범위를 확인한다. |
+| 8 | [Node Smoke/Contract Stub](../../services/api/README.md) | 기존 public 안정 endpoint와 rollback runtime의 역할을 이해한다. |
+| 9 | [Outbox Contract](../../services/api-spring/OUTBOX_CONTRACT.md) | Spring과 worker 사이 event boundary를 확인한다. |
 
 ---
 
@@ -620,22 +621,15 @@ Windows Codex가 Spring runtime 전환을 완료했다는 가정에서, 이후 �
 | public runtime | Windows 서버에서 수동 전환된 Spring Boot Main API |
 | CD 기본 runtime | 별도 PR과 팀 합의 전까지 `node-stub`일 수 있다. 수동 Spring 전환과 CD 기본값은 분리해서 본다. |
 | 보호 API | `/api/v1/**`는 bearer token 없으면 401이 정상이다. |
-| secret 사용 | 개인 권한으로 Azure Key Vault에서 읽고 터미널 환경변수로만 사용한다. GitHub, Notion, 단체 채팅에 실제 값을 붙이지 않는다. |
+| secret 사용 | [AGENTS.md](../../AGENTS.md)의 dev API/dev DB 연결 보안 원칙을 따른다. |
 | DB 직접 접속 | 필요한 팀원만 Cloudflare Access TCP와 개인 DB 계정으로 접속한다. |
 
-팀원에게 필요한 권한은 최소 권한으로 부여한다. 가능하면 vault 전체 `Key Vault Secrets User`가 아니라, 본인에게 필요한 secret 단위로만 읽기 권한을 준다.
+이 절은 팀원이 복사해서 실행할 수 있는 연결 절차를 다룬다. 권한 부여 범위, refresh token 공유 금지, Cloudflare API token 금지 같은 전역 보안 원칙은 [AGENTS.md](../../AGENTS.md)를 기준으로 한다.
 
 | 용도 | 필요한 secret |
 | --- | --- |
 | 개인 DB 접속 | 본인 계정의 `dev-db-<계정>-password` |
 | API 연결 smoke | `dev-api-access-token` |
-
-공유하지 않는 항목:
-
-- `dev-api-refresh-token`
-- 전체 secret 관리 권한
-- `Secrets Officer` 권한
-- Cloudflare API token
 
 개인별 DB password secret 이름은 아래 기준을 따른다.
 
@@ -831,15 +825,6 @@ Remove-Item Env:\PGPASSWORD
 Remove-Item Env:\ONMU_DEV_ACCESS_TOKEN
 ```
 
-Mac Codex 기준으로 아래 검증을 완료했다.
-
-- Key Vault `dev-db-3dt005-password` 읽기 성공
-- Access TCP `localhost:15432` 정상
-- SELECT 결과 `3dt005|4` 성공
-- CREATE/INSERT는 `read-only transaction`으로 정상 차단
-- API token 호출 정상
-- secret 값은 출력하지 않음
-
 작업을 시작할 때는 항상 최신 `dev`에서 브랜치를 만든다.
 
 ```bash
@@ -1020,7 +1005,7 @@ API route 변경
 
 ### 7. Flutter/팀 공지
 - API mode 안내:
-- dev token 전달 방식:
+- Key Vault secret 사용 방식:
 - plain curl 401 정상 안내:
 - node-stub rollback 가능 안내:
 
