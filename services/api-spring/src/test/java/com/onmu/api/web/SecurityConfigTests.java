@@ -15,6 +15,7 @@ import com.onmu.api.config.SecurityConfig;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.SettlementApiService;
 import java.util.List;
 import java.util.Map;
 import org.hamcrest.Matchers;
@@ -53,6 +54,9 @@ class SecurityConfigTests {
 
   @MockitoBean
   private PlaceSearchService placeSearchService;
+
+  @MockitoBean
+  private SettlementApiService settlementApiService;
 
   @Test
   void protectedApiRequiresBearerToken() throws Exception {
