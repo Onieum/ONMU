@@ -29,6 +29,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   _SocialProvider? _loadingProvider;
   String? _errorMessage;
   StreamSubscription<AuthUser?>? _googleAuthSubscription;
+  bool _redirectScheduled = false;
 
   bool get _isLoading => _loadingProvider != null;
 
@@ -46,6 +47,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authBootstrap = ref.watch(authBootstrapProvider);
+    final authenticatedUser = authBootstrap.asData?.value.user;
+    if (authenticatedUser != null) {
+      _redirectAuthenticatedUser(authenticatedUser);
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFFCF8),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (authBootstrap.isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFFCF8),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFCF8),
       body: SafeArea(
@@ -139,6 +156,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
+  }
+
+  void _redirectAuthenticatedUser(AuthUser user) {
+    if (_redirectScheduled) {
+      return;
+    }
+
+    _redirectScheduled = true;
+    final route = user.hasCompletedOnboarding
+        ? RoutePaths.home
+        : RoutePaths.onboarding;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go(route);
+      }
+    });
   }
 
   Future<void> _signIn(_SocialProvider provider) async {

@@ -461,7 +461,9 @@ final appRouter = GoRouter(
 Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
   final AuthBootstrapResult bootstrap;
   try {
-    bootstrap = await ref.read(authBootstrapProvider.future);
+    bootstrap = await ref
+        .read(authBootstrapProvider.future)
+        .timeout(const Duration(seconds: 6));
   } catch (_) {
     return RoutePaths.login;
   }

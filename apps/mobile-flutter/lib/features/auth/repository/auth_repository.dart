@@ -35,11 +35,20 @@ class ApiAuthRepository implements AuthRepository {
 AuthUser authUserFromJson(Map<String, dynamic> json) {
   final databaseId = OnmuJson.readString(json, 'databaseId');
   final publicId = OnmuJson.readString(json, 'id');
+  final displayName = OnmuJson.readString(json, 'displayName');
+  final nickname = OnmuJson.readString(json, 'nickname');
+  final name = OnmuJson.readString(json, 'name');
+  final username = OnmuJson.readString(json, 'username');
   return AuthUser(
     id: databaseId.isNotEmpty ? databaseId : publicId,
     publicId: publicId.isEmpty ? null : publicId,
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
-    displayName: OnmuJson.readString(json, 'displayName', '사용자'),
+    displayName: [
+      displayName,
+      nickname,
+      name,
+      username,
+    ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => '사용자'),
     email: OnmuJson.readString(json, 'email'),
     profileImageUrl: OnmuJson.readString(json, 'profileImageUrl'),
     onboardingStatus: OnmuJson.readString(json, 'onboardingStatus', 'PENDING'),

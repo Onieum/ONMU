@@ -38,4 +38,33 @@ void main() {
     expect(user.onboardingStatus, 'COMPLETED');
     expect(user.hasCompletedOnboarding, isTrue);
   });
+
+  test('maps fallback user name fields when displayName is absent', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'databaseId': '00000000-0000-0000-0000-000000000001',
+                'id': 'user-me',
+                'nickname': '지무',
+                'email': 'me@example.test',
+                'authProvider': 'NAVER',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+    final user = await repository.fetchCurrentUser();
+
+    expect(user, isNotNull);
+    expect(user!.displayName, '지무');
+  });
+
 }
