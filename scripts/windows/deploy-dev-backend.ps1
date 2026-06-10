@@ -6,6 +6,8 @@ param(
   [string]$ApiHost = "127.0.0.1",
   [string]$PublicBaseUrl = $env:ONMU_DEV_API_BASE_URL,
   [string]$Client = "github-actions-cd",
+  [int]$HealthzWaitTimeoutSeconds = 60,
+  [int]$HealthzWaitIntervalSeconds = 2,
   [switch]$SkipDependencyStart
 )
 
@@ -253,6 +255,55 @@ function Start-LocalDependencies {
   Invoke-NativeCommand -FilePath "docker" -ArgumentList @("compose", "-f", $ComposeFile, "ps")
 }
 
+function Get-LocalProbeHost {
+  if ($ApiHost -in @("0.0.0.0", "::")) {
+    return "127.0.0.1"
+  }
+
+  return $ApiHost
+}
+
+function Wait-BackendHealthz {
+  param(
+    [int]$ProcessId,
+    [string]$RuntimeName
+  )
+
+  $probeHost = Get-LocalProbeHost
+  $healthzUrl = "http://${probeHost}:${ApiPort}/healthz"
+
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Wait up to ${HealthzWaitTimeoutSeconds}s for $healthzUrl after $RuntimeName start."
+    return
+  }
+
+  $deadline = (Get-Date).AddSeconds($HealthzWaitTimeoutSeconds)
+  $attempt = 0
+  while ((Get-Date) -lt $deadline) {
+    $attempt += 1
+
+    if ($ProcessId -gt 0 -and -not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
+      throw "$RuntimeName exited before /healthz became ready. Check stdout=$StdoutLogFile stderr=$StderrLogFile"
+    }
+
+    try {
+      $response = Invoke-WebRequest -Uri $healthzUrl -Method GET -UseBasicParsing -TimeoutSec 3
+      if ([int]$response.StatusCode -eq 200) {
+        Write-DeployLog "$RuntimeName local healthz is ready after $attempt attempt(s)."
+        return
+      }
+
+      Write-DeployLog "$RuntimeName local healthz attempt $attempt returned HTTP $($response.StatusCode)."
+    } catch {
+      Write-DeployLog "$RuntimeName local healthz attempt $attempt not ready: $($_.Exception.GetType().Name)"
+    }
+
+    Start-Sleep -Seconds $HealthzWaitIntervalSeconds
+  }
+
+  throw "$RuntimeName did not pass local /healthz within ${HealthzWaitTimeoutSeconds}s. Check stdout=$StdoutLogFile stderr=$StderrLogFile"
+}
+
 function Start-NodeStubBackend {
   Import-KeyVaultEnvForBackend
   Start-LocalDependencies
@@ -273,6 +324,7 @@ function Start-NodeStubBackend {
   if ($DryRun) {
     Write-DeployLog "[dry-run] Start node services/api/server.mjs on ${ApiHost}:${ApiPort}"
     Write-DeployLog "[dry-run] Write PID to $PidFile"
+    Wait-BackendHealthz -ProcessId 0 -RuntimeName "Node stub"
     return
   }
 
@@ -289,12 +341,7 @@ function Start-NodeStubBackend {
   Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
   Write-DeployLog "Node stub started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
 
-  Start-Sleep -Seconds 2
-  $startedProcess = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
-  if (-not $startedProcess) {
-    $stderr = if (Test-Path $StderrLogFile) { Get-Content -LiteralPath $StderrLogFile -Tail 20 } else { @() }
-    throw "Node stub exited during startup. Recent stderr: $($stderr -join ' ')"
-  }
+  Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Node stub"
 }
 
 function Test-SpringExecutableProject {
@@ -348,6 +395,9 @@ function Set-SpringEnvironment {
   $env:SERVER_PORT = [string]$ApiPort
   $env:API_HOST = $ApiHost
   $env:API_PORT = [string]$ApiPort
+  if (-not $env:ONMU_ACCESS_LOG_PATH) {
+    $env:ONMU_ACCESS_LOG_PATH = $AccessLogFile
+  }
   if (-not $env:POSTGRES_HOST_PORT) {
     $env:POSTGRES_HOST_PORT = "15432"
   }
@@ -374,6 +424,7 @@ function Start-SpringBackend {
     Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
     Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     Write-DeployLog "[dry-run] Write PID to $PidFile"
+    Wait-BackendHealthz -ProcessId 0 -RuntimeName "Spring Boot Main API"
     return
   }
 
@@ -388,6 +439,7 @@ function Start-SpringBackend {
   }
 
   Set-SpringEnvironment
+  Stop-ExistingBackend
 
   Push-Location $SpringDir
   try {
@@ -395,8 +447,6 @@ function Start-SpringBackend {
   } finally {
     Pop-Location
   }
-
-  Stop-ExistingBackend
 
   $jar = Get-ChildItem -LiteralPath (Join-Path $SpringDir "target") -Filter "onmu-api-spring-*.jar" |
     Where-Object { $_.Name -notlike "*.original" } |
@@ -420,12 +470,7 @@ function Start-SpringBackend {
   Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
   Write-DeployLog "Spring Boot Main API started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
 
-  Start-Sleep -Seconds 5
-  $startedProcess = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
-  if (-not $startedProcess) {
-    $stderr = if (Test-Path $StderrLogFile) { Get-Content -LiteralPath $StderrLogFile -Tail 40 } else { @() }
-    throw "Spring Boot Main API exited during startup. Recent stderr: $($stderr -join ' ')"
-  }
+  Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Spring Boot Main API"
 }
 
 function New-TempJsonFile {
