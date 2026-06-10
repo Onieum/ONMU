@@ -88,10 +88,12 @@ lib/features/<feature>/
 ## Dev API / Dev DB 연결 보안
 
 - 팀원 dev API / dev DB 연결 절차는 `docs/operations/spring-runtime-transition-workflow.md`를 기준으로 한다.
-- dev DB password와 dev API access token은 Azure Key Vault에서 본인 권한으로 읽어 환경변수로만 사용한다.
+- dev DB password와 dev API JWT signing secret은 Azure Key Vault에서 본인 권한으로 읽어 환경변수로만 사용한다.
 - secret, token, DB password 실제 값은 채팅, Notion, GitHub, 문서, 로그, PR 본문에 출력하지 않는다.
 - 문서에는 secret 값이 아니라 secret name만 남긴다.
-- 일반 연결 확인에는 `dev-api-access-token`만 사용하고, `dev-api-refresh-token`은 공유하지 않는다.
+- 일반 dev API 연결 확인에는 `dev-access-token-secret`으로 짧은 수명의 JWT를 로컬에서 발급해 사용한다.
+- integration API 연결 확인에는 `int-access-token-secret`으로 별도 JWT를 발급하며, dev signing secret 또는 token을 재사용하지 않는다.
+- 기존 `dev-api-access-token`과 `dev-api-refresh-token` 값은 Spring 보호 API 연결 확인에 사용하거나 공유하지 않는다.
 - 개인 DB 계정은 read-only 중심이며, `CREATE`/`INSERT`/`UPDATE`/`DELETE`가 가능하면 권한 설정 오류로 본다.
 - Cloudflare API token, `Secrets Officer`, 전체 secret 관리 권한은 일반 팀원 연결 확인 용도로 부여하지 않는다.
 
