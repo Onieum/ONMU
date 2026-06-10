@@ -1,7 +1,6 @@
 package com.onmu.api.service;
 
 import com.onmu.api.web.dto.OAuthLoginRequest;
-import java.util.Locale;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -9,7 +8,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class DevOAuthIdentityVerifier implements OAuthIdentityVerifier {
+public class DevOAuthIdentityVerifier implements OAuthProviderVerifier {
   private final Environment environment;
 
   public DevOAuthIdentityVerifier(Environment environment) {
@@ -17,8 +16,12 @@ public class DevOAuthIdentityVerifier implements OAuthIdentityVerifier {
   }
 
   @Override
-  public VerifiedOAuthIdentity verify(String provider, OAuthLoginRequest request) {
-    String normalizedProvider = normalizeProvider(provider);
+  public boolean supports(String provider) {
+    return "NAVER".equals(provider);
+  }
+
+  @Override
+  public VerifiedOAuthIdentity verify(String normalizedProvider, OAuthLoginRequest request) {
     if (!request.hasVerificationInput()) {
       throw unauthorized("missing_oauth_verification_input");
     }
@@ -35,14 +38,6 @@ public class DevOAuthIdentityVerifier implements OAuthIdentityVerifier {
       blankToNull(request.email()),
       blankToNull(request.profileImageUrl())
     );
-  }
-
-  private String normalizeProvider(String provider) {
-    String value = provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
-    if (!"NAVER".equals(value)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_oauth_provider");
-    }
-    return value;
   }
 
   private boolean devVerificationEnabled() {

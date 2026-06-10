@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
+import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/home/home_page.dart';
@@ -236,6 +237,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
           authUserProvider.overrideWith(
             (ref) => const AuthUser(
               id: '00000000-0000-0000-0000-000000000001',

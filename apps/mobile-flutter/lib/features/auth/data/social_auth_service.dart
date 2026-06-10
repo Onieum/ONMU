@@ -4,15 +4,26 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../domain/auth_user.dart';
+import '../domain/oauth_provider_credential.dart';
+
+typedef OAuthCredentialLoader = Future<OAuthProviderCredential> Function();
 
 class SocialAuthService {
-  SocialAuthService();
+  SocialAuthService({
+    OAuthCredentialLoader? kakaoCredentialLoader,
+    OAuthCredentialLoader? naverCredentialLoader,
+  }) : _kakaoCredentialLoader =
+           kakaoCredentialLoader ?? _defaultKakaoCredentialLoader,
+       _naverCredentialLoader =
+           naverCredentialLoader ?? _defaultNaverCredentialLoader;
 
   static const _googleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
   static const _googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
 
+  final OAuthCredentialLoader _kakaoCredentialLoader;
+  final OAuthCredentialLoader _naverCredentialLoader;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   Future<void>? _googleInitializeFuture;
 
@@ -56,8 +67,9 @@ class SocialAuthService {
     unawaited(_googleSignIn.attemptLightweightAuthentication());
   }
 
-  Future<AuthUser> signInWithKakao() =>
-      _mockSignIn(provider: 'kakao', displayName: '카카오 친구');
+  Future<OAuthProviderCredential> acquireKakaoCredential() {
+    return _kakaoCredentialLoader();
+  }
 
   Future<AuthUser> signInWithGoogle() async {
     await initializeGoogleSignIn();
@@ -74,26 +86,13 @@ class SocialAuthService {
     return _authUserFromGoogleAccount(account);
   }
 
-  Future<AuthUser> signInWithNaver() =>
-      _mockSignIn(provider: 'naver', displayName: '네이버 친구');
+  Future<OAuthProviderCredential> acquireNaverCredential() {
+    return _naverCredentialLoader();
+  }
 
   Future<void> signOut() async {
     await initializeGoogleSignIn();
     await _googleSignIn.signOut();
-  }
-
-  Future<AuthUser> _mockSignIn({
-    required String provider,
-    required String displayName,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 320));
-
-    return AuthUser(
-      id: 'mock-$provider-user',
-      provider: provider,
-      displayName: displayName,
-      email: '$provider-user@example.com',
-    );
   }
 
   AuthUser _authUserFromGoogleAccount(GoogleSignInAccount account) {
@@ -110,6 +109,20 @@ class SocialAuthService {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
+
+  static Future<OAuthProviderCredential> _defaultKakaoCredentialLoader() async {
+    throw const KakaoSignInUnavailableException();
+  }
+
+  static Future<OAuthProviderCredential> _defaultNaverCredentialLoader() async {
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    return const OAuthProviderCredential(
+      provider: 'naver',
+      devVerifiedSubject: 'naver-dev-local-user',
+      displayName: '네이버 친구',
+      email: 'naver-user@example.com',
+    );
+  }
 }
 
 class GoogleSignInWebButtonRequiredException implements Exception {
@@ -118,4 +131,8 @@ class GoogleSignInWebButtonRequiredException implements Exception {
 
 class GoogleSignInMissingClientIdException implements Exception {
   const GoogleSignInMissingClientIdException();
+}
+
+class KakaoSignInUnavailableException implements Exception {
+  const KakaoSignInUnavailableException();
 }

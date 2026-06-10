@@ -317,6 +317,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   String _messageForSignInError(Object error) {
+    if (error is KakaoSignInUnavailableException) {
+      return 'Kakao OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
     if (error is GoogleSignInMissingClientIdException) {
       return 'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
     }
@@ -426,10 +429,7 @@ class _LoginButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(11),
-              side: BorderSide(
-                color: effectiveBorderColor,
-                width: 1.2,
-              ),
+              side: BorderSide(color: effectiveBorderColor, width: 1.2),
             ),
           ),
           child: Padding(

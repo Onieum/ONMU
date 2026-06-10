@@ -63,6 +63,8 @@ cd C:\dev\ONMU\services\api-spring
 | `ONMU_API_ACCESS_TOKEN` | 없음 | legacy 정적 token 이름. 현재 Spring 인증 필터는 이 값을 access token으로 검증하지 않음 |
 | `ONMU_API_REFRESH_TOKEN` | 없음 | legacy refresh smoke token 이름. refresh token 저장/회전 구현 검증 외에는 Flutter 실행 token으로 쓰지 않음 |
 | `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
+| `ONMU_OAUTH_KAKAO_USER_INFO_URL` | `https://kapi.kakao.com/v2/user/me` | Kakao provider access token 검증용 user info endpoint override |
+| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Flutter에 넣지 않음 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
 
@@ -138,6 +140,16 @@ Auth scaffold:
 - `POST /api/v1/auth/refresh`
 - `DELETE /api/v1/auth/session`
 
+`POST /api/v1/auth/oauth/kakao`는 Flutter가 전달한 Kakao `providerAccessToken`을 Spring에서 Kakao user info API로 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
+
+Kakao authorization code token exchange는 아직 follow-up입니다. Spring 쪽 교환 경계는 남겨 두었지만 client id, redirect URI, token endpoint 설정은 팀 합의 뒤 추가합니다. `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하고 Flutter bundle이나 dart-define에 넣지 않습니다.
+
+Kakao redirect URI 후보:
+
+- `http://localhost:8080/api/v1/auth/oauth/kakao/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- prod later: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+
 Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...` 같은 과거 compatibility route는 이 Spring scaffold에 추가하지 않았습니다.
 
 ## Outbox
@@ -211,7 +223,8 @@ Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`�
 
 ## 아직 Dev/Mock인 부분
 
-- Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
+- Naver OAuth token exchange는 controller/service 경계와 dev scaffold를 유지합니다. `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 `devVerifiedSubject`를 NAVER dev identity로 취급합니다.
+- Kakao는 provider access token user info 검증을 지원합니다. authorization code + `KAKAO_CLIENT_SECRET` token exchange는 client id/redirect URI가 확정된 뒤 후속 PR에서 연결합니다.
 - Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. Naver OAuth 실제 token exchange, refresh token 저장/회전은 별도 PR에서 보강합니다.
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`를 받을 수 있고, 응답 결과는 dev mock `source`, 합성 좌표, `heartCount`, `myHearted`를 포함합니다.
 - 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
+import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 
 void main() {
@@ -67,4 +68,58 @@ void main() {
     expect(user!.displayName, '지무');
   });
 
+  test(
+    'exchanges Kakao provider token for ONMU tokens without using it as bearer',
+    () async {
+      const providerToken = 'kakao-provider-token';
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/kakao');
+            expect(
+              options.headers['Authorization'],
+              isNot('Bearer $providerToken'),
+            );
+            expect(options.data, {'providerAccessToken': providerToken});
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_kakao',
+                    'displayName': '카카오 사용자',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'kakao',
+          providerAccessToken: providerToken,
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.tokens.refreshToken, 'onmu-refresh-token');
+      expect(session.user.publicId, 'usr_kakao');
+      expect(session.user.provider, 'KAKAO');
+      expect(session.user.displayName, '카카오 사용자');
+    },
+  );
 }
