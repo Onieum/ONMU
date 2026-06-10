@@ -50,7 +50,7 @@ class _GroupHomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = state.group;
-    final pinnedPlan = state.pinnedPlan;
+    final upcomingPlan = state.upcomingPlan;
 
     return OnmuScaffold(
       useWarmBackground: false,
@@ -73,11 +73,11 @@ class _GroupHomeContent extends StatelessWidget {
           onTap: () => context.push(RoutePaths.groupPlans(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (pinnedPlan != null)
+        if (upcomingPlan != null)
           _UpcomingPlanCard(
-            plan: pinnedPlan,
+            plan: upcomingPlan,
             onTap: () =>
-                context.push(RoutePaths.planDetail(group.id, pinnedPlan.id)),
+                context.push(RoutePaths.planDetail(group.id, upcomingPlan.id)),
           ),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
@@ -328,7 +328,7 @@ class _SectionHeader extends StatelessWidget {
 class _UpcomingPlanCard extends StatelessWidget {
   const _UpcomingPlanCard({required this.plan, required this.onTap});
 
-  final GroupPinnedPlan plan;
+  final GroupPlanSummary plan;
   final VoidCallback onTap;
 
   @override
@@ -353,7 +353,7 @@ class _UpcomingPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(label: plan.statusLabel, selected: true),
+                    OnmuChip(label: plan.displayStatusLabel, selected: true),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
@@ -367,7 +367,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${plan.dateLabel} · ${plan.placeName}',
+                  '${plan.displayDateTimeLabel} · ${plan.placeName}',
                   style: Theme.of(context).textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -381,7 +381,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                     ],
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      plan.voteSummary,
+                      '${plan.memberCount}명 참여 예정',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),

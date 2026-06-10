@@ -11,6 +11,9 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../my/domain/my_profile.dart';
+import '../../../my/model/friend_fixtures.dart';
+import '../../../my/widgets/friend_picker_sheet.dart';
 import '../../view_model/group_create_view_model.dart';
 
 class GroupCreatePage extends StatefulWidget {
@@ -68,12 +71,12 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
       return;
     }
 
-    final memberName = await _showMemberAddSheet(context);
-    if (!mounted || memberName == null) {
+    final selectedFriend = await _showMemberAddSheet(context, currentNames);
+    if (!mounted || selectedFriend == null) {
       return;
     }
 
-    final trimmedName = memberName.trim();
+    final trimmedName = selectedFriend.name.trim();
     if (trimmedName.isEmpty) {
       return;
     }
@@ -92,15 +95,21 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     });
   }
 
-  Future<String?> _showMemberAddSheet(BuildContext context) async {
-    return showModalBottomSheet<String>(
+  Future<FriendProfile?> _showMemberAddSheet(
+    BuildContext context,
+    List<String> currentNames,
+  ) async {
+    return showModalBottomSheet<FriendProfile>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgDefault,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
-      builder: (context) => const _MemberAddSheet(),
+      builder: (context) => FriendPickerSheet(
+        friends: createInitialFriends(),
+        excludedNames: currentNames.toSet(),
+      ),
     );
   }
 
@@ -280,70 +289,6 @@ class _LabeledInput extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         child,
       ],
-    );
-  }
-}
-
-class _MemberAddSheet extends StatefulWidget {
-  const _MemberAddSheet();
-
-  @override
-  State<_MemberAddSheet> createState() => _MemberAddSheetState();
-}
-
-class _MemberAddSheetState extends State<_MemberAddSheet> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    Navigator.of(context).pop(_controller.text);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('멤버 추가', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '초대할 멤버 이름을 입력해 주세요.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              maxLength: 20,
-              decoration: const InputDecoration(
-                hintText: '이름을 입력하세요',
-                counterText: '',
-              ),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _submit,
-                child: const Text('추가하기'),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

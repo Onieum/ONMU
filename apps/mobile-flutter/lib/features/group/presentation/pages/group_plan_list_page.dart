@@ -42,54 +42,91 @@ class GroupPlanListPage extends ConsumerWidget {
   }
 }
 
-class _GroupPlanListContent extends StatelessWidget {
+class _GroupPlanListContent extends StatefulWidget {
   const _GroupPlanListContent({required this.groupId, required this.state});
 
   final String groupId;
   final GroupPlanListState state;
 
   @override
+  State<_GroupPlanListContent> createState() => _GroupPlanListContentState();
+}
+
+class _GroupPlanListContentState extends State<_GroupPlanListContent> {
+  final _searchController = TextEditingController();
+  var _filter = _PlanListFilter.all;
+  var _sortAscending = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_syncSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_syncSearch)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncSearch() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    final upcoming = state.upcomingPlans;
-    final past = state.pastPlans;
+    final upcoming = _visiblePlans(widget.state.upcomingPlans);
+    final past = _visiblePlans(widget.state.pastPlans);
+    final showUpcoming =
+        _filter == _PlanListFilter.all || _filter == _PlanListFilter.upcoming;
+    final showPast =
+        _filter == _PlanListFilter.all || _filter == _PlanListFilter.past;
 
     return OnmuScaffold(
       title: '약속',
       showBackButton: true,
-      onBack: () => context.popOrGo(RoutePaths.groupDetail(groupId)),
+      onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: IconButton(
         tooltip: '약속 만들기',
-        onPressed: () => context.push(RoutePaths.planNew(groupId)),
+        onPressed: () => context.push(RoutePaths.planNew(widget.groupId)),
         icon: const Icon(Icons.add, color: AppColors.primaryPink),
+      ),
+      pinnedHeader: _PlanListPinnedTools(
+        controller: _searchController,
+        filter: _filter,
+        sortAscending: _sortAscending,
+        onFilterChanged: (filter) => setState(() => _filter = filter),
+        onSortToggle: () => setState(() => _sortAscending = !_sortAscending),
       ),
       useWarmBackground: false,
       children: [
-        const _PlanSearchSortRow(),
-        const SizedBox(height: AppSpacing.lg),
-        _PlanSectionTitle(
-          title: '다가오는 약속',
-          count: upcoming.length,
-          onCreateTap: () => context.push(RoutePaths.planNew(groupId)),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        for (final plan in upcoming) ...[
-          _PlanSummaryCard(
-            plan: plan,
-            members: state.members,
-            onTap: () => context.push(RoutePaths.planDetail(groupId, plan.id)),
+        if (showUpcoming) ...[
+          _PlanSectionTitle(
+            title: '다가오는 약속',
+            count: upcoming.length,
+            onCreateTap: () => context.push(RoutePaths.planNew(widget.groupId)),
           ),
           const SizedBox(height: AppSpacing.sm),
+          for (final plan in upcoming) ...[
+            _PlanSummaryCard(
+              plan: plan,
+              members: widget.state.members,
+              onTap: () =>
+                  context.push(RoutePaths.planDetail(widget.groupId, plan.id)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         ],
-        if (past.isNotEmpty) ...[
+        if (showPast && past.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           _PlanSectionTitle(title: '지난 약속', count: past.length),
           const SizedBox(height: AppSpacing.sm),
           for (final plan in past) ...[
             _PlanSummaryCard(
               plan: plan,
-              members: state.members,
+              members: widget.state.members,
               onTap: () =>
-                  context.push(RoutePaths.planDetail(groupId, plan.id)),
+                  context.push(RoutePaths.planDetail(widget.groupId, plan.id)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -97,6 +134,26 @@ class _GroupPlanListContent extends StatelessWidget {
         const SizedBox(height: 72),
       ],
     );
+  }
+
+  List<GroupPlanSummary> _visiblePlans(List<GroupPlanSummary> source) {
+    final query = _searchController.text.trim().toLowerCase();
+    final plans = source.where((plan) {
+      if (query.isEmpty) {
+        return true;
+      }
+      return plan.title.toLowerCase().contains(query) ||
+          plan.placeName.toLowerCase().contains(query) ||
+          plan.dateLabel.toLowerCase().contains(query) ||
+          plan.displayDateTimeLabel.toLowerCase().contains(query) ||
+          plan.displayStatusLabel.toLowerCase().contains(query);
+    }).toList();
+
+    plans.sort(GroupPlanSummary.compareUpcoming);
+    if (!_sortAscending) {
+      return plans.reversed.toList(growable: false);
+    }
+    return plans;
   }
 }
 
@@ -136,52 +193,144 @@ class _PlanSectionTitle extends StatelessWidget {
   }
 }
 
-class _PlanSearchSortRow extends StatelessWidget {
-  const _PlanSearchSortRow();
+enum _PlanListFilter {
+  all('전체'),
+  upcoming('다가오는 약속'),
+  past('지난 약속');
+
+  const _PlanListFilter(this.label);
+
+  final String label;
+}
+
+class _PlanListPinnedTools extends StatelessWidget {
+  const _PlanListPinnedTools({
+    required this.controller,
+    required this.filter,
+    required this.sortAscending,
+    required this.onFilterChanged,
+    required this.onSortToggle,
+  });
+
+  final TextEditingController controller;
+  final _PlanListFilter filter;
+  final bool sortAscending;
+  final ValueChanged<_PlanListFilter> onFilterChanged;
+  final VoidCallback onSortToggle;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OnmuCard(
-            onTap: () =>
-                _showPlanListSnack(context, '약속 검색 입력은 다음 단계에서 연결할게요.'),
-            backgroundColor: AppColors.bgDefault,
-            borderColor: AppColors.lineSoft,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault.withValues(alpha: 0.94),
+        border: const Border(bottom: BorderSide(color: AppColors.lineSoft)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
+        child: Column(
+          children: [
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: '모임 약속 검색',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: controller.text.trim().isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: '검색어 지우기',
+                        onPressed: controller.clear,
+                        icon: const Icon(Icons.cancel),
+                      ),
+              ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: AppColors.textMuted),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    '모임 약속 검색',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textMuted,
+            const SizedBox(height: AppSpacing.sm),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final option in _PlanListFilter.values) ...[
+                    _PlanToolCapsule(
+                      label: option.label,
+                      selected: filter == option,
+                      onTap: () => onFilterChanged(option),
                     ),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  _PlanToolCapsule(
+                    label: sortAscending ? '날짜 오름차순' : '날짜 내림차순',
+                    icon: sortAscending
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
+                    selected: true,
+                    onTap: onSortToggle,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanToolCapsule extends StatelessWidget {
+  const _PlanToolCapsule({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor = selected
+        ? AppColors.primaryPink
+        : AppColors.textSub;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: selected ? AppColors.linePink : AppColors.lineSoft,
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        OutlinedButton.icon(
-          onPressed: () => _showPlanListSnack(context, '현재는 날짜 순으로 정렬되어 있어요.'),
-          icon: const Icon(Icons.keyboard_arrow_down),
-          label: const Text('날짜 순'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15, color: foregroundColor),
+                const SizedBox(width: AppSpacing.xxs),
+              ],
+              Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: foregroundColor),
+              ),
+            ],
+          ),
         ),
-        IconButton.outlined(
-          tooltip: '약속 필터',
-          onPressed: () =>
-              _showPlanListSnack(context, '진행 중, 예정, 완료 필터는 다음 단계에서 연결할게요.'),
-          icon: const Icon(Icons.tune),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -214,8 +363,6 @@ class _PlanSummaryCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(label: plan.statusLabel, selected: !plan.isPast),
-                    const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         plan.title,
@@ -235,7 +382,7 @@ class _PlanSummaryCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  plan.dateLabel,
+                  plan.displayDateTimeLabel,
                   style: Theme.of(context).textTheme.bodyMedium,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -260,7 +407,10 @@ class _PlanSummaryCard extends StatelessWidget {
                     if (plan.extraMemberCount > 0)
                       OnmuChip(label: '+${plan.extraMemberCount}'),
                     const Spacer(),
-                    OnmuChip(label: plan.statusType, selected: !plan.isPast),
+                    OnmuChip(
+                      label: plan.displayStatusLabel,
+                      selected: !plan.isPast,
+                    ),
                   ],
                 ),
               ],

@@ -71,7 +71,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeViewModelProvider);
-    final displayName = _resolveDisplayName(ref.watch(authUserProvider));
+    final authBootstrap = ref.watch(authBootstrapProvider);
+    final authUser =
+        authBootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+    final displayName = _resolveDisplayName(authUser);
 
     return state.when(
       data: (state) => _HomeContent(
@@ -129,7 +132,7 @@ class _HomeContent extends StatelessWidget {
         const _SectionTitle(title: '진행 중인 약속'),
         const SizedBox(height: AppSpacing.sm),
         if (activePlan == null)
-          _EmptyPlanCard(groupId: groupId)
+          const _EmptyPlanCard()
         else
           _ActivePlanCard(
             plan: activePlan!,
@@ -149,12 +152,10 @@ class _HomeContent extends StatelessWidget {
         else
           for (final plan in upcomingPlans.take(2)) ...[
             _UpcomingPlanTile(
-              date: plan.dateLabel.split(' ').first,
-              weekday: plan.statusType,
+              date: _upcomingPlanDate(plan),
               title: plan.title,
               place: plan.placeName,
-              dateTimeLabel: plan.dateLabel,
-              dday: plan.statusLabel,
+              statusLabel: plan.displayStatusLabel,
               onTap: () =>
                   context.push(RoutePaths.planDetail(groupId ?? 0, plan.id)),
             ),
@@ -175,10 +176,37 @@ class _HomeContent extends StatelessWidget {
   }
 }
 
-class _EmptyPlanCard extends StatelessWidget {
-  const _EmptyPlanCard({required this.groupId});
+_UpcomingPlanDate _upcomingPlanDate(GroupPlanSummary plan) {
+  final startsAt = plan.startsAt?.toLocal();
+  if (startsAt == null) {
+    final label = plan.dateLabel.trim().isEmpty ? '일정' : plan.dateLabel;
+    return _UpcomingPlanDate(monthDay: label, weekday: '미정', time: '--:--');
+  }
 
-  final int? groupId;
+  final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  final hour = startsAt.hour.toString().padLeft(2, '0');
+  final minute = startsAt.minute.toString().padLeft(2, '0');
+  return _UpcomingPlanDate(
+    monthDay: '${startsAt.month}월 ${startsAt.day}일',
+    weekday: '${weekdays[startsAt.weekday - 1]}요일',
+    time: '$hour:$minute',
+  );
+}
+
+class _UpcomingPlanDate {
+  const _UpcomingPlanDate({
+    required this.monthDay,
+    required this.weekday,
+    required this.time,
+  });
+
+  final String monthDay;
+  final String weekday;
+  final String time;
+}
+
+class _EmptyPlanCard extends StatelessWidget {
+  const _EmptyPlanCard();
 
   @override
   Widget build(BuildContext context) {
@@ -192,28 +220,6 @@ class _EmptyPlanCard extends StatelessWidget {
           const Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
           const SizedBox(height: AppSpacing.sm),
           Text('진행 중인 약속이 없어요', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            groupId == null ? '먼저 온모임을 만들거나 참여해 주세요.' : '새 약속을 만들면 이곳에 표시돼요.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: () {
-                if (groupId == null) {
-                  context.go(RoutePaths.groups);
-                  return;
-                }
-                context.push(RoutePaths.planNew(groupId!));
-              },
-              icon: Icon(groupId == null ? Icons.group_add : Icons.add),
-              label: Text(groupId == null ? '온모임으로 이동' : '약속 만들기'),
-            ),
-          ),
         ],
       ),
     );
@@ -540,20 +546,16 @@ class _PaperScene extends StatelessWidget {
 class _UpcomingPlanTile extends StatelessWidget {
   const _UpcomingPlanTile({
     required this.date,
-    required this.weekday,
     required this.title,
     required this.place,
-    required this.dateTimeLabel,
-    required this.dday,
+    required this.statusLabel,
     required this.onTap,
   });
 
-  final String date;
-  final String weekday;
+  final _UpcomingPlanDate date;
   final String title;
   final String place;
-  final String dateTimeLabel;
-  final String dday;
+  final String statusLabel;
   final VoidCallback onTap;
 
   @override
@@ -566,23 +568,55 @@ class _UpcomingPlanTile extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 56,
-            child: Column(
-              children: [
-                Text(date, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  weekday,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-                ),
-              ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgPaper,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: AppColors.lineSoft),
+            ),
+            child: SizedBox(
+              width: 64,
+              height: 74,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    date.monthDay,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textMain,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    date.weekday,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSub,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    date.time,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMain,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
+          Container(width: 1, height: 50, color: AppColors.lineSoft),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,10 +629,7 @@ class _UpcomingPlanTile extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  [
-                    dateTimeLabel,
-                    place,
-                  ].where((item) => item.isNotEmpty).join(' · '),
+                  place.trim().isEmpty ? '장소 미정' : place,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -609,7 +640,10 @@ class _UpcomingPlanTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          OnmuChip(label: dday, selected: true),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 58),
+            child: OnmuChip(label: statusLabel, selected: true),
+          ),
         ],
       ),
     );

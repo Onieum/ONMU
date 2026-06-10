@@ -4,6 +4,7 @@ import '../../../shared/models/place_models.dart';
 import '../../../shared/models/vote_models.dart';
 import '../../group/repository/group_repository.dart';
 import '../../group/view_model/vote_view_model.dart';
+import '../../plan/repository/plan_repository.dart';
 import '../repository/place_repository.dart';
 
 typedef PlaceScope = ({String groupId, String planId});
@@ -32,11 +33,13 @@ class PlaceCandidatesState {
     required this.candidates,
     required this.likedCandidateIds,
     required this.baseFavoriteCounts,
+    required this.planLocation,
   });
 
   final List<PlaceCandidate> candidates;
   final Set<int> likedCandidateIds;
   final Map<int, int> baseFavoriteCounts;
+  final String planLocation;
 
   bool isLiked(int candidateId) => likedCandidateIds.contains(candidateId);
 
@@ -55,20 +58,25 @@ class PlaceCandidatesState {
       candidates: candidates,
       likedCandidateIds: Set.unmodifiable(nextLikedIds),
       baseFavoriteCounts: baseFavoriteCounts,
+      planLocation: planLocation,
     );
   }
 }
 
-class PlaceCandidatesViewModel
-    extends AsyncNotifier<PlaceCandidatesState> {
+class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
   PlaceCandidatesViewModel(this.scope);
 
   final PlaceScope scope;
 
   @override
   Future<PlaceCandidatesState> build() async {
-    final repository = ref.watch(placeRepositoryProvider);
-    final candidates = await repository.fetchCandidates(
+    final placeRepository = ref.watch(placeRepositoryProvider);
+    final planRepository = ref.watch(planRepositoryProvider);
+    final candidates = await placeRepository.fetchCandidates(
+      groupId: scope.groupId,
+      planId: scope.planId,
+    );
+    final plan = await planRepository.fetchPlan(
       groupId: scope.groupId,
       planId: scope.planId,
     );
@@ -77,6 +85,7 @@ class PlaceCandidatesViewModel
       candidates: List.unmodifiable(candidates),
       likedCandidateIds: <int>{},
       baseFavoriteCounts: _favoriteCountsFor(candidates),
+      planLocation: plan.location,
     );
   }
 
@@ -129,8 +138,7 @@ class PlaceCandidatesViewModel
   }
 }
 
-class PlaceCandidateDetailViewModel
-    extends AsyncNotifier<PlaceCandidate> {
+class PlaceCandidateDetailViewModel extends AsyncNotifier<PlaceCandidate> {
   PlaceCandidateDetailViewModel(this.scope);
 
   final PlaceCandidateDetailScope scope;

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/grid_background.dart';
+import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -2432,14 +2433,12 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
 
   Future<void> _pickUnavailableDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await OnmuDatePicker.pickDate(
       context: context,
       initialDate: now,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 1, 12, 31),
       helpText: '불가능한 날짜 선택',
-      confirmText: '선택',
-      cancelText: '취소',
     );
 
     if (picked == null) {

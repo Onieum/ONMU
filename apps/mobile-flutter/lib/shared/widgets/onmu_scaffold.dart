@@ -17,6 +17,7 @@ class OnmuScaffold extends StatelessWidget {
     this.showBackButton = false,
     this.onBack,
     this.action,
+    this.pinnedHeader,
     this.bottom,
     this.floatingActionButton,
     this.scrollController,
@@ -33,6 +34,7 @@ class OnmuScaffold extends StatelessWidget {
   final bool showBackButton;
   final VoidCallback? onBack;
   final Widget? action;
+  final Widget? pinnedHeader;
   final Widget? bottom;
   final Widget? floatingActionButton;
   final ScrollController? scrollController;
@@ -50,8 +52,10 @@ class OnmuScaffold extends StatelessWidget {
               subtitle: titleSubtitle,
               showBackButton: showBackButton || leading != null,
               onBack: onBack,
-              action: action ?? (actions.isEmpty ? null : Row(children: actions)),
+              action:
+                  action ?? (actions.isEmpty ? null : Row(children: actions)),
             ),
+          ?pinnedHeader,
           Expanded(
             child: ListView(
               controller: scrollController,
@@ -63,7 +67,10 @@ class OnmuScaffold extends StatelessWidget {
               ),
               children: [
                 if (subtitle != null) ...[
-                  Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                    subtitle!,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
                 ...children,

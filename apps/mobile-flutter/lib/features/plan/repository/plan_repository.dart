@@ -10,6 +10,17 @@ final planRepositoryProvider = Provider<PlanRepository>((ref) {
 abstract interface class PlanRepository {
   Future<Plan> fetchPlan({required Object groupId, required Object planId});
 
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  });
+
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  });
+
   Future<Plan> createPlan(PlanCreateInput input);
 
   Future<Plan> updatePlan({
@@ -53,7 +64,15 @@ class ApiPlanRepository implements PlanRepository {
     required Object planId,
     required PlanCreateInput input,
   }) async {
-    return fetchPlan(groupId: input.groupId, planId: planId);
+    final plan = await _client.patchObject(
+      '/api/v1/groups/${input.groupId}/plans/$planId',
+      body: {
+        'title': input.title.trim(),
+        'startsAt': _startsAtOrNull(input.dateTime),
+        'status': 'draft',
+      },
+    );
+    return _plan(plan);
   }
 
   @override
@@ -62,6 +81,30 @@ class ApiPlanRepository implements PlanRepository {
     required Object planId,
   }) async {
     return const [];
+  }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    final participants = await _client.getList(
+      '/api/v1/groups/$groupId/plans/$planId/participants',
+    );
+    return participants.map(_participantArrival).toList(growable: false);
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) async {
+    final participant = await _client.patchObject(
+      '/api/v1/groups/$groupId/plans/$planId/participants/me',
+      body: {'status': 'joined', 'response': status.apiValue},
+    );
+    return _participantArrival(participant);
   }
 
   Plan _plan(Map<String, dynamic> json) {
@@ -85,6 +128,20 @@ class ApiPlanRepository implements PlanRepository {
           duration: title,
         ),
       ],
+      startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
+      endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
+    );
+  }
+
+  PlanParticipantArrival _participantArrival(Map<String, dynamic> json) {
+    return PlanParticipantArrival(
+      id: OnmuJson.readString(json, 'id'),
+      displayName: OnmuJson.readString(json, 'displayName', '참여자'),
+      participantStatus: OnmuJson.readString(json, 'status', 'joined'),
+      arrivalStatus: PlanArrivalStatus.fromApi(
+        OnmuJson.readString(json, 'response'),
+      ),
+      isFallback: OnmuJson.readBool(json, 'fallback'),
     );
   }
 
