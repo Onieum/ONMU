@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.onmu.api.config.DevTokenAuthService;
 import com.onmu.api.config.DevTokenAuthenticationFilter;
 import com.onmu.api.config.SecurityConfig;
+import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import java.util.List;
@@ -20,10 +21,10 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -39,10 +40,13 @@ class SecurityConfigTests {
   @Autowired
   private MockMvc mvc;
 
-  @MockBean
+  @MockitoBean
+  private GroupApiService groupApiService;
+
+  @MockitoBean
   private OnmuApiService onmuApiService;
 
-  @MockBean
+  @MockitoBean
   private PlaceSearchService placeSearchService;
 
   @Test

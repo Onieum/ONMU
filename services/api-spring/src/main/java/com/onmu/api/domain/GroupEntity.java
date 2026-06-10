@@ -22,9 +22,16 @@ public class GroupEntity {
   @Column(nullable = false)
   private String name;
 
+  @Column(name = "description")
+  private String description;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "owner_user_id")
   private UserEntity ownerUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "updated_by_user_id")
+  private UserEntity updatedByUser;
 
   @Column(name = "created_at", insertable = false, updatable = false)
   private Instant createdAt;
@@ -39,6 +46,19 @@ public class GroupEntity {
     this.ownerUser = ownerUser;
   }
 
+  public void update(String name, String description, UserEntity updatedByUser) {
+    this.name = name.trim();
+    this.description = blankToNull(description);
+    this.updatedByUser = updatedByUser;
+  }
+
+  private String blankToNull(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return value.trim();
+  }
+
   public UUID getId() {
     return id;
   }
@@ -49,6 +69,10 @@ public class GroupEntity {
 
   public String getName() {
     return name;
+  }
+
+  public String getDescription() {
+    return description;
   }
 
   public UserEntity getOwnerUser() {
