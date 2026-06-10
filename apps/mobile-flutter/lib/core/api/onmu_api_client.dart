@@ -17,7 +17,12 @@ final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
     'ONMU_API_BASE_URL',
     defaultValue: 'http://127.0.0.1:8080',
   );
-  const accessToken = String.fromEnvironment('ONMU_DEV_ACCESS_TOKEN');
+  const accessJwt = String.fromEnvironment('ONMU_API_ACCESS_JWT');
+  const legacyDevAccessToken = String.fromEnvironment('ONMU_DEV_ACCESS_TOKEN');
+  final accessToken = resolveOnmuAccessToken(
+    accessJwt: accessJwt,
+    legacyDevAccessToken: legacyDevAccessToken,
+  );
   final dio = Dio(
     BaseOptions(
       baseUrl: baseUrl,
@@ -32,6 +37,13 @@ final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
   );
   return OnmuApiClient(dio);
 });
+
+String resolveOnmuAccessToken({
+  required String accessJwt,
+  required String legacyDevAccessToken,
+}) {
+  return accessJwt.isNotEmpty ? accessJwt : legacyDevAccessToken;
+}
 
 class OnmuApiClient {
   OnmuApiClient(this._dio);

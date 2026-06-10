@@ -20,6 +20,30 @@ flutter test
 flutter run
 ```
 
+## Spring dev API mode
+
+기본 실행은 mock data mode입니다. Windows dev Spring API에 연결할 때는 정적 `dev-api-access-token`을 넣지 말고, Key Vault의 `dev-access-token-secret`으로 짧은 수명의 access JWT를 발급해 사용합니다. token 값은 콘솔에 출력하지 않고 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다.
+
+```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+
+cd apps\mobile-flutter
+flutter run --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
+```
+
+로컬 Spring을 직접 볼 때는 base URL을 지정합니다.
+
+```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -ApiBaseUrl http://127.0.0.1:8080 `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+```
+
 ## 플레이버 방향
 
 앱은 다음 플레이버를 지원해야 합니다.

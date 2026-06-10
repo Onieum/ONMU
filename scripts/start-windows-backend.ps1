@@ -18,7 +18,10 @@ Set-Location $RepoRoot
 
 if ($UseKeyVault) {
   $loader = Join-Path $PSScriptRoot "load-key-vault-env.ps1"
-  . $loader -VaultName $KeyVaultName -EnvName @("DATABASE_URL", "POSTGRES_PASSWORD", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD") -RequiredEnv @("DATABASE_URL", "POSTGRES_PASSWORD")
+  . $loader `
+    -VaultName $KeyVaultName `
+    -EnvName @("DATABASE_URL", "POSTGRES_PASSWORD", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "ONMU_ACCESS_TOKEN_SECRET") `
+    -RequiredEnv @("DATABASE_URL", "POSTGRES_PASSWORD", "ONMU_ACCESS_TOKEN_SECRET")
 }
 
 Write-Host "Starting ONMU local dependencies..."

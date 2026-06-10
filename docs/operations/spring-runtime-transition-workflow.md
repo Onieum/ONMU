@@ -66,10 +66,25 @@ curl.exe -i https://int-api.onmu.cloud/api/v1/home/summary?client=spring-int-no-
 
 보호 API는 token 없이 `401`이 정상이다. bearer token smoke는 Key Vault에서 읽은 값을 현재 프로세스 환경변수에만 넣고 실행하며, 값은 출력하지 않는다.
 
+Spring access token은 정적 문자열이 아니라 `ONMU_ACCESS_TOKEN_SECRET`으로 서명한 HS256 JWT다. Flutter API mode 실행용 token은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret` 값을 직접 앱에 넣지 않고, 로컬에서 짧은 수명의 JWT로 발급해 git ignored dart-define 파일로 전달한다.
+
+dev Flutter 실행:
+
+```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+
+cd apps\mobile-flutter
+flutter run --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
+```
+
 ## 인증과 CORS
 
 - `/api/v1/**` 보호 API는 bearer token을 요구한다.
-- 일반 연결 확인에는 access token만 사용한다.
+- 일반 연결 확인에는 signing secret으로 발급한 access JWT만 사용한다.
+- 정적 `dev-api-access-token`, `int-api-access-token` 값은 현재 Spring JWT 인증 필터의 access token으로 쓰지 않는다.
 - refresh token, OAuth secret, DB password, Cloudflare token 값은 문서, 로그, PR 본문, 채팅에 출력하지 않는다.
 - CORS origin은 `ONMU_CORS_ORIGINS` 또는 dev fallback `ONMU_DEV_CORS_ORIGINS`로 명시한다.
 - wildcard origin/header를 운영 기준으로 쓰지 않는다.

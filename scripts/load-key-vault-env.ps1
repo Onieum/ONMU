@@ -15,6 +15,7 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
+  # 기존 정적 token 이름이다. Spring JWT 인증은 ONMU_ACCESS_TOKEN_SECRET을 사용한다.
   ONMU_API_ACCESS_TOKEN = "$SecretPrefix-api-access-token"
   ONMU_API_REFRESH_TOKEN = "$SecretPrefix-api-refresh-token"
   ONMU_CORS_ORIGINS = "$SecretPrefix-cors-origins"
@@ -29,6 +30,7 @@ $secretMap = [ordered]@{
 }
 
 if ($SecretPrefix -eq "dev") {
+  # 기존 정적 token 이름이다. Flutter API mode는 발급한 JWT를 사용한다.
   $secretMap.ONMU_DEV_ACCESS_TOKEN = "dev-api-access-token"
   $secretMap.ONMU_DEV_REFRESH_TOKEN = "dev-api-refresh-token"
   $secretMap.ONMU_DEV_CORS_ORIGINS = "dev-cors-origins"

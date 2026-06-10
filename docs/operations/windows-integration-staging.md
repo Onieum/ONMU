@@ -38,8 +38,9 @@ prod Azure 리소스와 prod domain `api.onmu.cloud`는 이 문서 범위가 아
 
 | Secret name | 런타임 env |
 | --- | --- |
-| `int-api-access-token` | `ONMU_API_ACCESS_TOKEN` |
-| `int-api-refresh-token` | `ONMU_API_REFRESH_TOKEN` |
+| `int-access-token-secret` | `ONMU_ACCESS_TOKEN_SECRET` |
+| `int-api-access-token` | legacy 정적 token. 현재 Spring JWT 인증 필터의 access token으로 사용하지 않음 |
+| `int-api-refresh-token` | legacy refresh smoke token |
 | `int-cors-origins` | `ONMU_CORS_ORIGINS` |
 | `int-database-url` | `DATABASE_URL` |
 | `int-postgres-password` | `POSTGRES_PASSWORD` |
@@ -49,7 +50,7 @@ prod Azure 리소스와 prod domain `api.onmu.cloud`는 이 문서 범위가 아
 | `int-minio-root-user` | `MINIO_ROOT_USER` |
 | `int-minio-root-password` | `MINIO_ROOT_PASSWORD` |
 
-dev token 값은 integration token으로 재사용하지 않는다. 같은 환경변수 이름으로 주입하더라도 secret name과 값은 `int-*` 기준으로 분리한다.
+dev signing secret 또는 token 값은 integration token으로 재사용하지 않는다. Flutter integration smoke용 access token은 `int-access-token-secret`으로 짧은 수명의 JWT를 로컬에서 발급해 사용한다.
 
 ## 실행
 
@@ -110,11 +111,17 @@ curl.exe -i https://int-api.onmu.cloud/readyz?client=integration-rollout
 curl.exe -i https://int-api.onmu.cloud/api/v1/home/summary?client=integration-rollout
 ```
 
-보호 API는 token 없이 401이 정상이다. bearer token smoke는 `int-api-access-token` 값을 현재 프로세스 환경변수에만 넣고 실행한다. 값은 출력하지 않는다.
+보호 API는 token 없이 401이 정상이다. bearer token smoke는 `int-access-token-secret`으로 발급한 access JWT를 현재 프로세스 또는 git ignored dart-define 파일에만 넣고 실행한다. 값은 출력하지 않는다.
 
 ```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment integration `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+
+$defines = Get-Content apps\mobile-flutter\.dart_tool\onmu-integration-api.defines.json -Raw | ConvertFrom-Json
 curl.exe -i `
-  -H "Authorization: Bearer $env:ONMU_API_ACCESS_TOKEN" `
+  -H "Authorization: Bearer $($defines.ONMU_API_ACCESS_JWT)" `
   "https://int-api.onmu.cloud/api/v1/home/summary?client=integration-rollout"
 ```
 
