@@ -18,6 +18,7 @@ import com.onmu.api.service.AuthService;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.SettlementApiService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +38,13 @@ import org.springframework.web.server.ResponseStatusException;
 @WebMvcTest(controllers = {ApiController.class, AuthController.class, SessionController.class})
 @Import({SecurityConfig.class, BearerTokenAuthenticationFilter.class})
 @TestPropertySource(properties = {
+  "ONMU_API_ACCESS_TOKEN=test-access-token",
+  "ONMU_API_REFRESH_TOKEN=test-refresh-token",
+  "ONMU_CORS_ORIGINS=http://localhost:5173",
+  "onmu.security.access-token=test-access-token",
+  "onmu.security.refresh-token=test-refresh-token",
+  "onmu.security.dev-access-token=test-access-token",
+  "onmu.security.dev-refresh-token=test-refresh-token",
   "onmu.security.cors.allowed-origins=http://localhost:5173",
   "onmu.auth.access-token-secret=test-access-token-secret-with-enough-length",
   "onmu.access-log.path=target/test-security-config-api-access.log"
@@ -62,6 +70,9 @@ class SecurityConfigTests {
 
   @MockitoBean
   private UserRepository userRepository;
+  
+  @MockitoBean
+  private SettlementApiService settlementApiService;
 
   @Test
   void protectedApiRequiresBearerToken() throws Exception {
