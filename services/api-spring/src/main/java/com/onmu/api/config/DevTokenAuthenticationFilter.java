@@ -88,6 +88,8 @@ public class DevTokenAuthenticationFilter extends OncePerRequestFilter {
       HttpMethod.POST.matches(method) && path.matches("^/api/v1/auth/oauth/[^/]+$")
     ) || (
       HttpMethod.POST.matches(method) && "/api/v1/auth/refresh".equals(path)
+    ) || (
+      HttpMethod.POST.matches(method) && path.startsWith("/api/v1/internal/callbacks/")
     );
   }
 
