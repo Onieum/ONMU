@@ -11,12 +11,14 @@ class OnmuChip extends StatelessWidget {
     this.icon,
     this.selected = false,
     this.color,
+    this.onTap,
   });
 
   final String label;
   final IconData? icon;
   final bool selected;
   final Color? color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +38,7 @@ class OnmuChip extends StatelessWidget {
         ? activeColor
         : AppColors.textSub;
 
-    return DecoratedBox(
+    final chip = DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -64,5 +66,11 @@ class OnmuChip extends StatelessWidget {
         ),
       ),
     );
+
+    if (onTap == null) {
+      return chip;
+    }
+
+    return GestureDetector(onTap: onTap, child: chip);
   }
 }
