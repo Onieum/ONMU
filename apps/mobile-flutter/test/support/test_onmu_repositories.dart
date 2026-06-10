@@ -1,6 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
+import 'package:onmu_mobile/features/auth/data/social_auth_service.dart';
+import 'package:onmu_mobile/features/auth/domain/auth_session.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
+import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart';
+import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
@@ -18,7 +23,9 @@ ProviderContainer createOnmuTestContainer() {
   final store = InMemoryOnmuStore.seeded();
   return ProviderContainer(
     overrides: [
+      authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
+      socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
@@ -33,7 +40,9 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
   final store = InMemoryOnmuStore.seeded();
   return ProviderScope(
     overrides: [
+      authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
+      socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
@@ -45,6 +54,17 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
   );
 }
 
+SocialAuthService testSocialAuthService() {
+  return SocialAuthService(
+    naverCredentialLoader: () async => const OAuthProviderCredential(
+      provider: 'naver',
+      devVerifiedSubject: 'naver-dev-local-user',
+      displayName: '네이버 친구',
+      email: 'naver-user@example.com',
+    ),
+  );
+}
+
 class TestAuthRepository implements AuthRepository {
   const TestAuthRepository([this.user]);
 
@@ -52,6 +72,29 @@ class TestAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser?> fetchCurrentUser() async => user;
+
+  @override
+  Future<AuthSession> exchangeOAuthLogin(
+    OAuthProviderCredential credential,
+  ) async {
+    final provider = credential.provider.toUpperCase();
+    final displayName = credential.displayName?.trim().isNotEmpty == true
+        ? credential.displayName!.trim()
+        : '테스트 사용자';
+    return AuthSession(
+      user: AuthUser(
+        id: 'usr_test_oauth',
+        publicId: 'usr_test_oauth',
+        provider: provider,
+        displayName: displayName,
+        email: credential.email,
+      ),
+      tokens: const OnmuAuthTokens(
+        accessToken: 'test-onmu-access-jwt',
+        refreshToken: 'test-onmu-refresh-token',
+      ),
+    );
+  }
 }
 
 class TestGroupRepository implements GroupRepository {

@@ -20,13 +20,10 @@ final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
       connectTimeout: const Duration(seconds: 8),
       receiveTimeout: const Duration(seconds: 12),
       responseType: ResponseType.json,
-      headers: {
-        'Accept': 'application/json',
-        if (accessToken.isNotEmpty) 'Authorization': 'Bearer $accessToken',
-      },
+      headers: {'Accept': 'application/json'},
     ),
   );
-  return OnmuApiClient(dio);
+  return OnmuApiClient(dio, initialAccessToken: accessToken);
 });
 
 String resolveOnmuAccessToken({
@@ -37,11 +34,31 @@ String resolveOnmuAccessToken({
 }
 
 class OnmuApiClient {
-  OnmuApiClient(this._dio);
+  OnmuApiClient(this._dio, {String initialAccessToken = ''}) {
+    setAccessToken(initialAccessToken);
+  }
 
   final Dio _dio;
 
   String get baseUrl => _dio.options.baseUrl;
+
+  String? get authorizationHeader {
+    final value = _dio.options.headers['Authorization'];
+    return value?.toString();
+  }
+
+  void setAccessToken(String? accessToken) {
+    final token = accessToken?.trim() ?? '';
+    if (token.isEmpty) {
+      _dio.options.headers.remove('Authorization');
+      return;
+    }
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  void clearAccessToken() {
+    _dio.options.headers.remove('Authorization');
+  }
 
   Future<Map<String, dynamic>> getObject(String path) async {
     final response = await _dio.get<Object?>(path);

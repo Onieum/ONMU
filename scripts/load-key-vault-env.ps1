@@ -27,6 +27,8 @@ $secretMap = [ordered]@{
   MINIO_ROOT_USER = "$SecretPrefix-minio-root-user"
   MINIO_ROOT_PASSWORD = "$SecretPrefix-minio-root-password"
   ONMU_ACCESS_TOKEN_SECRET = "$SecretPrefix-access-token-secret"
+  NAVER_OAUTH_CLIENT_ID = "$SecretPrefix-naver-oauth-client-id"
+  NAVER_OAUTH_CLIENT_SECRET = "$SecretPrefix-naver-oauth-client-secret"
 }
 
 if ($SecretPrefix -eq "dev") {
@@ -36,6 +38,7 @@ if ($SecretPrefix -eq "dev") {
   $secretMap.ONMU_DEV_CORS_ORIGINS = "dev-cors-origins"
   $secretMap.CLOUDFLARE_API_TOKEN = "dev-cloudflare-api-token"
   $secretMap.KAKAO_REST_API_KEY = "dev-kakao-rest-api-key"
+  # 기존 Naver 검색/지도/NCP 계열 이름과 OAuth 전용 이름을 혼용하지 않는다.
   $secretMap.NAVER_CLIENT_ID = "dev-naver-client-id"
   $secretMap.NAVER_CLIENT_SECRET = "dev-naver-client-secret"
   $secretMap.GOOGLE_MAPS_API_KEY = "dev-google-maps-api-key"

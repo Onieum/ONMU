@@ -223,7 +223,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _googleAuthSubscription = service.googleAuthUserEvents().listen(
         (user) {
           if (user != null) {
-            actions.applyGoogleAuthUser(user);
+            final accepted = actions.applyGoogleAuthUser(user);
+            if (!accepted && mounted) {
+              setState(() {
+                _errorMessage = _messageForSignInError(
+                  const GoogleSpringOAuthUnavailableException(),
+                );
+              });
+            }
           }
         },
         onError: (Object error) {
@@ -317,11 +324,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   String _messageForSignInError(Object error) {
+    if (error is KakaoSignInUnavailableException) {
+      return 'Kakao OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
+    if (error is NaverSignInUnavailableException) {
+      return '네이버 OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
     if (error is GoogleSignInMissingClientIdException) {
       return 'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
     }
     if (error is GoogleSignInWebButtonRequiredException) {
       return '웹에서는 Google 공식 로그인 버튼으로 진행해 주세요.';
+    }
+    if (error is GoogleSpringOAuthUnavailableException) {
+      return 'Google 로그인은 Spring idToken 검증이 연결된 뒤 사용할 수 있어요.';
     }
     return '로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.';
   }
@@ -426,10 +442,7 @@ class _LoginButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(11),
-              side: BorderSide(
-                color: effectiveBorderColor,
-                width: 1.2,
-              ),
+              side: BorderSide(color: effectiveBorderColor, width: 1.2),
             ),
           ),
           child: Padding(

@@ -72,6 +72,10 @@ Spring access token은 정적 문자열이 아니라 `ONMU_ACCESS_TOKEN_SECRET`�
 
 Azure/Terraform 기반 prod 전환 시에는 Flutter가 OAuth login을 시작하고, Spring Boot가 provider token/code를 검증한 뒤 access JWT와 refresh token을 발급한다. Flutter는 발급받은 token을 secure storage에 저장한다. 운영 클라이언트에는 JWT signing secret을 넣지 않고, signing secret과 token TTL은 Terraform/Key Vault/env 기준으로 관리한다.
 
+Naver OAuth 로그인용 서버 env는 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`이다. Key Vault secret name은 dev `dev-naver-oauth-client-id`, `dev-naver-oauth-client-secret`, integration `int-naver-oauth-client-id`, `int-naver-oauth-client-secret`을 사용한다. `dev-naver-client-id`, `dev-naver-client-secret`은 이름이 모호하므로 OAuth 로그인에는 사용하지 않는다.
+
+Naver redirect URI 후보는 `http://localhost:8080/api/v1/auth/oauth/naver/callback`, `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, future prod `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`이다.
+
 dev Flutter 실행:
 
 Windows PowerShell:
