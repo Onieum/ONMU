@@ -281,7 +281,8 @@ function Import-KeyVaultEnvForBackend {
     "OBJECT_STORAGE_ENDPOINT",
     "OBJECT_STORAGE_BUCKET",
     "MINIO_ROOT_USER",
-    "MINIO_ROOT_PASSWORD"
+    "MINIO_ROOT_PASSWORD",
+    "ONMU_ACCESS_TOKEN_SECRET"
   )
   if ($Environment -eq "dev") {
     $envNames += @(
@@ -448,16 +449,6 @@ function Set-SpringDatasourceFromDatabaseUrl {
   }
 }
 
-function Get-ApiAccessToken {
-  if ($env:ONMU_API_ACCESS_TOKEN) {
-    return $env:ONMU_API_ACCESS_TOKEN
-  }
-  if ($env:ONMU_DEV_ACCESS_TOKEN) {
-    return $env:ONMU_DEV_ACCESS_TOKEN
-  }
-  return ""
-}
-
 function Set-SpringEnvironment {
   $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { $DefaultOnmuEnv }
   if ($Environment -eq "integration" -and -not $env:SPRING_PROFILES_ACTIVE) {
@@ -502,10 +493,6 @@ function Set-SpringEnvironment {
   }
 
   Set-SpringDatasourceFromDatabaseUrl
-  if (-not (Get-ApiAccessToken)) {
-    throw "Spring runtime requires ONMU_API_ACCESS_TOKEN or ONMU_DEV_ACCESS_TOKEN for protected /api/v1 smoke tests. Set it from Key Vault or the local process environment."
-  }
-
   Write-DeployLog "Spring environment prepared for $Environment on ${ApiHost}:${ApiPort}. Secret values are not printed."
 }
 
@@ -614,6 +601,66 @@ function New-TempJsonFile {
   return $path
 }
 
+$script:SmokeBearerToken = ""
+
+function ConvertTo-Base64Url {
+  param([byte[]]$Bytes)
+
+  return [Convert]::ToBase64String($Bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
+}
+
+function New-SmokeAccessToken {
+  $secret = if ($env:ONMU_ACCESS_TOKEN_SECRET) {
+    $env:ONMU_ACCESS_TOKEN_SECRET
+  } else {
+    "local-dev-access-token-secret-change-before-shared-dev"
+  }
+  $issuer = if ($env:ONMU_AUTH_ISSUER) { $env:ONMU_AUTH_ISSUER } else { "onmu-api" }
+  $audience = if ($env:ONMU_AUTH_AUDIENCE) { $env:ONMU_AUTH_AUDIENCE } else { "onmu-mobile" }
+  $subject = if ($env:ONMU_SMOKE_USER_ID) { $env:ONMU_SMOKE_USER_ID } else { "user-me" }
+  $now = [DateTimeOffset]::UtcNow
+
+  $header = [ordered]@{
+    alg = "HS256"
+    typ = "JWT"
+  } | ConvertTo-Json -Compress
+  $payload = [ordered]@{
+    iss = $issuer
+    aud = $audience
+    sub = $subject
+    typ = "access"
+    iat = $now.ToUnixTimeSeconds()
+    exp = $now.AddMinutes(15).ToUnixTimeSeconds()
+  } | ConvertTo-Json -Compress
+
+  $headerPart = ConvertTo-Base64Url -Bytes ([System.Text.Encoding]::UTF8.GetBytes($header))
+  $payloadPart = ConvertTo-Base64Url -Bytes ([System.Text.Encoding]::UTF8.GetBytes($payload))
+  $signingInput = "$headerPart.$payloadPart"
+  $hmac = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($secret))
+  try {
+    $signaturePart = ConvertTo-Base64Url -Bytes ($hmac.ComputeHash([System.Text.Encoding]::ASCII.GetBytes($signingInput)))
+  } finally {
+    $hmac.Dispose()
+  }
+
+  Write-DeployLog "Generated short-lived access token for public authenticated smoke. Token value is not printed."
+  return "$signingInput.$signaturePart"
+}
+
+function Get-SmokeBearerToken {
+  if ($script:SmokeBearerToken) {
+    return $script:SmokeBearerToken
+  }
+
+  if ($env:ONMU_SMOKE_BEARER_TOKEN) {
+    $script:SmokeBearerToken = $env:ONMU_SMOKE_BEARER_TOKEN
+  } else {
+    $script:SmokeBearerToken = New-SmokeAccessToken
+  }
+
+  return $script:SmokeBearerToken
+}
+
 function Add-SmokeClientQuery {
   param([string]$Url)
 
@@ -638,13 +685,9 @@ function Invoke-SmokeRequest {
     $curlArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
     $displayArgs = @("-sS", "-o", $responseFile, "-w", "%{http_code}", "-X", $Method, $targetUrl)
     if ($UseApiAuth) {
-      $apiAccessToken = Get-ApiAccessToken
-      if (-not $apiAccessToken -and -not $DryRun) {
-        throw "ONMU_API_ACCESS_TOKEN or ONMU_DEV_ACCESS_TOKEN is required for authenticated Spring smoke requests."
-      }
-
-      if ($apiAccessToken) {
-        $curlArgs += @("-H", "Authorization: Bearer $apiAccessToken")
+      $smokeBearerToken = Get-SmokeBearerToken
+      if ($smokeBearerToken) {
+        $curlArgs += @("-H", "Authorization: Bearer $smokeBearerToken")
       }
       $displayArgs += @("-H", "Authorization: Bearer <redacted>")
     }

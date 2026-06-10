@@ -25,6 +25,7 @@ $secretMap = [ordered]@{
   "$SecretPrefix-object-storage-bucket" = "OBJECT_STORAGE_BUCKET"
   "$SecretPrefix-minio-root-user" = "MINIO_ROOT_USER"
   "$SecretPrefix-minio-root-password" = "MINIO_ROOT_PASSWORD"
+  "$SecretPrefix-access-token-secret" = "ONMU_ACCESS_TOKEN_SECRET"
 }
 
 if ($SecretPrefix -eq "dev") {
