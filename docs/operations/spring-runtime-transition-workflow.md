@@ -68,6 +68,10 @@ curl.exe -i https://int-api.onmu.cloud/api/v1/home/summary?client=spring-int-no-
 
 Spring access token은 정적 문자열이 아니라 `ONMU_ACCESS_TOKEN_SECRET`으로 서명한 HS256 JWT다. Flutter API mode 실행용 token은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret` 값을 직접 앱에 넣지 않고, 로컬에서 짧은 수명의 JWT로 발급해 git ignored dart-define 파일로 전달한다.
 
+이 dev/integration JWT 생성 스크립트는 로컬 smoke와 Flutter API mode 검증용이다. MVP/dev 단계에서는 현재 `sub=<users.public_id>` 흐름을 유지하며, CDC/Databricks/analytics 기준을 이유로 dev 인증 흐름을 바꾸지 않는다.
+
+Azure/Terraform 기반 prod 전환 시에는 Flutter가 OAuth login을 시작하고, Spring Boot가 provider token/code를 검증한 뒤 access JWT와 refresh token을 발급한다. Flutter는 발급받은 token을 secure storage에 저장한다. 운영 클라이언트에는 JWT signing secret을 넣지 않고, signing secret과 token TTL은 Terraform/Key Vault/env 기준으로 관리한다.
+
 dev Flutter 실행:
 
 Windows PowerShell:
