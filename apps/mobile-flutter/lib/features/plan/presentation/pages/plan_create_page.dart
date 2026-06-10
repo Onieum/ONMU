@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/plan_models.dart';
+import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -26,19 +27,19 @@ class PlanCreatePage extends ConsumerStatefulWidget {
 
 class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   final _titleController = TextEditingController();
-  final _startController = TextEditingController();
-  final _endController = TextEditingController();
   final _locationController = TextEditingController();
   final _memoController = TextEditingController();
+  late DateTime _startsAt;
+  late DateTime _endsAt;
   int? _loadedPlanId;
 
   @override
   void initState() {
     super.initState();
+    _startsAt = _defaultStartDateTime();
+    _endsAt = _startsAt.add(const Duration(hours: 2));
     for (final controller in [
       _titleController,
-      _startController,
-      _endController,
       _locationController,
       _memoController,
     ]) {
@@ -50,8 +51,6 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   void dispose() {
     for (final controller in [
       _titleController,
-      _startController,
-      _endController,
       _locationController,
       _memoController,
     ]) {
@@ -70,8 +69,11 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     }
     _loadedPlanId = plan.id;
     _titleController.text = plan.title;
-    _startController.text = plan.dateTime;
-    _endController.text = plan.dateTime;
+    final parsedStartsAt = _parsePlanDateTime(plan.dateTime);
+    if (parsedStartsAt != null) {
+      _startsAt = parsedStartsAt;
+      _endsAt = parsedStartsAt.add(const Duration(hours: 2));
+    }
     _locationController.text = plan.location;
     _memoController.text = plan.memo;
   }
@@ -92,8 +94,14 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           groupId: widget.groupId,
           editingPlanId: widget.editingPlanId,
           titleController: _titleController,
-          startController: _startController,
-          endController: _endController,
+          startsAt: _startsAt,
+          endsAt: _endsAt,
+          onDateTimeChanged: (range) {
+            setState(() {
+              _startsAt = range.start;
+              _endsAt = range.end;
+            });
+          },
           locationController: _locationController,
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
@@ -107,8 +115,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                         input: PlanCreateInput(
                           groupId: widget.groupId,
                           title: _titleController.text,
-                          dateTime:
-                              '${_startController.text} - ${_endController.text}',
+                          dateTime: _startsAt.toIso8601String(),
                           location: _locationController.text,
                           memo: _memoController.text,
                           members: state.plan.members,
@@ -142,8 +149,9 @@ class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({
     required this.groupId,
     required this.titleController,
-    required this.startController,
-    required this.endController,
+    required this.startsAt,
+    required this.endsAt,
+    required this.onDateTimeChanged,
     required this.locationController,
     required this.memoController,
     required this.selectedMembers,
@@ -154,8 +162,9 @@ class _PlanCreateContent extends StatelessWidget {
   final String groupId;
   final String? editingPlanId;
   final TextEditingController titleController;
-  final TextEditingController startController;
-  final TextEditingController endController;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final ValueChanged<OnmuDateTimeRange> onDateTimeChanged;
   final TextEditingController locationController;
   final TextEditingController memoController;
   final List<PlanMember> selectedMembers;
@@ -186,9 +195,11 @@ class _PlanCreateContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Text('날짜와 시간', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
-        _DateTimeField(label: '시작', controller: startController),
-        const SizedBox(height: AppSpacing.sm),
-        _DateTimeField(label: '끝', controller: endController),
+        _DateTimeRangeField(
+          startsAt: startsAt,
+          endsAt: endsAt,
+          onChanged: onDateTimeChanged,
+        ),
         const SizedBox(height: AppSpacing.lg),
         _LocationField(controller: locationController),
         const SizedBox(height: AppSpacing.lg),
@@ -240,41 +251,119 @@ class _LabeledField extends StatelessWidget {
   }
 }
 
-class _DateTimeField extends StatelessWidget {
-  const _DateTimeField({required this.label, required this.controller});
+class _DateTimeRangeField extends StatelessWidget {
+  const _DateTimeRangeField({
+    required this.startsAt,
+    required this.endsAt,
+    required this.onChanged,
+  });
 
-  final String label;
-  final TextEditingController controller;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final ValueChanged<OnmuDateTimeRange> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        suffixIcon: const Icon(Icons.calendar_month_outlined),
+    return OnmuCard(
+      onTap: () async {
+        final picked = await OnmuDateTimeRangePicker.show(
+          context: context,
+          initialStart: startsAt,
+          initialEnd: endsAt,
+        );
+        if (picked != null) {
+          onChanged(picked);
+        }
+      },
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          const Icon(Icons.event_available, color: AppColors.primaryPink),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('선택한 일정', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '${_formatPlanDate(startsAt)} · ${_formatPlanTime(startsAt)} ~ ${_formatPlanTime(endsAt)}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '추천 시간대 또는 직접 시간을 터치해서 선택',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(Icons.expand_more, color: AppColors.textMuted),
+        ],
       ),
     );
   }
 }
 
-class _LocationField extends StatelessWidget {
+class _LocationField extends StatefulWidget {
   const _LocationField({required this.controller});
 
   final TextEditingController controller;
 
   @override
+  State<_LocationField> createState() => _LocationFieldState();
+}
+
+class _LocationFieldState extends State<_LocationField> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_sync);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LocationField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_sync);
+      widget.controller.addListener(_sync);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_sync);
+    super.dispose();
+  }
+
+  void _sync() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
+    final hasText = widget.controller.text.trim().isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('지역', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
-          controller: controller,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.location_on_outlined),
-            suffixIcon: Icon(Icons.cancel),
+          key: const ValueKey('plan-location-field'),
+          controller: widget.controller,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            suffixIcon: hasText
+                ? IconButton(
+                    tooltip: '지역 지우기',
+                    onPressed: widget.controller.clear,
+                    icon: const Icon(Icons.cancel),
+                  )
+                : null,
           ),
         ),
       ],
@@ -352,4 +441,54 @@ class _AddMemberBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+DateTime _defaultStartDateTime() {
+  final now = DateTime.now();
+  final tomorrow = now.add(const Duration(days: 1));
+  return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 14);
+}
+
+DateTime? _parsePlanDateTime(String value) {
+  final parsedIso = DateTime.tryParse(value.trim());
+  if (parsedIso != null) {
+    return parsedIso.toLocal();
+  }
+
+  final match = RegExp(
+    r'(\d{1,2})[월.]\s*(\d{1,2})(?:일)?(?:[^오\d]*(오전|오후)?)?\s*(\d{1,2})?:?(\d{2})?',
+  ).firstMatch(value);
+  if (match == null) {
+    return null;
+  }
+
+  final now = DateTime.now();
+  final month = int.tryParse(match.group(1) ?? '');
+  final day = int.tryParse(match.group(2) ?? '');
+  if (month == null || day == null) {
+    return null;
+  }
+
+  var hour = int.tryParse(match.group(4) ?? '') ?? 14;
+  final minute = int.tryParse(match.group(5) ?? '') ?? 0;
+  final meridiem = match.group(3);
+  if (meridiem == '오후' && hour < 12) {
+    hour += 12;
+  }
+  if (meridiem == '오전' && hour == 12) {
+    hour = 0;
+  }
+
+  return DateTime(now.year, month, day, hour, minute);
+}
+
+String _formatPlanDate(DateTime date) {
+  final weekday = const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
+  return '${date.month}월 ${date.day}일 ($weekday)';
+}
+
+String _formatPlanTime(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

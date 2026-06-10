@@ -65,6 +65,7 @@ raw/
 *.tsv
 *.xlsx
 *.parquet
+*.pmtiles
 *.jsonl
 *.json.gz
 

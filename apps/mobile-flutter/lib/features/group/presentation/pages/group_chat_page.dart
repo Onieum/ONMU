@@ -257,7 +257,7 @@ class _PlanChatAnchor extends StatelessWidget {
               ],
             ),
           ),
-          OnmuChip(label: plan.statusLabel, selected: true),
+          OnmuChip(label: plan.displayStatusLabel, selected: true),
           const SizedBox(width: AppSpacing.xs),
           const Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],

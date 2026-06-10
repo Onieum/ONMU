@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/plan_detail_view_model.dart';
@@ -87,7 +88,7 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: widget.detail.plan.title,
-      titleSubtitle: _PlanLocationSubtitle(
+      titleSubtitle: OnmuLocationSubtitle(
         location: widget.detail.plan.location,
       ),
       showBackButton: true,
@@ -107,6 +108,14 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
       ),
       children: [
         _PlanMemberSection(members: widget.detail.selectedMembers),
+        if (widget.detail.canShareArrivalStatus) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ArrivalStatusSection(
+            groupId: widget.groupId,
+            planId: widget.planId,
+            participants: widget.detail.participantArrivals,
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         _DateTabs(
           selectedIndex: _selectedDateIndex,
@@ -213,7 +222,7 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: widget.detail.plan.title,
-      titleSubtitle: _PlanLocationSubtitle(
+      titleSubtitle: OnmuLocationSubtitle(
         location: widget.detail.plan.location,
       ),
       showBackButton: true,
@@ -232,6 +241,14 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
       ),
       children: [
         _PlanMemberSection(members: widget.detail.selectedMembers),
+        if (widget.detail.canShareArrivalStatus) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ArrivalStatusSection(
+            groupId: widget.groupId,
+            planId: widget.planId,
+            participants: widget.detail.participantArrivals,
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         _DateTabs(
           selectedIndex: _selectedDateIndex,
@@ -276,29 +293,172 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
   }
 }
 
-class _PlanLocationSubtitle extends StatelessWidget {
-  const _PlanLocationSubtitle({required this.location});
+class _ArrivalStatusSection extends ConsumerWidget {
+  const _ArrivalStatusSection({
+    required this.groupId,
+    required this.planId,
+    required this.participants,
+  });
 
-  final String location;
+  final String groupId;
+  final String planId;
+  final List<PlanParticipantArrival> participants;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visibleParticipants = participants
+        .where(
+          (participant) => participant.arrivalStatus != PlanArrivalStatus.none,
+        )
+        .toList(growable: false);
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('약속 상태 알리기', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '출발, 도착, 지각 상태를 모임원에게 공유해요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _ArrivalStatusButton(
+                  label: '출발',
+                  icon: Icons.directions_walk,
+                  onPressed: () =>
+                      _updateStatus(context, ref, PlanArrivalStatus.departed),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _ArrivalStatusButton(
+                  label: '도착',
+                  icon: Icons.location_on_outlined,
+                  onPressed: () =>
+                      _updateStatus(context, ref, PlanArrivalStatus.arrived),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _ArrivalStatusButton(
+                  label: '지각',
+                  icon: Icons.schedule,
+                  onPressed: () =>
+                      _updateStatus(context, ref, PlanArrivalStatus.late),
+                ),
+              ),
+            ],
+          ),
+          if (visibleParticipants.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final participant in visibleParticipants.take(6))
+                  _ParticipantArrivalChip(participant: participant),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateStatus(
+    BuildContext context,
+    WidgetRef ref,
+    PlanArrivalStatus status,
+  ) async {
+    try {
+      await ref
+          .read(
+            planDetailViewModelProvider((
+              groupId: groupId,
+              planId: planId,
+            )).notifier,
+          )
+          .updateMyArrivalStatus(status);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${status.label} 상태를 공유했어요.')));
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('상태를 공유하지 못했어요.')));
+    }
+  }
+}
+
+class _ArrivalStatusButton extends StatelessWidget {
+  const _ArrivalStatusButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.location_on_outlined,
-          size: 16,
-          color: AppColors.textSub,
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryPurple,
+        side: const BorderSide(color: AppColors.linePink),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.sm,
         ),
-        const SizedBox(width: AppSpacing.xxs),
-        Text(
-          location,
+      ),
+    );
+  }
+}
+
+class _ParticipantArrivalChip extends StatelessWidget {
+  const _ParticipantArrivalChip({required this.participant});
+
+  final PlanParticipantArrival participant;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgSticker,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Text(
+          '${participant.displayName} ${participant.arrivalStatus.label}',
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPurpleDark),
         ),
-      ],
+      ),
     );
   }
 }

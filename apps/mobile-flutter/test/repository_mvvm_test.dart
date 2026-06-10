@@ -73,6 +73,48 @@ void main() {
     expect(state.todayPlanCount, 2);
   });
 
+  test('홈 ViewModel은 다가오는 약속을 오늘 이후 날짜순으로 정렬한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_UpcomingOrderRepository()),
+        planRepositoryProvider.overrideWithValue(
+          _UpcomingOrderPlanRepository(),
+        ),
+        settlementRepositoryProvider.overrideWithValue(
+          _UnusedSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(homeViewModelProvider.future);
+
+    expect(state.upcomingPlans.map((plan) => plan.title), [
+      '내일 약속',
+      '다음 주 약속',
+      '시간 미정 약속',
+    ]);
+    expect(state.upcomingPlans.any((plan) => plan.title == '지난 약속'), isFalse);
+  });
+
+  test('홈 ViewModel은 현재 진행 중인 약속이 없으면 activePlan을 비운다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_NoActivePlanRepository()),
+        planRepositoryProvider.overrideWithValue(_UnusedPlanRepository()),
+        settlementRepositoryProvider.overrideWithValue(
+          _UnusedSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(homeViewModelProvider.future);
+
+    expect(state.activePlan, isNull);
+    expect(state.upcomingPlans.map((plan) => plan.title), ['내일 약속']);
+  });
+
   test('온모임 생성 ViewModel은 기존 모임이 없어도 추천 멤버 없이 열린다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -98,6 +140,20 @@ void main() {
     expect(state.recentMessage, isNotNull);
   });
 
+  test('온모임 홈 ViewModel은 미래 약속만 날짜순으로 다가오는 약속에 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_NoActivePlanRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupHomeViewModelProvider('9').future);
+
+    expect(state.upcomingPlan?.title, '내일 약속');
+    expect(state.upcomingPlan?.displayStatusLabel, '초안');
+  });
+
   test('약속 상세 ViewModel은 선택 멤버와 날짜별 방문 계획을 분리한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
@@ -115,6 +171,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
+        planRepositoryProvider.overrideWithValue(_FakePlanRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -125,6 +182,7 @@ void main() {
 
     final initial = await container.read(provider.future);
     expect(initial.candidates.single.id, 9901);
+    expect(initial.planLocation, '서울시 테스트구');
     expect(initial.isLiked(9901), isFalse);
     expect(initial.favoriteCountFor(9901), 3);
 
@@ -402,6 +460,188 @@ class _TodayPlansPlanRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) async {
+    return PlanParticipantArrival(
+      id: 'current-user',
+      displayName: '나',
+      participantStatus: 'joined',
+      arrivalStatus: status,
+      isFallback: false,
+    );
+  }
+}
+
+class _UpcomingOrderRepository extends _EmptyGroupRepository {
+  static final _now = DateTime.now();
+  static final _today = DateTime(_now.year, _now.month, _now.day);
+  static const _group = GroupSummary(
+    id: 8,
+    name: '정렬 테스트 모임',
+    description: '',
+    members: [],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '',
+  );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async => _group;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [
+    GroupPlanSummary(
+      id: 82,
+      title: '다음 주 약속',
+      dateLabel: '다음 주 오후 7:00',
+      startsAt: _today.add(const Duration(days: 7, hours: 19)),
+      placeName: '성수',
+      statusLabel: 'draft',
+      statusType: 'draft',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: false,
+    ),
+    GroupPlanSummary(
+      id: 81,
+      title: '내일 약속',
+      dateLabel: '내일 오후 2:00',
+      startsAt: _today.add(const Duration(days: 1, hours: 14)),
+      placeName: '한남',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'food',
+      isPast: false,
+    ),
+    GroupPlanSummary(
+      id: 80,
+      title: '지난 약속',
+      dateLabel: '어제 오후 2:00',
+      startsAt: _today
+          .subtract(const Duration(days: 1))
+          .add(const Duration(hours: 14)),
+      placeName: '홍대',
+      statusLabel: 'completed',
+      statusType: 'completed',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'gallery',
+      isPast: false,
+    ),
+    const GroupPlanSummary(
+      id: 83,
+      title: '시간 미정 약속',
+      dateLabel: '일정 미정',
+      startsAt: null,
+      placeName: '장소 미정',
+      statusLabel: 'draft',
+      statusType: 'draft',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: false,
+    ),
+  ];
+}
+
+class _UpcomingOrderPlanRepository extends _TodayPlansPlanRepository {
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return Plan(
+      id: int.parse(planId.toString()),
+      title: '내일 약속',
+      dateTime: '내일 오후 2:00',
+      location: '한남',
+      status: 'draft',
+      memo: '',
+      members: const [],
+      timeCandidates: const [],
+      visitPlan: const [],
+    );
+  }
+}
+
+class _NoActivePlanRepository extends _EmptyGroupRepository {
+  static final _now = DateTime.now();
+  static final _today = DateTime(_now.year, _now.month, _now.day);
+  static const _group = GroupSummary(
+    id: 9,
+    name: '진행 중 없음 모임',
+    description: '',
+    members: [],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '',
+  );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async => _group;
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async =>
+      const GroupPinnedPlan(
+        id: 90,
+        title: '완료된 약속',
+        dateLabel: '어제 오후 2:00',
+        placeName: '성수',
+        statusLabel: 'completed',
+        voteSummary: '',
+      );
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [
+    GroupPlanSummary(
+      id: 90,
+      title: '완료된 약속',
+      dateLabel: '어제 오후 2:00',
+      startsAt: _today.subtract(const Duration(days: 1, hours: -14)),
+      placeName: '성수',
+      statusLabel: 'completed',
+      statusType: 'completed',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: true,
+    ),
+    GroupPlanSummary(
+      id: 91,
+      title: '내일 약속',
+      dateLabel: '내일 오후 2:00',
+      startsAt: _today.add(const Duration(days: 1, hours: 14)),
+      placeName: '한남',
+      statusLabel: 'draft',
+      statusType: 'draft',
+      memberCount: 1,
+      extraMemberCount: 0,
+      iconKind: 'food',
+      isPast: false,
+    ),
+  ];
 }
 
 class _UnusedPlanRepository implements PlanRepository {
@@ -427,6 +667,23 @@ class _UnusedPlanRepository implements PlanRepository {
   Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
     required Object groupId,
     required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
   }) {
     throw UnimplementedError();
   }
@@ -529,4 +786,64 @@ class _FakePlaceRepository implements PlaceRepository {
     voters: ['지우'],
     note: '테스트 결과',
   );
+}
+
+class _FakePlanRepository implements PlanRepository {
+  static const _plan = Plan(
+    id: 101,
+    title: '테스트 약속',
+    dateTime: '일정 미정',
+    location: '서울시 테스트구',
+    status: 'draft',
+    memo: '',
+    members: [],
+    timeCandidates: [],
+    visitPlan: [],
+  );
+
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _plan;
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) {
+    throw UnimplementedError();
+  }
 }

@@ -130,6 +130,7 @@ class InMemoryOnmuStore {
       members: List.unmodifiable(input.members),
       timeCandidates: _seedTimeCandidates(),
       visitPlan: _seedVisitPlan(),
+      startsAt: _parsePlanDateTime(input.dateTime),
     );
 
     _plansById[plan.id] = plan;
@@ -190,6 +191,7 @@ class InMemoryOnmuStore {
       members: List.unmodifiable(input.members),
       timeCandidates: previous.timeCandidates,
       visitPlan: previous.visitPlan,
+      startsAt: _parsePlanDateTime(input.dateTime),
     );
     _plansById[parsedPlanId] = updated;
     _replaceGroupPlanSummary(input.groupId, updated);
@@ -614,6 +616,7 @@ class InMemoryOnmuStore {
         members: _seedPlanMembers(),
         timeCandidates: _seedTimeCandidates(),
         visitPlan: _seedVisitPlan(),
+        startsAt: summary.startsAt,
       );
       _visitPlansByPlanId[summary.id] = [
         List.unmodifiable(_seedVisitPlan()),

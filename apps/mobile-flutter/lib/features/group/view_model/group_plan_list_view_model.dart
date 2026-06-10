@@ -22,8 +22,7 @@ class GroupPlanListState {
   final List<GroupMemberProfile> members;
 }
 
-class GroupPlanListViewModel
-    extends AsyncNotifier<GroupPlanListState> {
+class GroupPlanListViewModel extends AsyncNotifier<GroupPlanListState> {
   GroupPlanListViewModel(this.groupId);
 
   final String groupId;
@@ -33,11 +32,18 @@ class GroupPlanListViewModel
     final repository = ref.watch(groupRepositoryProvider);
     final plans = await repository.fetchPlans(groupId);
     final members = await repository.fetchMembers(groupId);
+    final upcomingPlans = _upcomingPlans(plans);
 
     return GroupPlanListState(
-      upcomingPlans: plans.where((plan) => !plan.isPast).toList(),
-      pastPlans: plans.where((plan) => plan.isPast).toList(),
+      upcomingPlans: upcomingPlans,
+      pastPlans: plans.where((plan) => !upcomingPlans.contains(plan)).toList(),
       members: members,
     );
+  }
+
+  List<GroupPlanSummary> _upcomingPlans(List<GroupPlanSummary> plans) {
+    final now = DateTime.now().toLocal();
+    return plans.where((plan) => plan.isUpcomingFrom(now)).toList()
+      ..sort(GroupPlanSummary.compareUpcoming);
   }
 }

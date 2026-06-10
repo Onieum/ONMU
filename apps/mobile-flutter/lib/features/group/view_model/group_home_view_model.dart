@@ -11,13 +11,13 @@ final groupHomeViewModelProvider =
 class GroupHomeState {
   const GroupHomeState({
     required this.group,
+    required this.upcomingPlan,
     required this.recentMemories,
     required this.recentMessage,
-    this.pinnedPlan,
   });
 
   final GroupSummary group;
-  final GroupPinnedPlan? pinnedPlan;
+  final GroupPlanSummary? upcomingPlan;
   final List<GroupMemoryRecord> recentMemories;
   final GroupMessage? recentMessage;
 }
@@ -31,15 +31,23 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
   Future<GroupHomeState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
     final group = await repository.fetchGroup(groupId);
-    final pinnedPlan = await repository.fetchPinnedPlan(groupId);
+    final plans = await repository.fetchPlans(groupId);
     final memories = await repository.fetchMemories(groupId);
     final messages = await repository.fetchMessages(groupId);
 
     return GroupHomeState(
       group: group,
-      pinnedPlan: pinnedPlan,
+      upcomingPlan: _nearestUpcomingPlan(plans),
       recentMemories: List.unmodifiable(memories.take(4)),
       recentMessage: messages.isEmpty ? null : messages.first,
     );
+  }
+
+  GroupPlanSummary? _nearestUpcomingPlan(List<GroupPlanSummary> plans) {
+    final now = DateTime.now().toLocal();
+    final upcoming = plans.where((plan) => plan.isUpcomingFrom(now)).toList()
+      ..sort(GroupPlanSummary.compareUpcoming);
+
+    return upcoming.firstOrNull;
   }
 }

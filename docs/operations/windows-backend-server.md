@@ -37,7 +37,7 @@ Team devices
 | AI/Data Worker | FastAPI Worker로 확정합니다. 모바일 앱에서 직접 호출하지 않고 Spring Boot Main API 뒤의 내부 worker로 둡니다. 1차 Windows helper의 기본 실행 대상은 아닙니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
 | Redis | Naver Place API 캐시, 실시간 presence, WebSocket fan-out, rate limit 보조에만 사용합니다. 원본 저장소로 쓰지 않습니다. |
-| MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지 개발 테스트에 사용합니다. |
+| MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지, 개발용 MapLibre PMTiles manifest 테스트에 사용합니다. |
 | Redpanda | Azure Service Bus/Event Hubs 또는 Kafka 호환 이벤트 흐름을 실험할 때만 켭니다. 기본 실행 대상이 아닙니다. |
 | OpenSearch | 초기 검색은 PostgreSQL Search를 우선합니다. 검색/RAG 실험이 필요할 때만 켭니다. |
 | Airflow | MVP Windows dev 서버 기본 구성에는 포함하지 않습니다. 추천 평가, 통계 리포트, 데이터셋 생성 같은 배치 파이프라인이 커질 때 별도 도입을 검토합니다. |
@@ -151,6 +151,16 @@ npm run compose:config:windows
 docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 docker compose -f infra/compose/docker-compose.yml ps
 ```
+
+MapLibre 개발용 PMTiles object, manifest, style JSON을 MinIO에 올릴 때는 별도 seed 스크립트를 사용합니다. 앱은 PMTiles URL을 직접 하드코딩하지 않고 manifest pointer를 읽습니다. 자세한 기준은 [MapLibre 개발 타일 manifest 운영](./map-tiles-dev.md)을 따릅니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts\windows\seed-map-tiles-minio.ps1 `
+  -PmtilesSourceUrl $env:ONMU_PMTILES_SOURCE_URL
+```
+
+실제 PMTiles source URL이 없으면 dry-run 또는 작은 임시 파일 smoke로 script wiring만 확인합니다. 이 검증은 실제 지도 타일 성공을 의미하지 않습니다.
 
 Windows helper를 쓰는 경우:
 
