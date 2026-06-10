@@ -2,6 +2,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 
 void main() {
+  group('resolveOnmuAccessToken', () {
+    test('prefers JWT define over legacy dev token', () {
+      expect(
+        resolveOnmuAccessToken(
+          accessJwt: 'jwt-token',
+          legacyDevAccessToken: 'legacy-token',
+        ),
+        'jwt-token',
+      );
+    });
+
+    test('falls back to legacy dev token while rollout is in progress', () {
+      expect(
+        resolveOnmuAccessToken(
+          accessJwt: '',
+          legacyDevAccessToken: 'legacy-token',
+        ),
+        'legacy-token',
+      );
+    });
+
+    test('returns empty token when no api token define is provided', () {
+      expect(
+        resolveOnmuAccessToken(accessJwt: '', legacyDevAccessToken: ''),
+        isEmpty,
+      );
+    });
+  });
+
   group('OnmuJson', () {
     test('reads ids from numeric strings', () {
       expect(OnmuJson.readInt({'id': '101'}, 'id'), 101);
