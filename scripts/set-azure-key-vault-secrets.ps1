@@ -15,6 +15,7 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
+  # 기존 정적 token 이름이다. Spring JWT 인증은 ONMU_ACCESS_TOKEN_SECRET을 사용한다.
   "$SecretPrefix-api-access-token" = "ONMU_API_ACCESS_TOKEN"
   "$SecretPrefix-api-refresh-token" = "ONMU_API_REFRESH_TOKEN"
   "$SecretPrefix-cors-origins" = "ONMU_CORS_ORIGINS"

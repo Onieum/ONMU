@@ -260,20 +260,7 @@ function Stop-ExistingBackend {
 
 function Import-KeyVaultEnvForBackend {
   $loader = Join-Path $RepoRoot "scripts\load-key-vault-env.ps1"
-  if (-not $env:AZURE_KEY_VAULT_NAME) {
-    Write-DeployLog "AZURE_KEY_VAULT_NAME is not set. Backend will use current environment or local defaults."
-    return
-  }
-
-  if ($DryRun) {
-    Write-DeployLog "[dry-run] Load API and dependency environment variables from Azure Key Vault without printing secret values."
-    return
-  }
-
-  Write-DeployLog "Loading API and dependency environment variables from Azure Key Vault. Secret values are not printed."
   $envNames = @(
-    "ONMU_API_ACCESS_TOKEN",
-    "ONMU_API_REFRESH_TOKEN",
     "ONMU_CORS_ORIGINS",
     "DATABASE_URL",
     "POSTGRES_PASSWORD",
@@ -286,8 +273,6 @@ function Import-KeyVaultEnvForBackend {
   )
   if ($Environment -eq "dev") {
     $envNames += @(
-      "ONMU_DEV_ACCESS_TOKEN",
-      "ONMU_DEV_REFRESH_TOKEN",
       "ONMU_DEV_CORS_ORIGINS",
       "KAKAO_REST_API_KEY",
       "NAVER_CLIENT_ID",
@@ -300,14 +285,30 @@ function Import-KeyVaultEnvForBackend {
 
   $requiredEnv = if ($Environment -eq "integration") {
     @(
-      "ONMU_API_ACCESS_TOKEN",
-      "ONMU_API_REFRESH_TOKEN",
+      "ONMU_ACCESS_TOKEN_SECRET",
       "DATABASE_URL",
       "POSTGRES_PASSWORD"
     )
   } else {
-    @("DATABASE_URL")
+    @("ONMU_ACCESS_TOKEN_SECRET", "DATABASE_URL")
   }
+
+  if (-not $env:AZURE_KEY_VAULT_NAME) {
+    $missingRequiredEnv = @($requiredEnv | Where-Object { -not (Get-Item -Path "Env:$_" -ErrorAction SilentlyContinue) })
+    if ($missingRequiredEnv.Count -gt 0) {
+      throw "AZURE_KEY_VAULT_NAME is not set and required env vars are missing: $($missingRequiredEnv -join ', '). Secret values are not printed."
+    }
+
+    Write-DeployLog "AZURE_KEY_VAULT_NAME is not set. Using already configured required environment variables. Secret values are not printed."
+    return
+  }
+
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Load API and dependency environment variables from Azure Key Vault without printing secret values."
+    return
+  }
+
+  Write-DeployLog "Loading API and dependency environment variables from Azure Key Vault. Secret values are not printed."
 
   . $loader `
     -VaultName $env:AZURE_KEY_VAULT_NAME `
@@ -610,11 +611,11 @@ function ConvertTo-Base64Url {
 }
 
 function New-SmokeAccessToken {
-  $secret = if ($env:ONMU_ACCESS_TOKEN_SECRET) {
-    $env:ONMU_ACCESS_TOKEN_SECRET
-  } else {
-    "local-dev-access-token-secret-change-before-shared-dev"
+  if (-not $env:ONMU_ACCESS_TOKEN_SECRET) {
+    throw "ONMU_ACCESS_TOKEN_SECRET is required to generate public smoke JWT. Secret values are not printed."
   }
+
+  $secret = $env:ONMU_ACCESS_TOKEN_SECRET
   $issuer = if ($env:ONMU_AUTH_ISSUER) { $env:ONMU_AUTH_ISSUER } else { "onmu-api" }
   $audience = if ($env:ONMU_AUTH_AUDIENCE) { $env:ONMU_AUTH_AUDIENCE } else { "onmu-mobile" }
   $subject = if ($env:ONMU_SMOKE_USER_ID) { $env:ONMU_SMOKE_USER_ID } else { "user-me" }

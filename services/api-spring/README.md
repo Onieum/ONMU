@@ -59,8 +59,9 @@ cd C:\dev\ONMU\services\api-spring
 | `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
 | `ONMU_ACCESS_LOG_PATH` | `logs/api-access.log` | Spring request-level access log JSONL 파일 경로 |
-| `ONMU_API_ACCESS_TOKEN` | 없음 | dev/integration 공통 보호 API smoke token. `ONMU_DEV_ACCESS_TOKEN`은 dev fallback |
-| `ONMU_API_REFRESH_TOKEN` | 없음 | dev/integration 공통 refresh smoke token. `ONMU_DEV_REFRESH_TOKEN`은 dev fallback |
+| `ONMU_ACCESS_TOKEN_SECRET` | 로컬 dev 기본값 | HS256 access JWT 서명 secret. 공유 dev/integration은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret`에서 주입 |
+| `ONMU_API_ACCESS_TOKEN` | 없음 | legacy 정적 token 이름. 현재 Spring 인증 필터는 이 값을 access token으로 검증하지 않음 |
+| `ONMU_API_REFRESH_TOKEN` | 없음 | legacy refresh smoke token 이름. refresh token 저장/회전 구현 검증 외에는 Flutter 실행 token으로 쓰지 않음 |
 | `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
@@ -163,13 +164,26 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 Flutter 앱은 기본적으로 mock repository를 사용합니다. Spring Main API를 직접 호출하려면 실행 시 Dart define으로 API mode를 켭니다.
 
 ```powershell
-cd C:\dev\ONMU\apps\mobile-flutter
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 -Environment dev -VaultName $env:AZURE_KEY_VAULT_NAME
+
+cd apps\mobile-flutter
 flutter run `
-  --dart-define=ONMU_DATA_SOURCE=api `
-  --dart-define=ONMU_API_BASE_URL=http://127.0.0.1:8080
+  --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
 ```
 
-Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
+`new-flutter-access-jwt.ps1`는 Key Vault의 `dev-access-token-secret`으로 짧은 수명의 HS256 JWT를 발급하고, token 값을 출력하지 않은 채 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다. Flutter API client는 `ONMU_API_ACCESS_JWT`를 우선 읽으며, 이 파일은 git에서 무시됩니다.
+
+로컬 Spring API를 직접 볼 때는 base URL을 명시합니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -ApiBaseUrl http://127.0.0.1:8080 `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+```
+
+Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`입니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
 
 현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement draft/preview/create/result입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
@@ -236,16 +250,21 @@ curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
 Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
 ```powershell
-$env:ONMU_API_ACCESS_TOKEN="<local-smoke-token>"
-$headers = @{ Authorization = "Bearer $env:ONMU_API_ACCESS_TOKEN" }
+cd C:\dev\ONMU
+$env:ONMU_ACCESS_TOKEN_SECRET="<local-only-signing-secret>"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 -ApiBaseUrl http://127.0.0.1:8080
+
+$defines = Get-Content apps\mobile-flutter\.dart_tool\onmu-dev-api.defines.json -Raw | ConvertFrom-Json
+$headers = @{ Authorization = "Bearer $($defines.ONMU_API_ACCESS_JWT)" }
 Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 ```
 
-토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault 또는 로컬 프로세스 환경변수로만 주입합니다.
+토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault의 signing secret으로 JWT를 발급해 현재 로컬 프로세스 또는 git ignored dart-define 파일에서만 사용합니다.
 
 인증 동작:
 
 - 보호된 `/api/v1/**` endpoint는 유효한 `Authorization: Bearer <accessToken>`이 없으면 HTTP 401과 `{ "ok": false, "error": "authentication_required" }`를 반환합니다.
+- Spring access token은 `iss=onmu-api`, `aud=onmu-mobile`, `typ=access`, `sub=<users.public_id>` claim을 가진 HS256 JWT입니다. 정적 `dev-api-access-token` 값은 현재 Spring 인증 필터에서 유효한 access token이 아닙니다.
 - `GET /api/v1/auth/session`, `GET /api/v1/users/me`, `GET /api/v1/home/summary`는 보호된 endpoint입니다. 토큰이 유효하면 현재 인증 사용자 기준으로 session/user/viewer 정보를 반환합니다.
 - `POST /api/v1/auth/refresh`는 공개 endpoint입니다. 요청 body의 `refreshToken`이 저장된 활성 refresh token과 일치할 때만 기존 token family 안에서 refresh token을 회전하고 새 access token/refresh token을 반환합니다. 이미 회전된 token 재사용이 감지되면 같은 token family를 폐기합니다.
 - `POST /api/v1/auth/logout`과 contract route인 `DELETE /api/v1/auth/session`은 refresh-token 기반 공개/idempotent logout입니다. body에 `refreshToken`이 있으면 해당 token을 폐기하고, 없거나 이미 폐기된 경우에도 인증되지 않은 세션 상태를 반환합니다.
