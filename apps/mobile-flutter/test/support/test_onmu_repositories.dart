@@ -29,11 +29,11 @@ ProviderContainer createOnmuTestContainer() {
   );
 }
 
-ProviderScope onmuTestProviderScope({required Widget child}) {
+ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
   final store = InMemoryOnmuStore.seeded();
   return ProviderScope(
     overrides: [
-      authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
+      authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
       groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
@@ -166,6 +166,29 @@ class TestPlanRepository implements PlanRepository {
     required Object planId,
   }) async {
     return _store.fetchVisitPlansByDate(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) async {
+    return PlanParticipantArrival(
+      id: 'current-user',
+      displayName: '나',
+      participantStatus: 'joined',
+      arrivalStatus: status,
+      isFallback: false,
+    );
   }
 }
 

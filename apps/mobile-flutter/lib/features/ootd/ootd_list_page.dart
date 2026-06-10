@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
-import '../../shared/widgets/pixel_character.dart';
 import '../../shared/widgets/grid_background.dart';
+import '../../shared/widgets/onmu_date_picker.dart';
+import '../../shared/widgets/pixel_character.dart';
 
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
@@ -242,23 +243,11 @@ class _OotdListPageState extends State<OotdListPage> {
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
                       onTap: () async {
-                        final DateTime? picked = await showDatePicker(
+                        final DateTime? picked = await OnmuDatePicker.pickDate(
                           context: context,
                           initialDate: localSelectedDate,
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2030),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: const ColorScheme.light(
-                                  primary: AppColors.primaryPink,
-                                  onPrimary: AppColors.textInverse,
-                                  onSurface: AppColors.textMain,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
                         );
                         if (picked != null) {
                           setModalState(() {
