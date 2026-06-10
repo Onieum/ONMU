@@ -55,7 +55,7 @@ class SecurityConfigTests {
   @MockitoBean
   private PlaceSearchService placeSearchService;
 
-  @MockBean
+  @MockitoBean
   private SettlementApiService settlementApiService;
 
   @Test
