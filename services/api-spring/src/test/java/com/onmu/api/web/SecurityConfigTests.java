@@ -182,6 +182,16 @@ class SecurityConfigTests {
   }
 
   @Test
+  void corsPreflightKeepsDefaultLocalOriginsWhenConfiguredOriginsArePresent() throws Exception {
+    mvc.perform(options("/api/v1/auth/session")
+        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+      .andExpect(status().isOk())
+      .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"));
+  }
+
+  @Test
   void corsResponseExposesRequestIdHeader() throws Exception {
     authenticatedUser();
 
