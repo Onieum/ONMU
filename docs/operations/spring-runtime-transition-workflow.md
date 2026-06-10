@@ -70,6 +70,8 @@ Spring access token은 정적 문자열이 아니라 `ONMU_ACCESS_TOKEN_SECRET`�
 
 dev Flutter 실행:
 
+Windows PowerShell:
+
 ```powershell
 cd C:\dev\ONMU
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
@@ -78,6 +80,30 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-
 
 cd apps\mobile-flutter
 flutter run --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
+```
+
+macOS:
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+
+./scripts/macos/run-flutter-dev-api.sh
+```
+
+macOS Flutter web 검증은 `http://127.0.0.1:5173` 기준으로 실행한다. 이 origin은 dev Spring CORS 허용 목록에 포함되어 있어야 하며, 임의 wildcard로 넓히지 않는다. `ONMU_ACCESS_TOKEN_SECRET`이 이미 로컬 환경변수에 있으면 macOS JWT 스크립트는 Key Vault를 호출하지 않고 해당 값으로 짧은 수명의 JWT만 발급한다.
+
+Mac에서 dev API 연결이 의심될 때는 browser-like User-Agent와 IPv4/HTTP1.1 조건으로 public endpoint를 먼저 확인한다.
+
+```bash
+curl -4 --http1.1 --connect-timeout 5 --max-time 12 \
+  -A 'Mozilla/5.0 ONMU smoke' \
+  https://dev-api.onmu.cloud/healthz
+curl -4 --http1.1 --connect-timeout 5 --max-time 12 \
+  -A 'Mozilla/5.0 ONMU smoke' \
+  https://dev-api.onmu.cloud/readyz
 ```
 
 ## 인증과 CORS

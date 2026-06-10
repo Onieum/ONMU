@@ -163,6 +163,8 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 
 Flutter 앱은 기본적으로 mock repository를 사용합니다. Spring Main API를 직접 호출하려면 실행 시 Dart define으로 API mode를 켭니다.
 
+Windows PowerShell:
+
 ```powershell
 cd C:\dev\ONMU
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 -Environment dev -VaultName $env:AZURE_KEY_VAULT_NAME
@@ -172,7 +174,20 @@ flutter run `
   --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
 ```
 
-`new-flutter-access-jwt.ps1`는 Key Vault의 `dev-access-token-secret`으로 짧은 수명의 HS256 JWT를 발급하고, token 값을 출력하지 않은 채 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다. Flutter API client는 `ONMU_API_ACCESS_JWT`를 우선 읽으며, 이 파일은 git에서 무시됩니다.
+macOS:
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+
+./scripts/macos/run-flutter-dev-api.sh
+```
+
+`scripts/windows/new-flutter-access-jwt.ps1`와 `scripts/macos/new-flutter-access-jwt.sh`는 Key Vault의 `dev-access-token-secret`으로 짧은 수명의 HS256 JWT를 발급하고, token 값을 출력하지 않은 채 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다. Flutter API client는 `ONMU_API_ACCESS_JWT`를 우선 읽으며, fallback 호환용 `ONMU_DEV_ACCESS_TOKEN`도 같은 JWT로 채웁니다. 이 파일은 git에서 무시됩니다.
+
+macOS 편의 실행 스크립트는 Flutter web을 `127.0.0.1:5173`에서 띄웁니다. dev Spring CORS는 이 origin을 명시적으로 허용해야 하며 wildcard로 넓히지 않습니다.
 
 로컬 Spring API를 직접 볼 때는 base URL을 명시합니다.
 
@@ -181,6 +196,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-
   -Environment dev `
   -ApiBaseUrl http://127.0.0.1:8080 `
   -VaultName $env:AZURE_KEY_VAULT_NAME
+```
+
+```bash
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --api-base-url http://127.0.0.1:8080 \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
 ```
 
 Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`입니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
