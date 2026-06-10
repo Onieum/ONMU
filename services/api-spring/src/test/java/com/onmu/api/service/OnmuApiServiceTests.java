@@ -43,6 +43,7 @@ import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,22 @@ class OnmuApiServiceTests {
     assertThat(service.groupSummary("1")).extracting("group").isNotNull();
     assertThat(service.plan("1", "101")).containsEntry("id", "101");
     assertThat(service.vote("1", "501")).containsEntry("id", "501");
+  }
+
+  @Test
+  void homeSummaryUsesAuthenticatedViewer() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "인증 사용자");
+    when(groupRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(group));
+    when(planRepository.findByGroupOrderByStartsAtAsc(group)).thenReturn(List.of(plan));
+    when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+
+    Map<String, Object> summary = service.homeSummary(viewer.getId());
+
+    assertThat(summary).extracting("viewer")
+      .isInstanceOfSatisfying(Map.class, viewerValue ->
+        assertThat(viewerValue).containsEntry("displayName", "인증 사용자"));
   }
 
   @Test

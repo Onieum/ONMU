@@ -24,3 +24,12 @@ management:
     web:
       exposure:
         include: health,info
+
+onmu:
+  auth:
+    issuer: ${ONMU_AUTH_ISSUER:onmu-api}
+    audience: ${ONMU_AUTH_AUDIENCE:onmu-mobile}
+    access-token-secret: ${ONMU_ACCESS_TOKEN_SECRET:local-dev-access-token-secret-change-before-shared-dev}
+    access-token-ttl: ${ONMU_ACCESS_TOKEN_TTL:30m}
+    refresh-token-ttl: ${ONMU_REFRESH_TOKEN_TTL:30d}
+    allowed-origins: ${ONMU_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*,https://dev-api.onmu.cloud}

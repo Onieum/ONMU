@@ -14,6 +14,7 @@ import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
+import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.onmu.api.security.AuthenticatedUser;
 
 @Validated
 @RestController
@@ -55,13 +58,21 @@ public class ApiController {
   }
 
   @GetMapping("/home/summary")
-  public Map<String, Object> homeSummary() {
-    return onmuApiService.homeSummary();
+  public Map<String, Object> homeSummary(@AuthenticationPrincipal AuthenticatedUser user) {
+    return onmuApiService.homeSummary(user.userId());
   }
 
   @GetMapping("/users/me")
-  public Map<String, Object> userMe() {
-    return onmuApiService.userMe();
+  public Map<String, Object> userMe(@AuthenticationPrincipal AuthenticatedUser user) {
+    return onmuApiService.userMe(user.userId());
+  }
+
+  @PatchMapping("/users/me")
+  public Map<String, Object> updateUserProfile(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody UpdateUserProfileRequest request
+  ) {
+    return onmuApiService.updateUserProfile(user.userId(), request);
   }
 
   @GetMapping("/groups")
