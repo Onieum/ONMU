@@ -927,7 +927,17 @@ public class OnmuApiService {
 
   private Map<String, Object> settlementPayloadFromItems(PlanEntity plan, List<SettlementDraftItemRequest> items) {
     List<SettlementDraftItemRequest> sourceItems = items == null || items.isEmpty()
-      ? List.of(new SettlementDraftItemRequest("401", "저녁", 124000, "지민", "equal", List.of("지민", "민수", "소연", "현우")))
+      ? List.of(new SettlementDraftItemRequest(
+        "401",
+        "저녁",
+        124000,
+        124000,
+        null,
+        "지민",
+        "equal",
+        List.of(),
+        List.of("지민", "민수", "소연", "현우")
+      ))
       : items;
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("items", sourceItems.stream().map(this::settlementItemPayload).toList());
@@ -941,8 +951,11 @@ public class OnmuApiService {
     value.put("id", stringOrDefault(item.id(), "401"));
     value.put("title", stringOrDefault(item.title(), "결제 항목"));
     value.put("amount", item.amount() == null ? 0 : item.amount());
+    value.put("amountWon", item.amountWon() == null ? item.amount() == null ? 0 : item.amount() : item.amountWon());
+    value.put("payerUserId", item.payerUserId());
     value.put("payerName", stringOrDefault(item.payerName(), "지민"));
     value.put("splitType", stringOrDefault(item.splitType(), "equal"));
+    value.put("targetUserIds", item.targetUserIds() == null ? List.of() : item.targetUserIds());
     value.put("targetNames", item.targetNames() == null || item.targetNames().isEmpty()
       ? List.of("지민", "민수", "소연", "현우")
       : item.targetNames());

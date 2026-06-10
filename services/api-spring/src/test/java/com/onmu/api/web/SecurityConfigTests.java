@@ -18,6 +18,7 @@ import com.onmu.api.service.AuthService;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.SettlementApiService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,6 +70,9 @@ class SecurityConfigTests {
 
   @MockBean
   private UserRepository userRepository;
+  
+  @MockitoBean
+  private SettlementApiService settlementApiService;
 
   @Test
   void protectedApiRequiresBearerToken() throws Exception {

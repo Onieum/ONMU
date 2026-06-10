@@ -3,6 +3,7 @@ package com.onmu.api.web;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.SettlementApiService;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
@@ -14,6 +15,7 @@ import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import com.onmu.api.web.dto.UpdateUserProfileRequest;
+import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import jakarta.validation.Valid;
@@ -41,15 +43,18 @@ public class ApiController {
   private final GroupApiService groupApiService;
   private final OnmuApiService onmuApiService;
   private final PlaceSearchService placeSearchService;
+  private final SettlementApiService settlementApiService;
 
   public ApiController(
-    GroupApiService groupApiService,
     OnmuApiService onmuApiService,
-    PlaceSearchService placeSearchService
+    PlaceSearchService placeSearchService,
+    SettlementApiService settlementApiService,
+    GroupApiService groupApiService
   ) {
     this.groupApiService = groupApiService;
     this.onmuApiService = onmuApiService;
     this.placeSearchService = placeSearchService;
+    this.settlementApiService = settlementApiService;
   }
 
   @GetMapping("/home/summary")
@@ -248,7 +253,7 @@ public class ApiController {
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
   public Map<String, Object> settlementDraft(@PathVariable String groupId, @PathVariable String planId) {
-    return onmuApiService.settlementDraft(groupId, planId);
+    return settlementApiService.settlementDraft(groupId, planId);
   }
 
   @PatchMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
@@ -257,10 +262,25 @@ public class ApiController {
     @PathVariable String planId,
     @RequestBody(required = false) UpdateSettlementDraftRequest request
   ) {
-    return onmuApiService.updateSettlementDraft(
+    return settlementApiService.updateSettlementDraft(
       groupId,
       planId,
       request == null ? new UpdateSettlementDraftRequest(List.of(), null) : request
+    );
+  }
+
+  @PatchMapping("/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets")
+  public Map<String, Object> updateSettlementDraftItemTargets(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String itemId,
+    @RequestBody(required = false) UpdateSettlementItemTargetsRequest request
+  ) {
+    return settlementApiService.updateSettlementDraftItemTargets(
+      groupId,
+      planId,
+      itemId,
+      request == null ? new UpdateSettlementItemTargetsRequest(List.of(), List.of()) : request
     );
   }
 
@@ -270,7 +290,7 @@ public class ApiController {
     @PathVariable String planId,
     @RequestBody(required = false) SettlementPreviewRequest request
   ) {
-    return onmuApiService.previewSettlement(
+    return settlementApiService.previewSettlement(
       groupId,
       planId,
       request == null ? new SettlementPreviewRequest(List.of()) : request
@@ -283,7 +303,7 @@ public class ApiController {
     @PathVariable String planId,
     @RequestBody(required = false) SettlementPreviewRequest request
   ) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createSettlement(
+    return ResponseEntity.status(HttpStatus.CREATED).body(settlementApiService.createSettlement(
       groupId,
       planId,
       request == null ? new SettlementPreviewRequest(List.of()) : request
@@ -292,6 +312,15 @@ public class ApiController {
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlements")
   public Map<String, Object> settlement(@PathVariable String groupId, @PathVariable String planId) {
-    return onmuApiService.settlement(groupId, planId);
+    return settlementApiService.settlement(groupId, planId);
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/settlements/{settlementId}")
+  public Map<String, Object> settlementById(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String settlementId
+  ) {
+    return settlementApiService.settlementById(groupId, planId, settlementId);
   }
 }

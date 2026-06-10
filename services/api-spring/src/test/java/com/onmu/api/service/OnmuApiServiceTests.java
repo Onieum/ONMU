@@ -773,8 +773,11 @@ class OnmuApiServiceTests {
       "401",
       "Coffee",
       12000,
+      12000,
+      null,
       "Jimin",
       "equal",
+      List.of(),
       List.of("Jimin", "Minsu")
     );
   }
