@@ -20,7 +20,7 @@
 
 Flutter는 확정 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker` 구조로 결정한다. Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션을 맡고, FastAPI Worker는 AI/추천/분석성 비동기 작업을 맡는다.
 
-현재 `dev`에 남아 있는 `services/api/server.mjs`는 Windows backend-host와 `dev-api.onmu.cloud` 연결을 검증하기 위한 Node smoke API다. 목표 아키텍처의 Main API는 Spring Boot이며, Node smoke API는 Spring Boot로 헬스 체크와 터널 계약을 옮기기 전까지의 임시 검증 도구로 본다.
+현재 `dev`와 `integration-staging` Windows backend-host는 `services/api-spring` Spring Boot Main API를 기준으로 실행한다. `dev-api.onmu.cloud`와 `int-api.onmu.cloud`는 같은 Spring health/readiness/API 계약을 검증하는 공개 개발 엔드포인트다.
 
 ## 2. 다이어그램 관리 방식
 

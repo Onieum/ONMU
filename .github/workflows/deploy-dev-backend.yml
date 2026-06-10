@@ -13,14 +13,6 @@ on:
         options:
           - dev
           - integration
-      runtime:
-        description: Backend runtime to deploy on the Windows dev backend host.
-        required: true
-        default: node-stub
-        type: choice
-        options:
-          - node-stub
-          - spring
       dry_run:
         description: Print deployment steps without stopping or starting backend processes.
         required: true
@@ -35,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-windows-dev-backend:
+  deploy-windows-backend:
     name: Deploy Windows backend
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Windows, onmu-dev-backend]
@@ -47,18 +39,13 @@ jobs:
           ref: dev
           fetch-depth: 0
 
-      - name: Deploy selected backend runtime
+      - name: Deploy Spring backend
         shell: powershell
         env:
           ONMU_BACKEND_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
-          ONMU_BACKEND_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime || 'node-stub' }}
+          ONMU_BACKEND_RUNTIME: spring
           ONMU_DEPLOY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
         run: |
-          if ($env:ONMU_BACKEND_ENVIRONMENT -eq "integration" -and $env:ONMU_BACKEND_RUNTIME -ne "spring") {
-            Write-Host "integration backend only supports spring runtime; overriding selected runtime to spring."
-            $env:ONMU_BACKEND_RUNTIME = "spring"
-          }
-
           $deployScript = if ($env:ONMU_BACKEND_ENVIRONMENT -eq "integration") {
             ".\scripts\windows\deploy-integration-backend.ps1"
           } else {

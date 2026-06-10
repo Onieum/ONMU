@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+  [ValidateSet("spring")]
   [string]$Runtime,
   [ValidateSet("dev", "integration")]
   [string]$Environment = "dev",
@@ -96,12 +97,12 @@ function Resolve-BackendRuntime {
   } elseif ($Environment -eq "integration") {
     $candidate = "spring"
   } else {
-    $candidate = "node-stub"
+    $candidate = "spring"
   }
 
   $candidate = $candidate.ToLowerInvariant()
-  if ($candidate -notin @("node-stub", "spring")) {
-    throw "Unsupported backend runtime '$candidate'. Use 'node-stub' or 'spring'."
+  if ($candidate -ne "spring") {
+    throw "Unsupported backend runtime '$candidate'. Windows backend deployment supports spring only."
   }
 
   return $candidate
@@ -113,7 +114,7 @@ function Assert-RepoRoot {
   $requiredPaths = @(
     ".git",
     "package.json",
-    "services\api\server.mjs",
+    "services\api-spring\pom.xml",
     "docs\operations\windows-backend-server.md"
   )
 
@@ -402,60 +403,6 @@ function Wait-BackendHealthz {
   throw "$RuntimeName did not pass local /healthz within ${HealthzWaitTimeoutSeconds}s. Check stdout=$StdoutLogFile stderr=$StderrLogFile"
 }
 
-function Start-NodeStubBackend {
-  Import-KeyVaultEnvForBackend
-  Start-LocalDependencies
-  Stop-ExistingBackend
-
-  $env:ONMU_ENV = if ($env:ONMU_ENV) { $env:ONMU_ENV } else { $DefaultOnmuEnv }
-  $env:API_HOST = $ApiHost
-  $env:HOST = $ApiHost
-  $env:API_PORT = [string]$ApiPort
-  $env:PORT = [string]$ApiPort
-  if ($Environment -eq "integration") {
-    if (-not $env:DATABASE_URL) {
-      $env:DATABASE_URL = "postgresql://${DatabaseUser}@localhost:${PostgresHostPort}/${DatabaseName}"
-    }
-    if (-not $env:REDIS_URL) {
-      $env:REDIS_URL = "redis://localhost:${RedisHostPort}/0"
-    }
-    if (-not $env:OBJECT_STORAGE_ENDPOINT) {
-      $env:OBJECT_STORAGE_ENDPOINT = "http://localhost:${MinioApiPort}"
-    }
-    if (-not $env:OBJECT_STORAGE_BUCKET) {
-      $env:OBJECT_STORAGE_BUCKET = "onmu-integration"
-    }
-  }
-  if (-not $env:ACCESS_LOG_FILE) {
-    $env:ACCESS_LOG_FILE = $AccessLogFile
-  }
-  if (-not $env:ACCESS_LOG_ENABLED) {
-    $env:ACCESS_LOG_ENABLED = "true"
-  }
-
-  if ($DryRun) {
-    Write-DeployLog "[dry-run] Start node services/api/server.mjs on ${ApiHost}:${ApiPort}"
-    Write-DeployLog "[dry-run] Write PID to $PidFile"
-    Wait-BackendHealthz -ProcessId 0 -RuntimeName "Node stub"
-    return
-  }
-
-  Write-DeployLog "Starting Node smoke/contract stub on ${ApiHost}:${ApiPort}."
-  $process = Start-Process `
-    -FilePath "node" `
-    -ArgumentList @("services/api/server.mjs") `
-    -WorkingDirectory $RepoRoot `
-    -RedirectStandardOutput $StdoutLogFile `
-    -RedirectStandardError $StderrLogFile `
-    -PassThru `
-    -WindowStyle Hidden
-
-  Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
-  Write-DeployLog "Node stub started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
-
-  Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Node stub"
-}
-
 function Test-SpringExecutableProject {
   $gradleWrapper = Join-Path $SpringDir "gradlew.bat"
   $gradleBuild = Join-Path $SpringDir "build.gradle"
@@ -562,6 +509,19 @@ function Set-SpringEnvironment {
   Write-DeployLog "Spring environment prepared for $Environment on ${ApiHost}:${ApiPort}. Secret values are not printed."
 }
 
+function Clear-SpringGeneratedMigrationClasses {
+  $migrationClassesDir = Join-Path $SpringDir "target\classes\db\migration"
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Remove stale generated migration classes at $migrationClassesDir"
+    return
+  }
+
+  if (Test-Path $migrationClassesDir) {
+    Write-DeployLog "Removing stale generated migration classes at $migrationClassesDir."
+    Remove-Item -LiteralPath $migrationClassesDir -Recurse -Force
+  }
+}
+
 function Start-SpringBackend {
   Import-KeyVaultEnvForBackend
   Start-LocalDependencies
@@ -571,9 +531,10 @@ function Start-SpringBackend {
     Write-DeployLog "[dry-run] Check services/api-spring for Maven executable project."
     Write-DeployLog "[dry-run] Prepare SERVER_ADDRESS/SERVER_PORT and Spring datasource env without printing secret values."
     if ($Environment -eq "integration") {
+      Clear-SpringGeneratedMigrationClasses
       Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests spring-boot:run"
     } else {
-      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests clean package"
       Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     }
     Write-DeployLog "[dry-run] Write PID to $PidFile"
@@ -595,6 +556,7 @@ function Start-SpringBackend {
   Stop-ExistingBackend
 
   if ($Environment -eq "integration") {
+    Clear-SpringGeneratedMigrationClasses
     Write-DeployLog "Starting integration Spring Boot Main API with Maven spring-boot:run on ${ApiHost}:${ApiPort}."
     $process = Start-Process `
       -FilePath $mavenWrapper `
@@ -614,7 +576,7 @@ function Start-SpringBackend {
 
   Push-Location $SpringDir
   try {
-    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "package")
+    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "clean", "package")
   } finally {
     Pop-Location
   }
@@ -767,7 +729,7 @@ function Invoke-CorsPreflightSmoke {
 function Invoke-SmokeTests {
   $base = $PublicBaseUrl.TrimEnd("/")
   Write-DeployLog "Running public smoke tests against $base with client=$Client."
-  $useApiAuth = $selectedRuntime -eq "spring"
+  $useApiAuth = $true
 
   Invoke-SmokeRequest -Method "GET" -Url "$base/healthz" -ExpectedStatus @(200)
   Invoke-SmokeRequest -Method "GET" -Url "$base/readyz" -ExpectedStatus @(200)
@@ -822,14 +784,7 @@ if ($Environment -eq "dev") {
   Write-DeployLog "Skipping git dev branch sync for integration deployment; using current checkout."
 }
 
-switch ($selectedRuntime) {
-  "node-stub" {
-    Start-NodeStubBackend
-  }
-  "spring" {
-    Start-SpringBackend
-  }
-}
+Start-SpringBackend
 
 if ($SkipPublicSmoke) {
   Write-DeployLog "Skipping public smoke tests because -SkipPublicSmoke was provided."

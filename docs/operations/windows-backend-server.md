@@ -32,7 +32,7 @@ Team devices
 
 | 영역 | Windows dev 서버 기준 |
 | --- | --- |
-| Main API | 확정 제품 API는 Spring Boot Main API입니다. `services/api/server.mjs` Node smoke/contract stub은 rollback/dev compatibility 용도로 남기고, Spring Boot Main API는 같은 `/healthz`, `/readyz`, CORS, request log, `/api/v1` 계약을 이어받습니다. |
+| Main API | 확정 제품 API는 Spring Boot Main API입니다. Windows dev/integration 배포도 Spring Boot Main API만 실행합니다. |
 | Realtime Gateway | 1차 구현 전까지 별도 실행하지 않습니다. 구현 후에는 API 뒤에 두거나 개발용 포트를 별도로 정합니다. |
 | AI/Data Worker | FastAPI Worker로 확정합니다. 모바일 앱에서 직접 호출하지 않고 Spring Boot Main API 뒤의 내부 worker로 둡니다. 1차 Windows helper의 기본 실행 대상은 아닙니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
@@ -163,7 +163,7 @@ npm run compose:ps:windows
 
 ```powershell
 npm run host:windows:keyvault
-npm run api:dev:keyvault
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1
 ```
 
 이벤트나 검색 기능을 함께 테스트할 때만 선택적으로 실행합니다. 현재 ONMU의 기본 MVP 흐름은 PostgreSQL/PostGIS, Redis, MinIO만으로 충분합니다.
@@ -197,26 +197,23 @@ $env:PORT="8080"
 API 서비스가 생긴 뒤 실행 예시는 서비스별 README에 맞춥니다.
 
 ```powershell
-# 예시입니다. 실제 명령은 services/api 구현 후 갱신합니다.
-npm run dev --workspace services/api
-```
-
-현재 저장소의 Windows dev API는 아래처럼 실행합니다.
-
-```powershell
 npm run api:dev
 ```
 
-이 Node API는 현재 Flutter mock repository를 API repository로 바꾸기 전의 Windows backend-host smoke/contract stub입니다. 최종 백엔드는 `Spring Boot Main API + FastAPI Worker`로 확정되어 있으며, Flutter 앱은 Spring Boot Main API만 직접 호출합니다. Node stub은 PostgreSQL migration, 인증/인가, 영구 CRUD를 구현한 Main API가 아니고, POST/PATCH 결과는 서버 프로세스 메모리에만 반영됩니다.
+현재 저장소의 Windows dev API는 Spring Boot Main API로 실행합니다.
 
-Spring Boot Main API가 준비되면 아래 계약은 Spring Boot로 넘깁니다. FastAPI Worker는 Spring Boot 뒤의 내부 AI/Data worker로 두고 모바일 앱이나 Cloudflare 공개 API가 직접 호출하지 않습니다.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1
+```
+
+백엔드는 `Spring Boot Main API + FastAPI Worker`로 확정되어 있으며, Flutter 앱은 Spring Boot Main API만 직접 호출합니다. FastAPI Worker는 Spring Boot 뒤의 내부 AI/Data worker로 두고 모바일 앱이나 Cloudflare 공개 API가 직접 호출하지 않습니다.
 
 | 계약 | 이유 |
 | --- | --- |
 | `GET /healthz` | 프로세스가 살아 있고 HTTP 요청을 받을 수 있는지 확인 |
 | `GET /readyz` | PostgreSQL, Redis, MinIO 등 로컬 의존성 연결 확인 |
 | `dev-api.onmu.cloud -> localhost:8080` | Cloudflare Tunnel을 통한 외부 팀 검증 경로 고정 |
-| `logs/api-access.log` | Node stub과 Spring runtime 공통 request log. 팀원별 `?client=` / `x-onmu-dev-client` 추적 |
+| `logs/api-access.log` | Spring runtime request log. 팀원별 `?client=` / `x-onmu-dev-client` 추적 |
 | dev CORS와 `OPTIONS` preflight | Flutter web/dev 클라이언트 연결 검증 |
 | `/api/v1` prefix | Flutter API repository 전환 시 운영 API 계약과 같은 base path를 쓰기 위함 |
 | `groups/plans` 리소스명 | PR #61 이후 Flutter route와 repository가 `Group`, `Plan` 중심으로 정리되었기 때문 |
@@ -228,7 +225,7 @@ LAN으로 직접 열어야 할 때만 API host를 바꿉니다.
 ```powershell
 $env:API_HOST="0.0.0.0"
 $env:HOST="0.0.0.0"
-npm run api:dev
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1
 ```
 
 헬스 체크 엔드포인트가 생기면 Windows 로컬에서 확인합니다.
@@ -456,7 +453,7 @@ npm run tunnel:cloudflare:quick
 
 ### GitHub Actions Windows dev backend CD
 
-Windows dev backend는 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반을 둡니다. 현재 자동 배포 기본 runtime은 계속 Node smoke/contract stub이고, `services/api-spring` Spring Boot Main API는 `-Runtime spring`으로 수동 선택해 세로 흐름 smoke를 검증합니다. 팀 합의 전까지 public dev backend 기본 runtime을 Spring으로 전환하지 않습니다.
+Windows dev backend는 `dev` 브랜치 merge 후 자동 재배포할 수 있는 CD 기반을 둡니다. GitHub Actions의 `push` to `dev` 배포 runtime은 `services/api-spring` Spring Boot Main API로 고정합니다.
 
 workflow 파일:
 
@@ -468,6 +465,8 @@ workflow 파일:
 
 - `push` to `dev`
 - `workflow_dispatch`
+
+`push` to `dev`는 dev 환경만 자동 배포하며 runtime은 `spring`입니다. integration-staging은 merge만으로 자동 배포하지 않고, 권한 있는 사용자가 `workflow_dispatch`에서 `environment=integration`을 선택할 때만 배포합니다. integration runtime도 Spring으로 고정합니다.
 
 `pull_request`에서는 실행하지 않습니다. ONMU 저장소는 public repo이므로 fork PR이나 리뷰 전 코드가 self-hosted Windows runner에서 실행되면 runner PC의 파일, 네트워크, 로컬 서비스, 캐시가 노출될 수 있습니다. 그래서 배포 workflow는 PR 검증 CI와 분리하고, merge된 `dev` 또는 권한 있는 사용자의 수동 실행만 허용합니다.
 
@@ -491,28 +490,27 @@ runner 등록 개요:
 수동 배포 명령:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime node-stub
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime spring
 ```
 
 dry-run:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime node-stub
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime spring
 ```
 
 runtime 선택 우선순위:
 
-1. CLI 파라미터: `-Runtime node-stub` 또는 `-Runtime spring`
-2. 환경변수: `ONMU_BACKEND_RUNTIME=node-stub` 또는 `ONMU_BACKEND_RUNTIME=spring`
-3. 기본값: `node-stub`
+1. CLI 파라미터: `-Runtime spring`
+2. 환경변수: `ONMU_BACKEND_RUNTIME=spring`
+3. 스크립트 기본값: dev와 integration 모두 `spring`
+
+GitHub Actions의 `push` to `dev` 배포는 스크립트 기본값에 의존하지 않고 `ONMU_BACKEND_RUNTIME=spring`을 명시합니다. `workflow_dispatch`에서 integration-staging을 선택해도 Spring으로 실행합니다.
 
 runtime별 동작:
 
 | Runtime | 현재 동작 |
 | --- | --- |
-| `node-stub` | `services/api/server.mjs`를 `127.0.0.1:8080`에서 재시작합니다. `API_HOST`, `HOST`, `API_PORT`, `PORT`를 함께 설정하고, PID 파일과 8080 port owner를 기준으로 기존 ONMU API 프로세스를 정리합니다. |
 | `spring` | `services/api-spring` Maven wrapper로 jar를 build한 뒤 Spring Boot Main API를 `127.0.0.1:8080`에서 실행합니다. `SERVER_ADDRESS`, `SERVER_PORT`, `API_HOST`, `API_PORT`를 함께 설정하고, `DATABASE_URL`이 있으면 Spring datasource 환경변수로 변환합니다. Windows에서는 실행 중인 jar가 잠길 수 있으므로 기존 ONMU backend 프로세스를 먼저 정리한 뒤 package/build를 수행합니다. |
 
 Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `dev-api.onmu.cloud -> localhost:8080` tunnel connector는 별도 서비스로 이미 떠 있다고 보고, 배포 스크립트는 API runtime만 교체한 뒤 같은 공개 endpoint를 smoke test합니다.
@@ -643,7 +641,7 @@ docker compose -f infra/compose/docker-compose.yml logs -f redis
 docker compose -f infra/compose/docker-compose.yml logs -f minio
 ```
 
-API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. Node stub과 Spring runtime 모두 같은 경로를 사용합니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
+API 요청 로그는 JSONL 형식으로 `logs/api-access.log`에 남습니다. 팀원별 접속 확인이 필요하면 헬스 체크나 `/api/v1` URL에 `client` 값을 붙여 공유합니다.
 
 ```powershell
 curl "https://dev-api.onmu.cloud/healthz?client=geondong-mac"
@@ -744,7 +742,7 @@ npm run db:rotate-password:keyvault
 
 ```powershell
 npm run host:windows:keyvault
-npm run api:dev:keyvault
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1
 ```
 
 팀원 로컬 개발 기준:
@@ -806,9 +804,9 @@ Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azur
 
 Windows 서버에서 검증한 compose 설정은 Azure Container Apps, AKS manifest, Helm/Kustomize 설정을 만들 때 기준 입력으로 사용합니다. Azure staging으로 옮긴 뒤에는 Cloudflare Tunnel을 끄고, `onmu.cloud` 또는 `www.onmu.cloud`는 제품/비즈니스 소개 페이지로만 사용합니다.
 
-## Spring Runtime 전환 전 인증/CORS 체크
+## Spring Runtime 운영 인증/CORS 체크
 
-현재 public dev backend의 기본 runtime은 계속 `node-stub`입니다. Spring Boot Main API는 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring`으로 수동 smoke할 수 있지만, 팀 테스트에 영향을 주므로 사용자 승인 없이 기본값으로 전환하지 않습니다.
+현재 public dev backend의 기본 runtime은 Spring Boot Main API입니다. `dev` 브랜치에 merge되면 GitHub Actions CD가 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring` 흐름으로 Windows dev backend를 재배포합니다.
 
 Spring runtime은 `/api/v1/**` 보호 API에 dev bearer token을 요구합니다. 공유 Windows backend-host에서는 토큰을 코드, `.env`, 문서, 로그에 남기지 말고 Key Vault 또는 실행 프로세스 환경변수로만 주입합니다.
 
@@ -824,7 +822,7 @@ dry-run은 토큰 값 없이도 실행 계획만 확인할 수 있고, Authoriza
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -DryRun -Runtime spring
 ```
 
-Spring 전환 전 체크리스트:
+Spring 운영 체크리스트:
 
 - `ONMU_DEV_ACCESS_TOKEN`, `ONMU_DEV_REFRESH_TOKEN`이 Key Vault 또는 안전한 로컬 환경변수에서 주입됩니다.
 - `GET /api/v1/auth/session`이 토큰 없이는 `authenticated: false`, 유효한 token으로는 `authenticated: true`를 반환합니다.

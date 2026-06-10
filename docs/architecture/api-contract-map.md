@@ -9,7 +9,7 @@
 - API prefix는 `/api/v1`를 사용한다.
 - Flutter 앱은 Spring Boot Main API만 직접 호출한다.
 - FastAPI Worker는 모바일 앱에서 직접 호출하지 않고, Spring Boot가 내부 작업 요청과 결과 반영을 관리한다.
-- 현재 Node smoke API의 `/healthz`, `/readyz`는 개발 서버 연결 검증용 계약이며, 제품 도메인 API 계약으로 보지 않는다.
+- `/healthz`, `/readyz`는 Spring Boot Main API의 개발 서버 연결 검증용 계약이며, 제품 도메인 API 계약으로 보지 않는다.
 - UI 용어가 `온모임`, `약속`이어도 API 리소스는 `groups`, `plans`를 우선한다.
 - 정산은 반드시 `groups/{groupId}/plans/{planId}` 하위에 둔다.
 - 장소 후보(`place-candidates`)와 일정 등록 장소(`schedule places`)를 분리한다.

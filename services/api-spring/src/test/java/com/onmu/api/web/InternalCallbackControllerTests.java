@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.config.DevTokenAuthService;
 import com.onmu.api.config.DevTokenAuthenticationFilter;
 import com.onmu.api.config.SecurityConfig;
+import com.onmu.api.domain.UserRepository;
+import com.onmu.api.security.AccessTokenVerifier;
 import com.onmu.api.service.RecordService;
 import com.onmu.api.web.dto.OotdCallbackRequest;
 import java.util.Collections;
@@ -16,9 +18,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -34,8 +36,14 @@ class InternalCallbackControllerTests {
   @Autowired
   private MockMvc mvc;
 
-  @MockBean
+  @MockitoBean
   private RecordService recordService;
+
+  @MockitoBean
+  private AccessTokenVerifier accessTokenVerifier;
+
+  @MockitoBean
+  private UserRepository userRepository;
 
   @Autowired
   private ObjectMapper objectMapper;
