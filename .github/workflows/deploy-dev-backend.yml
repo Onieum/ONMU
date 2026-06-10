@@ -1,10 +1,18 @@
-name: Deploy Windows dev backend
+name: Deploy Windows backend
 
 on:
   push:
     branches: [dev]
   workflow_dispatch:
     inputs:
+      environment:
+        description: Windows backend environment to deploy.
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - integration
       runtime:
         description: Backend runtime to deploy on the Windows dev backend host.
         required: true
@@ -23,12 +31,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-dev-backend
+  group: windows-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}-backend
   cancel-in-progress: false
 
 jobs:
   deploy-windows-dev-backend:
-    name: Deploy Windows dev backend
+    name: Deploy Windows backend
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Windows, onmu-dev-backend]
     timeout-minutes: 20
@@ -42,12 +50,26 @@ jobs:
       - name: Deploy selected backend runtime
         shell: powershell
         env:
+          ONMU_BACKEND_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
           ONMU_BACKEND_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime || 'node-stub' }}
           ONMU_DEPLOY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
         run: |
-          $deployArgs = @("-Runtime", $env:ONMU_BACKEND_RUNTIME)
-          if ($env:ONMU_DEPLOY_DRY_RUN -eq "true") {
-            $deployArgs += "-DryRun"
+          if ($env:ONMU_BACKEND_ENVIRONMENT -eq "integration" -and $env:ONMU_BACKEND_RUNTIME -ne "spring") {
+            Write-Host "integration backend only supports spring runtime; overriding selected runtime to spring."
+            $env:ONMU_BACKEND_RUNTIME = "spring"
           }
 
-          & .\scripts\windows\deploy-dev-backend.ps1 @deployArgs
+          $deployScript = if ($env:ONMU_BACKEND_ENVIRONMENT -eq "integration") {
+            ".\scripts\windows\deploy-integration-backend.ps1"
+          } else {
+            ".\scripts\windows\deploy-dev-backend.ps1"
+          }
+
+          $deployArgs = @{
+            Runtime = $env:ONMU_BACKEND_RUNTIME
+          }
+          if ($env:ONMU_DEPLOY_DRY_RUN -eq "true") {
+            $deployArgs.DryRun = $true
+          }
+
+          & $deployScript @deployArgs
