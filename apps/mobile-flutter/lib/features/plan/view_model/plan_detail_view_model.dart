@@ -19,11 +19,13 @@ class PlanDetailState {
     required this.plan,
     required this.selectedMembers,
     required this.visitPlansByDate,
+    required this.participantArrivals,
   });
 
   final Plan plan;
   final List<PlanMember> selectedMembers;
   final List<List<VisitPlan>> visitPlansByDate;
+  final List<PlanParticipantArrival> participantArrivals;
 
   List<VisitPlan> visitPlanForDate(int index) {
     if (index < 0 || index >= visitPlansByDate.length) {
@@ -32,6 +34,8 @@ class PlanDetailState {
 
     return visitPlansByDate[index];
   }
+
+  bool get canShareArrivalStatus => plan.isInProgressAt(DateTime.now());
 }
 
 class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
@@ -50,6 +54,10 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       groupId: scope.groupId,
       planId: scope.planId,
     );
+    final participantArrivals = await repository.fetchPlanParticipants(
+      groupId: scope.groupId,
+      planId: scope.planId,
+    );
 
     return PlanDetailState(
       plan: plan,
@@ -59,7 +67,19 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       visitPlansByDate: List.unmodifiable(
         visitPlansByDate.map(List<VisitPlan>.unmodifiable),
       ),
+      participantArrivals: List.unmodifiable(participantArrivals),
     );
+  }
+
+  Future<void> updateMyArrivalStatus(PlanArrivalStatus status) async {
+    final repository = ref.read(planRepositoryProvider);
+    await repository.updateMyArrivalStatus(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      status: status,
+    );
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<Plan> savePlan({
@@ -73,6 +93,7 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
 
     ref.invalidate(groupPlanListViewModelProvider(scope.groupId));
     ref.invalidate(homeViewModelProvider);
+    ref.invalidateSelf();
     return plan;
   }
 }

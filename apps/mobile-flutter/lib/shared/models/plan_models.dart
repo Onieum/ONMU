@@ -12,6 +12,51 @@ class PlanMember {
   final bool selected;
 }
 
+enum PlanArrivalStatus {
+  none('', '상태 없음'),
+  departed('departed', '출발'),
+  arrived('arrived', '도착'),
+  late('late', '지각');
+
+  const PlanArrivalStatus(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+
+  static PlanArrivalStatus fromApi(String value) {
+    final normalized = value.trim().toLowerCase().replaceAll(
+      RegExp(r'[\s_-]'),
+      '',
+    );
+    return switch (normalized) {
+      'departed' ||
+      'departure' ||
+      'left' ||
+      'start' ||
+      '출발' => PlanArrivalStatus.departed,
+      'arrived' || 'arrival' || '도착' => PlanArrivalStatus.arrived,
+      'late' || 'delayed' || '지각' => PlanArrivalStatus.late,
+      _ => PlanArrivalStatus.none,
+    };
+  }
+}
+
+class PlanParticipantArrival {
+  const PlanParticipantArrival({
+    required this.id,
+    required this.displayName,
+    required this.participantStatus,
+    required this.arrivalStatus,
+    required this.isFallback,
+  });
+
+  final String id;
+  final String displayName;
+  final String participantStatus;
+  final PlanArrivalStatus arrivalStatus;
+  final bool isFallback;
+}
+
 class TimeCandidate {
   const TimeCandidate({
     required this.time,
@@ -57,6 +102,8 @@ class Plan {
     required this.members,
     required this.timeCandidates,
     required this.visitPlan,
+    this.startsAt,
+    this.endsAt,
   });
 
   final int id;
@@ -68,6 +115,18 @@ class Plan {
   final List<PlanMember> members;
   final List<TimeCandidate> timeCandidates;
   final List<VisitPlan> visitPlan;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+
+  bool isInProgressAt(DateTime now) {
+    final start = startsAt?.toLocal() ?? DateTime.tryParse(dateTime)?.toLocal();
+    if (start == null) {
+      return false;
+    }
+    final end = (endsAt?.toLocal() ?? start.add(const Duration(hours: 2)));
+    final localNow = now.toLocal();
+    return !localNow.isBefore(start) && localNow.isBefore(end);
+  }
 }
 
 class PlanCreateInput {
