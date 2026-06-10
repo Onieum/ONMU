@@ -61,6 +61,7 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.GET, "/api/v1/auth/session").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/*").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/v1/internal/callbacks/**").permitAll()
         .requestMatchers("/api/v1/**").authenticated()
         .anyRequest().denyAll())
       .addFilterBefore(devTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
