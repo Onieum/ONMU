@@ -59,6 +59,9 @@ cd C:\dev\ONMU\services\api-spring
 | `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
 | `ONMU_ACCESS_LOG_PATH` | `logs/api-access.log` | Spring request-level access log JSONL 파일 경로 |
+| `ONMU_API_ACCESS_TOKEN` | 없음 | dev/integration 공통 보호 API smoke token. `ONMU_DEV_ACCESS_TOKEN`은 dev fallback |
+| `ONMU_API_REFRESH_TOKEN` | 없음 | dev/integration 공통 refresh smoke token. `ONMU_DEV_REFRESH_TOKEN`은 dev fallback |
+| `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
 
@@ -231,8 +234,8 @@ curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
 Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 공개 dev backend 기본 runtime은 아직 `node-stub`이며, Spring은 수동 smoke용 옵션 runtime입니다. Spring runtime을 켤 때 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
 ```powershell
-$env:ONMU_DEV_ACCESS_TOKEN="<local-smoke-token>"
-$headers = @{ Authorization = "Bearer $env:ONMU_DEV_ACCESS_TOKEN" }
+$env:ONMU_API_ACCESS_TOKEN="<local-smoke-token>"
+$headers = @{ Authorization = "Bearer $env:ONMU_API_ACCESS_TOKEN" }
 Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 ```
 
@@ -242,13 +245,13 @@ Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 
 - `GET /api/v1/auth/session`: 토큰이 없으면 `authenticated: false`, 유효한 dev token이면 `authenticated: true`를 반환합니다.
 - `DELETE /api/v1/auth/session`: 유효한 bearer token이 있어야 호출할 수 있습니다.
-- `POST /api/v1/auth/refresh`: `ONMU_DEV_REFRESH_TOKEN`과 요청 body의 `refreshToken`이 일치할 때만 dev access token 응답을 반환합니다.
+- `POST /api/v1/auth/refresh`: `ONMU_API_REFRESH_TOKEN`과 요청 body의 `refreshToken`이 일치할 때만 access token 응답을 반환합니다. dev 환경에서는 기존 `ONMU_DEV_REFRESH_TOKEN`도 fallback으로 지원합니다.
 - `POST /api/v1/auth/oauth/{provider}`: Naver OAuth 실제 token exchange 전까지 public scaffold로 유지합니다.
 
 CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 허용 origin은 로컬 Flutter/web dev와 `https://dev-api.onmu.cloud`이며, 필요하면 쉼표로 구분해 확장합니다.
 
 ```powershell
-$env:ONMU_DEV_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud"
+$env:ONMU_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud"
 ```
 
 Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정을 별도 PR에서 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.

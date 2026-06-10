@@ -1,0 +1,6 @@
+no-autoupdate: true
+protocol: quic
+ingress:
+  - hostname: int-api.onmu.cloud
+    service: http://localhost:18080
+  - service: http_status:404
