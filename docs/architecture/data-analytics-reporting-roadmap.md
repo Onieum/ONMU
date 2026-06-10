@@ -6,6 +6,8 @@
 
 현재 구현 범위에는 Databricks, 광고 API 연동, persona segmentation, Bronze/Silver/Gold table 구현을 포함하지 않는다. 지금은 core service가 나중에 analytics layer를 붙일 수 없게 막는 구조를 피하는 데 집중한다.
 
+MVP/dev 단계에서는 CDC, Databricks, analytics 기준을 현재 인증 구현에 적용하지 않는다. 즉, HS256 JWT access token의 `sub=<users.public_id>` 흐름과 Spring의 DB 사용자 조회 흐름은 그대로 유지한다. 이 문서의 analytics subject 기준은 Azure/Terraform 전환 또는 After MVP 단계에서 적용할 경계다.
+
 ## 비즈니스 방향
 
 ONMU의 앱 데이터는 약속, 장소 후보, 투표, 기록, OOTD, 정산, 알림 반응 같은 생활 맥락을 포함한다. 이 데이터는 동의와 비식별화가 전제될 때 아래 형태의 기업 대상 상품으로 확장될 수 있다.
@@ -55,6 +57,8 @@ Flutter App
 ## 데이터 흐름 구상
 
 장기적으로는 core DB에서 기업용 데이터를 직접 꺼내지 않는다. core service는 제품 운영을 책임지고, analytics/reporting layer는 비식별화와 집계를 책임진다.
+
+미래 CDC/Databricks/analytics layer는 JWT `sub`를 영구 사용자 식별자로 사용하지 않는다. Core CDC는 DB의 `users.id` 같은 core FK 기준으로 수집하고, reporting/analytics layer는 `analytics_subjects.anonymous_subject_id` 같은 별도 비식별 subject로 변환해 집계한다.
 
 ```text
 Core domain event
