@@ -12,7 +12,7 @@ class PlaceSearchServiceTests {
     var results = service.search("카페", "1", "101");
 
     assertThat(results).hasSize(3);
-    assertThat(results.getFirst())
+    assertThat(results.get(0))
       .containsEntry("category", "cafe")
       .containsEntry("canAddCandidate", true)
       .containsEntry("source", "dev-mock")
