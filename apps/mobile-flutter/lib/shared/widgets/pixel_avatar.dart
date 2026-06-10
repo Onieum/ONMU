@@ -19,6 +19,9 @@ class PixelAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trimmedLabel = label.trim();
+    final initial = trimmedLabel.isEmpty ? '?' : trimmedLabel.characters.first;
+
     return SizedBox.square(
       dimension: size,
       child: DecoratedBox(
@@ -61,7 +64,7 @@ class PixelAvatar extends StatelessWidget {
                 Positioned(
                   top: size * 0.25,
                   child: Text(
-                    label.characters.first,
+                    initial,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AppColors.textMain,
                     ),

@@ -1,14 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../models/group_models.dart';
-import '../models/place_models.dart';
-import '../models/plan_models.dart';
-import '../models/settlement_models.dart';
-import '../models/vote_models.dart';
-
-final inMemoryOnmuStoreProvider = Provider<InMemoryOnmuStore>(
-  (ref) => InMemoryOnmuStore.seeded(),
-);
+import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/settlement_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 class InMemoryOnmuStore {
   InMemoryOnmuStore.seeded() {
@@ -152,6 +146,7 @@ class InMemoryOnmuStore {
             id: plan.id,
             title: plan.title,
             dateLabel: plan.dateTime,
+            startsAt: _parsePlanDateTime(plan.dateTime),
             placeName: plan.location,
             statusLabel: 'D-day',
             statusType: '예정',
@@ -324,6 +319,20 @@ class InMemoryOnmuStore {
 
   int _parseId(Object value) => int.tryParse(value.toString()) ?? 0;
 
+  DateTime? _parsePlanDateTime(String value) {
+    final now = DateTime.now();
+    final match = RegExp(r'(\d{1,2})\.(\d{1,2})').firstMatch(value);
+    if (match == null) {
+      return null;
+    }
+    final month = int.tryParse(match.group(1) ?? '');
+    final day = int.tryParse(match.group(2) ?? '');
+    if (month == null || day == null) {
+      return null;
+    }
+    return DateTime(now.year, month, day);
+  }
+
   void _replaceGroupPlanSummary(Object groupId, Plan plan) {
     final summaries = _plansByGroupId[_parseId(groupId)];
     if (summaries == null) {
@@ -338,6 +347,7 @@ class InMemoryOnmuStore {
       id: previous.id,
       title: plan.title,
       dateLabel: plan.dateTime,
+      startsAt: _parsePlanDateTime(plan.dateTime),
       placeName: plan.location,
       statusLabel: previous.statusLabel,
       statusType: previous.statusType,
@@ -528,6 +538,7 @@ class InMemoryOnmuStore {
         id: 101,
         title: '제주도 여행',
         dateLabel: '6.7 (금) - 6.9 (일)',
+        startsAt: _parsePlanDateTime('6.7 (금) - 6.9 (일)'),
         placeName: '제주도 일대',
         statusLabel: 'D-12',
         statusType: '진행중',
@@ -540,6 +551,7 @@ class InMemoryOnmuStore {
         id: 102,
         title: '한남 카페 투어',
         dateLabel: '6.5 (수) 오후 2:00',
+        startsAt: _parsePlanDateTime('6.5 (수) 오후 2:00'),
         placeName: '한남동 일대',
         statusLabel: 'D-2',
         statusType: '예정',
@@ -552,6 +564,7 @@ class InMemoryOnmuStore {
         id: 104,
         title: '홍대 전시회 구경',
         dateLabel: '6.12 (수) 오후 2:00',
+        startsAt: _parsePlanDateTime('6.12 (수) 오후 2:00'),
         placeName: '홍대 일대',
         statusLabel: 'D-4',
         statusType: '예정',
@@ -564,6 +577,7 @@ class InMemoryOnmuStore {
         id: 105,
         title: '성수 디저트 모임',
         dateLabel: '6.17 (월) 오후 7:00',
+        startsAt: _parsePlanDateTime('6.17 (월) 오후 7:00'),
         placeName: '성수동',
         statusLabel: 'D-17',
         statusType: '예정',
@@ -576,6 +590,7 @@ class InMemoryOnmuStore {
         id: 103,
         title: '한강 피크닉',
         dateLabel: '5.10 (금) 오후 1:00',
+        startsAt: _parsePlanDateTime('5.10 (금) 오후 1:00'),
         placeName: '여의도 한강공원',
         statusLabel: '완료',
         statusType: '완료',

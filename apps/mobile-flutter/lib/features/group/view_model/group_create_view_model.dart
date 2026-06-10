@@ -20,6 +20,10 @@ class GroupCreateViewModel extends AsyncNotifier<GroupCreateState> {
   Future<GroupCreateState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
     final groups = await repository.fetchGroups();
+    if (groups.isEmpty) {
+      return const GroupCreateState(recommendedMemberNames: []);
+    }
+
     final members = await repository.fetchMembers(groups.first.id);
 
     return GroupCreateState(

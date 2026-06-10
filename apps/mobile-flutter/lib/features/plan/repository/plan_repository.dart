@@ -2,13 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/plan_models.dart';
-import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
-  if (ref.watch(onmuApiEnabledProvider)) {
-    return ApiPlanRepository(ref.watch(onmuApiClientProvider));
-  }
-  return MockPlanRepository(ref.watch(inMemoryOnmuStoreProvider));
+  return ApiPlanRepository(ref.watch(onmuApiClientProvider));
 });
 
 abstract interface class PlanRepository {
@@ -27,41 +23,6 @@ abstract interface class PlanRepository {
   });
 }
 
-class MockPlanRepository implements PlanRepository {
-  MockPlanRepository(this._store);
-
-  final InMemoryOnmuStore _store;
-
-  @override
-  Future<Plan> fetchPlan({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchPlan(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<Plan> createPlan(PlanCreateInput input) async {
-    return _store.createPlan(input);
-  }
-
-  @override
-  Future<Plan> updatePlan({
-    required Object planId,
-    required PlanCreateInput input,
-  }) async {
-    return _store.updatePlan(planId: planId, input: input);
-  }
-
-  @override
-  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchVisitPlansByDate(groupId: groupId, planId: planId);
-  }
-}
-
 class ApiPlanRepository implements PlanRepository {
   ApiPlanRepository(this._client);
 
@@ -72,7 +33,9 @@ class ApiPlanRepository implements PlanRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    final plan = await _client.getObject('/api/v1/groups/$groupId/plans/$planId');
+    final plan = await _client.getObject(
+      '/api/v1/groups/$groupId/plans/$planId',
+    );
     return _plan(plan);
   }
 
@@ -80,10 +43,7 @@ class ApiPlanRepository implements PlanRepository {
   Future<Plan> createPlan(PlanCreateInput input) async {
     final plan = await _client.postObject(
       '/api/v1/groups/${input.groupId}/plans',
-      body: {
-        'title': input.title,
-        'startsAt': _startsAtOrNull(input.dateTime),
-      },
+      body: {'title': input.title, 'startsAt': _startsAtOrNull(input.dateTime)},
     );
     return _plan(plan);
   }
@@ -113,15 +73,8 @@ class ApiPlanRepository implements PlanRepository {
       dateTime: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       location: location,
       status: OnmuJson.readString(json, 'status', '예정'),
-      memo: OnmuJson.readString(json, 'memo', 'Spring API에서 불러온 약속입니다.'),
-      members: const [
-        PlanMember(
-          name: 'ONMU Dev User',
-          message: 'Spring API smoke 참여자',
-          badge: '참여 중',
-          selected: true,
-        ),
-      ],
+      memo: OnmuJson.readString(json, 'memo'),
+      members: const [],
       timeCandidates: const [],
       visitPlan: [
         VisitPlan(

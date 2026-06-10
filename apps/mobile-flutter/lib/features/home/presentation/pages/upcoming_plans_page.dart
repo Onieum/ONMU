@@ -46,7 +46,7 @@ class UpcomingPlansPage extends ConsumerWidget {
 class _UpcomingPlansContent extends StatelessWidget {
   const _UpcomingPlansContent({required this.groupId, required this.plans});
 
-  final int groupId;
+  final int? groupId;
   final List<GroupPlanSummary> plans;
 
   @override
@@ -74,7 +74,13 @@ class _UpcomingPlansContent extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: '약속 만들기',
-        onPressed: () => context.push(RoutePaths.planNew(groupId)),
+        onPressed: () {
+          if (groupId == null) {
+            context.go(RoutePaths.groups);
+            return;
+          }
+          context.push(RoutePaths.planNew(groupId!));
+        },
         backgroundColor: AppColors.primaryPurple,
         foregroundColor: AppColors.textInverse,
         child: const Icon(Icons.add),
@@ -94,21 +100,23 @@ class _UpcomingPlansContent extends StatelessWidget {
 class _MonthHeader extends StatelessWidget {
   const _MonthHeader();
 
-  List<(String, String, bool)> _createDays() {
-    return [
-      ('24', '월', false),
-      ('25', '화', false),
-      ('26', '수', false),
-      ('27', '목', false),
-      ('28', '금', true),
-      ('29', '토', false),
-      ('30', '일', false),
-    ];
+  List<DateTime> _createDays(DateTime today) {
+    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+    return List.generate(
+      DateTime.daysPerWeek,
+      (index) => startOfWeek.add(Duration(days: index)),
+    );
+  }
+
+  String _weekdayLabel(DateTime date) {
+    const labels = ['월', '화', '수', '목', '금', '토', '일'];
+    return labels[date.weekday - 1];
   }
 
   @override
   Widget build(BuildContext context) {
-    final days = _createDays();
+    final today = DateTime.now();
+    final days = _createDays(today);
 
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
@@ -117,16 +125,22 @@ class _MonthHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('2026년 6월', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            '${today.year}년 ${today.month}월',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               for (final day in days)
                 Expanded(
                   child: _DayPill(
-                    day: day.$1,
-                    weekday: day.$2,
-                    selected: day.$3,
+                    day: day.day.toString(),
+                    weekday: _weekdayLabel(day),
+                    selected:
+                        day.year == today.year &&
+                        day.month == today.month &&
+                        day.day == today.day,
                   ),
                 ),
             ],
@@ -188,7 +202,7 @@ class _PlanSection extends StatelessWidget {
   });
 
   final String title;
-  final int groupId;
+  final int? groupId;
   final List<GroupPlanSummary> plans;
 
   @override
@@ -198,11 +212,33 @@ class _PlanSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.sm),
-        for (final plan in plans) ...[
-          _UpcomingPlanCard(groupId: groupId, plan: plan),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        if (plans.isEmpty)
+          const _EmptyPlanSectionCard()
+        else
+          for (final plan in plans) ...[
+            _UpcomingPlanCard(groupId: groupId!, plan: plan),
+            const SizedBox(height: AppSpacing.sm),
+          ],
       ],
+    );
+  }
+}
+
+class _EmptyPlanSectionCard extends StatelessWidget {
+  const _EmptyPlanSectionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Text(
+        '표시할 약속이 없어요.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+      ),
     );
   }
 }

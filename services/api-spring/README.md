@@ -161,7 +161,7 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 
 ## Flutter API Mode
 
-Flutter 앱은 기본적으로 mock repository를 사용합니다. Spring Main API를 직접 호출하려면 실행 시 Dart define으로 API mode를 켭니다.
+Flutter 앱은 기본적으로 Windows dev Spring API(`https://dev-api.onmu.cloud`)를 호출합니다. 보호 API 화면을 검증하려면 실행 전 Key Vault의 signing secret으로 짧은 수명의 access JWT를 발급한 dart-define 파일을 만듭니다.
 
 Windows PowerShell:
 

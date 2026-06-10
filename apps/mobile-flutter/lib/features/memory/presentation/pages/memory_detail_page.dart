@@ -16,7 +16,6 @@ class MemoryDetailPage extends ConsumerWidget {
 
   const MemoryDetailPage({super.key, required this.memoryId});
 
-  // Mock records generator helper (matching the ones in OotdListPage)
   List<OotdRecord> _createDefaultRecords(CharacterDraft baseChar) {
     return [
       OotdRecord(

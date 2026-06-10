@@ -2,13 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/settlement_models.dart';
-import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
-  if (ref.watch(onmuApiEnabledProvider)) {
-    return ApiSettlementRepository(ref.watch(onmuApiClientProvider));
-  }
-  return MockSettlementRepository(ref.watch(inMemoryOnmuStoreProvider));
+  return ApiSettlementRepository(ref.watch(onmuApiClientProvider));
 });
 
 abstract interface class SettlementRepository {
@@ -75,55 +71,6 @@ class SettlementDraftItemInput {
       if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds,
       'targetNames': targetNames,
     };
-  }
-}
-
-class MockSettlementRepository implements SettlementRepository {
-  MockSettlementRepository(this._store);
-
-  final InMemoryOnmuStore _store;
-
-  @override
-  Future<SettlementSummary> fetchSettlementDraft({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<SettlementSummary> previewSettlement({
-    required Object groupId,
-    required Object planId,
-    required List<SettlementDraftItemInput> items,
-  }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<SettlementSummary> createSettlement({
-    required Object groupId,
-    required Object planId,
-    required List<SettlementDraftItemInput> items,
-  }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<SettlementSummary> fetchSettlement({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchSettlement(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<SettlementSummary> fetchSettlementById({
-    required Object groupId,
-    required Object planId,
-    required Object settlementId,
-  }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
   }
 }
 

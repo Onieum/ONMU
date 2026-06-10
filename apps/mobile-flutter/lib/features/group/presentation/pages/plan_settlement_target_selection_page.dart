@@ -74,9 +74,25 @@ class _PlanSettlementTargetSelectionPageState
 
         return state.when(
           data: (settlement) {
-            final item = settlement.paymentItems.firstWhere(
-              (item) => item.id.toString() == widget.itemId,
-              orElse: () => settlement.paymentItems.first,
+            if (settlement.paymentItems.isEmpty) {
+              return OnmuScaffold(
+                title: '정산 대상 선택',
+                showBackButton: true,
+                onBack: () => context.popOrGo(
+                  RoutePaths.planSettlementNew(widget.groupId, widget.planId),
+                ),
+                children: [
+                  Text(
+                    '선택할 정산 항목이 없어요.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              );
+            }
+
+            final item = _findPaymentItem(
+              settlement.paymentItems,
+              widget.itemId,
             );
             _mode ??= item.targetModeLabel;
             if (_selectedNames.isEmpty) {
@@ -114,6 +130,18 @@ class _PlanSettlementTargetSelectionPageState
         );
       },
     );
+  }
+
+  SettlementPaymentItem _findPaymentItem(
+    List<SettlementPaymentItem> items,
+    String itemId,
+  ) {
+    for (final item in items) {
+      if (item.id.toString() == itemId) {
+        return item;
+      }
+    }
+    return items.first;
   }
 }
 

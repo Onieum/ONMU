@@ -207,6 +207,10 @@ class _SettingsHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayMembers = group.members.isEmpty
+        ? const ['온']
+        : group.members.take(3).toList(growable: false);
+
     return OnmuCard(
       backgroundColor: AppColors.bgPaper,
       borderColor: AppColors.lineSoft,
@@ -224,15 +228,18 @@ class _SettingsHeroCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Positioned(
-                      left: 0,
-                      child: PixelAvatar(label: group.members[0], size: 42),
-                    ),
-                    PixelAvatar(label: group.members[1], size: 46),
-                    Positioned(
-                      right: 0,
-                      child: PixelAvatar(label: group.members[2], size: 42),
-                    ),
+                    for (
+                      var index = 0;
+                      index < displayMembers.length;
+                      index += 1
+                    )
+                      Positioned(
+                        left: _avatarLeftOffset(index, displayMembers.length),
+                        child: PixelAvatar(
+                          label: displayMembers[index],
+                          size: index == 1 ? 46 : 42,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -267,6 +274,16 @@ class _SettingsHeroCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  double _avatarLeftOffset(int index, int count) {
+    if (count == 1) {
+      return 17;
+    }
+    if (count == 2) {
+      return index == 0 ? 6 : 30;
+    }
+    return index == 0 ? 0 : (index == 1 ? 15 : 34);
   }
 }
 

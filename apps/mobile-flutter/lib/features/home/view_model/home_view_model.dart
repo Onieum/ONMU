@@ -16,12 +16,21 @@ class HomeState {
     required this.activePlan,
     required this.upcomingPlans,
     required this.settlementId,
+    required this.todayPlanCount,
   });
 
-  final int groupId;
-  final Plan activePlan;
+  const HomeState.empty()
+    : groupId = null,
+      activePlan = null,
+      upcomingPlans = const [],
+      settlementId = null,
+      todayPlanCount = 0;
+
+  final int? groupId;
+  final Plan? activePlan;
   final List<GroupPlanSummary> upcomingPlans;
-  final int settlementId;
+  final int? settlementId;
+  final int todayPlanCount;
 }
 
 class HomeViewModel extends AsyncNotifier<HomeState> {
@@ -32,6 +41,10 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
     final groups = await groupRepository.fetchGroups();
+    if (groups.isEmpty) {
+      return const HomeState.empty();
+    }
+
     var group = groups.first;
     var pinnedPlan = await groupRepository.fetchPinnedPlan(group.id);
     var plans = await groupRepository.fetchPlans(group.id);
@@ -49,12 +62,23 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
         break;
       }
     }
-    final activePlanId = pinnedPlan?.id ?? plans.first.id;
+    final activePlanId = pinnedPlan?.id ?? plans.firstOrNull?.id;
+    if (activePlanId == null) {
+      return HomeState(
+        groupId: group.id,
+        activePlan: null,
+        upcomingPlans: const [],
+        settlementId: null,
+        todayPlanCount: _countTodayPlans(plans),
+      );
+    }
+
     final activePlan = await planRepository.fetchPlan(
       groupId: group.id,
       planId: activePlanId,
     );
-    final settlement = await settlementRepository.fetchSettlement(
+    final settlementId = await _fetchSettlementIdOrNull(
+      settlementRepository: settlementRepository,
       groupId: group.id,
       planId: activePlan.id,
     );
@@ -63,7 +87,37 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
       groupId: group.id,
       activePlan: activePlan,
       upcomingPlans: plans.where((plan) => !plan.isPast).toList(),
-      settlementId: settlement.id,
+      settlementId: settlementId,
+      todayPlanCount: _countTodayPlans(plans),
     );
+  }
+
+  int _countTodayPlans(List<GroupPlanSummary> plans) {
+    final now = DateTime.now().toLocal();
+    return plans.where((plan) {
+      final startsAt = plan.startsAt?.toLocal();
+      if (startsAt == null) {
+        return false;
+      }
+      return startsAt.year == now.year &&
+          startsAt.month == now.month &&
+          startsAt.day == now.day;
+    }).length;
+  }
+
+  Future<int?> _fetchSettlementIdOrNull({
+    required SettlementRepository settlementRepository,
+    required Object groupId,
+    required Object planId,
+  }) async {
+    try {
+      final settlement = await settlementRepository.fetchSettlement(
+        groupId: groupId,
+        planId: planId,
+      );
+      return settlement.id;
+    } catch (_) {
+      return null;
+    }
   }
 }

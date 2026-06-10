@@ -254,9 +254,7 @@ class _MyResultCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final myResult = settlement.memberResults.firstWhere(
-      (result) => result.isMe,
-    );
+    final myResult = _findMyResult(settlement.memberResults);
     final mySummary = settlement.mySummaryLabel.replaceFirst('나는 ', '');
 
     return OnmuCard(
@@ -288,16 +286,34 @@ class _MyResultCompactCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              _MiniSummaryTile(label: '부담', value: myResult.finalShareLabel),
+              _MiniSummaryTile(
+                label: '부담',
+                value: myResult?.finalShareLabel ?? '-',
+              ),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '결제', value: myResult.paidAmountLabel),
+              _MiniSummaryTile(
+                label: '결제',
+                value: myResult?.paidAmountLabel ?? '-',
+              ),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '결과', value: myResult.resultLabel),
+              _MiniSummaryTile(
+                label: '결과',
+                value: myResult?.resultLabel ?? '-',
+              ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  SettlementMemberResult? _findMyResult(List<SettlementMemberResult> results) {
+    for (final result in results) {
+      if (result.isMe) {
+        return result;
+      }
+    }
+    return null;
   }
 }
 

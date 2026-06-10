@@ -127,6 +127,7 @@ public class OnmuApiService {
 
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", user.getPublicId());
+    value.put("databaseId", user.getId().toString());
     value.put("displayName", user.getDisplayName());
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());

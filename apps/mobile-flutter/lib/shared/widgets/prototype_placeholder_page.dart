@@ -36,7 +36,7 @@ class PrototypePlaceholderPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '지금은 mock data와 화면 이동만 확인하는 단계예요.',
+                '아직 실제 API 화면 구현을 준비 중이에요.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],

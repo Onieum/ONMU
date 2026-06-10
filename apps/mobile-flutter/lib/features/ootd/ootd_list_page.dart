@@ -66,10 +66,10 @@ class _OotdListPageState extends State<OotdListPage> {
     super.initState();
     _currentMonth = DateTime(2026, 10, 1);
     _selectedDay = DateTime(2026, 10, 3); // 기본 선택일
-    _generateMockRecords();
+    _generateDefaultRecords();
   }
 
-  void _generateMockRecords() {
+  void _generateDefaultRecords() {
     final baseChar = widget.userCharacter;
 
     _allRecords = [
