@@ -74,6 +74,8 @@
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
 
+장소 검색 응답은 기존 `query`, `canonical`, `results` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`를 유지하고, 외부 provider 연결을 위해 `provider`, `providerPlaceId`, `roadAddress`, `latitude`, `longitude`, `sourceUrl`, `providerLink`, `fetchedAt`을 추가할 수 있다. UI에서는 product 기준에 따라 provider 출처를 직접 노출하지 않는다.
+
 장소 후보 응답은 목록/추가/상세에서 `id`, `name`, `category`, `address`, `source`, `lat`, `lng`, `heartCount`, `myHearted`, `createdAt`을 가능한 범위에서 포함한다. `PUT .../heart`는 body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 내 하트를 끈다. 같은 사용자가 같은 후보에 여러 번 하트를 켜도 중복 row를 만들지 않는다.
 
 일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.

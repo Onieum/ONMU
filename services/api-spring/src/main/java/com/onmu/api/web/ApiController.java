@@ -179,7 +179,9 @@ public class ApiController {
         request.lat(),
         request.lng(),
         request.radius(),
-        request.category()
+        request.category(),
+        request.providers(),
+        Boolean.TRUE.equals(request.compare())
       )
     );
   }
