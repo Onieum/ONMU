@@ -10,6 +10,8 @@
 - 현재 아키텍처 다이어그램: `docs/architecture/current-architecture-diagram.md`
 - Git/Jira workflow: `docs/development/git-workflow.md`
 - Spring runtime / dev API / dev DB 연결: `docs/operations/spring-runtime-transition-workflow.md`
+- 인증/token 결정: `docs/architecture/backend-stack-options.md`
+- 데이터/CDC/Databricks/analytics 경계: `docs/architecture/data-analytics-reporting-roadmap.md`
 
 ## 언어
 
@@ -94,6 +96,8 @@ lib/features/<feature>/
 - 일반 dev API 연결 확인에는 `dev-access-token-secret`으로 짧은 수명의 JWT를 로컬에서 발급해 사용한다.
 - integration API 연결 확인에는 `int-access-token-secret`으로 별도 JWT를 발급하며, dev signing secret 또는 token을 재사용하지 않는다.
 - 기존 `dev-api-access-token`과 `dev-api-refresh-token` 값은 Spring 보호 API 연결 확인에 사용하거나 공유하지 않는다.
+- MVP/dev 단계에서는 현재 HS256 JWT access token, `sub=<users.public_id>`, Spring의 DB 사용자 조회 흐름을 유지한다. CDC/Databricks/analytics 기준을 이유로 JWT `sub`, DB schema, dev 연결 흐름을 선제 변경하지 않는다.
+- 운영 클라이언트에는 JWT signing secret을 넣지 않는다. Azure/Terraform 기반 prod 전환 시 Spring이 OAuth provider token/code를 검증하고 access JWT와 refresh token을 발급하며, Flutter는 token을 secure storage에 저장한다.
 - 개인 DB 계정은 read-only 중심이며, `CREATE`/`INSERT`/`UPDATE`/`DELETE`가 가능하면 권한 설정 오류로 본다.
 - Cloudflare API token, `Secrets Officer`, 전체 secret 관리 권한은 일반 팀원 연결 확인 용도로 부여하지 않는다.
 
