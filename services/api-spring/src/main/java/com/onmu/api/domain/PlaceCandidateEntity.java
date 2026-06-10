@@ -98,4 +98,8 @@ public class PlaceCandidateEntity {
   public String getPayload() {
     return payload;
   }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
 }

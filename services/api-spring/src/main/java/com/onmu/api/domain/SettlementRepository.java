@@ -9,4 +9,6 @@ public interface SettlementRepository extends JpaRepository<SettlementEntity, UU
   List<SettlementEntity> findByPlanOrderByCreatedAtDesc(PlanEntity plan);
 
   Optional<SettlementEntity> findFirstByPlanOrderByCreatedAtDesc(PlanEntity plan);
+
+  Optional<SettlementEntity> findByPlanAndPublicId(PlanEntity plan, String publicId);
 }

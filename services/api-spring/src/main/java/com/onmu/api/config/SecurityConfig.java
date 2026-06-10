@@ -1,11 +1,15 @@
 package com.onmu.api.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onmu.api.security.BearerTokenAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,6 +23,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
+@EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfig {
   private static final List<String> DEFAULT_ALLOWED_ORIGINS = List.of(
     "http://localhost:3000",
@@ -31,22 +36,18 @@ public class SecurityConfig {
     "https://int-api.onmu.cloud"
   );
 
-  private final DevTokenAuthenticationFilter devTokenAuthenticationFilter;
   private final Environment environment;
-  private final ObjectMapper objectMapper;
 
-  public SecurityConfig(
-    DevTokenAuthenticationFilter devTokenAuthenticationFilter,
-    Environment environment,
-    ObjectMapper objectMapper
-  ) {
-    this.devTokenAuthenticationFilter = devTokenAuthenticationFilter;
+  public SecurityConfig(Environment environment) {
     this.environment = environment;
-    this.objectMapper = objectMapper;
   }
 
   @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain securityFilterChain(
+    HttpSecurity http,
+    BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
+    ObjectMapper objectMapper
+  ) throws Exception {
     return http
       .csrf(AbstractHttpConfigurer::disable)
       .httpBasic(AbstractHttpConfigurer::disable)
@@ -55,16 +56,26 @@ public class SecurityConfig {
       .cors(cors -> {
       })
       .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint((request, response, exception) -> {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getWriter(), java.util.Map.of(
+          "ok", false,
+          "error", "authentication_required"
+        ));
+      }))
       .authorizeHttpRequests(authorize -> authorize
         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
         .requestMatchers("/healthz", "/readyz", "/error", "/actuator/**").permitAll()
-        .requestMatchers(HttpMethod.GET, "/api/v1/auth/session").permitAll()
-        .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/*").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/**").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
+        .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/session").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/v1/internal/callbacks/**").permitAll()
         .requestMatchers("/api/v1/**").authenticated()
         .anyRequest().denyAll())
-      .addFilterBefore(devTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-      .addFilterBefore(new SpringAccessLogFilter(objectMapper, environment), DevTokenAuthenticationFilter.class)
+      .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+      .addFilterBefore(new SpringAccessLogFilter(objectMapper, environment), BearerTokenAuthenticationFilter.class)
       .build();
   }
 
@@ -74,9 +85,9 @@ public class SecurityConfig {
   }
 
   @Bean
-  CorsConfigurationSource corsConfigurationSource() {
+  CorsConfigurationSource corsConfigurationSource(AuthProperties authProperties) {
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(allowedOrigins());
+    configuration.setAllowedOriginPatterns(allowedOrigins(authProperties));
     configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
     configuration.setAllowedHeaders(List.of(
       "Authorization",
@@ -97,21 +108,25 @@ public class SecurityConfig {
     return source;
   }
 
-  private List<String> allowedOrigins() {
+  private List<String> allowedOrigins(AuthProperties authProperties) {
     String configured = firstPresent(
       environment.getProperty("ONMU_CORS_ORIGINS"),
       environment.getProperty("ONMU_DEV_CORS_ORIGINS"),
       environment.getProperty("onmu.security.cors.allowed-origins")
     );
-    if (!StringUtils.hasText(configured)) {
-      return DEFAULT_ALLOWED_ORIGINS;
+    if (StringUtils.hasText(configured)) {
+      List<String> origins = List.of(configured.split(",")).stream()
+        .map(String::trim)
+        .filter(StringUtils::hasText)
+        .toList();
+      if (!origins.isEmpty()) {
+        return origins;
+      }
     }
-
-    List<String> origins = List.of(configured.split(",")).stream()
-      .map(String::trim)
-      .filter(StringUtils::hasText)
-      .toList();
-    return origins.isEmpty() ? DEFAULT_ALLOWED_ORIGINS : origins;
+    if (authProperties.allowedOrigins() != null && !authProperties.allowedOrigins().isEmpty()) {
+      return authProperties.allowedOrigins();
+    }
+    return DEFAULT_ALLOWED_ORIGINS;
   }
 
   private String firstPresent(String... candidates) {

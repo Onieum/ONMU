@@ -8,6 +8,16 @@ public record CreateVoteRequest(
   String targetType,
   String targetId,
   @NotBlank String title,
-  List<String> options
+  List<String> options,
+  List<String> placeCandidateIds
 ) {
+  public CreateVoteRequest(
+    String voteType,
+    String targetType,
+    String targetId,
+    String title,
+    List<String> options
+  ) {
+    this(voteType, targetType, targetId, title, options, List.of());
+  }
 }

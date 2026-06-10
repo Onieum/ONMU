@@ -248,7 +248,7 @@ $candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
 curl http://localhost:8080/api/v1/groups/1/votes/501
 $previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
-[System.IO.File]::WriteAllText($previewBody, '{"items":[{"title":"Coffee","amount":12000,"payerName":"Jimin","targetNames":["Jimin","Minsu"]}]}', [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($previewBody, '{"items":[{"title":"커피","amountWon":12000,"payerUserId":"user-jimin","payerName":"지민","targetUserIds":["user-jimin","user-minsu"],"targetNames":["지민","민수"]}]}', [System.Text.UTF8Encoding]::new($false))
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 ```

@@ -94,6 +94,8 @@ function Resolve-BackendRuntime {
     $candidate = $Runtime
   } elseif ($env:ONMU_BACKEND_RUNTIME) {
     $candidate = $env:ONMU_BACKEND_RUNTIME
+  } elseif ($Environment -eq "integration") {
+    $candidate = "spring"
   } else {
     $candidate = "spring"
   }
@@ -507,6 +509,19 @@ function Set-SpringEnvironment {
   Write-DeployLog "Spring environment prepared for $Environment on ${ApiHost}:${ApiPort}. Secret values are not printed."
 }
 
+function Clear-SpringGeneratedMigrationClasses {
+  $migrationClassesDir = Join-Path $SpringDir "target\classes\db\migration"
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Remove stale generated migration classes at $migrationClassesDir"
+    return
+  }
+
+  if (Test-Path $migrationClassesDir) {
+    Write-DeployLog "Removing stale generated migration classes at $migrationClassesDir."
+    Remove-Item -LiteralPath $migrationClassesDir -Recurse -Force
+  }
+}
+
 function Start-SpringBackend {
   Import-KeyVaultEnvForBackend
   Start-LocalDependencies
@@ -516,9 +531,10 @@ function Start-SpringBackend {
     Write-DeployLog "[dry-run] Check services/api-spring for Maven executable project."
     Write-DeployLog "[dry-run] Prepare SERVER_ADDRESS/SERVER_PORT and Spring datasource env without printing secret values."
     if ($Environment -eq "integration") {
+      Clear-SpringGeneratedMigrationClasses
       Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests spring-boot:run"
     } else {
-      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests package"
+      Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests clean package"
       Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     }
     Write-DeployLog "[dry-run] Write PID to $PidFile"
@@ -540,6 +556,7 @@ function Start-SpringBackend {
   Stop-ExistingBackend
 
   if ($Environment -eq "integration") {
+    Clear-SpringGeneratedMigrationClasses
     Write-DeployLog "Starting integration Spring Boot Main API with Maven spring-boot:run on ${ApiHost}:${ApiPort}."
     $process = Start-Process `
       -FilePath $mavenWrapper `
@@ -559,7 +576,7 @@ function Start-SpringBackend {
 
   Push-Location $SpringDir
   try {
-    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "package")
+    Invoke-NativeCommand -FilePath $mavenWrapper -ArgumentList @("-DskipTests", "clean", "package")
   } finally {
     Pop-Location
   }

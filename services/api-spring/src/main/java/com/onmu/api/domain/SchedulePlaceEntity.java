@@ -37,8 +37,14 @@ public class SchedulePlaceEntity {
   @Column(name = "starts_at")
   private Instant startsAt;
 
+  @Column(name = "ends_at")
+  private Instant endsAt;
+
   @Column(name = "sort_order", nullable = false)
   private int sortOrder;
+
+  @Column
+  private String note;
 
   protected SchedulePlaceEntity() {
   }
@@ -50,7 +56,9 @@ public class SchedulePlaceEntity {
     PlaceCandidateEntity placeCandidate,
     String name,
     Instant startsAt,
-    int sortOrder
+    Instant endsAt,
+    int sortOrder,
+    String note
   ) {
     this.id = UUID.randomUUID();
     this.publicId = publicId;
@@ -59,7 +67,21 @@ public class SchedulePlaceEntity {
     this.placeCandidate = placeCandidate;
     this.name = name;
     this.startsAt = startsAt;
+    this.endsAt = endsAt;
     this.sortOrder = sortOrder;
+    this.note = note;
+  }
+
+  public SchedulePlaceEntity(
+    String publicId,
+    GroupEntity group,
+    PlanEntity plan,
+    PlaceCandidateEntity placeCandidate,
+    String name,
+    Instant startsAt,
+    int sortOrder
+  ) {
+    this(publicId, group, plan, placeCandidate, name, startsAt, null, sortOrder, null);
   }
 
   public UUID getId() {
@@ -82,7 +104,15 @@ public class SchedulePlaceEntity {
     return startsAt;
   }
 
+  public Instant getEndsAt() {
+    return endsAt;
+  }
+
   public int getSortOrder() {
     return sortOrder;
+  }
+
+  public String getNote() {
+    return note;
   }
 }

@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-windows-dev-backend:
+  deploy-windows-backend:
     name: Deploy Windows backend
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Windows, onmu-dev-backend]

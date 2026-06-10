@@ -76,6 +76,10 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V5__core_seed_data_dictionary.sql`: 데이터사전 검증용 synthetic seed
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
+- `V8__screen_aligned_dev_seed.sql`: Flutter mock 화면과 맞춘 synthetic seed와 정산 item/target/transfer seed 보강
+- `V8__add_place_candidate_hearts.sql`: 장소 후보별 사용자 하트 저장소와 중복 방지 제약 추가
+- `V9__screen_aligned_dev_seed.sql`: Flutter 화면 정합 smoke용 synthetic seed 보강
+- `V10__auth_user_profile_infra.sql`: 인증/프로필 구현에 필요한 사용자 프로필, 인증 identity, refresh token 보강
 
 `public_id`는 Flutter API 전환 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
@@ -96,22 +100,35 @@ Core API:
 - `GET /api/v1/users/me`
 - `GET /api/v1/groups`
 - `POST /api/v1/groups`
+- `GET /api/v1/groups/{groupId}`
+- `PATCH /api/v1/groups/{groupId}`
+- `GET /api/v1/groups/{groupId}/members`
+- `DELETE /api/v1/groups/{groupId}/members/me`
 - `GET /api/v1/groups/{groupId}/summary`
 - `GET /api/v1/groups/{groupId}/plans`
 - `POST /api/v1/groups/{groupId}/plans`
 - `GET /api/v1/groups/{groupId}/plans/{planId}`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/participants`
+- `PUT /api/v1/groups/{groupId}/plans/{planId}/participants/me`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me`
 - `POST /api/v1/place-search`
 - `GET /api/v1/groups/{groupId}/votes`
 - `POST /api/v1/groups/{groupId}/votes`
 - `GET /api/v1/groups/{groupId}/votes/{voteId}`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}`
+- `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 
 Auth scaffold:
 
@@ -127,10 +144,17 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 `outbox_events` table을 유지하고, 현재는 다음 이벤트를 같은 DB transaction 안에서 기록합니다.
 
 - `plan.created`
+- `plan.updated`
+- `plan.participant_updated`
 - `vote.created`
 - `place_candidate.created`
+- `place_candidate.heart_updated`
+- `schedule_place.created`
 - `settlement.created`
 - `notification.requested`
+- `group.created`
+- `group.updated`
+- `group.member_left`
 
 아직 queue publisher/consumer가 없으므로 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
 
@@ -147,13 +171,15 @@ flutter run `
 
 Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
 
-현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement summary입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
+현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement draft/preview/create/result입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
 ## 아직 Dev/Mock인 부분
 
 - Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
 - Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. Naver OAuth 실제 token exchange, refresh token 저장/회전은 별도 PR에서 보강합니다.
-- place search는 외부 API key 없이 neutral mock 결과를 반환합니다.
+- place search는 외부 API key 없이 neutral mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`를 받을 수 있고, 응답 결과는 dev mock `source`, 합성 좌표, `heartCount`, `myHearted`를 포함합니다.
+- 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.
+- 장소 후보 기반 투표는 `POST /api/v1/groups/{groupId}/votes`에서 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE`, `placeCandidateIds`를 받습니다. 기존 `options` 문자열 방식은 계속 허용하며, 후보 option 응답에는 `candidateId`, `candidateName`, `address`, `heartCount`, `responseCount`, `countLabel`, `progress`를 포함합니다.
 - 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
 - request log는 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
@@ -182,19 +208,30 @@ curl -i http://localhost:8080/api/v1/groups/1/votes/not-found
 curl.exe -X POST http://localhost:8080/api/v1/groups -H "Content-Type: application/json" --data-binary '{ "name": "새 모임" }'
 curl http://localhost:8080/api/v1/groups/1/plans
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans -H "Content-Type: application/json" --data-binary '{ "title": "새 약속" }'
-curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary '{ "query": "카페", "groupId": "1", "planId": "101" }'
+curl.exe -X POST http://localhost:8080/api/v1/place-search -H "Content-Type: application/json" --data-binary '{ "query": "카페", "groupId": "1", "planId": "101", "lat": 37.5665, "lng": 126.9780, "radius": 1000, "category": "cafe" }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "장소 투표", "options": ["A", "B"] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/votes -H "Content-Type: application/json" --data-binary '{ "voteType": "PLACE", "targetType": "PLAN", "targetId": "101", "title": "후보 기반 장소 투표", "placeCandidateIds": ["201", "202"] }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary '{ "name": "새 후보", "category": "카페", "address": "서울" }'
+curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201
+curl.exe -X PUT http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201/heart -H "Content-Type: application/json" --data-binary '{ "hearted": true }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/schedule-places -H "Content-Type: application/json" --data-binary '{ "candidateId": "201", "name": "온무식당" }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }'
+curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/103/settlement-draft/items/401/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
+curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
 ```
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
+정산 draft/result 응답은 `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 우선 읽고, JSON `payload`는 payer user id 같은 계산 보조 필드와 이전 Flutter mock contract 호환 용도로 유지합니다. 요청은 `payerUserId`, `targetUserIds`를 우선 사용하며, `payerName`, `targetNames`는 dev seed 호환 fallback입니다. 이름 fallback이 중복 이름을 만나면 `400 ambiguous_settlement_member_name`을 반환합니다.
 
-## Dev Token 인증과 CORS 기준
+`GET /settlement-draft`가 저장되지 않은 synthetic draft를 반환할 때는 `persisted=false`, `targetPatchAvailable=false`입니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다.
+
+현재 DB 컬럼명은 `amount_cents`지만 정산 API의 `amountWon`/호환 `amount` 값은 KRW 원 단위 integer입니다. `mySummaryLabel`과 `memberResults[].isMe`는 실제 사용자 인증 주입 전까지 dev seed의 첫 사용자 기준으로 계산되는 dev-only 한계가 있습니다.
+
+## 인증과 CORS 기준
 
 Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
@@ -206,12 +243,13 @@ Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 
 토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault 또는 로컬 프로세스 환경변수로만 주입합니다.
 
-인증 scaffold 동작:
+인증 동작:
 
-- `GET /api/v1/auth/session`: 토큰이 없으면 `authenticated: false`, 유효한 dev token이면 `authenticated: true`를 반환합니다.
-- `DELETE /api/v1/auth/session`: 유효한 bearer token이 있어야 호출할 수 있습니다.
-- `POST /api/v1/auth/refresh`: `ONMU_API_REFRESH_TOKEN`과 요청 body의 `refreshToken`이 일치할 때만 access token 응답을 반환합니다. dev 환경에서는 기존 `ONMU_DEV_REFRESH_TOKEN`도 fallback으로 지원합니다.
-- `POST /api/v1/auth/oauth/{provider}`: Naver OAuth 실제 token exchange 전까지 public scaffold로 유지합니다.
+- 보호된 `/api/v1/**` endpoint는 유효한 `Authorization: Bearer <accessToken>`이 없으면 HTTP 401과 `{ "ok": false, "error": "authentication_required" }`를 반환합니다.
+- `GET /api/v1/auth/session`, `GET /api/v1/users/me`, `GET /api/v1/home/summary`는 보호된 endpoint입니다. 토큰이 유효하면 현재 인증 사용자 기준으로 session/user/viewer 정보를 반환합니다.
+- `POST /api/v1/auth/refresh`는 공개 endpoint입니다. 요청 body의 `refreshToken`이 저장된 활성 refresh token과 일치할 때만 기존 token family 안에서 refresh token을 회전하고 새 access token/refresh token을 반환합니다. 이미 회전된 token 재사용이 감지되면 같은 token family를 폐기합니다.
+- `POST /api/v1/auth/logout`과 contract route인 `DELETE /api/v1/auth/session`은 refresh-token 기반 공개/idempotent logout입니다. body에 `refreshToken`이 있으면 해당 token을 폐기하고, 없거나 이미 폐기된 경우에도 인증되지 않은 세션 상태를 반환합니다.
+- `POST /api/v1/auth/oauth/{provider}`는 공개 endpoint지만, client가 보낸 provider subject를 신뢰하지 않습니다. 현재 로컬/dev 검증은 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때 `devVerifiedSubject`를 verified identity로 취급하는 명시적 dev boundary이며, 운영 Naver API token/code 검증은 별도 provider verifier로 연결해야 합니다.
 
 CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 허용 origin은 로컬 Flutter/web dev와 `https://dev-api.onmu.cloud`이며, 필요하면 쉼표로 구분해 확장합니다.
 
