@@ -53,8 +53,8 @@ public class ApiController {
   }
 
   @GetMapping("/home/summary")
-  public Map<String, Object> homeSummary() {
-    return onmuApiService.homeSummary();
+  public Map<String, Object> homeSummary(@AuthenticationPrincipal AuthenticatedUser user) {
+    return onmuApiService.homeSummary(user.userId());
   }
 
   @GetMapping("/users/me")

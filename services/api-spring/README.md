@@ -74,6 +74,8 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
 - `V8__add_place_candidate_hearts.sql`: 장소 후보별 사용자 하트 저장소와 중복 방지 제약 추가
+- `V9__screen_aligned_dev_seed.sql`: Flutter 화면 정합 smoke용 synthetic seed 보강
+- `V10__auth_user_profile_infra.sql`: 인증/프로필 구현에 필요한 사용자 프로필, 인증 identity, refresh token 보강
 
 `public_id`는 Flutter/Node stub의 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
@@ -215,24 +217,24 @@ curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H 
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
 
-## Dev Token 인증과 CORS 기준
+## 인증과 CORS 기준
 
 Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 공개 dev backend 기본 runtime은 아직 `node-stub`이며, Spring은 수동 smoke용 옵션 runtime입니다. Spring runtime을 켤 때 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
 ```powershell
-$env:ONMU_DEV_ACCESS_TOKEN="<local-smoke-token>"
-$headers = @{ Authorization = "Bearer $env:ONMU_DEV_ACCESS_TOKEN" }
+$headers = @{ Authorization = "Bearer <access-token-from-login-or-refresh>" }
 Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 ```
 
 토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault 또는 로컬 프로세스 환경변수로만 주입합니다.
 
-인증 scaffold 동작:
+인증 동작:
 
-- `GET /api/v1/auth/session`: 토큰이 없으면 `authenticated: false`, 유효한 dev token이면 `authenticated: true`를 반환합니다.
-- `DELETE /api/v1/auth/session`: 유효한 bearer token이 있어야 호출할 수 있습니다.
-- `POST /api/v1/auth/refresh`: `ONMU_DEV_REFRESH_TOKEN`과 요청 body의 `refreshToken`이 일치할 때만 dev access token 응답을 반환합니다.
-- `POST /api/v1/auth/oauth/{provider}`: Naver OAuth 실제 token exchange 전까지 public scaffold로 유지합니다.
+- 보호된 `/api/v1/**` endpoint는 유효한 `Authorization: Bearer <accessToken>`이 없으면 HTTP 401과 `{ "ok": false, "error": "authentication_required" }`를 반환합니다.
+- `GET /api/v1/auth/session`, `GET /api/v1/users/me`, `GET /api/v1/home/summary`는 보호된 endpoint입니다. 토큰이 유효하면 현재 인증 사용자 기준으로 session/user/viewer 정보를 반환합니다.
+- `POST /api/v1/auth/refresh`는 공개 endpoint입니다. 요청 body의 `refreshToken`이 저장된 활성 refresh token과 일치할 때만 기존 token family 안에서 refresh token을 회전하고 새 access token/refresh token을 반환합니다. 이미 회전된 token 재사용이 감지되면 같은 token family를 폐기합니다.
+- `POST /api/v1/auth/logout`과 contract route인 `DELETE /api/v1/auth/session`은 refresh-token 기반 공개/idempotent logout입니다. body에 `refreshToken`이 있으면 해당 token을 폐기하고, 없거나 이미 폐기된 경우에도 인증되지 않은 세션 상태를 반환합니다.
+- `POST /api/v1/auth/oauth/{provider}`는 공개 endpoint지만, client가 보낸 provider subject를 신뢰하지 않습니다. 현재 로컬/dev 검증은 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때 `devVerifiedSubject`를 verified identity로 취급하는 명시적 dev boundary이며, 운영 Naver API token/code 검증은 별도 provider verifier로 연결해야 합니다.
 
 CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 허용 origin은 로컬 Flutter/web dev와 `https://dev-api.onmu.cloud`이며, 필요하면 쉼표로 구분해 확장합니다.
 
@@ -240,4 +242,4 @@ CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 �
 $env:ONMU_DEV_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud"
 ```
 
-Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정을 별도 PR에서 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.
+Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 Naver verifier 연결, CORS origin 확정, 공유 환경의 `ONMU_ACCESS_TOKEN_SECRET` 주입을 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.

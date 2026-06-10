@@ -22,6 +22,9 @@ public class UserEntity {
   @Column(name = "display_name", nullable = false)
   private String displayName;
 
+  @Column(name = "nickname")
+  private String nickname;
+
   @Column(name = "email")
   private String email;
 
@@ -55,8 +58,19 @@ public class UserEntity {
     this.id = UUID.randomUUID();
     this.publicId = Objects.requireNonNull(publicId);
     this.displayName = Objects.requireNonNull(displayName);
+    this.nickname = displayName;
     this.email = email;
     this.profileImageUrl = profileImageUrl;
+    this.pixelCharacter = "{}";
+    this.preferenceProfile = "{}";
+    this.onboardingStatus = "PENDING";
+  }
+
+  public UserEntity(UUID id, String displayName) {
+    this.id = Objects.requireNonNull(id);
+    this.publicId = "usr_" + id.toString().replace("-", "");
+    this.displayName = Objects.requireNonNull(displayName);
+    this.nickname = displayName;
     this.pixelCharacter = "{}";
     this.preferenceProfile = "{}";
     this.onboardingStatus = "PENDING";
@@ -72,6 +86,10 @@ public class UserEntity {
 
   public String getDisplayName() {
     return displayName;
+  }
+
+  public String getNickname() {
+    return nickname;
   }
 
   public String getEmail() {

@@ -158,7 +158,7 @@ public class OnmuApiService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> homeSummary() {
+  public Map<String, Object> homeSummary(java.util.UUID userId) {
     List<GroupEntity> groups = groupRepository.findAllByOrderByCreatedAtAsc();
     GroupEntity firstGroup = groups.stream().findFirst().orElseThrow(this::noSeedData);
     List<PlanEntity> plans = planRepository.findByGroupOrderByStartsAtAsc(firstGroup);
@@ -167,7 +167,7 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("service", "onmu-api-spring");
     value.put("env", "local");
-    value.put("viewer", userMe());
+    value.put("viewer", userMe(userId));
     value.put("groups", groups.stream().map(this::groupCard).toList());
     value.put("upcomingPlans", plans.stream().map(this::planCard).toList());
     value.put("activeVotes", votes.stream().map(this::voteCard).toList());

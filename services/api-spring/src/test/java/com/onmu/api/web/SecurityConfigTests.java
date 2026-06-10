@@ -54,13 +54,13 @@ class SecurityConfigTests {
   @MockitoBean
   private PlaceSearchService placeSearchService;
 
-  @MockBean
+  @MockitoBean
   private AuthService authService;
 
-  @MockBean
+  @MockitoBean
   private AccessTokenVerifier accessTokenVerifier;
 
-  @MockBean
+  @MockitoBean
   private UserRepository userRepository;
 
   @Test
