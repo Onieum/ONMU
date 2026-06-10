@@ -274,7 +274,8 @@ function Import-KeyVaultEnvForBackend {
     "NAVER_OAUTH_CLIENT_SECRET",
     "KAKAO_REST_API_KEY",
     "NAVER_SEARCH_CLIENT_ID",
-    "NAVER_SEARCH_CLIENT_SECRET"
+    "NAVER_SEARCH_CLIENT_SECRET",
+    "OPENROUTESERVICE_API_KEY"
   )
   if ($Environment -eq "dev") {
     $envNames += @(

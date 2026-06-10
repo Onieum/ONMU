@@ -3,6 +3,7 @@ package com.onmu.api.web;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.RouteRecommendationService;
 import com.onmu.api.service.SettlementApiService;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
@@ -10,6 +11,7 @@ import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
+import com.onmu.api.web.dto.RouteRecommendationRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
@@ -43,17 +45,20 @@ public class ApiController {
   private final GroupApiService groupApiService;
   private final OnmuApiService onmuApiService;
   private final PlaceSearchService placeSearchService;
+  private final RouteRecommendationService routeRecommendationService;
   private final SettlementApiService settlementApiService;
 
   public ApiController(
     OnmuApiService onmuApiService,
     PlaceSearchService placeSearchService,
+    RouteRecommendationService routeRecommendationService,
     SettlementApiService settlementApiService,
     GroupApiService groupApiService
   ) {
     this.groupApiService = groupApiService;
     this.onmuApiService = onmuApiService;
     this.placeSearchService = placeSearchService;
+    this.routeRecommendationService = routeRecommendationService;
     this.settlementApiService = settlementApiService;
   }
 
@@ -184,6 +189,11 @@ public class ApiController {
         Boolean.TRUE.equals(request.compare())
       )
     );
+  }
+
+  @PostMapping("/routes/recommend")
+  public Map<String, Object> routeRecommend(@Valid @RequestBody RouteRecommendationRequest request) {
+    return routeRecommendationService.recommend(request.groupId(), request.planId(), request.travelMode());
   }
 
   @GetMapping("/groups/{groupId}/votes")

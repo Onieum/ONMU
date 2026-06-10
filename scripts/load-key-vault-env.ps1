@@ -32,6 +32,7 @@ $secretMap = [ordered]@{
   KAKAO_REST_API_KEY = "$SecretPrefix-kakao-rest-api-key"
   NAVER_SEARCH_CLIENT_ID = "$SecretPrefix-naver-search-client-id"
   NAVER_SEARCH_CLIENT_SECRET = "$SecretPrefix-naver-search-client-secret"
+  OPENROUTESERVICE_API_KEY = "$SecretPrefix-openrouteservice-api-key"
 }
 
 if ($SecretPrefix -eq "dev") {

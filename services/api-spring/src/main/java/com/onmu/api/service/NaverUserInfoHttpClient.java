@@ -1,6 +1,7 @@
 package com.onmu.api.service;
 
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +22,7 @@ public class NaverUserInfoHttpClient implements NaverUserInfoClient {
   private final RestClient restClient;
   private final String userInfoUrl;
 
+  @Autowired
   public NaverUserInfoHttpClient(Environment environment) {
     this(RestClient.builder().build(), resolveUserInfoUrl(environment));
   }

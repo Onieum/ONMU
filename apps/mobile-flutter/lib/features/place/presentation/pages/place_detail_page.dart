@@ -6,6 +6,8 @@ import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../features/map/model/map_models.dart';
+import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -122,26 +124,22 @@ class _DetailMap extends StatelessWidget {
       borderColor: AppColors.lineSoft,
       child: SizedBox(
         height: 180,
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _DetailMapPainter())),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.location_pin,
-                    size: 42,
-                    color: AppColors.primaryPurple,
-                  ),
-                  Text(
-                    '핀: ${candidate.name}',
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ],
-              ),
+        child: OnmuMapView(
+          points: [
+            OnmuMapPoint(
+              id: candidate.id.toString(),
+              label: candidate.name,
+              coordinate: candidate.hasCoordinate
+                  ? OnmuLatLng(
+                      lat: candidate.latitude!,
+                      lng: candidate.longitude!,
+                    )
+                  : const OnmuLatLng(lat: 37.5665, lng: 126.9780),
+              order: 1,
             ),
           ],
+          zoom: 13,
+          fallbackLabel: '장소 지도 미리보기',
         ),
       ),
     );
@@ -245,7 +243,7 @@ class _InfoBlock extends StatelessWidget {
   }
 }
 
-class _DetailMapPainter extends CustomPainter {
+class DetailMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()

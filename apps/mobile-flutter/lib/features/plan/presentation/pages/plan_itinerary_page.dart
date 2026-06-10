@@ -7,6 +7,9 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../features/map/model/map_models.dart';
+import '../../../../features/map/view_model/route_recommendation_view_model.dart';
+import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -30,6 +33,7 @@ class PlanItineraryPage extends ConsumerStatefulWidget {
 
 class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   var _selectedDateIndex = 0;
+  var _travelMode = 'walk';
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +65,14 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   }
 
   Widget _buildContent(BuildContext context, PlanDetailState state) {
+    final routeState = ref.watch(
+      routeRecommendationViewModelProvider((
+        groupId: widget.groupId,
+        planId: widget.planId,
+        travelMode: _travelMode,
+      )),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       body: SafeArea(
@@ -87,7 +99,12 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                   AppSpacing.xxl,
                 ),
                 children: [
-                  _RouteMap(onEditPressed: () {}),
+                  _RouteMap(
+                    routeState: routeState,
+                    travelMode: _travelMode,
+                    onTravelModeChanged: (mode) =>
+                        setState(() => _travelMode = mode),
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   _DateTabs(
                     selectedIndex: _selectedDateIndex,
@@ -136,9 +153,15 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
 }
 
 class _RouteMap extends StatelessWidget {
-  const _RouteMap({required this.onEditPressed});
+  const _RouteMap({
+    required this.routeState,
+    required this.travelMode,
+    required this.onTravelModeChanged,
+  });
 
-  final VoidCallback onEditPressed;
+  final AsyncValue<RouteRecommendation> routeState;
+  final String travelMode;
+  final ValueChanged<String> onTravelModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -147,37 +170,61 @@ class _RouteMap extends StatelessWidget {
       backgroundColor: AppColors.bgGrid,
       borderColor: AppColors.lineSoft,
       child: SizedBox(
-        height: 260,
+        height: 280,
         child: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _RouteMapPainter())),
-            const Positioned(
-              left: 42,
-              top: 28,
-              child: _RoutePoint(order: 1, label: 'YYY 카페'),
-            ),
-            const Positioned(
-              right: 86,
-              top: 72,
-              child: _RoutePoint(order: 2, label: '무드카페'),
-            ),
-            const Positioned(
-              right: 56,
-              top: 136,
-              child: _RoutePoint(order: 3, label: '하루정원'),
-            ),
-            const Positioned(
-              right: 42,
-              bottom: 24,
-              child: _RoutePoint(order: 4, label: '엔트릴 아이스크림'),
+            Positioned.fill(
+              child: routeState.when(
+                data: (route) => OnmuMapView(
+                  points: route.stops,
+                  routeGeometry: route.geometry,
+                  fallbackLabel: '동선 지도 미리보기',
+                ),
+                loading: () =>
+                    const OnmuMapView(points: [], fallbackLabel: '동선 계산 중입니다.'),
+                error: (error, stackTrace) => const OnmuMapView(
+                  points: [],
+                  fallbackLabel: '동선 지도를 불러오지 못했습니다.',
+                ),
+              ),
             ),
             Positioned(
               top: AppSpacing.sm,
               right: AppSpacing.sm,
-              child: OnmuSecondaryButton(
-                label: '날짜별 일정 동선보기',
-                icon: Icons.alt_route,
-                onPressed: onEditPressed,
+              child: Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  _TravelModeChip(
+                    label: '도보',
+                    mode: 'walk',
+                    selectedMode: travelMode,
+                    onSelected: onTravelModeChanged,
+                  ),
+                  _TravelModeChip(
+                    label: '자전거',
+                    mode: 'bike',
+                    selectedMode: travelMode,
+                    onSelected: onTravelModeChanged,
+                  ),
+                  _TravelModeChip(
+                    label: '차량',
+                    mode: 'car',
+                    selectedMode: travelMode,
+                    onSelected: onTravelModeChanged,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: AppSpacing.sm,
+              bottom: AppSpacing.sm,
+              child: routeState.maybeWhen(
+                data: (route) => OnmuChip(
+                  label:
+                      '${route.provider} · ${(route.distanceMeters / 1000).toStringAsFixed(1)}km',
+                  selected: true,
+                ),
+                orElse: () => const OnmuChip(label: 'route'),
               ),
             ),
           ],
@@ -187,7 +234,30 @@ class _RouteMap extends StatelessWidget {
   }
 }
 
-class _RouteMapPainter extends CustomPainter {
+class _TravelModeChip extends StatelessWidget {
+  const _TravelModeChip({
+    required this.label,
+    required this.mode,
+    required this.selectedMode,
+    required this.onSelected,
+  });
+
+  final String label;
+  final String mode;
+  final String selectedMode;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuChip(
+      label: label,
+      selected: selectedMode == mode,
+      onTap: () => onSelected(mode),
+    );
+  }
+}
+
+class RouteMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
@@ -218,8 +288,8 @@ class _RouteMapPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _RoutePoint extends StatelessWidget {
-  const _RoutePoint({required this.order, required this.label});
+class RoutePoint extends StatelessWidget {
+  const RoutePoint({required this.order, required this.label, super.key});
 
   final int order;
   final String label;

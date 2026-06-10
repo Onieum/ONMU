@@ -71,6 +71,7 @@ cd C:\dev\ONMU\services\api-spring
 | `NAVER_SEARCH_CLIENT_ID` | 없음 | Naver Local Search 서버 전용 client id. Flutter에 전달하지 않음 |
 | `NAVER_SEARCH_CLIENT_SECRET` | 없음 | Naver Local Search 서버 전용 client secret. Flutter에 전달하지 않음 |
 | `KAKAO_REST_API_KEY` | 없음 | Kakao Local Keyword Search 서버 전용 REST API key. Flutter에 전달하지 않음 |
+| `OPENROUTESERVICE_API_KEY` | 없음 | OpenRouteService route recommendation 서버 전용 API key. Flutter에 전달하지 않음 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
 
@@ -245,6 +246,7 @@ Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`�
 - `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 NAVER dev identity로 취급합니다. provider token 또는 authorization code가 있으면 dev subject fallback을 사용하지 않습니다.
 - Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. refresh token 저장/회전은 AuthService의 기존 경로를 유지합니다.
 - place search는 Spring Boot가 Naver Local Search를 1차 provider로 호출하고 Kakao Keyword Search를 보강/fallback provider로 호출합니다. Flutter 앱은 Naver/Kakao를 직접 호출하지 않습니다. 외부 credential이 없으면 local/test 개발성을 위해 deterministic dev mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`, `providers`, `compare`를 받을 수 있고, 응답 결과는 기존 필드에 더해 `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `fetchedAt`을 포함할 수 있습니다. Naver Local Search의 `mapx`, `mapy`는 WGS84 좌표로 신뢰하지 않으므로 이번 PR에서는 nullable 좌표로 둡니다.
+- route recommendation은 `POST /api/v1/routes/recommend`에서 `groupId`, `planId`, `travelMode`(`car`, `walk`, `bike`)를 받습니다. `OPENROUTESERVICE_API_KEY`가 있으면 OpenRouteService를 호출하고, 없거나 후보 좌표가 부족하면 Flutter route UI가 렌더링 가능한 deterministic `dev-mock` geometry를 반환합니다.
 - 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.
 - 장소 후보 기반 투표는 `POST /api/v1/groups/{groupId}/votes`에서 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE`, `placeCandidateIds`를 받습니다. 기존 `options` 문자열 방식은 계속 허용하며, 후보 option 응답에는 `candidateId`, `candidateName`, `address`, `heartCount`, `responseCount`, `countLabel`, `progress`를 포함합니다.
 - 기록 API와 Naver authorization code token exchange 구현은 다음 API 구현 PR 범위입니다.
