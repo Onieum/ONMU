@@ -105,11 +105,22 @@ Naver full social OAuth
 
 | 선택지 | 장점 | 주의점 | 판단 |
 | --- | --- | --- | --- |
-| access token + refresh token + Flutter secure storage | 모바일 앱에서 표준적으로 다루기 쉽고 API 호출 경계가 명확하다. | refresh token rotation, logout, 탈취 대응 규칙을 문서화해야 한다. | 확정 |
+| 짧은 수명의 JWT access token + 서버 저장 refresh token + Flutter secure storage | 모바일 앱에서 표준적으로 다루기 쉽고 API 호출 경계가 명확하다. access token은 API 요청 검증에 쓰고, refresh token은 서버에서 저장/회전한다. | refresh token rotation, logout, 탈취 대응 규칙을 문서화해야 한다. | 확정 |
 | server session cookie | 웹에서는 자연스럽고 CSRF/session 관리가 익숙하다. | Flutter 모바일 앱에서는 cookie persistence와 cross-device 처리 설명이 더 번거롭다. | 웹 surface 확대 시 검토 |
 | OAuth provider token 직접 사용 | 초기 구현이 빨라 보인다. | 내부 권한, token 만료, provider별 차이를 앱이 떠안게 된다. | 비추천 |
 
-결정은 access/refresh token 방식이다. Spring Boot가 provider token을 검증한 뒤 ONMU 자체 access/refresh token을 발급하고, Flutter는 secure storage에 저장한다.
+결정은 짧은 수명의 JWT access token과 서버 저장 refresh token 방식이다. 현재 MVP/dev 단계에서는 이미 동작 중인 HS256 JWT access token, `sub=<users.public_id>`, Spring의 DB 사용자 조회 흐름을 유지한다. Databricks, CDC, analytics 기준을 이유로 MVP/dev 인증 구현이나 DB schema를 선제 변경하지 않는다.
+
+Azure/Terraform 기반 prod 전환 시에는 아래 흐름을 공식 기준으로 삼는다.
+
+```text
+Flutter OAuth login
+  -> Spring provider token/code 검증
+  -> Spring이 access JWT + refresh token 발급
+  -> Flutter secure storage 저장
+```
+
+운영 클라이언트에는 JWT signing secret을 넣지 않는다. Prod token 발급은 Spring Boot Main API만 담당하고, signing secret과 TTL은 Terraform/Key Vault/env 기준으로 관리한다.
 
 ### Spring Boot와 FastAPI Worker 연결 방식
 
