@@ -14,7 +14,12 @@ class PlaceSearchServiceTests {
     assertThat(results).hasSize(3);
     assertThat(results.get(0))
       .containsEntry("category", "cafe")
-      .containsEntry("canAddCandidate", true);
-    assertThat(results.get(0)).doesNotContainKeys("sco" + "re", "risk" + "Label", "risk" + "Tone");
+      .containsEntry("canAddCandidate", true)
+      .containsEntry("source", "dev-mock")
+      .containsEntry("myHearted", false)
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
+    assertThat(results.getFirst()).containsKey("heartCount");
+    assertThat(results.getFirst()).doesNotContainKeys("sco" + "re", "risk" + "Label", "risk" + "Tone");
   }
 }

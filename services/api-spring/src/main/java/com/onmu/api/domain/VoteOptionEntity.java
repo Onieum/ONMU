@@ -13,30 +13,29 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "place_candidates")
-public class PlaceCandidateEntity {
+@Table(name = "vote_options")
+public class VoteOptionEntity {
   @Id
   private UUID id;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "vote_id", nullable = false)
+  private VoteEntity vote;
 
   @Column(name = "public_id", nullable = false, unique = true)
   private String publicId;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private GroupEntity group;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "plan_id", nullable = false)
-  private PlanEntity plan;
-
   @Column(nullable = false)
-  private String name;
+  private String label;
 
-  @Column
-  private String category;
+  @Column(name = "target_type")
+  private String targetType;
 
-  @Column
-  private String address;
+  @Column(name = "target_id")
+  private String targetId;
+
+  @Column(name = "sort_order", nullable = false)
+  private int sortOrder;
 
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb", nullable = false)
@@ -45,25 +44,25 @@ public class PlaceCandidateEntity {
   @Column(name = "created_at", insertable = false, updatable = false)
   private Instant createdAt;
 
-  protected PlaceCandidateEntity() {
+  protected VoteOptionEntity() {
   }
 
-  public PlaceCandidateEntity(
+  public VoteOptionEntity(
+    VoteEntity vote,
     String publicId,
-    GroupEntity group,
-    PlanEntity plan,
-    String name,
-    String category,
-    String address,
+    String label,
+    String targetType,
+    String targetId,
+    int sortOrder,
     String payload
   ) {
     this.id = UUID.randomUUID();
+    this.vote = vote;
     this.publicId = publicId;
-    this.group = group;
-    this.plan = plan;
-    this.name = name;
-    this.category = category;
-    this.address = address;
+    this.label = label;
+    this.targetType = targetType;
+    this.targetId = targetId;
+    this.sortOrder = sortOrder;
     this.payload = payload;
   }
 
@@ -71,28 +70,28 @@ public class PlaceCandidateEntity {
     return id;
   }
 
+  public VoteEntity getVote() {
+    return vote;
+  }
+
   public String getPublicId() {
     return publicId;
   }
 
-  public GroupEntity getGroup() {
-    return group;
+  public String getLabel() {
+    return label;
   }
 
-  public PlanEntity getPlan() {
-    return plan;
+  public String getTargetType() {
+    return targetType;
   }
 
-  public String getName() {
-    return name;
+  public String getTargetId() {
+    return targetId;
   }
 
-  public String getCategory() {
-    return category;
-  }
-
-  public String getAddress() {
-    return address;
+  public int getSortOrder() {
+    return sortOrder;
   }
 
   public String getPayload() {
