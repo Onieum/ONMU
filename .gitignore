@@ -58,7 +58,7 @@ venv/
 .mypy_cache/
 
 # 데이터 파일
-data/
+/data/
 raw/
 *.csv
 !docs/integrations/jira-seed-backlog.csv

@@ -61,8 +61,7 @@ class AuthActionController {
   }
 
   Future<void> signInWithGoogle() async {
-    final user = await _ref.read(socialAuthServiceProvider).signInWithGoogle();
-    _ref.read(authUserProvider.notifier).state = user;
+    throw const GoogleSpringOAuthUnavailableException();
   }
 
   Future<void> initializeGoogleSignIn() {
@@ -75,8 +74,12 @@ class AuthActionController {
         .attemptGoogleLightweightAuthentication();
   }
 
-  void applyGoogleAuthUser(AuthUser? user) {
-    _ref.read(authUserProvider.notifier).state = user;
+  bool applyGoogleAuthUser(AuthUser? user) {
+    if (user == null) {
+      _ref.read(authUserProvider.notifier).state = null;
+      return true;
+    }
+    return false;
   }
 
   bool get isGoogleConfigured {

@@ -45,6 +45,44 @@ void main() {
       expect(apiClient.authorizationHeader, isNot('Bearer $providerToken'));
     },
   );
+
+  test('Google action fails safe without Spring idToken verifier', () async {
+    final tokenStore = InMemoryAuthTokenStore();
+    final apiClient = OnmuApiClient(Dio());
+    final container = ProviderContainer(
+      overrides: [
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        onmuApiClientProvider.overrideWithValue(apiClient),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container.read(authActionProvider).signInWithGoogle(),
+      throwsA(isA<GoogleSpringOAuthUnavailableException>()),
+    );
+    expect(container.read(authUserProvider), isNull);
+    expect(apiClient.authorizationHeader, isNull);
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('Google provider account event is not treated as ONMU session', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final accepted = container
+        .read(authActionProvider)
+        .applyGoogleAuthUser(
+          const AuthUser(
+            id: 'google-provider-subject',
+            provider: 'GOOGLE',
+            displayName: 'Google User',
+          ),
+        );
+
+    expect(accepted, isFalse);
+    expect(container.read(authUserProvider), isNull);
+  });
 }
 
 class RecordingAuthRepository implements AuthRepository {

@@ -133,6 +133,10 @@ class GoogleSignInMissingClientIdException implements Exception {
   const GoogleSignInMissingClientIdException();
 }
 
+class GoogleSpringOAuthUnavailableException implements Exception {
+  const GoogleSpringOAuthUnavailableException();
+}
+
 class KakaoSignInUnavailableException implements Exception {
   const KakaoSignInUnavailableException();
 }

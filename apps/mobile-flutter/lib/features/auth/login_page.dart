@@ -223,7 +223,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _googleAuthSubscription = service.googleAuthUserEvents().listen(
         (user) {
           if (user != null) {
-            actions.applyGoogleAuthUser(user);
+            final accepted = actions.applyGoogleAuthUser(user);
+            if (!accepted && mounted) {
+              setState(() {
+                _errorMessage = _messageForSignInError(
+                  const GoogleSpringOAuthUnavailableException(),
+                );
+              });
+            }
           }
         },
         onError: (Object error) {
@@ -325,6 +332,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
     if (error is GoogleSignInWebButtonRequiredException) {
       return '웹에서는 Google 공식 로그인 버튼으로 진행해 주세요.';
+    }
+    if (error is GoogleSpringOAuthUnavailableException) {
+      return 'Google 로그인은 Spring idToken 검증이 연결된 뒤 사용할 수 있어요.';
     }
     return '로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.';
   }
