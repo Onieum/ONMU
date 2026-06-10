@@ -5,9 +5,11 @@ import com.onmu.api.web.dto.UploadMediaResponse;
 import com.onmu.api.web.dto.PresignedUrlRequest;
 import com.onmu.api.web.dto.PresignedUrlResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +33,14 @@ public class MediaController {
   ) {
     UploadMediaResponse response = mediaService.uploadFile(file);
     return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/media/public")
+  public ResponseEntity<byte[]> getPublicMedia(@RequestParam("key") String key) {
+    MediaService.PublicMediaObject media = mediaService.readPublicSeedMedia(key);
+    return ResponseEntity.ok()
+      .header(HttpHeaders.CONTENT_TYPE, media.contentType())
+      .body(media.content());
   }
 
   @PostMapping(value = "/uploads/presigned-url", consumes = MediaType.APPLICATION_JSON_VALUE)

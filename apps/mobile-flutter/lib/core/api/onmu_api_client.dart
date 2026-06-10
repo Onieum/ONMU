@@ -40,6 +40,8 @@ class OnmuApiClient {
 
   final Dio _dio;
 
+  String get baseUrl => _dio.options.baseUrl;
+
   String? get authorizationHeader {
     final value = _dio.options.headers['Authorization'];
     return value?.toString();
