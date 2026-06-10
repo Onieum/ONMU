@@ -27,7 +27,8 @@ public class SecurityConfig {
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-    "https://dev-api.onmu.cloud"
+    "https://dev-api.onmu.cloud",
+    "https://int-api.onmu.cloud"
   );
 
   private final DevTokenAuthenticationFilter devTokenAuthenticationFilter;
@@ -99,6 +100,7 @@ public class SecurityConfig {
 
   private List<String> allowedOrigins() {
     String configured = firstPresent(
+      environment.getProperty("ONMU_CORS_ORIGINS"),
       environment.getProperty("ONMU_DEV_CORS_ORIGINS"),
       environment.getProperty("onmu.security.cors.allowed-origins")
     );
@@ -113,12 +115,11 @@ public class SecurityConfig {
     return origins.isEmpty() ? DEFAULT_ALLOWED_ORIGINS : origins;
   }
 
-  private String firstPresent(String first, String second) {
-    if (StringUtils.hasText(first)) {
-      return first;
-    }
-    if (StringUtils.hasText(second)) {
-      return second;
+  private String firstPresent(String... candidates) {
+    for (String candidate : candidates) {
+      if (StringUtils.hasText(candidate)) {
+        return candidate;
+      }
     }
     return "";
   }
