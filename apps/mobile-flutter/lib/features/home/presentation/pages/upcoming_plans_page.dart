@@ -276,7 +276,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    plan.statusType,
+                    plan.displayStatusLabel,
                     style: Theme.of(
                       context,
                     ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
@@ -300,7 +300,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    OnmuChip(label: plan.statusLabel, selected: true),
+                    OnmuChip(label: plan.displayStatusLabel, selected: true),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -326,7 +326,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                     if (plan.extraMemberCount > 0)
                       OnmuChip(label: '+${plan.extraMemberCount}'),
                     const Spacer(),
-                    OnmuChip(label: plan.statusLabel),
+                    OnmuChip(label: plan.displayStatusLabel),
                   ],
                 ),
               ],
