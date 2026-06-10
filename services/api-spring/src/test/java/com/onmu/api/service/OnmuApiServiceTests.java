@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,20 +14,33 @@ import com.onmu.api.domain.AuthIdentityRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
+import com.onmu.api.domain.PlaceCandidateHeartEntity;
+import com.onmu.api.domain.PlaceCandidateHeartRepository;
 import com.onmu.api.domain.PlaceCandidateRepository;
+import com.onmu.api.domain.PlanParticipantEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceEntity;
 import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.domain.SettlementDraftRepository;
 import com.onmu.api.domain.SettlementEntity;
 import com.onmu.api.domain.SettlementRepository;
+import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
+import com.onmu.api.domain.VoteOptionEntity;
+import com.onmu.api.domain.VoteOptionRepository;
+import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
+import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
+import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -53,11 +67,19 @@ class OnmuApiServiceTests {
   @Mock
   private PlaceCandidateRepository placeCandidateRepository;
   @Mock
+  private PlaceCandidateHeartRepository placeCandidateHeartRepository;
+  @Mock
   private SchedulePlaceRepository schedulePlaceRepository;
+  @Mock
+  private PlanParticipantRepository planParticipantRepository;
   @Mock
   private SettlementDraftRepository settlementDraftRepository;
   @Mock
   private SettlementRepository settlementRepository;
+  @Mock
+  private VoteOptionRepository voteOptionRepository;
+  @Mock
+  private VoteResponseRepository voteResponseRepository;
   @Mock
   private OutboxService outboxService;
 
@@ -75,9 +97,13 @@ class OnmuApiServiceTests {
       planRepository,
       voteRepository,
       placeCandidateRepository,
+      placeCandidateHeartRepository,
       schedulePlaceRepository,
+      planParticipantRepository,
       settlementDraftRepository,
       settlementRepository,
+      voteOptionRepository,
+      voteResponseRepository,
       outboxService,
       new ObjectMapper()
     );
@@ -119,6 +145,48 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void updatePlanRejectsBlankTitle() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    assertThatThrownBy(() -> service.updatePlan(
+      "1",
+      "101",
+      new UpdatePlanRequest(" ", null, null)
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("blank_plan_title");
+      });
+  }
+
+  @Test
+  void updatePlanRecordsOutboxEvent() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    var updated = service.updatePlan(
+      "1",
+      "101",
+      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "draft")
+    );
+
+    assertThat(updated)
+      .containsEntry("id", "101")
+      .containsEntry("title", "업데이트 약속")
+      .containsEntry("startsAt", "2026-06-13T01:00:00Z")
+      .containsEntry("status", "draft");
+    verify(outboxService).record(
+      eq("plan.updated"),
+      eq("plan"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "업데이트 약속".equals(payload.get("title")))
+    );
+  }
+
+  @Test
   void missingVoteIdReturns404WithoutSeedFallback() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(voteRepository.findByGroupAndPublicId(group, "not-found")).thenReturn(Optional.empty());
@@ -126,6 +194,17 @@ class OnmuApiServiceTests {
     assertThatThrownBy(() -> service.vote("1", "not-found"))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+  }
+
+  @Test
+  void voteDetailKeepsStringOptionsWhenNoVoteOptionRowsExist() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupAndPublicId(group, "501")).thenReturn(Optional.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of());
+
+    var detail = service.vote("1", "501");
+
+    assertThat(detail.get("options")).isEqualTo(List.of("카페", "식당"));
   }
 
   @Test
@@ -152,6 +231,162 @@ class OnmuApiServiceTests {
         && "502".equals(payload.get("voteId"))
         && "PLAN".equals(payload.get("targetType"))
         && "101".equals(payload.get("targetId")))
+    );
+  }
+
+  @Test
+  void creatingPlaceCandidateVoteConnectsCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"favoriteCount\":2}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(voteOptionRepository.save(any(VoteOptionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(3L);
+
+    var created = service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "장소 후보 투표",
+      List.of("201")
+    ));
+
+    assertThat(created).containsEntry("id", "502");
+    assertThat(created.get("options")).asList()
+      .singleElement()
+      .satisfies(option -> {
+        assertThat(option).isInstanceOf(java.util.Map.class);
+        java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) option;
+        assertThat(optionMap.get("candidateId")).isEqualTo("201");
+        assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        assertThat(optionMap.get("address")).isEqualTo("서울");
+        assertThat(optionMap.get("heartCount")).isEqualTo(3);
+      });
+  }
+
+  @Test
+  void voteDetailReturnsPlaceCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    VoteOptionEntity option = new VoteOptionEntity(
+      vote,
+      "vopt-501-1",
+      "온무식당",
+      "PLACE_CANDIDATE",
+      "201",
+      1,
+      "{\"candidateId\":\"201\"}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupAndPublicId(group, "501")).thenReturn(Optional.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of(option));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(2L);
+    when(voteResponseRepository.countByVote(vote)).thenReturn(4L);
+    when(voteResponseRepository.countByVoteOption(option)).thenReturn(3L);
+
+    var detail = service.vote("1", "501");
+
+    assertThat(detail.get("options")).asList()
+      .singleElement()
+      .satisfies(rawOption -> {
+        java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) rawOption;
+        assertThat(optionMap.get("label")).isEqualTo("온무식당");
+        assertThat(optionMap.get("candidateId")).isEqualTo("201");
+        assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        assertThat(optionMap.get("address")).isEqualTo("서울");
+        assertThat(optionMap.get("heartCount")).isEqualTo(2);
+        assertThat(optionMap.get("responseCount")).isEqualTo(3);
+        assertThat(optionMap.get("countLabel")).isEqualTo("3표");
+        assertThat(optionMap.get("progress")).isEqualTo(0.75);
+      });
+  }
+
+  @Test
+  void voteListReturnsPlaceCandidateOptionDetails() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    VoteOptionEntity option = new VoteOptionEntity(
+      vote,
+      "vopt-501-1",
+      "온무식당",
+      "PLACE_CANDIDATE",
+      "201",
+      1,
+      "{\"candidateId\":\"201\"}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of(option));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(2L);
+
+    var votes = service.votes("1");
+
+    assertThat(votes).singleElement()
+      .satisfies(rawVote -> assertThat((List<?>) rawVote.get("options"))
+        .singleElement()
+        .satisfies(rawOption -> {
+          java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) rawOption;
+          assertThat(optionMap.get("candidateId")).isEqualTo("201");
+          assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
+        }));
+  }
+
+  @Test
+  void creatingPlaceCandidateVoteRejectsInvalidCandidateId() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "999")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "잘못된 후보 투표",
+      List.of(),
+      List.of("999")
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getReason()).isEqualTo("place_candidate_not_found");
+      });
+  }
+
+  @Test
+  void voteCreatedOutboxPayloadPreservesCandidateIdsAndOptions() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(voteRepository.findAll()).thenReturn(List.of(vote));
+    when(voteRepository.save(any(VoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+
+    service.createVote("1", new CreateVoteRequest(
+      "PLACE",
+      "PLAN",
+      "101",
+      "장소 후보 투표",
+      List.of(),
+      List.of("201")
+    ));
+
+    verify(outboxService).record(
+      eq("vote.created"),
+      eq("vote"),
+      any(),
+      argThat(payload -> List.of("201").equals(payload.get("candidateIds"))
+        && List.of("온무식당").equals(payload.get("options")))
     );
   }
 
@@ -254,13 +489,67 @@ class OnmuApiServiceTests {
   }
 
   @Test
-  void creatingPlaceCandidateRecordsOutboxEvent() {
+  void participantsFallbackToCurrentUserWhenNoRowsExist() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of());
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+
+    var participants = service.planParticipants("1", "101");
+
+    assertThat(participants).singleElement()
+      .satisfies(participant -> assertThat(participant)
+        .containsEntry("userId", user.getId().toString())
+        .containsEntry("displayName", "테스트 사용자")
+        .containsEntry("status", "joined")
+        .containsEntry("response", "accepted")
+        .containsEntry("fallback", true));
+  }
+
+  @Test
+  void upsertingMyParticipantResponseCreatesAndUpdatesOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(planParticipantRepository.findByPlanAndUser(plan, user)).thenReturn(Optional.empty());
+    when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.upsertMyPlanParticipant(
+      "1",
+      "101",
+      new UpsertPlanParticipantRequest("joined", "accepted")
+    );
+
+    assertThat(created)
+      .containsEntry("userId", user.getId().toString())
+      .containsEntry("status", "joined")
+      .containsEntry("response", "accepted");
+    verify(outboxService).record(
+      eq("plan.participant_updated"),
+      eq("plan_participant"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && user.getId().toString().equals(payload.get("userId"))
+        && "joined".equals(payload.get("status"))
+        && "accepted".equals(payload.get("response")))
+    );
+  }
+
+  @Test
+  void creatingPlaceCandidateRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(placeCandidateRepository.findAll()).thenReturn(List.of(
       new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}")
     ));
     when(placeCandidateRepository.save(any(PlaceCandidateEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateHeartRepository.countByCandidate(any(PlaceCandidateEntity.class))).thenReturn(0L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(any(PlaceCandidateEntity.class), eq(user))).thenReturn(false);
 
     var created = service.createPlaceCandidate(
       "1",
@@ -268,7 +557,11 @@ class OnmuApiServiceTests {
       new CreatePlaceCandidateRequest("새 후보", "카페", "서울", "후보 설명", List.of("카페"))
     );
 
-    assertThat(created).containsEntry("id", "202").containsEntry("name", "새 후보");
+    assertThat(created)
+      .containsEntry("id", "202")
+      .containsEntry("name", "새 후보")
+      .containsEntry("heartCount", 0)
+      .containsEntry("myHearted", false);
     verify(outboxService).record(
       eq("place_candidate.created"),
       eq("place_candidate"),
@@ -276,6 +569,163 @@ class OnmuApiServiceTests {
       argThat(payload -> "1".equals(payload.get("groupId"))
         && "101".equals(payload.get("planId"))
         && "202".equals(payload.get("candidateId")))
+    );
+  }
+
+  @Test
+  void placeCandidateDetailReturnsHeartStateAndDisplayFields() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"source\":\"manual\",\"lat\":37.5665,\"lng\":126.9780,\"favoriteCount\":3}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(4L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var detail = service.placeCandidate("1", "101", "201");
+
+    assertThat(detail)
+      .containsEntry("id", "201")
+      .containsEntry("name", "온무식당")
+      .containsEntry("address", "서울")
+      .containsEntry("source", "manual")
+      .containsEntry("heartCount", 4)
+      .containsEntry("myHearted", true)
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
+    assertThat(detail).containsKey("createdAt");
+  }
+
+  @Test
+  void placeCandidateListIncludesHeartState() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"favoriteCount\":3}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(5L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var candidates = service.placeCandidates("1", "101");
+
+    assertThat(candidates).singleElement()
+      .satisfies(value -> assertThat(value)
+        .containsEntry("id", "201")
+        .containsEntry("heartCount", 5)
+        .containsEntry("myHearted", true));
+  }
+
+  @Test
+  void upsertingMyPlaceCandidateHeartCreatesHeartOnceAndRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.empty());
+    when(placeCandidateHeartRepository.save(any(PlaceCandidateHeartEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var result = service.upsertMyPlaceCandidateHeart(
+      "1",
+      "101",
+      "201",
+      new UpsertPlaceCandidateHeartRequest(true)
+    );
+
+    assertThat(result)
+      .containsEntry("id", "201")
+      .containsEntry("heartCount", 1)
+      .containsEntry("myHearted", true);
+    verify(placeCandidateHeartRepository, times(1)).save(any(PlaceCandidateHeartEntity.class));
+    verify(outboxService).record(
+      eq("place_candidate.heart_updated"),
+      eq("place_candidate"),
+      eq(candidate.getId()),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "201".equals(payload.get("candidateId"))
+        && Boolean.TRUE.equals(payload.get("hearted")))
+    );
+  }
+
+  @Test
+  void upsertingExistingHeartDoesNotCreateDuplicateHeart() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    PlaceCandidateHeartEntity existingHeart = new PlaceCandidateHeartEntity(candidate, user);
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.of(existingHeart));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
+
+    var result = service.upsertMyPlaceCandidateHeart(
+      "1",
+      "101",
+      "201",
+      new UpsertPlaceCandidateHeartRequest(true)
+    );
+
+    assertThat(result).containsEntry("heartCount", 1).containsEntry("myHearted", true);
+    verify(placeCandidateHeartRepository, times(0)).save(any(PlaceCandidateHeartEntity.class));
+  }
+
+  @Test
+  void creatingSchedulePlaceRecordsOutboxEventAndReturnsScheduleFields() {
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(schedulePlaceRepository.findAll()).thenReturn(List.of(
+      new SchedulePlaceEntity("701", group, plan, candidate, "기존 장소", null, 1)
+    ));
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
+    when(schedulePlaceRepository.save(any(SchedulePlaceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var created = service.createSchedulePlace(
+      "1",
+      "101",
+      new CreateSchedulePlaceRequest("201", null, "2026-06-12T02:00:00Z", "2026-06-12T03:00:00Z", "점심")
+    );
+
+    assertThat(created)
+      .containsEntry("id", "702")
+      .containsEntry("candidateId", "201")
+      .containsEntry("placeName", "온무식당")
+      .containsEntry("startsAt", "2026-06-12T02:00:00Z")
+      .containsEntry("endsAt", "2026-06-12T03:00:00Z")
+      .containsEntry("note", "점심");
+    verify(outboxService).record(
+      eq("schedule_place.created"),
+      eq("schedule_place"),
+      any(),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "702".equals(payload.get("schedulePlaceId"))
+        && "201".equals(payload.get("candidateId")))
     );
   }
 
@@ -330,5 +780,9 @@ class OnmuApiServiceTests {
       List.of(),
       List.of("Jimin", "Minsu")
     );
+  }
+
+  private UserEntity user(String id, String displayName) {
+    return new UserEntity(java.util.UUID.fromString(id), displayName);
   }
 }

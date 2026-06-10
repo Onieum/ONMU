@@ -47,6 +47,12 @@ public class PlanEntity {
     this.status = status;
   }
 
+  public void update(String title, Instant startsAt, String status) {
+    this.title = title;
+    this.startsAt = startsAt;
+    this.status = status;
+  }
+
   public UUID getId() {
     return id;
   }

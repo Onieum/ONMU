@@ -57,7 +57,8 @@
 | 약속 만들기 | `POST /api/v1/groups/{groupId}/plans` |
 | 약속 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}` |
 | 약속 수정 | `PATCH /api/v1/groups/{groupId}/plans/{planId}` |
-| 참여자 변경 | `POST/DELETE /api/v1/groups/{groupId}/plans/{planId}/participants` |
+| 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` |
+| 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
 
 ## Place
 
@@ -65,10 +66,17 @@
 | --- | --- |
 | 후보 리스트 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates` |
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` |
+| 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` |
+| 내 후보 하트 설정 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` |
 | 장소 검색 | `POST /api/v1/place-search` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
+| 일정 등록 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
+
+장소 후보 응답은 목록/추가/상세에서 `id`, `name`, `category`, `address`, `source`, `lat`, `lng`, `heartCount`, `myHearted`, `createdAt`을 가능한 범위에서 포함한다. `PUT .../heart`는 body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 내 하트를 끈다. 같은 사용자가 같은 후보에 여러 번 하트를 켜도 중복 row를 만들지 않는다.
+
+일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.
 
 ## Votes
 
@@ -85,7 +93,27 @@
   "voteType": "PLACE",
   "targetType": "PLAN",
   "targetId": "101",
-  "title": "제주도 여행 장소 투표"
+  "title": "제주도 여행 장소 투표",
+  "placeCandidateIds": ["201", "202"]
+}
+```
+
+장소 후보 기반 투표는 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE` 조합을 기준으로 연결한다. 요청은 기존 `options: ["카페", "식당"]` 문자열 방식을 계속 허용하고, 후보 기반 생성에는 `placeCandidateIds`를 우선 사용한다. 호환을 위해 `options`에 후보 public id 문자열만 들어온 경우에도 후보 option으로 연결할 수 있다.
+
+투표 목록/상세의 `options`는 문자열 fallback을 유지하되, 후보 option이면 다음 필드를 포함한 object를 반환한다.
+
+```json
+{
+  "label": "온무식당",
+  "targetType": "PLACE_CANDIDATE",
+  "targetId": "201",
+  "candidateId": "201",
+  "candidateName": "온무식당",
+  "address": "서울",
+  "heartCount": 3,
+  "responseCount": 0,
+  "countLabel": "0표",
+  "progress": 0
 }
 ```
 
@@ -114,6 +142,7 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 | --- | --- |
 | `plan.created` | 약속 생성 |
 | `place_candidate.created` | 장소 후보 추가 |
+| `place_candidate.heart_updated` | 장소 후보 하트 변경 |
 | `vote.created` | 투표 생성 |
 | `vote.closed` | 투표 종료 |
 | `settlement.created` | 정산 최종 생성 |
