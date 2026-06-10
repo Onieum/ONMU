@@ -1,9 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
+import 'package:onmu_mobile/features/auth/data/social_auth_service.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_session.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart';
+import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
@@ -23,6 +25,7 @@ ProviderContainer createOnmuTestContainer() {
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
+      socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
@@ -39,6 +42,7 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
+      socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
@@ -47,6 +51,17 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
       ),
     ],
     child: child,
+  );
+}
+
+SocialAuthService testSocialAuthService() {
+  return SocialAuthService(
+    naverCredentialLoader: () async => const OAuthProviderCredential(
+      provider: 'naver',
+      devVerifiedSubject: 'naver-dev-local-user',
+      displayName: '네이버 친구',
+      email: 'naver-user@example.com',
+    ),
   );
 }
 

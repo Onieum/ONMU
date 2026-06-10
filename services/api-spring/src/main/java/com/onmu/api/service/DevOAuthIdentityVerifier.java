@@ -8,19 +8,17 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class DevOAuthIdentityVerifier implements OAuthProviderVerifier {
+public class DevOAuthIdentityVerifier {
   private final Environment environment;
 
   public DevOAuthIdentityVerifier(Environment environment) {
     this.environment = environment;
   }
 
-  @Override
   public boolean supports(String provider) {
     return "NAVER".equals(provider);
   }
 
-  @Override
   public VerifiedOAuthIdentity verify(String normalizedProvider, OAuthLoginRequest request) {
     if (!request.hasVerificationInput()) {
       throw unauthorized("missing_oauth_verification_input");

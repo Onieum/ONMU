@@ -46,6 +46,64 @@ void main() {
     },
   );
 
+  test(
+    'Naver action exchanges provider token for Spring ONMU tokens',
+    () async {
+      const providerToken = 'naver-provider-token';
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(Dio());
+      final repository = RecordingAuthRepository();
+      final socialAuthService = SocialAuthService(
+        naverCredentialLoader: () async => const OAuthProviderCredential(
+          provider: 'naver',
+          providerAccessToken: providerToken,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          socialAuthServiceProvider.overrideWithValue(socialAuthService),
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authActionProvider).signInWithNaver();
+
+      expect(repository.lastCredential?.provider, 'naver');
+      expect(repository.lastCredential?.providerAccessToken, providerToken);
+      expect(container.read(authUserProvider)?.publicId, 'usr_naver');
+      expect((await tokenStore.read())?.accessToken, 'onmu-access-jwt');
+      expect(apiClient.authorizationHeader, startsWith('Bearer '));
+      expect(apiClient.authorizationHeader, contains('onmu-access-jwt'));
+      expect(apiClient.authorizationHeader, isNot('Bearer $providerToken'));
+    },
+  );
+
+  test(
+    'Naver action fails safe until SDK credential acquisition is wired',
+    () async {
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(Dio());
+      final container = ProviderContainer(
+        overrides: [
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(authActionProvider).signInWithNaver(),
+        throwsA(isA<NaverSignInUnavailableException>()),
+      );
+      expect(container.read(authUserProvider), isNull);
+      expect(apiClient.authorizationHeader, isNull);
+      expect(await tokenStore.read(), isNull);
+    },
+  );
+
   test('Google action fails safe without Spring idToken verifier', () async {
     final tokenStore = InMemoryAuthTokenStore();
     final apiClient = OnmuApiClient(Dio());
@@ -96,12 +154,14 @@ class RecordingAuthRepository implements AuthRepository {
     OAuthProviderCredential credential,
   ) async {
     lastCredential = credential;
-    return const AuthSession(
+    final provider = credential.provider.toUpperCase();
+    final userId = 'usr_${credential.provider.toLowerCase()}';
+    return AuthSession(
       user: AuthUser(
-        id: 'usr_kakao',
-        publicId: 'usr_kakao',
-        provider: 'KAKAO',
-        displayName: '카카오 사용자',
+        id: userId,
+        publicId: userId,
+        provider: provider,
+        displayName: '$provider 사용자',
       ),
       tokens: OnmuAuthTokens(
         accessToken: 'onmu-access-jwt',

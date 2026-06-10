@@ -115,13 +115,7 @@ class SocialAuthService {
   }
 
   static Future<OAuthProviderCredential> _defaultNaverCredentialLoader() async {
-    await Future<void>.delayed(const Duration(milliseconds: 320));
-    return const OAuthProviderCredential(
-      provider: 'naver',
-      devVerifiedSubject: 'naver-dev-local-user',
-      displayName: '네이버 친구',
-      email: 'naver-user@example.com',
-    );
+    throw const NaverSignInUnavailableException();
   }
 }
 
@@ -139,4 +133,8 @@ class GoogleSpringOAuthUnavailableException implements Exception {
 
 class KakaoSignInUnavailableException implements Exception {
   const KakaoSignInUnavailableException();
+}
+
+class NaverSignInUnavailableException implements Exception {
+  const NaverSignInUnavailableException();
 }

@@ -122,4 +122,59 @@ void main() {
       expect(session.user.displayName, '카카오 사용자');
     },
   );
+
+  test(
+    'exchanges Naver provider token for ONMU tokens without using it as bearer',
+    () async {
+      const providerToken = 'naver-provider-token';
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/naver');
+            expect(
+              options.headers['Authorization'],
+              isNot('Bearer $providerToken'),
+            );
+            expect(options.data, {'providerAccessToken': providerToken});
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_naver',
+                    'displayName': '네이버 사용자',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'naver',
+          providerAccessToken: providerToken,
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.tokens.refreshToken, 'onmu-refresh-token');
+      expect(session.user.publicId, 'usr_naver');
+      expect(session.user.provider, 'NAVER');
+      expect(session.user.displayName, '네이버 사용자');
+    },
+  );
 }
