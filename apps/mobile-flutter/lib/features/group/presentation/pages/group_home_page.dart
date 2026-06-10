@@ -190,6 +190,10 @@ class _HeaderAvatarCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayMembers = members.isEmpty
+        ? const ['온']
+        : members.take(3).toList(growable: false);
+
     return Center(
       child: SizedBox(
         width: 126,
@@ -197,19 +201,28 @@ class _HeaderAvatarCluster extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Positioned(
-              left: 0,
-              child: PixelAvatar(label: members[0], size: 42),
-            ),
-            PixelAvatar(label: members[1], size: 46),
-            Positioned(
-              right: 0,
-              child: PixelAvatar(label: members[2], size: 42),
-            ),
+            for (var index = 0; index < displayMembers.length; index += 1)
+              Positioned(
+                left: _avatarLeftOffset(index, displayMembers.length),
+                child: PixelAvatar(
+                  label: displayMembers[index],
+                  size: index == 1 ? 46 : 42,
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  double _avatarLeftOffset(int index, int count) {
+    if (count == 1) {
+      return 42;
+    }
+    if (count == 2) {
+      return index == 0 ? 30 : 58;
+    }
+    return index == 0 ? 0 : (index == 1 ? 40 : 84);
   }
 }
 

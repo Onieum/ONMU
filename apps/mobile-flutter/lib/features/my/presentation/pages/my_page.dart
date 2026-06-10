@@ -8,6 +8,8 @@ import '../../../../shared/models/character_model.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../character/character_start_page.dart';
 import '../../domain/my_profile.dart';
 
@@ -45,6 +47,9 @@ class _MyPageState extends ConsumerState<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authBootstrapProvider);
+    final profile = _profileForAuthUser(_profile, ref.watch(authUserProvider));
+
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
       body: GridBackground(
@@ -65,7 +70,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 sliver: SliverToBoxAdapter(
                   child: _ProfileHero(
-                    profile: _profile,
+                    profile: profile,
                     onEdit: _showProfileEditor,
                   ),
                 ),
@@ -87,7 +92,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                     child: _selectedTab == _MyTab.profile
                         ? _ProfileTab(
                             key: const ValueKey('profile'),
-                            profile: _profile,
+                            profile: profile,
                             onKeywordEdit: () => _openProfileSectionEditor(
                               _ProfileEditSection.keywords,
                             ),
@@ -130,10 +135,11 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   Future<void> _showProfileEditor() async {
+    final profile = _profileForAuthUser(_profile, ref.read(authUserProvider));
     final result = await Navigator.of(context).push<_ProfileEditResult>(
       MaterialPageRoute(
         builder: (context) => _ProfileEditPage(
-          profile: _profile,
+          profile: profile,
           onCharacterSaved: _saveCharacterDraft,
         ),
       ),
@@ -158,10 +164,11 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {
+    final profile = _profileForAuthUser(_profile, ref.read(authUserProvider));
     final result = await Navigator.of(context).push<_ProfileSectionEditResult>(
       MaterialPageRoute(
         builder: (context) =>
-            _ProfileSectionEditPage(section: section, profile: _profile),
+            _ProfileSectionEditPage(section: section, profile: profile),
       ),
     );
 
@@ -184,10 +191,11 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   void _openProfileDetailPage(_ProfileDetailSection section) {
+    final profile = _profileForAuthUser(_profile, ref.read(authUserProvider));
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) =>
-            _ProfileDetailPage(section: section, profile: _profile),
+            _ProfileDetailPage(section: section, profile: profile),
       ),
     );
   }
@@ -199,11 +207,12 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   void _openFriendProfile(FriendProfile friend) {
+    final profile = _profileForAuthUser(_profile, ref.read(authUserProvider));
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => _FriendProfilePage(
           friend: friend,
-          profile: _profile.copyWith(realName: friend.name),
+          profile: profile.copyWith(realName: friend.name),
         ),
       ),
     );
@@ -238,6 +247,14 @@ class _MyPageState extends ConsumerState<MyPage> {
       ];
     });
   }
+}
+
+MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
+  final displayName = user?.displayName.trim();
+  if (displayName == null || displayName.isEmpty) {
+    return profile.copyWith(realName: '사용자');
+  }
+  return profile.copyWith(realName: displayName);
 }
 
 class _PageHeader extends StatelessWidget {

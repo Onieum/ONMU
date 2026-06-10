@@ -168,7 +168,6 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     defines = {
-        "ONMU_DATA_SOURCE": "api",
         "ONMU_API_BASE_URL": api_base_url,
         "ONMU_API_ACCESS_JWT": token,
         "ONMU_DEV_ACCESS_TOKEN": token,

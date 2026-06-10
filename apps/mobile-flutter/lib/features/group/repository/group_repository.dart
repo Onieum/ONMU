@@ -3,13 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/vote_models.dart';
-import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
-  if (ref.watch(onmuApiEnabledProvider)) {
-    return ApiGroupRepository(ref.watch(onmuApiClientProvider));
-  }
-  return MockGroupRepository(ref.watch(inMemoryOnmuStoreProvider));
+  return ApiGroupRepository(ref.watch(onmuApiClientProvider));
 });
 
 abstract interface class GroupRepository {
@@ -47,86 +43,6 @@ abstract interface class GroupRepository {
     required Object groupId,
     required Object memoryId,
   });
-}
-
-class MockGroupRepository implements GroupRepository {
-  MockGroupRepository(this._store);
-
-  final InMemoryOnmuStore _store;
-
-  @override
-  Future<GroupSummary> fetchGroup(Object groupId) async {
-    return _store.fetchGroup(groupId);
-  }
-
-  @override
-  Future<GroupSummary> createGroup(GroupCreateInput input) async {
-    return _store.createGroup(input);
-  }
-
-  @override
-  Future<List<GroupSummary>> fetchGroups() async {
-    return _store.fetchGroups();
-  }
-
-  @override
-  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
-    return _store.fetchGroupPlans(groupId);
-  }
-
-  @override
-  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
-    return _store.fetchMemories(groupId);
-  }
-
-  @override
-  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
-    return _store.fetchMembers(groupId);
-  }
-
-  @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return _store.fetchMessages(groupId);
-  }
-
-  @override
-  Future<GroupMemoryRecord> fetchMemory({
-    required Object groupId,
-    required Object memoryId,
-  }) async {
-    return _store.fetchMemory(groupId: groupId, memoryId: memoryId);
-  }
-
-  @override
-  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
-    return _store.fetchPinnedPlan(groupId);
-  }
-
-  @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
-    return _store.fetchVotes(groupId);
-  }
-
-  @override
-  Future<VoteSummary> createVote(VoteCreateInput input) async {
-    return _store.createVote(input);
-  }
-
-  @override
-  Future<VoteCard> fetchVoteCard({
-    required Object groupId,
-    required Object voteId,
-  }) async {
-    return _store.fetchVoteCard(groupId: groupId, voteId: voteId);
-  }
-
-  @override
-  Future<Map<int, List<String>>> fetchVoteVoters({
-    required Object groupId,
-    required Object voteId,
-  }) async {
-    return _store.fetchVoteVoters(groupId: groupId, voteId: voteId);
-  }
 }
 
 class ApiGroupRepository implements GroupRepository {
@@ -168,7 +84,7 @@ class ApiGroupRepository implements GroupRepository {
       dateLabel: plan.dateLabel,
       placeName: plan.placeName,
       statusLabel: plan.statusLabel,
-      voteSummary: 'Spring API',
+      voteSummary: '',
     );
   }
 
@@ -183,11 +99,8 @@ class ApiGroupRepository implements GroupRepository {
     final group = await fetchGroup(groupId);
     return group.members
         .map(
-          (name) => GroupMemberProfile(
-            name: name,
-            note: 'Spring API에서 불러온 멤버입니다.',
-            statusLabel: '참여 중',
-          ),
+          (name) =>
+              GroupMemberProfile(name: name, note: '', statusLabel: '참여 중'),
         )
         .toList(growable: false);
   }
@@ -199,14 +112,7 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return const [
-      GroupMessage(
-        sender: 'ONMU',
-        message: 'Spring Main API 연결을 확인하는 개발 채팅 카드입니다.',
-        timeLabel: '방금',
-        isMine: false,
-      ),
-    ];
+    return const [];
   }
 
   @override
@@ -250,7 +156,9 @@ class ApiGroupRepository implements GroupRepository {
     required Object groupId,
     required Object voteId,
   }) async {
-    final vote = await _client.getObject('/api/v1/groups/$groupId/votes/$voteId');
+    final vote = await _client.getObject(
+      '/api/v1/groups/$groupId/votes/$voteId',
+    );
     final options = _optionLabels(vote);
     return VoteCard(
       title: OnmuJson.readString(vote, 'title', '투표'),
@@ -273,9 +181,9 @@ class ApiGroupRepository implements GroupRepository {
     return GroupSummary(
       id: OnmuJson.readInt(json, 'id'),
       name: OnmuJson.readString(json, 'name', 'ONMU 모임'),
-      description: OnmuJson.readString(json, 'description', 'Spring API 모임'),
-      members: members.isEmpty ? const ['ONMU Dev User'] : members,
-      lastMessage: OnmuJson.readString(json, 'lastMessage', 'Spring API 연결됨'),
+      description: OnmuJson.readString(json, 'description'),
+      members: members,
+      lastMessage: OnmuJson.readString(json, 'lastMessage'),
       unreadCount: OnmuJson.readInt(json, 'unreadCount'),
       pinnedPlanTitle: OnmuJson.readString(json, 'pinnedPlanTitle', '약속 준비 중'),
     );
@@ -286,8 +194,13 @@ class ApiGroupRepository implements GroupRepository {
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
+      startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       placeName: OnmuJson.readString(json, 'placeName', '장소 미정'),
-      statusLabel: OnmuJson.readString(json, 'statusLabel', OnmuJson.readString(json, 'status', '예정')),
+      statusLabel: OnmuJson.readString(
+        json,
+        'statusLabel',
+        OnmuJson.readString(json, 'status', '예정'),
+      ),
       statusType: OnmuJson.readString(json, 'status', '예정'),
       memberCount: OnmuJson.readInt(json, 'memberCount', 1),
       extraMemberCount: OnmuJson.readInt(json, 'extraMemberCount'),
@@ -308,14 +221,11 @@ class ApiGroupRepository implements GroupRepository {
           ? '모임 투표'
           : "약속 ${OnmuJson.readString(json, 'targetId')}",
       planMeta: OnmuJson.readString(json, 'voteType', 'PLACE'),
-      participants: const ['ONMU Dev User'],
+      participants: const [],
       options: options
           .map(
-            (label) => VoteOptionSummary(
-              label: label,
-              countLabel: '0표',
-              progress: 0,
-            ),
+            (label) =>
+                VoteOptionSummary(label: label, countLabel: '0표', progress: 0),
           )
           .toList(growable: false),
       closed: closed,
@@ -330,7 +240,9 @@ class ApiGroupRepository implements GroupRepository {
       return rawOptions
           .map((option) {
             if (option is Map) {
-              return option['label']?.toString() ?? option['name']?.toString() ?? '';
+              return option['label']?.toString() ??
+                  option['name']?.toString() ??
+                  '';
             }
             return option.toString();
           })

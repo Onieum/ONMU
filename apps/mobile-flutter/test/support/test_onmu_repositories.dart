@@ -1,0 +1,262 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
+import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
+import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/place/repository/place_repository.dart';
+import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/settlement_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
+
+import 'in_memory_onmu_store.dart';
+
+ProviderContainer createOnmuTestContainer() {
+  final store = InMemoryOnmuStore.seeded();
+  return ProviderContainer(
+    overrides: [
+      authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
+      groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
+      planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
+      placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
+      settlementRepositoryProvider.overrideWithValue(
+        TestSettlementRepository(store),
+      ),
+    ],
+  );
+}
+
+ProviderScope onmuTestProviderScope({required Widget child}) {
+  final store = InMemoryOnmuStore.seeded();
+  return ProviderScope(
+    overrides: [
+      authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
+      groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
+      planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
+      placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
+      settlementRepositoryProvider.overrideWithValue(
+        TestSettlementRepository(store),
+      ),
+    ],
+    child: child,
+  );
+}
+
+class TestAuthRepository implements AuthRepository {
+  const TestAuthRepository([this.user]);
+
+  final AuthUser? user;
+
+  @override
+  Future<AuthUser?> fetchCurrentUser() async => user;
+}
+
+class TestGroupRepository implements GroupRepository {
+  TestGroupRepository(this._store);
+
+  final InMemoryOnmuStore _store;
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async {
+    return _store.fetchGroup(groupId);
+  }
+
+  @override
+  Future<GroupSummary> createGroup(GroupCreateInput input) async {
+    return _store.createGroup(input);
+  }
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async {
+    return _store.fetchGroups();
+  }
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return _store.fetchGroupPlans(groupId);
+  }
+
+  @override
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
+    return _store.fetchMemories(groupId);
+  }
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return _store.fetchMembers(groupId);
+  }
+
+  @override
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async {
+    return _store.fetchMessages(groupId);
+  }
+
+  @override
+  Future<GroupMemoryRecord> fetchMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) async {
+    return _store.fetchMemory(groupId: groupId, memoryId: memoryId);
+  }
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
+    return _store.fetchPinnedPlan(groupId);
+  }
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
+    return _store.fetchVotes(groupId);
+  }
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) async {
+    return _store.createVote(input);
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return _store.fetchVoteCard(groupId: groupId, voteId: voteId);
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return _store.fetchVoteVoters(groupId: groupId, voteId: voteId);
+  }
+}
+
+class TestPlanRepository implements PlanRepository {
+  TestPlanRepository(this._store);
+
+  final InMemoryOnmuStore _store;
+
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchPlan(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) async {
+    return _store.createPlan(input);
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) async {
+    return _store.updatePlan(planId: planId, input: input);
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchVisitPlansByDate(groupId: groupId, planId: planId);
+  }
+}
+
+class TestPlaceRepository implements PlaceRepository {
+  TestPlaceRepository(this._store);
+
+  final InMemoryOnmuStore _store;
+
+  @override
+  Future<PlaceCandidate> fetchCandidate({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+  }) async {
+    return _store.fetchPlaceCandidate(
+      groupId: groupId,
+      planId: planId,
+      candidateId: candidateId,
+    );
+  }
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchPlaceCandidates(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<List<PlaceRisk>> fetchRisks({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchPlaceRisks(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<PlaceVoteResult> fetchVoteResult({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchPlaceVoteResult(groupId: groupId, planId: planId);
+  }
+}
+
+class TestSettlementRepository implements SettlementRepository {
+  TestSettlementRepository(this._store);
+
+  final InMemoryOnmuStore _store;
+
+  @override
+  Future<SettlementSummary> fetchSettlementDraft({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> previewSettlement({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> createSettlement({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _store.fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+}

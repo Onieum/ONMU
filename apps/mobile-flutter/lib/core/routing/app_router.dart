@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/login_page.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../features/character/character_start_page.dart';
 import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
@@ -55,8 +56,19 @@ final appRouter = GoRouter(
     GoRoute(path: '/', redirect: (context, state) => RoutePaths.splash),
     GoRoute(
       path: RoutePaths.splash,
-      builder: (context, state) =>
-          SplashPage(onTimeout: () => context.go(RoutePaths.login)),
+      builder: (context, state) => Consumer(
+        builder: (context, ref, child) {
+          ref.watch(authBootstrapProvider);
+          return SplashPage(
+            onTimeout: () async {
+              final nextRoute = await _resolvePostSplashRoute(ref);
+              if (context.mounted) {
+                context.go(nextRoute);
+              }
+            },
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.login,
@@ -445,6 +457,23 @@ final appRouter = GoRouter(
     ),
   ],
 );
+
+Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
+  final AuthBootstrapResult bootstrap;
+  try {
+    bootstrap = await ref.read(authBootstrapProvider.future);
+  } catch (_) {
+    return RoutePaths.login;
+  }
+  final user = bootstrap.user;
+  if (user == null) {
+    return RoutePaths.login;
+  }
+  if (user.hasCompletedOnboarding) {
+    return RoutePaths.home;
+  }
+  return RoutePaths.onboarding;
+}
 
 DateTime _recordDateFromState(GoRouterState state) {
   final dateStr =

@@ -48,11 +48,13 @@ class GroupPlanSummary {
     required this.extraMemberCount,
     required this.iconKind,
     required this.isPast,
+    this.startsAt,
   });
 
   final int id;
   final String title;
   final String dateLabel;
+  final DateTime? startsAt;
   final String placeName;
   final String statusLabel;
   final String statusType;

@@ -99,7 +99,6 @@ try {
 
 $accessToken = "$signingInput.$signaturePart"
 $defines = [ordered]@{
-  ONMU_DATA_SOURCE = "api"
   ONMU_API_BASE_URL = $ApiBaseUrl
   ONMU_API_ACCESS_JWT = $accessToken
   ONMU_DEV_ACCESS_TOKEN = $accessToken

@@ -20,9 +20,11 @@ flutter test
 flutter run
 ```
 
+`flutter run` 기본값은 Windows dev Spring API(`https://dev-api.onmu.cloud`)를 바라봅니다. 보호 API 화면까지 검증하려면 아래 Spring dev API mode처럼 짧은 수명의 JWT가 들어간 dart-define 파일을 함께 전달합니다. token 없이 실행하면 앱은 dev API base URL을 사용하지만 보호 API 요청은 401이 날 수 있습니다.
+
 ## Spring dev API mode
 
-기본 실행은 mock data mode입니다. Windows dev Spring API에 연결할 때는 정적 `dev-api-access-token`을 넣지 말고, Key Vault의 `dev-access-token-secret`으로 짧은 수명의 access JWT를 발급해 사용합니다. token 값은 콘솔에 출력하지 않고 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다.
+Windows dev Spring API 보호 화면을 검증할 때는 정적 `dev-api-access-token`을 넣지 말고, Key Vault의 `dev-access-token-secret`으로 짧은 수명의 access JWT를 발급해 사용합니다. token 값은 콘솔에 출력하지 않고 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다.
 
 Windows PowerShell:
 

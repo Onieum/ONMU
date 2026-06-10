@@ -1,0 +1,532 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
+import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/group/view_model/group_create_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
+import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
+import 'package:onmu_mobile/features/place/repository/place_repository.dart';
+import 'package:onmu_mobile/features/place/view_model/place_candidates_view_model.dart';
+import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/settlement_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
+
+import 'support/test_onmu_repositories.dart';
+
+void main() {
+  test('온모임 목록 ViewModel은 repository override 데이터를 그대로 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_FakeGroupRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups, hasLength(1));
+    expect(state.groups.single.id, 9001);
+    expect(state.groupCount, 1);
+  });
+
+  test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
+        planRepositoryProvider.overrideWithValue(_UnusedPlanRepository()),
+        settlementRepositoryProvider.overrideWithValue(
+          _UnusedSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(homeViewModelProvider.future);
+
+    expect(state.groupId, isNull);
+    expect(state.activePlan, isNull);
+    expect(state.upcomingPlans, isEmpty);
+    expect(state.settlementId, isNull);
+    expect(state.todayPlanCount, 0);
+  });
+
+  test('홈 ViewModel은 오늘 날짜 약속 수를 API 결과에서 계산한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_TodayPlansGroupRepository()),
+        planRepositoryProvider.overrideWithValue(_TodayPlansPlanRepository()),
+        settlementRepositoryProvider.overrideWithValue(
+          _UnusedSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(homeViewModelProvider.future);
+
+    expect(state.todayPlanCount, 2);
+  });
+
+  test('온모임 생성 ViewModel은 기존 모임이 없어도 추천 멤버 없이 열린다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupCreateViewModelProvider.future);
+
+    expect(state.recommendedMemberNames, isEmpty);
+  });
+
+  test('온모임 홈 ViewModel은 요청한 groupId 범위의 상태를 만든다', () async {
+    final container = createOnmuTestContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupHomeViewModelProvider('2').future);
+
+    expect(state.group.id, 2);
+    expect(state.group.name, '퇴근 후 러닝크루');
+    expect(state.recentMemories, isNotEmpty);
+    expect(state.recentMessage, isNotNull);
+  });
+
+  test('약속 상세 ViewModel은 선택 멤버와 날짜별 방문 계획을 분리한다', () async {
+    final container = createOnmuTestContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      planDetailViewModelProvider((groupId: '1', planId: '101')).future,
+    );
+
+    expect(state.selectedMembers.every((member) => member.selected), isTrue);
+    expect(state.visitPlanForDate(0).first.place, '다운타우너 성수');
+    expect(state.visitPlanForDate(1).first.place, '협재 해수욕장');
+  });
+
+  test('장소 후보 ViewModel은 후보 좋아요 상태를 repository 데이터와 분리해 관리한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = placeCandidatesViewModelProvider((
+      groupId: '1',
+      planId: '101',
+    ));
+
+    final initial = await container.read(provider.future);
+    expect(initial.candidates.single.id, 9901);
+    expect(initial.isLiked(9901), isFalse);
+    expect(initial.favoriteCountFor(9901), 3);
+
+    container.read(provider.notifier).toggleFavorite(9901);
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.isLiked(9901), isTrue);
+    expect(updated.favoriteCountFor(9901), 4);
+  });
+
+  test('투표 상세 ViewModel은 voteId로 투표 카드와 후보를 조회한다', () async {
+    final container = createOnmuTestContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((groupId: '1', voteId: '501')).future,
+    );
+
+    expect(state.vote.title, '제주도 여행 장소 투표');
+    expect(state.candidates.first.name, '온무식당');
+    expect(state.votersFor(201), contains('민서'));
+  });
+}
+
+class _FakeGroupRepository implements GroupRepository {
+  static final _group = GroupSummary(
+    id: 9001,
+    name: 'Spring API 전환 모임',
+    description: 'repository 교체만으로 서버 데이터를 읽는 구조',
+    members: ['지우', '민수'],
+    lastMessage: '서버 DTO 연결 준비 완료',
+    unreadCount: 0,
+    pinnedPlanTitle: 'API 계약 점검',
+  );
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async => _group;
+
+  @override
+  Future<GroupSummary> createGroup(GroupCreateInput input) async =>
+      GroupSummary(
+        id: 9002,
+        name: input.name,
+        description: input.description,
+        members: input.memberNames,
+        lastMessage: '생성됨',
+        unreadCount: 0,
+        pinnedPlanTitle: '첫 약속 없음',
+      );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => [_group];
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
+
+  @override
+  Future<GroupMemoryRecord> fetchMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _EmptyGroupRepository implements GroupRepository {
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupSummary> createGroup(GroupCreateInput input) async =>
+      GroupSummary(
+        id: 1,
+        name: input.name,
+        description: input.description,
+        members: input.memberNames,
+        lastMessage: '',
+        unreadCount: 0,
+        pinnedPlanTitle: '첫 약속 없음',
+      );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => [];
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> fetchMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _TodayPlansGroupRepository extends _EmptyGroupRepository {
+  static const _group = GroupSummary(
+    id: 7,
+    name: '오늘 약속 모임',
+    description: '',
+    members: [],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '',
+  );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async => _group;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    final now = DateTime.now();
+    final todayMorning = DateTime(now.year, now.month, now.day, 9);
+    final todayEvening = DateTime(now.year, now.month, now.day, 18);
+    final tomorrow = todayMorning.add(const Duration(days: 1));
+
+    return [
+      GroupPlanSummary(
+        id: 71,
+        title: '아침 약속',
+        dateLabel: '오늘 오전 9:00',
+        startsAt: todayMorning,
+        placeName: '성수',
+        statusLabel: '예정',
+        statusType: '예정',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 72,
+        title: '저녁 약속',
+        dateLabel: '오늘 오후 6:00',
+        startsAt: todayEvening,
+        placeName: '한남',
+        statusLabel: '예정',
+        statusType: '예정',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'food',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 73,
+        title: '내일 약속',
+        dateLabel: '내일 오전 9:00',
+        startsAt: tomorrow,
+        placeName: '홍대',
+        statusLabel: '예정',
+        statusType: '예정',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'gallery',
+        isPast: false,
+      ),
+    ];
+  }
+}
+
+class _TodayPlansPlanRepository implements PlanRepository {
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return Plan(
+      id: int.parse(planId.toString()),
+      title: '아침 약속',
+      dateTime: '오늘 오전 9:00',
+      location: '성수',
+      status: '예정',
+      memo: '',
+      members: const [],
+      timeCandidates: const [],
+      visitPlan: const [],
+    );
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _UnusedPlanRepository implements PlanRepository {
+  @override
+  Future<Plan> fetchPlan({required Object groupId, required Object planId}) {
+    throw StateError('빈 홈 상태에서는 약속 상세를 조회하지 않아야 합니다.');
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _UnusedSettlementRepository implements SettlementRepository {
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw StateError('빈 홈 상태에서는 정산 정보를 조회하지 않아야 합니다.');
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementDraft({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> previewSettlement({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> createSettlement({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _FakePlaceRepository implements PlaceRepository {
+  static final _candidate = PlaceCandidate(
+    id: 9901,
+    name: '목업 카페',
+    category: '카페',
+    summary: 'repository 테스트 후보',
+    score: 90,
+    matchPercent: 86,
+    distanceLabel: '도보 3분',
+    travelTimeLabel: '도보 3분',
+    priceLabel: '1인 10,000원대',
+    isOpen: true,
+    address: '서울시 테스트구',
+    openingLabel: '오늘 10:00-20:00',
+    sourceLabel: 'Test API',
+    riskLabel: '안정',
+    riskTone: 'none',
+    memberFits: [],
+    tags: ['조용한'],
+    reasons: ['테스트하기 좋아요.'],
+    risks: ['운영 리스크 없음'],
+  );
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async => [_candidate];
+
+  @override
+  Future<PlaceCandidate> fetchCandidate({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+  }) async => _candidate;
+
+  @override
+  Future<List<PlaceRisk>> fetchRisks({
+    required Object groupId,
+    required Object planId,
+  }) async => [];
+
+  @override
+  Future<PlaceVoteResult> fetchVoteResult({
+    required Object groupId,
+    required Object planId,
+  }) async => PlaceVoteResult(
+    title: '테스트 투표',
+    selectedPlaceName: '목업 카페',
+    voters: ['지우'],
+    note: '테스트 결과',
+  );
+}

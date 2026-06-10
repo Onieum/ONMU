@@ -1,21 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum OnmuDataSource { mock, api }
-
-final onmuDataSourceProvider = Provider<OnmuDataSource>((ref) {
-  const value = String.fromEnvironment('ONMU_DATA_SOURCE', defaultValue: 'mock');
-  return value.toLowerCase() == 'api' ? OnmuDataSource.api : OnmuDataSource.mock;
-});
-
-final onmuApiEnabledProvider = Provider<bool>(
-  (ref) => ref.watch(onmuDataSourceProvider) == OnmuDataSource.api,
-);
+const defaultOnmuApiBaseUrl = 'https://dev-api.onmu.cloud';
 
 final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
   const baseUrl = String.fromEnvironment(
     'ONMU_API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8080',
+    defaultValue: defaultOnmuApiBaseUrl,
   );
   const accessJwt = String.fromEnvironment('ONMU_API_ACCESS_JWT');
   const legacyDevAccessToken = String.fromEnvironment('ONMU_DEV_ACCESS_TOKEN');
@@ -101,7 +92,11 @@ class OnmuJson {
     return const [];
   }
 
-  static int readInt(Map<String, dynamic> json, String key, [int fallback = 0]) {
+  static int readInt(
+    Map<String, dynamic> json,
+    String key, [
+    int fallback = 0,
+  ]) {
     final value = json[key];
     if (value is int) {
       return value;

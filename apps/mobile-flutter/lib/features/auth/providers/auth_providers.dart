@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../data/social_auth_service.dart';
 import '../domain/auth_user.dart';
+import '../repository/auth_repository.dart';
 
 final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
   return SocialAuthService();
@@ -10,9 +11,29 @@ final socialAuthServiceProvider = Provider<SocialAuthService>((ref) {
 
 final authUserProvider = StateProvider<AuthUser?>((ref) => null);
 
+final authBootstrapProvider = FutureProvider<AuthBootstrapResult>((ref) async {
+  final existingUser = ref.read(authUserProvider);
+  if (existingUser != null) {
+    return AuthBootstrapResult(user: existingUser);
+  }
+
+  final repository = ref.watch(authRepositoryProvider);
+  final user = await repository.fetchCurrentUser();
+  ref.read(authUserProvider.notifier).state = user;
+  return AuthBootstrapResult(user: user);
+});
+
 final authActionProvider = Provider<AuthActionController>((ref) {
   return AuthActionController(ref);
 });
+
+class AuthBootstrapResult {
+  const AuthBootstrapResult({required this.user});
+
+  final AuthUser? user;
+
+  bool get isAuthenticated => user != null;
+}
 
 class AuthActionController {
   const AuthActionController(this._ref);
