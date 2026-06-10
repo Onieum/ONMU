@@ -19,6 +19,10 @@ import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.CreateRecordRequest;
 import com.onmu.api.web.dto.OotdCallbackRequest;
 import com.onmu.api.web.dto.RecordMediaInput;
+import com.onmu.api.domain.CharacterProfileEntity;
+import com.onmu.api.domain.CharacterProfileRepository;
+import com.onmu.api.web.dto.CreateMemoryRequest;
+import com.onmu.api.web.dto.MemoryResponse;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +46,7 @@ public class RecordService {
   private final UserRepository userRepository;
   private final OutboxService outboxService;
   private final ObjectMapper objectMapper;
+  private final CharacterProfileRepository characterProfileRepository;
 
   public RecordService(
     RecordRepository recordRepository,
@@ -52,7 +57,8 @@ public class RecordService {
     PlanRepository planRepository,
     UserRepository userRepository,
     OutboxService outboxService,
-    ObjectMapper objectMapper
+    ObjectMapper objectMapper,
+    CharacterProfileRepository characterProfileRepository
   ) {
     this.recordRepository = recordRepository;
     this.recordMediaRepository = recordMediaRepository;
@@ -63,6 +69,7 @@ public class RecordService {
     this.userRepository = userRepository;
     this.outboxService = outboxService;
     this.objectMapper = objectMapper;
+    this.characterProfileRepository = characterProfileRepository;
   }
 
   @Transactional
@@ -367,5 +374,200 @@ public class RecordService {
     } catch (JsonProcessingException exception) {
       return Collections.emptyMap();
     }
+  }
+
+  @Transactional(readOnly = true)
+  public List<MemoryResponse> getPersonalMemories() {
+    UserEntity author = currentUser();
+    List<RecordEntity> records = recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(author);
+    return records.stream().map(this::mapToMemoryResponse).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<MemoryResponse> getGroupMemories(String groupId) {
+    UserEntity user = currentUser();
+    GroupEntity group = groupRepository.findByPublicId(groupId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+    if (!groupRepository.isUserMember(groupId, user.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+    List<RecordEntity> records = recordRepository.findByGroupAndDeletedAtIsNullOrderByCreatedAtDesc(group);
+    return records.stream().map(this::mapToMemoryResponse).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public MemoryResponse getMemoryDetail(String memoryId) {
+    RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
+    UserEntity user = currentUser();
+    
+    if (record.getGroup() != null) {
+      if (!groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+      }
+    }
+
+    String visibility = record.getVisibility() != null ? record.getVisibility().toLowerCase() : "public";
+    if ("private".equals(visibility)) {
+      if (!record.getAuthor().getId().equals(user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "private_record_access_denied");
+      }
+    } else if ("participants_only".equals(visibility) || "participants".equals(visibility)) {
+      if (record.getPlan() != null && !planRepository.isUserParticipant(record.getPlan().getPublicId(), user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_plan_participant");
+      }
+    } else if ("group_only".equals(visibility) || "group".equals(visibility)) {
+      if (record.getGroup() != null && !groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+      }
+    }
+
+    return mapToMemoryResponse(record);
+  }
+
+  @Transactional(readOnly = true)
+  public MemoryResponse getGroupMemoryDetail(String groupId, String memoryId) {
+    MemoryResponse response = getMemoryDetail(memoryId);
+    GroupEntity group = groupRepository.findByPublicId(groupId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+    if (response.groupId() == null || !response.groupId().equals(group.getId())) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found_in_group");
+    }
+    return response;
+  }
+
+  @Transactional
+  public MemoryResponse createMemory(String groupId, CreateMemoryRequest request) {
+    UserEntity author = currentUser();
+    GroupEntity group = null;
+    if (groupId != null) {
+      group = groupRepository.findByPublicId(groupId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+      if (!groupRepository.isUserMember(groupId, author.getId())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+      }
+    }
+
+    String publicId = "rec_" + UUID.randomUUID().toString().replace("-", "");
+    String moodTagsJson = toJson(request.tags() != null ? request.tags() : List.of());
+
+    CharacterProfileEntity characterProfile = characterProfileRepository.findByUserId(author.getId())
+        .orElseGet(() -> new CharacterProfileEntity(
+            author.getId(),
+            "type_warm",
+            "short_black",
+            "black",
+            "round",
+            "brown",
+            "casual_tshirt"
+        ));
+
+    Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("skin_tone", characterProfile.getSkinTone());
+    snapshot.put("hair_style", request.hairStyle() != null ? request.hairStyle() : characterProfile.getHairStyle());
+    snapshot.put("hair_color", request.hairColor() != null ? request.hairColor() : characterProfile.getHairColor());
+    snapshot.put("eye_style", characterProfile.getEyeStyle());
+    snapshot.put("eye_color", request.eyeColor() != null ? request.eyeColor() : characterProfile.getEyeColor());
+    snapshot.put("clothes", "none");
+
+    Map<String, Object> recordPayload = new LinkedHashMap<>();
+    recordPayload.put("body", request.memo() != null ? request.memo().trim() : "");
+    recordPayload.put("recordType", request.type() != null ? request.type().trim() : "OOTD");
+    recordPayload.put("recordedAt", request.date() != null ? request.date().trim() : Instant.now().toString());
+    recordPayload.put("characterSnapshot", snapshot);
+    
+    boolean hasConsent = userRepository.checkPrivacyConsent(author.getId());
+    recordPayload.put("aiStatus", hasConsent ? "PENDING" : "SKIPPED");
+    
+    String payloadJson = toJson(recordPayload);
+
+    RecordEntity record = new RecordEntity(
+      publicId,
+      group,
+      null,
+      author,
+      request.title() != null ? request.title().trim() : "Untitled Memory",
+      request.visibility() != null ? request.visibility().toUpperCase() : "PUBLIC",
+      payloadJson,
+      moodTagsJson
+    );
+    RecordEntity savedRecord = recordRepository.save(record);
+
+    List<Map<String, Object>> mediaPayloads = new ArrayList<>();
+    if (request.imageUrls() != null) {
+      int order = 0;
+      for (String url : request.imageUrls()) {
+        String key = "records/media/" + UUID.randomUUID().toString() + ".jpg";
+        RecordMediaEntity mediaEntity = new RecordMediaEntity(
+          savedRecord,
+          "IMAGE",
+          key,
+          url,
+          800,
+          800,
+          null,
+          order++,
+          "{}"
+        );
+        recordMediaRepository.save(mediaEntity);
+        
+        Map<String, Object> mInfo = new LinkedHashMap<>();
+        mInfo.put("mediaType", mediaEntity.getMediaType());
+        mInfo.put("storageKey", mediaEntity.getStorageKey());
+        mInfo.put("publicUrl", mediaEntity.getPublicUrl());
+        mediaPayloads.add(mInfo);
+      }
+    }
+
+    if (request.tags() != null) {
+      for (String tag : request.tags()) {
+        recordTagRepository.save(new RecordTagEntity(savedRecord, "user", tag));
+      }
+    }
+
+    if (hasConsent) {
+      Map<String, Object> outboxPayload = new LinkedHashMap<>();
+      outboxPayload.put("groupId", group != null ? group.getPublicId() : null);
+      outboxPayload.put("planId", null);
+      outboxPayload.put("recordId", savedRecord.getPublicId());
+      outboxPayload.put("authorId", author.getId().toString());
+      outboxPayload.put("title", savedRecord.getTitle());
+      outboxPayload.put("media", mediaPayloads);
+      outboxPayload.put("characterSnapshot", snapshot);
+      outboxService.record("record.created", "record", savedRecord.getId(), outboxPayload);
+    }
+
+    return mapToMemoryResponse(savedRecord);
+  }
+
+  private MemoryResponse mapToMemoryResponse(RecordEntity record) {
+    Map<String, Object> payloadMap = readObject(record.getPayload());
+    String memo = (String) payloadMap.getOrDefault("body", "");
+    String type = (String) payloadMap.getOrDefault("recordType", "OOTD");
+    String date = (String) payloadMap.getOrDefault("recordedAt", "");
+    String aiStatus = (String) payloadMap.getOrDefault("aiStatus", "SKIPPED");
+    Map<String, Object> characterSnapshot = (Map<String, Object>) payloadMap.getOrDefault("characterSnapshot", Collections.emptyMap());
+
+    List<RecordMediaEntity> mediaList = recordMediaRepository.findByRecordOrderBySortOrderAsc(record);
+    List<String> imageUrls = mediaList.stream().map(RecordMediaEntity::getPublicUrl).toList();
+
+    List<RecordTagEntity> tagEntities = recordTagRepository.findByRecord(record);
+    List<String> tags = tagEntities.stream().map(RecordTagEntity::getTagValue).toList();
+
+    return new MemoryResponse(
+        record.getId(),
+        type,
+        record.getTitle(),
+        memo,
+        date,
+        record.getAuthor().getId(),
+        record.getGroup() != null ? record.getGroup().getId() : null,
+        tags,
+        imageUrls,
+        record.getVisibility(),
+        characterSnapshot,
+        aiStatus,
+        record.getCreatedAt()
+    );
   }
 }
