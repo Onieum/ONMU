@@ -3,6 +3,8 @@ package com.onmu.api.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.security.BearerTokenAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -114,19 +116,18 @@ public class SecurityConfig {
       environment.getProperty("ONMU_DEV_CORS_ORIGINS"),
       environment.getProperty("onmu.security.cors.allowed-origins")
     );
+    List<String> origins = new ArrayList<>();
     if (StringUtils.hasText(configured)) {
-      List<String> origins = List.of(configured.split(",")).stream()
+      origins.addAll(List.of(configured.split(",")).stream()
         .map(String::trim)
         .filter(StringUtils::hasText)
-        .toList();
-      if (!origins.isEmpty()) {
-        return origins;
-      }
+        .toList());
     }
     if (authProperties.allowedOrigins() != null && !authProperties.allowedOrigins().isEmpty()) {
-      return authProperties.allowedOrigins();
+      origins.addAll(authProperties.allowedOrigins());
     }
-    return DEFAULT_ALLOWED_ORIGINS;
+    origins.addAll(DEFAULT_ALLOWED_ORIGINS);
+    return new ArrayList<>(new LinkedHashSet<>(origins));
   }
 
   private String firstPresent(String... candidates) {
