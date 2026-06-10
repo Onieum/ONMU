@@ -43,6 +43,8 @@ Team devices
 | Airflow | MVP Windows dev 서버 기본 구성에는 포함하지 않습니다. 추천 평가, 통계 리포트, 데이터셋 생성 같은 배치 파이프라인이 커질 때 별도 도입을 검토합니다. |
 | Cloudflare Tunnel | 외부 팀 테스트를 위한 개발용 API 터널입니다. 운영 배포 경계나 제품 소개 페이지 호스팅과 분리합니다. |
 
+초기 Windows 서버에서 dev와 분리된 내부 통합 테스트 환경을 함께 운영할 때는 [Windows integration-staging 운영 가이드](./windows-integration-staging.md)를 따른다. integration-staging은 `int-api.onmu.cloud`, `db-int.onmu.cloud`, `localhost:18080`, `onmu_integration` 기준으로 dev와 process, DB, Redis, MinIO, log를 분리한다.
+
 나중에 외부 네트워크 접속이 필요해지면 다음 중 하나를 사용합니다.
 
 - Tailscale 같은 VPN
