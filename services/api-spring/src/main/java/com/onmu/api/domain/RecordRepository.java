@@ -10,5 +10,7 @@ import org.springframework.stereotype.Repository;
 public interface RecordRepository extends JpaRepository<RecordEntity, UUID> {
   List<RecordEntity> findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(UserEntity author);
 
+  List<RecordEntity> findByGroupAndDeletedAtIsNullOrderByCreatedAtDesc(GroupEntity group);
+
   Optional<RecordEntity> findByPublicIdAndDeletedAtIsNull(String publicId);
 }

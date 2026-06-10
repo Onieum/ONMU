@@ -22,7 +22,11 @@ import com.onmu.api.domain.RecordTagEntity;
 import com.onmu.api.domain.RecordTagRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.domain.CharacterProfileEntity;
+import com.onmu.api.domain.CharacterProfileRepository;
+import com.onmu.api.web.dto.CreateMemoryRequest;
 import com.onmu.api.web.dto.CreateRecordRequest;
+import com.onmu.api.web.dto.MemoryResponse;
 import com.onmu.api.web.dto.OotdCallbackRequest;
 import com.onmu.api.web.dto.RecordMediaInput;
 import java.time.Instant;
@@ -54,6 +58,8 @@ class RecordServiceTests {
   private UserRepository userRepository;
   @Mock
   private OutboxService outboxService;
+  @Mock
+  private CharacterProfileRepository characterProfileRepository;
 
   private RecordService service;
   private GroupEntity group;
@@ -71,7 +77,8 @@ class RecordServiceTests {
       planRepository,
       userRepository,
       outboxService,
-      new ObjectMapper()
+      new ObjectMapper(),
+      characterProfileRepository
     );
     user = org.mockito.Mockito.mock(UserEntity.class);
     org.mockito.Mockito.lenient().when(user.getId()).thenReturn(java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"));
@@ -315,5 +322,82 @@ class RecordServiceTests {
 
     var detail = service.getRecordDetail("rec_1");
     assertThat(detail.get("title")).isEqualTo("participants title");
+  }
+
+  @Test
+  void creatingMemoryStoresCharacterSnapshotAndOutbox() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.checkPrivacyConsent(any())).thenReturn(true);
+
+    CharacterProfileEntity profile = new CharacterProfileEntity(
+      user.getId(), "type_cool", "long_wave", "pink", "sharp", "blue", "skirt"
+    );
+    when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile));
+    when(recordRepository.save(any(RecordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    CreateMemoryRequest request = new CreateMemoryRequest(
+      "OOTD",
+      "오늘의 스타일",
+      "오늘의 무드 메모",
+      "2026-06-10T12:00:00Z",
+      List.of("데이트", "맑음"),
+      List.of("http://test-image-url"),
+      "PUBLIC",
+      "short_hair",
+      "blonde",
+      "green"
+    );
+
+    MemoryResponse response = service.createMemory("1", request);
+
+    assertThat(response).isNotNull();
+    assertThat(response.title()).isEqualTo("오늘의 스타일");
+    assertThat(response.characterSnapshot()).isNotNull();
+
+    Map<String, Object> snapshot = response.characterSnapshot();
+    assertThat(snapshot.get("skin_tone")).isEqualTo("type_cool");
+    assertThat(snapshot.get("hair_style")).isEqualTo("short_hair");
+    assertThat(snapshot.get("hair_color")).isEqualTo("blonde");
+    assertThat(snapshot.get("eye_style")).isEqualTo("sharp");
+    assertThat(snapshot.get("eye_color")).isEqualTo("green");
+    assertThat(snapshot.get("clothes")).isEqualTo("none");
+
+    verify(outboxService).record(
+      eq("record.created"),
+      eq("record"),
+      any(),
+      argThat(payload -> {
+        Map<String, Object> outboxSnapshot = (Map<String, Object>) payload.get("characterSnapshot");
+        return outboxSnapshot != null 
+          && "short_hair".equals(outboxSnapshot.get("hair_style"))
+          && "none".equals(outboxSnapshot.get("clothes"));
+      })
+    );
+  }
+
+  @Test
+  void getPersonalMemoriesReturnsSuccessfully() {
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "Personal Memory", "PUBLIC", "{}", "[]");
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(user)).thenReturn(List.of(record));
+
+    List<MemoryResponse> memories = service.getPersonalMemories();
+    assertThat(memories).hasSize(1);
+    assertThat(memories.get(0).title()).isEqualTo("Personal Memory");
+  }
+
+  @Test
+  void getGroupMemoriesReturnsSuccessfully() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    RecordEntity record = new RecordEntity("rec_1", group, plan, user, "Group Memory", "PUBLIC", "{}", "[]");
+    when(recordRepository.findByGroupAndDeletedAtIsNullOrderByCreatedAtDesc(group)).thenReturn(List.of(record));
+
+    List<MemoryResponse> memories = service.getGroupMemories("1");
+    assertThat(memories).hasSize(1);
+    assertThat(memories.get(0).title()).isEqualTo("Group Memory");
   }
 }
