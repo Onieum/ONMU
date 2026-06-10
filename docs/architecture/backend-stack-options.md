@@ -8,7 +8,7 @@ Flutter는 확정 스택이고, 백엔드는 `C안: Spring Boot Main API + FastA
 
 Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션, DB migration을 맡는다. FastAPI Worker는 AI, 추천, 분석, 외부 데이터 해석처럼 Python 생태계가 유리한 비동기 작업을 맡는다.
 
-현재 `dev`에는 Windows backend-host 연결 검증용 `services/api/server.mjs` Node smoke API가 남아 있다. 이 smoke API는 `/healthz`, `/readyz`, 터널, Key Vault, 로그 수집을 확인하기 위한 임시 개발 도구이며, C안의 Main API 구현 기준은 아니다. Spring Boot Main API를 만들 때는 같은 헬스 체크 계약을 유지하면서 `services/api-spring`으로 옮긴다.
+현재 Windows `dev`와 `integration-staging` backend-host는 `services/api-spring` Spring Boot Main API를 기준으로 실행한다. `/healthz`, `/readyz`, 터널, Key Vault, 로그 수집도 Spring Boot Main API 계약으로 검증한다.
 
 ## 확정안
 
@@ -61,7 +61,7 @@ Naver full social OAuth
 
 - Flutter mock repository와 API repository가 같은 read model을 쓸 수 있는가
 - Spring Boot가 인증, 권한, 트랜잭션, DB migration을 책임질 수 있는가
-- 기존 Node smoke API의 `/healthz`, `/readyz`, Windows dev tunnel 검증 계약을 Spring Boot로 옮길 수 있는가
+- Spring Boot가 `/healthz`, `/readyz`, Windows dev tunnel 검증 계약을 안정적으로 제공할 수 있는가
 - queue/outbox 기반 worker 요청이 유실 없이 기록되고, 소비자 없는 이벤트를 `no_consumer` 또는 `skipped_dev`로 안전하게 표시할 수 있는가
 - FastAPI Worker 실패 시 Spring Boot가 안전한 fallback 응답을 줄 수 있는가
 - CI에서 Spring Boot test, FastAPI test, Flutter contract fixture test를 분리해 돌릴 수 있는가

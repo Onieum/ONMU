@@ -77,7 +77,7 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
 
-`public_id`는 Flutter/Node stub의 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
+`public_id`는 Flutter API 전환 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
 FastAPI Worker Alembic은 `worker_ai` schema만 소유합니다. FastAPI Worker는 core domain table을 직접 수정하지 않습니다.
 
@@ -120,7 +120,7 @@ Auth scaffold:
 - `POST /api/v1/auth/refresh`
 - `DELETE /api/v1/auth/session`
 
-Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...`는 Node stub의 dev compatibility route이며, 이 Spring scaffold에는 추가하지 않았습니다.
+Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...` 같은 과거 compatibility route는 이 Spring scaffold에 추가하지 않았습니다.
 
 ## Outbox
 
@@ -152,10 +152,10 @@ Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 �
 ## 아직 Dev/Mock인 부분
 
 - Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
-- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. public dev 기본 runtime 전환 전에는 Naver OAuth 실제 token exchange, refresh token 저장/회전을 별도 PR에서 보강합니다.
+- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. Naver OAuth 실제 token exchange, refresh token 저장/회전은 별도 PR에서 보강합니다.
 - place search는 외부 API key 없이 neutral mock 결과를 반환합니다.
 - 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
-- request log는 Node stub과 같은 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
+- request log는 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 
 ## Smoke
@@ -166,7 +166,7 @@ Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 �
 
 공용 Windows dev runtime이나 팀원이 사용하는 compose volume은 삭제하지 않습니다. `docker compose down -v`는 smoke 전용 compose project 또는 smoke 전용 volume에서만 사용하고, 일반 검증에서는 별도 임시 컨테이너/포트(예: PostgreSQL `16543`, Redis `16379`, MinIO `19000`, Spring `18080`)로 격리합니다.
 
-Windows dev backend CD의 기본 runtime은 아직 `node-stub`입니다. Spring Boot Main API는 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring`으로 수동 선택하는 옵션 runtime이며, dev merge와 팀 합의 전까지 기본값으로 전환하지 않습니다.
+Windows dev backend CD의 runtime은 Spring Boot Main API입니다. `dev` 브랜치 merge 후 GitHub Actions가 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring` 흐름으로 재배포합니다.
 
 ```powershell
 curl http://localhost:8080/healthz
@@ -196,7 +196,7 @@ curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H 
 
 ## Dev Token 인증과 CORS 기준
 
-Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 공개 dev backend 기본 runtime은 아직 `node-stub`이며, Spring은 수동 smoke용 옵션 runtime입니다. Spring runtime을 켤 때 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
+Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
 ```powershell
 $env:ONMU_API_ACCESS_TOKEN="<local-smoke-token>"
@@ -219,4 +219,4 @@ CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 �
 $env:ONMU_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud"
 ```
 
-Spring을 public dev 기본 runtime으로 전환하기 전에는 OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정을 별도 PR에서 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.
+OAuth 실제 연동, refresh token 저장/회전, CORS origin 확정은 별도 PR에서 다시 검증합니다. Access log는 Spring runtime에서도 `logs/api-access.log`에 남기므로 `?client=` 또는 `X-Onmu-Dev-Client`로 팀원별 smoke 요청을 추적할 수 있습니다.

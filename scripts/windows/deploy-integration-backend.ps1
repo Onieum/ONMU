@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+  [ValidateSet("spring")]
   [string]$Runtime = "spring",
   [switch]$DryRun,
   [int]$ApiPort = 18080,

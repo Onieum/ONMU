@@ -53,6 +53,8 @@ dev token 값은 integration token으로 재사용하지 않는다. 같은 환�
 
 ## 실행
 
+integration-staging은 `dev` 브랜치 merge만으로 자동 배포하지 않는다. GitHub Actions에서는 `Deploy Windows backend` workflow를 수동 실행하고 `environment=integration`을 선택할 때만 배포한다. integration runtime은 Spring으로 고정한다.
+
 integration 의존성 compose config 확인:
 
 ```powershell

@@ -73,7 +73,7 @@ if ($AllowLan) {
   Write-Host "  HOST=0.0.0.0"
   Write-Host "  PORT=$ApiPort"
   if ($UseKeyVault) {
-    Write-Host "  Run: `$env:API_HOST='0.0.0.0'; `$env:HOST='0.0.0.0'; npm run api:dev:keyvault"
+    Write-Host "  Run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -ApiHost 0.0.0.0 -ApiPort $ApiPort"
   } else {
     Write-Host "  Run: `$env:API_HOST='0.0.0.0'; `$env:HOST='0.0.0.0'; npm run api:dev"
   }
@@ -86,7 +86,7 @@ if ($AllowLan) {
   Write-Host "  HOST=127.0.0.1"
   Write-Host "  PORT=$ApiPort"
   if ($UseKeyVault) {
-    Write-Host "  Run: npm run api:dev:keyvault"
+    Write-Host "  Run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -ApiPort $ApiPort"
   } else {
     Write-Host "  Run: npm run api:dev"
   }
