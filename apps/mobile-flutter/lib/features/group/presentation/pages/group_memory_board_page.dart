@@ -247,7 +247,7 @@ class _MemoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuCard(
       onTap: () =>
-          context.push(RoutePaths.groupMemoryDetail(groupId, memory.id)),
+          context.push(RoutePaths.groupMemoryDetail(groupId, memory.routeId)),
       backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Column(
@@ -299,7 +299,10 @@ class _MemoryCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  GroupMemoryPhoto(index: photoIndex),
+                  GroupMemoryPhoto(
+                    index: photoIndex,
+                    imageUrl: memory.primaryImageUrl,
+                  ),
                   Positioned(
                     right: AppSpacing.xs,
                     bottom: AppSpacing.xs,

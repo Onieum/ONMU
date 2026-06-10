@@ -549,18 +549,23 @@ public class RecordService {
     Map<String, Object> characterSnapshot = (Map<String, Object>) payloadMap.getOrDefault("characterSnapshot", Collections.emptyMap());
 
     List<RecordMediaEntity> mediaList = recordMediaRepository.findByRecordOrderBySortOrderAsc(record);
-    List<String> imageUrls = mediaList.stream().map(RecordMediaEntity::getPublicUrl).toList();
+    List<String> imageUrls = mediaList.stream()
+      .map(RecordMediaEntity::getPublicUrl)
+      .filter(url -> url != null && !url.isBlank())
+      .toList();
 
     List<RecordTagEntity> tagEntities = recordTagRepository.findByRecord(record);
     List<String> tags = tagEntities.stream().map(RecordTagEntity::getTagValue).toList();
 
     return new MemoryResponse(
         record.getId(),
+        record.getPublicId(),
         type,
         record.getTitle(),
         memo,
         date,
         record.getAuthor().getId(),
+        record.getAuthor().getDisplayName(),
         record.getGroup() != null ? record.getGroup().getId() : null,
         tags,
         imageUrls,

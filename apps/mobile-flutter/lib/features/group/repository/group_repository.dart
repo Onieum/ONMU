@@ -107,7 +107,8 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
-    return const [];
+    final memories = await _client.getList('/api/v1/groups/$groupId/memories');
+    return memories.map(_groupMemoryRecord).toList(growable: false);
   }
 
   @override
@@ -120,14 +121,10 @@ class ApiGroupRepository implements GroupRepository {
     required Object groupId,
     required Object memoryId,
   }) async {
-    return GroupMemoryRecord(
-      id: int.tryParse(memoryId.toString()) ?? 0,
-      author: 'ONMU',
-      title: '기록 준비 중',
-      description: '기록 API가 연결되면 이 영역을 실제 데이터로 전환합니다.',
-      dateLabel: '',
-      tags: const [],
+    final memory = await _client.getObject(
+      '/api/v1/groups/$groupId/memories/$memoryId',
     );
+    return _groupMemoryRecord(memory);
   }
 
   @override
@@ -207,6 +204,91 @@ class ApiGroupRepository implements GroupRepository {
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
     );
+  }
+
+  GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {
+    final apiId = _memoryApiId(json);
+    final memo = OnmuJson.readString(
+      json,
+      'memo',
+      OnmuJson.readString(
+        json,
+        'summary',
+        OnmuJson.readString(json, 'description'),
+      ),
+    );
+    final author = OnmuJson.readString(
+      json,
+      'authorName',
+      OnmuJson.readString(json, 'author', 'ONMU'),
+    );
+
+    return GroupMemoryRecord(
+      id: _memoryLegacyId(apiId, json),
+      apiId: apiId,
+      author: author,
+      title: OnmuJson.readString(json, 'title', '기록'),
+      description: memo,
+      dateLabel: _memoryDateLabel(
+        OnmuJson.readString(
+          json,
+          'date',
+          OnmuJson.readString(json, 'createdAt'),
+        ),
+      ),
+      tags: OnmuJson.stringList(json['tags']),
+      imageUrls: _absoluteMediaUrls(json['imageUrls']),
+    );
+  }
+
+  String _memoryApiId(Map<String, dynamic> json) {
+    final publicId = OnmuJson.readString(json, 'publicId');
+    if (publicId.isNotEmpty) {
+      return publicId;
+    }
+    return OnmuJson.readString(json, 'id');
+  }
+
+  int _memoryLegacyId(String apiId, Map<String, dynamic> json) {
+    final numericId = OnmuJson.readInt(json, 'id', -1);
+    if (numericId >= 0) {
+      return numericId;
+    }
+    final match = RegExp(r'(\d+)$').firstMatch(apiId);
+    return int.tryParse(match?.group(1) ?? '') ?? 0;
+  }
+
+  List<String> _absoluteMediaUrls(Object? value) {
+    return OnmuJson.stringList(value)
+        .map(_absoluteMediaUrl)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String _absoluteMediaUrl(String url) {
+    if (url.isEmpty) {
+      return '';
+    }
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.hasScheme) {
+      return url;
+    }
+    final baseUri = Uri.tryParse(_client.baseUrl);
+    if (baseUri == null || _client.baseUrl.isEmpty) {
+      return url;
+    }
+    return baseUri.resolve(url).toString();
+  }
+
+  String _memoryDateLabel(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      return value;
+    }
+    final local = parsed.toLocal();
+    return '${local.year}.'
+        '${local.month.toString().padLeft(2, '0')}.'
+        '${local.day.toString().padLeft(2, '0')}';
   }
 
   VoteSummary _voteSummary(Map<String, dynamic> json) {

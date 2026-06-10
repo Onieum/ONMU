@@ -86,14 +86,22 @@ class GroupMemoryRecord {
     required this.description,
     required this.dateLabel,
     required this.tags,
+    this.apiId = '',
+    this.imageUrls = const [],
   });
 
   final int id;
+  final String apiId;
   final String author;
   final String title;
   final String description;
   final String dateLabel;
   final List<String> tags;
+  final List<String> imageUrls;
+
+  String get routeId => apiId.isEmpty ? id.toString() : apiId;
+
+  String? get primaryImageUrl => imageUrls.isEmpty ? null : imageUrls.first;
 }
 
 class VoteCard {

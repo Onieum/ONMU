@@ -73,6 +73,7 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
         .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/session").permitAll()
+        .requestMatchers(HttpMethod.GET, "/api/v1/media/public").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/internal/callbacks/**").permitAll()
         .requestMatchers("/api/v1/**").authenticated()
         .anyRequest().denyAll())

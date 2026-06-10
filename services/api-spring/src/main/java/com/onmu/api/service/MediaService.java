@@ -2,32 +2,29 @@ package com.onmu.api.service;
 
 import com.onmu.api.web.dto.UploadMediaResponse;
 import com.onmu.api.web.dto.PresignedUrlResponse;
-import io.minio.MinioClient;
-import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.errors.ErrorResponseException;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
 
 @Service
 public class MediaService {
-  private static final List<String> FASHION_PLACEHOLDERS = List.of(
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80"
-  );
-  private final Random random = new Random();
+  private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
 
   private final String endpoint;
   private final String bucket;
@@ -57,6 +54,39 @@ public class MediaService {
     } catch (Exception e) {
       // Log error but do not prevent application startup
       System.err.println("Warning: Failed to ensure MinIO bucket existence: " + e.getMessage());
+    }
+  }
+
+  public PublicMediaObject readPublicSeedMedia(String objectKey) {
+    validatePublicSeedMediaKey(objectKey);
+
+    try (GetObjectResponse response = minioClient.getObject(
+        GetObjectArgs.builder()
+            .bucket(bucket)
+            .object(objectKey)
+            .build())) {
+      String contentType = response.headers().get("Content-Type");
+      if (!StringUtils.hasText(contentType)) {
+        contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+      }
+      return new PublicMediaObject(response.readAllBytes(), contentType);
+    } catch (ErrorResponseException e) {
+      String code = e.errorResponse() != null ? e.errorResponse().code() : "";
+      int statusCode = e.response() != null ? e.response().code() : 0;
+      if ("NoSuchKey".equals(code) || "NoSuchObject".equals(code) || statusCode == 404) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "media_not_found", e);
+      }
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
+    } catch (IOException e) {
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
+    } catch (Exception e) {
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
+    }
+  }
+
+  static void validatePublicSeedMediaKey(String objectKey) {
+    if (!StringUtils.hasText(objectKey) || !objectKey.startsWith(PUBLIC_SEED_MEDIA_PREFIX)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_media_key_prefix");
     }
   }
 
@@ -93,6 +123,10 @@ public class MediaService {
   }
 
   public UploadMediaResponse uploadFile(MultipartFile file) {
+    if (file == null || file.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "media_file_required");
+    }
+
     String originalName = file != null ? file.getOriginalFilename() : "ootd.jpg";
     if (originalName == null || originalName.isBlank()) {
       originalName = "ootd.jpg";
@@ -102,27 +136,23 @@ public class MediaService {
       : ".jpg";
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
-    
-    if (file != null && !file.isEmpty()) {
-      try {
-        minioClient.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(storageKey)
-                .stream(file.getInputStream(), file.getSize(), -1)
-                .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
-                .build());
 
-        String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
-        return new UploadMediaResponse(storageKey, publicUrl);
-      } catch (Exception e) {
-        System.err.println("Warning: Failed to upload file to MinIO, falling back to placeholder: " + e.getMessage());
-      }
+    try {
+      minioClient.putObject(
+          PutObjectArgs.builder()
+              .bucket(bucket)
+              .object(storageKey)
+              .stream(file.getInputStream(), file.getSize(), -1)
+              .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
+              .build());
+
+      String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+      return new UploadMediaResponse(storageKey, publicUrl);
+    } catch (Exception e) {
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", e);
     }
-    
-    // Choose a random rich aesthetic fashion image as the public URL for visual wow effect
-    String publicUrl = FASHION_PLACEHOLDERS.get(random.nextInt(FASHION_PLACEHOLDERS.size()));
+  }
 
-    return new UploadMediaResponse(storageKey, publicUrl);
+  public record PublicMediaObject(byte[] content, String contentType) {
   }
 }

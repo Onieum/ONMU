@@ -41,6 +41,8 @@ class OnmuApiClient {
 
   final Dio _dio;
 
+  String get baseUrl => _dio.options.baseUrl;
+
   Future<Map<String, dynamic>> getObject(String path) async {
     final response = await _dio.get<Object?>(path);
     return OnmuJson.asMap(response.data);

@@ -4,7 +4,30 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 
 class GroupMemoryPhoto extends StatelessWidget {
-  const GroupMemoryPhoto({required this.index, super.key});
+  const GroupMemoryPhoto({required this.index, this.imageUrl, super.key});
+
+  final int index;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _MemoryPhotoFallback(index: index);
+        },
+      );
+    }
+
+    return _MemoryPhotoFallback(index: index);
+  }
+}
+
+class _MemoryPhotoFallback extends StatelessWidget {
+  const _MemoryPhotoFallback({required this.index});
 
   final int index;
 

@@ -36,8 +36,7 @@ class GroupMemoryDetailState {
   final int photoIndex;
 }
 
-class GroupMemoryBoardViewModel
-    extends AsyncNotifier<GroupMemoryBoardState> {
+class GroupMemoryBoardViewModel extends AsyncNotifier<GroupMemoryBoardState> {
   GroupMemoryBoardViewModel(this.groupId);
 
   final String groupId;
@@ -52,8 +51,7 @@ class GroupMemoryBoardViewModel
   }
 }
 
-class GroupMemoryDetailViewModel
-    extends AsyncNotifier<GroupMemoryDetailState> {
+class GroupMemoryDetailViewModel extends AsyncNotifier<GroupMemoryDetailState> {
   GroupMemoryDetailViewModel(this.scope);
 
   final GroupMemoryScope scope;
@@ -61,15 +59,11 @@ class GroupMemoryDetailViewModel
   @override
   Future<GroupMemoryDetailState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final memories = await repository.fetchMemories(scope.groupId);
-    final memoryIndex = memories.indexWhere(
-      (memory) => memory.id.toString() == scope.memoryId,
+    final memory = await repository.fetchMemory(
+      groupId: scope.groupId,
+      memoryId: scope.memoryId,
     );
-    final safeIndex = memoryIndex < 0 ? 0 : memoryIndex;
 
-    return GroupMemoryDetailState(
-      memory: memories[safeIndex],
-      photoIndex: safeIndex,
-    );
+    return GroupMemoryDetailState(memory: memory, photoIndex: memory.id);
   }
 }
