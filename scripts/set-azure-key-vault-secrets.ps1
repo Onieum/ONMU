@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$VaultName = $env:AZURE_KEY_VAULT_NAME,
+  [ValidateSet("dev", "int")]
+  [string]$SecretPrefix = "dev",
   [string[]]$SecretName,
   [switch]$FromEnv,
   [int]$ExpiresInDays = 180
@@ -13,23 +15,29 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
-  "dev-database-url" = "DATABASE_URL"
-  "dev-postgres-password" = "POSTGRES_PASSWORD"
-  "dev-redis-url" = "REDIS_URL"
-  "dev-object-storage-endpoint" = "OBJECT_STORAGE_ENDPOINT"
-  "dev-object-storage-bucket" = "OBJECT_STORAGE_BUCKET"
-  "dev-minio-root-user" = "MINIO_ROOT_USER"
-  "dev-minio-root-password" = "MINIO_ROOT_PASSWORD"
-  "dev-cloudflare-api-token" = "CLOUDFLARE_API_TOKEN"
-  "dev-kakao-rest-api-key" = "KAKAO_REST_API_KEY"
-  "dev-naver-client-id" = "NAVER_CLIENT_ID"
-  "dev-naver-client-secret" = "NAVER_CLIENT_SECRET"
-  "dev-google-maps-api-key" = "GOOGLE_MAPS_API_KEY"
-  "dev-fcm-project-id" = "FCM_PROJECT_ID"
-  "dev-apns-team-id" = "APNS_TEAM_ID"
-  "dev-jira-email" = "JIRA_EMAIL"
-  "dev-jira-api-token" = "JIRA_API_TOKEN"
-  "dev-notion-token" = "NOTION_TOKEN"
+  "$SecretPrefix-api-access-token" = "ONMU_API_ACCESS_TOKEN"
+  "$SecretPrefix-api-refresh-token" = "ONMU_API_REFRESH_TOKEN"
+  "$SecretPrefix-cors-origins" = "ONMU_CORS_ORIGINS"
+  "$SecretPrefix-database-url" = "DATABASE_URL"
+  "$SecretPrefix-postgres-password" = "POSTGRES_PASSWORD"
+  "$SecretPrefix-redis-url" = "REDIS_URL"
+  "$SecretPrefix-object-storage-endpoint" = "OBJECT_STORAGE_ENDPOINT"
+  "$SecretPrefix-object-storage-bucket" = "OBJECT_STORAGE_BUCKET"
+  "$SecretPrefix-minio-root-user" = "MINIO_ROOT_USER"
+  "$SecretPrefix-minio-root-password" = "MINIO_ROOT_PASSWORD"
+}
+
+if ($SecretPrefix -eq "dev") {
+  $secretMap["dev-cloudflare-api-token"] = "CLOUDFLARE_API_TOKEN"
+  $secretMap["dev-kakao-rest-api-key"] = "KAKAO_REST_API_KEY"
+  $secretMap["dev-naver-client-id"] = "NAVER_CLIENT_ID"
+  $secretMap["dev-naver-client-secret"] = "NAVER_CLIENT_SECRET"
+  $secretMap["dev-google-maps-api-key"] = "GOOGLE_MAPS_API_KEY"
+  $secretMap["dev-fcm-project-id"] = "FCM_PROJECT_ID"
+  $secretMap["dev-apns-team-id"] = "APNS_TEAM_ID"
+  $secretMap["dev-jira-email"] = "JIRA_EMAIL"
+  $secretMap["dev-jira-api-token"] = "JIRA_API_TOKEN"
+  $secretMap["dev-notion-token"] = "NOTION_TOKEN"
 }
 
 if (-not $SecretName -or $SecretName.Count -eq 0) {
