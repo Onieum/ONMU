@@ -40,6 +40,13 @@
 - 현재 스키마(구현): `storage_key`, `public_url`, 폭/높이, 길이, `media_type`, `payload`
 - 즉시 대응: 기존 컬럼 유지 + 최소 확장(`storage_provider`, `bucket`, `content_type`, `size_bytes`) 또는 `payload`에 메타 보강
 
+### `character_profiles`
+- 기본 캐릭터 원장: 캐릭터 온보딩에서 최초 생성한 `gender`, `skin_tone`, `hair_style`, `hair_color`, `eye_style`, `eye_color`, `clothes`, `skipped`를 사용자 1대1 row로 저장
+- `skipped=true` row는 속성 없이 존재할 수 있고, `skipped=false` row는 렌더링에 필요한 기본 속성을 모두 가져야 함
+- OOTD 기록 생성 시 바뀐 머리/눈/의상은 기본 캐릭터를 덮어쓰지 않고 `records.payload.characterSnapshot`에 해당 카드의 최종 스냅샷으로 저장
+- DB 물리 컬럼과 `records.payload.characterSnapshot` key는 snake_case를 사용하고, Flutter camelCase 모델 이름은 API 계층에서 변환
+- 기존 `users.pixel_character`는 현재 `/api/v1/users/me` 응답 호환을 위해 남겨 두고, 신규 캐릭터 원장 API를 붙일 때 정리 전략을 별도 결정
+
 ### `ootd_features`
 - 현재 `features` json + `feature_source`를 바로 저장하고 있음
 - worker 결과 수용에는 적합하나, `ai_job_run_id`/신뢰도/원본 model meta가 없음
@@ -96,15 +103,25 @@
 {
   "title": "...",
   "summary": "...",
-  "recordType": "ootd|photo|memo|daily",
+  "recordType": "OOTD|PHOTO|MEMO|DAILY",
   "body": "...",
-  "visibility": "participants|group|private|public_share",
+  "visibility": "participants|group|private",
   "media": [{ "mediaId":"...", "storageKey":"...", "sortOrder":0 }],
-  "moodTags": ["#캐주얼"]
+  "moodTags": ["#캐주얼"],
+  "characterSnapshot": {
+    "gender": "female",
+    "skin_tone": "type_warm",
+    "hair_style": "short_curly",
+    "hair_color": "ash_brown",
+    "eye_style": "round",
+    "eye_color": "hazel",
+    "clothes": "none"
+  }
 }
 ```
 - 처리:
   - 트랜잭션 1: record + record_media + record_tags 저장
+  - OOTD인 경우: 기본 캐릭터는 `character_profiles`에서 읽고, 카드별 변경분을 합성한 최종 결과를 `records.payload.characterSnapshot`에 저장
   - 트랜잭션 1 마지막: outbox에 `record.created` + `ai.summary.requested`(OOTD인 경우)
   - 기록 생성 즉시 응답/혹은 업로드 미리 완료 플래그 방식 선택
 
