@@ -425,8 +425,10 @@ class _RecentMemoryStrip extends StatelessWidget {
           return _MemoryThumb(
             icon: memory.$1,
             color: memory.$2,
-            onTap: () =>
-                context.push(RoutePaths.groupMemoryDetail(group.id, record.id)),
+            imageUrl: record.primaryImageUrl,
+            onTap: () => context.push(
+              RoutePaths.groupMemoryDetail(group.id, record.routeId),
+            ),
           );
         },
       ),
@@ -438,11 +440,13 @@ class _MemoryThumb extends StatelessWidget {
   const _MemoryThumb({
     required this.icon,
     required this.color,
+    this.imageUrl,
     required this.onTap,
   });
 
   final IconData icon;
   final Color color;
+  final String? imageUrl;
   final VoidCallback onTap;
 
   @override
@@ -453,7 +457,7 @@ class _MemoryThumb extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          _PhotoThumb(icon: icon, width: 76, height: 76, color: color),
+          _MemoryThumbImage(icon: icon, color: color, imageUrl: imageUrl),
           Positioned(
             right: -4,
             bottom: 2,
@@ -474,6 +478,39 @@ class _MemoryThumb extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemoryThumbImage extends StatelessWidget {
+  const _MemoryThumbImage({
+    required this.icon,
+    required this.color,
+    this.imageUrl,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url == null || url.isEmpty) {
+      return _PhotoThumb(icon: icon, width: 76, height: 76, color: color);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Image.network(
+        url,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _PhotoThumb(icon: icon, width: 76, height: 76, color: color);
+        },
       ),
     );
   }

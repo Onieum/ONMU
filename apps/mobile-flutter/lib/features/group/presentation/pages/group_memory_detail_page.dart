@@ -82,7 +82,10 @@ class _GroupMemoryDetailContent extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: AspectRatio(
             aspectRatio: 1.36,
-            child: GroupMemoryPhoto(index: state.photoIndex),
+            child: GroupMemoryPhoto(
+              index: state.photoIndex,
+              imageUrl: memory.primaryImageUrl,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),

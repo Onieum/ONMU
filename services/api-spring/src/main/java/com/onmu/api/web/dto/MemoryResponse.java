@@ -7,11 +7,13 @@ import java.util.UUID;
 
 public record MemoryResponse(
   UUID id,
+  String publicId,
   String type,
   String title,
   String memo,
   String date,
   UUID authorId,
+  String authorName,
   UUID groupId,
   List<String> tags,
   List<String> imageUrls,
