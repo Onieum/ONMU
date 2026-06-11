@@ -7,43 +7,51 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class NaverOAuthAuthorizationCodeExchanger implements OAuthProviderAuthorizationCodeExchanger {
-  private static final String PROVIDER = "NAVER";
-  private static final String DEFAULT_TOKEN_URL = "https://nid.naver.com/oauth2.0/token";
+public class KakaoOAuthAuthorizationCodeExchanger implements OAuthProviderAuthorizationCodeExchanger {
+  private static final String PROVIDER = "KAKAO";
+  private static final String DEFAULT_TOKEN_URL = "https://kauth.kakao.com/oauth/token";
+  private static final String DEFAULT_REDIRECT_URI = "https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback";
 
   private final RestClient restClient;
   private final String tokenUrl;
   private final String clientId;
   private final String clientSecret;
+  private final String redirectUri;
 
   @Autowired
-  public NaverOAuthAuthorizationCodeExchanger(Environment environment) {
+  public KakaoOAuthAuthorizationCodeExchanger(Environment environment) {
     this(RestClient.builder().build(), environment);
   }
 
-  NaverOAuthAuthorizationCodeExchanger(RestClient restClient, Environment environment) {
+  KakaoOAuthAuthorizationCodeExchanger(RestClient restClient, Environment environment) {
     this.restClient = restClient;
     this.tokenUrl = firstPresent(
-      environment.getProperty("onmu.oauth.naver.token-url"),
-      environment.getProperty("NAVER_OAUTH_TOKEN_URL"),
+      environment.getProperty("onmu.oauth.kakao.token-url"),
+      environment.getProperty("KAKAO_OAUTH_TOKEN_URL"),
       DEFAULT_TOKEN_URL
     );
     this.clientId = firstPresent(
-      environment.getProperty("NAVER_OAUTH_CLIENT_ID"),
-      environment.getProperty("onmu.oauth.naver.client-id")
+      environment.getProperty("KAKAO_REST_API_KEY"),
+      environment.getProperty("KAKAO_OAUTH_CLIENT_ID"),
+      environment.getProperty("onmu.oauth.kakao.client-id")
     );
     this.clientSecret = firstPresent(
-      environment.getProperty("NAVER_OAUTH_CLIENT_SECRET"),
-      environment.getProperty("onmu.oauth.naver.client-secret")
+      environment.getProperty("KAKAO_CLIENT_SECRET"),
+      environment.getProperty("onmu.oauth.kakao.client-secret")
+    );
+    this.redirectUri = firstPresent(
+      environment.getProperty("KAKAO_OAUTH_REDIRECT_URI"),
+      environment.getProperty("onmu.oauth.kakao.redirect-uri"),
+      DEFAULT_REDIRECT_URI
     );
   }
 
@@ -54,16 +62,18 @@ public class NaverOAuthAuthorizationCodeExchanger implements OAuthProviderAuthor
 
   @Override
   public Optional<String> exchange(String authorizationCode, String state) {
-    if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret) || !StringUtils.hasText(state)) {
+    if (!StringUtils.hasText(clientId) || !StringUtils.hasText(redirectUri)) {
       return Optional.empty();
     }
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "authorization_code");
     body.add("client_id", clientId);
-    body.add("client_secret", clientSecret);
+    body.add("redirect_uri", redirectUri);
     body.add("code", authorizationCode);
-    body.add("state", state.trim());
+    if (StringUtils.hasText(clientSecret)) {
+      body.add("client_secret", clientSecret);
+    }
 
     try {
       Map<String, Object> payload = restClient.post()
@@ -73,10 +83,10 @@ public class NaverOAuthAuthorizationCodeExchanger implements OAuthProviderAuthor
         .retrieve()
         .body(new ParameterizedTypeReference<>() {
         });
-      String accessToken = stringValue(payload, "access_token");
-      return StringUtils.hasText(accessToken) ? Optional.of(accessToken.trim()) : Optional.empty();
+      String result = stringValue(payload, "access_token");
+      return StringUtils.hasText(result) ? Optional.of(result.trim()) : Optional.empty();
     } catch (RestClientException exception) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "naver_authorization_code_exchange_failed");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "kakao_authorization_code_exchange_failed");
     }
   }
 

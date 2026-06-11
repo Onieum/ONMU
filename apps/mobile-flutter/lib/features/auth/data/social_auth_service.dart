@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
+import 'kakao_oauth_credential_loader.dart';
 import 'naver_oauth_credential_loader.dart';
 
 typedef OAuthCredentialLoader = Future<OAuthProviderCredential> Function();
@@ -112,7 +113,7 @@ class SocialAuthService {
   }
 
   static Future<OAuthProviderCredential> _defaultKakaoCredentialLoader() async {
-    throw const KakaoSignInUnavailableException();
+    return KakaoOAuthCredentialLoader().call();
   }
 
   static Future<OAuthProviderCredential> _defaultNaverCredentialLoader() async {

@@ -75,10 +75,11 @@ class KakaoOAuthIdentityVerifierTests {
     StubAuthorizationCodeExchanger exchanger = new StubAuthorizationCodeExchanger(Optional.of("exchanged-token"));
     KakaoOAuthIdentityVerifier verifier = new KakaoOAuthIdentityVerifier(userInfoClient, exchanger);
 
-    verifier.verify("KAKAO", new OAuthLoginRequest("auth-code", null, null, null, null, null));
+    verifier.verify("KAKAO", new OAuthLoginRequest("auth-code", null, null, null, null, null, "state-123"));
 
     assertThat(exchanger.requestedProvider).isEqualTo("KAKAO");
     assertThat(exchanger.requestedAuthorizationCode).isEqualTo("auth-code");
+    assertThat(exchanger.requestedState).isEqualTo("state-123");
     assertThat(userInfoClient.requestedToken).isEqualTo("exchanged-token");
   }
 
@@ -105,6 +106,7 @@ class KakaoOAuthIdentityVerifierTests {
     private final Optional<String> response;
     private String requestedProvider;
     private String requestedAuthorizationCode;
+    private String requestedState;
 
     private StubAuthorizationCodeExchanger(Optional<String> response) {
       this.response = response;
@@ -112,8 +114,14 @@ class KakaoOAuthIdentityVerifierTests {
 
     @Override
     public Optional<String> exchange(String provider, String authorizationCode) {
+      return exchange(provider, authorizationCode, null);
+    }
+
+    @Override
+    public Optional<String> exchange(String provider, String authorizationCode, String state) {
       requestedProvider = provider;
       requestedAuthorizationCode = authorizationCode;
+      requestedState = state;
       return response;
     }
   }

@@ -31,6 +31,15 @@
                     android:host="oauth"
                     android:pathPrefix="/naver/callback"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="io.onieum.onmu"
+                    android:host="oauth"
+                    android:pathPrefix="/kakao/callback"/>
+            </intent-filter>
         </activity>
         <!-- 아래 meta-data는 삭제하지 않습니다.
              Flutter tool이 GeneratedPluginRegistrant.java를 생성할 때 사용합니다. -->

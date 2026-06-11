@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
+import 'package:onmu_mobile/features/auth/data/kakao_oauth_credential_loader.dart';
 import 'package:onmu_mobile/features/auth/data/naver_oauth_credential_loader.dart';
 import 'package:onmu_mobile/features/auth/data/social_auth_service.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_session.dart';
@@ -46,6 +47,26 @@ void main() {
       expect(apiClient.authorizationHeader, isNot('Bearer $providerToken'));
     },
   );
+
+  test('Kakao action fails safe when REST API key is missing', () async {
+    final tokenStore = InMemoryAuthTokenStore();
+    final apiClient = OnmuApiClient(Dio());
+    final container = ProviderContainer(
+      overrides: [
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        onmuApiClientProvider.overrideWithValue(apiClient),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container.read(authActionProvider).signInWithKakao(),
+      throwsA(isA<KakaoSignInMissingClientIdException>()),
+    );
+    expect(container.read(authUserProvider), isNull);
+    expect(apiClient.authorizationHeader, isNull);
+    expect(await tokenStore.read(), isNull);
+  });
 
   test(
     'Naver action exchanges provider token for Spring ONMU tokens',

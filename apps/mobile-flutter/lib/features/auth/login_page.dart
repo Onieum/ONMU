@@ -8,6 +8,7 @@ import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/onmu_design.dart';
 import '../../shared/widgets/asset_crop_image.dart';
+import 'data/kakao_oauth_credential_loader.dart';
 import 'data/naver_oauth_credential_loader.dart';
 import 'data/social_auth_service.dart';
 import 'domain/auth_user.dart';
@@ -327,6 +328,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String _messageForSignInError(Object error) {
     if (error is KakaoSignInUnavailableException) {
       return 'Kakao OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
+    if (error is KakaoSignInMissingClientIdException) {
+      return 'KAKAO_REST_API_KEY 설정이 필요해요. 값을 넣고 다시 실행해 주세요.';
+    }
+    if (error is KakaoSignInMissingRedirectUriException) {
+      return 'KAKAO_OAUTH_REDIRECT_URI 설정을 확인해 주세요.';
+    }
+    if (error is KakaoSignInLaunchException) {
+      return 'Kakao 로그인 창을 열지 못했어요. 브라우저 설정을 확인해 주세요.';
+    }
+    if (error is KakaoSignInTimeoutException) {
+      return 'Kakao 로그인이 시간 안에 완료되지 않았어요. 다시 시도해 주세요.';
+    }
+    if (error is KakaoSignInCancelledException) {
+      return 'Kakao 로그인이 취소되었어요.';
+    }
+    if (error is KakaoSignInCallbackException) {
+      return 'Kakao 로그인 응답을 확인하지 못했어요. 다시 시도해 주세요.';
     }
     if (error is NaverSignInUnavailableException) {
       return '네이버 OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';

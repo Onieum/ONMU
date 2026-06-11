@@ -71,6 +71,7 @@ public class SecurityConfig {
         .requestMatchers("/healthz", "/readyz", "/error", "/actuator/**").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/oauth/**").permitAll()
         .requestMatchers(HttpMethod.GET, "/api/v1/auth/oauth/naver/callback").permitAll()
+        .requestMatchers(HttpMethod.GET, "/api/v1/auth/oauth/kakao/callback").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
         .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/session").permitAll()

@@ -25,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
   private static final String DEFAULT_NAVER_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/naver/callback";
+  private static final String DEFAULT_KAKAO_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/kakao/callback";
 
   private final AuthService authService;
   private final Environment environment;
@@ -50,13 +51,17 @@ public class AuthController {
     @RequestParam(required = false) String error,
     @RequestParam(name = "error_description", required = false) String errorDescription
   ) {
-    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(resolveNaverMobileCallbackUri());
-    addQueryParam(builder, "code", code);
-    addQueryParam(builder, "state", state);
-    addQueryParam(builder, "error", error);
-    addQueryParam(builder, "error_description", errorDescription);
-    URI location = builder.build().encode().toUri();
-    return ResponseEntity.status(HttpStatus.FOUND).location(location).build();
+    return oauthCallback(resolveNaverMobileCallbackUri(), code, state, error, errorDescription);
+  }
+
+  @GetMapping("/oauth/kakao/callback")
+  public ResponseEntity<Void> kakaoOAuthCallback(
+    @RequestParam(required = false) String code,
+    @RequestParam(required = false) String state,
+    @RequestParam(required = false) String error,
+    @RequestParam(name = "error_description", required = false) String errorDescription
+  ) {
+    return oauthCallback(resolveKakaoMobileCallbackUri(), code, state, error, errorDescription);
   }
 
   @PostMapping("/refresh")
@@ -83,6 +88,30 @@ public class AuthController {
       environment.getProperty("onmu.oauth.naver.mobile-callback-uri")
     );
     return StringUtils.hasText(configured) ? configured : DEFAULT_NAVER_MOBILE_CALLBACK_URI;
+  }
+
+  private String resolveKakaoMobileCallbackUri() {
+    String configured = firstPresent(
+      environment.getProperty("KAKAO_OAUTH_MOBILE_CALLBACK_URI"),
+      environment.getProperty("onmu.oauth.kakao.mobile-callback-uri")
+    );
+    return StringUtils.hasText(configured) ? configured : DEFAULT_KAKAO_MOBILE_CALLBACK_URI;
+  }
+
+  private ResponseEntity<Void> oauthCallback(
+    String mobileCallbackUri,
+    String code,
+    String state,
+    String error,
+    String errorDescription
+  ) {
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(mobileCallbackUri);
+    addQueryParam(builder, "code", code);
+    addQueryParam(builder, "state", state);
+    addQueryParam(builder, "error", error);
+    addQueryParam(builder, "error_description", errorDescription);
+    URI location = builder.build().encode().toUri();
+    return ResponseEntity.status(HttpStatus.FOUND).location(location).build();
   }
 
   private void addQueryParam(UriComponentsBuilder builder, String name, String value) {
