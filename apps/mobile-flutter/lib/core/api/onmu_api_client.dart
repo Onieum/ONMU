@@ -78,12 +78,24 @@ class OnmuApiClient {
     return OnmuJson.asMap(response.data);
   }
 
+  Future<Map<String, dynamic>> putObject(
+    String path, {
+    Map<String, Object?> body = const {},
+  }) async {
+    final response = await _dio.put<Object?>(path, data: body);
+    return OnmuJson.asMap(response.data);
+  }
+
   Future<Map<String, dynamic>> patchObject(
     String path, {
     Map<String, Object?> body = const {},
   }) async {
     final response = await _dio.patch<Object?>(path, data: body);
     return OnmuJson.asMap(response.data);
+  }
+
+  Future<void> deleteObject(String path) async {
+    await _dio.delete<Object?>(path);
   }
 }
 
