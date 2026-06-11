@@ -33,6 +33,14 @@
     href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
     rel="stylesheet">
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script>
+    if (window.maplibregl && window.pmtiles) {
+      const protocol = new window.pmtiles.Protocol();
+      window.maplibregl.addProtocol('pmtiles', protocol.tile);
+      window.onmuPmtilesProtocol = protocol;
+    }
+  </script>
 </head>
 <body>
   <!--
