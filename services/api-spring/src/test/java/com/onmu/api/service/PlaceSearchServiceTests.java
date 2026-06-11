@@ -2,12 +2,25 @@ package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.onmu.api.place.DevMockPlaceSearchProvider;
+import com.onmu.api.place.PlaceSearchCache;
+import com.onmu.api.place.PlaceSearchProvider;
+import com.onmu.api.place.PlaceSearchQuery;
+import com.onmu.api.place.PlaceSearchResult;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PlaceSearchServiceTests {
   @Test
-  void searchReturnsNeutralDevCandidates() {
-    PlaceSearchService service = new PlaceSearchService();
+  void searchReturnsNeutralDevCandidatesWhenExternalCredentialsAreUnavailable() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new FakeProvider("naver", false, List.of())),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache()
+    );
 
     var results = service.search("카페", "1", "101");
 
@@ -18,8 +31,87 @@ class PlaceSearchServiceTests {
       .containsEntry("source", "dev-mock")
       .containsEntry("myHearted", false)
       .containsEntry("lat", 37.5665)
-      .containsEntry("lng", 126.9780);
+      .containsEntry("lng", 126.9780)
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("providerPlaceId", "mock-place-1");
     assertThat(results.getFirst()).containsKey("heartCount");
     assertThat(results.getFirst()).doesNotContainKeys("sco" + "re", "risk" + "Label", "risk" + "Tone");
+  }
+
+  @Test
+  void searchUsesNaverFirstAndKakaoSupplement() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("kakao", true, List.of(result("kakao", "kakao-1", "카카오 후보", "서울 강남구", 37.5, 127.0))),
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울 종로구", null, null)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache()
+    );
+
+    var results = service.search("카페", "1", "101");
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0))
+      .containsEntry("provider", "naver")
+      .containsEntry("providerPlaceId", "naver-1")
+      .containsEntry("lat", null)
+      .containsEntry("lng", null);
+    assertThat(results.get(1))
+      .containsEntry("provider", "kakao")
+      .containsEntry("providerPlaceId", "kakao-1")
+      .containsEntry("lat", 37.5)
+      .containsEntry("lng", 127.0);
+  }
+
+  @Test
+  void searchCanLimitToRequestedProvider() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울", null, null))),
+        new FakeProvider("kakao", true, List.of(result("kakao", "kakao-1", "카카오 후보", "서울", 37.5, 127.0)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache()
+    );
+
+    var results = service.search("카페", "1", "101", null, null, null, null, List.of("kakao"), true);
+
+    assertThat(results).singleElement()
+      .satisfies(result -> assertThat(result).containsEntry("provider", "kakao"));
+  }
+
+  private static PlaceSearchResult result(
+    String provider,
+    String providerPlaceId,
+    String name,
+    String address,
+    Double lat,
+    Double lng
+  ) {
+    return new PlaceSearchResult(provider, providerPlaceId, name, "카페", address, address, lat, lng, null, Instant.parse("2026-06-10T00:00:00Z"));
+  }
+
+  private record FakeProvider(String provider, boolean available, List<PlaceSearchResult> results) implements PlaceSearchProvider {
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      return results;
+    }
+  }
+
+  private static class NoopCache implements PlaceSearchCache {
+    @Override
+    public Optional<List<Map<String, Object>>> get(String key) {
+      return Optional.empty();
+    }
+
+    @Override
+    public void put(String key, List<Map<String, Object>> results) {
+    }
   }
 }

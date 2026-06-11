@@ -262,6 +262,16 @@ class TestPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async {
+    return _store.fetchPlaceCandidates(groupId: groupId, planId: planId);
+  }
+
+  @override
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,

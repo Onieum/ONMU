@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityEntity;
 import com.onmu.api.domain.AuthIdentityRepository;
+import com.onmu.api.domain.ExternalPlaceEntity;
+import com.onmu.api.domain.ExternalPlaceRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
@@ -64,6 +66,7 @@ public class OnmuApiService {
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
   private final VoteRepository voteRepository;
+  private final ExternalPlaceRepository externalPlaceRepository;
   private final PlaceCandidateRepository placeCandidateRepository;
   private final PlaceCandidateHeartRepository placeCandidateHeartRepository;
   private final SchedulePlaceRepository schedulePlaceRepository;
@@ -81,6 +84,7 @@ public class OnmuApiService {
     GroupRepository groupRepository,
     PlanRepository planRepository,
     VoteRepository voteRepository,
+    ExternalPlaceRepository externalPlaceRepository,
     PlaceCandidateRepository placeCandidateRepository,
     PlaceCandidateHeartRepository placeCandidateHeartRepository,
     SchedulePlaceRepository schedulePlaceRepository,
@@ -97,6 +101,7 @@ public class OnmuApiService {
     this.groupRepository = groupRepository;
     this.planRepository = planRepository;
     this.voteRepository = voteRepository;
+    this.externalPlaceRepository = externalPlaceRepository;
     this.placeCandidateRepository = placeCandidateRepository;
     this.placeCandidateHeartRepository = placeCandidateHeartRepository;
     this.schedulePlaceRepository = schedulePlaceRepository;
@@ -369,15 +374,13 @@ public class OnmuApiService {
     String publicId = nextPublicId(placeCandidateRepository.findAll().stream()
       .map(PlaceCandidateEntity::getPublicId)
       .toList(), 201);
-    String payload = toJson(Map.of(
-      "summary", stringOrDefault(request.summary(), "팀원이 추가한 장소 후보입니다."),
-      "tags", request.tags() == null ? List.of() : request.tags(),
-      "favoriteCount", 0
-    ));
+    ExternalPlaceEntity externalPlace = resolveExternalPlace(request);
+    String payload = toJson(placeCandidatePayload(request, externalPlace));
     PlaceCandidateEntity candidate = placeCandidateRepository.save(new PlaceCandidateEntity(
       publicId,
       group,
       plan,
+      externalPlace,
       request.name().trim(),
       stringOrDefault(request.category(), "장소"),
       stringOrDefault(request.address(), ""),
@@ -676,6 +679,55 @@ public class OnmuApiService {
     value.put("progress", totalResponses == 0 ? 0 : (double) optionResponses / totalResponses);
   }
 
+  private ExternalPlaceEntity resolveExternalPlace(CreatePlaceCandidateRequest request) {
+    String provider = normalizeProvider(request.provider());
+    String providerPlaceId = blankToNull(request.providerPlaceId());
+    if (provider == null || providerPlaceId == null) {
+      return null;
+    }
+    return externalPlaceRepository.findByProviderAndProviderPlaceId(provider, providerPlaceId)
+      .orElseGet(() -> externalPlaceRepository.save(new ExternalPlaceEntity(
+        provider,
+        providerPlaceId,
+        request.name().trim(),
+        blankToNull(request.category()),
+        blankToNull(request.address()),
+        blankToNull(request.roadAddress()),
+        firstNonNull(request.latitude(), request.lat()),
+        firstNonNull(request.longitude(), request.lng()),
+        blankToNull(request.sourceUrl()),
+        toJson(externalPlacePayload(request))
+      )));
+  }
+
+  private Map<String, Object> externalPlacePayload(CreatePlaceCandidateRequest request) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("sourceUrl", blankToNull(request.sourceUrl()));
+    payload.put("fetchedAt", blankToNull(request.fetchedAt()));
+    payload.put("selectedSnapshot", true);
+    return payload;
+  }
+
+  private Map<String, Object> placeCandidatePayload(
+    CreatePlaceCandidateRequest request,
+    ExternalPlaceEntity externalPlace
+  ) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("summary", stringOrDefault(request.summary(), "팀원이 추가한 장소 후보입니다."));
+    payload.put("tags", request.tags() == null ? List.of() : request.tags());
+    payload.put("favoriteCount", 0);
+    payload.put("source", externalPlace == null ? "manual" : externalPlace.getProvider().toLowerCase(Locale.ROOT));
+    payload.put("sourceLabel", externalPlace == null ? "직접 추가" : "외부 검색");
+    payload.put("provider", externalPlace == null ? null : externalPlace.getProvider());
+    payload.put("providerPlaceId", externalPlace == null ? null : externalPlace.getProviderPlaceId());
+    payload.put("roadAddress", blankToNull(request.roadAddress()));
+    payload.put("sourceUrl", blankToNull(request.sourceUrl()));
+    payload.put("lat", firstNonNull(request.latitude(), request.lat()));
+    payload.put("lng", firstNonNull(request.longitude(), request.lng()));
+    payload.put("fetchedAt", blankToNull(request.fetchedAt()));
+    return payload;
+  }
+
   private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate, UserEntity user) {
     Map<String, Object> payload = readObject(candidate.getPayload());
     int heartCount = candidateHeartCount(candidate);
@@ -697,8 +749,16 @@ public class OnmuApiService {
     value.put("address", stringOrDefault(candidate.getAddress(), ""));
     value.put("source", stringOrDefault(asString(payload.get("source")), "manual"));
     value.put("sourceLabel", stringOrDefault(asString(payload.get("sourceLabel")), "직접 추가"));
+    value.put("externalPlaceId", candidate.getExternalPlace() == null ? null : candidate.getExternalPlace().getPublicId());
+    value.put("provider", payload.get("provider"));
+    value.put("providerPlaceId", payload.get("providerPlaceId"));
+    value.put("roadAddress", payload.get("roadAddress"));
+    value.put("sourceUrl", payload.get("sourceUrl"));
     value.put("lat", payload.get("lat"));
     value.put("lng", payload.get("lng"));
+    value.put("latitude", payload.get("lat"));
+    value.put("longitude", payload.get("lng"));
+    value.put("fetchedAt", payload.get("fetchedAt"));
     value.put("createdAt", candidate.getCreatedAt() == null ? null : candidate.getCreatedAt().toString());
     value.put("openingLabel", stringOrDefault(asString(payload.get("openingLabel")), "영업 정보 확인 중"));
     value.put("memberFits", List.of());
@@ -1095,6 +1155,15 @@ public class OnmuApiService {
 
   private String stringOrDefault(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
+  }
+
+  private String normalizeProvider(String value) {
+    String provider = blankToNull(value);
+    return provider == null ? null : provider.toUpperCase(Locale.ROOT);
+  }
+
+  private Double firstNonNull(Double first, Double second) {
+    return first == null ? second : first;
   }
 
   private String blankToNull(String value) {

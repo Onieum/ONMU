@@ -13,6 +13,12 @@ typedef PlaceCandidateDetailScope = ({
   String planId,
   String candidateId,
 });
+typedef PlaceSearchScope = ({
+  String groupId,
+  String planId,
+  String query,
+  String? category,
+});
 
 final placeCandidatesViewModelProvider =
     AsyncNotifierProvider.family<
@@ -27,6 +33,22 @@ final placeCandidateDetailViewModelProvider =
       PlaceCandidate,
       PlaceCandidateDetailScope
     >(PlaceCandidateDetailViewModel.new);
+
+final placeSearchResultsProvider =
+    FutureProvider.family<List<PlaceCandidate>, PlaceSearchScope>((ref, scope) {
+      final query = scope.query.trim();
+      if (query.isEmpty) {
+        return Future.value(const []);
+      }
+      return ref
+          .watch(placeRepositoryProvider)
+          .searchPlaces(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            query: query,
+            category: scope.category,
+          );
+    });
 
 class PlaceCandidatesState {
   const PlaceCandidatesState({

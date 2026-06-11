@@ -69,10 +69,15 @@
 | 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` |
 | 내 후보 하트 설정 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` |
 | 장소 검색 | `POST /api/v1/place-search` |
+| 동선 추천 | `POST /api/v1/routes/recommend` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 | 일정 등록 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
+
+장소 검색 응답은 기존 `query`, `canonical`, `results` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`를 유지하고, 외부 provider 연결을 위해 `provider`, `providerPlaceId`, `roadAddress`, `latitude`, `longitude`, `sourceUrl`, `providerLink`, `fetchedAt`을 추가할 수 있다. UI에서는 product 기준에 따라 provider 출처를 직접 노출하지 않는다.
+
+동선 추천은 `POST /api/v1/routes/recommend`를 canonical로 둔다. 요청은 `groupId`, `planId`, `travelMode`(`car`, `walk`, `bike`)를 받고, 응답은 `provider`, `stops`, `geometry`(`[lng, lat]` LineString points), `distanceMeters`, `durationSeconds`, `travelMode`, `fetchedAt`을 포함한다. OpenRouteService credential이 없으면 provider를 `dev-mock`으로 명시한 deterministic geometry를 반환해 Flutter MapLibre UI smoke를 막지 않는다.
 
 장소 후보 응답은 목록/추가/상세에서 `id`, `name`, `category`, `address`, `source`, `lat`, `lng`, `heartCount`, `myHearted`, `createdAt`을 가능한 범위에서 포함한다. `PUT .../heart`는 body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 내 하트를 끈다. 같은 사용자가 같은 후보에 여러 번 하트를 켜도 중복 row를 만들지 않는다.
 

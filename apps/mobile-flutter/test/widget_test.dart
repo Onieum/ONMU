@@ -1212,6 +1212,14 @@ class _EmptyPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async => const [];
+
+  @override
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,

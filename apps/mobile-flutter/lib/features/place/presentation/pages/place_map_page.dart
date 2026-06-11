@@ -7,6 +7,8 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../features/map/model/map_models.dart';
+import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -64,16 +66,6 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     });
   }
 
-  int? _focusedOrder(List<PlaceCandidate> candidates) {
-    final candidate = _selectedCandidate;
-    if (candidate == null) {
-      return null;
-    }
-
-    final index = candidates.indexWhere((place) => place.id == candidate.id);
-    return index == -1 ? null : index + 1;
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(
@@ -104,7 +96,25 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 
   Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
-    final visibleCandidates = _visibleCandidates(candidates);
+    final localVisibleCandidates = _visibleCandidates(candidates);
+    final remoteSearchState = _query.trim().isEmpty
+        ? null
+        : ref.watch(
+            placeSearchResultsProvider((
+              groupId: widget.groupId,
+              planId: widget.planId,
+              query: _query,
+              category: _selectedCategory == _categories.first
+                  ? null
+                  : _selectedCategory,
+            )),
+          );
+    final visibleCandidates =
+        remoteSearchState?.maybeWhen(
+          data: (results) => results.isEmpty ? localVisibleCandidates : results,
+          orElse: () => localVisibleCandidates,
+        ) ??
+        localVisibleCandidates;
 
     return Scaffold(
       backgroundColor: AppColors.bgGrid,
@@ -122,9 +132,18 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: _MapCanvas(
-                      candidates: candidates,
-                      focusedOrder: _focusedOrder(candidates),
+                    child: OnmuMapView(
+                      points: _mapPointsFor(visibleCandidates),
+                      focusedPointId: _selectedCandidate?.id.toString(),
+                      onPointTap: (point) {
+                        final selected = _candidateByPointId(
+                          visibleCandidates,
+                          point.id,
+                        );
+                        if (selected != null) {
+                          setState(() => _selectedCandidate = selected);
+                        }
+                      },
                     ),
                   ),
                   Positioned(
@@ -252,6 +271,42 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         );
       },
     );
+  }
+
+  PlaceCandidate? _candidateByPointId(
+    List<PlaceCandidate> candidates,
+    String pointId,
+  ) {
+    for (final candidate in candidates) {
+      if (candidate.id.toString() == pointId) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  List<OnmuMapPoint> _mapPointsFor(List<PlaceCandidate> candidates) {
+    const fallback = [
+      OnmuLatLng(lat: 37.5665, lng: 126.9780),
+      OnmuLatLng(lat: 37.5651, lng: 126.9895),
+      OnmuLatLng(lat: 37.5326, lng: 126.9904),
+      OnmuLatLng(lat: 37.5700, lng: 126.9820),
+      OnmuLatLng(lat: 37.5580, lng: 126.9970),
+    ];
+    return [
+      for (var index = 0; index < candidates.length; index += 1)
+        OnmuMapPoint(
+          id: candidates[index].id.toString(),
+          label: candidates[index].name,
+          coordinate: candidates[index].hasCoordinate
+              ? OnmuLatLng(
+                  lat: candidates[index].latitude!,
+                  lng: candidates[index].longitude!,
+                )
+              : fallback[index % fallback.length],
+          order: index + 1,
+        ),
+    ];
   }
 }
 
@@ -404,72 +459,12 @@ class _CategoryPill extends StatelessWidget {
   }
 }
 
-class _MapCanvas extends StatelessWidget {
-  const _MapCanvas({required this.candidates, required this.focusedOrder});
-
-  final List<PlaceCandidate> candidates;
-  final int? focusedOrder;
-
-  @override
-  Widget build(BuildContext context) {
-    final positions = [
-      (left: 92.0, top: 132.0, right: null, bottom: null),
-      (left: null, top: 220.0, right: 96.0, bottom: null),
-      (left: null, top: 128.0, right: 66.0, bottom: null),
-    ];
-
-    return CustomPaint(
-      painter: _MapCanvasPainter(),
-      child: Stack(
-        children: [
-          for (
-            var index = 0;
-            index < candidates.length && index < positions.length;
-            index += 1
-          )
-            Positioned(
-              left: positions[index].left,
-              top: positions[index].top,
-              right: positions[index].right,
-              bottom: positions[index].bottom,
-              child: _MapPin(
-                order: index + 1,
-                focused: focusedOrder == index + 1,
-                candidateName: candidates[index].name,
-              ),
-            ),
-          const Positioned(left: 184, top: 176, child: _CurrentLocationDot()),
-        ],
-      ),
-    );
-  }
-}
-
-class _MapCanvasPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = AppColors.lineSoft
-      ..strokeWidth = 2;
-
-    for (var y = 40.0; y < size.height; y += 58) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y - 28), roadPaint);
-    }
-
-    for (var x = 24.0; x < size.width; x += 72) {
-      canvas.drawLine(Offset(x, 0), Offset(x + 40, size.height), roadPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _MapPin extends StatelessWidget {
-  const _MapPin({
+class MapPin extends StatelessWidget {
+  const MapPin({
     required this.order,
     required this.focused,
     required this.candidateName,
+    super.key,
   });
 
   final int order;
@@ -531,8 +526,8 @@ class _MapPin extends StatelessWidget {
   }
 }
 
-class _CurrentLocationDot extends StatelessWidget {
-  const _CurrentLocationDot();
+class CurrentLocationDot extends StatelessWidget {
+  const CurrentLocationDot({super.key});
 
   @override
   Widget build(BuildContext context) {
