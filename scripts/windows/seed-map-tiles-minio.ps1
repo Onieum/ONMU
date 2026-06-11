@@ -188,8 +188,59 @@ function New-MapLibreStyle {
         type = "fill"
         source = "protomaps"
         "source-layer" = "water"
+        filter = @(
+          "all",
+          @("==", '$type', "Polygon"),
+          @(
+            "any",
+            @("in", "kind", "ocean", "bay", "lake"),
+            @("in", "kind_detail", "lake", "reservoir")
+          )
+        )
         paint = [ordered]@{
           "fill-color" = "#B8D9E6"
+          "fill-opacity" = 0.64
+        }
+      },
+      [ordered]@{
+        id = "water-river-area"
+        type = "fill"
+        source = "protomaps"
+        "source-layer" = "water"
+        minzoom = 12
+        filter = @(
+          "all",
+          @("==", '$type', "Polygon"),
+          @(
+            "any",
+            @("in", "kind", "river", "stream", "canal"),
+            @("in", "kind_detail", "river", "stream", "canal")
+          )
+        )
+        paint = [ordered]@{
+          "fill-color" = "#A8D4E1"
+          "fill-opacity" = @("interpolate", @("linear"), @("zoom"), 12, 0.14, 14, 0.3)
+        }
+      },
+      [ordered]@{
+        id = "water-river-line"
+        type = "line"
+        source = "protomaps"
+        "source-layer" = "water"
+        minzoom = 9
+        filter = @(
+          "all",
+          @("==", '$type', "LineString"),
+          @(
+            "any",
+            @("in", "kind", "river", "stream", "canal"),
+            @("in", "kind_detail", "river", "stream", "canal")
+          )
+        )
+        paint = [ordered]@{
+          "line-color" = "#8CC7D9"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 9, 0.35, 12, 0.85, 14, 1.5)
+          "line-opacity" = 0.5
         }
       },
       [ordered]@{
