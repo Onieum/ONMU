@@ -454,6 +454,7 @@ public class RecordService {
     CharacterProfileEntity characterProfile = characterProfileRepository.findByUserId(author.getId())
         .orElseGet(() -> new CharacterProfileEntity(
             author.getId(),
+            "female",
             "type_warm",
             "short_black",
             "black",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -10,7 +11,7 @@ import '../widgets/record_flow_navigation.dart';
 
 class OotdRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
-  final Function(OotdRecord) onSave;
+  final Future<void> Function(OotdRecord) onSave;
   final DateTime? recordDate;
   final bool isDailyRecord;
   final OotdRecord? existingRecord;
@@ -30,6 +31,7 @@ class OotdRecordScreen extends StatefulWidget {
 
 class _OotdRecordScreenState extends State<OotdRecordScreen> {
   int _currentStep = 0;
+  bool _isSaving = false;
   // 0: 진입 화면 (OotdEntryPage)
   // 1: 기록 방법 선택 (OotdMethodPage)
   // 2: 사진 업로드 또는 설명 입력 (OotdPhotoUploadPage / OotdDescriptionPage)
@@ -113,6 +115,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   }
 
   void _next() {
+    if (_isSaving) return;
     if (_currentStep == 4) {
       // 4단계 완료 시 AI 분석 중 페이지(5)로 보내고, 2초 후에 완료 페이지(6)로 자동 이동 시뮬레이션!
       setState(() => _currentStep = 5);
@@ -139,7 +142,8 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
     final ootdCharacter = widget.userCharacter.copyWith(
       hairStyleIndex: _changeStyle
           ? _customHairStyleIndex
@@ -182,8 +186,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         ),
       ],
     );
-    widget.onSave(record);
-    context.popOrGo(RoutePaths.records);
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(record);
+    } catch (_) {
+      // API ?? ?? ??? ??? ?? ??? ????.
+    }
+    if (!mounted) return;
+    context.go(RoutePaths.records);
   }
 
   // OOTD 스텝 인디케이터
@@ -1059,6 +1069,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   // 6. OotdCompletePage (기록 완료)
   Widget _buildCompletePage() {
+    final recordDate = widget.recordDate ?? DateTime.now();
     final finalCharacter = widget.userCharacter.copyWith(
       hairStyleIndex: _changeStyle
           ? _customHairStyleIndex
@@ -1136,7 +1147,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '2026.10.03 (SAT) ✍️',
+                  _completeDateLabel(recordDate),
                   style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textMain,
                   ),
@@ -1156,6 +1167,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
         ),
       ],
     );
+  }
+
+  String _completeDateLabel(DateTime date) {
+    const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    final weekday = weekdays[date.weekday - 1];
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}.$month.$day ($weekday)';
   }
 
   Widget _buildBottomCta() {
