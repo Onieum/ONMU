@@ -66,7 +66,7 @@ cd C:\dev\ONMU\services\api-spring
 | `ONMU_OAUTH_KAKAO_USER_INFO_URL` | `https://kapi.kakao.com/v2/user/me` | Kakao provider access token 검증용 user info endpoint override |
 | `ONMU_OAUTH_NAVER_USER_INFO_URL` | `https://openapi.naver.com/v1/nid/me` | Naver provider access token 검증용 user info endpoint override |
 | `KAKAO_REST_API_KEY` | 없음 | Kakao authorization code token exchange에 필요한 OAuth client id |
-| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Flutter에 넣지 않음 |
+| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Key Vault secret name은 `dev-kakao-client-secret` 또는 `int-kakao-client-secret`이며 Flutter에 넣지 않음 |
 | `KAKAO_OAUTH_REDIRECT_URI` | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | Kakao token exchange에 사용하는 redirect URI |
 | `KAKAO_OAUTH_TOKEN_URL` | `https://kauth.kakao.com/oauth/token` | Kakao authorization code token endpoint override |
 | `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/kakao/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |

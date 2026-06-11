@@ -271,7 +271,8 @@ function Import-KeyVaultEnvForBackend {
     "MINIO_ROOT_PASSWORD",
     "ONMU_ACCESS_TOKEN_SECRET",
     "NAVER_OAUTH_CLIENT_ID",
-    "NAVER_OAUTH_CLIENT_SECRET"
+    "NAVER_OAUTH_CLIENT_SECRET",
+    "KAKAO_CLIENT_SECRET"
   )
   if ($Environment -eq "dev") {
     $envNames += @(
