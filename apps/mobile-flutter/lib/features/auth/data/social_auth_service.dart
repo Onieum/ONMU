@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
+import 'naver_oauth_credential_loader.dart';
 
 typedef OAuthCredentialLoader = Future<OAuthProviderCredential> Function();
 
@@ -115,7 +116,7 @@ class SocialAuthService {
   }
 
   static Future<OAuthProviderCredential> _defaultNaverCredentialLoader() async {
-    throw const NaverSignInUnavailableException();
+    return NaverOAuthCredentialLoader().call();
   }
 }
 

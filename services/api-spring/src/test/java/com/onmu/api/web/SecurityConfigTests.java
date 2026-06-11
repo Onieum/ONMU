@@ -148,6 +148,18 @@ class SecurityConfigTests {
   }
 
   @Test
+  void naverOAuthCallbackIsPublicAndRedirectsToMobileScheme() throws Exception {
+    mvc.perform(get("/api/v1/auth/oauth/naver/callback")
+        .param("code", "auth-code")
+        .param("state", "state-123"))
+      .andExpect(status().isFound())
+      .andExpect(header().string(
+        HttpHeaders.LOCATION,
+        "io.onieum.onmu://oauth/naver/callback?code=auth-code&state=state-123"
+      ));
+  }
+
+  @Test
   void contractDeleteSessionEndpointIsPublic() throws Exception {
     when(authService.logout("test-refresh-token"))
       .thenReturn(Map.of("ok", true, "authenticated", false));

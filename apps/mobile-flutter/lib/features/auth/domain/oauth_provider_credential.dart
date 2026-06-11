@@ -3,6 +3,7 @@ class OAuthProviderCredential {
     required this.provider,
     this.authorizationCode,
     this.providerAccessToken,
+    this.state,
     this.devVerifiedSubject,
     this.displayName,
     this.email,
@@ -12,6 +13,7 @@ class OAuthProviderCredential {
   final String provider;
   final String? authorizationCode;
   final String? providerAccessToken;
+  final String? state;
   final String? devVerifiedSubject;
   final String? displayName;
   final String? email;
@@ -22,6 +24,7 @@ class OAuthProviderCredential {
       if (_hasText(authorizationCode)) 'authorizationCode': authorizationCode,
       if (_hasText(providerAccessToken))
         'providerAccessToken': providerAccessToken,
+      if (_hasText(state)) 'state': state,
       if (_hasText(devVerifiedSubject))
         'devVerifiedSubject': devVerifiedSubject,
       if (_hasText(displayName)) 'displayName': displayName,

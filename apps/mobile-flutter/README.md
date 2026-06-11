@@ -85,10 +85,12 @@ Flutter는 provider access token이나 authorization code를 Spring `POST /api/v
 
 Kakao 버튼은 Spring exchange 경로를 사용하도록 분리되어 있습니다. 현재 Flutter bundle에는 Kakao native/web SDK 설정이 없으므로 기본 Kakao credential acquisition은 안전하게 실패하며, SDK 설정이 완료되면 같은 provider credential seam에 Kakao provider access token 또는 authorization code를 연결합니다.
 
-Naver 버튼도 Spring exchange 경로만 사용합니다. 현재 Flutter bundle에는 Naver native/web SDK 설정이 없으므로 기본 Naver credential acquisition은 안전하게 실패하며, SDK 설정이 완료되면 같은 provider credential seam에 Naver provider access token 또는 authorization code를 연결합니다.
+Naver 버튼은 browser authorization-code 흐름을 사용합니다. Flutter는 `NAVER_OAUTH_CLIENT_ID`와 `NAVER_OAUTH_REDIRECT_URI` dart-define으로 Naver 인증 URL을 열고, `io.onieum.onmu://oauth/naver/callback` deep link에서 받은 `authorizationCode`와 `state`를 Spring `POST /api/v1/auth/oauth/naver`로 전달합니다. Spring은 서버 환경변수의 `NAVER_OAUTH_CLIENT_SECRET`으로 provider token을 교환하고 ONMU access JWT와 refresh token을 발급합니다.
 
 Google은 이후 idToken 검증 provider를 Spring에 추가할 때까지 ONMU 인증 완료 세션으로 처리하지 않고 안전하게 실패합니다.
 
 `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리합니다. Flutter dart-define, 앱 bundle, 문서 본문에는 secret 값을 넣지 않습니다.
 
 `NAVER_OAUTH_CLIENT_SECRET`도 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리합니다. Flutter dart-define, 앱 bundle, 문서 본문에는 secret 값을 넣지 않습니다.
+
+로컬 Spring callback을 사용할 때는 `NAVER_OAUTH_REDIRECT_URI=http://localhost:8080/api/v1/auth/oauth/naver/callback`처럼 Naver Developers에 등록된 callback URL 중 하나를 dart-define으로 지정합니다.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
+import 'package:onmu_mobile/features/auth/data/naver_oauth_credential_loader.dart';
 import 'package:onmu_mobile/features/auth/data/social_auth_service.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_session.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
@@ -81,28 +82,25 @@ void main() {
     },
   );
 
-  test(
-    'Naver action fails safe until SDK credential acquisition is wired',
-    () async {
-      final tokenStore = InMemoryAuthTokenStore();
-      final apiClient = OnmuApiClient(Dio());
-      final container = ProviderContainer(
-        overrides: [
-          authTokenStoreProvider.overrideWithValue(tokenStore),
-          onmuApiClientProvider.overrideWithValue(apiClient),
-        ],
-      );
-      addTearDown(container.dispose);
+  test('Naver action fails safe when client id is missing', () async {
+    final tokenStore = InMemoryAuthTokenStore();
+    final apiClient = OnmuApiClient(Dio());
+    final container = ProviderContainer(
+      overrides: [
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        onmuApiClientProvider.overrideWithValue(apiClient),
+      ],
+    );
+    addTearDown(container.dispose);
 
-      await expectLater(
-        container.read(authActionProvider).signInWithNaver(),
-        throwsA(isA<NaverSignInUnavailableException>()),
-      );
-      expect(container.read(authUserProvider), isNull);
-      expect(apiClient.authorizationHeader, isNull);
-      expect(await tokenStore.read(), isNull);
-    },
-  );
+    await expectLater(
+      container.read(authActionProvider).signInWithNaver(),
+      throwsA(isA<NaverSignInMissingClientIdException>()),
+    );
+    expect(container.read(authUserProvider), isNull);
+    expect(apiClient.authorizationHeader, isNull);
+    expect(await tokenStore.read(), isNull);
+  });
 
   test('Google action fails safe without Spring idToken verifier', () async {
     final tokenStore = InMemoryAuthTokenStore();

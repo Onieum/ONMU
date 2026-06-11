@@ -36,6 +36,8 @@ Naver 개발자 콘솔에는 환경별 callback 후보를 아래처럼 등록한
 
 현재 Spring은 `providerAccessToken` 경로를 우선 지원한다. Spring은 `GET https://openapi.naver.com/v1/nid/me`를 호출해 Naver `response.id`를 provider subject로 사용하고, `response.name`, `response.email`, `response.profile_image`는 있으면 ONMU 사용자 프로필 입력값으로 매핑한다.
 
-`authorizationCode` 경로는 Kakao와 같은 provider-neutral exchange seam을 사용한다. token endpoint 교환에 필요한 client id, client secret, redirect URI 설정은 위 env var와 redirect URI 기준으로 연결하되, 실제 code exchange 구현은 별도 후속 작업에서 마무리한다.
+`authorizationCode` 경로는 Flutter browser login과 Spring token exchange로 연결한다. Flutter는 `NAVER_OAUTH_CLIENT_ID`와 `NAVER_OAUTH_REDIRECT_URI` dart-define으로 Naver 인증 URL을 열고, Spring callback이 `io.onieum.onmu://oauth/naver/callback` deep link로 넘긴 `code`, `state`를 `POST /api/v1/auth/oauth/naver`에 전달한다. Spring은 서버 env의 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`으로 Naver token endpoint를 호출한 뒤 provider access token을 user info API로 검증한다.
+
+Flutter에는 `NAVER_OAUTH_CLIENT_SECRET`을 넣지 않는다. Naver native SDK/Flutter plugin이 client secret을 앱 bundle에 요구하면 사용하지 않고, 위 authorization-code 흐름을 유지한다.
 
 `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 로컬/dev scaffold로 허용한다. provider token 또는 authorization code가 있으면 dev subject fallback을 사용하지 않는다.

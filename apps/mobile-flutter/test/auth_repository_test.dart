@@ -177,4 +177,57 @@ void main() {
       expect(session.user.displayName, '네이버 사용자');
     },
   );
+
+  test(
+    'exchanges Naver authorization code and state for ONMU tokens',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/naver');
+            expect(options.headers['Authorization'], isNull);
+            expect(options.data, {
+              'authorizationCode': 'naver-auth-code',
+              'state': 'state-123',
+            });
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_naver_code',
+                    'displayName': '네이버 사용자',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'naver',
+          authorizationCode: 'naver-auth-code',
+          state: 'state-123',
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.user.publicId, 'usr_naver_code');
+      expect(session.user.provider, 'NAVER');
+    },
+  );
 }
