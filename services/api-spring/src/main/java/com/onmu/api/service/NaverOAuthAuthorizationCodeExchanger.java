@@ -2,6 +2,7 @@ package com.onmu.api.service;
 
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ public class NaverOAuthAuthorizationCodeExchanger implements OAuthAuthorizationC
   private final String clientId;
   private final String clientSecret;
 
+  @Autowired
   public NaverOAuthAuthorizationCodeExchanger(Environment environment) {
     this(RestClient.builder().build(), environment);
   }
