@@ -4,14 +4,14 @@ import 'package:onmu_mobile/features/map/model/map_models.dart';
 void main() {
   test('parses tile manifest pointer without hard-coded PMTiles URL', () {
     final manifest = TileManifest.fromJson({
-      'styleUrl': 'https://tiles.onmu.cloud/styles/onmu-light.json',
       'current': {
+        'styleUrl': 'https://tiles.onmu.cloud/styles/onmu-light.json',
         'tileset': {
           'url': 'pmtiles://https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles',
         },
+        'bounds': [124.0, 33.0, 132.0, 39.0],
+        'center': [127.8, 36.5],
       },
-      'bounds': [124.0, 33.0, 132.0, 39.0],
-      'center': [127.8, 36.5],
       'generatedAt': '2026-06-10T00:00:00Z',
     });
 

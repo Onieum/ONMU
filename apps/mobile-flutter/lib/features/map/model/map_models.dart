@@ -37,11 +37,11 @@ class TileManifest {
   factory TileManifest.fromJson(Map<String, dynamic> json) {
     final current = _asMap(json['current']);
     final tileset = _asMap(current['tileset'] ?? json['tileset']);
-    final center = _asDoubleList(json['center']);
+    final center = _asDoubleList(current['center'] ?? json['center']);
     return TileManifest(
-      styleUrl: _readString(json['styleUrl']),
+      styleUrl: _readString(current['styleUrl'] ?? json['styleUrl']),
       currentPmtilesUrl: _readString(tileset['url']),
-      bounds: _asDoubleList(json['bounds']),
+      bounds: _asDoubleList(current['bounds'] ?? json['bounds']),
       center: OnmuLatLng(
         lat: center.length >= 2 ? center[1] : 36.5,
         lng: center.isNotEmpty ? center[0] : 127.8,
