@@ -42,6 +42,7 @@ public class CharacterService {
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
         .orElseGet(() -> new CharacterProfileEntity(
             user.getId(),
+            request.gender(),
             request.skinTone(),
             request.hairStyle(),
             request.hairColor(),
@@ -50,6 +51,7 @@ public class CharacterService {
             request.clothes()
         ));
 
+    entity.setGender(request.gender());
     entity.setSkinTone(request.skinTone());
     entity.setHairStyle(request.hairStyle());
     entity.setHairColor(request.hairColor());
@@ -66,6 +68,7 @@ public class CharacterService {
   public CharacterProfileResponse generateCharacter(CharacterGenerateRequest request) {
     UserEntity user = currentUser();
     String kw = request.keyword().toLowerCase();
+    String gender = "male";
     String skin = "type_warm";
     String hairStyle = "short_curly";
     String hairColor = "dark_brown";
@@ -78,6 +81,7 @@ public class CharacterService {
       eyeColor = "dark_gray";
     }
     if (kw.contains("여성") || kw.contains("여자") || kw.contains("화려")) {
+      gender = "female";
       hairStyle = "long_wavy";
       hairColor = "gold";
       eyeColor = "hazel";
@@ -88,6 +92,7 @@ public class CharacterService {
       clothes = "hoodie";
     }
 
+    final String fGender = gender;
     final String fSkin = skin;
     final String fHairStyle = hairStyle;
     final String fHairColor = hairColor;
@@ -96,8 +101,9 @@ public class CharacterService {
     final String fClothes = clothes;
 
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
-        .orElseGet(() -> new CharacterProfileEntity(user.getId(), fSkin, fHairStyle, fHairColor, fEyeStyle, fEyeColor, fClothes));
+        .orElseGet(() -> new CharacterProfileEntity(user.getId(), fGender, fSkin, fHairStyle, fHairColor, fEyeStyle, fEyeColor, fClothes));
 
+    entity.setGender(gender);
     entity.setSkinTone(skin);
     entity.setHairStyle(hairStyle);
     entity.setHairColor(hairColor);
@@ -116,6 +122,7 @@ public class CharacterService {
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
         .orElseGet(() -> new CharacterProfileEntity(
             user.getId(),
+            "female",
             "type_warm",
             "short_black",
             "black",
@@ -134,6 +141,7 @@ public class CharacterService {
   private CharacterProfileResponse mapToResponse(CharacterProfileEntity entity) {
     return new CharacterProfileResponse(
         entity.getUserId(),
+        entity.getGender(),
         entity.getSkinTone(),
         entity.getHairStyle(),
         entity.getHairColor(),

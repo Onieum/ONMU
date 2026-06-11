@@ -71,6 +71,7 @@ flutter:
     - assets/images/character/female/eyes/
     - assets/images/character/female/hair/
     - assets/images/character/female/clothes/
+    - assets/images/character/mouth.png
     - assets/images/character/male/body/
     - assets/images/character/male/eyes/
     - assets/images/character/male/hair/

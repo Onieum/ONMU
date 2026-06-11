@@ -16,22 +16,25 @@ public class CharacterProfileEntity {
   @Column(name = "user_id", nullable = false, unique = true)
   private UUID userId;
 
-  @Column(name = "skin_tone", nullable = false)
+  @Column(name = "gender")
+  private String gender;
+
+  @Column(name = "skin_tone")
   private String skinTone;
 
-  @Column(name = "hair_style", nullable = false)
+  @Column(name = "hair_style")
   private String hairStyle;
 
-  @Column(name = "hair_color", nullable = false)
+  @Column(name = "hair_color")
   private String hairColor;
 
-  @Column(name = "eye_style", nullable = false)
+  @Column(name = "eye_style")
   private String eyeStyle;
 
-  @Column(name = "eye_color", nullable = false)
+  @Column(name = "eye_color")
   private String eyeColor;
 
-  @Column(nullable = false)
+  @Column(name = "clothes")
   private String clothes;
 
   @Column(nullable = false)
@@ -46,9 +49,10 @@ public class CharacterProfileEntity {
   protected CharacterProfileEntity() {
   }
 
-  public CharacterProfileEntity(UUID userId, String skinTone, String hairStyle, String hairColor, String eyeStyle, String eyeColor, String clothes) {
+  public CharacterProfileEntity(UUID userId, String gender, String skinTone, String hairStyle, String hairColor, String eyeStyle, String eyeColor, String clothes) {
     this.id = UUID.randomUUID();
     this.userId = userId;
+    this.gender = gender;
     this.skinTone = skinTone;
     this.hairStyle = hairStyle;
     this.hairColor = hairColor;
@@ -65,6 +69,14 @@ public class CharacterProfileEntity {
 
   public UUID getUserId() {
     return userId;
+  }
+
+  public String getGender() {
+    return gender;
+  }
+
+  public void setGender(String gender) {
+    this.gender = gender;
   }
 
   public String getSkinTone() {

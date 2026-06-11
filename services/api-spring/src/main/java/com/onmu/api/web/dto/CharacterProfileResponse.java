@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record CharacterProfileResponse(
   UUID userId,
+  String gender,
   String skinTone,
   String hairStyle,
   String hairColor,
