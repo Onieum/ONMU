@@ -21,6 +21,34 @@ Flutter 앱은 PMTiles 파일 URL을 직접 하드코딩하지 않고 manifest p
 
 PMTiles 파일은 저장소에 커밋하지 않는다. `.gitignore`는 `*.pmtiles`를 무시한다.
 
+## Public tile gateway
+
+`tiles.onmu.cloud`는 Cloudflare Tunnel에서 바로 MinIO bucket path로 rewrite할 수 없으므로 Windows 서버에 작은 local gateway를 둔다.
+
+```text
+tiles.onmu.cloud
+  -> Cloudflare Tunnel onmu-dev-api
+  -> http://localhost:19100
+  -> http://localhost:9000/onmu-tiles/{objectKey}
+```
+
+gateway는 다음 공개 경로만 MinIO object로 전달한다.
+
+| Public path | MinIO object |
+| --- | --- |
+| `/manifest.json` | `tiles/manifest.json` |
+| `/styles/*.json` | `styles/*.json` |
+| `/pmtiles/*.pmtiles` | `pmtiles/*.pmtiles` |
+
+Windows 서버에서는 다음 스크립트로 gateway를 시작한다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts\windows\start-map-tiles-gateway.ps1
+```
+
+Cloudflare ingress는 `infra/cloudflare/cloudflared-local.yml`에서 `tiles.onmu.cloud -> http://localhost:19100`을 포함한다. DNS route는 `onmu-dev-api` tunnel ID에 연결한다. local smoke만 필요하면 Flutter에 `ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`를 주입해 gateway 없이 검증할 수 있다.
+
 ## Seed script
 
 Windows PowerShell에서 실행한다.

@@ -41,3 +41,24 @@ Naver 개발자 콘솔에는 환경별 callback 후보를 아래처럼 등록한
 Flutter에는 `NAVER_OAUTH_CLIENT_SECRET`을 넣지 않는다. Naver native SDK/Flutter plugin이 client secret을 앱 bundle에 요구하면 사용하지 않고, 위 authorization-code 흐름을 유지한다.
 
 `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 로컬/dev scaffold로 허용한다. provider token 또는 authorization code가 있으면 dev subject fallback을 사용하지 않는다.
+
+## 장소 검색 API와 구분
+
+SCRUM-9 장소 검색 provider는 로그인용 Naver OAuth 설정과 분리한다. Flutter 앱은 Naver/Kakao 장소 검색 API를 직접 호출하지 않고 Spring Boot Main API의 `POST /api/v1/place-search`만 호출한다.
+
+| 환경변수 | 용도 | 클라이언트 노출 |
+| --- | --- | --- |
+| `NAVER_SEARCH_CLIENT_ID` | Naver Local Search client id | 금지 |
+| `NAVER_SEARCH_CLIENT_SECRET` | Naver Local Search client secret | 금지 |
+| `KAKAO_REST_API_KEY` | Kakao Local Keyword Search REST API key | 금지 |
+
+| 환경 | 환경변수 | Key Vault secret name |
+| --- | --- | --- |
+| dev | `NAVER_SEARCH_CLIENT_ID` | `dev-naver-search-client-id` |
+| dev | `NAVER_SEARCH_CLIENT_SECRET` | `dev-naver-search-client-secret` |
+| dev | `KAKAO_REST_API_KEY` | `dev-kakao-rest-api-key` |
+| integration | `NAVER_SEARCH_CLIENT_ID` | `int-naver-search-client-id` |
+| integration | `NAVER_SEARCH_CLIENT_SECRET` | `int-naver-search-client-secret` |
+| integration | `KAKAO_REST_API_KEY` | `int-kakao-rest-api-key` |
+
+Naver Local Search 응답의 `mapx`, `mapy`는 Flutter/MapLibre가 바로 쓰는 WGS84 latitude/longitude로 신뢰하지 않는다. 이번 PR에서는 Naver 결과의 좌표를 nullable로 두고, Kakao Keyword Search의 `x`, `y`는 각각 longitude/latitude로 매핑한다. Naver 좌표 변환이나 NCP Maps credential 연결은 별도 PR에서 다룬다.

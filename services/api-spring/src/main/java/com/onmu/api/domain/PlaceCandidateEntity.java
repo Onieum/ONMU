@@ -29,6 +29,10 @@ public class PlaceCandidateEntity {
   @JoinColumn(name = "plan_id", nullable = false)
   private PlanEntity plan;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "external_place_id")
+  private ExternalPlaceEntity externalPlace;
+
   @Column(nullable = false)
   private String name;
 
@@ -57,10 +61,24 @@ public class PlaceCandidateEntity {
     String address,
     String payload
   ) {
+    this(publicId, group, plan, null, name, category, address, payload);
+  }
+
+  public PlaceCandidateEntity(
+    String publicId,
+    GroupEntity group,
+    PlanEntity plan,
+    ExternalPlaceEntity externalPlace,
+    String name,
+    String category,
+    String address,
+    String payload
+  ) {
     this.id = UUID.randomUUID();
     this.publicId = publicId;
     this.group = group;
     this.plan = plan;
+    this.externalPlace = externalPlace;
     this.name = name;
     this.category = category;
     this.address = address;
@@ -81,6 +99,10 @@ public class PlaceCandidateEntity {
 
   public PlanEntity getPlan() {
     return plan;
+  }
+
+  public ExternalPlaceEntity getExternalPlace() {
+    return externalPlace;
   }
 
   public String getName() {

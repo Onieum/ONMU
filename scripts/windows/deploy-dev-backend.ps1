@@ -272,7 +272,11 @@ function Import-KeyVaultEnvForBackend {
     "ONMU_ACCESS_TOKEN_SECRET",
     "NAVER_OAUTH_CLIENT_ID",
     "NAVER_OAUTH_CLIENT_SECRET",
-    "KAKAO_CLIENT_SECRET"
+    "KAKAO_CLIENT_SECRET",
+    "KAKAO_REST_API_KEY",
+    "NAVER_SEARCH_CLIENT_ID",
+    "NAVER_SEARCH_CLIENT_SECRET",
+    "OPENROUTESERVICE_API_KEY"
   )
   if ($Environment -eq "dev") {
     $envNames += @(
@@ -805,7 +809,7 @@ function Invoke-SmokeTests {
     -Method "POST" `
     -Url "$base/api/v1/groups/1/plans/101/settlements/preview" `
     -ExpectedStatus @(200) `
-    -Body '{ "items": [{ "title": "Coffee", "amount": 12000, "payerName": "Jimin", "targetNames": ["Jimin", "Minsu"] }] }' `
+    -Body '{ "items": [{ "id": "cd-smoke-settlement", "title": "Coffee", "amountWon": 12000, "payerUserId": "user-jimin", "splitType": "equal", "targetUserIds": ["user-jimin", "user-minsu"] }] }' `
     -UseApiAuth:$useApiAuth
 }
 

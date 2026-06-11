@@ -18,6 +18,7 @@ import com.onmu.api.service.AuthService;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
+import com.onmu.api.service.RouteRecommendationService;
 import com.onmu.api.service.SettlementApiService;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,9 @@ class SecurityConfigTests {
   private PlaceSearchService placeSearchService;
 
   @MockitoBean
+  private RouteRecommendationService routeRecommendationService;
+
+  @MockitoBean
   private AuthService authService;
 
   @MockitoBean
@@ -91,6 +95,25 @@ class SecurityConfigTests {
         .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].id").value("1"));
+  }
+
+  @Test
+  void routeRecommendDelegatesWithValidBearerToken() throws Exception {
+    authenticatedUser();
+    when(routeRecommendationService.recommend("1", "101", "walk"))
+      .thenReturn(Map.of(
+        "provider", "dev-mock",
+        "travelMode", "walk",
+        "geometry", List.of(List.of(126.978, 37.5665))
+      ));
+
+    mvc.perform(post("/api/v1/routes/recommend")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"groupId\":\"1\",\"planId\":\"101\",\"travelMode\":\"walk\"}"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.provider").value("dev-mock"))
+      .andExpect(jsonPath("$.travelMode").value("walk"));
   }
 
   @Test

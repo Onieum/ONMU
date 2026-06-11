@@ -7,6 +7,8 @@
 - 후보 리스트는 약속 단위 공유 리스트이므로 날짜를 넣지 않는다.
 - 후보 리스트에서는 하트, 투표 만들기, 일정 등록이 가능하다.
 - 후보 비교, 점수 항목, 운영 리스크 화면/문구는 제외한다.
+- Flutter 앱은 Naver/Kakao를 직접 호출하지 않고 Spring Boot Main API의 장소 검색 계약만 호출한다.
+- 지도 화면과 동선 화면은 MapLibre를 사용하고, Flutter 앱은 PMTiles object URL이 아니라 tile manifest pointer(`ONMU_TILE_MANIFEST_URL`)를 읽는다.
 
 ## 플로우
 

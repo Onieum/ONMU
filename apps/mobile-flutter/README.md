@@ -22,6 +22,15 @@ flutter run
 
 `flutter run` 기본값은 Windows dev Spring API(`https://dev-api.onmu.cloud`)를 바라봅니다. 보호 API 화면까지 검증하려면 아래 Spring dev API mode처럼 짧은 수명의 JWT가 들어간 dart-define 파일을 함께 전달합니다. token 없이 실행하면 앱은 dev API base URL을 사용하지만 보호 API 요청은 401이 날 수 있습니다.
 
+## MapLibre 지도 manifest
+
+지도 화면은 PMTiles object URL을 앱에 직접 넣지 않고 tile manifest pointer를 읽습니다.
+
+- 기본 manifest: `https://tiles.onmu.cloud/manifest.json`
+- 로컬 MinIO smoke: `--dart-define=ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`
+
+Flutter web은 `web/index.html`에서 MapLibre GL JS/CSS를 로드합니다. Spring 장소 검색과 동선 추천 API credential은 서버 환경변수로만 주입하고 Flutter bundle에는 넣지 않습니다.
+
 ## Spring dev API mode
 
 Windows dev Spring API 보호 화면을 검증할 때는 정적 `dev-api-access-token`을 넣지 말고, Key Vault의 `dev-access-token-secret`으로 짧은 수명의 access JWT를 발급해 사용합니다. token 값은 콘솔에 출력하지 않고 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다.
