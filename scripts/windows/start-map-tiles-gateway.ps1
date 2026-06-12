@@ -3,7 +3,16 @@ param(
   [int]$Port = $(if ($env:ONMU_TILE_GATEWAY_PORT) { [int]$env:ONMU_TILE_GATEWAY_PORT } else { 19100 }),
   [string]$MinioEndpoint = $(if ($env:OBJECT_STORAGE_ENDPOINT) { $env:OBJECT_STORAGE_ENDPOINT } elseif ($env:MINIO_ENDPOINT) { $env:MINIO_ENDPOINT } else { "http://localhost:9000" }),
   [string]$Bucket = $(if ($env:ONMU_TILE_BUCKET) { $env:ONMU_TILE_BUCKET } else { "onmu-tiles" }),
-  [string]$AllowedOrigins = $(if ($env:ONMU_TILE_ALLOWED_ORIGINS) { $env:ONMU_TILE_ALLOWED_ORIGINS } else { "http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud,https://int-api.onmu.cloud" }),
+  [string]$AllowedOrigins = $(if ($env:ONMU_TILE_ALLOWED_ORIGINS) { $env:ONMU_TILE_ALLOWED_ORIGINS } else { @(
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:5174",
+      "http://localhost:5175",
+      "http://127.0.0.1:5175",
+      "https://dev-api.onmu.cloud",
+      "https://int-api.onmu.cloud"
+    ) -join "," }),
   [string]$LogPath,
   [switch]$Foreground
 )

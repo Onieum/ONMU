@@ -138,10 +138,27 @@ style 생성 구조만 확인하려면 업로드 없이 dry-run을 먼저 실행
 
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
+- `http://localhost:5174`
+- `http://127.0.0.1:5174`
+- `http://localhost:5175`
+- `http://127.0.0.1:5175`
 - `https://dev-api.onmu.cloud`
 - `https://int-api.onmu.cloud`
 
-필요하면 `-CorsAllowedOrigins`로 명시적으로 확장한다. wildcard origin을 운영 기준으로 쓰지 않는다.
+tile gateway는 위 origin에 대해 `Access-Control-Allow-Origin`을 반환한다. `Range` 요청 검증을 위해 `Access-Control-Expose-Headers`에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다.
+
+필요하면 tile gateway 시작 시 `ONMU_TILE_ALLOWED_ORIGINS` 또는 `-AllowedOrigins`로 명시적으로 확장한다. MinIO seed CORS는 `-CorsAllowedOrigins`로 확장할 수 있다. wildcard origin을 운영 기준으로 쓰지 않는다.
+
+public gateway 반영 뒤에는 브라우저 개발 origin별로 manifest/style/Range CORS를 확인한다.
+
+```powershell
+$origin = "http://127.0.0.1:5175"
+Invoke-WebRequest "https://tiles.onmu.cloud/manifest.json" -Headers @{ Origin = $origin }
+Invoke-WebRequest "https://tiles.onmu.cloud/styles/onmu-light.json" -Headers @{ Origin = $origin }
+curl.exe -i "https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles" `
+  -H "Origin: $origin" `
+  -H "Range: bytes=0-15"
+```
 
 ## 환경변수
 

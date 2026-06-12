@@ -8,9 +8,18 @@ const port = Number(process.env.ONMU_TILE_GATEWAY_PORT || '19100');
 const minioEndpoint = process.env.OBJECT_STORAGE_ENDPOINT || process.env.MINIO_ENDPOINT || 'http://localhost:9000';
 const bucket = process.env.ONMU_TILE_BUCKET || 'onmu-tiles';
 const manifestObjectKey = process.env.ONMU_TILE_MANIFEST_OBJECT_KEY || 'tiles/manifest.json';
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5175',
+  'https://dev-api.onmu.cloud',
+  'https://int-api.onmu.cloud',
+];
 const allowedOrigins = new Set(
-  (process.env.ONMU_TILE_ALLOWED_ORIGINS ||
-    'http://localhost:5173,http://127.0.0.1:5173,https://dev-api.onmu.cloud,https://int-api.onmu.cloud')
+  (process.env.ONMU_TILE_ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
