@@ -18,7 +18,7 @@ Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, �
 | AI/Data Worker | `services/workers/ai-data-worker`, FastAPI, Pydantic, Alembic | 장소 후보 설명, 취향/추천 계산, OOTD/기록 설명 생성, AI 호출, 비동기 분석, worker 전용 schema migration |
 | Public API 경계 | Spring Boot Main API | Flutter 앱이 호출하는 `/api/v1` 계약의 단일 진입점 |
 | Worker 경계 | Queue/Outbox | 모바일 앱에서 직접 호출하지 않고 Spring Boot가 작업 요청과 결과 반영을 관리 |
-| 첫 OAuth Provider | Naver | `dev-naver-client-id`, `dev-naver-client-secret`이 OAuth app credential이라는 전제로 Sprint 0 인증 smoke를 시작 |
+| 첫 OAuth Provider | Naver | OAuth 전용 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`을 Spring 서버 env/Key Vault에서 주입해 인증 smoke를 시작 |
 | Session/Token | access token + refresh token + Flutter secure storage | Spring Boot가 provider token을 검증하고 ONMU 자체 token을 발급 |
 
 ## 검토했던 선택지
@@ -96,7 +96,7 @@ Naver full social OAuth
 | --- | --- | --- | --- |
 | Google 우선 | Flutter SDK, 서버 token 검증, 테스트 계정 준비가 비교적 쉽다. | 현재 repo의 `GOOGLE_MAPS_API_KEY`는 OAuth credential이 아니며, 국내 서비스 감성에서는 Kakao/Naver보다 덜 자연스러울 수 있다. | 비채택 |
 | Kakao 우선 | 국내 사용자가 가장 자연스럽게 받아들인다. | 앱 설정, redirect, 테스트 계정/검수 조건을 더 꼼꼼히 봐야 한다. | 발표 데모가 국내 UX 중심이면 가능 |
-| Naver 우선 | 국내 계정 접근성이 좋고 장소/지도 흐름과 브랜드 인지가 맞는다. `dev-naver-client-id`, `dev-naver-client-secret`이 이미 secret 관리 대상으로 잡혀 있다. | 해당 값이 장소 API용이 아니라 OAuth app credential인지 확인해야 한다. | 확정 |
+| Naver 우선 | 국내 계정 접근성이 좋고 장소/지도 흐름과 브랜드 인지가 맞는다. `dev-naver-oauth-client-id`, `dev-naver-oauth-client-secret`을 OAuth 전용 secret으로 사용한다. | `dev-naver-client-id`, `dev-naver-client-secret`은 이름이 모호하므로 OAuth 로그인에는 쓰지 않는다. | 확정 |
 | 세 provider 동시 시작 | 최종 UX를 빨리 보여줄 수 있다. | Sprint 0에서 인증 이슈가 동시에 터져 core API 검증이 늦어진다. | 비추천 |
 
 결정은 Naver 우선이다. 단, auth identity 모델은 provider-neutral하게 만들어 Kakao/Google을 나중에 추가할 수 있게 한다.
@@ -105,11 +105,35 @@ Naver full social OAuth
 
 | 선택지 | 장점 | 주의점 | 판단 |
 | --- | --- | --- | --- |
-| access token + refresh token + Flutter secure storage | 모바일 앱에서 표준적으로 다루기 쉽고 API 호출 경계가 명확하다. | refresh token rotation, logout, 탈취 대응 규칙을 문서화해야 한다. | 확정 |
+| 짧은 수명의 JWT access token + 서버 저장 refresh token + Flutter secure storage | 모바일 앱에서 표준적으로 다루기 쉽고 API 호출 경계가 명확하다. access token은 API 요청 검증에 쓰고, refresh token은 서버에서 저장/회전한다. | refresh token rotation, logout, 탈취 대응 규칙을 문서화해야 한다. | 확정 |
 | server session cookie | 웹에서는 자연스럽고 CSRF/session 관리가 익숙하다. | Flutter 모바일 앱에서는 cookie persistence와 cross-device 처리 설명이 더 번거롭다. | 웹 surface 확대 시 검토 |
 | OAuth provider token 직접 사용 | 초기 구현이 빨라 보인다. | 내부 권한, token 만료, provider별 차이를 앱이 떠안게 된다. | 비추천 |
 
-결정은 access/refresh token 방식이다. Spring Boot가 provider token을 검증한 뒤 ONMU 자체 access/refresh token을 발급하고, Flutter는 secure storage에 저장한다.
+결정은 짧은 수명의 JWT access token과 서버 저장 refresh token 방식이다. 현재 MVP/dev 단계에서는 이미 동작 중인 HS256 JWT access token, `sub=<users.public_id>`, Spring의 DB 사용자 조회 흐름을 유지한다. Databricks, CDC, analytics 기준을 이유로 MVP/dev 인증 구현이나 DB schema를 선제 변경하지 않는다.
+
+Azure/Terraform 기반 prod 전환 시에는 아래 흐름을 공식 기준으로 삼는다.
+
+```text
+Flutter OAuth login
+  -> Spring provider token/code 검증
+  -> Spring이 access JWT + refresh token 발급
+  -> Flutter secure storage 저장
+```
+
+운영 클라이언트에는 JWT signing secret을 넣지 않는다. Prod token 발급은 Spring Boot Main API만 담당하고, signing secret과 TTL은 Terraform/Key Vault/env 기준으로 관리한다.
+
+SCRUM-46 Kakao OAuth 연결도 이 결정을 바꾸지 않는다. Flutter는 Kakao provider access token 또는 authorization code를 Spring에 전달하고, Spring이 provider 검증 뒤 ONMU access JWT와 refresh token을 발급한다. `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter에 넣지 않는다. OAuth 전용 Key Vault 이름은 dev `dev-kakao-client-secret`, integration `int-kakao-client-secret`이다. Kakao redirect URI 후보는 다음과 같이 둔다.
+
+- `http://localhost:8080/api/v1/auth/oauth/kakao/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- prod later: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+
+SCRUM-47 Naver OAuth 연결도 같은 경계를 따른다. Flutter는 Naver provider access token 또는 authorization code를 Spring에 전달하고, Spring이 provider 검증 뒤 ONMU access JWT와 refresh token을 발급한다. `NAVER_OAUTH_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter에 넣지 않는다. OAuth 전용 Key Vault 이름은 dev `dev-naver-oauth-client-id`, `dev-naver-oauth-client-secret`, integration `int-naver-oauth-client-id`, `int-naver-oauth-client-secret`이다. Naver redirect URI 후보는 다음과 같이 둔다.
+
+- `http://localhost:8080/api/v1/auth/oauth/naver/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
+- `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
+- future prod: `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`
 
 ### Spring Boot와 FastAPI Worker 연결 방식
 

@@ -9,7 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_date_time_picker.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../view_model/place_candidates_view_model.dart';
 
@@ -30,16 +30,13 @@ class PlaceVoteCreatePage extends ConsumerStatefulWidget {
 
 class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
   final _titleController = TextEditingController(text: '제주도 여행 장소 투표');
-  final _deadlineDateController = TextEditingController(text: '2026.06.08');
-  final _deadlineTimeController = TextEditingController(text: '18:00');
+  late DateTime _deadlineAt = _initialDeadlineAt();
   final Set<int> _selectedCandidateIds = {};
-  var _voteMode = '단일 선택';
+  static const _voteMode = '단일 선택';
 
   @override
   void dispose() {
     _titleController.dispose();
-    _deadlineDateController.dispose();
-    _deadlineTimeController.dispose();
     super.dispose();
   }
 
@@ -54,12 +51,6 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
 
     return state.when(
       data: (state) {
-        if (_selectedCandidateIds.isEmpty) {
-          _selectedCandidateIds.addAll(
-            state.candidates.map((candidate) => candidate.id),
-          );
-        }
-
         return _buildContent(context, state.candidates);
       },
       loading: () => const OnmuScaffold(
@@ -103,8 +94,8 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
                     .createPlaceVote(
                       title: _titleController.text,
                       modeLabel: _voteMode,
-                      deadlineDate: _deadlineDateController.text,
-                      deadlineTime: _deadlineTimeController.text,
+                      deadlineDate: _formatDate(_deadlineAt),
+                      deadlineTime: _formatTime(_deadlineAt),
                       selectedCandidateIds: _selectedCandidateIds,
                     );
                 if (!context.mounted) {
@@ -130,88 +121,259 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('투표 방식', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final label in const ['단일 선택', '중복 선택'])
-                    GestureDetector(
-                      onTap: () => setState(() => _voteMode = label),
-                      child: OnmuChip(
-                        label: label,
-                        icon: label == '단일 선택'
-                            ? Icons.radio_button_checked
-                            : Icons.checklist_rounded,
-                        selected: _voteMode == label,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.lineSoft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               Text('마감일', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _deadlineDateController,
-                      decoration: const InputDecoration(
-                        labelText: '마감 날짜',
-                        prefixIcon: Icon(Icons.calendar_today_outlined),
-                      ),
-                    ),
+                  const Icon(
+                    Icons.calendar_month_outlined,
+                    color: AppColors.textSub,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: TextFormField(
-                      controller: _deadlineTimeController,
-                      decoration: const InputDecoration(
-                        labelText: '마감 시간',
-                        prefixIcon: Icon(Icons.access_time),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '마감 날짜와 시간',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSub),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          _formatDeadlineLabel(_deadlineAt),
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: () => _pickDeadline(context),
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: const Text('선택'),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '직접 입력한 날짜와 시간으로 투표가 마감돼요.',
+                '캘린더에서 날짜와 시간을 함께 선택해 투표 마감일을 정해요.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        Text('투표 후보', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '투표 후보',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: candidates.isEmpty
+                  ? null
+                  : () => _openCandidatePicker(context, candidates),
+              icon: const Icon(Icons.playlist_add_rounded),
+              label: const Text('후보 추가'),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
-        for (final candidate in candidates) ...[
-          _VoteCandidateTile(
-            candidate: candidate,
-            selected: _selectedCandidateIds.contains(candidate.id),
-            onChanged: (selected) {
-              setState(() {
-                if (selected) {
-                  _selectedCandidateIds.add(candidate.id);
-                } else {
-                  _selectedCandidateIds.remove(candidate.id);
-                }
-              });
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        if (_selectedCandidateIds.isEmpty)
+          const _EmptyVoteCandidateCard()
+        else
+          for (final candidate in candidates.where(
+            (candidate) => _selectedCandidateIds.contains(candidate.id),
+          )) ...[
+            _VoteCandidateTile(
+              candidate: candidate,
+              selected: true,
+              onChanged: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedCandidateIds.add(candidate.id);
+                  } else {
+                    _selectedCandidateIds.remove(candidate.id);
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
       ],
+    );
+  }
+
+  Future<void> _pickDeadline(BuildContext context) async {
+    final picked = await OnmuDateTimePicker.show(
+      context: context,
+      initialDateTime: _deadlineAt,
+      title: '마감 날짜와 시간',
+    );
+    if (picked == null) {
+      return;
+    }
+    setState(() => _deadlineAt = picked);
+  }
+
+  String _formatDeadlineLabel(DateTime dateTime) {
+    return '${_formatDate(dateTime)} ${_formatTime(dateTime)}';
+  }
+
+  String _formatDate(DateTime dateTime) {
+    return [
+      dateTime.year.toString().padLeft(4, '0'),
+      dateTime.month.toString().padLeft(2, '0'),
+      dateTime.day.toString().padLeft(2, '0'),
+    ].join('.');
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return [
+      dateTime.hour.toString().padLeft(2, '0'),
+      dateTime.minute.toString().padLeft(2, '0'),
+    ].join(':');
+  }
+
+  static DateTime _initialDeadlineAt() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day + 1, 18);
+  }
+
+  Future<void> _openCandidatePicker(
+    BuildContext context,
+    List<PlaceCandidate> candidates,
+  ) async {
+    final selectedIds = await showModalBottomSheet<Set<int>>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (context) => _VoteCandidatePickerSheet(
+        candidates: candidates,
+        initialSelectedIds: _selectedCandidateIds,
+      ),
+    );
+    if (selectedIds == null) {
+      return;
+    }
+    setState(() {
+      _selectedCandidateIds
+        ..clear()
+        ..addAll(selectedIds);
+    });
+  }
+}
+
+class _EmptyVoteCandidateCard extends StatelessWidget {
+  const _EmptyVoteCandidateCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Row(
+        children: [
+          const Icon(Icons.how_to_vote_outlined, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              '투표에 올릴 후보를 추가해 주세요.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoteCandidatePickerSheet extends StatefulWidget {
+  const _VoteCandidatePickerSheet({
+    required this.candidates,
+    required this.initialSelectedIds,
+  });
+
+  final List<PlaceCandidate> candidates;
+  final Set<int> initialSelectedIds;
+
+  @override
+  State<_VoteCandidatePickerSheet> createState() =>
+      _VoteCandidatePickerSheetState();
+}
+
+class _VoteCandidatePickerSheetState extends State<_VoteCandidatePickerSheet> {
+  late final Set<int> _selectedIds = {...widget.initialSelectedIds};
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.md,
+        right: AppSpacing.md,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('투표 후보 추가', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '장소 후보 리스트에서 투표에 올릴 후보를 선택해 주세요.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: widget.candidates.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: AppSpacing.sm),
+                itemBuilder: (context, index) {
+                  final candidate = widget.candidates[index];
+                  final selected = _selectedIds.contains(candidate.id);
+                  return _VoteCandidateTile(
+                    candidate: candidate,
+                    selected: selected,
+                    onChanged: (value) {
+                      setState(() {
+                        if (value) {
+                          _selectedIds.add(candidate.id);
+                        } else {
+                          _selectedIds.remove(candidate.id);
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            OnmuPrimaryButton(
+              label: '추가 완료',
+              icon: Icons.check_rounded,
+              color: AppColors.primaryPink,
+              foregroundColor: AppColors.textInverse,
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(Set<int>.unmodifiable(_selectedIds)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -11,6 +11,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityRepository;
+import com.onmu.api.domain.ExternalPlaceEntity;
+import com.onmu.api.domain.ExternalPlaceRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
@@ -66,6 +68,8 @@ class OnmuApiServiceTests {
   @Mock
   private VoteRepository voteRepository;
   @Mock
+  private ExternalPlaceRepository externalPlaceRepository;
+  @Mock
   private PlaceCandidateRepository placeCandidateRepository;
   @Mock
   private PlaceCandidateHeartRepository placeCandidateHeartRepository;
@@ -97,6 +101,7 @@ class OnmuApiServiceTests {
       groupRepository,
       planRepository,
       voteRepository,
+      externalPlaceRepository,
       placeCandidateRepository,
       placeCandidateHeartRepository,
       schedulePlaceRepository,
@@ -587,6 +592,60 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "202".equals(payload.get("candidateId")))
     );
+  }
+
+  @Test
+  void creatingPlaceCandidateStoresExternalPlaceSnapshot() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateRepository.findAll()).thenReturn(List.of());
+    when(externalPlaceRepository.findByProviderAndProviderPlaceId("KAKAO", "kakao-123"))
+      .thenReturn(Optional.empty());
+    when(externalPlaceRepository.save(any(ExternalPlaceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateRepository.save(any(PlaceCandidateEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(placeCandidateHeartRepository.countByCandidate(any(PlaceCandidateEntity.class))).thenReturn(0L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(any(PlaceCandidateEntity.class), eq(user))).thenReturn(false);
+
+    var created = service.createPlaceCandidate(
+      "1",
+      "101",
+      new CreatePlaceCandidateRequest(
+        "검색 후보",
+        "카페",
+        "서울 지번주소",
+        "검색 결과에서 추가한 후보",
+        List.of("카페"),
+        "kakao",
+        "kakao-123",
+        "서울 도로명주소",
+        37.501,
+        127.001,
+        null,
+        null,
+        "https://place.map.kakao.com/123",
+        "2026-06-10T00:00:00Z"
+      )
+    );
+
+    assertThat(created)
+      .containsEntry("id", "201")
+      .containsEntry("provider", "KAKAO")
+      .containsEntry("providerPlaceId", "kakao-123")
+      .containsEntry("source", "kakao")
+      .containsEntry("roadAddress", "서울 도로명주소")
+      .containsEntry("lat", 37.501)
+      .containsEntry("lng", 127.001)
+      .containsKey("externalPlaceId");
+    verify(externalPlaceRepository).save(argThat((ExternalPlaceEntity place) ->
+      "KAKAO".equals(place.getProvider())
+        && "kakao-123".equals(place.getProviderPlaceId())
+        && "검색 후보".equals(place.getName())
+        && "서울 도로명주소".equals(place.getRoadAddress())
+        && Double.valueOf(37.501).equals(place.getLatitude())
+        && Double.valueOf(127.001).equals(place.getLongitude())
+    ));
   }
 
   @Test

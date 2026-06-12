@@ -36,6 +36,10 @@ dependencies:
   dio: ^5.9.2
   google_sign_in: ^7.2.0
   google_sign_in_web: ^1.1.3
+  flutter_secure_storage: ^10.3.1
+  url_launcher: ^6.3.2
+  app_links: ^7.1.2
+  maplibre_gl: ^0.26.1
 
   # 라우팅: StatefulShellRoute 기반 하단 탭 구조
 
@@ -70,6 +74,7 @@ flutter:
     - assets/images/character/female/eyes/
     - assets/images/character/female/hair/
     - assets/images/character/female/clothes/
+    - assets/images/character/mouth.png
     - assets/images/character/male/body/
     - assets/images/character/male/eyes/
     - assets/images/character/male/hair/

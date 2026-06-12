@@ -1,14 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../models/group_models.dart';
-import '../models/place_models.dart';
-import '../models/plan_models.dart';
-import '../models/settlement_models.dart';
-import '../models/vote_models.dart';
-
-final inMemoryOnmuStoreProvider = Provider<InMemoryOnmuStore>(
-  (ref) => InMemoryOnmuStore.seeded(),
-);
+import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/settlement_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 class InMemoryOnmuStore {
   InMemoryOnmuStore.seeded() {
@@ -151,6 +145,7 @@ class InMemoryOnmuStore {
       members: List.unmodifiable(input.members),
       timeCandidates: _seedTimeCandidates(),
       visitPlan: _seedVisitPlan(),
+      startsAt: _parsePlanDateTime(input.dateTime),
     );
 
     _plansById[plan.id] = plan;
@@ -167,6 +162,7 @@ class InMemoryOnmuStore {
             id: plan.id,
             title: plan.title,
             dateLabel: plan.dateTime,
+            startsAt: _parsePlanDateTime(plan.dateTime),
             placeName: plan.location,
             statusLabel: 'D-day',
             statusType: '예정',
@@ -210,6 +206,7 @@ class InMemoryOnmuStore {
       members: List.unmodifiable(input.members),
       timeCandidates: previous.timeCandidates,
       visitPlan: previous.visitPlan,
+      startsAt: _parsePlanDateTime(input.dateTime),
     );
     _plansById[parsedPlanId] = updated;
     _replaceGroupPlanSummary(input.groupId, updated);
@@ -339,6 +336,50 @@ class InMemoryOnmuStore {
 
   int _parseId(Object value) => int.tryParse(value.toString()) ?? 0;
 
+  DateTime? _parsePlanDateTime(String value) {
+    final now = DateTime.now();
+    final match = RegExp(r'(\d{1,2})\.(\d{1,2})').firstMatch(value);
+    if (match == null) {
+      return null;
+    }
+    final month = int.tryParse(match.group(1) ?? '');
+    final day = int.tryParse(match.group(2) ?? '');
+    if (month == null || day == null) {
+      return null;
+    }
+    final timeMatch = RegExp(r'(오전|오후)\s*(\d{1,2}):(\d{2})').firstMatch(value);
+    if (timeMatch == null) {
+      return DateTime(now.year, month, day);
+    }
+
+    final meridiem = timeMatch.group(1);
+    final hourValue = int.tryParse(timeMatch.group(2) ?? '');
+    final minute = int.tryParse(timeMatch.group(3) ?? '');
+    if (hourValue == null || minute == null) {
+      return DateTime(now.year, month, day);
+    }
+
+    final hour = switch (meridiem) {
+      '오후' when hourValue < 12 => hourValue + 12,
+      '오전' when hourValue == 12 => 0,
+      _ => hourValue,
+    };
+
+    return DateTime(now.year, month, day, hour, minute);
+  }
+
+  DateTime _relativeSeedPlanDateTime({
+    required int daysFromToday,
+    required int hour,
+    int minute = 0,
+  }) {
+    final now = DateTime.now().toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.add(
+      Duration(days: daysFromToday, hours: hour, minutes: minute),
+    );
+  }
+
   void _replaceGroupPlanSummary(Object groupId, Plan plan) {
     final summaries = _plansByGroupId[_parseId(groupId)];
     if (summaries == null) {
@@ -353,6 +394,7 @@ class InMemoryOnmuStore {
       id: previous.id,
       title: plan.title,
       dateLabel: plan.dateTime,
+      startsAt: _parsePlanDateTime(plan.dateTime),
       placeName: plan.location,
       statusLabel: previous.statusLabel,
       statusType: previous.statusType,
@@ -543,6 +585,7 @@ class InMemoryOnmuStore {
         id: 101,
         title: '제주도 여행',
         dateLabel: '6.7 (금) - 6.9 (일)',
+        startsAt: _relativeSeedPlanDateTime(daysFromToday: -5, hour: 10),
         placeName: '제주도 일대',
         statusLabel: 'D-12',
         statusType: '진행중',
@@ -555,6 +598,7 @@ class InMemoryOnmuStore {
         id: 102,
         title: '한남 카페 투어',
         dateLabel: '6.5 (수) 오후 2:00',
+        startsAt: _relativeSeedPlanDateTime(daysFromToday: -3, hour: 14),
         placeName: '한남동 일대',
         statusLabel: 'D-2',
         statusType: '예정',
@@ -567,6 +611,7 @@ class InMemoryOnmuStore {
         id: 104,
         title: '홍대 전시회 구경',
         dateLabel: '6.12 (수) 오후 2:00',
+        startsAt: _relativeSeedPlanDateTime(daysFromToday: 1, hour: 14),
         placeName: '홍대 일대',
         statusLabel: 'D-4',
         statusType: '예정',
@@ -579,6 +624,7 @@ class InMemoryOnmuStore {
         id: 105,
         title: '성수 디저트 모임',
         dateLabel: '6.17 (월) 오후 7:00',
+        startsAt: _relativeSeedPlanDateTime(daysFromToday: 6, hour: 19),
         placeName: '성수동',
         statusLabel: 'D-17',
         statusType: '예정',
@@ -591,6 +637,7 @@ class InMemoryOnmuStore {
         id: 103,
         title: '한강 피크닉',
         dateLabel: '5.10 (금) 오후 1:00',
+        startsAt: _relativeSeedPlanDateTime(daysFromToday: -30, hour: 13),
         placeName: '여의도 한강공원',
         statusLabel: '완료',
         statusType: '완료',
@@ -614,6 +661,7 @@ class InMemoryOnmuStore {
         members: _seedPlanMembers(),
         timeCandidates: _seedTimeCandidates(),
         visitPlan: _seedVisitPlan(),
+        startsAt: summary.startsAt,
       );
       _visitPlansByPlanId[summary.id] = [
         List.unmodifiable(_seedVisitPlan()),

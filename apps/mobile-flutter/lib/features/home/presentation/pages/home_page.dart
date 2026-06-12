@@ -6,6 +6,8 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
@@ -15,6 +17,14 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/home_view_model.dart';
 import '../../../preferences/preference_summary_page.dart';
+
+String _resolveDisplayName(AuthUser? user) {
+  final displayName = user?.displayName.trim();
+  if (displayName == null || displayName.isEmpty) {
+    return '사용자';
+  }
+  return displayName;
+}
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({this.showOnlyPlans = false, this.summaryProfile, super.key});
@@ -61,13 +71,19 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeViewModelProvider);
+    final authBootstrap = ref.watch(authBootstrapProvider);
+    final authUser =
+        authBootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+    final displayName = _resolveDisplayName(authUser);
 
     return state.when(
       data: (state) => _HomeContent(
         showOnlyPlans: widget.showOnlyPlans,
+        displayName: displayName,
         groupId: state.groupId,
         activePlan: state.activePlan,
         upcomingPlans: state.upcomingPlans,
+        todayPlanCount: state.todayPlanCount,
       ),
       loading: () => const OnmuScaffold(
         children: [Center(child: CircularProgressIndicator())],
@@ -87,15 +103,19 @@ class _HomePageState extends ConsumerState<HomePage> {
 class _HomeContent extends StatelessWidget {
   const _HomeContent({
     required this.showOnlyPlans,
+    required this.displayName,
     required this.groupId,
     required this.activePlan,
     required this.upcomingPlans,
+    required this.todayPlanCount,
   });
 
   final bool showOnlyPlans;
-  final int groupId;
-  final Plan activePlan;
+  final String displayName;
+  final int? groupId;
+  final Plan? activePlan;
   final List<GroupPlanSummary> upcomingPlans;
+  final int todayPlanCount;
 
   @override
   Widget build(BuildContext context) {
@@ -103,18 +123,23 @@ class _HomeContent extends StatelessWidget {
       children: [
         if (!showOnlyPlans) ...[
           _HomeHeader(
+            displayName: displayName,
+            todayPlanCount: todayPlanCount,
             onNotificationTap: () => context.push(RoutePaths.homeNotifications),
           ),
           const SizedBox(height: AppSpacing.xxl),
         ],
         const _SectionTitle(title: '진행 중인 약속'),
         const SizedBox(height: AppSpacing.sm),
-        _ActivePlanCard(
-          plan: activePlan,
-          onTap: () =>
-              context.push(RoutePaths.planDetail(groupId, activePlan.id)),
-          onChatTap: () => context.push(RoutePaths.groupChat(groupId)),
-        ),
+        if (activePlan == null)
+          const _EmptyPlanCard()
+        else
+          _ActivePlanCard(
+            plan: activePlan!,
+            onTap: () =>
+                context.push(RoutePaths.planDetail(groupId!, activePlan!.id)),
+            onChatTap: () => context.push(RoutePaths.groupChat(groupId!)),
+          ),
         const SizedBox(height: AppSpacing.xxl),
         _SectionTitle(
           title: '다가오는 약속',
@@ -122,17 +147,20 @@ class _HomeContent extends StatelessWidget {
           onTap: () => context.push(RoutePaths.homeUpcomingPlans),
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final plan in upcomingPlans.take(2)) ...[
-          _UpcomingPlanTile(
-            date: plan.dateLabel.split(' ').first,
-            weekday: plan.statusType,
-            title: plan.title,
-            place: plan.placeName,
-            dday: plan.statusLabel,
-            onTap: () => context.push(RoutePaths.planDetail(groupId, plan.id)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        if (upcomingPlans.isEmpty)
+          const _EmptyUpcomingPlanCard()
+        else
+          for (final plan in upcomingPlans.take(2)) ...[
+            _UpcomingPlanTile(
+              date: _upcomingPlanDate(plan),
+              title: plan.title,
+              place: plan.placeName,
+              statusLabel: plan.displayStatusLabel,
+              onTap: () =>
+                  context.push(RoutePaths.planDetail(groupId ?? 0, plan.id)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         if (!showOnlyPlans) ...[
           const SizedBox(height: AppSpacing.xxl),
           _SectionTitle(
@@ -141,20 +169,97 @@ class _HomeContent extends StatelessWidget {
             onTap: () => context.push(RoutePaths.homeRecentRecords),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const _RecentRecordStrip(),
+          const _EmptyRecentRecordCard(),
         ],
       ],
     );
   }
 }
 
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.onNotificationTap});
+_UpcomingPlanDate _upcomingPlanDate(GroupPlanSummary plan) {
+  final startsAt = plan.startsAt?.toLocal();
+  if (startsAt == null) {
+    final label = plan.dateLabel.trim().isEmpty ? '일정' : plan.dateLabel;
+    return _UpcomingPlanDate(monthDay: label, weekday: '미정', time: '--:--');
+  }
 
+  final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  final hour = startsAt.hour.toString().padLeft(2, '0');
+  final minute = startsAt.minute.toString().padLeft(2, '0');
+  return _UpcomingPlanDate(
+    monthDay: '${startsAt.month}월 ${startsAt.day}일',
+    weekday: '${weekdays[startsAt.weekday - 1]}요일',
+    time: '$hour:$minute',
+  );
+}
+
+class _UpcomingPlanDate {
+  const _UpcomingPlanDate({
+    required this.monthDay,
+    required this.weekday,
+    required this.time,
+  });
+
+  final String monthDay;
+  final String weekday;
+  final String time;
+}
+
+class _EmptyPlanCard extends StatelessWidget {
+  const _EmptyPlanCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
+          const SizedBox(height: AppSpacing.sm),
+          Text('진행 중인 약속이 없어요', style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyUpcomingPlanCard extends StatelessWidget {
+  const _EmptyUpcomingPlanCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Text(
+        '다가오는 약속이 없어요.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+      ),
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.displayName,
+    required this.todayPlanCount,
+    required this.onNotificationTap,
+  });
+
+  final String displayName;
+  final int todayPlanCount;
   final VoidCallback onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
+    final avatarLabel = displayName.trim().isEmpty ? '온' : displayName;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -162,46 +267,31 @@ class _HomeHeader extends StatelessWidget {
           children: [
             const _HomeLogo(),
             const Spacer(),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  tooltip: '알림',
-                  onPressed: onNotificationTap,
-                  icon: const Icon(Icons.notifications_none),
-                ),
-                Positioned(
-                  right: 11,
-                  top: 9,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryPink,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      border: Border.all(color: AppColors.bgWarm, width: 2),
-                    ),
-                    child: const SizedBox.square(dimension: 10),
-                  ),
-                ),
-              ],
+            IconButton(
+              tooltip: '알림',
+              onPressed: onNotificationTap,
+              icon: const Icon(Icons.notifications_none),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
-            const PixelAvatar(label: '지', size: 64),
+            PixelAvatar(label: avatarLabel, size: 64),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '안녕하세요, 지우님',
+                    '안녕하세요, $displayName님',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    '오늘은 2개의 약속이 있어요',
+                    todayPlanCount == 0
+                        ? '오늘 예정된 약속이 없어요'
+                        : '오늘은 $todayPlanCount개의 약속이 있어요',
                     style: Theme.of(
                       context,
                     ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
@@ -456,18 +546,16 @@ class _PaperScene extends StatelessWidget {
 class _UpcomingPlanTile extends StatelessWidget {
   const _UpcomingPlanTile({
     required this.date,
-    required this.weekday,
     required this.title,
     required this.place,
-    required this.dday,
+    required this.statusLabel,
     required this.onTap,
   });
 
-  final String date;
-  final String weekday;
+  final _UpcomingPlanDate date;
   final String title;
   final String place;
-  final String dday;
+  final String statusLabel;
   final VoidCallback onTap;
 
   @override
@@ -480,23 +568,55 @@ class _UpcomingPlanTile extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 56,
-            child: Column(
-              children: [
-                Text(date, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  weekday,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-                ),
-              ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgPaper,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: AppColors.lineSoft),
+            ),
+            child: SizedBox(
+              width: 64,
+              height: 74,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    date.monthDay,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textMain,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    date.weekday,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSub,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    date.time,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMain,
+                      height: 1.05,
+                    ),
+                    maxLines: 1,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
+          Container(width: 1, height: 50, color: AppColors.lineSoft),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,7 +629,7 @@ class _UpcomingPlanTile extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '14:00 · $place',
+                  place.trim().isEmpty ? '장소 미정' : place,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -520,121 +640,31 @@ class _UpcomingPlanTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          OnmuChip(label: dday, selected: true),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 58),
+            child: OnmuChip(label: statusLabel, selected: true),
+          ),
         ],
       ),
     );
   }
 }
 
-class _RecentRecordStrip extends StatelessWidget {
-  const _RecentRecordStrip();
-
-  static List<_RecentRecordData> _createRecords() {
-    return [
-      _RecentRecordData('성수동 카페', '05.24', Icons.local_cafe_outlined, '12'),
-      _RecentRecordData('제주 바다', '05.16', Icons.water, '8'),
-      _RecentRecordData('한강 피크닉', '05.10', Icons.park_outlined, '15'),
-    ];
-  }
+class _EmptyRecentRecordCard extends StatelessWidget {
+  const _EmptyRecentRecordCard();
 
   @override
   Widget build(BuildContext context) {
-    final records = _createRecords();
-
-    return SizedBox(
-      height: 150,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: records.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) =>
-            _RecentRecordCard(record: records[index]),
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Text(
+        '최근 기록이 없어요.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
       ),
     );
   }
-}
-
-class _RecentRecordCard extends StatelessWidget {
-  const _RecentRecordCard({required this.record});
-
-  final _RecentRecordData record;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 132,
-      child: OnmuCard(
-        backgroundColor: AppColors.bgDefault,
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _RecordImageTile(icon: record.icon, height: 68),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              record.title,
-              style: Theme.of(context).textTheme.titleSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Text(
-                  record.date,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
-                ),
-                const Spacer(),
-                const Icon(
-                  Icons.favorite,
-                  size: 13,
-                  color: AppColors.accentRed,
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                Text(
-                  record.likes,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecordImageTile extends StatelessWidget {
-  const _RecordImageTile({required this.icon, required this.height});
-
-  final IconData icon;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgGrid,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Icon(icon, color: AppColors.primaryPink, size: 28),
-      ),
-    );
-  }
-}
-
-class _RecentRecordData {
-  const _RecentRecordData(this.title, this.date, this.icon, this.likes);
-
-  final String title;
-  final String date;
-  final IconData icon;
-  final String likes;
 }

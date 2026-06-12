@@ -11,6 +11,9 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../my/domain/my_profile.dart';
+import '../../../my/model/friend_fixtures.dart';
+import '../../../my/widgets/friend_picker_sheet.dart';
 import '../../view_model/group_create_view_model.dart';
 
 class GroupCreatePage extends StatefulWidget {
@@ -25,6 +28,7 @@ class GroupCreatePage extends StatefulWidget {
 class _GroupCreatePageState extends State<GroupCreatePage> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final List<String> _invitedMemberNames = [];
   bool _makeFirstPlanLater = true;
 
   @override
@@ -32,6 +36,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     super.initState();
     _nameController.addListener(_sync);
     _descriptionController.addListener(_sync);
+    _invitedMemberNames.addAll(widget.initialMemberNames);
   }
 
   @override
@@ -47,6 +52,67 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
 
   void _sync() => setState(() {});
 
+  List<String> _memberNamesFor(GroupCreateState state) {
+    if (_invitedMemberNames.isNotEmpty) {
+      return List.unmodifiable(_invitedMemberNames);
+    }
+    return state.recommendedMemberNames;
+  }
+
+  Future<void> _openMemberAddSheet(
+    BuildContext context,
+    GroupCreateState state,
+  ) async {
+    final currentNames = _memberNamesFor(state);
+    if (currentNames.length >= 20) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('멤버는 최대 20명까지 초대할 수 있어요.')));
+      return;
+    }
+
+    final selectedFriend = await _showMemberAddSheet(context, currentNames);
+    if (!mounted || selectedFriend == null) {
+      return;
+    }
+
+    final trimmedName = selectedFriend.name.trim();
+    if (trimmedName.isEmpty) {
+      return;
+    }
+    if (currentNames.contains(trimmedName)) {
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(const SnackBar(content: Text('이미 추가된 멤버예요.')));
+      return;
+    }
+
+    setState(() {
+      if (_invitedMemberNames.isEmpty) {
+        _invitedMemberNames.addAll(state.recommendedMemberNames);
+      }
+      _invitedMemberNames.add(trimmedName);
+    });
+  }
+
+  Future<FriendProfile?> _showMemberAddSheet(
+    BuildContext context,
+    List<String> currentNames,
+  ) async {
+    return showModalBottomSheet<FriendProfile>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgDefault,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (context) => FriendPickerSheet(
+        friends: createInitialFriends(),
+        excludedNames: currentNames.toSet(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
@@ -54,123 +120,125 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
         final state = ref.watch(groupCreateViewModelProvider);
 
         return state.when(
-          data: (state) => OnmuScaffold(
-            title: '온모임 만들기',
-            showBackButton: true,
-            onBack: () => context.popOrGo(RoutePaths.groups),
-            useWarmBackground: false,
-            bottom: OnmuPrimaryButton(
-              label: '온모임 만들기',
-              onPressed: _nameController.text.trim().isEmpty
-                  ? null
-                  : () async {
-                      final created = await ref
-                          .read(groupCreateViewModelProvider.notifier)
-                          .createGroup(
-                            name: _nameController.text,
-                            description: _descriptionController.text,
-                            memberNames: widget.initialMemberNames.isNotEmpty
-                                ? widget.initialMemberNames
-                                : state.recommendedMemberNames,
-                          );
-                      if (!context.mounted) {
-                        return;
-                      }
-                      context.go(RoutePaths.groupDetail(created.id));
-                    },
-            ),
-            children: [
-              OnmuCard(
-                backgroundColor: AppColors.bgDefault,
-                borderColor: AppColors.lineSoft,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LabeledInput(
-                      label: '모임 이름',
-                      counter: '${_nameController.text.characters.length}/20',
-                      child: TextField(
-                        controller: _nameController,
-                        maxLength: 20,
-                        decoration: const InputDecoration(
-                          hintText: '모임 이름을 입력하세요',
-                          counterText: '',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      '멤버 초대',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _InvitePreviewRow(
-                      initialMemberNames: widget.initialMemberNames,
-                      recommendedMemberNames: state.recommendedMemberNames,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '함께할 멤버를 선택해 주세요 (최대 20명)',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _LabeledInput(
-                      label: '모임 설명',
-                      counter:
-                          '${_descriptionController.text.characters.length}/100',
-                      child: TextField(
-                        controller: _descriptionController,
-                        maxLength: 100,
-                        minLines: 5,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: '모임을 소개해 주세요',
-                          counterText: '',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              OnmuCard(
-                backgroundColor: AppColors.bgDefault,
-                borderColor: AppColors.lineSoft,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '첫 약속은 나중에 만들기',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            '지금은 모임만 만들고, 첫 약속은 나중에 만들 수 있어요.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSub),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: _makeFirstPlanLater,
-                      activeThumbColor: AppColors.primaryPink,
-                      onChanged: (value) {
-                        setState(() => _makeFirstPlanLater = value);
+          data: (state) {
+            final memberNames = _memberNamesFor(state);
+
+            return OnmuScaffold(
+              title: '온모임 만들기',
+              showBackButton: true,
+              onBack: () => context.popOrGo(RoutePaths.groups),
+              useWarmBackground: false,
+              bottom: OnmuPrimaryButton(
+                label: '온모임 만들기',
+                onPressed: _nameController.text.trim().isEmpty
+                    ? null
+                    : () async {
+                        final created = await ref
+                            .read(groupCreateViewModelProvider.notifier)
+                            .createGroup(
+                              name: _nameController.text,
+                              description: _descriptionController.text,
+                              memberNames: memberNames,
+                            );
+                        if (!context.mounted) {
+                          return;
+                        }
+                        context.go(RoutePaths.groupDetail(created.id));
                       },
-                    ),
-                  ],
-                ),
               ),
-              const SizedBox(height: 72),
-            ],
-          ),
+              children: [
+                OnmuCard(
+                  backgroundColor: AppColors.bgDefault,
+                  borderColor: AppColors.lineSoft,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _LabeledInput(
+                        label: '모임 이름',
+                        counter: '${_nameController.text.characters.length}/20',
+                        child: TextField(
+                          controller: _nameController,
+                          maxLength: 20,
+                          decoration: const InputDecoration(
+                            hintText: '모임 이름을 입력하세요',
+                            counterText: '',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        '멤버 초대',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _InvitePreviewRow(
+                        memberNames: memberNames,
+                        onAddPressed: () => _openMemberAddSheet(context, state),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '함께할 멤버를 선택해 주세요 (최대 20명)',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _LabeledInput(
+                        label: '모임 설명',
+                        counter:
+                            '${_descriptionController.text.characters.length}/100',
+                        child: TextField(
+                          controller: _descriptionController,
+                          maxLength: 100,
+                          minLines: 5,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            hintText: '모임을 소개해 주세요',
+                            counterText: '',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OnmuCard(
+                  backgroundColor: AppColors.bgDefault,
+                  borderColor: AppColors.lineSoft,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '첫 약속은 나중에 만들기',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              '지금은 모임만 만들고, 첫 약속은 나중에 만들 수 있어요.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSub),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _makeFirstPlanLater,
+                        activeThumbColor: AppColors.primaryPink,
+                        onChanged: (value) {
+                          setState(() => _makeFirstPlanLater = value);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 72),
+              ],
+            );
+          },
           loading: () => const OnmuScaffold(
             title: '온모임 만들기',
             children: [Center(child: CircularProgressIndicator())],
@@ -227,19 +295,15 @@ class _LabeledInput extends StatelessWidget {
 
 class _InvitePreviewRow extends StatelessWidget {
   const _InvitePreviewRow({
-    required this.initialMemberNames,
-    required this.recommendedMemberNames,
+    required this.memberNames,
+    required this.onAddPressed,
   });
 
-  final List<String> initialMemberNames;
-  final List<String> recommendedMemberNames;
+  final List<String> memberNames;
+  final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
-    final memberNames = initialMemberNames.isNotEmpty
-        ? initialMemberNames
-        : recommendedMemberNames;
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -248,22 +312,29 @@ class _InvitePreviewRow extends StatelessWidget {
             _InviteAvatar(name: name),
             const SizedBox(width: AppSpacing.md),
           ],
-          Column(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.bgDefault,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: AppColors.lineBrown),
-                ),
-                child: const SizedBox.square(
-                  dimension: 50,
-                  child: Icon(Icons.add, color: AppColors.accentBrown),
-                ),
+          Material(
+            color: AppColors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              onTap: onAddPressed,
+              child: Column(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDefault,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: AppColors.lineBrown),
+                    ),
+                    child: const SizedBox.square(
+                      dimension: 50,
+                      child: Icon(Icons.add, color: AppColors.accentBrown),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text('추가', style: Theme.of(context).textTheme.labelMedium),
+                ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text('추가', style: Theme.of(context).textTheme.labelMedium),
-            ],
+            ),
           ),
         ],
       ),

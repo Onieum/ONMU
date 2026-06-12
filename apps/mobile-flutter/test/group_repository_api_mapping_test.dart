@@ -2,32 +2,75 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/shared/models/group_models.dart';
 
 void main() {
+  test(
+    'does not synthesize Spring API copy for missing group fields',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {'id': 4, 'name': '대학 동기 여행단'},
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final groups = await repository.fetchGroups();
+
+      expect(groups.single.description, isEmpty);
+      expect(groups.single.lastMessage, isEmpty);
+      expect(groups.single.members, isEmpty);
+    },
+  );
+
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
-    final client = _FakeOnmuApiClient(
-      getResponse: {
-        'messages': [
-          {
-            'senderName': '지민',
-            'message': '안녕!',
-            'timeLabel': '14:00',
-            'isMine': false,
-          },
-          {
-            'sender': 'ONMU',
-            'content': '새 투표가 열렸어요.',
-            'messageType': 'vote_card',
-            'createdAt': '2026-06-09T14:03:00+09:00',
-          },
-          {'createdAt': 'not-a-date'},
-        ],
-      },
+    final requestedPaths = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'messages': [
+                  {
+                    'senderName': '지민',
+                    'message': '안녕!',
+                    'timeLabel': '14:00',
+                    'isMine': false,
+                  },
+                  {
+                    'sender': 'ONMU',
+                    'content': '새 투표가 열렸어요.',
+                    'messageType': 'vote_card',
+                    'createdAt': '2026-06-09T14:03:00+09:00',
+                  },
+                  {'createdAt': 'not-a-date'},
+                ],
+              },
+            ),
+          );
+        },
+      ),
     );
 
-    final messages = await ApiGroupRepository(client).fetchMessages('1');
+    final messages = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).fetchMessages('1');
 
-    expect(client.lastGetPath, '/api/v1/groups/1/chat/messages');
+    expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
     expect(messages, hasLength(3));
     expect(messages[0].sender, '지민');
     expect(messages[0].message, '안녕!');
@@ -43,53 +86,170 @@ void main() {
   });
 
   test('API 메시지 작성은 POST 응답을 GroupMessage로 매핑한다', () async {
-    final client = _FakeOnmuApiClient(
-      postResponse: {
-        'senderName': '나',
-        'message': '서버로 보내요',
-        'timeLabel': '방금',
-        'isMine': true,
-      },
+    final requestedPaths = <String>[];
+    final requestBodies = <Object?>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestBodies.add(options.data);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'senderName': '나',
+                'message': '서버로 보내요',
+                'timeLabel': '방금',
+                'isMine': true,
+              },
+            ),
+          );
+        },
+      ),
     );
 
     final message = await ApiGroupRepository(
-      client,
+      OnmuApiClient(dio),
     ).sendMessage(groupId: '1', message: '서버로 보내요');
 
-    expect(client.lastPostPath, '/api/v1/groups/1/chat/messages');
-    expect(client.lastPostBody, {'message': '서버로 보내요'});
+    expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
+    expect(requestBodies.single, {'message': '서버로 보내요'});
     expect(message.sender, '나');
     expect(message.message, '서버로 보내요');
     expect(message.timeLabel, '방금');
     expect(message.isMine, isTrue);
   });
-}
 
-class _FakeOnmuApiClient extends OnmuApiClient {
-  _FakeOnmuApiClient({
-    this.getResponse = const <String, dynamic>{},
-    this.postResponse = const <String, dynamic>{},
-  }) : super(Dio());
+  test('plan status API enum values are displayed in Korean', () {
+    expect(PlanProgressStatus.fromApi('completed').label, '완료');
+    expect(PlanProgressStatus.fromApi('draft').label, '초안');
+    expect(PlanProgressStatus.fromApi('active').label, '진행 중');
+    expect(PlanProgressStatus.fromApi('scheduled').label, '예정');
+    expect(PlanProgressStatus.fromApi('진행중').label, '진행 중');
+  });
 
-  final Map<String, dynamic> getResponse;
-  final Map<String, dynamic> postResponse;
-  String? lastGetPath;
-  String? lastPostPath;
-  Map<String, Object?>? lastPostBody;
+  test('group plan summary exposes centralized Korean display status', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'completed',
+      statusType: 'completed',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: true,
+    );
 
-  @override
-  Future<Map<String, dynamic>> getObject(String path) async {
-    lastGetPath = path;
-    return getResponse;
-  }
+    expect(plan.progressStatus, PlanProgressStatus.completed);
+    expect(plan.displayStatusLabel, '완료');
+  });
 
-  @override
-  Future<Map<String, dynamic>> postObject(
-    String path, {
-    Map<String, Object?> body = const {},
-  }) async {
-    lastPostPath = path;
-    lastPostBody = body;
-    return postResponse;
-  }
+  test('group plan summary display date includes time from startsAt', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '5월 10일',
+      startsAt: DateTime(2026, 5, 10, 13, 30),
+      placeName: '한강',
+      statusLabel: 'completed',
+      statusType: 'completed',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: true,
+    );
+
+    expect(plan.displayDateTimeLabel, '5월 10일 13:30');
+  });
+
+  test(
+    'maps group memories from Spring API response with absolute media urls',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'id': '00000000-0000-0000-0000-000000001101',
+                    'publicId': 'memory-1001',
+                    'authorName': '소연',
+                    'title': '성수동 카페',
+                    'memo': '분위기 좋은 카페 발견!',
+                    'date': '2026-06-09T13:00:00+09:00',
+                    'tags': ['카페', '디저트'],
+                    'imageUrls': [
+                      '/api/v1/media/public?key=dev%2Fmedia%2Frecords%2Fmemory-1001%2Fimage-1.jpg',
+                    ],
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final memories = await repository.fetchMemories('1');
+
+      expect(memories.single.id, 1001);
+      expect(memories.single.apiId, 'memory-1001');
+      expect(memories.single.author, '소연');
+      expect(memories.single.title, '성수동 카페');
+      expect(memories.single.description, '분위기 좋은 카페 발견!');
+      expect(memories.single.dateLabel, '2026.06.09');
+      expect(
+        memories.single.imageUrls.single,
+        startsWith('https://dev-api.onmu.cloud/api/v1/media/public'),
+      );
+    },
+  );
+
+  test('fetchMemory maps one Spring API memory detail response', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:8080'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'publicId': 'memory-1004',
+                'authorName': '현우',
+                'title': '한강 피크닉',
+                'memo': '다음에도 같이 가자!',
+                'date': '2026-06-09T13:15:00+09:00',
+                'tags': ['피크닉'],
+                'imageUrls': [
+                  '/api/v1/media/public?key=dev%2Fmedia%2Frecords%2Fmemory-1004%2Fimage-1.jpg',
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final memory = await repository.fetchMemory(
+      groupId: '1',
+      memoryId: 'memory-1004',
+    );
+
+    expect(requestedPaths.single, '/api/v1/groups/1/memories/memory-1004');
+    expect(memory.id, 1004);
+    expect(memory.routeId, 'memory-1004');
+    expect(
+      memory.primaryImageUrl,
+      'http://127.0.0.1:8080/api/v1/media/public?key=dev%2Fmedia%2Frecords%2Fmemory-1004%2Fimage-1.jpg',
+    );
+  });
 }

@@ -3,13 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/vote_models.dart';
-import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
-  if (ref.watch(onmuApiEnabledProvider)) {
-    return ApiGroupRepository(ref.watch(onmuApiClientProvider));
-  }
-  return MockGroupRepository(ref.watch(inMemoryOnmuStoreProvider));
+  return ApiGroupRepository(ref.watch(onmuApiClientProvider));
 });
 
 abstract interface class GroupRepository {
@@ -54,94 +50,6 @@ abstract interface class GroupRepository {
   });
 }
 
-class MockGroupRepository implements GroupRepository {
-  MockGroupRepository(this._store);
-
-  final InMemoryOnmuStore _store;
-
-  @override
-  Future<GroupSummary> fetchGroup(Object groupId) async {
-    return _store.fetchGroup(groupId);
-  }
-
-  @override
-  Future<GroupSummary> createGroup(GroupCreateInput input) async {
-    return _store.createGroup(input);
-  }
-
-  @override
-  Future<List<GroupSummary>> fetchGroups() async {
-    return _store.fetchGroups();
-  }
-
-  @override
-  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
-    return _store.fetchGroupPlans(groupId);
-  }
-
-  @override
-  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
-    return _store.fetchMemories(groupId);
-  }
-
-  @override
-  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
-    return _store.fetchMembers(groupId);
-  }
-
-  @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return _store.fetchMessages(groupId);
-  }
-
-  @override
-  Future<GroupMessage> sendMessage({
-    required Object groupId,
-    required String message,
-  }) async {
-    return _store.sendMessage(groupId: groupId, message: message);
-  }
-
-  @override
-  Future<GroupMemoryRecord> fetchMemory({
-    required Object groupId,
-    required Object memoryId,
-  }) async {
-    return _store.fetchMemory(groupId: groupId, memoryId: memoryId);
-  }
-
-  @override
-  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
-    return _store.fetchPinnedPlan(groupId);
-  }
-
-  @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
-    return _store.fetchVotes(groupId);
-  }
-
-  @override
-  Future<VoteSummary> createVote(VoteCreateInput input) async {
-    return _store.createVote(input);
-  }
-
-  @override
-  Future<VoteCard> fetchVoteCard({
-    required Object groupId,
-    required Object voteId,
-  }) async {
-    return _store.fetchVoteCard(groupId: groupId, voteId: voteId);
-  }
-
-  @override
-  Future<Map<int, List<String>>> fetchVoteVoters({
-    required Object groupId,
-    required Object voteId,
-  }) async {
-    return _store.fetchVoteVoters(groupId: groupId, voteId: voteId);
-  }
-}
-
 class ApiGroupRepository implements GroupRepository {
   ApiGroupRepository(this._client);
 
@@ -181,7 +89,7 @@ class ApiGroupRepository implements GroupRepository {
       dateLabel: plan.dateLabel,
       placeName: plan.placeName,
       statusLabel: plan.statusLabel,
-      voteSummary: 'Spring API',
+      voteSummary: '',
     );
   }
 
@@ -196,18 +104,16 @@ class ApiGroupRepository implements GroupRepository {
     final group = await fetchGroup(groupId);
     return group.members
         .map(
-          (name) => GroupMemberProfile(
-            name: name,
-            note: 'Spring API에서 불러온 멤버입니다.',
-            statusLabel: '참여 중',
-          ),
+          (name) =>
+              GroupMemberProfile(name: name, note: '', statusLabel: '참여 중'),
         )
         .toList(growable: false);
   }
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
-    return const [];
+    final memories = await _client.getList('/api/v1/groups/$groupId/memories');
+    return memories.map(_groupMemoryRecord).toList(growable: false);
   }
 
   @override
@@ -237,14 +143,10 @@ class ApiGroupRepository implements GroupRepository {
     required Object groupId,
     required Object memoryId,
   }) async {
-    return GroupMemoryRecord(
-      id: int.tryParse(memoryId.toString()) ?? 0,
-      author: 'ONMU',
-      title: '기록 준비 중',
-      description: '기록 API가 연결되면 이 영역을 실제 데이터로 전환합니다.',
-      dateLabel: '',
-      tags: const [],
+    final memory = await _client.getObject(
+      '/api/v1/groups/$groupId/memories/$memoryId',
     );
+    return _groupMemoryRecord(memory);
   }
 
   @override
@@ -298,9 +200,9 @@ class ApiGroupRepository implements GroupRepository {
     return GroupSummary(
       id: OnmuJson.readInt(json, 'id'),
       name: OnmuJson.readString(json, 'name', 'ONMU 모임'),
-      description: OnmuJson.readString(json, 'description', 'Spring API 모임'),
-      members: members.isEmpty ? const ['ONMU Dev User'] : members,
-      lastMessage: OnmuJson.readString(json, 'lastMessage', 'Spring API 연결됨'),
+      description: OnmuJson.readString(json, 'description'),
+      members: members,
+      lastMessage: OnmuJson.readString(json, 'lastMessage'),
       unreadCount: OnmuJson.readInt(json, 'unreadCount'),
       pinnedPlanTitle: OnmuJson.readString(json, 'pinnedPlanTitle', '약속 준비 중'),
     );
@@ -311,6 +213,7 @@ class ApiGroupRepository implements GroupRepository {
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
+      startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       placeName: OnmuJson.readString(json, 'placeName', '장소 미정'),
       statusLabel: OnmuJson.readString(
         json,
@@ -357,6 +260,91 @@ class ApiGroupRepository implements GroupRepository {
     return '${match.group(1)}:${match.group(2)}';
   }
 
+  GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {
+    final apiId = _memoryApiId(json);
+    final memo = OnmuJson.readString(
+      json,
+      'memo',
+      OnmuJson.readString(
+        json,
+        'summary',
+        OnmuJson.readString(json, 'description'),
+      ),
+    );
+    final author = OnmuJson.readString(
+      json,
+      'authorName',
+      OnmuJson.readString(json, 'author', 'ONMU'),
+    );
+
+    return GroupMemoryRecord(
+      id: _memoryLegacyId(apiId, json),
+      apiId: apiId,
+      author: author,
+      title: OnmuJson.readString(json, 'title', '기록'),
+      description: memo,
+      dateLabel: _memoryDateLabel(
+        OnmuJson.readString(
+          json,
+          'date',
+          OnmuJson.readString(json, 'createdAt'),
+        ),
+      ),
+      tags: OnmuJson.stringList(json['tags']),
+      imageUrls: _absoluteMediaUrls(json['imageUrls']),
+    );
+  }
+
+  String _memoryApiId(Map<String, dynamic> json) {
+    final publicId = OnmuJson.readString(json, 'publicId');
+    if (publicId.isNotEmpty) {
+      return publicId;
+    }
+    return OnmuJson.readString(json, 'id');
+  }
+
+  int _memoryLegacyId(String apiId, Map<String, dynamic> json) {
+    final numericId = OnmuJson.readInt(json, 'id', -1);
+    if (numericId >= 0) {
+      return numericId;
+    }
+    final match = RegExp(r'(\d+)$').firstMatch(apiId);
+    return int.tryParse(match?.group(1) ?? '') ?? 0;
+  }
+
+  List<String> _absoluteMediaUrls(Object? value) {
+    return OnmuJson.stringList(value)
+        .map(_absoluteMediaUrl)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String _absoluteMediaUrl(String url) {
+    if (url.isEmpty) {
+      return '';
+    }
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.hasScheme) {
+      return url;
+    }
+    final baseUri = Uri.tryParse(_client.baseUrl);
+    if (baseUri == null || _client.baseUrl.isEmpty) {
+      return url;
+    }
+    return baseUri.resolve(url).toString();
+  }
+
+  String _memoryDateLabel(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      return value;
+    }
+    final local = parsed.toLocal();
+    return '${local.year}.'
+        '${local.month.toString().padLeft(2, '0')}.'
+        '${local.day.toString().padLeft(2, '0')}';
+  }
+
   VoteSummary _voteSummary(Map<String, dynamic> json) {
     final options = _optionLabels(json);
     final closed = OnmuJson.readBool(json, 'closed');
@@ -369,7 +357,7 @@ class ApiGroupRepository implements GroupRepository {
           ? '모임 투표'
           : "약속 ${OnmuJson.readString(json, 'targetId')}",
       planMeta: OnmuJson.readString(json, 'voteType', 'PLACE'),
-      participants: const ['ONMU Dev User'],
+      participants: const [],
       options: options
           .map(
             (label) =>

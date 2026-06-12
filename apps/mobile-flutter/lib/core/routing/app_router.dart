@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/login_page.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../features/character/character_start_page.dart';
+import '../../features/character/repository/character_repository.dart';
 import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/home_recent_records_page.dart';
@@ -34,6 +36,7 @@ import '../../features/onboarding/onboarding_hub_page.dart';
 import '../../features/ootd/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
+import '../../features/ootd/repository/record_repository.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -55,8 +58,19 @@ final appRouter = GoRouter(
     GoRoute(path: '/', redirect: (context, state) => RoutePaths.splash),
     GoRoute(
       path: RoutePaths.splash,
-      builder: (context, state) =>
-          SplashPage(onTimeout: () => context.go(RoutePaths.login)),
+      builder: (context, state) => Consumer(
+        builder: (context, ref, child) {
+          ref.watch(authBootstrapProvider);
+          return SplashPage(
+            onTimeout: () async {
+              final nextRoute = await _resolvePostSplashRoute(ref);
+              if (context.mounted) {
+                context.go(nextRoute);
+              }
+            },
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.login,
@@ -86,10 +100,20 @@ final appRouter = GoRouter(
       builder: (context, state) => Consumer(
         builder: (context, ref, child) => CharacterStartPage(
           onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
-          onCompleted: (draft) {
-            ref.read(userCharacterProvider.notifier).state = draft;
+          onCompleted: (draft) async {
+            final router = GoRouter.of(context);
+            CharacterDraft saved;
+            try {
+              saved = await ref
+                  .read(characterRepositoryProvider)
+                  .saveMyCharacter(draft);
+            } catch (_) {
+              saved = draft;
+            }
+            ref.read(userCharacterProvider.notifier).state = saved;
             ref.read(skippedCharacterProvider.notifier).state = false;
-            context.go(RoutePaths.onboarding);
+            ref.invalidate(characterProfileProvider);
+            router.go(RoutePaths.onboarding);
           },
         ),
       ),
@@ -343,14 +367,16 @@ final appRouter = GoRouter(
               path: RoutePaths.records,
               builder: (context, state) => Consumer(
                 builder: (context, ref, child) {
+                  final profile = ref.watch(characterProfileProvider);
                   final character =
+                      profile.value ??
                       ref.watch(userCharacterProvider) ??
                       const CharacterDraft();
-                  final records = ref.watch(customRecordsProvider);
+                  final records = ref.watch(ootdRecordsProvider);
 
                   return OotdListPage(
                     userCharacter: character,
-                    customRecords: records,
+                    customRecords: records.value ?? const [],
                     onAddOotd: (date, ootdRecord) {
                       context.push(
                         '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}',
@@ -380,7 +406,8 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: RoutePaths.my,
-              builder: (context, state) => const MyPage(),
+              builder: (context, state) =>
+                  MyPage(resetToken: state.uri.queryParameters['reset']),
             ),
           ],
         ),
@@ -393,13 +420,15 @@ final appRouter = GoRouter(
           final date = _recordDateFromState(state);
           final ootdRecord = state.extra as OotdRecord?;
           final character =
-              ref.read(userCharacterProvider) ?? const CharacterDraft();
+              ref.watch(characterProfileProvider).value ??
+              ref.read(userCharacterProvider) ??
+              const CharacterDraft();
 
           return DailyRecordScreen(
             userCharacter: character,
             recordDate: date,
             ootdRecord: ootdRecord,
-            onSave: (record) => _upsertRecord(ref, record),
+            onSave: (record) => _saveRecord(ref, record),
             onCreateOotd: () {
               context.push(
                 '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}&daily=1',
@@ -415,7 +444,9 @@ final appRouter = GoRouter(
         builder: (context, ref, child) {
           final date = _recordDateFromState(state);
           final character =
-              ref.read(userCharacterProvider) ?? const CharacterDraft();
+              ref.watch(characterProfileProvider).value ??
+              ref.read(userCharacterProvider) ??
+              const CharacterDraft();
           final existingRecord = state.extra as OotdRecord?;
           final isDailyRecord = state.uri.queryParameters['daily'] == '1';
 
@@ -424,7 +455,7 @@ final appRouter = GoRouter(
             recordDate: date,
             existingRecord: existingRecord,
             isDailyRecord: isDailyRecord,
-            onSave: (record) => _upsertRecord(ref, record),
+            onSave: (record) => _saveRecord(ref, record),
           );
         },
       ),
@@ -446,30 +477,34 @@ final appRouter = GoRouter(
   ],
 );
 
+Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
+  final AuthBootstrapResult bootstrap;
+  try {
+    bootstrap = await ref
+        .read(authBootstrapProvider.future)
+        .timeout(const Duration(seconds: 6));
+  } catch (_) {
+    return RoutePaths.login;
+  }
+  final user = bootstrap.user;
+  if (user == null) {
+    return RoutePaths.login;
+  }
+  if (user.hasCompletedOnboarding) {
+    return RoutePaths.home;
+  }
+  return RoutePaths.onboarding;
+}
+
 DateTime _recordDateFromState(GoRouterState state) {
   final dateStr =
       state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
   return DateTime.parse(dateStr);
 }
 
-void _upsertRecord(WidgetRef ref, OotdRecord newRecord) {
-  ref.read(customRecordsProvider.notifier).update((state) {
-    final type = newRecord.brands['recordType'] ?? 'daily';
-    final index = state.indexWhere((record) {
-      return record.date.year == newRecord.date.year &&
-          record.date.month == newRecord.date.month &&
-          record.date.day == newRecord.date.day &&
-          (record.brands['recordType'] ?? 'daily') == type;
-    });
-
-    if (index != -1) {
-      final list = List<OotdRecord>.from(state);
-      list[index] = newRecord;
-      return list;
-    }
-
-    return [...state, newRecord];
-  });
+Future<void> _saveRecord(WidgetRef ref, OotdRecord newRecord) async {
+  await ref.read(recordRepositoryProvider).createRecord(newRecord);
+  ref.invalidate(ootdRecordsProvider);
 }
 
 void _showResetDialog(BuildContext context, WidgetRef ref) {

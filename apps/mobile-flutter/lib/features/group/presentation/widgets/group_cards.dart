@@ -16,6 +16,9 @@ class GroupSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final description = group.description.trim();
+    final lastMessage = group.lastMessage.trim();
+
     return OnmuCard(
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
@@ -66,48 +69,52 @@ class GroupSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              const Icon(
-                Icons.event_outlined,
-                size: 16,
-                color: AppColors.primaryPink,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-              Expanded(
-                child: Text(
-                  group.description,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                const Icon(
+                  Icons.event_outlined,
+                  size: 16,
+                  color: AppColors.primaryPink,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              const _CompactStatus(label: '진행중'),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Row(
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline,
-                size: 16,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-              Expanded(
-                child: Text(
-                  group.lastMessage,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(
+                  child: Text(
+                    description,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: AppSpacing.xs),
+                const _CompactStatus(label: '진행중'),
+              ],
+            ),
+          ],
+          if (lastMessage.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Row(
+              children: [
+                const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(
+                  child: Text(
+                    lastMessage,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -172,7 +179,7 @@ class PinnedPlanCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              OnmuChip(label: plan.statusLabel, selected: true),
+              OnmuChip(label: plan.displayStatusLabel, selected: true),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
@@ -287,6 +294,9 @@ class FinalSettlementResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trimmedName = result.name.trim();
+    final initial = trimmedName.isEmpty ? '?' : trimmedName.characters.first;
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       padding: const EdgeInsets.symmetric(
@@ -301,7 +311,7 @@ class FinalSettlementResultRow extends StatelessWidget {
                 ? AppColors.accentGreen
                 : AppColors.primaryPinkSoft,
             foregroundColor: AppColors.textMain,
-            child: Text(result.name.characters.first),
+            child: Text(initial),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

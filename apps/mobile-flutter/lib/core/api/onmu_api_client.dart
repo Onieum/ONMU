@@ -1,42 +1,64 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum OnmuDataSource { mock, api }
-
-final onmuDataSourceProvider = Provider<OnmuDataSource>((ref) {
-  const value = String.fromEnvironment('ONMU_DATA_SOURCE', defaultValue: 'mock');
-  return value.toLowerCase() == 'api' ? OnmuDataSource.api : OnmuDataSource.mock;
-});
-
-final onmuApiEnabledProvider = Provider<bool>(
-  (ref) => ref.watch(onmuDataSourceProvider) == OnmuDataSource.api,
-);
+const defaultOnmuApiBaseUrl = 'https://dev-api.onmu.cloud';
 
 final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
   const baseUrl = String.fromEnvironment(
     'ONMU_API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8080',
+    defaultValue: defaultOnmuApiBaseUrl,
   );
-  const accessToken = String.fromEnvironment('ONMU_DEV_ACCESS_TOKEN');
+  const accessJwt = String.fromEnvironment('ONMU_API_ACCESS_JWT');
+  const legacyDevAccessToken = String.fromEnvironment('ONMU_DEV_ACCESS_TOKEN');
+  final accessToken = resolveOnmuAccessToken(
+    accessJwt: accessJwt,
+    legacyDevAccessToken: legacyDevAccessToken,
+  );
   final dio = Dio(
     BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 8),
       receiveTimeout: const Duration(seconds: 12),
       responseType: ResponseType.json,
-      headers: {
-        'Accept': 'application/json',
-        if (accessToken.isNotEmpty) 'Authorization': 'Bearer $accessToken',
-      },
+      headers: {'Accept': 'application/json'},
     ),
   );
-  return OnmuApiClient(dio);
+  return OnmuApiClient(dio, initialAccessToken: accessToken);
 });
 
+String resolveOnmuAccessToken({
+  required String accessJwt,
+  required String legacyDevAccessToken,
+}) {
+  return accessJwt.isNotEmpty ? accessJwt : legacyDevAccessToken;
+}
+
 class OnmuApiClient {
-  OnmuApiClient(this._dio);
+  OnmuApiClient(this._dio, {String initialAccessToken = ''}) {
+    setAccessToken(initialAccessToken);
+  }
 
   final Dio _dio;
+
+  String get baseUrl => _dio.options.baseUrl;
+
+  String? get authorizationHeader {
+    final value = _dio.options.headers['Authorization'];
+    return value?.toString();
+  }
+
+  void setAccessToken(String? accessToken) {
+    final token = accessToken?.trim() ?? '';
+    if (token.isEmpty) {
+      _dio.options.headers.remove('Authorization');
+      return;
+    }
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  void clearAccessToken() {
+    _dio.options.headers.remove('Authorization');
+  }
 
   Future<Map<String, dynamic>> getObject(String path) async {
     final response = await _dio.get<Object?>(path);
@@ -56,12 +78,24 @@ class OnmuApiClient {
     return OnmuJson.asMap(response.data);
   }
 
+  Future<Map<String, dynamic>> putObject(
+    String path, {
+    Map<String, Object?> body = const {},
+  }) async {
+    final response = await _dio.put<Object?>(path, data: body);
+    return OnmuJson.asMap(response.data);
+  }
+
   Future<Map<String, dynamic>> patchObject(
     String path, {
     Map<String, Object?> body = const {},
   }) async {
     final response = await _dio.patch<Object?>(path, data: body);
     return OnmuJson.asMap(response.data);
+  }
+
+  Future<void> deleteObject(String path) async {
+    await _dio.delete<Object?>(path);
   }
 }
 
@@ -89,7 +123,11 @@ class OnmuJson {
     return const [];
   }
 
-  static int readInt(Map<String, dynamic> json, String key, [int fallback = 0]) {
+  static int readInt(
+    Map<String, dynamic> json,
+    String key, [
+    int fallback = 0,
+  ]) {
     final value = json[key];
     if (value is int) {
       return value;

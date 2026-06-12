@@ -10,8 +10,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/place_candidates_view_model.dart';
 
 class PlaceCandidatePage extends ConsumerWidget {
@@ -61,7 +61,7 @@ class PlaceCandidatePage extends ConsumerWidget {
   }
 }
 
-class _PlaceCandidateContent extends StatelessWidget {
+class _PlaceCandidateContent extends StatefulWidget {
   const _PlaceCandidateContent({
     required this.groupId,
     required this.planId,
@@ -77,13 +77,74 @@ class _PlaceCandidateContent extends StatelessWidget {
   final ValueChanged<int> onFavoritePressed;
 
   @override
+  State<_PlaceCandidateContent> createState() => _PlaceCandidateContentState();
+}
+
+class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
+  var _selectedCategory = _allCategory;
+
+  static const _allCategory = '전체';
+
+  List<PlaceCandidate> get _visibleCandidates {
+    if (_selectedCategory == _allCategory) {
+      return widget.state.candidates;
+    }
+    return widget.state.candidates
+        .where((candidate) => _matchesCategory(candidate, _selectedCategory))
+        .toList(growable: false);
+  }
+
+  bool _matchesCategory(PlaceCandidate candidate, String selectedCategory) {
+    final category = candidate.category.trim();
+    final tags = candidate.tags.map((tag) => tag.trim()).toList();
+    final values = [category, ...tags];
+
+    return switch (selectedCategory) {
+      '카페' => values.any((value) => value.contains('카페')),
+      '식사' => values.any(
+        (value) =>
+            value.contains('식사') ||
+            value.contains('식당') ||
+            value.contains('한식') ||
+            value.contains('양식') ||
+            value.contains('일식') ||
+            value.contains('중식') ||
+            value.contains('분식'),
+      ),
+      '관광' => values.any(
+        (value) =>
+            value.contains('관광') ||
+            value.contains('명소') ||
+            value.contains('전시') ||
+            value.contains('체험'),
+      ),
+      '숙소' => values.any(
+        (value) =>
+            value.contains('숙소') ||
+            value.contains('호텔') ||
+            value.contains('펜션') ||
+            value.contains('게스트하우스'),
+      ),
+      _ => category == selectedCategory,
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visibleCandidates = _visibleCandidates;
+
     return OnmuScaffold(
       title: '장소 후보 리스트',
+      titleSubtitle: OnmuLocationSubtitle(location: widget.state.planLocation),
       showBackButton: true,
-      onBack: () => context.popOrGo(RoutePaths.planDetail(groupId, planId)),
+      onBack: () =>
+          context.popOrGo(RoutePaths.planDetail(widget.groupId, widget.planId)),
       action: TextButton(
-        onPressed: () => context.push(RoutePaths.planVoteNew(groupId, planId)),
+        onPressed: widget.state.candidates.isEmpty
+            ? null
+            : () => context.push(
+                RoutePaths.planVoteNew(widget.groupId, widget.planId),
+              ),
         child: const Text('투표 만들기'),
       ),
       floatingActionButton: FloatingActionButton(
@@ -91,8 +152,9 @@ class _PlaceCandidateContent extends StatelessWidget {
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
-        onPressed: () =>
-            context.push(RoutePaths.planPlaceSearch(groupId, planId)),
+        onPressed: () => context.push(
+          RoutePaths.planPlaceSearch(widget.groupId, widget.planId),
+        ),
         child: const Icon(Icons.add),
       ),
       bottom: OnmuCard(
@@ -112,89 +174,123 @@ class _PlaceCandidateContent extends StatelessWidget {
         ),
       ),
       children: [
-        _HeaderRow(showVoteResult: showVoteResult),
-        const SizedBox(height: AppSpacing.md),
-        const _CategoryChips(),
-        const SizedBox(height: AppSpacing.lg),
-        for (var index = 0; index < state.candidates.length; index += 1) ...[
-          _CandidateListCard(
-            order: index + 1,
-            candidate: state.candidates[index],
-            liked: state.isLiked(state.candidates[index].id),
-            favoriteCount: state.favoriteCountFor(state.candidates[index].id),
-            onFavoritePressed: () =>
-                onFavoritePressed(state.candidates[index].id),
-            onDetailPressed: () => context.push(
-              RoutePaths.planPlaceCandidateDetail(
-                groupId,
-                planId,
-                state.candidates[index].id,
-              ),
-            ),
-            onRegisterPressed: () => _goConfirmed(context),
-          ),
+        if (widget.showVoteResult) ...[
+          const _VoteResultNotice(),
           const SizedBox(height: AppSpacing.md),
         ],
+        _CategoryChips(
+          selectedCategory: _selectedCategory,
+          onCategorySelected: (category) {
+            setState(() => _selectedCategory = category);
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        if (visibleCandidates.isEmpty)
+          const _EmptyCandidateCard()
+        else
+          for (var index = 0; index < visibleCandidates.length; index += 1) ...[
+            _CandidateListCard(
+              order: index + 1,
+              candidate: visibleCandidates[index],
+              liked: widget.state.isLiked(visibleCandidates[index].id),
+              favoriteCount: widget.state.favoriteCountFor(
+                visibleCandidates[index].id,
+              ),
+              onFavoritePressed: () =>
+                  widget.onFavoritePressed(visibleCandidates[index].id),
+              onDetailPressed: () => context.push(
+                RoutePaths.planPlaceCandidateDetail(
+                  widget.groupId,
+                  widget.planId,
+                  visibleCandidates[index].id,
+                ),
+              ),
+              onRegisterPressed: () => _goConfirmed(context),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
         const SizedBox(height: 72),
       ],
     );
   }
 
   void _goConfirmed(BuildContext context) {
-    context.go(RoutePaths.planItinerary(groupId, planId));
+    context.go(RoutePaths.planItinerary(widget.groupId, widget.planId));
   }
 }
 
-class _HeaderRow extends StatelessWidget {
-  const _HeaderRow({required this.showVoteResult});
-
-  final bool showVoteResult;
+class _EmptyCandidateCard extends StatelessWidget {
+  const _EmptyCandidateCard();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: const [
-            OnmuChip(label: '제주도 여행'),
-            OnmuChip(label: '제주도 일대'),
-          ],
-        ),
-        if (showVoteResult) ...[
-          const SizedBox(height: AppSpacing.sm),
-          OnmuCard(
-            backgroundColor: AppColors.bgDefault,
-            borderColor: AppColors.linePink,
-            child: Text(
-              '온모임 투표 결과를 후보 리스트에 이어서 보여줘요.',
-              style: Theme.of(context).textTheme.bodyMedium,
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgPaper,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.lineWarm),
+            ),
+            child: const SizedBox(
+              height: 96,
+              child: Center(
+                child: Icon(
+                  Icons.add_location_alt_outlined,
+                  size: 36,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ),
           ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '아직 장소 후보 리스트가 비어있어요!',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '후보를 추가하면 이 공간에 카드로 정리돼요.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
         ],
-        const SizedBox(height: AppSpacing.md),
-        Text('참여자 4명', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: const [
-            PixelAvatar(label: '지우', size: 36),
-            SizedBox(width: AppSpacing.sm),
-            PixelAvatar(label: '민수', size: 36),
-            SizedBox(width: AppSpacing.sm),
-            PixelAvatar(label: '하린', size: 36),
-            SizedBox(width: AppSpacing.sm),
-            PixelAvatar(label: '현우', size: 36),
-          ],
-        ),
-      ],
+      ),
+    );
+  }
+}
+
+class _VoteResultNotice extends StatelessWidget {
+  const _VoteResultNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.linePink,
+      child: Text(
+        '온모임 투표 결과를 후보 리스트에 이어서 보여줘요.',
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
     );
   }
 }
 
 class _CategoryChips extends StatelessWidget {
-  const _CategoryChips();
+  const _CategoryChips({
+    required this.selectedCategory,
+    required this.onCategorySelected,
+  });
+
+  final String selectedCategory;
+  final ValueChanged<String> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +301,11 @@ class _CategoryChips extends StatelessWidget {
       child: Row(
         children: [
           for (var index = 0; index < categories.length; index += 1) ...[
-            OnmuChip(label: categories[index], selected: index == 1),
+            OnmuChip(
+              label: categories[index],
+              selected: categories[index] == selectedCategory,
+              onTap: () => onCategorySelected(categories[index]),
+            ),
             const SizedBox(width: AppSpacing.xs),
           ],
         ],

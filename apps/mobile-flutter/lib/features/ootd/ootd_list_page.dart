@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
-import '../../shared/widgets/pixel_character.dart';
 import '../../shared/widgets/grid_background.dart';
+import '../../shared/widgets/onmu_date_picker.dart';
+import '../../shared/widgets/pixel_character.dart';
 
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
@@ -42,7 +43,7 @@ class OotdListPage extends StatefulWidget {
 class _OotdListPageState extends State<OotdListPage> {
   late DateTime _currentMonth;
   late DateTime _selectedDay;
-  List<OotdRecord> _allRecords = [];
+  final List<OotdRecord> _allRecords = [];
 
   final List<Color> _bgColors = [
     AppColors.calendarDatePinkBg,
@@ -64,137 +65,9 @@ class _OotdListPageState extends State<OotdListPage> {
   @override
   void initState() {
     super.initState();
-    _currentMonth = DateTime(2026, 10, 1);
-    _selectedDay = DateTime(2026, 10, 3); // 기본 선택일
-    _generateMockRecords();
-  }
-
-  void _generateMockRecords() {
-    final baseChar = widget.userCharacter;
-
-    _allRecords = [
-      // 10월 1일 기록
-      OotdRecord(
-        date: DateTime(2026, 10, 1),
-        character: baseChar.copyWith(
-          accessoryStyleIndex: 1,
-          topStyleIndex: 1,
-          bottomStyleIndex: 2,
-        ),
-        moodTags: ['#아메카지', '#캐주얼', '#가을코디'],
-        brands: {'모자': '스투시', '상의': '칼하트 후드', '하의': '디키즈 874'},
-        weather: 'cloudy',
-        mood: 'calm',
-        isPublic: false,
-        timeline: [
-          const TimelineItem(
-            time: '12:00',
-            placeName: '삼청동 손칼국수',
-            category: 'restaurant',
-            description: '가을 날씨에 딱 어울리는 뜨끈한 국물',
-          ),
-          const TimelineItem(
-            time: '14:30',
-            placeName: '국립현대미술관',
-            category: 'museum',
-            description: '전시회 구경. 역시 힐링되는 미술관 투어',
-          ),
-        ],
-      ),
-      // 10월 2일 기록
-      OotdRecord(
-        date: DateTime(2026, 10, 2),
-        character: baseChar.copyWith(
-          hairStyleIndex: 1,
-          topStyleIndex: 0,
-          bottomStyleIndex: 1,
-        ),
-        moodTags: ['#오피스룩', '#블라우스', '#출근룩'],
-        brands: {'상의': '자라 블라우스', '하의': '슬랙스'},
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: false,
-        timeline: [
-          const TimelineItem(
-            time: '09:00',
-            placeName: '온무 사무실',
-            category: 'work',
-            description: '업무 시작!',
-          ),
-          const TimelineItem(
-            time: '12:30',
-            placeName: '카페 아우어',
-            category: 'cafe',
-            description: '시그니처 빵 최고',
-          ),
-        ],
-      ),
-      // 10월 3일 기록 (피그마 서울 카페 투어 기준)
-      OotdRecord(
-        date: DateTime(2026, 10, 3),
-        character: baseChar.copyWith(
-          hairStyleIndex: 2,
-          topStyleIndex: 1,
-          bottomStyleIndex: 1,
-          hairColorIndex: 1,
-        ),
-        moodTags: ['#카페투어', '#한남동', '#데이트룩', '#ootd', '#Archive한남'],
-        brands: {
-          'outer': '베이지 하프코트',
-          'top': '아이보리 니트',
-          'bottom': '블랙 롱 스커트',
-          'bag': '버건디 숄더백',
-          'shoes': '화이트 삭스 + 로퍼',
-        },
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: true,
-        timeline: [
-          const TimelineItem(
-            time: '13:00',
-            placeName: 'mRd Record',
-            category: 'cafe',
-            description: '케이크가 진짜 맛있었고 매장 분위기도 너무 좋았어! 사진도 많이 찍음 ㅎㅎ',
-          ),
-          const TimelineItem(
-            time: '15:30',
-            placeName: 'Archive Hannam',
-            category: 'shopping',
-            description: '편집숍 구경 넘 재밌었고 여기 향수 시향했는데 향이 너무 좋았음!',
-          ),
-          const TimelineItem(
-            time: '18:00',
-            placeName: 'Ofr. seoul',
-            category: 'cafe',
-            description: '성수동으로 넘어가서 오랜만에 구경하고 달달한 플랫화이트 한 잔의 여유',
-          ),
-          const TimelineItem(
-            time: '20:00',
-            placeName: '성수 맛집',
-            category: 'restaurant',
-            description: '저녁으로 예약해둔 파스타 맛집. 분위기도 음식도 진짜 최고였어!',
-          ),
-        ],
-      ),
-      // 10월 4일 기록
-      OotdRecord(
-        date: DateTime(2026, 10, 4),
-        character: baseChar.copyWith(topStyleIndex: 2, bottomStyleIndex: 0),
-        moodTags: ['#러블리', '#데이트룩', '#주말나들이'],
-        brands: {'상의': '폴로 가디건', '하의': '청치마'},
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: true,
-        timeline: [
-          const TimelineItem(
-            time: '14:00',
-            placeName: '서울숲 공원',
-            category: 'walk',
-            description: '서울숲 피크닉. 가을 바람이 시원함',
-          ),
-        ],
-      ),
-    ];
+    final today = DateTime.now();
+    _currentMonth = DateTime(today.year, today.month, 1);
+    _selectedDay = DateTime(today.year, today.month, today.day);
   }
 
   int get _firstWeekday =>
@@ -242,23 +115,11 @@ class _OotdListPageState extends State<OotdListPage> {
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
                       onTap: () async {
-                        final DateTime? picked = await showDatePicker(
+                        final DateTime? picked = await OnmuDatePicker.pickDate(
                           context: context,
                           initialDate: localSelectedDate,
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2030),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: const ColorScheme.light(
-                                  primary: AppColors.primaryPink,
-                                  onPrimary: AppColors.textInverse,
-                                  onSurface: AppColors.textMain,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
                         );
                         if (picked != null) {
                           setModalState(() {
@@ -576,6 +437,7 @@ class _OotdListPageState extends State<OotdListPage> {
     return '${record.date.year}-${record.date.month}-${record.date.day}-$type';
   }
 
+
   Widget _buildHeader() {
     final daysInCurrentMonth = DateTime(
       _currentMonth.year,
@@ -594,103 +456,152 @@ class _OotdListPageState extends State<OotdListPage> {
     final monthlyProgress = recordedDayCount / daysInCurrentMonth;
     final monthlyPercent = (monthlyProgress * 100).round();
 
-    return Container(
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 380;
+        final progressBadgeWidth =
+            (constraints.maxWidth * (isCompact ? 0.48 : 0.42))
+                .clamp(132.0, 196.0)
+                .toDouble();
+        final headerTitle = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
+                      style: AppTextStyles.headlineMedium.copyWith(
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_back_ios,
+                    size: 16,
+                    color: AppColors.textSub,
+                  ),
+                  onPressed: _prevMonth,
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: AppColors.textSub,
+                  ),
+                  onPressed: _nextMonth,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '오늘의 코디 기록 다이어리',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.primaryPink,
+              ),
+            ),
+          ],
+        );
+        final progressBadge = _buildMonthlyProgressBadge(
+          recordedDayCount: recordedDayCount,
+          monthlyProgress: monthlyProgress,
+          monthlyPercent: monthlyPercent,
+          isCompact: isCompact,
+        );
+
+        return Padding(
+          padding: EdgeInsets.only(
+            left: isCompact ? 16 : 20,
+            right: isCompact ? 16 : 20,
+            top: 16,
+            bottom: 10,
+          ),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      size: 16,
-                      color: AppColors.textSub,
-                    ),
-                    onPressed: _prevMonth,
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: AppColors.textSub,
-                    ),
-                    onPressed: _nextMonth,
-                  ),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text(
-                '오늘의 코디 기록 다이어리',
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.primaryPink,
-                ),
-              ),
+              Expanded(child: headerTitle),
+              SizedBox(width: isCompact ? 8 : 12),
+              SizedBox(width: progressBadgeWidth, child: progressBadge),
             ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.primaryPinkSoft.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.linePink, width: 1.2),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
+        );
+      },
+    );
+  }
+
+
+  Widget _buildMonthlyProgressBadge({
+    required int recordedDayCount,
+    required double monthlyProgress,
+    required int monthlyPercent,
+    required bool isCompact,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 10 : 12,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryPinkSoft.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.linePink, width: 1.2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   '이번 달 기록 $recordedDayCount일',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textMain,
                     height: 1.1,
                   ),
                 ),
-                SizedBox(height: 6),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 74,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: monthlyProgress,
-                          minHeight: 7,
-                          backgroundColor: AppColors.bgDefault.withValues(
-                            alpha: 0.9,
-                          ),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryPink,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      '$monthlyPercent%',
-                      style: AppTextStyles.micro.copyWith(
-                        color: AppColors.primaryPink,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '$monthlyPercent%',
+                style: AppTextStyles.micro.copyWith(
+                  color: AppColors.primaryPink,
+                  height: 1.1,
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: monthlyProgress,
+              minHeight: 7,
+              backgroundColor: AppColors.bgDefault.withValues(alpha: 0.9),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primaryPink,
+              ),
             ),
           ),
         ],
@@ -701,14 +612,12 @@ class _OotdListPageState extends State<OotdListPage> {
   Widget _buildWeekDaysHeader() {
     final weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       color: AppColors.bgDefault.withOpacity(0.5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: weekdays.map((day) {
           final isWeekend = day == 'SUN' || day == 'SAT';
-          return SizedBox(
-            width: 45,
+          return Expanded(
             child: Text(
               day,
               textAlign: TextAlign.center,
@@ -724,114 +633,127 @@ class _OotdListPageState extends State<OotdListPage> {
     );
   }
 
+
   Widget _buildCalendarGrid() {
     final firstWeekday = _firstWeekday;
     final totalDays = _totalDaysInMonth;
     final totalCells = firstWeekday + totalDays;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 380;
+    final horizontalPadding = isCompact ? 6.0 : 10.0;
+    final crossSpacing = isCompact ? 3.0 : 5.0;
+    final availableCellWidth =
+        (screenWidth - (horizontalPadding * 2) - (crossSpacing * 6)) / 7;
+    final cellHeight = availableCellWidth.clamp(58.0, 88.0).toDouble();
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        childAspectRatio: 0.62,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: totalCells,
-      itemBuilder: (context, index) {
-        if (index < firstWeekday) {
-          return SizedBox();
-        }
+    return ClipRect(
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 8,
+        ),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          mainAxisExtent: cellHeight,
+          crossAxisSpacing: crossSpacing,
+          mainAxisSpacing: isCompact ? 6 : 8,
+        ),
+        itemCount: totalCells,
+        itemBuilder: (context, index) {
+          if (index < firstWeekday) {
+            return const SizedBox();
+          }
 
-        final day = index - firstWeekday + 1;
-        final cellDate = DateTime(_currentMonth.year, _currentMonth.month, day);
-        final isSelected =
-            cellDate.year == _selectedDay.year &&
-            cellDate.month == _selectedDay.month &&
-            cellDate.day == _selectedDay.day;
-        final record = _getRecordForDate(cellDate);
-        final borderColor = _pastelBorders[day % _pastelBorders.length];
+          final day = index - firstWeekday + 1;
+          final cellDate = DateTime(_currentMonth.year, _currentMonth.month, day);
+          final isSelected =
+              cellDate.year == _selectedDay.year &&
+              cellDate.month == _selectedDay.month &&
+              cellDate.day == _selectedDay.day;
+          final record = _getRecordForDate(cellDate);
+          final borderColor = _pastelBorders[day % _pastelBorders.length];
 
-        final int? bgColorIndex = record != null
-            ? int.tryParse(record.brands['bgColorIndex'] ?? '')
-            : null;
-        final Color cellBgColor = bgColorIndex != null
-            ? _bgColors[bgColorIndex].withOpacity(0.4)
-            : AppColors.bgDefault;
+          final int? bgColorIndex = record != null
+              ? int.tryParse(record.brands['bgColorIndex'] ?? '')
+              : null;
+          final Color cellBgColor = bgColorIndex != null
+              ? _bgColors[bgColorIndex].withOpacity(0.4)
+              : AppColors.bgDefault;
 
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => _onDayTap(cellDate),
-            child: Container(
-              decoration: BoxDecoration(
-                color: cellBgColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primaryPink
-                      : record != null
-                      ? borderColor
-                      : AppColors.lineSoft.withOpacity(0.6),
-                  width: isSelected ? 2.5 : 1.2,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primaryPink.withOpacity(0.15),
-                          blurRadius: 6,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 4,
-                    left: 6,
-                    child: Text(
-                      day.toString(),
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: isSelected
-                            ? AppColors.primaryPink
-                            : AppColors.textMain,
-                      ),
-                    ),
+          return MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _onDayTap(cellDate),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cellBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primaryPink
+                        : record != null
+                            ? borderColor
+                            : AppColors.lineSoft.withOpacity(0.6),
+                    width: isSelected ? 2.5 : 1.2,
                   ),
-                  if (record != null)
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primaryPink.withOpacity(0.15),
+                            blurRadius: 6,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Stack(
+                  children: [
                     Positioned(
-                      top: 2,
-                      right: 4,
-                      child: Icon(
-                        record.weather == 'sunny'
-                            ? Icons.wb_sunny
-                            : Icons.cloud_outlined,
-                        size: 10,
-                        color: record.weather == 'sunny'
-                            ? AppColors.accentOrange
-                            : AppColors.accentBlue,
-                      ),
-                    ),
-                  if (record != null)
-                    Positioned(
-                      bottom: 2,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: PixelCharacterWidget(
-                          character: record.character,
-                          size: 38,
+                      top: 4,
+                      left: 6,
+                      child: Text(
+                        day.toString(),
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: isSelected
+                              ? AppColors.primaryPink
+                              : AppColors.textMain,
                         ),
                       ),
                     ),
-                ],
+                    if (record != null)
+                      Positioned(
+                        top: 2,
+                        right: 4,
+                        child: Icon(
+                          record.weather == 'sunny'
+                              ? Icons.wb_sunny
+                              : Icons.cloud_outlined,
+                          size: 10,
+                          color: record.weather == 'sunny'
+                              ? AppColors.accentOrange
+                              : AppColors.accentBlue,
+                        ),
+                      ),
+                    if (record != null)
+                      Positioned(
+                        bottom: 2,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: PixelCharacterWidget(
+                            character: record.character,
+                            size: availableCellWidth.clamp(26.0, 38.0).toDouble(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -887,37 +809,9 @@ class _TimelineBottomSheetContentState
     super.dispose();
   }
 
-  void _toggleSheetExtent() {
-    final targetSize = _currentExtent >= 0.90
-        ? _sheetDefaultSize
-        : _sheetMaxSize;
 
-    setState(() {
-      _currentExtent = targetSize;
-    });
 
-    if (_sheetController.isAttached) {
-      _sheetController.animateTo(
-        targetSize,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
 
-  Widget _buildSheetExtentButton(bool isFullScreen) {
-    return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      tooltip: isFullScreen ? '축소' : '전체화면',
-      icon: Icon(
-        isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-        color: AppColors.textSub,
-        size: 22,
-      ),
-      onPressed: _toggleSheetExtent,
-    );
-  }
 
   Widget _buildSheetDragHandle() {
     return Padding(
@@ -934,6 +828,7 @@ class _TimelineBottomSheetContentState
       ),
     );
   }
+
 
   Widget _buildSheetHeader(bool isFullScreen) {
     return Padding(
@@ -952,7 +847,6 @@ class _TimelineBottomSheetContentState
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
                     padding: EdgeInsets.zero,
@@ -964,27 +858,25 @@ class _TimelineBottomSheetContentState
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  Text(
-                    _tabIndex == 0 ? '하루 일과' : 'OOTD 기록',
-                    style: AppTextStyles.titleSmall.copyWith(
-                      color: AppColors.textMain,
+                  Expanded(
+                    child: Text(
+                      _tabIndex == 0 ? '하루 일과' : 'OOTD 기록',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.titleSmall.copyWith(
+                        color: AppColors.textMain,
+                      ),
                     ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildSheetExtentButton(isFullScreen),
-                      SizedBox(width: 10),
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.textMuted,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textMuted,
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
@@ -992,48 +884,49 @@ class _TimelineBottomSheetContentState
             SizedBox(height: 16),
           ] else ...[
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.edit_note,
-                          color: AppColors.primaryPink,
-                          size: 24,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          '${_localRecord.date.year}.${_localRecord.date.month.toString().padLeft(2, '0')}.${_localRecord.date.day.toString().padLeft(2, '0')} (${_getWeekdayName(_localRecord.date)})',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textMain,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.edit_note,
+                            color: AppColors.primaryPink,
+                            size: 24,
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '오늘 하루의 소중한 기록을 채워보세요',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSub,
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${_localRecord.date.year}.${_localRecord.date.month.toString().padLeft(2, '0')}.${_localRecord.date.day.toString().padLeft(2, '0')} (${_getWeekdayName(_localRecord.date)})',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        '오늘 하루의 소중한 기록을 채워보세요',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildSheetExtentButton(isFullScreen),
-                    SizedBox(width: 10),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.close, color: AppColors.textSub),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
+                SizedBox(width: 10),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.close, color: AppColors.textSub),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),

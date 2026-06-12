@@ -5,149 +5,21 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
-import '../../../../shared/providers/state_providers.dart';
+import '../../../ootd/repository/record_repository.dart';
 
 class MemoryDetailPage extends ConsumerWidget {
   final String memoryId;
 
   const MemoryDetailPage({super.key, required this.memoryId});
 
-  // Mock records generator helper (matching the ones in OotdListPage)
-  List<OotdRecord> _createDefaultRecords(CharacterDraft baseChar) {
-    return [
-      OotdRecord(
-        date: DateTime(2026, 10, 1),
-        character: baseChar.copyWith(
-          accessoryStyleIndex: 1,
-          topStyleIndex: 1,
-          bottomStyleIndex: 2,
-        ),
-        moodTags: ['#아메카지', '#캐주얼', '#가을코디'],
-        brands: {'모자': '스투시', '상의': '칼하트 후드', '하의': '디키즈 874'},
-        weather: 'cloudy',
-        mood: 'calm',
-        isPublic: false,
-        timeline: [
-          const TimelineItem(
-            time: '12:00',
-            placeName: '삼청동 손칼국수',
-            category: 'restaurant',
-            description: '가을 날씨에 딱 어울리는 뜨끈한 국물',
-          ),
-          const TimelineItem(
-            time: '14:30',
-            placeName: '국립현대미술관',
-            category: 'museum',
-            description: '전시회 구경. 역시 힐링되는 미술관 투어',
-          ),
-        ],
-      ),
-      OotdRecord(
-        date: DateTime(2026, 10, 2),
-        character: baseChar.copyWith(
-          hairStyleIndex: 1,
-          topStyleIndex: 0,
-          bottomStyleIndex: 1,
-        ),
-        moodTags: ['#오피스룩', '#블라우스', '#출근룩'],
-        brands: {'상의': '자라 블라우스', '하의': '슬랙스'},
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: false,
-        timeline: [
-          const TimelineItem(
-            time: '09:00',
-            placeName: '온무 사무실',
-            category: 'work',
-            description: '업무 시작!',
-          ),
-          const TimelineItem(
-            time: '12:30',
-            placeName: '카페 아우어',
-            category: 'cafe',
-            description: '시그니처 빵 최고',
-          ),
-        ],
-      ),
-      OotdRecord(
-        date: DateTime(2026, 10, 3),
-        character: baseChar.copyWith(
-          hairStyleIndex: 2,
-          topStyleIndex: 1,
-          bottomStyleIndex: 1,
-          hairColorIndex: 1,
-        ),
-        moodTags: ['#카페투어', '#한남동', '#데이트룩', '#ootd', '#Archive한남'],
-        brands: {
-          'outer': '베이지 하프코트',
-          'top': '아이보리 니트',
-          'bottom': '블랙 롱 스커트',
-          'bag': '버건디 숄더백',
-          'shoes': '화이트 삭스 + 로퍼',
-        },
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: true,
-        timeline: [
-          const TimelineItem(
-            time: '13:00',
-            placeName: 'mRd Record',
-            category: 'cafe',
-            description: '케이크가 진짜 맛있었고 매장 분위기도 너무 좋았어! 사진도 많이 찍음 ㅎㅎ',
-          ),
-          const TimelineItem(
-            time: '15:30',
-            placeName: 'Archive Hannam',
-            category: 'shopping',
-            description: '편집숍 구경 넘 재밌었고 여기 향수 시향했는데 향이 너무 좋았음!',
-          ),
-          const TimelineItem(
-            time: '18:00',
-            placeName: 'Ofr. seoul',
-            category: 'cafe',
-            description: '성수동으로 넘어가서 오랜만에 구경하고 달달한 플랫화이트 한 잔의 여유',
-          ),
-          const TimelineItem(
-            time: '20:00',
-            placeName: '성수 맛집',
-            category: 'restaurant',
-            description: '저녁으로 예약해둔 파스타 맛집. 분위기도 음식도 진짜 최고였어!',
-          ),
-        ],
-      ),
-      OotdRecord(
-        date: DateTime(2026, 10, 4),
-        character: baseChar.copyWith(topStyleIndex: 2, bottomStyleIndex: 0),
-        moodTags: ['#러블리', '#데이트룩', '#주말나들이'],
-        brands: {'상의': '폴로 가디건', '하의': '청치마'},
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: true,
-        timeline: [
-          const TimelineItem(
-            time: '14:00',
-            placeName: '서울숲 공원',
-            category: 'walk',
-            description: '서울숲 피크닉. 가을 바람이 시원함',
-          ),
-        ],
-      ),
-    ];
-  }
-
   OotdRecord? _findRecord(WidgetRef ref, String key) {
-    final character = ref.read(userCharacterProvider) ?? const CharacterDraft();
-    final customRecords = ref.read(customRecordsProvider);
-    final defaultRecords = _createDefaultRecords(character);
-
-    final allRecords = [...defaultRecords, ...customRecords];
+    final records = ref.watch(ootdRecordsProvider).value ?? const <OotdRecord>[];
 
     try {
-      return allRecords.firstWhere((r) {
+      return records.firstWhere((r) {
         final type = r.brands['recordType'] ?? 'ootd';
         final k = '${r.date.year}-${r.date.month}-${r.date.day}-$type';
         return k == key;

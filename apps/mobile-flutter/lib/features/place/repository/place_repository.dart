@@ -2,13 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/place_models.dart';
-import '../../../shared/repository/in_memory_onmu_store.dart';
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
-  if (ref.watch(onmuApiEnabledProvider)) {
-    return ApiPlaceRepository(ref.watch(onmuApiClientProvider));
-  }
-  return MockPlaceRepository(ref.watch(inMemoryOnmuStoreProvider));
+  return ApiPlaceRepository(ref.watch(onmuApiClientProvider));
 });
 
 abstract interface class PlaceRepository {
@@ -23,6 +19,13 @@ abstract interface class PlaceRepository {
     required Object candidateId,
   });
 
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  });
+
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,
@@ -32,49 +35,6 @@ abstract interface class PlaceRepository {
     required Object groupId,
     required Object planId,
   });
-}
-
-class MockPlaceRepository implements PlaceRepository {
-  MockPlaceRepository(this._store);
-
-  final InMemoryOnmuStore _store;
-
-  @override
-  Future<PlaceCandidate> fetchCandidate({
-    required Object groupId,
-    required Object planId,
-    required Object candidateId,
-  }) async {
-    return _store.fetchPlaceCandidate(
-      groupId: groupId,
-      planId: planId,
-      candidateId: candidateId,
-    );
-  }
-
-  @override
-  Future<List<PlaceCandidate>> fetchCandidates({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchPlaceCandidates(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<List<PlaceRisk>> fetchRisks({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchPlaceRisks(groupId: groupId, planId: planId);
-  }
-
-  @override
-  Future<PlaceVoteResult> fetchVoteResult({
-    required Object groupId,
-    required Object planId,
-  }) async {
-    return _store.fetchPlaceVoteResult(groupId: groupId, planId: planId);
-  }
 }
 
 class ApiPlaceRepository implements PlaceRepository {
@@ -110,6 +70,32 @@ class ApiPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) {
+      return const [];
+    }
+    final response = await _client.postObject(
+      '/api/v1/place-search',
+      body: {
+        'groupId': groupId.toString(),
+        'planId': planId.toString(),
+        'query': normalizedQuery,
+        if (category != null && category.trim().isNotEmpty)
+          'category': category.trim(),
+      },
+    );
+    return OnmuJson.asMapList(
+      response['results'],
+    ).map(_candidate).toList(growable: false);
+  }
+
+  @override
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,
@@ -126,20 +112,24 @@ class ApiPlaceRepository implements PlaceRepository {
       title: '투표 결과',
       selectedPlaceName: '아직 선택된 장소가 없어요',
       voters: [],
-      note: 'Spring API 투표가 만들어지면 결과를 연결합니다.',
+      note: '투표가 만들어지면 결과를 연결합니다.',
     );
   }
 
   PlaceCandidate _candidate(Map<String, dynamic> json) {
     return PlaceCandidate(
-      id: OnmuJson.readInt(json, 'id'),
+      id: _candidateId(json),
       name: OnmuJson.readString(json, 'name', '장소 후보'),
       category: OnmuJson.readString(json, 'category', '장소'),
-      summary: OnmuJson.readString(json, 'summary', 'Spring API 장소 후보'),
+      summary: OnmuJson.readString(json, 'summary'),
       score: 0,
       matchPercent: 0,
       distanceLabel: OnmuJson.readString(json, 'distanceLabel', '거리 정보 준비 중'),
-      travelTimeLabel: OnmuJson.readString(json, 'travelTimeLabel', '이동 시간 준비 중'),
+      travelTimeLabel: OnmuJson.readString(
+        json,
+        'travelTimeLabel',
+        '이동 시간 준비 중',
+      ),
       priceLabel: OnmuJson.readString(json, 'priceLabel', '가격 정보 준비 중'),
       isOpen: OnmuJson.readBool(json, 'isOpen', true),
       address: OnmuJson.readString(json, 'address'),
@@ -159,6 +149,17 @@ class ApiPlaceRepository implements PlaceRepository {
       tags: OnmuJson.stringList(json['tags']),
       reasons: OnmuJson.stringList(json['reasons']),
       risks: const [],
+      provider: OnmuJson.readString(json, 'provider'),
+      providerPlaceId: OnmuJson.readString(json, 'providerPlaceId'),
+      roadAddress: OnmuJson.readString(json, 'roadAddress'),
+      sourceUrl: OnmuJson.readString(json, 'sourceUrl'),
+      latitude:
+          _readNullableDouble(json, 'lat') ??
+          _readNullableDouble(json, 'latitude'),
+      longitude:
+          _readNullableDouble(json, 'lng') ??
+          _readNullableDouble(json, 'longitude'),
+      fetchedAt: DateTime.tryParse(OnmuJson.readString(json, 'fetchedAt')),
     );
   }
 
@@ -184,5 +185,26 @@ class ApiPlaceRepository implements PlaceRepository {
       reasons: const [],
       risks: const [],
     );
+  }
+
+  double? _readNullableDouble(Map<String, dynamic> json, String key) {
+    final value = json[key];
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value?.toString() ?? '');
+  }
+
+  int _candidateId(Map<String, dynamic> json) {
+    final explicitId = OnmuJson.readInt(json, 'id');
+    if (explicitId != 0) {
+      return explicitId;
+    }
+    final providerKey = [
+      OnmuJson.readString(json, 'provider'),
+      OnmuJson.readString(json, 'providerPlaceId'),
+      OnmuJson.readString(json, 'name'),
+    ].join('|');
+    return providerKey.hashCode & 0x7fffffff;
   }
 }

@@ -34,6 +34,11 @@ class GroupPinnedPlan {
   final String placeName;
   final String statusLabel;
   final String voteSummary;
+
+  PlanProgressStatus get progressStatus =>
+      PlanProgressStatus.fromApi(statusLabel);
+
+  String get displayStatusLabel => progressStatus.label;
 }
 
 class GroupPlanSummary {
@@ -48,11 +53,13 @@ class GroupPlanSummary {
     required this.extraMemberCount,
     required this.iconKind,
     required this.isPast,
+    this.startsAt,
   });
 
   final int id;
   final String title;
   final String dateLabel;
+  final DateTime? startsAt;
   final String placeName;
   final String statusLabel;
   final String statusType;
@@ -60,6 +67,95 @@ class GroupPlanSummary {
   final int extraMemberCount;
   final String iconKind;
   final bool isPast;
+
+  PlanProgressStatus get progressStatus {
+    final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
+    return PlanProgressStatus.fromApi(source);
+  }
+
+  String get displayStatusLabel => progressStatus.label;
+
+  String get displayDateTimeLabel {
+    final startsAtLocal = startsAt?.toLocal();
+    if (startsAtLocal == null) {
+      return dateLabel;
+    }
+
+    final hour = startsAtLocal.hour.toString().padLeft(2, '0');
+    final minute = startsAtLocal.minute.toString().padLeft(2, '0');
+    return '${startsAtLocal.month}월 ${startsAtLocal.day}일 $hour:$minute';
+  }
+
+  bool isUpcomingFrom(DateTime now) {
+    final startsAtLocal = startsAt?.toLocal();
+    return !isPast &&
+        progressStatus.isUpcomingCandidate &&
+        (startsAtLocal == null || !startsAtLocal.isBefore(now.toLocal()));
+  }
+
+  static int compareUpcoming(GroupPlanSummary left, GroupPlanSummary right) {
+    final leftStartsAt = left.startsAt?.toLocal();
+    final rightStartsAt = right.startsAt?.toLocal();
+    if (leftStartsAt == null && rightStartsAt == null) {
+      return left.id.compareTo(right.id);
+    }
+    if (leftStartsAt == null) {
+      return 1;
+    }
+    if (rightStartsAt == null) {
+      return -1;
+    }
+    final compared = leftStartsAt.compareTo(rightStartsAt);
+    return compared == 0 ? left.id.compareTo(right.id) : compared;
+  }
+}
+
+enum PlanProgressStatus {
+  draft('초안'),
+  scheduled('예정'),
+  active('진행 중'),
+  completed('완료'),
+  cancelled('취소됨'),
+  unknown('확인 필요');
+
+  const PlanProgressStatus(this.label);
+
+  final String label;
+
+  bool get isUpcomingCandidate {
+    return switch (this) {
+      PlanProgressStatus.completed || PlanProgressStatus.cancelled => false,
+      _ => true,
+    };
+  }
+
+  static PlanProgressStatus fromApi(String value) {
+    final normalized = value.trim().toLowerCase().replaceAll(
+      RegExp(r'[\s_-]'),
+      '',
+    );
+    return switch (normalized) {
+      'draft' || '초안' => PlanProgressStatus.draft,
+      'scheduled' ||
+      'planned' ||
+      'upcoming' ||
+      '예정' => PlanProgressStatus.scheduled,
+      'active' ||
+      'ongoing' ||
+      'inprogress' ||
+      '진행중' => PlanProgressStatus.active,
+      'completed' ||
+      'complete' ||
+      'done' ||
+      '완료' => PlanProgressStatus.completed,
+      'cancelled' ||
+      'canceled' ||
+      'cancel' ||
+      '취소' ||
+      '취소됨' => PlanProgressStatus.cancelled,
+      _ => PlanProgressStatus.unknown,
+    };
+  }
 }
 
 class GroupMessage {
@@ -84,14 +180,22 @@ class GroupMemoryRecord {
     required this.description,
     required this.dateLabel,
     required this.tags,
+    this.apiId = '',
+    this.imageUrls = const [],
   });
 
   final int id;
+  final String apiId;
   final String author;
   final String title;
   final String description;
   final String dateLabel;
   final List<String> tags;
+  final List<String> imageUrls;
+
+  String get routeId => apiId.isEmpty ? id.toString() : apiId;
+
+  String? get primaryImageUrl => imageUrls.isEmpty ? null : imageUrls.first;
 }
 
 class VoteCard {

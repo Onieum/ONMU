@@ -37,7 +37,7 @@ Team devices
 | AI/Data Worker | FastAPI Worker로 확정합니다. 모바일 앱에서 직접 호출하지 않고 Spring Boot Main API 뒤의 내부 worker로 둡니다. 1차 Windows helper의 기본 실행 대상은 아닙니다. |
 | PostgreSQL/PostGIS | 약속, 장소, 기록, 정산, 공개 범위의 원본 저장소입니다. Windows 호스트에서는 `localhost:15432`를 사용합니다. |
 | Redis | Naver Place API 캐시, 실시간 presence, WebSocket fan-out, rate limit 보조에만 사용합니다. 원본 저장소로 쓰지 않습니다. |
-| MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지 개발 테스트에 사용합니다. |
+| MinIO | Azure Blob Storage 대체 로컬 오브젝트 스토리지입니다. 사진, 공유 카드, 기록 이미지, 개발용 MapLibre PMTiles manifest 테스트에 사용합니다. |
 | Redpanda | Azure Service Bus/Event Hubs 또는 Kafka 호환 이벤트 흐름을 실험할 때만 켭니다. 기본 실행 대상이 아닙니다. |
 | OpenSearch | 초기 검색은 PostgreSQL Search를 우선합니다. 검색/RAG 실험이 필요할 때만 켭니다. |
 | Airflow | MVP Windows dev 서버 기본 구성에는 포함하지 않습니다. 추천 평가, 통계 리포트, 데이터셋 생성 같은 배치 파이프라인이 커질 때 별도 도입을 검토합니다. |
@@ -151,6 +151,16 @@ npm run compose:config:windows
 docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 docker compose -f infra/compose/docker-compose.yml ps
 ```
+
+MapLibre 개발용 PMTiles object, manifest, style JSON을 MinIO에 올릴 때는 별도 seed 스크립트를 사용합니다. 앱은 PMTiles URL을 직접 하드코딩하지 않고 manifest pointer를 읽습니다. 자세한 기준은 [MapLibre 개발 타일 manifest 운영](./map-tiles-dev.md)을 따릅니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts\windows\seed-map-tiles-minio.ps1 `
+  -PmtilesSourceUrl $env:ONMU_PMTILES_SOURCE_URL
+```
+
+실제 PMTiles source URL이 없으면 dry-run 또는 작은 임시 파일 smoke로 script wiring만 확인합니다. 이 검증은 실제 지도 타일 성공을 의미하지 않습니다.
 
 Windows helper를 쓰는 경우:
 
@@ -808,11 +818,9 @@ Windows 서버에서 검증한 compose 설정은 Azure Container Apps, AKS manif
 
 현재 public dev backend의 기본 runtime은 Spring Boot Main API입니다. `dev` 브랜치에 merge되면 GitHub Actions CD가 `scripts\windows\deploy-dev-backend.ps1 -Runtime spring` 흐름으로 Windows dev backend를 재배포합니다.
 
-Spring runtime은 `/api/v1/**` 보호 API에 dev bearer token을 요구합니다. 공유 Windows backend-host에서는 토큰을 코드, `.env`, 문서, 로그에 남기지 말고 Key Vault 또는 실행 프로세스 환경변수로만 주입합니다.
+Spring runtime은 `/api/v1/**` 보호 API에 HS256 access JWT를 요구합니다. 공유 Windows backend-host에서는 token 값이나 signing secret 값을 코드, `.env`, 문서, 로그에 남기지 말고 Key Vault 또는 실행 프로세스 환경변수로만 주입합니다. 정적 `dev-api-access-token` 값은 현재 Spring 인증 필터의 access token으로 쓰지 않습니다.
 
 ```powershell
-$env:ONMU_DEV_ACCESS_TOKEN="<local-smoke-token>"
-$env:ONMU_DEV_REFRESH_TOKEN="<local-refresh-token>"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-backend.ps1 -Runtime spring
 ```
 
@@ -824,9 +832,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\deploy-dev-b
 
 Spring 운영 체크리스트:
 
-- `ONMU_DEV_ACCESS_TOKEN`, `ONMU_DEV_REFRESH_TOKEN`이 Key Vault 또는 안전한 로컬 환경변수에서 주입됩니다.
-- `GET /api/v1/auth/session`이 토큰 없이는 `authenticated: false`, 유효한 token으로는 `authenticated: true`를 반환합니다.
-- 보호된 `/api/v1/**` smoke가 bearer token 없이는 401, 유효한 token으로는 200/201을 반환합니다.
+- `ONMU_ACCESS_TOKEN_SECRET`이 Key Vault secret `dev-access-token-secret`에서 주입됩니다.
+- Flutter API mode 실행 전 `scripts\windows\new-flutter-access-jwt.ps1`로 git ignored dart-define 파일을 생성합니다.
+- `GET /api/v1/auth/session`이 token 없이는 401, 유효한 access JWT로는 인증 사용자 정보를 반환합니다.
+- 보호된 `/api/v1/**` smoke가 bearer token 없이는 401, 유효한 access JWT로는 200/201을 반환합니다.
 - CORS allowed origin은 `ONMU_DEV_CORS_ORIGINS` 또는 Spring property로 명시되며 wildcard origin/header를 사용하지 않습니다.
 - `DELETE /api/v1/auth/session` preflight가 허용 origin에서 통과합니다.
 - Spring runtime도 `logs\api-access.log`에 request-level access log를 남깁니다. `dev_client`, `origin`, `request_id`로 smoke 요청을 추적하되 token과 request body는 기록하지 않습니다.

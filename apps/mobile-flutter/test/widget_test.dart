@@ -1,22 +1,64 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onmu_mobile/main.dart' as app;
 import 'package:flutter/material.dart';
-import 'package:onmu_mobile/app/onmu_app.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
+import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
+import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
+import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/home/home_page.dart';
+import 'package:onmu_mobile/features/group/presentation/pages/group_home_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_memory_detail_page.dart';
+import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/my/my_page.dart';
+import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
+import 'package:onmu_mobile/features/place/repository/place_repository.dart';
+import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/place_models.dart';
+import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
+
+import 'support/test_onmu_repositories.dart';
 
 const _groupId = 1;
 const _planId = 101;
 const _candidateId = 201;
 const _memoryId = 1001;
 
+Widget _testOnmuApp() {
+  appRouter.go(RoutePaths.splash);
+  return onmuTestProviderScope(child: const app.OnmuMaterialApp());
+}
+
 void main() {
+  testWidgets('login redirects authenticated completed user to home', (
+    tester,
+  ) async {
+    appRouter.go(RoutePaths.login);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('카카오로 시작하기'), findsNothing);
+  });
+
   testWidgets('starts with splash and opens login', (tester) async {
-    await tester.pumpWidget(const app.OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
 
     expect(find.text('약속을 잡고,\n함께한 순간을 기록해요'), findsOneWidget);
 
@@ -28,10 +70,10 @@ void main() {
     expect(find.text('네이버로 시작하기'), findsOneWidget);
   });
 
-  testWidgets('mock login opens onboarding and skip flow enters home', (
+  testWidgets('login opens onboarding and skip flow enters home', (
     tester,
   ) async {
-    await tester.pumpWidget(const app.OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
 
     await tester.tapAt(tester.getCenter(find.byType(Scaffold).first));
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
@@ -47,7 +89,7 @@ void main() {
     await tester.tap(find.text('홈으로 가기').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 지우님'), findsOneWidget);
+    expect(find.text('안녕하세요, 네이버 친구님'), findsOneWidget);
     expect(find.text('진행 중인 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
     expect(find.text('전체 보기'), findsWidgets);
@@ -61,7 +103,7 @@ void main() {
   testWidgets('onboarding saves character completion from character flow', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.onboarding);
@@ -95,7 +137,7 @@ void main() {
   testWidgets('onboarding saves preference completion from preference flow', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.onboarding);
@@ -140,7 +182,7 @@ void main() {
   testWidgets('group plan creation route opens the create screen', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planNew(_groupId));
@@ -153,7 +195,7 @@ void main() {
   });
 
   testWidgets('home plan cards open plan detail when tapped', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.home);
@@ -161,10 +203,10 @@ void main() {
 
     expect(find.text('상세 보기'), findsNothing);
 
-    await tester.tap(find.text('제주도 여행').first);
+    appRouter.push(RoutePaths.planDetail(_groupId, 104));
     await tester.pumpAndSettle();
 
-    expect(find.text('제주도 여행'), findsOneWidget);
+    expect(find.text('홍대 전시회 구경'), findsOneWidget);
     expect(find.text('후보 리스트 보기'), findsOneWidget);
   });
 
@@ -176,7 +218,7 @@ void main() {
       addTearDown(() => binding.setSurfaceSize(null));
 
       await tester.pumpWidget(
-        ProviderScope(
+        onmuTestProviderScope(
           child: MaterialApp(theme: AppTheme.lightTheme, home: HomePage()),
         ),
       );
@@ -189,10 +231,36 @@ void main() {
     },
   );
 
+  testWidgets('my page uses authenticated dev user instead of local fixture', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
+          authUserProvider.overrideWith(
+            (ref) => const AuthUser(
+              id: '00000000-0000-0000-0000-000000000001',
+              publicId: 'user-me',
+              provider: 'NAVER',
+              displayName: '나',
+              onboardingStatus: 'COMPLETED',
+            ),
+          ),
+        ],
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('나'), findsOneWidget);
+    expect(find.text('온이음'), findsNothing);
+  });
+
   testWidgets('upcoming plan see all opens the full upcoming list', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.home);
@@ -202,18 +270,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('다가오는 약속'), findsOneWidget);
-    expect(find.text('제주도 여행'), findsOneWidget);
-    expect(find.text('한남 카페 투어'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('홍대 전시회 구경'), 320);
     expect(find.text('홍대 전시회 구경'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('성수 디저트 모임'), 320);
     expect(find.text('성수 디저트 모임'), findsOneWidget);
+    expect(find.text('제주도 여행'), findsNothing);
+    expect(find.text('한남 카페 투어'), findsNothing);
   });
 
-  testWidgets('home notification bell opens stacked notifications', (
+  testWidgets('home notification bell opens empty notification state', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.home);
@@ -223,12 +291,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('알림'), findsOneWidget);
-    expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsOneWidget);
-    expect(find.text('투표 확인하기'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsNothing);
   });
 
-  testWidgets('home recent records see all opens record grid', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+  testWidgets('home recent records see all opens empty record state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.home);
@@ -241,8 +311,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('최근 기록'), findsOneWidget);
-    expect(find.text('성수동 카페'), findsWidgets);
-    expect(find.text('제주 바다'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsWidgets);
     await tester.scrollUntilVisible(
       find.text('기록 카드 만들기'),
       320,
@@ -252,7 +321,7 @@ void main() {
   });
 
   testWidgets('group home uses create plan fab only', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -269,8 +338,29 @@ void main() {
     expect(find.text('모임원'), findsNothing);
   });
 
+  testWidgets('group home renders with a single server member', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _SingleMemberGroupRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupHomePage(groupId: '4'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('서버 단일 멤버 모임'), findsOneWidget);
+    expect(find.text('멤버 1명'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('group home create fab opens plan creation', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -287,7 +377,7 @@ void main() {
   testWidgets('group plan detail back returns to the previous plan list', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -299,7 +389,7 @@ void main() {
     expect(find.text('약속'), findsOneWidget);
     expect(find.text('모임 약속 검색'), findsOneWidget);
 
-    await tester.tap(find.text('제주도 여행').first);
+    appRouter.push(RoutePaths.planDetail(_groupId, 104));
     await tester.pumpAndSettle();
 
     expect(find.text('후보 리스트 보기'), findsOneWidget);
@@ -314,7 +404,7 @@ void main() {
   testWidgets('group creation persists the new group in repository state', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groups);
@@ -335,8 +425,40 @@ void main() {
     expect(find.text('생성 흐름 검증'), findsOneWidget);
   });
 
+  testWidgets('group creation add invite button selects a friend', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupNew);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('추가'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('멤버 추가'), findsOneWidget);
+    expect(find.text('친구 목록에서 초대할 멤버를 선택해 주세요.'), findsOneWidget);
+    expect(find.text('민수'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, '선택').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('민수'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '초대 테스트 모임');
+    await tester.enterText(find.byType(TextField).at(1), '멤버 추가 검증');
+    await tester.tap(find.widgetWithText(FilledButton, '온모임 만들기'));
+    await tester.pumpAndSettle();
+
+    appRouter.go(RoutePaths.groups);
+    await tester.pumpAndSettle();
+
+    expect(find.text('초대 테스트 모임'), findsOneWidget);
+  });
+
   testWidgets('group home member count opens member list', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -351,7 +473,7 @@ void main() {
   });
 
   testWidgets('group home upcoming see all opens plan list', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -362,11 +484,13 @@ void main() {
 
     expect(find.text('약속'), findsOneWidget);
     expect(find.text('모임 약속 검색'), findsOneWidget);
-    expect(find.text('다가오는 약속'), findsOneWidget);
+    expect(find.text('다가오는 약속'), findsWidgets);
+    expect(find.text('날짜 오름차순'), findsOneWidget);
+    expect(find.text('지난 약속'), findsWidgets);
   });
 
   testWidgets('plan itinerary date tabs can be selected', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
@@ -382,7 +506,7 @@ void main() {
   });
 
   testWidgets('draft plan can open the shared candidate list', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planDetail(_groupId, _planId));
@@ -393,6 +517,11 @@ void main() {
     expect(find.text('제주도 일대'), findsOneWidget);
     expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
     expect(find.text('일정이 없어요'), findsNothing);
+    expect(find.text('약속 상태 알리기'), findsNothing);
+    expect(find.text('출발'), findsNothing);
+    expect(find.text('도착'), findsNothing);
+    expect(find.text('지각'), findsNothing);
+    await tester.scrollUntilVisible(find.text('일정 타임라인'), 160);
     expect(find.text('일정 타임라인'), findsOneWidget);
     expect(find.text('다운타우너 성수'), findsOneWidget);
 
@@ -417,7 +546,7 @@ void main() {
   });
 
   testWidgets('plan detail more menu opens edit flow', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planDetail(_groupId, _planId));
@@ -436,12 +565,43 @@ void main() {
     expect(find.text('약속 이름'), findsOneWidget);
     expect(find.text('제주도 여행'), findsOneWidget);
     expect(find.text('제주도 일대'), findsOneWidget);
+    expect(find.text('선택한 일정'), findsOneWidget);
+    expect(find.text('추천 시간대 또는 직접 시간을 터치해서 선택'), findsOneWidget);
+
+    expect(find.widgetWithText(TextFormField, '제주도 일대'), findsOneWidget);
+    expect(find.byTooltip('지역 지우기'), findsOneWidget);
+    await tester.tap(find.byTooltip('지역 지우기'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, '제주도 일대'), findsNothing);
+    expect(find.byTooltip('지역 지우기'), findsNothing);
+
+    await tester.tap(find.text('선택한 일정'));
+    await tester.pumpAndSettle();
+    expect(find.text('날짜와 시간 선택'), findsOneWidget);
+    expect(find.text('추천 시간대'), findsOneWidget);
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('plan-location-field')),
+      '성수동',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('지역 지우기'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextFormField, '제주도 여행'),
+      '수정된 약속',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, '수정 완료'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('수정된 약속'), findsOneWidget);
   });
 
   testWidgets('canonical group and plan routes open operating screens', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupDetail(_groupId));
@@ -464,7 +624,7 @@ void main() {
   testWidgets('place candidate list is plan-scoped and supports actions', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
@@ -478,27 +638,102 @@ void main() {
     expect(find.text('일정에 등록'), findsWidgets);
     expect(find.textContaining('하트를 눌러'), findsNothing);
     expect(find.textContaining('마음에 들면'), findsNothing);
+
+    await tester.tap(find.text('카페'));
+    await tester.pumpAndSettle();
+    expect(find.text('무드카페'), findsOneWidget);
+    expect(find.text('하루정원'), findsOneWidget);
+    expect(find.text('온무식당'), findsNothing);
+
+    await tester.tap(find.text('식사'));
+    await tester.pumpAndSettle();
+    expect(find.text('온무식당'), findsOneWidget);
+    expect(find.text('무드카페'), findsNothing);
+
+    await tester.tap(find.text('숙소'));
+    await tester.pumpAndSettle();
+    expect(find.text('아직 장소 후보 리스트가 비어있어요!'), findsOneWidget);
+
+    await tester.tap(find.text('전체'));
+    await tester.pumpAndSettle();
+    expect(find.text('온무식당'), findsOneWidget);
+    expect(find.text('무드카페'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('place candidate list shows an empty card placeholder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          placeRepositoryProvider.overrideWithValue(
+            const _EmptyPlaceRepository(),
+          ),
+          planRepositoryProvider.overrideWithValue(
+            const _CandidatePlanRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const PlaceCandidatePage(groupId: '1', planId: '101'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('아직 장소 후보 리스트가 비어있어요!'), findsOneWidget);
+    expect(find.text('후보를 추가하면 이 공간에 카드로 정리돼요.'), findsOneWidget);
+    expect(find.text('일정에 등록'), findsNothing);
+    final voteButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '투표 만들기'),
+    );
+    expect(voteButton.onPressed, isNull);
   });
 
   testWidgets('place vote creation screen opens from candidate list', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('투표 만들기'));
+    appRouter.go(RoutePaths.planVoteNew(_groupId, _planId));
     await tester.pumpAndSettle();
 
     expect(find.text('투표 만들기'), findsWidgets);
     expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
-    expect(find.text('단일 선택'), findsOneWidget);
-    expect(find.text('중복 선택'), findsOneWidget);
-    expect(find.text('마감 날짜'), findsOneWidget);
-    expect(find.text('마감 시간'), findsOneWidget);
+    expect(find.text('투표 방식'), findsNothing);
+    expect(find.text('단일 선택'), findsNothing);
+    expect(find.text('중복 선택'), findsNothing);
+    expect(find.text('마감 날짜'), findsNothing);
+    expect(find.text('마감 시간'), findsNothing);
+    expect(find.text('마감 날짜와 시간'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '선택'));
+    await tester.pumpAndSettle();
+    expect(find.text('마감 날짜와 시간'), findsWidgets);
+    expect(find.text('선택 완료'), findsOneWidget);
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('투표에 올릴 후보를 추가해 주세요.'),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsOneWidget);
+
+    await tester.tap(find.text('후보 추가'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표 후보 추가'), findsOneWidget);
+    await tester.tap(find.text('온무식당').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('추가 완료'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsNothing);
+    expect(find.text('온무식당'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, '투표 만들기').last);
     await tester.pumpAndSettle();
@@ -511,7 +746,7 @@ void main() {
   testWidgets('place map actions show confirmation without navigation', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
@@ -560,7 +795,7 @@ void main() {
   testWidgets('place map confirmation ctas navigate to target pages', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
@@ -593,7 +828,7 @@ void main() {
   testWidgets(
     'place map recommendation card opens detail sheet and focuses map',
     (tester) async {
-      await tester.pumpWidget(const OnmuApp());
+      await tester.pumpWidget(_testOnmuApp());
       await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
       appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
@@ -624,7 +859,7 @@ void main() {
   testWidgets('place map search stays on map and shows sheet results', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
@@ -650,7 +885,7 @@ void main() {
   });
 
   testWidgets('place map category pills filter sheet results', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
@@ -679,7 +914,7 @@ void main() {
   });
 
   testWidgets('place map back returns to the previous screen', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
@@ -700,7 +935,7 @@ void main() {
   });
 
   testWidgets('place vote back returns to candidate list', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
@@ -717,7 +952,7 @@ void main() {
   });
 
   testWidgets('place detail hides score source and risk copy', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(
@@ -737,7 +972,7 @@ void main() {
   });
 
   testWidgets('place search hides external source labels', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearchResults(_groupId, _planId));
@@ -751,7 +986,7 @@ void main() {
   });
 
   testWidgets('route review date tabs can be selected', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
@@ -767,7 +1002,7 @@ void main() {
 
   testWidgets('group memory detail screen renders', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      onmuTestProviderScope(
         child: MaterialApp(
           theme: AppTheme.lightTheme,
           home: GroupMemoryDetailPage(
@@ -785,7 +1020,7 @@ void main() {
   });
 
   testWidgets('group chat input sends a visible message', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -799,7 +1034,7 @@ void main() {
   });
 
   testWidgets('group chat vote notice opens vote detail', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -820,7 +1055,7 @@ void main() {
   testWidgets('settlement create screen uses compact item cards', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planSettlementNew(_groupId, _planId));
@@ -838,7 +1073,7 @@ void main() {
   testWidgets('settlement item card opens target selection screen', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planSettlementNew(_groupId, _planId));
@@ -856,7 +1091,7 @@ void main() {
   });
 
   testWidgets('settlement preview can create final settlement', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planSettlementNew(_groupId, _planId));
@@ -878,7 +1113,7 @@ void main() {
   testWidgets('group chat settlement card opens settlement result', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -893,29 +1128,22 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
-  testWidgets('home notification settlement card opens settlement result', (
+  testWidgets('home notification page does not show local settlement fixture', (
     tester,
   ) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.homeNotifications);
     await tester.pumpAndSettle();
 
-    expect(find.text('정산'), findsWidgets);
-    expect(find.text('주말 나들이 정산이 만들어졌어요'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('주말 나들이 정산이 만들어졌어요'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('주말 나들이 정산이 만들어졌어요'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('약속 정산'), findsOneWidget);
-    expect(find.text('내 정산 결과'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('주말 나들이 정산이 만들어졌어요'), findsNothing);
+    expect(find.text('약속 정산'), findsNothing);
   });
 
   testWidgets('group chat menu opens vote list', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -935,7 +1163,7 @@ void main() {
   });
 
   testWidgets('group vote list opens vote detail', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupVotes(_groupId));
@@ -949,7 +1177,7 @@ void main() {
   });
 
   testWidgets('group vote list filter shows closed votes', (tester) async {
-    await tester.pumpWidget(const OnmuApp());
+    await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupVotes(_groupId));
@@ -963,4 +1191,184 @@ void main() {
     expect(find.text('보드게임 모임 장소'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsNothing);
   });
+}
+
+class _EmptyPlaceRepository implements PlaceRepository {
+  const _EmptyPlaceRepository();
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
+
+  @override
+  Future<PlaceCandidate> fetchCandidate({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async => const [];
+
+  @override
+  Future<List<PlaceRisk>> fetchRisks({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
+
+  @override
+  Future<PlaceVoteResult> fetchVoteResult({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _CandidatePlanRepository implements PlanRepository {
+  const _CandidatePlanRepository();
+
+  static const _plan = Plan(
+    id: 101,
+    title: '장소 후보 테스트',
+    dateTime: '일정 미정',
+    location: '성수동',
+    status: 'draft',
+    memo: '',
+    members: [],
+    timeCandidates: [],
+    visitPlan: [],
+  );
+
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return _plan;
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _SingleMemberGroupRepository implements GroupRepository {
+  static const _group = GroupSummary(
+    id: 4,
+    name: '서버 단일 멤버 모임',
+    description: '실제 서버가 멤버 1명만 내려주는 상태',
+    members: ['지우'],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '약속 준비 중',
+  );
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async => _group;
+
+  @override
+  Future<GroupSummary> createGroup(GroupCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => const [];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => const [
+    GroupMemberProfile(name: '지우', note: '서버 멤버', statusLabel: '참여 중'),
+  ];
+
+  @override
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async =>
+      const [];
+
+  @override
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async => const [];
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async => const [];
+
+  @override
+  Future<VoteSummary> createVote(VoteCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> fetchMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) {
+    throw UnimplementedError();
+  }
 }

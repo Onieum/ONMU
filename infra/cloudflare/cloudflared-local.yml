@@ -3,4 +3,6 @@ protocol: quic
 ingress:
   - hostname: dev-api.onmu.cloud
     service: http://localhost:8080
+  - hostname: tiles.onmu.cloud
+    service: http://localhost:19100
   - service: http_status:404

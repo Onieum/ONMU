@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -5,7 +7,7 @@ import '../../core/theme/app_typography.dart';
 import '../../shared/widgets/asset_crop_image.dart';
 
 class SplashPage extends StatefulWidget {
-  final VoidCallback onTimeout;
+  final FutureOr<void> Function() onTimeout;
 
   const SplashPage({super.key, required this.onTimeout});
 
@@ -33,7 +35,7 @@ class _SplashPageState extends State<SplashPage> {
     }
 
     _completed = true;
-    widget.onTimeout();
+    unawaited(Future<void>.sync(widget.onTimeout));
   }
 
   @override

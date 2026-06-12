@@ -15,6 +15,7 @@ if (-not $VaultName) {
 }
 
 $secretMap = [ordered]@{
+  # 기존 정적 token 이름이다. Spring JWT 인증은 ONMU_ACCESS_TOKEN_SECRET을 사용한다.
   ONMU_API_ACCESS_TOKEN = "$SecretPrefix-api-access-token"
   ONMU_API_REFRESH_TOKEN = "$SecretPrefix-api-refresh-token"
   ONMU_CORS_ORIGINS = "$SecretPrefix-cors-origins"
@@ -26,14 +27,23 @@ $secretMap = [ordered]@{
   MINIO_ROOT_USER = "$SecretPrefix-minio-root-user"
   MINIO_ROOT_PASSWORD = "$SecretPrefix-minio-root-password"
   ONMU_ACCESS_TOKEN_SECRET = "$SecretPrefix-access-token-secret"
+  NAVER_OAUTH_CLIENT_ID = "$SecretPrefix-naver-oauth-client-id"
+  NAVER_OAUTH_CLIENT_SECRET = "$SecretPrefix-naver-oauth-client-secret"
+  KAKAO_CLIENT_SECRET = "$SecretPrefix-kakao-client-secret"
+  KAKAO_REST_API_KEY = "$SecretPrefix-kakao-rest-api-key"
+  NAVER_SEARCH_CLIENT_ID = "$SecretPrefix-naver-search-client-id"
+  NAVER_SEARCH_CLIENT_SECRET = "$SecretPrefix-naver-search-client-secret"
+  OPENROUTESERVICE_API_KEY = "$SecretPrefix-openrouteservice-api-key"
 }
 
 if ($SecretPrefix -eq "dev") {
+  # 기존 정적 token 이름이다. Flutter API mode는 발급한 JWT를 사용한다.
   $secretMap.ONMU_DEV_ACCESS_TOKEN = "dev-api-access-token"
   $secretMap.ONMU_DEV_REFRESH_TOKEN = "dev-api-refresh-token"
   $secretMap.ONMU_DEV_CORS_ORIGINS = "dev-cors-origins"
   $secretMap.CLOUDFLARE_API_TOKEN = "dev-cloudflare-api-token"
   $secretMap.KAKAO_REST_API_KEY = "dev-kakao-rest-api-key"
+  # 기존 Naver 검색/지도/NCP 계열 이름과 OAuth 전용 이름을 혼용하지 않는다.
   $secretMap.NAVER_CLIENT_ID = "dev-naver-client-id"
   $secretMap.NAVER_CLIENT_SECRET = "dev-naver-client-secret"
   $secretMap.GOOGLE_MAPS_API_KEY = "dev-google-maps-api-key"

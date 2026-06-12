@@ -8,6 +8,8 @@ import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/onmu_design.dart';
 import '../../shared/widgets/asset_crop_image.dart';
+import 'data/kakao_oauth_credential_loader.dart';
+import 'data/naver_oauth_credential_loader.dart';
 import 'data/social_auth_service.dart';
 import 'domain/auth_user.dart';
 import 'providers/auth_providers.dart';
@@ -29,6 +31,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   _SocialProvider? _loadingProvider;
   String? _errorMessage;
   StreamSubscription<AuthUser?>? _googleAuthSubscription;
+  bool _redirectScheduled = false;
 
   bool get _isLoading => _loadingProvider != null;
 
@@ -46,6 +49,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authBootstrap = ref.watch(authBootstrapProvider);
+    final authenticatedUser = authBootstrap.asData?.value.user;
+    if (authenticatedUser != null) {
+      _redirectAuthenticatedUser(authenticatedUser);
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFFCF8),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (authBootstrap.isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFFCF8),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFCF8),
       body: SafeArea(
@@ -141,6 +160,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  void _redirectAuthenticatedUser(AuthUser user) {
+    if (_redirectScheduled) {
+      return;
+    }
+
+    _redirectScheduled = true;
+    final route = user.hasCompletedOnboarding
+        ? RoutePaths.home
+        : RoutePaths.onboarding;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go(route);
+      }
+    });
+  }
+
   Future<void> _signIn(_SocialProvider provider) async {
     if (_isLoading) {
       return;
@@ -190,7 +225,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _googleAuthSubscription = service.googleAuthUserEvents().listen(
         (user) {
           if (user != null) {
-            actions.applyGoogleAuthUser(user);
+            final accepted = actions.applyGoogleAuthUser(user);
+            if (!accepted && mounted) {
+              setState(() {
+                _errorMessage = _messageForSignInError(
+                  const GoogleSpringOAuthUnavailableException(),
+                );
+              });
+            }
           }
         },
         onError: (Object error) {
@@ -284,11 +326,56 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   String _messageForSignInError(Object error) {
+    if (error is KakaoSignInUnavailableException) {
+      return 'Kakao OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
+    if (error is KakaoSignInMissingClientIdException) {
+      return 'KAKAO_REST_API_KEY 설정이 필요해요. 값을 넣고 다시 실행해 주세요.';
+    }
+    if (error is KakaoSignInMissingRedirectUriException) {
+      return 'KAKAO_OAUTH_REDIRECT_URI 설정을 확인해 주세요.';
+    }
+    if (error is KakaoSignInLaunchException) {
+      return 'Kakao 로그인 창을 열지 못했어요. 브라우저 설정을 확인해 주세요.';
+    }
+    if (error is KakaoSignInTimeoutException) {
+      return 'Kakao 로그인이 시간 안에 완료되지 않았어요. 다시 시도해 주세요.';
+    }
+    if (error is KakaoSignInCancelledException) {
+      return 'Kakao 로그인이 취소되었어요.';
+    }
+    if (error is KakaoSignInCallbackException) {
+      return 'Kakao 로그인 응답을 확인하지 못했어요. 다시 시도해 주세요.';
+    }
+    if (error is NaverSignInUnavailableException) {
+      return '네이버 OAuth 설정이 아직 연결되지 않았어요. SDK 설정 후 다시 시도해 주세요.';
+    }
+    if (error is NaverSignInMissingClientIdException) {
+      return 'NAVER_OAUTH_CLIENT_ID 설정이 필요해요. 값을 넣고 다시 실행해 주세요.';
+    }
+    if (error is NaverSignInMissingRedirectUriException) {
+      return 'NAVER_OAUTH_REDIRECT_URI 설정을 확인해 주세요.';
+    }
+    if (error is NaverSignInLaunchException) {
+      return '네이버 로그인 창을 열지 못했어요. 브라우저 설정을 확인해 주세요.';
+    }
+    if (error is NaverSignInTimeoutException) {
+      return '네이버 로그인이 시간 안에 완료되지 않았어요. 다시 시도해 주세요.';
+    }
+    if (error is NaverSignInCancelledException) {
+      return '네이버 로그인이 취소되었어요.';
+    }
+    if (error is NaverSignInCallbackException) {
+      return '네이버 로그인 응답을 확인하지 못했어요. 다시 시도해 주세요.';
+    }
     if (error is GoogleSignInMissingClientIdException) {
       return 'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
     }
     if (error is GoogleSignInWebButtonRequiredException) {
       return '웹에서는 Google 공식 로그인 버튼으로 진행해 주세요.';
+    }
+    if (error is GoogleSpringOAuthUnavailableException) {
+      return 'Google 로그인은 Spring idToken 검증이 연결된 뒤 사용할 수 있어요.';
     }
     return '로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.';
   }
@@ -393,10 +480,7 @@ class _LoginButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(11),
-              side: BorderSide(
-                color: effectiveBorderColor,
-                width: 1.2,
-              ),
+              side: BorderSide(color: effectiveBorderColor, width: 1.2),
             ),
           ),
           child: Padding(

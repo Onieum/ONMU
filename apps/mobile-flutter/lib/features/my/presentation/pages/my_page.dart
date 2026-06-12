@@ -7,9 +7,14 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/grid_background.dart';
+import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../character/character_start_page.dart';
 import '../../domain/my_profile.dart';
+import '../../repository/friend_repository.dart';
+import '../../repository/my_repository.dart';
 
 class MyPage extends ConsumerStatefulWidget {
   const MyPage({super.key, this.resetToken});
@@ -22,13 +27,6 @@ class MyPage extends ConsumerStatefulWidget {
 
 class _MyPageState extends ConsumerState<MyPage> {
   var _selectedTab = _MyTab.profile;
-  var _profile = _createInitialProfile();
-  var _friends = _createInitialFriends();
-  Set<String>? _favoriteFriendNames;
-
-  Set<String> get _safeFavoriteFriendNames {
-    return _favoriteFriendNames ??= {'지연', '민수', '하린', '현우', '소연'};
-  }
 
   @override
   void didUpdateWidget(covariant MyPage oldWidget) {
@@ -39,12 +37,17 @@ class _MyPageState extends ConsumerState<MyPage> {
     }
   }
 
-  List<FriendProfile> get _activeFriends {
-    return _friends.where((friend) => friend.isFriend).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
+    ref.watch(authBootstrapProvider);
+    final profileAsync = ref.watch(myProfileProvider);
+    final friendsAsync = ref.watch(friendsProvider);
+    final profile = _profileForAuthUser(
+      profileAsync.value ?? _emptyProfile(),
+      ref.watch(authUserProvider),
+    );
+    final friends = friendsAsync.value ?? const <FriendProfile>[];
+
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
       body: GridBackground(
@@ -65,7 +68,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 sliver: SliverToBoxAdapter(
                   child: _ProfileHero(
-                    profile: _profile,
+                    profile: profile,
                     onEdit: _showProfileEditor,
                   ),
                 ),
@@ -87,7 +90,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                     child: _selectedTab == _MyTab.profile
                         ? _ProfileTab(
                             key: const ValueKey('profile'),
-                            profile: _profile,
+                            profile: profile,
                             onKeywordEdit: () => _openProfileSectionEditor(
                               _ProfileEditSection.keywords,
                             ),
@@ -101,8 +104,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                           )
                         : _FriendsTab(
                             key: const ValueKey('friends'),
-                            friends: _activeFriends,
-                            favoriteFriendNames: _safeFavoriteFriendNames,
+                            friends: friends,
                             onOpenAddFriend: _showFriendAddSheet,
                             onFriendTap: _openFriendProfile,
                             onToggleFavorite: _toggleFavoriteFriend,
@@ -117,23 +119,23 @@ class _MyPageState extends ConsumerState<MyPage> {
     );
   }
 
-  void _toggleFavoriteFriend(FriendProfile friend) {
-    setState(() {
-      final favoriteFriendNames = _safeFavoriteFriendNames;
-      if (favoriteFriendNames.contains(friend.name)) {
-        favoriteFriendNames.remove(friend.name);
-        return;
-      }
-
-      favoriteFriendNames.add(friend.name);
-    });
+  Future<void> _toggleFavoriteFriend(FriendProfile friend) async {
+    await ref.read(friendRepositoryProvider).updateFriend(
+      friend,
+      favorite: !friend.isFavorite,
+    );
+    ref.invalidate(friendsProvider);
   }
 
   Future<void> _showProfileEditor() async {
+    final profile = _profileForAuthUser(
+      ref.read(myProfileProvider).value ?? _emptyProfile(),
+      ref.read(authUserProvider),
+    );
     final result = await Navigator.of(context).push<_ProfileEditResult>(
       MaterialPageRoute(
         builder: (context) => _ProfileEditPage(
-          profile: _profile,
+          profile: profile,
           onCharacterSaved: _saveCharacterDraft,
         ),
       ),
@@ -143,13 +145,13 @@ class _MyPageState extends ConsumerState<MyPage> {
       return;
     }
 
-    setState(() {
-      _profile = _profile.copyWith(
-        realName: result.realName,
-        visibility: result.visibility,
-        favoriteKeywords: result.favoriteKeywords,
-      );
-    });
+    final updatedProfile = profile.copyWith(
+      realName: result.realName,
+      visibility: result.visibility,
+      favoriteKeywords: result.favoriteKeywords,
+    );
+    await ref.read(myRepositoryProvider).updateMyProfile(updatedProfile);
+    ref.invalidate(myProfileProvider);
   }
 
   void _saveCharacterDraft(CharacterDraft draft) {
@@ -158,10 +160,14 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {
+    final profile = _profileForAuthUser(
+      ref.read(myProfileProvider).value ?? _emptyProfile(),
+      ref.read(authUserProvider),
+    );
     final result = await Navigator.of(context).push<_ProfileSectionEditResult>(
       MaterialPageRoute(
         builder: (context) =>
-            _ProfileSectionEditPage(section: section, profile: _profile),
+            _ProfileSectionEditPage(section: section, profile: profile),
       ),
     );
 
@@ -169,25 +175,29 @@ class _MyPageState extends ConsumerState<MyPage> {
       return;
     }
 
-    setState(() {
-      _profile = _profile.copyWith(
-        favoriteFoodTags: result.favoriteFoodTags,
-        dislikedFoodTags: result.dislikedFoodTags,
-        favoritePlaceTags: result.favoritePlaceTags,
-        dislikedPlaceTags: result.dislikedPlaceTags,
-        planStyles: result.planStyles,
-        preferredWeekdays: result.preferredWeekdays,
-        preferredTimes: result.preferredTimes,
-        unavailableDates: result.unavailableDates,
-      );
-    });
+    final updatedProfile = profile.copyWith(
+      favoriteFoodTags: result.favoriteFoodTags,
+      dislikedFoodTags: result.dislikedFoodTags,
+      favoritePlaceTags: result.favoritePlaceTags,
+      dislikedPlaceTags: result.dislikedPlaceTags,
+      planStyles: result.planStyles,
+      preferredWeekdays: result.preferredWeekdays,
+      preferredTimes: result.preferredTimes,
+      unavailableDates: result.unavailableDates,
+    );
+    await ref.read(myRepositoryProvider).updateMyProfile(updatedProfile);
+    ref.invalidate(myProfileProvider);
   }
 
   void _openProfileDetailPage(_ProfileDetailSection section) {
+    final profile = _profileForAuthUser(
+      ref.read(myProfileProvider).value ?? _emptyProfile(),
+      ref.read(authUserProvider),
+    );
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) =>
-            _ProfileDetailPage(section: section, profile: _profile),
+            _ProfileDetailPage(section: section, profile: profile),
       ),
     );
   }
@@ -199,11 +209,15 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   void _openFriendProfile(FriendProfile friend) {
+    final profile = _profileForAuthUser(
+      ref.read(myProfileProvider).value ?? _emptyProfile(),
+      ref.read(authUserProvider),
+    );
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => _FriendProfilePage(
           friend: friend,
-          profile: _profile.copyWith(realName: friend.name),
+          profile: profile.copyWith(realName: friend.name),
         ),
       ),
     );
@@ -218,9 +232,7 @@ class _MyPageState extends ConsumerState<MyPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return _FriendAddSheet(
-          candidates: _friends.where((friend) => !friend.isFriend).toList(),
-        );
+        return const _FriendAddSheet(candidates: []);
       },
     );
 
@@ -228,16 +240,32 @@ class _MyPageState extends ConsumerState<MyPage> {
       return;
     }
 
-    setState(() {
-      _friends = [
-        for (final friend in _friends)
-          if (friend.name == result.name)
-            friend.copyWith(isFriend: true)
-          else
-            friend,
-      ];
-    });
+    await ref.read(friendRepositoryProvider).addFriend(result.publicId);
+    ref.invalidate(friendsProvider);
   }
+}
+
+MyProfile _emptyProfile() {
+  return const MyProfile(
+    realName: '',
+    visibility: ProfileVisibility.friends,
+    favoriteKeywords: [],
+    dislikedKeywords: [],
+    preferredTimes: [],
+    availableDays: [],
+    unavailableDates: [],
+    favoritePlaces: [],
+    wantToGoPlaces: [],
+    dislikedPlaces: [],
+  );
+}
+
+MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
+  final displayName = user?.displayName.trim();
+  if (displayName == null || displayName.isEmpty) {
+    return profile.copyWith(realName: '사용자');
+  }
+  return profile.copyWith(realName: displayName);
 }
 
 class _PageHeader extends StatelessWidget {
@@ -590,10 +618,7 @@ class _ProfileTab extends StatelessWidget {
             _InfoRow(
               icon: Icons.calendar_month_rounded,
               label: '선호 요일',
-              trailingWidget: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
+              trailingWidget: _KeywordScroller(
                 children: [
                   for (final day in profile.preferredWeekdays)
                     _OutlinedToken(label: day),
@@ -606,10 +631,7 @@ class _ProfileTab extends StatelessWidget {
             _InfoRow(
               icon: Icons.schedule_rounded,
               label: '선호 시간대',
-              trailingWidget: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
+              trailingWidget: _KeywordScroller(
                 children: [
                   for (final time in profile.preferredTimes)
                     _OutlinedToken(label: time),
@@ -622,10 +644,7 @@ class _ProfileTab extends StatelessWidget {
             _InfoRow(
               icon: Icons.event_busy_rounded,
               label: '불가능한 날짜',
-              trailingWidget: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
+              trailingWidget: _KeywordScroller(
                 children: [
                   for (final date in profile.unavailableDates)
                     _OutlinedToken(label: date),
@@ -704,14 +723,12 @@ class _FriendsTab extends StatefulWidget {
   const _FriendsTab({
     super.key,
     required this.friends,
-    required this.favoriteFriendNames,
     required this.onOpenAddFriend,
     required this.onFriendTap,
     required this.onToggleFavorite,
   });
 
   final List<FriendProfile> friends;
-  final Set<String>? favoriteFriendNames;
   final VoidCallback onOpenAddFriend;
   final ValueChanged<FriendProfile> onFriendTap;
   final ValueChanged<FriendProfile> onToggleFavorite;
@@ -738,9 +755,8 @@ class _FriendsTabState extends State<_FriendsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final favoriteFriendNames = widget.favoriteFriendNames ?? const <String>{};
     final favoriteFriends = widget.friends
-        .where((friend) => favoriteFriendNames.contains(friend.name))
+        .where((friend) => friend.isFavorite)
         .toList();
 
     return Column(
@@ -842,7 +858,7 @@ class _FriendsTabState extends State<_FriendsTab> {
             itemBuilder: (context, index) {
               if (index == favoriteFriends.length) {
                 return _AddFavoriteFriendButton(
-                  onTap: () => _showFavoriteFriendPicker(favoriteFriendNames),
+                  onTap: _showFavoriteFriendPicker,
                 );
               }
 
@@ -851,7 +867,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                 friend: friend,
                 index: index,
                 isEditing: _isEditingFavorites,
-                isSelected: favoriteFriendNames.contains(friend.name),
+                isSelected: friend.isFavorite,
                 onToggle: () => widget.onToggleFavorite(friend),
               );
             },
@@ -909,11 +925,9 @@ class _FriendsTabState extends State<_FriendsTab> {
     );
   }
 
-  Future<void> _showFavoriteFriendPicker(
-    Set<String> favoriteFriendNames,
-  ) async {
+  Future<void> _showFavoriteFriendPicker() async {
     final candidates = widget.friends
-        .where((friend) => !favoriteFriendNames.contains(friend.name))
+        .where((friend) => !friend.isFavorite)
         .toList();
 
     final selected = await showModalBottomSheet<FriendProfile>(
@@ -1864,6 +1878,7 @@ CharacterDraft _characterForFriend(FriendProfile friend) {
   return characters[safeIndex];
 }
 
+
 class _FriendAddSheet extends StatefulWidget {
   const _FriendAddSheet({required this.candidates});
 
@@ -1874,17 +1889,28 @@ class _FriendAddSheet extends StatefulWidget {
 }
 
 class _FriendAddSheetState extends State<_FriendAddSheet> {
-  var _query = '';
+  final TextEditingController _idController = TextEditingController();
 
-  List<FriendProfile> get _filteredCandidates {
-    final query = _query.trim().toLowerCase();
-    if (query.isEmpty) {
-      return widget.candidates;
+  @override
+  void dispose() {
+    _idController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final id = _idController.text.trim();
+    if (id.isEmpty) {
+      return;
     }
-
-    return widget.candidates
-        .where((candidate) => candidate.name.toLowerCase().contains(query))
-        .toList();
+    Navigator.of(context).pop(
+      FriendProfile(
+        publicId: id,
+        userCode: id,
+        name: id,
+        preferenceSummary: '친구 요청 대기 중',
+        isFriend: true,
+      ),
+    );
   }
 
   @override
@@ -1917,31 +1943,30 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            Text(
+              '회원가입 때 발급된 고유 ID로 친구를 추가해요.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
+            ),
+            const SizedBox(height: 14),
             TextField(
+              controller: _idController,
               autofocus: true,
-              onChanged: (value) => setState(() => _query = value),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
               decoration: const InputDecoration(
-                hintText: '이름으로 검색',
-                prefixIcon: Icon(Icons.search),
+                hintText: '친구 고유 ID 입력',
+                prefixIcon: Icon(Icons.tag_rounded),
               ),
             ),
             const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 360),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final candidate in _filteredCandidates) ...[
-                      _FriendCandidateTile(candidate: candidate),
-                      const SizedBox(height: 10),
-                    ],
-                    if (_filteredCandidates.isEmpty)
-                      const _SoftCard(
-                        child: Center(child: Text('추가할 친구가 없어요.')),
-                      ),
-                  ],
-                ),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _submit,
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('친구 추가'),
               ),
             ),
           ],
@@ -1951,41 +1976,7 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
   }
 }
 
-class _FriendCandidateTile extends StatelessWidget {
-  const _FriendCandidateTile({required this.candidate});
 
-  final FriendProfile candidate;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SoftCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          const _CharacterPortrait(size: 52),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(candidate.name, style: AppTextStyles.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  candidate.preferenceSummary,
-                  style: AppTextStyles.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(candidate),
-            child: const Text('추가'),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ProfileDetailPage extends StatelessWidget {
   const _ProfileDetailPage({required this.section, required this.profile});
@@ -2126,6 +2117,8 @@ class _ProfileDetailPage extends StatelessWidget {
   }
 }
 
+
+
 class _DetailChipSection extends StatelessWidget {
   const _DetailChipSection({
     required this.icon,
@@ -2154,11 +2147,15 @@ class _DetailChipSection extends StatelessWidget {
                 size: 23,
               ),
               const SizedBox(width: 10),
-              Text(
-                title,
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.textMain,
-                  fontWeight: FontWeight.w900,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.textMain,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ],
@@ -2250,6 +2247,9 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     );
   }
 
+
+
+
   Widget _buildKeywordEditor() {
     final favoriteFoodOptions = [
       '한식',
@@ -2280,6 +2280,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: favoriteFoodOptions,
             selectedValues: _favoriteFoodTags,
             onToggle: (value) => _toggleValue(_favoriteFoodTags, value),
+            onAdd: (value) => _addCustomValue(_favoriteFoodTags, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2290,18 +2291,22 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: dislikedFoodOptions,
             selectedValues: _dislikedFoodTags,
             onToggle: (value) => _toggleValue(_dislikedFoodTags, value),
+            onAdd: (value) => _addCustomValue(_dislikedFoodTags, value),
           ),
         ),
       ],
     );
   }
 
+
+
+
   Widget _buildScheduleEditor() {
     final styleOptions = [
       '미리 일정을 정하는 편',
       '당일 번개 약속도 괜찮아요',
       '주말에 여유롭게 만나고 싶어요',
-      '대기/웨이팅은 피하고 싶어요',
+      '대기 시간이 긴 곳은 피하고 싶어요',
     ];
     final weekdayOptions = [
       '월요일',
@@ -2324,6 +2329,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: styleOptions,
             selectedValues: _planStyles,
             onToggle: (value) => _toggleValue(_planStyles, value),
+            onAdd: (value) => _addCustomValue(_planStyles, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2344,6 +2350,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: timeOptions,
             selectedValues: _preferredTimes,
             onToggle: (value) => _toggleValue(_preferredTimes, value),
+            onAdd: (value) => _addCustomValue(_preferredTimes, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2360,6 +2367,9 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       ],
     );
   }
+
+
+
 
   Widget _buildPlaceEditor() {
     final favoritePlaceOptions = [
@@ -2386,6 +2396,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: favoritePlaceOptions,
             selectedValues: _favoritePlaceTags,
             onToggle: (value) => _toggleValue(_favoritePlaceTags, value),
+            onAdd: (value) => _addCustomValue(_favoritePlaceTags, value),
           ),
         ),
         const SizedBox(height: 12),
@@ -2396,6 +2407,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
             values: dislikedPlaceOptions,
             selectedValues: _dislikedPlaceTags,
             onToggle: (value) => _toggleValue(_dislikedPlaceTags, value),
+            onAdd: (value) => _addCustomValue(_dislikedPlaceTags, value),
           ),
         ),
       ],
@@ -2413,16 +2425,30 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     });
   }
 
+
+
+  void _addCustomValue(List<String> target, String value) {
+    final clean = value.trim();
+    if (clean.isEmpty || target.contains(clean)) {
+      return;
+    }
+    setState(() => target.add(clean));
+  }
+
+  String _formatKoreanDate(DateTime date) {
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[date.weekday - 1];
+    return '${date.month}/${date.day} ($weekday)';
+  }
+
   Future<void> _pickUnavailableDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await OnmuDatePicker.pickDate(
       context: context,
       initialDate: now,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 1, 12, 31),
       helpText: '불가능한 날짜 선택',
-      confirmText: '선택',
-      cancelText: '취소',
     );
 
     if (picked == null) {
@@ -2527,46 +2553,112 @@ class _EditableTagChip extends StatelessWidget {
   }
 }
 
-class _ToggleChipWrap extends StatelessWidget {
+
+
+
+class _ToggleChipWrap extends StatefulWidget {
   const _ToggleChipWrap({
     required this.values,
     required this.selectedValues,
     required this.onToggle,
+    this.onAdd,
   });
 
   final List<String> values;
   final List<String> selectedValues;
   final ValueChanged<String> onToggle;
+  final ValueChanged<String>? onAdd;
+
+  @override
+  State<_ToggleChipWrap> createState() => _ToggleChipWrapState();
+}
+
+class _ToggleChipWrapState extends State<_ToggleChipWrap> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) return;
+    widget.onAdd?.call(value);
+    _controller.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    final mergedValues = [
+      ...widget.values,
+      for (final value in widget.selectedValues)
+        if (!widget.values.contains(value)) value,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final value in values)
-          ChoiceChip(
-            label: Text(value),
-            selected: selectedValues.contains(value),
-            onSelected: (_) => onToggle(value),
-            selectedColor: AppColors.primaryPinkSoft.withOpacity(0.82),
-            backgroundColor: AppColors.bgWarm,
-            side: BorderSide(
-              color: selectedValues.contains(value)
-                  ? AppColors.linePink
-                  : AppColors.lineSoft,
-            ),
-            labelStyle: AppTextStyles.labelMedium.copyWith(
-              color: selectedValues.contains(value)
-                  ? AppColors.primaryPurple
-                  : AppColors.textMain,
-              fontWeight: FontWeight.w800,
-            ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in mergedValues)
+              ChoiceChip(
+                label: Text(value, overflow: TextOverflow.ellipsis),
+                selected: widget.selectedValues.contains(value),
+                onSelected: (_) => widget.onToggle(value),
+                selectedColor: AppColors.primaryPinkSoft.withOpacity(0.82),
+                backgroundColor: AppColors.bgWarm,
+                side: BorderSide(
+                  color: widget.selectedValues.contains(value)
+                      ? AppColors.linePink
+                      : AppColors.lineSoft,
+                ),
+                labelStyle: AppTextStyles.labelMedium.copyWith(
+                  color: widget.selectedValues.contains(value)
+                      ? AppColors.primaryPurple
+                      : AppColors.textMain,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+          ],
+        ),
+        if (widget.onAdd != null) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _add(),
+                  decoration: const InputDecoration(
+                    hintText: '직접 추가',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: _add,
+                child: const Text('추가'),
+              ),
+            ],
           ),
+        ],
       ],
     );
   }
 }
+
+
+
+
+
+
+
 
 class _CalendarDateSelector extends StatelessWidget {
   const _CalendarDateSelector({
@@ -2584,17 +2676,34 @@ class _CalendarDateSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final date in dates)
-              _EditableTagChip(
-                label: date,
-                selected: false,
-                onRemove: () => onRemoveDate(date),
-              ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          height: 42,
+          child: dates.isEmpty
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '선택한 날짜가 없어요',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: dates.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final date = dates[index];
+                    return Center(
+                      child: _EditableTagChip(
+                        label: date,
+                        selected: false,
+                        onRemove: () => onRemoveDate(date),
+                      ),
+                    );
+                  },
+                ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -2602,16 +2711,13 @@ class _CalendarDateSelector extends StatelessWidget {
           height: 48,
           child: OutlinedButton.icon(
             onPressed: onAddDate,
-            icon: const Icon(Icons.calendar_month_rounded, size: 20),
-            label: const Text('캘린더에서 날짜 선택'),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('날짜 추가'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryPurple,
+              foregroundColor: AppColors.primaryPink,
               side: const BorderSide(color: AppColors.linePink),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              textStyle: AppTextStyles.labelLarge.copyWith(
-                fontWeight: FontWeight.w900,
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),
@@ -2619,11 +2725,6 @@ class _CalendarDateSelector extends StatelessWidget {
       ],
     );
   }
-}
-
-String _formatKoreanDate(DateTime date) {
-  final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-  return '${date.month}/${date.day} (${weekdays[date.weekday - 1]})';
 }
 
 class _ProfileEditPage extends StatefulWidget {
@@ -2934,9 +3035,9 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CharacterStartPage(
+          returnButtonLabel: '프로필 수정으로 돌아가기',
           onBackToOnboarding: () {
             Navigator.of(context).pop();
-            GoRouter.of(this.context).go(RoutePaths.onboarding);
           },
           onCompleted: (draft) {
             widget.onCharacterSaved(draft);
@@ -3531,6 +3632,7 @@ class _CountedTextFieldState extends State<_CountedTextField> {
   }
 }
 
+
 class _RegionSelector extends StatelessWidget {
   const _RegionSelector({required this.controller});
 
@@ -3540,9 +3642,10 @@ class _RegionSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      readOnly: true,
+      textInputAction: TextInputAction.done,
       decoration: const InputDecoration(
-        suffixIcon: Icon(Icons.chevron_right_rounded),
+        hintText: '예: 서울특별시 성동구 / 경기도 수원시',
+        prefixIcon: Icon(Icons.location_on_outlined),
       ),
     );
   }
@@ -4161,41 +4264,6 @@ enum _ProfileDetailSection {
 }
 
 enum _ProfilePhotoOption { character, album, camera }
-
-MyProfile _createInitialProfile() {
-  return MyProfile(
-    realName: '온이음',
-    visibility: ProfileVisibility.friends,
-    favoriteKeywords: ['한식', '디저트 카페', '조용한 대화 공간', '감성 있는 사진 맛집', '주말 약속'],
-    dislikedKeywords: ['너무 매운 음식', '이동 시간이 긴 곳', '소음이 큰 곳'],
-    favoriteFoodTags: ['한식', '디저트 카페', '고기/구이'],
-    dislikedFoodTags: ['너무 매운 음식', '해산물'],
-    favoritePlaceTags: ['조용한 대화 공간', '감성 있는 사진 맛집', '넓고 쾌적한 공간'],
-    dislikedPlaceTags: ['이동 시간이 긴 곳', '소음이 큰 곳'],
-    planStyles: ['미리 일정을 정하는 편', '주말에 여유롭게 만나고 싶어요'],
-    preferredWeekdays: ['토요일', '일요일'],
-    preferredTimes: ['오후', '저녁'],
-    availableDays: ['토', '일'],
-    unavailableDates: ['5/25 (일)', '6/8 (일)', '6/22 (일)'],
-    favoritePlaces: [
-      ProfilePlace(
-        name: '성수 감성 카페',
-        category: '카페',
-        description: '조용하고 사진 찍기 좋은 곳',
-      ),
-    ],
-    wantToGoPlaces: [
-      ProfilePlace(name: '한강 피크닉', category: '야외', description: '노을 보는 산책 코스'),
-    ],
-    dislikedPlaces: [
-      ProfilePlace(
-        name: '복잡한 번화가',
-        category: '혼잡',
-        description: '소음과 대기가 많은 곳',
-      ),
-    ],
-  );
-}
 
 List<FriendProfile> _createInitialFriends() {
   return [

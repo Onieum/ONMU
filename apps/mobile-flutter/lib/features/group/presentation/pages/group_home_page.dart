@@ -50,7 +50,7 @@ class _GroupHomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = state.group;
-    final pinnedPlan = state.pinnedPlan;
+    final upcomingPlan = state.upcomingPlan;
 
     return OnmuScaffold(
       useWarmBackground: false,
@@ -73,11 +73,11 @@ class _GroupHomeContent extends StatelessWidget {
           onTap: () => context.push(RoutePaths.groupPlans(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (pinnedPlan != null)
+        if (upcomingPlan != null)
           _UpcomingPlanCard(
-            plan: pinnedPlan,
+            plan: upcomingPlan,
             onTap: () =>
-                context.push(RoutePaths.planDetail(group.id, pinnedPlan.id)),
+                context.push(RoutePaths.planDetail(group.id, upcomingPlan.id)),
           ),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
@@ -190,6 +190,10 @@ class _HeaderAvatarCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayMembers = members.isEmpty
+        ? const ['온']
+        : members.take(3).toList(growable: false);
+
     return Center(
       child: SizedBox(
         width: 126,
@@ -197,19 +201,28 @@ class _HeaderAvatarCluster extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Positioned(
-              left: 0,
-              child: PixelAvatar(label: members[0], size: 42),
-            ),
-            PixelAvatar(label: members[1], size: 46),
-            Positioned(
-              right: 0,
-              child: PixelAvatar(label: members[2], size: 42),
-            ),
+            for (var index = 0; index < displayMembers.length; index += 1)
+              Positioned(
+                left: _avatarLeftOffset(index, displayMembers.length),
+                child: PixelAvatar(
+                  label: displayMembers[index],
+                  size: index == 1 ? 46 : 42,
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  double _avatarLeftOffset(int index, int count) {
+    if (count == 1) {
+      return 42;
+    }
+    if (count == 2) {
+      return index == 0 ? 30 : 58;
+    }
+    return index == 0 ? 0 : (index == 1 ? 40 : 84);
   }
 }
 
@@ -315,7 +328,7 @@ class _SectionHeader extends StatelessWidget {
 class _UpcomingPlanCard extends StatelessWidget {
   const _UpcomingPlanCard({required this.plan, required this.onTap});
 
-  final GroupPinnedPlan plan;
+  final GroupPlanSummary plan;
   final VoidCallback onTap;
 
   @override
@@ -340,7 +353,7 @@ class _UpcomingPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(label: plan.statusLabel, selected: true),
+                    OnmuChip(label: plan.displayStatusLabel, selected: true),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
@@ -354,7 +367,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${plan.dateLabel} · ${plan.placeName}',
+                  '${plan.displayDateTimeLabel} · ${plan.placeName}',
                   style: Theme.of(context).textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -368,7 +381,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                     ],
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      plan.voteSummary,
+                      '${plan.memberCount}명 참여 예정',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -412,8 +425,10 @@ class _RecentMemoryStrip extends StatelessWidget {
           return _MemoryThumb(
             icon: memory.$1,
             color: memory.$2,
-            onTap: () =>
-                context.push(RoutePaths.groupMemoryDetail(group.id, record.id)),
+            imageUrl: record.primaryImageUrl,
+            onTap: () => context.push(
+              RoutePaths.groupMemoryDetail(group.id, record.routeId),
+            ),
           );
         },
       ),
@@ -425,11 +440,13 @@ class _MemoryThumb extends StatelessWidget {
   const _MemoryThumb({
     required this.icon,
     required this.color,
+    this.imageUrl,
     required this.onTap,
   });
 
   final IconData icon;
   final Color color;
+  final String? imageUrl;
   final VoidCallback onTap;
 
   @override
@@ -440,7 +457,7 @@ class _MemoryThumb extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          _PhotoThumb(icon: icon, width: 76, height: 76, color: color),
+          _MemoryThumbImage(icon: icon, color: color, imageUrl: imageUrl),
           Positioned(
             right: -4,
             bottom: 2,
@@ -461,6 +478,39 @@ class _MemoryThumb extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemoryThumbImage extends StatelessWidget {
+  const _MemoryThumbImage({
+    required this.icon,
+    required this.color,
+    this.imageUrl,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+    if (url == null || url.isEmpty) {
+      return _PhotoThumb(icon: icon, width: 76, height: 76, color: color);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Image.network(
+        url,
+        width: 76,
+        height: 76,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _PhotoThumb(icon: icon, width: 76, height: 76, color: color);
+        },
       ),
     );
   }

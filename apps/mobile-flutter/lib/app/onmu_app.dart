@@ -9,12 +9,12 @@ class OnmuApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ProviderScope(child: _OnmuMaterialApp());
+    return const ProviderScope(child: OnmuMaterialApp());
   }
 }
 
-class _OnmuMaterialApp extends StatelessWidget {
-  const _OnmuMaterialApp();
+class OnmuMaterialApp extends StatelessWidget {
+  const OnmuMaterialApp({super.key});
 
   @override
   Widget build(BuildContext context) {

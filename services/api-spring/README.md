@@ -59,9 +59,24 @@ cd C:\dev\ONMU\services\api-spring
 | `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
 | `ONMU_ACCESS_LOG_PATH` | `logs/api-access.log` | Spring request-level access log JSONL 파일 경로 |
-| `ONMU_API_ACCESS_TOKEN` | 없음 | dev/integration 공통 보호 API smoke token. `ONMU_DEV_ACCESS_TOKEN`은 dev fallback |
-| `ONMU_API_REFRESH_TOKEN` | 없음 | dev/integration 공통 refresh smoke token. `ONMU_DEV_REFRESH_TOKEN`은 dev fallback |
+| `ONMU_ACCESS_TOKEN_SECRET` | 로컬 dev 기본값 | HS256 access JWT 서명 secret. 공유 dev/integration은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret`에서 주입 |
+| `ONMU_API_ACCESS_TOKEN` | 없음 | legacy 정적 token 이름. 현재 Spring 인증 필터는 이 값을 access token으로 검증하지 않음 |
+| `ONMU_API_REFRESH_TOKEN` | 없음 | legacy refresh smoke token 이름. refresh token 저장/회전 구현 검증 외에는 Flutter 실행 token으로 쓰지 않음 |
 | `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
+| `ONMU_OAUTH_KAKAO_USER_INFO_URL` | `https://kapi.kakao.com/v2/user/me` | Kakao provider access token 검증용 user info endpoint override |
+| `ONMU_OAUTH_NAVER_USER_INFO_URL` | `https://openapi.naver.com/v1/nid/me` | Naver provider access token 검증용 user info endpoint override |
+| `KAKAO_REST_API_KEY` | 없음 | Kakao authorization code token exchange에 필요한 OAuth client id이자 Kakao Local Keyword Search 서버 전용 REST API key. Flutter에 전달하지 않음 |
+| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Key Vault secret name은 `dev-kakao-client-secret` 또는 `int-kakao-client-secret`이며 Flutter에 넣지 않음 |
+| `KAKAO_OAUTH_REDIRECT_URI` | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | Kakao token exchange에 사용하는 redirect URI |
+| `KAKAO_OAUTH_TOKEN_URL` | `https://kauth.kakao.com/oauth/token` | Kakao authorization code token endpoint override |
+| `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/kakao/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |
+| `NAVER_OAUTH_CLIENT_ID` | 없음 | Naver authorization code token exchange에 필요한 서버 전용 OAuth client id |
+| `NAVER_OAUTH_CLIENT_SECRET` | 없음 | Naver authorization code token exchange에 필요한 서버 전용 OAuth client secret. Flutter에 넣지 않음 |
+| `NAVER_OAUTH_TOKEN_URL` | `https://nid.naver.com/oauth2.0/token` | Naver authorization code token endpoint override |
+| `NAVER_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/naver/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |
+| `NAVER_SEARCH_CLIENT_ID` | 없음 | Naver Local Search 서버 전용 client id. Flutter에 전달하지 않음 |
+| `NAVER_SEARCH_CLIENT_SECRET` | 없음 | Naver Local Search 서버 전용 client secret. Flutter에 전달하지 않음 |
+| `OPENROUTESERVICE_API_KEY` | 없음 | OpenRouteService route recommendation 서버 전용 API key. Flutter에 전달하지 않음 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
 
@@ -135,9 +150,32 @@ Core API:
 Auth scaffold:
 
 - `POST /api/v1/auth/oauth/{provider}`
+- `GET /api/v1/auth/oauth/naver/callback`
+- `GET /api/v1/auth/oauth/kakao/callback`
 - `GET /api/v1/auth/session`
 - `POST /api/v1/auth/refresh`
 - `DELETE /api/v1/auth/session`
+
+`POST /api/v1/auth/oauth/kakao`는 Flutter가 전달한 Kakao `providerAccessToken` 또는 `authorizationCode`를 Spring에서 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. `authorizationCode` 경로는 Spring이 서버 환경변수의 `KAKAO_REST_API_KEY`, 선택적 `KAKAO_CLIENT_SECRET`, `KAKAO_OAUTH_REDIRECT_URI`로 Kakao token endpoint를 호출해 provider access token을 받은 뒤 Kakao user info API(`GET https://kapi.kakao.com/v2/user/me`)로 검증합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
+
+`POST /api/v1/auth/oauth/naver`는 Flutter가 전달한 Naver `providerAccessToken` 또는 `authorizationCode`를 Spring에서 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. `authorizationCode` 경로는 Spring이 서버 환경변수의 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`으로 Naver token endpoint를 호출해 provider access token을 받은 뒤 Naver user info API(`GET https://openapi.naver.com/v1/nid/me`)로 검증합니다. Naver `response.id`를 provider subject로 사용하고, `response.name`, `response.email`, `response.profile_image`는 있으면 프로필 입력값으로 매핑합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
+
+Kakao authorization code token exchange는 provider-neutral exchange seam을 사용합니다. Flutter는 `KAKAO_REST_API_KEY` 또는 `KAKAO_OAUTH_CLIENT_ID`를 공개 OAuth client id로만 사용하고, `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter bundle이나 dart-define에 넣지 않습니다.
+
+Kakao redirect URI 후보:
+
+- `http://localhost:8080/api/v1/auth/oauth/kakao/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- prod later: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+
+Naver authorization code token exchange도 같은 exchange seam을 사용합니다. 서버 전용 설정은 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`을 사용합니다. `GET /api/v1/auth/oauth/naver/callback`은 Naver callback에서 받은 `code`, `state`, `error`를 `NAVER_OAUTH_MOBILE_CALLBACK_URI` deep link로 넘기며, token 발급은 Flutter가 다시 호출하는 `POST /api/v1/auth/oauth/naver`에서 수행합니다.
+
+Naver redirect URI 후보:
+
+- `http://localhost:8080/api/v1/auth/oauth/naver/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
+- `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
+- future prod: `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`
 
 Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...` 같은 과거 compatibility route는 이 Spring scaffold에 추가하지 않았습니다.
 
@@ -162,27 +200,65 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 
 ## Flutter API Mode
 
-Flutter 앱은 기본적으로 mock repository를 사용합니다. Spring Main API를 직접 호출하려면 실행 시 Dart define으로 API mode를 켭니다.
+Flutter 앱은 기본적으로 Windows dev Spring API(`https://dev-api.onmu.cloud`)를 호출합니다. 보호 API 화면을 검증하려면 실행 전 Key Vault의 signing secret으로 짧은 수명의 access JWT를 발급한 dart-define 파일을 만듭니다.
+
+Windows PowerShell:
 
 ```powershell
-cd C:\dev\ONMU\apps\mobile-flutter
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 -Environment dev -VaultName $env:AZURE_KEY_VAULT_NAME
+
+cd apps\mobile-flutter
 flutter run `
-  --dart-define=ONMU_DATA_SOURCE=api `
-  --dart-define=ONMU_API_BASE_URL=http://127.0.0.1:8080
+  --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
 ```
 
-Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
+macOS:
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+
+./scripts/macos/run-flutter-dev-api.sh
+```
+
+`scripts/windows/new-flutter-access-jwt.ps1`와 `scripts/macos/new-flutter-access-jwt.sh`는 Key Vault의 `dev-access-token-secret`으로 짧은 수명의 HS256 JWT를 발급하고, token 값을 출력하지 않은 채 `.dart_tool/onmu-dev-api.defines.json`에만 저장합니다. Flutter API client는 `ONMU_API_ACCESS_JWT`를 우선 읽으며, fallback 호환용 `ONMU_DEV_ACCESS_TOKEN`도 같은 JWT로 채웁니다. 이 파일은 git에서 무시됩니다.
+
+macOS 편의 실행 스크립트는 Flutter web을 `127.0.0.1:5173`에서 띄웁니다. dev Spring CORS는 이 origin을 명시적으로 허용해야 하며 wildcard로 넓히지 않습니다.
+
+로컬 Spring API를 직접 볼 때는 base URL을 명시합니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -ApiBaseUrl http://127.0.0.1:8080 `
+  -VaultName $env:AZURE_KEY_VAULT_NAME
+```
+
+```bash
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --api-base-url http://127.0.0.1:8080 \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+```
+
+Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`입니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
 
 현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Chat messages, Settlement draft/preview/create/result입니다. memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
 ## 아직 Dev/Mock인 부분
 
-- Naver OAuth token exchange는 controller/service 경계만 둔 scaffold입니다.
-- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. Naver OAuth 실제 token exchange, refresh token 저장/회전은 별도 PR에서 보강합니다.
-- place search는 외부 API key 없이 neutral mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`를 받을 수 있고, 응답 결과는 dev mock `source`, 합성 좌표, `heartCount`, `myHearted`를 포함합니다.
+- Naver는 provider access token user info 검증과 authorization code token exchange를 지원합니다. Flutter에는 `NAVER_OAUTH_CLIENT_SECRET`을 넣지 않고 Spring 서버 env로만 주입합니다.
+- Kakao는 provider access token user info 검증과 authorization code token exchange를 지원합니다. Flutter에는 `KAKAO_CLIENT_SECRET`을 넣지 않고 Spring 서버 env로만 주입합니다.
+- `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 NAVER dev identity로 취급합니다. provider token 또는 authorization code가 있으면 dev subject fallback을 사용하지 않습니다.
+- Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. refresh token 저장/회전은 AuthService의 기존 경로를 유지합니다.
+- place search는 Spring Boot가 Naver Local Search를 1차 provider로 호출하고 Kakao Keyword Search를 보강/fallback provider로 호출합니다. Flutter 앱은 Naver/Kakao를 직접 호출하지 않습니다. 외부 credential이 없으면 local/test 개발성을 위해 deterministic dev mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`, `providers`, `compare`를 받을 수 있고, 응답 결과는 기존 필드에 더해 `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `fetchedAt`을 포함할 수 있습니다. Naver Local Search의 `mapx`, `mapy`는 WGS84 좌표로 신뢰하지 않으므로 이번 PR에서는 nullable 좌표로 둡니다.
+- route recommendation은 `POST /api/v1/routes/recommend`에서 `groupId`, `planId`, `travelMode`(`car`, `walk`, `bike`)를 받습니다. `OPENROUTESERVICE_API_KEY`가 있으면 OpenRouteService를 호출하고, 없거나 후보 좌표가 부족하면 Flutter route UI가 렌더링 가능한 deterministic `dev-mock` geometry를 반환합니다.
 - 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.
 - 장소 후보 기반 투표는 `POST /api/v1/groups/{groupId}/votes`에서 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE`, `placeCandidateIds`를 받습니다. 기존 `options` 문자열 방식은 계속 허용하며, 후보 option 응답에는 `candidateId`, `candidateName`, `address`, `heartCount`, `responseCount`, `countLabel`, `progress`를 포함합니다.
-- 기록 API와 실제 Naver OAuth token exchange는 다음 API 구현 PR 범위입니다.
+- 기록 API 구현은 다음 API 구현 PR 범위입니다.
 - request log는 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 
@@ -240,20 +316,25 @@ curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
 Spring Boot Main API는 scaffold 단계에서도 `/api/v1/**`를 공개 `permitAll`로 두지 않습니다. 보호된 `/api/v1/**` 요청은 다음 헤더가 필요합니다.
 
 ```powershell
-$env:ONMU_API_ACCESS_TOKEN="<local-smoke-token>"
-$headers = @{ Authorization = "Bearer $env:ONMU_API_ACCESS_TOKEN" }
+cd C:\dev\ONMU
+$env:ONMU_ACCESS_TOKEN_SECRET="<local-only-signing-secret>"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 -ApiBaseUrl http://127.0.0.1:8080
+
+$defines = Get-Content apps\mobile-flutter\.dart_tool\onmu-dev-api.defines.json -Raw | ConvertFrom-Json
+$headers = @{ Authorization = "Bearer $($defines.ONMU_API_ACCESS_JWT)" }
 Invoke-RestMethod http://127.0.0.1:8080/api/v1/home/summary -Headers $headers
 ```
 
-토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault 또는 로컬 프로세스 환경변수로만 주입합니다.
+토큰 값은 코드, 문서, 로그에 평문으로 남기지 않습니다. 공유 Windows backend-host에서는 Key Vault의 signing secret으로 JWT를 발급해 현재 로컬 프로세스 또는 git ignored dart-define 파일에서만 사용합니다.
 
 인증 동작:
 
 - 보호된 `/api/v1/**` endpoint는 유효한 `Authorization: Bearer <accessToken>`이 없으면 HTTP 401과 `{ "ok": false, "error": "authentication_required" }`를 반환합니다.
+- Spring access token은 `iss=onmu-api`, `aud=onmu-mobile`, `typ=access`, `sub=<users.public_id>` claim을 가진 HS256 JWT입니다. 정적 `dev-api-access-token` 값은 현재 Spring 인증 필터에서 유효한 access token이 아닙니다.
 - `GET /api/v1/auth/session`, `GET /api/v1/users/me`, `GET /api/v1/home/summary`는 보호된 endpoint입니다. 토큰이 유효하면 현재 인증 사용자 기준으로 session/user/viewer 정보를 반환합니다.
 - `POST /api/v1/auth/refresh`는 공개 endpoint입니다. 요청 body의 `refreshToken`이 저장된 활성 refresh token과 일치할 때만 기존 token family 안에서 refresh token을 회전하고 새 access token/refresh token을 반환합니다. 이미 회전된 token 재사용이 감지되면 같은 token family를 폐기합니다.
 - `POST /api/v1/auth/logout`과 contract route인 `DELETE /api/v1/auth/session`은 refresh-token 기반 공개/idempotent logout입니다. body에 `refreshToken`이 있으면 해당 token을 폐기하고, 없거나 이미 폐기된 경우에도 인증되지 않은 세션 상태를 반환합니다.
-- `POST /api/v1/auth/oauth/{provider}`는 공개 endpoint지만, client가 보낸 provider subject를 신뢰하지 않습니다. 현재 로컬/dev 검증은 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때 `devVerifiedSubject`를 verified identity로 취급하는 명시적 dev boundary이며, 운영 Naver API token/code 검증은 별도 provider verifier로 연결해야 합니다.
+- `POST /api/v1/auth/oauth/{provider}`는 공개 endpoint지만, client가 보낸 provider subject를 신뢰하지 않습니다. Naver/Kakao provider access token은 Spring provider verifier가 user info API로 검증합니다. `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 로컬/dev scaffold로 취급하는 명시적 dev boundary입니다.
 
 CORS는 wildcard를 쓰지 않고 명시된 origin만 허용합니다. 기본 허용 origin은 로컬 Flutter/web dev와 `https://dev-api.onmu.cloud`이며, 필요하면 쉼표로 구분해 확장합니다.
 
