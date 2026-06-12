@@ -24,6 +24,14 @@ public interface ChatActivityEventRepository extends JpaRepository<ChatActivityE
   List<ChatActivityEventEntity> findPageBefore(GroupEntity group, Instant beforeCreatedAt, Pageable pageable);
 
   @Query("""
+    select event from ChatActivityEventEntity event
+    where event.group = :group
+      and event.createdAt > :afterCreatedAt
+    order by event.createdAt asc, event.id asc
+    """)
+  List<ChatActivityEventEntity> findPageAfter(GroupEntity group, Instant afterCreatedAt, Pageable pageable);
+
+  @Query("""
     select count(event) from ChatActivityEventEntity event
     where event.group = :group
       and (:lastReadAt is null or event.createdAt > :lastReadAt)

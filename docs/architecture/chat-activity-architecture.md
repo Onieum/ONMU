@@ -6,6 +6,8 @@ ONMU의 채팅은 단순한 부가 기능이 아니라 약속을 잡는 핵심 �
 
 현재 구현은 REST 기반 메시지 목록/작성 slice를 먼저 제공한다. Production 목표는 이 REST 계약 위에 실시간 수신, 낙관적 전송, 실패 재시도, 읽음/안읽음, push, 첨부, 대화 기반 action 전환을 단계적으로 얹는 구조다.
 
+SCRUM-50에서는 Spring Boot Main API 안에 `GET /api/v1/groups/{groupId}/chat/events` SSE endpoint와 in-process group room broadcaster를 추가해 첫 실시간 fan-out vertical slice를 제공한다. 이 구현은 단일 dev/runtime에서 새 메시지를 자동 수신하기 위한 production-directed 중간 단계이며, Redis나 별도 Realtime Gateway를 source of truth로 보지 않는다.
+
 ## 제품 원칙
 
 | 원칙 | 의미 |
@@ -39,10 +41,10 @@ ONMU의 채팅은 단순한 부가 기능이 아니라 약속을 잡는 핵심 �
 | 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` | 모임 채팅 화면의 메시지 stream을 cursor 기반으로 조회한다. |
 | 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` | 텍스트 메시지를 append하고 작성된 메시지 객체를 반환한다. |
 | 읽음 상태 갱신 | `PUT /api/v1/groups/{groupId}/chat/read-state` | 마지막으로 확인한 메시지를 저장하고 unread count를 반환한다. |
+| 실시간 수신 | `GET /api/v1/groups/{groupId}/chat/events` | SSE로 모임 room의 새 메시지를 수신한다. `afterCursor`는 기존 timestamp cursor를 사용한다. |
 
 MVP slice는 다음 범위를 의도적으로 제외한다.
 
-- WebSocket/SSE 기반 실시간 수신
 - FCM/APNs push 전송
 - 사진/파일/위치 첨부
 - 메시지별 읽음 표시
