@@ -121,5 +121,4 @@ class PixelCharacterWidget extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) => const SizedBox(),
     );
   }
-
 }

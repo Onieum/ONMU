@@ -67,14 +67,11 @@ class ApiCharacterRepository implements CharacterRepository {
 
   String _indexedValue(String prefix, int index) => '${prefix}_$index';
 
-  int _readIndexedValue(
-    Object? value,
-    String prefix, {
-    int fallback = 0,
-  }) {
+  int _readIndexedValue(Object? value, String prefix, {int fallback = 0}) {
     final text = value?.toString() ?? '';
-    final match = RegExp('^${RegExp.escape(prefix)}_(-?\\d+)\$')
-        .firstMatch(text);
+    final match = RegExp(
+      '^${RegExp.escape(prefix)}_(-?\\d+)\$',
+    ).firstMatch(text);
     if (match != null) {
       return int.tryParse(match.group(1) ?? '') ?? fallback;
     }

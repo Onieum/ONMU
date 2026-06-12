@@ -535,10 +535,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildPreview({required double size}) {
     final maxWidth = MediaQuery.sizeOf(context).width - 40;
     final maxAllowed = maxWidth / 1.25;
-    final safeSize = (maxAllowed < 120
-            ? maxAllowed
-            : size.clamp(120.0, maxAllowed))
-        .toDouble();
+    final safeSize =
+        (maxAllowed < 120 ? maxAllowed : size.clamp(120.0, maxAllowed))
+            .toDouble();
 
     return Container(
       width: safeSize * 1.25,

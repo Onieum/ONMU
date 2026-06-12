@@ -70,10 +70,7 @@ class ApiFriendRepository implements FriendRepository {
   }) async {
     final json = await _client.patchObject(
       '/api/v1/users/me/friends/${Uri.encodeComponent(friend.publicId)}',
-      body: {
-        'memo': ?memo,
-        'favorite': ?favorite,
-      },
+      body: {'memo': ?memo, 'favorite': ?favorite},
     );
     return _friendFromJson(json);
   }
@@ -103,6 +100,15 @@ class ApiFriendRepository implements FriendRepository {
       isFriend: true,
       isFavorite: OnmuJson.readBool(json, 'favorite'),
       memo: memo,
+      profileImageUrl: OnmuJson.readString(
+        json,
+        'profileImageUrl',
+        OnmuJson.readString(
+          json,
+          'profilePhotoUrl',
+          OnmuJson.readString(json, 'avatarUrl'),
+        ),
+      ),
     );
   }
 }

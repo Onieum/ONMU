@@ -201,7 +201,7 @@ class RecordFlowBottomBar extends StatelessWidget {
         children: [
           if (showBackButton) ...[
             Expanded(
-          child: ElevatedButton(
+              child: ElevatedButton(
                 onPressed: onBackPressed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.bgDefault,

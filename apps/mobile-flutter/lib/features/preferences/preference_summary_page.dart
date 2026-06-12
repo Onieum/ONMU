@@ -432,7 +432,9 @@ void _showSummaryDetail(BuildContext context, _SummaryEntry entry) {
                   return Chip(
                     label: Text(value),
                     backgroundColor: entry.color.withValues(alpha: 0.12),
-                    side: BorderSide(color: entry.color.withValues(alpha: 0.35)),
+                    side: BorderSide(
+                      color: entry.color.withValues(alpha: 0.35),
+                    ),
                     labelStyle: textTheme.labelMedium?.copyWith(
                       color: AppColors.textMain,
                       fontWeight: FontWeight.w700,
