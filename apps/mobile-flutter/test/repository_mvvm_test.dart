@@ -166,6 +166,22 @@ void main() {
     expect(state.recentMessage, isNotNull);
   });
 
+  test('온모임 홈 ViewModel은 채팅 미리보기 실패로 홈 전체를 실패 처리하지 않는다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(throwOnFetchMessages: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupHomeViewModelProvider('1').future);
+
+    expect(state.group.id, 9001);
+    expect(state.recentMessage, isNull);
+  });
+
   test('온모임 홈 ViewModel은 미래 약속만 날짜순으로 다가오는 약속에 노출한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -576,6 +592,7 @@ class _FakeGroupRepository implements GroupRepository {
   _FakeGroupRepository({
     this.sentMessage,
     this.throwOnSend = false,
+    this.throwOnFetchMessages = false,
     this.sendFailuresBeforeSuccess = 0,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
@@ -586,6 +603,7 @@ class _FakeGroupRepository implements GroupRepository {
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
+  final bool throwOnFetchMessages;
   final int sendFailuresBeforeSuccess;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
@@ -642,8 +660,12 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async =>
-      initialMessages;
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async {
+    if (throwOnFetchMessages) {
+      throw StateError('fetch messages failed');
+    }
+    return initialMessages;
+  }
 
   @override
   Future<GroupMessagePage> fetchMessagePage(
