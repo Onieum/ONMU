@@ -107,6 +107,31 @@ dry-run은 manifest/style/CORS JSON 생성과 출력 구조를 검증하지만 M
 
 Protomaps basemap 계층 이름을 기준으로 작성했으므로, 실제 PMTiles schema가 다르면 style layer의 `source-layer`를 후속 PR에서 조정한다.
 
+### Water layer 스타일링
+
+`water` source-layer는 바다뿐 아니라 하천 line, 내륙 수역 polygon, 일반화된 river/stream/canal polygon을 함께 담을 수 있다. 단일 fill layer로 전체를 칠하면 서울/성남/광주처럼 바다가 아닌 내륙이 바다색 면으로 크게 보일 수 있으므로, 생성되는 style은 수역을 다음처럼 나눈다.
+
+- `water`: `Polygon` 중 `ocean`, `bay`, `lake`, `reservoir` 계열만 낮은 줌부터 fill한다.
+- `water-river-area`: `river`, `stream`, `canal` polygon은 `minzoom=12`부터 낮은 opacity로 fill한다.
+- `water-river-line`: `river`, `stream`, `canal` line은 `minzoom=9`부터 얇은 line으로 표시한다.
+
+업로드 전에는 최소한 다음 위치를 웹/에뮬레이터에서 확인한다.
+
+- 서울/성남/광주 경계 주변: 내륙이 넓은 바다색 면으로 보이지 않아야 한다.
+- 한강/팔당호 주변: 큰 수역은 사라지지 않고 하천은 과하게 두껍지 않아야 한다.
+- 해안/만 주변: `ocean`/`bay`가 배경과 구분되어야 한다.
+
+style 생성 구조만 확인하려면 업로드 없이 dry-run을 먼저 실행한다.
+
+```powershell
+.\scripts\windows\seed-map-tiles-minio.ps1 `
+  -PmtilesSourceUrl https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles `
+  -DryRun `
+  -KeepTemp
+```
+
+`DryRun`은 MinIO object를 바꾸지 않는다. 실제 `styles/onmu-light.json` 또는 `tiles/manifest.json` 업로드는 화면 검증과 rollback 대상을 확인한 뒤 별도 운영 단계로 진행한다.
+
 ## CORS와 공개 읽기
 
 스크립트는 bucket에 read-only anonymous download를 설정한다. CORS 기본 origin은 다음과 같다.
