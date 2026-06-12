@@ -113,6 +113,19 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<GroupSummary> updateGroup({
+    required Object groupId,
+    required String name,
+    required String description,
+  }) async {
+    return _store.updateGroup(
+      groupId: groupId,
+      name: name,
+      description: description,
+    );
+  }
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async {
     return _store.fetchGroups();
   }
@@ -262,6 +275,20 @@ class TestPlanRepository implements PlanRepository {
       displayName: '나',
       participantStatus: 'joined',
       arrivalStatus: status,
+      isFallback: false,
+    );
+  }
+
+  @override
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const PlanParticipantArrival(
+      id: 'current-user',
+      displayName: '나',
+      participantStatus: 'left',
+      arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,
     );
   }

@@ -41,6 +41,48 @@ void main() {
     expect(participant.arrivalStatus.label, '출발');
   });
 
+  test(
+    'removes only my plan participation through participant me endpoint',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 'participant-1',
+                  'userId': 'user-me',
+                  'displayName': '나',
+                  'status': 'left',
+                  'response': 'accepted',
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiPlanRepository(OnmuApiClient(dio));
+
+      final participant = await repository.leaveAsCurrentUser(
+        groupId: 1,
+        planId: 101,
+      );
+
+      expect(
+        requests.single.path,
+        '/api/v1/groups/1/plans/101/participants/me',
+      );
+      expect(requests.single.method, 'PATCH');
+      expect(requests.single.data, {'status': 'left'});
+      expect(participant.userId, 'user-me');
+      expect(participant.participantStatus, 'left');
+    },
+  );
+
   test('maps participant arrival responses from API', () async {
     final dio = Dio();
     dio.interceptors.add(
@@ -50,8 +92,16 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               data: [
-                {'displayName': '지우', 'response': 'arrived'},
-                {'displayName': '민수', 'response': 'late'},
+                {
+                  'userId': 'user-jiwoo',
+                  'displayName': '지우',
+                  'response': 'arrived',
+                },
+                {
+                  'userId': 'user-minsu',
+                  'displayName': '민수',
+                  'response': 'late',
+                },
               ],
             ),
           );
@@ -66,6 +116,10 @@ void main() {
     );
 
     expect(participants.map((item) => item.arrivalStatus.label), ['도착', '지각']);
+    expect(participants.map((item) => item.userId), [
+      'user-jiwoo',
+      'user-minsu',
+    ]);
   });
 
   test('updates plan through Spring API', () async {
@@ -84,6 +138,7 @@ void main() {
                 'dateLabel': '2026-06-12T10:00:00Z',
                 'placeName': '성수동',
                 'status': 'draft',
+                'memo': '메모',
               },
             ),
           );
@@ -109,10 +164,13 @@ void main() {
     expect(requests.single.data, {
       'title': '수정된 약속',
       'startsAt': '2026-06-12T10:00:00.000Z',
+      'placeName': '성수동',
+      'memo': '메모',
       'status': 'draft',
     });
     expect(plan.title, '수정된 약속');
     expect(plan.location, '성수동');
+    expect(plan.memo, '메모');
   });
 
   test(
