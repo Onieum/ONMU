@@ -2,11 +2,14 @@ package com.onmu.api.web;
 
 import com.onmu.api.security.AuthenticatedUser;
 import com.onmu.api.service.FriendService;
+import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.web.dto.AddFriendRequest;
 import com.onmu.api.web.dto.FriendResponse;
 import com.onmu.api.web.dto.UpdateFriendRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,14 +27,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/users")
 public class FriendController {
   private final FriendService friendService;
+  private final OnmuApiService onmuApiService;
 
-  public FriendController(FriendService friendService) {
+  public FriendController(FriendService friendService, OnmuApiService onmuApiService) {
     this.friendService = friendService;
+    this.onmuApiService = onmuApiService;
   }
 
   @GetMapping("/me/friends")
   public List<FriendResponse> friends(@AuthenticationPrincipal AuthenticatedUser user) {
     return friendService.friends(user.userId());
+  }
+
+  @GetMapping("/me/friends/{friendUserId}/profile")
+  public Map<String, Object> friendProfile(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @PathVariable String friendUserId
+  ) {
+    UUID friendId = friendService.requireActiveFriendUserId(user.userId(), friendUserId);
+    return onmuApiService.userProfile(friendId);
   }
 
   @GetMapping("/search")

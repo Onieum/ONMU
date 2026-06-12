@@ -93,6 +93,8 @@
 | `display_name` | 표시 이름 | Text | 앱에서 보이는 사용자 이름 | Not Null |
 | `nickname` | 닉네임 | Text | 친구/모임에서 표시할 별칭 | 목표 설계 |
 | `profile_image_url` | 프로필 이미지 URL | Text | Blob/CDN에 저장된 프로필 이미지 주소 | 목표 설계 |
+| `pixel_character` | 픽셀 캐릭터 JSON | Jsonb | 기본 캐릭터 렌더링에 필요한 성별/피부/머리/눈/의상 선택값 | Not Null, Default `{}` |
+| `preference_profile` | 취향 프로필 JSON | Jsonb | 마이페이지 프로필/친구 상세 프로필에 표시할 관심사, 음식/장소/약속 스타일, 지역, 소개 문구 | Not Null, Default `{}` |
 | `status_message` | 상태 메시지 | Text | 마이페이지의 짧은 소개 문구 | 목표 설계 |
 | `phone_hash` | 전화번호 해시 | Text | 연락처 동기화용 비가역 해시 | 미래 확장, Unique 후보 |
 | `email` | 이메일 | Text | OAuth provider가 제공하는 이메일 | Nullable |
@@ -299,6 +301,7 @@
 
 > UNIQUE: `(friendship_id, user_id)`
 > 한 친구 관계가 수락되면 두 사용자의 기본 설정 row를 생성한다. 설정 row의 불일치는 관계 원장 정합성에 영향을 주지 않는다. `memo`, `display_alias`, `hidden`, `is_favorite`는 모두 설정 소유자인 `user_id` 기준 개인 값이다.
+> API 구현 메모: 친구 상세 프로필 조회 `GET /api/v1/users/me/friends/{friendUserId}/profile`은 `friend_settings`와 `friendships`로 active 관계를 확인한 뒤 상대 사용자의 `users.preference_profile`과 `users.pixel_character`를 반환한다. 이때 `friend_settings.memo`는 조회자 개인 메모로 친구의 공개 취향 프로필을 대체하지 않는다.
 
 ## `friend_requests` (다음 구현)
 
