@@ -142,9 +142,12 @@ class GroupApiServiceTests {
     when(groupRepository.save(any(GroupEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(groupMemberRepository.save(any(GroupMemberEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    Map<String, Object> created = service.createGroup("새 모임");
+    Map<String, Object> created = service.createGroup("새 모임", "새 소개");
 
-    assertThat(created).containsEntry("id", "2").containsEntry("name", "새 모임");
+    assertThat(created)
+      .containsEntry("id", "2")
+      .containsEntry("name", "새 모임")
+      .containsEntry("description", "새 소개");
     verify(groupMemberRepository).save(argThat(member ->
       "owner".equals(member.getRole()) && "active".equals(member.getStatus())
     ));
@@ -152,7 +155,11 @@ class GroupApiServiceTests {
       eq("group.created"),
       eq("group"),
       any(UUID.class),
-      argThat(payload -> "2".equals(payload.get("groupId")) && "새 모임".equals(payload.get("name")))
+      argThat(payload ->
+        "2".equals(payload.get("groupId")) &&
+          "새 모임".equals(payload.get("name")) &&
+          "새 소개".equals(payload.get("description"))
+      )
     );
   }
 }

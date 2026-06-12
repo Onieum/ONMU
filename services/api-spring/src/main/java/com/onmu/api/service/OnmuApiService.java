@@ -218,12 +218,16 @@ public class OnmuApiService {
       .map(PlanEntity::getPublicId)
       .toList(), 101);
     Instant startsAt = parseInstantOrDefault(request.startsAt());
+    Instant endsAt = parseNullableInstant(request.endsAt());
     PlanEntity plan = planRepository.save(new PlanEntity(
       publicId,
       group,
       request.title().trim(),
       startsAt,
-      "draft"
+      endsAt,
+      "draft",
+      blankToNull(request.memo()),
+      blankToNull(request.placeName())
     ));
     outboxService.record("plan.created", "plan", plan.getId(), Map.of(
       "groupId", group.getPublicId(),
@@ -242,16 +246,21 @@ public class OnmuApiService {
   public Map<String, Object> updatePlan(String groupId, String planId, UpdatePlanRequest request) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
-    UpdatePlanRequest safeRequest = request == null ? new UpdatePlanRequest(null, null, null) : request;
+    UpdatePlanRequest safeRequest = request == null
+      ? new UpdatePlanRequest(null, null, null, null, null, null)
+      : request;
     if (safeRequest.title() != null && safeRequest.title().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_plan_title");
     }
     String title = safeRequest.title() == null ? plan.getTitle() : safeRequest.title().trim();
     Instant startsAt = safeRequest.startsAt() == null ? plan.getStartsAt() : parseNullableInstant(safeRequest.startsAt());
+    Instant endsAt = safeRequest.endsAt() == null ? plan.getEndsAt() : parseNullableInstant(safeRequest.endsAt());
     String status = safeRequest.status() == null || safeRequest.status().isBlank()
       ? plan.getStatus()
       : safeRequest.status().trim();
-    plan.update(title, startsAt, status);
+    String description = safeRequest.memo() == null ? plan.getDescription() : blankToNull(safeRequest.memo());
+    String locationNote = safeRequest.placeName() == null ? plan.getLocationNote() : blankToNull(safeRequest.placeName());
+    plan.update(title, startsAt, endsAt, status, description, locationNote);
     outboxService.record("plan.updated", "plan", plan.getId(), Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
@@ -268,7 +277,10 @@ public class OnmuApiService {
     if (participants.isEmpty()) {
       return List.of(participantFallbackCard(currentUser()));
     }
-    return participants.stream().map(this::participantCard).toList();
+    return participants.stream()
+      .filter(participant -> !"left".equalsIgnoreCase(participant.getStatus()))
+      .map(this::participantCard)
+      .toList();
   }
 
   @Transactional
@@ -280,6 +292,9 @@ public class OnmuApiService {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
     UserEntity user = currentUser();
+    if (user.getId() == null || !groupRepository.isUserMember(group.getPublicId(), user.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
     UpsertPlanParticipantRequest safeRequest = request == null
       ? new UpsertPlanParticipantRequest(null, null)
       : request;
@@ -598,9 +613,11 @@ public class OnmuApiService {
     value.put("groupId", plan.getGroup().getPublicId());
     value.put("title", plan.getTitle());
     value.put("startsAt", plan.getStartsAt() == null ? null : plan.getStartsAt().toString());
+    value.put("endsAt", plan.getEndsAt() == null ? null : plan.getEndsAt().toString());
     value.put("dateLabel", plan.getStartsAt() == null ? "일정 미정" : DATE_LABEL.format(plan.getStartsAt()));
     value.put("status", plan.getStatus());
-    value.put("placeName", "장소 미정");
+    value.put("placeName", stringOrDefault(plan.getLocationNote(), "장소 미정"));
+    value.put("memo", stringOrDefault(plan.getDescription(), ""));
     return value;
   }
 

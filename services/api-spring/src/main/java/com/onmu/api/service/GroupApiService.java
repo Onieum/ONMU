@@ -102,7 +102,7 @@ public class GroupApiService {
   }
 
   @Transactional
-  public Map<String, Object> createGroup(String name) {
+  public Map<String, Object> createGroup(String name, String description) {
     if (name == null || name.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_group_name");
     }
@@ -111,7 +111,9 @@ public class GroupApiService {
     String publicId = nextPublicId(groupRepository.findAllByOrderByCreatedAtAsc().stream()
       .map(GroupEntity::getPublicId)
       .toList());
-    GroupEntity group = groupRepository.save(new GroupEntity(publicId, name.trim(), user));
+    GroupEntity group = new GroupEntity(publicId, name.trim(), user);
+    group.update(name, description, user);
+    group = groupRepository.save(group);
     groupMemberRepository.save(new GroupMemberEntity(group, user, "owner", "active"));
     outboxService.record(
       "group.created",
@@ -120,6 +122,7 @@ public class GroupApiService {
       Map.of(
         "groupId", group.getPublicId(),
         "name", group.getName(),
+        "description", safeDescription(group),
         "ownerUserId", user.getId() == null ? "" : user.getId().toString()
       )
     );

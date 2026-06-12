@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 public record CreatePlanRequest(
   @NotBlank String title,
   String startsAt,
-  String placeName
+  String endsAt,
+  String placeName,
+  String memo
 ) {
 }
