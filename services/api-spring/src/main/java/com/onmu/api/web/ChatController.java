@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/v1/groups/{groupId}/chat")
@@ -34,6 +35,15 @@ public class ChatController {
     @RequestParam(required = false) Integer limit
   ) {
     return chatActivityService.messages(groupId, user.userId(), beforeCursor, limit);
+  }
+
+  @GetMapping("/events")
+  public SseEmitter events(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @RequestParam(required = false) String afterCursor
+  ) {
+    return chatActivityService.events(groupId, user.userId(), afterCursor);
   }
 
   @PostMapping("/messages")
