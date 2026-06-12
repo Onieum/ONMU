@@ -8,4 +8,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface RecordMediaRepository extends JpaRepository<RecordMediaEntity, UUID> {
   List<RecordMediaEntity> findByRecordOrderBySortOrderAsc(RecordEntity record);
+
+  void deleteByRecord(RecordEntity record);
 }

@@ -8,4 +8,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface RecordTagRepository extends JpaRepository<RecordTagEntity, UUID> {
   List<RecordTagEntity> findByRecord(RecordEntity record);
+
+  void deleteByRecord(RecordEntity record);
 }

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -45,10 +46,18 @@ class OnmuMapView extends ConsumerWidget {
     final styleUrl = manifest?.styleUrl ?? '';
     final webBootstrapReady =
         debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
+    final nativePmtilesSource =
+        !kIsWeb &&
+        (manifest?.currentPmtilesUrl.startsWith('pmtiles://') ?? false);
     final useMapLibre =
-        _canUseMapLibre && styleUrl.isNotEmpty && webBootstrapReady;
+        _canUseMapLibre &&
+        styleUrl.isNotEmpty &&
+        webBootstrapReady &&
+        !nativePmtilesSource;
     final effectiveFallbackLabel = styleUrl.isNotEmpty && !webBootstrapReady
         ? '지도 스크립트를 준비하는 중입니다.'
+        : styleUrl.isNotEmpty && nativePmtilesSource
+        ? ''
         : fallbackLabel;
 
     return ClipRRect(
@@ -121,29 +130,31 @@ class _FallbackMapBackground extends StatelessWidget {
       decoration: const BoxDecoration(color: AppColors.bgGrid),
       child: CustomPaint(
         painter: _FallbackMapPainter(),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.lineSoft),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
+        child: label.isEmpty
+            ? const SizedBox.expand()
+            : Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDefault.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(color: AppColors.lineSoft),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text(
+                        label,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ),
+                  ),
                 ),
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -194,6 +205,7 @@ class _ProjectedMapOverlay extends StatelessWidget {
               _PositionedMapPin(
                 point: point,
                 offset: projection.offsetFor(point.coordinate),
+                viewportSize: projection.size,
                 focused: focusedPointId == point.id,
                 onTap: onPointTap == null ? null : () => onPointTap!(point),
               ),
@@ -208,80 +220,94 @@ class _PositionedMapPin extends StatelessWidget {
   const _PositionedMapPin({
     required this.point,
     required this.offset,
+    required this.viewportSize,
     required this.focused,
     required this.onTap,
   });
 
   final OnmuMapPoint point;
   final Offset offset;
+  final Size viewportSize;
   final bool focused;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final width = math.min(168.0, math.max(88.0, viewportSize.width - 16));
+    final left = (offset.dx - width / 2)
+        .clamp(8.0, math.max(8.0, viewportSize.width - width - 8))
+        .toDouble();
+    final top = (offset.dy - 42)
+        .clamp(8.0, math.max(8.0, viewportSize.height - 72))
+        .toDouble();
+
     return Positioned(
-      left: offset.dx - 22,
-      top: offset.dy - 42,
+      left: left,
+      top: top,
       child: GestureDetector(
         key: focused ? ValueKey('focused-place-pin-${point.order}') : null,
         onTap: onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: focused
-                    ? AppColors.primaryPurple
-                    : AppColors.primaryPink,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(
-                  color: AppColors.bgDefault,
-                  width: focused ? 4 : 3,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
+        child: SizedBox(
+          width: width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: focused
+                      ? AppColors.primaryPurple
+                      : AppColors.primaryPink,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(
+                    color: AppColors.bgDefault,
+                    width: focused ? 4 : 3,
                   ),
-                ],
-              ),
-              child: SizedBox.square(
-                dimension: focused ? 42 : 34,
-                child: Center(
-                  child: Text(
-                    '${point.order}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.textInverse,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 10,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: SizedBox.square(
+                  dimension: focused ? 42 : 34,
+                  child: Center(
+                    child: Text(
+                      '${point.order}',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.textInverse,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.lineSoft),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: 2,
+              const SizedBox(height: AppSpacing.xxs),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.bgDefault,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: AppColors.lineSoft),
                 ),
-                child: RichText(
-                  overflow: TextOverflow.ellipsis,
-                  text: TextSpan(
-                    text: point.label,
-                    style: DefaultTextStyle.of(
-                      context,
-                    ).style.merge(Theme.of(context).textTheme.labelSmall),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: 2,
+                  ),
+                  child: RichText(
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    text: TextSpan(
+                      text: point.label,
+                      style: DefaultTextStyle.of(
+                        context,
+                      ).style.merge(Theme.of(context).textTheme.labelSmall),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -359,14 +385,133 @@ class _RouteOverlayPainter extends CustomPainter {
 class _FallbackMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = AppColors.lineSoft
+    final parkPaint = Paint()
+      ..color = AppColors.accentGreen.withValues(alpha: 0.16)
+      ..style = PaintingStyle.fill;
+    final waterPaint = Paint()
+      ..color = AppColors.accentBlue.withValues(alpha: 0.28)
+      ..style = PaintingStyle.fill;
+    final boundaryPaint = Paint()
+      ..color = AppColors.lineBrown.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final minorRoadPaint = Paint()
+      ..color = AppColors.lineWarm.withValues(alpha: 0.72)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
       ..strokeWidth = 1.4;
-    for (var y = 36.0; y < size.height; y += 52) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y - 24), roadPaint);
+    final majorRoadPaint = Paint()
+      ..color = AppColors.primaryPink.withValues(alpha: 0.48)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 3;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.04, size.height * 0.22)
+        ..lineTo(size.width * 0.28, size.height * 0.16)
+        ..lineTo(size.width * 0.36, size.height * 0.34)
+        ..lineTo(size.width * 0.18, size.height * 0.44)
+        ..close(),
+      parkPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.72, size.height * 0.08)
+        ..lineTo(size.width * 0.98, size.height * 0.14)
+        ..lineTo(size.width * 0.92, size.height * 0.34)
+        ..lineTo(size.width * 0.66, size.height * 0.29)
+        ..close(),
+      parkPaint,
+    );
+
+    final river = Path()
+      ..moveTo(size.width * 0.45, -20)
+      ..cubicTo(
+        size.width * 0.58,
+        size.height * 0.18,
+        size.width * 0.38,
+        size.height * 0.38,
+        size.width * 0.54,
+        size.height * 0.56,
+      )
+      ..cubicTo(
+        size.width * 0.68,
+        size.height * 0.72,
+        size.width * 0.58,
+        size.height * 0.86,
+        size.width * 0.72,
+        size.height + 24,
+      )
+      ..lineTo(size.width * 0.82, size.height + 24)
+      ..cubicTo(
+        size.width * 0.64,
+        size.height * 0.82,
+        size.width * 0.76,
+        size.height * 0.68,
+        size.width * 0.6,
+        size.height * 0.5,
+      )
+      ..cubicTo(
+        size.width * 0.47,
+        size.height * 0.35,
+        size.width * 0.68,
+        size.height * 0.16,
+        size.width * 0.54,
+        -20,
+      )
+      ..close();
+    canvas.drawPath(river, waterPaint);
+
+    for (var y = 24.0; y < size.height; y += 54) {
+      final path = Path()
+        ..moveTo(-20, y)
+        ..cubicTo(
+          size.width * 0.3,
+          y - 28,
+          size.width * 0.62,
+          y + 28,
+          size.width + 20,
+          y - 8,
+        );
+      canvas.drawPath(path, minorRoadPaint);
     }
-    for (var x = 30.0; x < size.width; x += 66) {
-      canvas.drawLine(Offset(x, 0), Offset(x + 34, size.height), roadPaint);
+    for (var x = 24.0; x < size.width; x += 68) {
+      final path = Path()
+        ..moveTo(x, -20)
+        ..cubicTo(
+          x - 24,
+          size.height * 0.28,
+          x + 28,
+          size.height * 0.62,
+          x + 8,
+          size.height + 20,
+        );
+      canvas.drawPath(path, minorRoadPaint);
+    }
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(-20, size.height * 0.68)
+        ..lineTo(size.width * 0.32, size.height * 0.5)
+        ..lineTo(size.width * 0.76, size.height * 0.58)
+        ..lineTo(size.width + 20, size.height * 0.44),
+      majorRoadPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.18, -20)
+        ..lineTo(size.width * 0.36, size.height * 0.32)
+        ..lineTo(size.width * 0.3, size.height + 20),
+      majorRoadPaint,
+    );
+
+    for (var x = size.width * 0.18; x < size.width; x += size.width * 0.28) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x - size.width * 0.1, size.height),
+        boundaryPaint,
+      );
     }
   }
 

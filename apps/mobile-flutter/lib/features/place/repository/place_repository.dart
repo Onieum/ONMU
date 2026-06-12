@@ -19,6 +19,12 @@ abstract interface class PlaceRepository {
     required Object candidateId,
   });
 
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  });
+
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,
@@ -67,6 +73,39 @@ class ApiPlaceRepository implements PlaceRepository {
       (candidate) => candidate.id.toString() == candidateId.toString(),
       orElse: () => _emptyCandidate(candidateId),
     );
+  }
+
+  @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async {
+    final response = await _client.postObject(
+      '/api/v1/groups/$groupId/plans/$planId/place-candidates',
+      body: {
+        'name': candidate.name.trim(),
+        'category': candidate.category.trim(),
+        'address': candidate.address.trim(),
+        'summary': candidate.summary.trim(),
+        'tags': candidate.tags,
+        if (candidate.provider.trim().isNotEmpty)
+          'provider': candidate.provider.trim(),
+        if (candidate.providerPlaceId.trim().isNotEmpty)
+          'providerPlaceId': candidate.providerPlaceId.trim(),
+        if (candidate.roadAddress.trim().isNotEmpty)
+          'roadAddress': candidate.roadAddress.trim(),
+        if (candidate.latitude != null) 'lat': candidate.latitude,
+        if (candidate.longitude != null) 'lng': candidate.longitude,
+        if (candidate.latitude != null) 'latitude': candidate.latitude,
+        if (candidate.longitude != null) 'longitude': candidate.longitude,
+        if (candidate.sourceUrl.trim().isNotEmpty)
+          'sourceUrl': candidate.sourceUrl.trim(),
+        if (candidate.fetchedAt != null)
+          'fetchedAt': candidate.fetchedAt!.toUtc().toIso8601String(),
+      },
+    );
+    return _candidate(response);
   }
 
   @override
@@ -134,7 +173,7 @@ class ApiPlaceRepository implements PlaceRepository {
       isOpen: OnmuJson.readBool(json, 'isOpen', true),
       address: OnmuJson.readString(json, 'address'),
       openingLabel: OnmuJson.readString(json, 'openingLabel', '영업 정보 확인 중'),
-      sourceLabel: '',
+      sourceLabel: OnmuJson.readString(json, 'sourceLabel'),
       riskLabel: '',
       riskTone: 'none',
       memberFits: OnmuJson.asMapList(json['memberFits'])

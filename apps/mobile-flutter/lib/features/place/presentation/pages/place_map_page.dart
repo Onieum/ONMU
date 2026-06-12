@@ -28,19 +28,23 @@ class PlaceMapPage extends ConsumerStatefulWidget {
 }
 
 class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
-  final _categories = ['전체', '한식', '카페', '전시', '술집'];
+  static const _allCategory = '전체';
+  static const _categories = ['전체', '한식', '카페', '전시', '술집'];
 
   bool _searchActive = false;
   String _query = '';
-  String _selectedCategory = '전체';
+  String _selectedCategory = _allCategory;
   PlaceCandidate? _selectedCandidate;
+  final Set<int> _savingCandidateIds = {};
 
   List<PlaceCandidate> _visibleCandidates(List<PlaceCandidate> candidates) {
     final normalizedQuery = _query.trim().toLowerCase();
 
     final results = candidates.where((candidate) {
       final matchesCategory =
-          _selectedCategory == '전체' || candidate.category == _selectedCategory;
+          _selectedCategory == _allCategory ||
+          candidate.category == _selectedCategory ||
+          candidate.tags.contains(_selectedCategory);
       final searchableText = [
         candidate.name,
         candidate.category,
@@ -54,6 +58,66 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     }).toList();
 
     return results;
+  }
+
+  List<PlaceCandidate> _mergeCandidates(
+    List<PlaceCandidate> savedCandidates,
+    List<PlaceCandidate> searchedCandidates,
+  ) {
+    final merged = <PlaceCandidate>[];
+    final seen = <String>{};
+
+    void addCandidate(PlaceCandidate candidate) {
+      final identities = _candidateIdentities(candidate);
+      if (identities.any(seen.contains)) {
+        return;
+      }
+      seen.addAll(identities);
+      merged.add(candidate);
+    }
+
+    for (final candidate in savedCandidates) {
+      addCandidate(candidate);
+    }
+    for (final candidate in searchedCandidates) {
+      addCandidate(candidate);
+    }
+
+    return merged;
+  }
+
+  Set<String> _candidateIdentities(PlaceCandidate candidate) {
+    final identities = <String>{};
+    final providerPlaceId = candidate.providerPlaceId.trim();
+    if (providerPlaceId.isNotEmpty) {
+      identities.add('provider:${candidate.provider}:$providerPlaceId');
+    }
+    final normalizedName = candidate.name.trim().toLowerCase();
+    final normalizedAddress = candidate.address.trim().toLowerCase();
+    if (normalizedName.isNotEmpty) {
+      identities.add('name:$normalizedName');
+      identities.add('place:$normalizedName:$normalizedAddress');
+    }
+    return identities.isEmpty ? {'id:${candidate.id}'} : identities;
+  }
+
+  String _defaultSearchQuery(PlaceCandidatesState state) {
+    final location = _normalizedPlanLocation(state.planLocation);
+    final categoryKeyword = _selectedCategory == _allCategory
+        ? '카페'
+        : _selectedCategory;
+    return [
+      location,
+      categoryKeyword,
+    ].where((part) => part.trim().isNotEmpty).join(' ').trim();
+  }
+
+  String _normalizedPlanLocation(String value) {
+    var normalized = value.trim();
+    for (final token in const ['일대', '주변', '근처', '장소 미정', '미정']) {
+      normalized = normalized.replaceAll(token, '').trim();
+    }
+    return normalized;
   }
 
   void _activateSearch() {
@@ -76,7 +140,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     );
 
     return state.when(
-      data: (state) => _buildContent(context, state.candidates),
+      data: (state) => _buildContent(context, state),
       loading: () => const Scaffold(
         backgroundColor: AppColors.bgGrid,
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
@@ -95,23 +159,29 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
-    final localVisibleCandidates = _visibleCandidates(candidates);
-    final remoteSearchState = _query.trim().isEmpty
+  Widget _buildContent(BuildContext context, PlaceCandidatesState state) {
+    final localVisibleCandidates = _visibleCandidates(state.candidates);
+    final autoSearch = _query.trim().isEmpty;
+    final effectiveQuery = autoSearch ? _defaultSearchQuery(state) : _query;
+    final searchActive =
+        _searchActive || autoSearch || _selectedCategory != _allCategory;
+    final remoteSearchState = effectiveQuery.trim().isEmpty
         ? null
         : ref.watch(
             placeSearchResultsProvider((
               groupId: widget.groupId,
               planId: widget.planId,
-              query: _query,
-              category: _selectedCategory == _categories.first
+              query: effectiveQuery,
+              category: _selectedCategory == _allCategory
                   ? null
                   : _selectedCategory,
             )),
           );
     final visibleCandidates =
         remoteSearchState?.maybeWhen(
-          data: (results) => results.isEmpty ? localVisibleCandidates : results,
+          data: (results) => results.isEmpty
+              ? localVisibleCandidates
+              : _mergeCandidates(localVisibleCandidates, results),
           orElse: () => localVisibleCandidates,
         ) ??
         localVisibleCandidates;
@@ -179,7 +249,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                       onSelected: (category) {
                         setState(() {
                           _selectedCategory = category;
-                          _searchActive = category != '전체' || _query.isNotEmpty;
+                          _searchActive =
+                              category != _allCategory || _query.isNotEmpty;
                           _selectedCandidate = null;
                         });
                       },
@@ -204,12 +275,15 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                         child: _RecommendationSheet(
                           controller: scrollController,
                           candidates: visibleCandidates,
-                          searchActive: _searchActive,
-                          query: _query,
+                          searchActive: searchActive,
+                          autoSearch: autoSearch,
+                          query: effectiveQuery,
                           selectedCategory: _selectedCategory,
                           searchLoading: searchLoading,
                           searchHadError: searchHadError,
                           selectedCandidate: _selectedCandidate,
+                          isSavingCandidate: (candidate) =>
+                              _savingCandidateIds.contains(candidate.id),
                           onBackToResults: () {
                             setState(() {
                               _selectedCandidate = null;
@@ -220,24 +294,26 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                               _selectedCandidate = candidate;
                             });
                           },
-                          onRegisterPressed: () => _showConfirmation(
-                            context,
-                            message: '일정에 등록되었어요!',
-                            actionLabel: '일정 보러가기',
-                            targetPath: RoutePaths.planItinerary(
-                              widget.groupId,
-                              widget.planId,
-                            ),
-                          ),
-                          onAddCandidatePressed: () => _showConfirmation(
-                            context,
-                            message: '후보에 추가되었어요!',
-                            actionLabel: '후보 리스트 보러가기',
-                            targetPath: RoutePaths.planPlaceCandidates(
-                              widget.groupId,
-                              widget.planId,
-                            ),
-                          ),
+                          onRegisterPressed: (candidate) =>
+                              _saveCandidateAndNavigate(
+                                candidate,
+                                context,
+                                message: '일정에 등록되었어요!',
+                                targetPath: RoutePaths.planItinerary(
+                                  widget.groupId,
+                                  widget.planId,
+                                ),
+                              ),
+                          onAddCandidatePressed: (candidate) =>
+                              _saveCandidateAndNavigate(
+                                candidate,
+                                context,
+                                message: '후보에 추가되었어요!',
+                                targetPath: RoutePaths.planPlaceCandidates(
+                                  widget.groupId,
+                                  widget.planId,
+                                ),
+                              ),
                         ),
                       );
                     },
@@ -251,35 +327,55 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     );
   }
 
-  void _showConfirmation(
+  Future<void> _saveCandidateAndNavigate(
+    PlaceCandidate candidate,
     BuildContext context, {
     required String message,
-    required String actionLabel,
     required String targetPath,
-  }) {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (mounted) {
-                  this.context.push(targetPath);
-                }
-              },
-              child: Text(actionLabel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('확인'),
-            ),
-          ],
+  }) async {
+    if (_savingCandidateIds.contains(candidate.id)) {
+      return;
+    }
+
+    setState(() {
+      _savingCandidateIds.add(candidate.id);
+    });
+
+    try {
+      final savedCandidate = await ref
+          .read(
+            placeCandidatesViewModelProvider((
+              groupId: widget.groupId,
+              planId: widget.planId,
+            )).notifier,
+          )
+          .addCandidate(candidate);
+      if (!mounted || !context.mounted) {
+        return;
+      }
+      setState(() {
+        _selectedCandidate = savedCandidate;
+      });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+      context.push(targetPath);
+    } catch (_) {
+      if (!mounted || !context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('장소를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')),
         );
-      },
-    );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingCandidateIds.remove(candidate.id);
+        });
+      }
+    }
   }
 
   PlaceCandidate? _candidateByPointId(
@@ -573,11 +669,13 @@ class _RecommendationSheet extends StatelessWidget {
     required this.controller,
     required this.candidates,
     required this.searchActive,
+    required this.autoSearch,
     required this.query,
     required this.selectedCategory,
     required this.searchLoading,
     required this.searchHadError,
     required this.selectedCandidate,
+    required this.isSavingCandidate,
     required this.onBackToResults,
     required this.onCandidateSelected,
     required this.onRegisterPressed,
@@ -587,15 +685,17 @@ class _RecommendationSheet extends StatelessWidget {
   final ScrollController controller;
   final List<PlaceCandidate> candidates;
   final bool searchActive;
+  final bool autoSearch;
   final String query;
   final String selectedCategory;
   final bool searchLoading;
   final bool searchHadError;
   final PlaceCandidate? selectedCandidate;
+  final bool Function(PlaceCandidate candidate) isSavingCandidate;
   final VoidCallback onBackToResults;
   final ValueChanged<PlaceCandidate> onCandidateSelected;
-  final VoidCallback onRegisterPressed;
-  final VoidCallback onAddCandidatePressed;
+  final ValueChanged<PlaceCandidate> onRegisterPressed;
+  final ValueChanged<PlaceCandidate> onAddCandidatePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -633,13 +733,19 @@ class _RecommendationSheet extends StatelessWidget {
           if (selectedCandidate != null) ...[
             _SelectedPlaceDetailSheet(
               candidate: selectedCandidate!,
+              isSaving: isSavingCandidate(selectedCandidate!),
               onBackToResults: onBackToResults,
-              onRegisterPressed: onRegisterPressed,
-              onAddCandidatePressed: onAddCandidatePressed,
+              onRegisterPressed: () => onRegisterPressed(selectedCandidate!),
+              onAddCandidatePressed: () =>
+                  onAddCandidatePressed(selectedCandidate!),
             ),
           ] else ...[
             Text(
-              searchActive ? '검색 결과' : '추천 장소',
+              autoSearch
+                  ? '장소 후보 ✨'
+                  : searchActive
+                  ? '검색 결과'
+                  : '추천 장소',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -664,8 +770,10 @@ class _RecommendationSheet extends StatelessWidget {
                 candidate: candidates[index],
                 photoIndex: index,
                 onTap: () => onCandidateSelected(candidates[index]),
-                onRegisterPressed: onRegisterPressed,
-                onAddCandidatePressed: onAddCandidatePressed,
+                isSaving: isSavingCandidate(candidates[index]),
+                onRegisterPressed: () => onRegisterPressed(candidates[index]),
+                onAddCandidatePressed: () =>
+                    onAddCandidatePressed(candidates[index]),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
@@ -683,6 +791,9 @@ class _RecommendationSheet extends StatelessWidget {
 
   String get _searchResultDescription {
     final normalizedQuery = query.trim();
+    if (autoSearch && normalizedQuery.isNotEmpty) {
+      return '$normalizedQuery 주변에서 바로 후보를 불러왔어요.';
+    }
     if (normalizedQuery.isEmpty) {
       if (selectedCategory == '전체') {
         return '지도 위에서 바로 찾아본 장소들이에요';
@@ -770,12 +881,14 @@ class _EmptyPlaceSearchCard extends StatelessWidget {
 class _SelectedPlaceDetailSheet extends StatelessWidget {
   const _SelectedPlaceDetailSheet({
     required this.candidate,
+    required this.isSaving,
     required this.onBackToResults,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
   });
 
   final PlaceCandidate candidate;
+  final bool isSaving;
   final VoidCallback onBackToResults;
   final VoidCallback onRegisterPressed;
   final VoidCallback onAddCandidatePressed;
@@ -847,6 +960,7 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         _PlaceActionButtons(
           candidateId: candidate.id,
+          isSaving: isSaving,
           onAddCandidatePressed: onAddCandidatePressed,
           onRegisterPressed: onRegisterPressed,
         ),
@@ -892,6 +1006,7 @@ class _RecommendationTile extends StatelessWidget {
     required this.candidate,
     required this.photoIndex,
     required this.onTap,
+    required this.isSaving,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
   });
@@ -899,11 +1014,19 @@ class _RecommendationTile extends StatelessWidget {
   final PlaceCandidate candidate;
   final int photoIndex;
   final VoidCallback onTap;
+  final bool isSaving;
   final VoidCallback onRegisterPressed;
   final VoidCallback onAddCandidatePressed;
 
   @override
   Widget build(BuildContext context) {
+    final tags = candidate.tags.isEmpty
+        ? <String>[candidate.category]
+        : candidate.tags.take(3).toList(growable: false);
+    final sourceLabel = candidate.sourceLabel.trim().isEmpty
+        ? 'Provider'
+        : candidate.sourceLabel.trim();
+
     return OnmuCard(
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
@@ -912,6 +1035,7 @@ class _RecommendationTile extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _PlacePhoto(candidate: candidate, index: photoIndex),
               const SizedBox(width: AppSpacing.sm),
@@ -919,22 +1043,67 @@ class _RecommendationTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      candidate.name,
-                      style: Theme.of(context).textTheme.titleSmall,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            candidate.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        const Icon(
+                          Icons.favorite_border,
+                          color: AppColors.primaryPink,
+                          size: 22,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '${candidate.category} · ${candidate.travelTimeLabel}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      candidate.address.isEmpty
+                          ? candidate.summary
+                          : candidate.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Wrap(
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
                       children: [
-                        for (final tag in candidate.tags.take(2))
-                          OnmuChip(label: tag),
+                        _MetricChip(
+                          icon: Icons.directions_walk,
+                          label: candidate.travelTimeLabel,
+                        ),
+                        _MetricChip(
+                          icon: Icons.auto_awesome,
+                          label: '${candidate.matchPercent}%',
+                        ),
+                        _MetricChip(
+                          icon: candidate.isOpen
+                              ? Icons.circle
+                              : Icons.error_outline,
+                          label: candidate.isOpen ? '영업 중' : '확인 필요',
+                          color: candidate.isOpen
+                              ? AppColors.accentRed
+                              : AppColors.textMuted,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xxs,
+                      children: [
+                        OnmuChip(label: sourceLabel, selected: true),
+                        for (final tag in tags) OnmuChip(label: tag),
                       ],
                     ),
                   ],
@@ -945,6 +1114,7 @@ class _RecommendationTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _PlaceActionButtons(
             candidateId: candidate.id,
+            isSaving: isSaving,
             onAddCandidatePressed: onAddCandidatePressed,
             onRegisterPressed: onRegisterPressed,
           ),
@@ -954,9 +1124,54 @@ class _RecommendationTile extends StatelessWidget {
   }
 }
 
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    this.color = AppColors.primaryPink,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgPaper,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.lineWarm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PlaceActionButtons extends StatelessWidget {
   const _PlaceActionButtons({
     required this.candidateId,
+    required this.isSaving,
     required this.onAddCandidatePressed,
     required this.onRegisterPressed,
   });
@@ -964,6 +1179,7 @@ class _PlaceActionButtons extends StatelessWidget {
   static const _buttonHeight = 52.0;
 
   final int candidateId;
+  final bool isSaving;
   final VoidCallback onAddCandidatePressed;
   final VoidCallback onRegisterPressed;
 
@@ -976,9 +1192,9 @@ class _PlaceActionButtons extends StatelessWidget {
             key: ValueKey('place-action-$candidateId-candidate'),
             height: _buttonHeight,
             child: OnmuSecondaryButton(
-              label: '후보에 추가',
+              label: isSaving ? '저장 중' : '후보에 추가',
               icon: Icons.favorite_border,
-              onPressed: onAddCandidatePressed,
+              onPressed: isSaving ? null : onAddCandidatePressed,
             ),
           ),
         ),
@@ -988,11 +1204,11 @@ class _PlaceActionButtons extends StatelessWidget {
             key: ValueKey('place-action-$candidateId-schedule'),
             height: _buttonHeight,
             child: OnmuPrimaryButton(
-              label: '일정에 추가',
+              label: isSaving ? '저장 중' : '일정에 추가',
               icon: Icons.event_available_outlined,
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
-              onPressed: onRegisterPressed,
+              onPressed: isSaving ? null : onRegisterPressed,
             ),
           ),
         ),
@@ -1017,7 +1233,7 @@ class _PlacePhoto extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: SizedBox(
           width: 72,
-          height: 72,
+          height: 92,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -1039,11 +1255,33 @@ class _PlacePhoto extends StatelessWidget {
                 ),
                 Positioned(
                   left: 10,
-                  bottom: 10,
+                  bottom: 16,
                   child: Icon(
                     _photoIcon,
                     color: AppColors.textInverse,
                     size: 28,
+                  ),
+                ),
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDefault.withValues(alpha: 0.86),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 2,
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.primaryPink,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(
