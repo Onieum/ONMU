@@ -18,7 +18,14 @@ public interface ChatActivityEventRepository extends JpaRepository<ChatActivityE
   @Query("""
     select event from ChatActivityEventEntity event
     where event.group = :group
-      and (:beforeCreatedAt is null or event.createdAt < :beforeCreatedAt)
+    order by event.createdAt desc, event.id desc
+    """)
+  List<ChatActivityEventEntity> findLatestPage(GroupEntity group, Pageable pageable);
+
+  @Query("""
+    select event from ChatActivityEventEntity event
+    where event.group = :group
+      and event.createdAt < :beforeCreatedAt
     order by event.createdAt desc, event.id desc
     """)
   List<ChatActivityEventEntity> findPageBefore(GroupEntity group, Instant beforeCreatedAt, Pageable pageable);
@@ -34,7 +41,14 @@ public interface ChatActivityEventRepository extends JpaRepository<ChatActivityE
   @Query("""
     select count(event) from ChatActivityEventEntity event
     where event.group = :group
-      and (:lastReadAt is null or event.createdAt > :lastReadAt)
+      and (event.actorUser is null or event.actorUser.id <> :currentUserId)
+    """)
+  long countUnread(GroupEntity group, UUID currentUserId);
+
+  @Query("""
+    select count(event) from ChatActivityEventEntity event
+    where event.group = :group
+      and event.createdAt > :lastReadAt
       and (event.actorUser is null or event.actorUser.id <> :currentUserId)
     """)
   long countUnreadAfter(GroupEntity group, UUID currentUserId, Instant lastReadAt);
