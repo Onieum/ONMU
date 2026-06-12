@@ -29,6 +29,10 @@ $secretMap = [ordered]@{
   "$SecretPrefix-access-token-secret" = "ONMU_ACCESS_TOKEN_SECRET"
   "$SecretPrefix-naver-oauth-client-id" = "NAVER_OAUTH_CLIENT_ID"
   "$SecretPrefix-naver-oauth-client-secret" = "NAVER_OAUTH_CLIENT_SECRET"
+  "$SecretPrefix-kakao-rest-api-key" = "KAKAO_REST_API_KEY"
+  "$SecretPrefix-naver-search-client-id" = "NAVER_SEARCH_CLIENT_ID"
+  "$SecretPrefix-naver-search-client-secret" = "NAVER_SEARCH_CLIENT_SECRET"
+  "$SecretPrefix-openrouteservice-api-key" = "OPENROUTESERVICE_API_KEY"
 }
 
 if ($SecretPrefix -eq "dev") {

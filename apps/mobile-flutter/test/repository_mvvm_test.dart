@@ -771,6 +771,14 @@ class _FakePlaceRepository implements PlaceRepository {
   }) async => _candidate;
 
   @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async => [_candidate];
+
+  @override
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,

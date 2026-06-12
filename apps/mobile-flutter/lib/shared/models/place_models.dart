@@ -19,6 +19,13 @@ class PlaceCandidate {
     required this.tags,
     required this.reasons,
     required this.risks,
+    this.provider = '',
+    this.providerPlaceId = '',
+    this.roadAddress = '',
+    this.sourceUrl = '',
+    this.latitude,
+    this.longitude,
+    this.fetchedAt,
   });
 
   final int id;
@@ -40,6 +47,15 @@ class PlaceCandidate {
   final List<String> tags;
   final List<String> reasons;
   final List<String> risks;
+  final String provider;
+  final String providerPlaceId;
+  final String roadAddress;
+  final String sourceUrl;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? fetchedAt;
+
+  bool get hasCoordinate => latitude != null && longitude != null;
 }
 
 class MemberFit {

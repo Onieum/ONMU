@@ -100,20 +100,38 @@ function Write-JsonFile {
   [System.IO.File]::WriteAllText($Path, "$json`n", $utf8NoBom)
 }
 
-function New-CorsPolicy {
+function Write-TextFile {
+  param(
+    [Parameter(Mandatory = $true)][string]$Path,
+    [Parameter(Mandatory = $true)][string]$Value
+  )
+
+  $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Path, "$Value`n", $utf8NoBom)
+}
+
+function New-CorsPolicyXml {
   param([string[]]$AllowedOrigins)
 
-  return [ordered]@{
-    CORSRules = @(
-      [ordered]@{
-        AllowedOrigins = $AllowedOrigins
-        AllowedMethods = @("GET", "HEAD")
-        AllowedHeaders = @("*")
-        ExposeHeaders = @("ETag", "Content-Length", "Content-Type", "Cache-Control")
-        MaxAgeSeconds = $CacheMaxAgeSeconds
-      }
-    )
-  }
+  $originNodes = @($AllowedOrigins | ForEach-Object {
+      "<AllowedOrigin>$([System.Security.SecurityElement]::Escape($_))</AllowedOrigin>"
+    }) -join "`n    "
+
+  return @"
+<CORSConfiguration>
+  <CORSRule>
+    $originNodes
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
+    <ExposeHeader>Content-Type</ExposeHeader>
+    <ExposeHeader>Cache-Control</ExposeHeader>
+    <MaxAgeSeconds>$CacheMaxAgeSeconds</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>
+"@
 }
 
 function New-MapLibreStyle {
@@ -374,8 +392,9 @@ try {
   }
 
   $pmtilesHash = (Get-FileHash -LiteralPath $pmtilesWorkFile -Algorithm SHA256).Hash.ToLowerInvariant()
-  $corsPath = Join-Path $tempDir "cors.json"
-  Write-JsonFile -Path $corsPath -Value (New-CorsPolicy -AllowedOrigins $CorsAllowedOrigins)
+  $corsPath = Join-Path $tempDir "cors.xml"
+  Write-TextFile -Path $corsPath -Value (New-CorsPolicyXml -AllowedOrigins $CorsAllowedOrigins)
+  $corsStatus = if ($DryRun) { "dry-run" } else { "not-set" }
 
   if ($DryRun) {
     $pmtilesMetadata = [pscustomobject]@{
@@ -400,7 +419,13 @@ try {
 
     $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("mb", "--ignore-existing", "onmu/$Bucket")
     $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("anonymous", "set", "download", "onmu/$Bucket")
-    $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("cors", "set", "onmu/$Bucket", "/work/cors.json")
+    try {
+      $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("cors", "set", "onmu/$Bucket", "/work/cors.xml")
+      $corsStatus = "set"
+    } catch {
+      $corsStatus = "unsupported"
+      Write-Warning "MinIO CORS configuration was skipped because this backend does not support SetBucketCors. Secret values are not printed."
+    }
     $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("cp", "--attr", "Cache-Control=$CacheControl", "/work/korea-dev.pmtiles", "onmu/$Bucket/$PmtilesObjectKey")
     $pmtilesMetadata = Get-McObjectMetadata -McHost $mcHost -WorkDir $tempDir -ObjectKey $PmtilesObjectKey -Sha256 $pmtilesHash
   }
@@ -434,13 +459,11 @@ try {
       etag = "dry-run-$((Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant())"
       sizeBytes = (Get-Item -LiteralPath $manifestPath).Length
     }
-    $corsStatus = "dry-run"
   } else {
     $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("cp", "--attr", "Cache-Control=$CacheControl", "/work/onmu-light.json", "onmu/$Bucket/$StyleObjectKey")
     $styleMetadata = Get-McObjectMetadata -McHost $mcHost -WorkDir $tempDir -ObjectKey $StyleObjectKey -Sha256 ((Get-FileHash -LiteralPath $stylePath -Algorithm SHA256).Hash.ToLowerInvariant())
     $null = Invoke-McContainer -McHost $mcHost -WorkDir $tempDir -Arguments @("cp", "--attr", "Cache-Control=$CacheControl", "/work/manifest.json", "onmu/$Bucket/$ManifestObjectKey")
     $manifestMetadata = Get-McObjectMetadata -McHost $mcHost -WorkDir $tempDir -ObjectKey $ManifestObjectKey -Sha256 ((Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
-    $corsStatus = "set"
   }
 
   [pscustomobject]@{

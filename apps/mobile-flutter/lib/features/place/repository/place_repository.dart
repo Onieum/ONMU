@@ -19,6 +19,13 @@ abstract interface class PlaceRepository {
     required Object candidateId,
   });
 
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  });
+
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,
@@ -63,6 +70,32 @@ class ApiPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<List<PlaceCandidate>> searchPlaces({
+    required Object groupId,
+    required Object planId,
+    required String query,
+    String? category,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) {
+      return const [];
+    }
+    final response = await _client.postObject(
+      '/api/v1/place-search',
+      body: {
+        'groupId': groupId.toString(),
+        'planId': planId.toString(),
+        'query': normalizedQuery,
+        if (category != null && category.trim().isNotEmpty)
+          'category': category.trim(),
+      },
+    );
+    return OnmuJson.asMapList(
+      response['results'],
+    ).map(_candidate).toList(growable: false);
+  }
+
+  @override
   Future<List<PlaceRisk>> fetchRisks({
     required Object groupId,
     required Object planId,
@@ -85,7 +118,7 @@ class ApiPlaceRepository implements PlaceRepository {
 
   PlaceCandidate _candidate(Map<String, dynamic> json) {
     return PlaceCandidate(
-      id: OnmuJson.readInt(json, 'id'),
+      id: _candidateId(json),
       name: OnmuJson.readString(json, 'name', '장소 후보'),
       category: OnmuJson.readString(json, 'category', '장소'),
       summary: OnmuJson.readString(json, 'summary'),
@@ -116,6 +149,17 @@ class ApiPlaceRepository implements PlaceRepository {
       tags: OnmuJson.stringList(json['tags']),
       reasons: OnmuJson.stringList(json['reasons']),
       risks: const [],
+      provider: OnmuJson.readString(json, 'provider'),
+      providerPlaceId: OnmuJson.readString(json, 'providerPlaceId'),
+      roadAddress: OnmuJson.readString(json, 'roadAddress'),
+      sourceUrl: OnmuJson.readString(json, 'sourceUrl'),
+      latitude:
+          _readNullableDouble(json, 'lat') ??
+          _readNullableDouble(json, 'latitude'),
+      longitude:
+          _readNullableDouble(json, 'lng') ??
+          _readNullableDouble(json, 'longitude'),
+      fetchedAt: DateTime.tryParse(OnmuJson.readString(json, 'fetchedAt')),
     );
   }
 
@@ -141,5 +185,26 @@ class ApiPlaceRepository implements PlaceRepository {
       reasons: const [],
       risks: const [],
     );
+  }
+
+  double? _readNullableDouble(Map<String, dynamic> json, String key) {
+    final value = json[key];
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value?.toString() ?? '');
+  }
+
+  int _candidateId(Map<String, dynamic> json) {
+    final explicitId = OnmuJson.readInt(json, 'id');
+    if (explicitId != 0) {
+      return explicitId;
+    }
+    final providerKey = [
+      OnmuJson.readString(json, 'provider'),
+      OnmuJson.readString(json, 'providerPlaceId'),
+      OnmuJson.readString(json, 'name'),
+    ].join('|');
+    return providerKey.hashCode & 0x7fffffff;
   }
 }
