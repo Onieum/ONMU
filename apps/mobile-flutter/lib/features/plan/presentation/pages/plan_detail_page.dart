@@ -7,12 +7,14 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../view_model/plan_detail_view_model.dart';
 
 class PlanDetailPage extends ConsumerWidget {
@@ -29,9 +31,15 @@ class PlanDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(
-      planDetailViewModelProvider((groupId: groupId, planId: planId)),
-    );
+    final scope = (groupId: groupId, planId: planId);
+    final provider = planDetailViewModelProvider(scope);
+    final state = ref.watch(provider);
+    final authUser = ref.watch(authUserProvider);
+    final currentUserIds = {
+      if (authUser?.id.trim().isNotEmpty == true) authUser!.id.trim(),
+      if (authUser?.publicId?.trim().isNotEmpty == true)
+        authUser!.publicId!.trim(),
+    };
 
     return state.when(
       data: (state) {
@@ -40,6 +48,11 @@ class PlanDetailPage extends ConsumerWidget {
             groupId: groupId,
             planId: planId,
             detail: state,
+            currentUserIds: currentUserIds,
+            onAddCurrentUser: () =>
+                ref.read(provider.notifier).joinAsCurrentUser(),
+            onRemoveCurrentUser: () =>
+                ref.read(provider.notifier).leaveAsCurrentUser(),
           );
         }
 
@@ -47,6 +60,11 @@ class PlanDetailPage extends ConsumerWidget {
           groupId: groupId,
           planId: planId,
           detail: state,
+          currentUserIds: currentUserIds,
+          onAddCurrentUser: () =>
+              ref.read(provider.notifier).joinAsCurrentUser(),
+          onRemoveCurrentUser: () =>
+              ref.read(provider.notifier).leaveAsCurrentUser(),
         );
       },
       loading: () => const OnmuScaffold(
@@ -71,11 +89,17 @@ class _DraftPlanDetail extends StatefulWidget {
     required this.groupId,
     required this.planId,
     required this.detail,
+    required this.currentUserIds,
+    required this.onAddCurrentUser,
+    required this.onRemoveCurrentUser,
   });
 
   final String groupId;
   final String planId;
   final PlanDetailState detail;
+  final Set<String> currentUserIds;
+  final Future<void> Function() onAddCurrentUser;
+  final Future<void> Function() onRemoveCurrentUser;
 
   @override
   State<_DraftPlanDetail> createState() => _DraftPlanDetailState();
@@ -86,6 +110,10 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedVisitPlan = widget.detail.visitPlanForDate(
+      _selectedDateIndex,
+    );
+
     return OnmuScaffold(
       title: widget.detail.plan.title,
       titleSubtitle: OnmuLocationSubtitle(
@@ -107,7 +135,14 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         ),
       ),
       children: [
-        _PlanMemberSection(members: widget.detail.selectedMembers),
+        _PlanMemberSection(
+          members: widget.detail.selectedMembers,
+          groupMembers: widget.detail.groupMembers,
+          participantArrivals: widget.detail.participantArrivals,
+          currentUserIds: widget.currentUserIds,
+          onAddCurrentUser: widget.onAddCurrentUser,
+          onRemoveCurrentUser: widget.onRemoveCurrentUser,
+        ),
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
           _ArrivalStatusSection(
@@ -124,9 +159,11 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         const SizedBox(height: AppSpacing.md),
         Text('일정 타임라인', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
-        _TimelineCard(
-          visitPlan: widget.detail.visitPlanForDate(_selectedDateIndex),
-        ),
+        _PlanItineraryPreviewSection(visitPlan: selectedVisitPlan),
+        const SizedBox(height: AppSpacing.md),
+        _TimelineCard(visitPlan: selectedVisitPlan),
+        const SizedBox(height: AppSpacing.md),
+        _PlanMemoSection(memo: widget.detail.plan.memo),
       ],
     );
   }
@@ -205,11 +242,17 @@ class _ConfirmedPlanDetail extends StatefulWidget {
     required this.groupId,
     required this.planId,
     required this.detail,
+    required this.currentUserIds,
+    required this.onAddCurrentUser,
+    required this.onRemoveCurrentUser,
   });
 
   final String groupId;
   final String planId;
   final PlanDetailState detail;
+  final Set<String> currentUserIds;
+  final Future<void> Function() onAddCurrentUser;
+  final Future<void> Function() onRemoveCurrentUser;
 
   @override
   State<_ConfirmedPlanDetail> createState() => _ConfirmedPlanDetailState();
@@ -220,6 +263,10 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedVisitPlan = widget.detail.visitPlanForDate(
+      _selectedDateIndex,
+    );
+
     return OnmuScaffold(
       title: widget.detail.plan.title,
       titleSubtitle: OnmuLocationSubtitle(
@@ -240,7 +287,14 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         onPressed: () => context.go(RoutePaths.groupDetail(widget.groupId)),
       ),
       children: [
-        _PlanMemberSection(members: widget.detail.selectedMembers),
+        _PlanMemberSection(
+          members: widget.detail.selectedMembers,
+          groupMembers: widget.detail.groupMembers,
+          participantArrivals: widget.detail.participantArrivals,
+          currentUserIds: widget.currentUserIds,
+          onAddCurrentUser: widget.onAddCurrentUser,
+          onRemoveCurrentUser: widget.onRemoveCurrentUser,
+        ),
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
           _ArrivalStatusSection(
@@ -285,9 +339,11 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        _TimelineCard(
-          visitPlan: widget.detail.visitPlanForDate(_selectedDateIndex),
-        ),
+        _PlanItineraryPreviewSection(visitPlan: selectedVisitPlan),
+        const SizedBox(height: AppSpacing.md),
+        _TimelineCard(visitPlan: selectedVisitPlan),
+        const SizedBox(height: AppSpacing.md),
+        _PlanMemoSection(memo: widget.detail.plan.memo),
       ],
     );
   }
@@ -464,12 +520,26 @@ class _ParticipantArrivalChip extends StatelessWidget {
 }
 
 class _PlanMemberSection extends StatelessWidget {
-  const _PlanMemberSection({required this.members});
+  const _PlanMemberSection({
+    required this.members,
+    required this.groupMembers,
+    required this.participantArrivals,
+    required this.currentUserIds,
+    required this.onAddCurrentUser,
+    required this.onRemoveCurrentUser,
+  });
 
   final List<PlanMember> members;
+  final List<GroupMemberProfile> groupMembers;
+  final List<PlanParticipantArrival> participantArrivals;
+  final Set<String> currentUserIds;
+  final Future<void> Function() onAddCurrentUser;
+  final Future<void> Function() onRemoveCurrentUser;
 
   @override
   Widget build(BuildContext context) {
+    final currentParticipant = _currentParticipant();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -484,11 +554,77 @@ class _PlanMemberSection extends StatelessWidget {
               _MemberBadge(member: member),
               const SizedBox(width: AppSpacing.sm),
             ],
-            const _AddMemberBadge(),
+            _AddMemberBadge(
+              onTap: () async {
+                final action =
+                    await showModalBottomSheet<_PlanMemberPickerAction>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: AppColors.transparent,
+                      builder: (context) => _PlanMemberPickerSheet(
+                        members: groupMembers,
+                        selectedNames: members
+                            .map((member) => member.name)
+                            .toSet(),
+                        currentUserParticipating: currentParticipant != null,
+                        canRemoveCurrentUser: currentParticipant != null,
+                      ),
+                    );
+                if (action == null || !context.mounted) {
+                  return;
+                }
+                try {
+                  switch (action) {
+                    case _PlanMemberPickerAction.addCurrentUser:
+                      await onAddCurrentUser();
+                    case _PlanMemberPickerAction.removeCurrentUser:
+                      await onRemoveCurrentUser();
+                  }
+                } catch (_) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('참여 상태를 바꾸지 못했어요.')),
+                  );
+                  return;
+                }
+                if (!context.mounted) {
+                  return;
+                }
+                final message = switch (action) {
+                  _PlanMemberPickerAction.addCurrentUser => '내 참여 상태를 추가했어요.',
+                  _PlanMemberPickerAction.removeCurrentUser => '내 참여를 취소했어요.',
+                };
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(message)));
+              },
+            ),
           ],
         ),
       ],
     );
+  }
+
+  PlanParticipantArrival? _currentParticipant() {
+    if (currentUserIds.isEmpty) {
+      return null;
+    }
+
+    for (final participant in participantArrivals) {
+      if (participant.isFallback) {
+        continue;
+      }
+      final status = participant.participantStatus.trim().toLowerCase();
+      if (status == 'left' || status == 'declined') {
+        continue;
+      }
+      if (currentUserIds.contains(participant.userId.trim())) {
+        return participant;
+      }
+    }
+    return null;
   }
 }
 
@@ -503,9 +639,18 @@ class _MemberBadge extends StatelessWidget {
       width: 50,
       child: Column(
         children: [
-          PixelAvatar(label: member.name, size: 42),
+          PixelAvatar(
+            label: member.name,
+            size: 42,
+            profileImageUrl: member.profileImageUrl,
+          ),
           const SizedBox(height: AppSpacing.xs),
-          Text(member.name, style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            member.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
         ],
       ),
     );
@@ -513,7 +658,9 @@ class _MemberBadge extends StatelessWidget {
 }
 
 class _AddMemberBadge extends StatelessWidget {
-  const _AddMemberBadge();
+  const _AddMemberBadge({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -521,15 +668,26 @@ class _AddMemberBadge extends StatelessWidget {
       width: 50,
       child: Column(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: AppColors.lineBrown),
-            ),
-            child: const SizedBox.square(
-              dimension: 42,
-              child: Icon(Icons.add, color: AppColors.primaryPink),
+          Tooltip(
+            message: '참여 멤버 추가',
+            child: Material(
+              key: const ValueKey('plan-member-add-button'),
+              color: AppColors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                onTap: onTap,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: AppColors.lineBrown),
+                  ),
+                  child: const SizedBox.square(
+                    dimension: 42,
+                    child: Icon(Icons.add, color: AppColors.primaryPink),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -539,6 +697,196 @@ class _AddMemberBadge extends StatelessWidget {
     );
   }
 }
+
+class _PlanMemberPickerSheet extends StatelessWidget {
+  const _PlanMemberPickerSheet({
+    required this.members,
+    required this.selectedNames,
+    required this.currentUserParticipating,
+    required this.canRemoveCurrentUser,
+  });
+
+  final List<GroupMemberProfile> members;
+  final Set<String> selectedNames;
+  final bool currentUserParticipating;
+  final bool canRemoveCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeMembers = members
+        .where((member) => !member.invited)
+        .toList(growable: false);
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.bgGrid,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '참여 멤버 추가',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '닫기',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '모임 멤버만 약속에 참여할 수 있어요.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OnmuCard(
+                backgroundColor: AppColors.bgDefault,
+                borderColor: AppColors.linePink,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.person_add_alt_1,
+                      color: AppColors.primaryPink,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '현재 서버 계약상 내 참여만 직접 추가할 수 있어요.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    TextButton(
+                      onPressed: currentUserParticipating
+                          ? null
+                          : () => Navigator.of(
+                              context,
+                            ).pop(_PlanMemberPickerAction.addCurrentUser),
+                      child: Text(
+                        currentUserParticipating ? '참여 중' : '내 참여 추가',
+                      ),
+                    ),
+                    if (canRemoveCurrentUser) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(_PlanMemberPickerAction.removeCurrentUser),
+                        child: const Text('내 참여 취소'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: activeMembers.isEmpty
+                    ? OnmuCard(
+                        backgroundColor: AppColors.bgDefault,
+                        borderColor: AppColors.lineSoft,
+                        child: Text(
+                          '불러온 모임 멤버가 없어요.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: activeMembers.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final member = activeMembers[index];
+                          final selected = selectedNames.contains(member.name);
+                          return OnmuCard(
+                            backgroundColor: AppColors.bgDefault,
+                            borderColor: selected
+                                ? AppColors.linePink
+                                : AppColors.lineSoft,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: Row(
+                              children: [
+                                PixelAvatar(
+                                  label: member.name,
+                                  size: 36,
+                                  profileImageUrl: member.profileImageUrl,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        member.name,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleSmall,
+                                      ),
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      Text(
+                                        member.note,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.textSub,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  Text(
+                                    '참여 중',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: AppColors.primaryPink,
+                                        ),
+                                  ),
+                                if (!selected)
+                                  Text(
+                                    '서버 지원 필요',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(color: AppColors.textMuted),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _PlanMemberPickerAction { addCurrentUser, removeCurrentUser }
 
 class _DateTabs extends StatelessWidget {
   const _DateTabs({required this.selectedIndex, required this.onChanged});
@@ -582,6 +930,233 @@ class _DateTabs extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _PlanItineraryPreviewSection extends StatelessWidget {
+  const _PlanItineraryPreviewSection({required this.visitPlan});
+
+  final List<VisitPlan> visitPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('방문 지도', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        OnmuCard(
+          padding: EdgeInsets.zero,
+          backgroundColor: AppColors.bgGrid,
+          borderColor: AppColors.lineSoft,
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Stack(
+              children: [
+                const Positioned.fill(child: _MapFrameBackground()),
+                Positioned(
+                  left: AppSpacing.sm,
+                  top: AppSpacing.sm,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDefault,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: AppColors.lineSoft),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text(
+                        '좌표 연동 전 미리보기',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (visitPlan.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Text(
+                        '방문 장소가 정해지면 지도 미리보기를 보여드릴게요.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  for (var index = 0; index < visitPlan.length; index += 1)
+                    _MapMarker(
+                      order: index + 1,
+                      place: visitPlan[index].place,
+                      alignment: _markerAlignment(index, visitPlan.length),
+                    ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Alignment _markerAlignment(int index, int count) {
+    if (count <= 1) {
+      return const Alignment(0, 0.1);
+    }
+
+    final progress = index / (count - 1);
+    final x = -0.72 + (progress * 1.44);
+    final wave = index.isEven ? -0.28 : 0.3;
+    return Alignment(x, wave);
+  }
+}
+
+class _MapFrameBackground extends StatelessWidget {
+  const _MapFrameBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _MapFramePainter());
+  }
+}
+
+class _MapFramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pathPaint = Paint()
+      ..color = AppColors.lineBrown.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final gridPaint = Paint()
+      ..color = AppColors.lineSoft.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (var x = size.width / 4; x < size.width; x += size.width / 4) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (var y = size.height / 3; y < size.height; y += size.height / 3) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final route = Path()
+      ..moveTo(size.width * 0.14, size.height * 0.62)
+      ..cubicTo(
+        size.width * 0.32,
+        size.height * 0.24,
+        size.width * 0.54,
+        size.height * 0.78,
+        size.width * 0.72,
+        size.height * 0.42,
+      )
+      ..cubicTo(
+        size.width * 0.82,
+        size.height * 0.24,
+        size.width * 0.88,
+        size.height * 0.62,
+        size.width * 0.92,
+        size.height * 0.5,
+      );
+    canvas.drawPath(route, pathPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _MapMarker extends StatelessWidget {
+  const _MapMarker({
+    required this.order,
+    required this.place,
+    required this.alignment,
+  });
+
+  final int order;
+  final String place;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: Tooltip(
+        message: place,
+        child: SizedBox(
+          width: 72,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPink,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: AppColors.bgDefault, width: 2),
+                ),
+                child: SizedBox.square(
+                  dimension: 28,
+                  child: Center(
+                    child: Text(
+                      '$order',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textInverse,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                place,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.textMain),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanMemoSection extends StatelessWidget {
+  const _PlanMemoSection({required this.memo});
+
+  final String memo;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedMemo = memo.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('약속 메모', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          width: double.infinity,
+          child: OnmuCard(
+            backgroundColor: AppColors.bgPaper,
+            borderColor: AppColors.lineSoft,
+            child: Text(
+              trimmedMemo.isEmpty ? '아직 적어둔 메모가 없어요.' : trimmedMemo,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
+            ),
+          ),
+        ),
       ],
     );
   }

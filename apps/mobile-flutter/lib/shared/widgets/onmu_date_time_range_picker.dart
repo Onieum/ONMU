@@ -5,7 +5,7 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'onmu_button.dart';
 import 'onmu_card.dart';
-import 'onmu_chip.dart';
+import 'onmu_date_time_picker.dart';
 
 class OnmuDateTimeRange {
   const OnmuDateTimeRange({required this.start, required this.end});
@@ -59,33 +59,17 @@ class _DateTimeRangePickerSheet extends StatefulWidget {
 }
 
 class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
-  late DateTime _selectedDate;
-  late int _hour;
-  late int _minute;
-  late int _durationHours;
-
-  DateTime get _start => DateTime(
-    _selectedDate.year,
-    _selectedDate.month,
-    _selectedDate.day,
-    _hour,
-    _minute,
-  );
-
-  DateTime get _end => _start.add(Duration(hours: _durationHours));
+  late DateTime _start;
+  late DateTime _end;
+  _DateFieldTarget? _expandedDateTarget;
+  final _startCalendarKey = GlobalKey();
+  final _endCalendarKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime(
-      widget.initialStart.year,
-      widget.initialStart.month,
-      widget.initialStart.day,
-    );
-    _hour = widget.initialStart.hour;
-    _minute = widget.initialStart.minute >= 30 ? 30 : 0;
-    final duration = widget.initialEnd.difference(widget.initialStart).inHours;
-    _durationHours = duration.clamp(1, 4);
+    _start = _roundedToFiveMinutes(widget.initialStart);
+    _end = _normalizedEnd(_start, widget.initialEnd);
   }
 
   @override
@@ -110,7 +94,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
               ),
             ),
             Expanded(
-              child: ListView(
+              child: SingleChildScrollView(
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
@@ -118,103 +102,119 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                   AppSpacing.lg,
                   AppSpacing.md,
                 ),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.title,
-                          style: Theme.of(context).textTheme.titleLarge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: '닫기',
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _DateSummaryField(
+                      label: '시작 날짜',
+                      value: _formatDate(_start),
+                      selected: _expandedDateTarget == _DateFieldTarget.start,
+                      onTap: () => _toggleDateTarget(_DateFieldTarget.start),
+                    ),
+                    if (_expandedDateTarget == _DateFieldTarget.start) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      KeyedSubtree(
+                        key: _startCalendarKey,
+                        child: OnmuCalendarDatePicker(
+                          selectedDate: _start,
+                          minimumDate: _today(),
+                          maximumDate: _today().add(const Duration(days: 365)),
+                          highlightedDates: _recommendedDatesAround(_start),
+                          onDateChanged: (date) => setState(() {
+                            _updateStartDate(date);
+                          }),
                         ),
                       ),
-                      IconButton(
-                        tooltip: '닫기',
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    _DateSummaryField(
+                      label: '종료 날짜',
+                      value: _formatDate(_end),
+                      selected: _expandedDateTarget == _DateFieldTarget.end,
+                      onTap: () => _toggleDateTarget(_DateFieldTarget.end),
+                    ),
+                    if (_expandedDateTarget == _DateFieldTarget.end) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      KeyedSubtree(
+                        key: _endCalendarKey,
+                        child: OnmuCalendarDatePicker(
+                          selectedDate: _end,
+                          minimumDate: _start,
+                          maximumDate: _start.add(const Duration(days: 365)),
+                          highlightedDates: _recommendedDatesAround(_start),
+                          onDateChanged: (date) => setState(() {
+                            _updateEndDate(date);
+                          }),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _SelectedScheduleCard(start: _start, end: _end),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('추천 시간대', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: AppSpacing.sm),
-                  for (final preset in _timePresets) ...[
-                    _TimePresetTile(
-                      preset: preset,
-                      selected: _hour == preset.hour,
-                      onTap: () => setState(() {
-                        _hour = preset.hour;
-                        _minute = 0;
-                        _durationHours = preset.durationHours;
+                    const SizedBox(height: AppSpacing.lg),
+                    OnmuTimeChipPicker(
+                      title: '시작 시간',
+                      selectedDateTime: _start,
+                      minimumDateTime: _today(),
+                      maximumDateTime: _today().add(const Duration(days: 365)),
+                      onChanged: (value) => setState(() {
+                        _updateStart(_roundedToFiveMinutes(value));
                       }),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
-                  _SectionHeader(
-                    icon: Icons.calendar_month_outlined,
-                    title: '날짜 선택',
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  SizedBox(
-                    height: 86,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemBuilder: (context, index) {
-                        final date = _today().add(Duration(days: index));
-                        return _DateChip(
-                          date: date,
-                          selected: _sameDate(date, _selectedDate),
-                          onTap: () => setState(() => _selectedDate = date),
-                        );
-                      },
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(width: AppSpacing.xs),
-                      itemCount: 14,
+                    const SizedBox(height: AppSpacing.md),
+                    OnmuTimeChipPicker(
+                      title: '종료 시간',
+                      selectedDateTime: _end,
+                      minimumDateTime: _start.add(const Duration(minutes: 30)),
+                      maximumDateTime: _start.add(const Duration(days: 1)),
+                      onChanged: (value) => setState(() {
+                        _end = _normalizedEnd(_start, value);
+                      }),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _SectionHeader(icon: Icons.schedule, title: '직접 시간 지정'),
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      for (final hour in _hours)
-                        OnmuChip(
-                          label: '${hour.toString().padLeft(2, '0')}:00',
-                          selected: _hour == hour,
-                          onTap: () => setState(() => _hour = hour),
-                        ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      '추천/비추천 시간대',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final recommendation in _timeRecommendations) ...[
+                      _TimeRecommendationTile(
+                        recommendation: recommendation,
+                        selected: recommendation.matches(_start),
+                        onTap: () => setState(() {
+                          final date = DateTime(
+                            _start.year,
+                            _start.month,
+                            _start.day,
+                          );
+                          _start = date.add(
+                            Duration(
+                              hours: recommendation.hour,
+                              minutes: recommendation.minute,
+                            ),
+                          );
+                          _end = _start.add(
+                            Duration(hours: recommendation.durationHours),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    children: [
-                      for (final minute in const [0, 30])
-                        OnmuChip(
-                          label: minute == 0 ? '정각' : '30분',
-                          selected: _minute == minute,
-                          onTap: () => setState(() => _minute = minute),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    children: [
-                      for (final duration in const [1, 2, 3, 4])
-                        OnmuChip(
-                          label: '$duration시간',
-                          selected: _durationHours == duration,
-                          onTap: () =>
-                              setState(() => _durationHours = duration),
-                        ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Padding(
@@ -239,51 +239,177 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
       },
     );
   }
+
+  void _updateStart(DateTime nextStart) {
+    final previousDuration = _end.difference(_start);
+    _start = _roundedToFiveMinutes(nextStart);
+    _end = _start.add(
+      previousDuration.isNegative || previousDuration.inMinutes < 30
+          ? const Duration(hours: 1)
+          : previousDuration,
+    );
+  }
+
+  void _updateStartDate(DateTime date) {
+    final nextStart = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      _start.hour,
+      _start.minute,
+    );
+    _start = _roundedToFiveMinutes(nextStart);
+    if (!_end.isAfter(_start)) {
+      _end = _start.add(const Duration(hours: 1));
+    }
+  }
+
+  void _updateEndDate(DateTime date) {
+    final nextEnd = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      _end.hour,
+      _end.minute,
+    );
+    _end = _normalizedEnd(_start, nextEnd);
+  }
+
+  void _toggleDateTarget(_DateFieldTarget target) {
+    final willOpen = _expandedDateTarget != target;
+    setState(() {
+      _expandedDateTarget = willOpen ? target : null;
+    });
+
+    if (!willOpen) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final calendarContext = switch (target) {
+        _DateFieldTarget.start => _startCalendarKey.currentContext,
+        _DateFieldTarget.end => _endCalendarKey.currentContext,
+      };
+      if (calendarContext == null || !mounted) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        calendarContext,
+        alignment: 0.12,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 }
 
-class _SelectedScheduleCard extends StatelessWidget {
-  const _SelectedScheduleCard({required this.start, required this.end});
+enum _DateFieldTarget { start, end }
 
-  final DateTime start;
-  final DateTime end;
+class _DateSummaryField extends StatelessWidget {
+  const _DateSummaryField({
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgPaper,
-      borderColor: AppColors.lineWarm,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          const Icon(Icons.event_available, color: AppColors.primaryPink),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('선택한 일정', style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '${_formatDate(start)} · ${_formatTime(start)} ~ ${_formatTime(end)}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ],
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionHeader(icon: Icons.calendar_month_outlined, title: label),
+            const SizedBox(height: AppSpacing.sm),
+            OnmuCard(
+              backgroundColor: selected
+                  ? AppColors.bgPurpleSoft
+                  : AppColors.bgDefault,
+              borderColor: selected ? AppColors.linePink : AppColors.lineSoft,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  Icon(
+                    selected ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _TimePresetTile extends StatelessWidget {
-  const _TimePresetTile({
-    required this.preset,
+class _RecommendationStatusLabel extends StatelessWidget {
+  const _RecommendationStatusLabel({
+    required this.recommendation,
+    super.key,
+    this.compact = false,
+  });
+
+  final _TimeRecommendation recommendation;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final recommended = recommendation.isRecommended;
+    final color = recommended ? AppColors.accentGreen : AppColors.accentRed;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          recommended
+              ? compact
+                    ? '추천 시간대'
+                    : '참여자 추천 시간대'
+              : '비추천 시간대',
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeRecommendationTile extends StatelessWidget {
+  const _TimeRecommendationTile({
+    required this.recommendation,
     required this.selected,
     required this.onTap,
   });
 
-  final _TimePreset preset;
+  final _TimeRecommendation recommendation;
   final bool selected;
   final VoidCallback onTap;
 
@@ -298,83 +424,53 @@ class _TimePresetTile extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            preset.recommended ? Icons.star_rounded : Icons.circle,
-            color: preset.color,
-          ),
+          Icon(Icons.star_rounded, color: recommendation.statusColor),
           const SizedBox(width: AppSpacing.sm),
           SizedBox(
             width: 74,
             child: Text(
-              '${preset.hour.toString().padLeft(2, '0')}:00\n~ ${(preset.hour + preset.durationHours).toString().padLeft(2, '0')}:00',
+              '${_formatClock(recommendation.hour, recommendation.minute)}\n~ ${_formatClock(recommendation.hour + recommendation.durationHours, recommendation.minute)}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(
-              preset.label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  recommendation.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _RecommendationStatusLabel(
+                      key: ValueKey(
+                        'time-recommendation-tile-status-${recommendation.hour}-${recommendation.minute}',
+                      ),
+                      recommendation: recommendation,
+                      compact: true,
+                    ),
+                    Text(
+                      recommendation.availability,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: recommendation.statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          Text(
-            preset.availability,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(color: preset.color),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DateChip extends StatelessWidget {
-  const _DateChip({
-    required this.date,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final DateTime date;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final today = _sameDate(date, _today());
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        width: 64,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              today ? '오늘' : '${date.month}월',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text('${date.day}', style: Theme.of(context).textTheme.titleMedium),
-            Text(
-              _weekday(date),
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -398,77 +494,118 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _TimePreset {
-  const _TimePreset({
+class _TimeRecommendation {
+  const _TimeRecommendation({
     required this.hour,
+    required this.minute,
     required this.durationHours,
     required this.label,
-    required this.availability,
-    required this.color,
-    this.recommended = false,
+    required this.preferredCount,
+    required this.unavailableCount,
   });
 
   final int hour;
+  final int minute;
   final int durationHours;
   final String label;
-  final String availability;
-  final Color color;
-  final bool recommended;
+  final int preferredCount;
+  final int unavailableCount;
+
+  bool get isRecommended => preferredCount > unavailableCount;
+
+  String get availability => '$preferredCount명 추천';
+
+  Color get statusColor =>
+      isRecommended ? AppColors.accentGreen : AppColors.accentRed;
+
+  bool matches(DateTime dateTime) {
+    return dateTime.hour == hour && dateTime.minute == minute;
+  }
 }
 
-const _timePresets = [
-  _TimePreset(
+const _timeRecommendations = [
+  _TimeRecommendation(
     hour: 12,
+    minute: 0,
     durationHours: 2,
     label: '점심부터 여유롭게 시작할 수 있어요.',
-    availability: '추천',
-    color: AppColors.accentGreen,
+    preferredCount: 3,
+    unavailableCount: 0,
   ),
-  _TimePreset(
+  _TimeRecommendation(
     hour: 13,
+    minute: 0,
     durationHours: 2,
     label: '가장 많이 선택되는 시간대예요.',
-    availability: '추천',
-    color: AppColors.accentGreen,
-    recommended: true,
+    preferredCount: 4,
+    unavailableCount: 1,
   ),
-  _TimePreset(
-    hour: 15,
+  _TimeRecommendation(
+    hour: 14,
+    minute: 0,
     durationHours: 2,
-    label: '오후 일정으로 가볍게 잡기 좋아요.',
-    availability: '보통',
-    color: AppColors.accentOrange,
+    label: '일부 멤버가 피하고 싶은 시간대예요.',
+    preferredCount: 1,
+    unavailableCount: 3,
   ),
-  _TimePreset(
+  _TimeRecommendation(
     hour: 19,
+    minute: 0,
     durationHours: 2,
     label: '퇴근 후 저녁 약속에 맞아요.',
-    availability: '저녁',
-    color: AppColors.accentRed,
+    preferredCount: 1,
+    unavailableCount: 2,
   ),
 ];
 
-const _hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+DateTime _normalizedEnd(DateTime start, DateTime end) {
+  final roundedEnd = _roundedToFiveMinutes(end);
+  if (roundedEnd.isAfter(start)) {
+    return roundedEnd;
+  }
+  return start.add(const Duration(hours: 1));
+}
+
+DateTime _roundedToFiveMinutes(DateTime dateTime) {
+  final minute = (dateTime.minute / 5).round() * 5;
+  if (minute == 60) {
+    return DateTime(
+      dateTime.year,
+      dateTime.month,
+      dateTime.day,
+      dateTime.hour + 1,
+    );
+  }
+  return DateTime(
+    dateTime.year,
+    dateTime.month,
+    dateTime.day,
+    dateTime.hour,
+    minute,
+  );
+}
 
 DateTime _today() {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day);
 }
 
-bool _sameDate(DateTime left, DateTime right) {
-  return left.year == right.year &&
-      left.month == right.month &&
-      left.day == right.day;
+List<DateTime> _recommendedDatesAround(DateTime anchor) {
+  final date = DateTime(anchor.year, anchor.month, anchor.day);
+  return [
+    date,
+    date.add(const Duration(days: 2)),
+    date.add(const Duration(days: 7)),
+  ];
 }
 
 String _formatDate(DateTime date) {
   return '${date.month}월 ${date.day}일 (${_weekday(date)})';
 }
 
-String _formatTime(DateTime date) {
-  final hour = date.hour.toString().padLeft(2, '0');
-  final minute = date.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
+String _formatClock(int hour, int minute) {
+  final normalizedHour = hour % 24;
+  return '${normalizedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 }
 
 String _weekday(DateTime date) {
