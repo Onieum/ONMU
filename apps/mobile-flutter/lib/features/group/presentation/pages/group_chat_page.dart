@@ -247,7 +247,7 @@ class _ThreadContent extends StatelessWidget {
       bottom: _MessageInput(
         controller: messageController,
         onSend: onSend,
-        onPickImage: onPickImage,
+        onOpenActions: () => _showChatActions(context),
       ),
       scrollController: scrollController,
       children: [
@@ -302,9 +302,155 @@ class _ThreadContent extends StatelessWidget {
       ],
     );
   }
+
+  Future<void> _showChatActions(BuildContext context) async {
+    final group = state.group;
+    final action = await showModalBottomSheet<_ChatActionCommand>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (context) => const _ChatActionSheet(),
+    );
+    if (action == null || !context.mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _ChatActionCommand.image:
+        await onPickImage();
+      case _ChatActionCommand.plan:
+        context.push(RoutePaths.planNew(group.id));
+      case _ChatActionCommand.place:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planPlaceSearch(group.id, state.planId)
+              : RoutePaths.planNew(group.id),
+        );
+      case _ChatActionCommand.vote:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planVoteNew(group.id, state.planId)
+              : RoutePaths.groupVotes(group.id),
+        );
+      case _ChatActionCommand.settlement:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planSettlementNew(group.id, state.planId)
+              : RoutePaths.planNew(group.id),
+        );
+    }
+  }
 }
 
 enum _ChatMenuAction { votes, plan, settings }
+
+enum _ChatActionCommand { image, plan, place, vote, settlement }
+
+class _ChatActionSheet extends StatelessWidget {
+  const _ChatActionSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.lineSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('채팅 액션', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              _ChatActionTile(
+                icon: Icons.add_photo_alternate_outlined,
+                label: '사진 첨부',
+                command: _ChatActionCommand.image,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.event_available_outlined,
+                label: '약속 만들기',
+                command: _ChatActionCommand.plan,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.place_outlined,
+                label: '장소 후보 찾기',
+                command: _ChatActionCommand.place,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.how_to_vote_outlined,
+                label: '투표 만들기',
+                command: _ChatActionCommand.vote,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.receipt_long_outlined,
+                label: '정산 시작',
+                command: _ChatActionCommand.settlement,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatActionTile extends StatelessWidget {
+  const _ChatActionTile({
+    required this.icon,
+    required this.label,
+    required this.command,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final _ChatActionCommand command;
+  final ValueChanged<_ChatActionCommand> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      minLeadingWidth: 32,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      leading: Icon(icon, color: AppColors.primaryPink),
+      title: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelLarge,
+      ),
+      onTap: () => onSelected(command),
+    );
+  }
+}
 
 class _ChatMenuItem extends StatelessWidget {
   const _ChatMenuItem({required this.icon, required this.label});
@@ -579,12 +725,12 @@ class _MessageInput extends StatelessWidget {
   const _MessageInput({
     required this.controller,
     required this.onSend,
-    required this.onPickImage,
+    required this.onOpenActions,
   });
 
   final TextEditingController controller;
   final Future<void> Function() onSend;
-  final Future<void> Function() onPickImage;
+  final VoidCallback onOpenActions;
 
   @override
   Widget build(BuildContext context) {
@@ -598,10 +744,10 @@ class _MessageInput extends StatelessWidget {
         children: [
           const SizedBox(width: AppSpacing.sm),
           IconButton(
-            tooltip: '사진 첨부',
-            onPressed: onPickImage,
+            tooltip: '채팅 액션',
+            onPressed: onOpenActions,
             icon: const Icon(
-              Icons.add_photo_alternate_outlined,
+              Icons.add_circle_outline,
               color: AppColors.primaryPink,
             ),
           ),

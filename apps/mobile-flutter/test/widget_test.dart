@@ -1142,6 +1142,53 @@ void main() {
     expect(find.text('확인 메시지'), findsOneWidget);
   });
 
+  testWidgets('group chat action launcher shows core actions', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사진 첨부'), findsOneWidget);
+    expect(find.text('약속 만들기'), findsOneWidget);
+    expect(find.text('장소 후보 찾기'), findsOneWidget);
+    expect(find.text('투표 만들기'), findsOneWidget);
+    expect(find.text('정산 시작'), findsOneWidget);
+  });
+
+  testWidgets('group chat action launcher opens plan create', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('약속 만들기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 이름'), findsOneWidget);
+  });
+
+  testWidgets('group chat action launcher opens place search', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('장소 후보 찾기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 검색하기'), findsOneWidget);
+  });
+
   testWidgets('group chat vote notice opens vote detail', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
