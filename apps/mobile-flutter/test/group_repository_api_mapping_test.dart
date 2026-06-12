@@ -50,7 +50,7 @@ void main() {
   test('updateGroup patches name and description through Spring API', () async {
     final requestedPaths = <String>[];
     final requestedBodies = <Map<String, dynamic>>[];
-    final dio = Dio();
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -114,7 +114,7 @@ void main() {
 
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
     final requestedPaths = <String>[];
-    final dio = Dio();
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -131,6 +131,17 @@ void main() {
                     'message': '안녕!',
                     'timeLabel': '14:00',
                     'isMine': false,
+                    'attachments': [
+                      {
+                        'type': 'image',
+                        'publicUrl':
+                            '/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+                        'storageKey': 'records/media/photo.jpg',
+                        'contentType': 'image/jpeg',
+                        'fileName': 'photo.jpg',
+                      },
+                      {'type': 'file', 'publicUrl': '/ignored.pdf'},
+                    ],
                   },
                   {
                     'sender': 'ONMU',
@@ -160,6 +171,16 @@ void main() {
     expect(messages[0].id, 'message-1');
     expect(messages[0].cursor, '2026-06-09T05:00:00Z');
     expect(messages[0].sendStatus, GroupMessageSendStatus.sent);
+    expect(messages[0].attachments, hasLength(1));
+    expect(messages[0].attachments.single.type, 'image');
+    expect(
+      messages[0].attachments.single.storageKey,
+      'records/media/photo.jpg',
+    );
+    expect(
+      messages[0].attachments.single.publicUrl,
+      startsWith('https://dev-api.onmu.cloud/api/v1/media/public'),
+    );
     expect(messages[1].sender, 'ONMU');
     expect(messages[1].message, '새 투표가 열렸어요.');
     expect(messages[1].timeLabel, '14:03');
@@ -251,6 +272,68 @@ void main() {
     expect(message.message, '서버로 보내요');
     expect(message.timeLabel, '방금');
     expect(message.isMine, isTrue);
+  });
+
+  test('API 첨부 메시지 작성은 request body에 attachments를 포함한다', () async {
+    final requestBodies = <Object?>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestBodies.add(options.data);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'senderName': '나',
+                'message': '',
+                'timeLabel': '방금',
+                'isMine': true,
+                'attachments': [
+                  {
+                    'type': 'image',
+                    'publicUrl':
+                        '/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+                    'storageKey': 'records/media/photo.jpg',
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final message = await ApiGroupRepository(OnmuApiClient(dio)).sendMessage(
+      groupId: '1',
+      message: '',
+      attachments: const [
+        GroupMessageAttachment(
+          type: 'image',
+          publicUrl: '/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+          storageKey: 'records/media/photo.jpg',
+          contentType: 'image/jpeg',
+          fileName: 'photo.jpg',
+        ),
+      ],
+    );
+
+    expect(requestBodies.single, {
+      'message': '',
+      'attachments': [
+        {
+          'type': 'image',
+          'storageKey': 'records/media/photo.jpg',
+          'publicUrl': '/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+          'contentType': 'image/jpeg',
+          'fileName': 'photo.jpg',
+          'width': null,
+          'height': null,
+        },
+      ],
+    });
+    expect(message.message, isEmpty);
+    expect(message.attachments.single.storageKey, 'records/media/photo.jpg');
   });
 
   test('API 읽음 상태 갱신은 PUT 응답의 unreadCount를 반환한다', () async {

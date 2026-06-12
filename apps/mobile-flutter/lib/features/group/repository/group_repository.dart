@@ -43,6 +43,7 @@ abstract interface class GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   });
 
   Future<int> markMessagesRead({
@@ -180,10 +181,17 @@ class ApiGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) async {
     final response = await _client.postObject(
       '/api/v1/groups/$groupId/chat/messages',
-      body: {'message': message},
+      body: {
+        'message': message,
+        if (attachments.isNotEmpty)
+          'attachments': attachments
+              .map((attachment) => attachment.toApiJson())
+              .toList(growable: false),
+      },
     );
     return _groupMessage(response);
   }
@@ -336,11 +344,7 @@ class ApiGroupRepository implements GroupRepository {
         'senderName',
         OnmuJson.readString(json, 'sender', 'ONMU'),
       ),
-      message: OnmuJson.readString(
-        json,
-        'message',
-        OnmuJson.readString(json, 'content', '새 활동이 있어요.'),
-      ),
+      message: _messageText(json),
       timeLabel: OnmuJson.readString(
         json,
         'timeLabel',
@@ -348,6 +352,7 @@ class ApiGroupRepository implements GroupRepository {
       ),
       isMine: OnmuJson.readBool(json, 'isMine'),
       senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
+      attachments: _messageAttachments(json['attachments']),
       sendStatus: GroupMessageSendStatus.fromApi(
         OnmuJson.readString(json, 'sendStatus', 'sent'),
       ),
@@ -363,6 +368,13 @@ class ApiGroupRepository implements GroupRepository {
       return '';
     }
     return '${match.group(1)}:${match.group(2)}';
+  }
+
+  String _messageText(Map<String, dynamic> json) {
+    if (json.containsKey('message')) {
+      return json['message']?.toString() ?? '';
+    }
+    return OnmuJson.readString(json, 'content', '새 활동이 있어요.');
   }
 
   GroupMemberProfile _groupMemberProfile(Map<String, dynamic> json) {
@@ -441,6 +453,39 @@ class ApiGroupRepository implements GroupRepository {
         .map(_absoluteMediaUrl)
         .where((url) => url.isNotEmpty)
         .toList(growable: false);
+  }
+
+  List<GroupMessageAttachment> _messageAttachments(Object? value) {
+    return OnmuJson.asMapList(value)
+        .map(_messageAttachment)
+        .whereType<GroupMessageAttachment>()
+        .toList(growable: false);
+  }
+
+  GroupMessageAttachment? _messageAttachment(Map<String, dynamic> json) {
+    final type = OnmuJson.readString(json, 'type').toLowerCase();
+    if (type != 'image') {
+      return null;
+    }
+    final publicUrl = _absoluteMediaUrl(OnmuJson.readString(json, 'publicUrl'));
+    final storageKey = OnmuJson.readString(json, 'storageKey');
+    if (publicUrl.isEmpty && storageKey.isEmpty) {
+      return null;
+    }
+    return GroupMessageAttachment(
+      type: 'image',
+      publicUrl: publicUrl,
+      storageKey: storageKey,
+      contentType: OnmuJson.readString(json, 'contentType'),
+      fileName: OnmuJson.readString(json, 'fileName'),
+      width: _positiveInt(json, 'width'),
+      height: _positiveInt(json, 'height'),
+    );
+  }
+
+  int? _positiveInt(Map<String, dynamic> json, String key) {
+    final value = OnmuJson.readInt(json, key);
+    return value > 0 ? value : null;
   }
 
   String _absoluteMediaUrl(String url) {

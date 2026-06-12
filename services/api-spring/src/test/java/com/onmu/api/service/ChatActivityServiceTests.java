@@ -17,6 +17,7 @@ import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.web.dto.ChatMessageAttachmentRequest;
 import com.onmu.api.web.dto.CreateChatMessageRequest;
 import com.onmu.api.web.dto.UpdateChatReadStateRequest;
 import java.time.Instant;
@@ -188,6 +189,75 @@ class ChatActivityServiceTests {
   }
 
   @Test
+  void postMessageAllowsBlankTextWhenImageAttachmentExists() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = service.createMessage(
+      "1",
+      currentUser.getId(),
+      new CreateChatMessageRequest(
+        " ",
+        List.of(new ChatMessageAttachmentRequest(
+          "image",
+          "records/media/photo-1.jpg",
+          "/api/v1/media/public?key=records%2Fmedia%2Fphoto-1.jpg",
+          "image/jpeg",
+          "photo.jpg",
+          null,
+          null
+        ))
+      )
+    );
+
+    assertThat(response)
+      .containsEntry("message", "")
+      .containsEntry("messageType", "message");
+    List<Map<String, Object>> responseAttachments = attachments(response);
+    assertThat(responseAttachments).hasSize(1);
+    assertThat(responseAttachments.getFirst())
+      .containsEntry("type", "image")
+      .containsEntry("storageKey", "records/media/photo-1.jpg")
+      .containsEntry("publicUrl", "/api/v1/media/public?key=records%2Fmedia%2Fphoto-1.jpg")
+      .containsEntry("contentType", "image/jpeg")
+      .containsEntry("fileName", "photo.jpg");
+
+    ArgumentCaptor<ChatActivityEventEntity> eventCaptor = ArgumentCaptor.forClass(ChatActivityEventEntity.class);
+    verify(chatActivityEventRepository).save(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().getPayload()).contains("\"attachments\"");
+    verify(outboxService).record(eq("chat.message"), eq("chat_activity_event"), eq(eventCaptor.getValue().getId()), any());
+    verify(chatRealtimePublisher).publishMessage(eq("1"), any());
+  }
+
+  @Test
+  void postMessageRejectsUnsupportedAttachmentType() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+
+    assertThatThrownBy(() -> service.createMessage(
+        "1",
+        currentUser.getId(),
+        new CreateChatMessageRequest(
+          "파일",
+          List.of(new ChatMessageAttachmentRequest(
+            "file",
+            "records/media/file.pdf",
+            "/api/v1/media/public?key=records%2Fmedia%2Ffile.pdf",
+            "application/pdf",
+            "file.pdf",
+            null,
+            null
+          ))
+        )
+      ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+  }
+
+  @Test
   void eventsChecksMembershipAndReplaysMessagesAfterCursor() {
     ChatActivityEventEntity replayMessage = new ChatActivityEventEntity(
       group,
@@ -341,6 +411,11 @@ class ChatActivityServiceTests {
   @SuppressWarnings("unchecked")
   private List<Map<String, Object>> messages(Map<String, Object> response) {
     return (List<Map<String, Object>>) response.get("messages");
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Map<String, Object>> attachments(Map<String, Object> response) {
+    return (List<Map<String, Object>>) response.get("attachments");
   }
 
   private void stubUnread(long count) {

@@ -11,8 +11,11 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import java.io.IOException;
-import java.util.Collections;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MediaService {
   private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
+  private static final String UPLOADED_MEDIA_PREFIX = "records/media/";
+  private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".heic",
+    ".heif"
+  );
 
   private final String endpoint;
   private final String bucket;
@@ -43,6 +56,12 @@ public class MediaService {
         .credentials(accessKey, secretKey)
         .build();
     ensureBucketExists();
+  }
+
+  MediaService(String endpoint, String bucket, MinioClient minioClient) {
+    this.endpoint = endpoint;
+    this.bucket = bucket;
+    this.minioClient = minioClient;
   }
 
   private void ensureBucketExists() {
@@ -84,20 +103,35 @@ public class MediaService {
     }
   }
 
+  public static String publicMediaUrl(String objectKey) {
+    validatePublicMediaKey(objectKey);
+    return "/api/v1/media/public?key=" + URLEncoder.encode(objectKey, StandardCharsets.UTF_8);
+  }
+
   static void validatePublicSeedMediaKey(String objectKey) {
-    if (!StringUtils.hasText(objectKey) || !objectKey.startsWith(PUBLIC_SEED_MEDIA_PREFIX)) {
+    validatePublicMediaKey(objectKey);
+  }
+
+  public static void validatePublicMediaKey(String objectKey) {
+    if (!isAllowedPublicMediaKey(objectKey)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_media_key_prefix");
     }
   }
 
-  public PresignedUrlResponse generatePresignedUrl(String fileName, String contentType) {
-    String originalName = fileName != null ? fileName : "ootd.jpg";
-    if (originalName.isBlank()) {
-      originalName = "ootd.jpg";
+  public static boolean isAllowedPublicMediaKey(String objectKey) {
+    if (!StringUtils.hasText(objectKey)) {
+      return false;
     }
-    String extension = originalName.contains(".") 
-      ? originalName.substring(originalName.lastIndexOf(".")) 
-      : ".jpg";
+    String key = objectKey.trim();
+    if (key.contains("..") || key.startsWith("/") || key.contains("\\")) {
+      return false;
+    }
+    return key.startsWith(PUBLIC_SEED_MEDIA_PREFIX) || key.startsWith(UPLOADED_MEDIA_PREFIX);
+  }
+
+  public PresignedUrlResponse generatePresignedUrl(String fileName, String contentType) {
+    String extension = presignedImageExtension(fileName);
+    String imageContentType = validateImageUpload(contentType, extension);
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
@@ -108,13 +142,10 @@ public class MediaService {
               .bucket(bucket)
               .object(storageKey)
               .expiry(60 * 60) // 1 hour
-              .extraQueryParams(contentType != null && !contentType.isBlank() 
-                  ? Map.of("Content-Type", contentType) 
-                  : Collections.emptyMap())
+              .extraQueryParams(Map.of("Content-Type", imageContentType))
               .build());
 
-      // Public URL to view the file
-      String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+      String publicUrl = publicMediaUrl(storageKey);
 
       return new PresignedUrlResponse(uploadUrl, storageKey, publicUrl);
     } catch (Exception e) {
@@ -134,6 +165,7 @@ public class MediaService {
     String extension = originalName.contains(".") 
       ? originalName.substring(originalName.lastIndexOf(".")) 
       : ".jpg";
+    String contentType = validateImageUpload(file.getContentType(), extension);
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
@@ -143,14 +175,36 @@ public class MediaService {
               .bucket(bucket)
               .object(storageKey)
               .stream(file.getInputStream(), file.getSize(), -1)
-              .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
+              .contentType(contentType)
               .build());
 
-      String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+      String publicUrl = publicMediaUrl(storageKey);
       return new UploadMediaResponse(storageKey, publicUrl);
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", e);
     }
+  }
+
+  private String presignedImageExtension(String fileName) {
+    if (!StringUtils.hasText(fileName)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    String originalName = fileName.trim();
+    int extensionStart = originalName.lastIndexOf(".");
+    if (extensionStart < 0 || extensionStart == originalName.length() - 1) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    return originalName.substring(extensionStart).toLowerCase(Locale.ROOT);
+  }
+
+  private String validateImageUpload(String contentType, String extension) {
+    String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+    if (!StringUtils.hasText(contentType)
+      || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")
+      || !ALLOWED_IMAGE_EXTENSIONS.contains(normalizedExtension)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    return contentType;
   }
 
   public record PublicMediaObject(byte[] content, String contentType) {

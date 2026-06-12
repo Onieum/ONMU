@@ -185,7 +185,11 @@ class InMemoryOnmuStore {
     return List.unmodifiable(_notifications.take(effectiveLimit));
   }
 
-  GroupMessage sendMessage({required Object groupId, required String message}) {
+  GroupMessage sendMessage({
+    required Object groupId,
+    required String message,
+    List<GroupMessageAttachment> attachments = const [],
+  }) {
     final groupMessages = _messagesByGroupId.putIfAbsent(
       _parseId(groupId),
       () => [],
@@ -198,6 +202,7 @@ class InMemoryOnmuStore {
       message: message.trim(),
       timeLabel: '방금',
       isMine: true,
+      attachments: attachments,
     );
     groupMessages.add(created);
     return created;
