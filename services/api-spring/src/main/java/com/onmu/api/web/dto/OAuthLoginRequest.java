@@ -8,8 +8,20 @@ public record OAuthLoginRequest(
   @Size(max = 120) String devVerifiedSubject,
   @Size(max = 80) String displayName,
   @Size(max = 254) String email,
-  @Size(max = 2048) String profileImageUrl
+  @Size(max = 2048) String profileImageUrl,
+  @Size(max = 512) String state
 ) {
+  public OAuthLoginRequest(
+    String authorizationCode,
+    String providerAccessToken,
+    String devVerifiedSubject,
+    String displayName,
+    String email,
+    String profileImageUrl
+  ) {
+    this(authorizationCode, providerAccessToken, devVerifiedSubject, displayName, email, profileImageUrl, null);
+  }
+
   public boolean hasVerificationInput() {
     return hasText(authorizationCode) || hasText(providerAccessToken) || hasText(devVerifiedSubject);
   }

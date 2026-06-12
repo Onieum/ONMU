@@ -122,7 +122,7 @@ Flutter OAuth login
 
 운영 클라이언트에는 JWT signing secret을 넣지 않는다. Prod token 발급은 Spring Boot Main API만 담당하고, signing secret과 TTL은 Terraform/Key Vault/env 기준으로 관리한다.
 
-SCRUM-46 Kakao OAuth 연결도 이 결정을 바꾸지 않는다. Flutter는 Kakao provider access token 또는 authorization code를 Spring에 전달하고, Spring이 provider 검증 뒤 ONMU access JWT와 refresh token을 발급한다. `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter에 넣지 않는다. Kakao redirect URI 후보는 다음과 같이 둔다.
+SCRUM-46 Kakao OAuth 연결도 이 결정을 바꾸지 않는다. Flutter는 Kakao provider access token 또는 authorization code를 Spring에 전달하고, Spring이 provider 검증 뒤 ONMU access JWT와 refresh token을 발급한다. `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter에 넣지 않는다. OAuth 전용 Key Vault 이름은 dev `dev-kakao-client-secret`, integration `int-kakao-client-secret`이다. Kakao redirect URI 후보는 다음과 같이 둔다.
 
 - `http://localhost:8080/api/v1/auth/oauth/kakao/callback`
 - `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`

@@ -65,12 +65,17 @@ cd C:\dev\ONMU\services\api-spring
 | `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
 | `ONMU_OAUTH_KAKAO_USER_INFO_URL` | `https://kapi.kakao.com/v2/user/me` | Kakao provider access token 검증용 user info endpoint override |
 | `ONMU_OAUTH_NAVER_USER_INFO_URL` | `https://openapi.naver.com/v1/nid/me` | Naver provider access token 검증용 user info endpoint override |
-| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Flutter에 넣지 않음 |
+| `KAKAO_REST_API_KEY` | 없음 | Kakao authorization code token exchange에 필요한 OAuth client id이자 Kakao Local Keyword Search 서버 전용 REST API key. Flutter에 전달하지 않음 |
+| `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Key Vault secret name은 `dev-kakao-client-secret` 또는 `int-kakao-client-secret`이며 Flutter에 넣지 않음 |
+| `KAKAO_OAUTH_REDIRECT_URI` | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | Kakao token exchange에 사용하는 redirect URI |
+| `KAKAO_OAUTH_TOKEN_URL` | `https://kauth.kakao.com/oauth/token` | Kakao authorization code token endpoint override |
+| `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/kakao/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |
 | `NAVER_OAUTH_CLIENT_ID` | 없음 | Naver authorization code token exchange에 필요한 서버 전용 OAuth client id |
 | `NAVER_OAUTH_CLIENT_SECRET` | 없음 | Naver authorization code token exchange에 필요한 서버 전용 OAuth client secret. Flutter에 넣지 않음 |
+| `NAVER_OAUTH_TOKEN_URL` | `https://nid.naver.com/oauth2.0/token` | Naver authorization code token endpoint override |
+| `NAVER_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/naver/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |
 | `NAVER_SEARCH_CLIENT_ID` | 없음 | Naver Local Search 서버 전용 client id. Flutter에 전달하지 않음 |
 | `NAVER_SEARCH_CLIENT_SECRET` | 없음 | Naver Local Search 서버 전용 client secret. Flutter에 전달하지 않음 |
-| `KAKAO_REST_API_KEY` | 없음 | Kakao Local Keyword Search 서버 전용 REST API key. Flutter에 전달하지 않음 |
 | `OPENROUTESERVICE_API_KEY` | 없음 | OpenRouteService route recommendation 서버 전용 API key. Flutter에 전달하지 않음 |
 
 secret, OAuth client secret, DB 비밀번호, Cloudflare token, Azure credential은 코드와 문서에 평문으로 두지 않습니다. 공유 Windows 서버에서는 Azure Key Vault 또는 로컬 환경변수에서 주입합니다.
@@ -143,15 +148,17 @@ Core API:
 Auth scaffold:
 
 - `POST /api/v1/auth/oauth/{provider}`
+- `GET /api/v1/auth/oauth/naver/callback`
+- `GET /api/v1/auth/oauth/kakao/callback`
 - `GET /api/v1/auth/session`
 - `POST /api/v1/auth/refresh`
 - `DELETE /api/v1/auth/session`
 
-`POST /api/v1/auth/oauth/kakao`는 Flutter가 전달한 Kakao `providerAccessToken`을 Spring에서 Kakao user info API로 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
+`POST /api/v1/auth/oauth/kakao`는 Flutter가 전달한 Kakao `providerAccessToken` 또는 `authorizationCode`를 Spring에서 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. `authorizationCode` 경로는 Spring이 서버 환경변수의 `KAKAO_REST_API_KEY`, 선택적 `KAKAO_CLIENT_SECRET`, `KAKAO_OAUTH_REDIRECT_URI`로 Kakao token endpoint를 호출해 provider access token을 받은 뒤 Kakao user info API(`GET https://kapi.kakao.com/v2/user/me`)로 검증합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
 
-`POST /api/v1/auth/oauth/naver`는 Flutter가 전달한 Naver `providerAccessToken`을 Spring에서 Naver user info API(`GET https://openapi.naver.com/v1/nid/me`)로 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. Naver `response.id`를 provider subject로 사용하고, `response.name`, `response.email`, `response.profile_image`는 있으면 프로필 입력값으로 매핑합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
+`POST /api/v1/auth/oauth/naver`는 Flutter가 전달한 Naver `providerAccessToken` 또는 `authorizationCode`를 Spring에서 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. `authorizationCode` 경로는 Spring이 서버 환경변수의 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`으로 Naver token endpoint를 호출해 provider access token을 받은 뒤 Naver user info API(`GET https://openapi.naver.com/v1/nid/me`)로 검증합니다. Naver `response.id`를 provider subject로 사용하고, `response.name`, `response.email`, `response.profile_image`는 있으면 프로필 입력값으로 매핑합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
 
-Kakao authorization code token exchange는 아직 follow-up입니다. Spring 쪽 교환 경계는 남겨 두었지만 client id, redirect URI, token endpoint 설정은 팀 합의 뒤 추가합니다. `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하고 Flutter bundle이나 dart-define에 넣지 않습니다.
+Kakao authorization code token exchange는 provider-neutral exchange seam을 사용합니다. Flutter는 `KAKAO_REST_API_KEY` 또는 `KAKAO_OAUTH_CLIENT_ID`를 공개 OAuth client id로만 사용하고, `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리하며 Flutter bundle이나 dart-define에 넣지 않습니다.
 
 Kakao redirect URI 후보:
 
@@ -159,7 +166,7 @@ Kakao redirect URI 후보:
 - `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 - prod later: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 
-Naver authorization code token exchange도 같은 exchange seam을 사용합니다. 서버 전용 설정은 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`과 환경별 redirect URI를 사용합니다.
+Naver authorization code token exchange도 같은 exchange seam을 사용합니다. 서버 전용 설정은 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`을 사용합니다. `GET /api/v1/auth/oauth/naver/callback`은 Naver callback에서 받은 `code`, `state`, `error`를 `NAVER_OAUTH_MOBILE_CALLBACK_URI` deep link로 넘기며, token 발급은 Flutter가 다시 호출하는 `POST /api/v1/auth/oauth/naver`에서 수행합니다.
 
 Naver redirect URI 후보:
 
@@ -241,15 +248,15 @@ Cloudflare Tunnel을 통할 때 기본 base URL은 `https://dev-api.onmu.cloud`�
 
 ## 아직 Dev/Mock인 부분
 
-- Naver는 provider access token user info 검증을 지원합니다. authorization code + `NAVER_OAUTH_CLIENT_ID`/`NAVER_OAUTH_CLIENT_SECRET` token exchange는 redirect URI별 설정을 적용하는 후속 작업에서 연결합니다.
-- Kakao는 provider access token user info 검증을 지원합니다. authorization code + `KAKAO_CLIENT_SECRET` token exchange는 client id/redirect URI가 확정된 뒤 후속 PR에서 연결합니다.
+- Naver는 provider access token user info 검증과 authorization code token exchange를 지원합니다. Flutter에는 `NAVER_OAUTH_CLIENT_SECRET`을 넣지 않고 Spring 서버 env로만 주입합니다.
+- Kakao는 provider access token user info 검증과 authorization code token exchange를 지원합니다. Flutter에는 `KAKAO_CLIENT_SECRET`을 넣지 않고 Spring 서버 env로만 주입합니다.
 - `devVerifiedSubject`는 `onmu.auth.dev-oauth-enabled=true` 또는 `ONMU_DEV_OAUTH_ENABLED=true`일 때만 NAVER dev identity로 취급합니다. provider token 또는 authorization code가 있으면 dev subject fallback을 사용하지 않습니다.
 - Spring scaffold는 `/api/v1/** permitAll`, wildcard CORS, `authenticated: true` session scaffold를 제거하고 dev token 기반 보호 정책을 적용합니다. refresh token 저장/회전은 AuthService의 기존 경로를 유지합니다.
 - place search는 Spring Boot가 Naver Local Search를 1차 provider로 호출하고 Kakao Keyword Search를 보강/fallback provider로 호출합니다. Flutter 앱은 Naver/Kakao를 직접 호출하지 않습니다. 외부 credential이 없으면 local/test 개발성을 위해 deterministic dev mock 결과를 반환합니다. 요청은 `query`, `groupId`, `planId`와 optional `lat`, `lng`, `radius`, `category`, `providers`, `compare`를 받을 수 있고, 응답 결과는 기존 필드에 더해 `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `fetchedAt`을 포함할 수 있습니다. Naver Local Search의 `mapx`, `mapy`는 WGS84 좌표로 신뢰하지 않으므로 이번 PR에서는 nullable 좌표로 둡니다.
 - route recommendation은 `POST /api/v1/routes/recommend`에서 `groupId`, `planId`, `travelMode`(`car`, `walk`, `bike`)를 받습니다. `OPENROUTESERVICE_API_KEY`가 있으면 OpenRouteService를 호출하고, 없거나 후보 좌표가 부족하면 Flutter route UI가 렌더링 가능한 deterministic `dev-mock` geometry를 반환합니다.
 - 장소 후보 하트는 dev currentUser 기준으로 `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`에서 설정합니다. body의 `hearted`가 `true` 또는 생략이면 내 하트를 켜고, `false`면 끕니다. 같은 후보에 같은 사용자가 중복 하트를 만들 수 없도록 DB unique 제약을 둡니다.
 - 장소 후보 기반 투표는 `POST /api/v1/groups/{groupId}/votes`에서 `targetType=PLAN`, `targetId=<planId>`, `voteType=PLACE`, `placeCandidateIds`를 받습니다. 기존 `options` 문자열 방식은 계속 허용하며, 후보 option 응답에는 `candidateId`, `candidateName`, `address`, `heartCount`, `responseCount`, `countLabel`, `progress`를 포함합니다.
-- 기록 API와 Naver authorization code token exchange 구현은 다음 API 구현 PR 범위입니다.
+- 기록 API 구현은 다음 API 구현 PR 범위입니다.
 - request log는 `logs/api-access.log` JSONL 파일에 기록합니다. 기록 필드는 `method`, `path`, `status`, `duration_ms`, `dev_client`, `origin`, `request_id`, `runtime` 중심이며 Authorization, bearer token, refresh token, request body, 개인정보는 남기지 않습니다.
 - Mockito는 future JDK의 dynamic agent 제한을 피하기 위해 Maven Surefire에서 `mockito-core`를 javaagent로 지정합니다.
 

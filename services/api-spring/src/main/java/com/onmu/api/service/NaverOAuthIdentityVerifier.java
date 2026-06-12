@@ -55,7 +55,7 @@ public class NaverOAuthIdentityVerifier implements OAuthProviderVerifier {
       return request.providerAccessToken().trim();
     }
     if (StringUtils.hasText(request.authorizationCode())) {
-      return authorizationCodeExchanger.exchange(PROVIDER, request.authorizationCode().trim())
+      return authorizationCodeExchanger.exchange(PROVIDER, request.authorizationCode().trim(), request.state())
         .filter(StringUtils::hasText)
         .map(String::trim)
         .orElseThrow(() -> unauthorized("naver_authorization_code_exchange_unavailable"));
