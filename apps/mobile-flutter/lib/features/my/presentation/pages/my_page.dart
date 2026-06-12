@@ -1747,7 +1747,7 @@ class _FriendProfilePage extends ConsumerWidget {
                       padding: EdgeInsets.symmetric(vertical: 80),
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                    error: (_, __) => _FriendProfileErrorCard(friend: friend),
+                    error: (_, _) => _FriendProfileErrorCard(friend: friend),
                   ),
                 ),
               ),
