@@ -33,6 +33,7 @@ class PixelCharacterWidget extends StatelessWidget {
 
     final eyePrefix = character.gender == 'female' ? 'girl_eye_0' : 'boy_eye_0';
     final eyePath = _eyePath(genderPath, eyePrefix);
+    const mouthPath = 'assets/images/character/mouth.png';
 
     final hairPrefix = character.gender == 'female'
         ? 'hair_girl_0'
@@ -85,6 +86,13 @@ class PixelCharacterWidget extends StatelessWidget {
               colorBlendMode: BlendMode.srcIn,
             ),
           if (showHair) _asset(hairOutlinePath),
+          if (showEyes)
+            character.gender == 'female'
+                ? Transform.translate(
+                    offset: Offset(-size * (16 / 1920), -size * (16 / 1920)),
+                    child: _asset(mouthPath),
+                  )
+                : _asset(mouthPath),
         ],
       ),
     );
@@ -106,9 +114,12 @@ class PixelCharacterWidget extends StatelessWidget {
       width: size,
       height: size * 1.3,
       fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+      isAntiAlias: false,
       color: color,
       colorBlendMode: colorBlendMode,
       errorBuilder: (context, error, stackTrace) => const SizedBox(),
     );
   }
+
 }

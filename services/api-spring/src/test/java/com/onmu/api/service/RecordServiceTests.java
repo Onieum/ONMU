@@ -332,7 +332,7 @@ class RecordServiceTests {
     when(userRepository.checkPrivacyConsent(any())).thenReturn(true);
 
     CharacterProfileEntity profile = new CharacterProfileEntity(
-      user.getId(), "type_cool", "long_wave", "pink", "sharp", "blue", "skirt"
+      user.getId(), "female", "type_cool", "long_wave", "pink", "sharp", "blue", "skirt"
     );
     when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile));
     when(recordRepository.save(any(RecordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));

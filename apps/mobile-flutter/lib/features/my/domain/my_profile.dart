@@ -102,22 +102,46 @@ class MyProfile {
 
 class FriendProfile {
   const FriendProfile({
+    this.userId = '',
+    this.publicId = '',
+    this.userCode = '',
     required this.name,
     required this.preferenceSummary,
     required this.isFriend,
+    this.isFavorite = false,
     this.memo = '',
   });
 
+  final String userId;
+  final String publicId;
+  final String userCode;
   final String name;
   final String preferenceSummary;
   final bool isFriend;
+  final bool isFavorite;
   final String memo;
 
-  FriendProfile copyWith({bool? isFriend, String? memo}) {
+  String get memoOrCode {
+    final cleanMemo = memo.trim();
+    if (cleanMemo.isNotEmpty) {
+      return cleanMemo;
+    }
+    final cleanCode = userCode.trim();
+    if (cleanCode.isNotEmpty) {
+      return cleanCode;
+    }
+    return publicId;
+  }
+
+  FriendProfile copyWith({bool? isFriend, bool? isFavorite, String? memo}) {
     return FriendProfile(
+      userId: userId,
+      publicId: publicId,
+      userCode: userCode,
       name: name,
       preferenceSummary: preferenceSummary,
       isFriend: isFriend ?? this.isFriend,
+      isFavorite: isFavorite ?? this.isFavorite,
       memo: memo ?? this.memo,
     );
   }

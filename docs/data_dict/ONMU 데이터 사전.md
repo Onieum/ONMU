@@ -259,7 +259,7 @@
 
 # 3. Friend / Invite
 
-## `friendships` (다음 구현)
+## `friendships` (구현됨)
 
 > 상호 친구 관계 원장이다. 친구 요청이 수락되면 한 row만 생성한다. 두 사용자 ID를 정렬한 canonical pair를 저장해 관계 정합성을 보호한다.
 
@@ -278,8 +278,9 @@
 > UNIQUE: `(user_low_id, user_high_id)`
 > CHECK: `user_low_id < user_high_id`
 > 회의 결정: 양방향 row 대신 canonical pair 원장을 둔다. 친구 목록 조회는 query/read model에서 양쪽 방향을 풀고, 사용자별 메모/숨김 설정은 `friend_settings`로 분리한다.
+> API 구현 메모: 친구 추가 시 요청 방향을 그대로 저장하지 않고 `least(user_a, user_b)` / `greatest(user_a, user_b)` 기준으로 `user_low_id`, `user_high_id`를 정규화한다. 따라서 A→B와 B→A가 중복 row로 들어가지 않는다.
 
-## `friend_settings` (다음 구현)
+## `friend_settings` (구현됨)
 
 > 친구 관계에 대한 사용자별 표시 설정이다. 관계 원장은 `friendships`가 소유하고, 각 사용자가 상대를 어떻게 표시할지는 별도 row로 관리한다.
 
@@ -292,11 +293,12 @@
 | `display_alias` | 표시 별칭 | Text | 사용자가 붙인 친구 별칭 | Nullable |
 | `memo` | 친구 메모 | Text | 사용자가 붙인 개인 메모 | Nullable |
 | `hidden` | 숨김 여부 | Boolean | 친구 목록에서 숨김 | Not Null |
+| `is_favorite` | 즐겨찾기 여부 | Boolean | 마이페이지 즐겨찾는 친구 표시 여부 | Not Null, Default false |
 | `created_at` | 생성 시각 | Timestamptz | 설정 생성 시각 | Not Null |
 | `updated_at` | 수정 시각 | Timestamptz | 설정 수정 시각 | Not Null |
 
 > UNIQUE: `(friendship_id, user_id)`
-> 한 친구 관계가 수락되면 두 사용자의 기본 설정 row를 생성한다. 설정 row의 불일치는 관계 원장 정합성에 영향을 주지 않는다.
+> 한 친구 관계가 수락되면 두 사용자의 기본 설정 row를 생성한다. 설정 row의 불일치는 관계 원장 정합성에 영향을 주지 않는다. `memo`, `display_alias`, `hidden`, `is_favorite`는 모두 설정 소유자인 `user_id` 기준 개인 값이다.
 
 ## `friend_requests` (다음 구현)
 

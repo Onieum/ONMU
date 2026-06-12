@@ -15,7 +15,7 @@ class DailyRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
   final DateTime recordDate;
   final OotdRecord? ootdRecord;
-  final ValueChanged<OotdRecord> onSave;
+  final Future<void> Function(OotdRecord) onSave;
   final VoidCallback onCreateOotd;
 
   const DailyRecordScreen({
@@ -37,6 +37,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   int _selectedWeather = 0;
   int _selectedTheme = 0;
   bool _includeCrew = true;
+  bool _isSaving = false;
   OotdRecord? _savedRecord;
   int _savedPhotoCount = 0;
 
@@ -118,12 +119,20 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   }
 
   void _next() {
+    if (_isSaving) return;
     if (_currentStep == 7) {
       _closeResult();
       return;
     }
     if (_currentStep == 6) {
       _save();
+      return;
+    }
+    if (_currentStep == 3 && widget.ootdRecord == null) {
+      setState(() {
+        _includeCrew = false;
+        _currentStep = 5;
+      });
       return;
     }
     setState(() => _currentStep++);
@@ -170,7 +179,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
     FocusManager.instance.primaryFocus?.unfocus();
     final selectedMood = _moods[_selectedMood].label;
     final selectedWeather = _weathers[_selectedWeather].label;
@@ -195,7 +205,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
     final record = OotdRecord(
       date: widget.recordDate,
-      imagePath: photoTimeline.isNotEmpty ? 'daily-photo-placeholder' : null,
+      imagePath: null,
       character: widget.userCharacter,
       moodTags: _hashtags,
       brands: {
@@ -220,7 +230,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       ],
     );
 
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(record);
+    } catch (_) {
+      // API ??? ???? ??? ?? ?? ??? ????.
+    }
+    if (!mounted) return;
     setState(() {
+      _isSaving = false;
       _savedRecord = record;
       _savedPhotoCount = photoTimeline.length;
       _currentStep = 7;

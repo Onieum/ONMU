@@ -8,11 +8,13 @@ import '../../shared/widgets/pixel_character.dart';
 class CharacterStartPage extends StatefulWidget {
   final Function(CharacterDraft) onCompleted;
   final VoidCallback? onBackToOnboarding;
+  final String returnButtonLabel;
 
   const CharacterStartPage({
     super.key,
     required this.onCompleted,
     this.onBackToOnboarding,
+    this.returnButtonLabel = '첫 설정 페이지로 돌아가기',
   });
 
   @override
@@ -126,7 +128,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildProgressBar() {
     final labels = ['피부', '눈', '헤어', '의상', '이름', '완료'];
 
-    return Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -530,9 +533,16 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   }
 
   Widget _buildPreview({required double size}) {
+    final maxWidth = MediaQuery.sizeOf(context).width - 40;
+    final maxAllowed = maxWidth / 1.25;
+    final safeSize = (maxAllowed < 120
+            ? maxAllowed
+            : size.clamp(120.0, maxAllowed))
+        .toDouble();
+
     return Container(
-      width: size * 1.25,
-      height: size * 1.45,
+      width: safeSize * 1.25,
+      height: safeSize * 1.45,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.bgPaper,
@@ -547,8 +557,8 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
         ],
       ),
       child: Transform.translate(
-        offset: Offset(0, -size * 0.04),
-        child: PixelCharacterWidget(character: _draft, size: size),
+        offset: Offset(0, -safeSize * 0.04),
+        child: PixelCharacterWidget(character: _draft, size: safeSize),
       ),
     );
   }
@@ -760,7 +770,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildBottomCta() {
     final isStart = _currentStep == 0;
     final isLast = _currentStep == _lastStep;
-    final label = isLast ? '첫 설정 페이지로 돌아가기' : '다음';
+    final label = isLast ? widget.returnButtonLabel : '다음';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -802,7 +812,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             TextButton(
               onPressed: _returnToOnboarding,
               child: Text(
-                '첫 설정 페이지로 돌아가기',
+                widget.returnButtonLabel,
                 style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textSub,
                 ),

@@ -42,13 +42,14 @@ class CharacterServiceTests {
   @Test
   void getMyCharacterReturnsSuccessfully() {
     CharacterProfileEntity entity = new CharacterProfileEntity(
-      user.getId(), "warm", "short", "black", "round", "brown", "tshirt"
+      user.getId(), "female", "warm", "short", "black", "round", "brown", "tshirt"
     );
     when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(entity));
 
     var response = service.getMyCharacter();
 
     assertThat(response.userId()).isEqualTo(user.getId());
+    assertThat(response.gender()).isEqualTo("female");
     assertThat(response.skinTone()).isEqualTo("warm");
     assertThat(response.hairStyle()).isEqualTo("short");
   }
@@ -56,7 +57,7 @@ class CharacterServiceTests {
   @Test
   void saveMyCharacterSavesAndReturns() {
     UpdateCharacterRequest request = new UpdateCharacterRequest(
-      "warm", "neat_parted", "blonde", "round", "blue", "suit"
+      "female", "warm", "neat_parted", "blonde", "round", "blue", "suit"
     );
     when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
     when(characterProfileRepository.save(any(CharacterProfileEntity.class)))
@@ -65,6 +66,7 @@ class CharacterServiceTests {
     var response = service.saveMyCharacter(request);
 
     assertThat(response.userId()).isEqualTo(user.getId());
+    assertThat(response.gender()).isEqualTo("female");
     assertThat(response.hairStyle()).isEqualTo("neat_parted");
     assertThat(response.hairColor()).isEqualTo("blonde");
     verify(characterProfileRepository).save(any(CharacterProfileEntity.class));

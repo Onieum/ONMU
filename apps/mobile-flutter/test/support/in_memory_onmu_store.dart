@@ -332,7 +332,25 @@ class InMemoryOnmuStore {
     if (month == null || day == null) {
       return null;
     }
-    return DateTime(now.year, month, day);
+    final timeMatch = RegExp(r'(오전|오후)\s*(\d{1,2}):(\d{2})').firstMatch(value);
+    if (timeMatch == null) {
+      return DateTime(now.year, month, day);
+    }
+
+    final meridiem = timeMatch.group(1);
+    final hourValue = int.tryParse(timeMatch.group(2) ?? '');
+    final minute = int.tryParse(timeMatch.group(3) ?? '');
+    if (hourValue == null || minute == null) {
+      return DateTime(now.year, month, day);
+    }
+
+    final hour = switch (meridiem) {
+      '오후' when hourValue < 12 => hourValue + 12,
+      '오전' when hourValue == 12 => 0,
+      _ => hourValue,
+    };
+
+    return DateTime(now.year, month, day, hour, minute);
   }
 
   DateTime _relativeSeedPlanDateTime({

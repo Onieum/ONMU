@@ -46,6 +46,9 @@ class RecordEntryIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final characterSize = width < 360 ? 112.0 : 140.0;
+
     return Column(
       children: [
         const SizedBox(height: 10),
@@ -69,7 +72,7 @@ class RecordEntryIntro extends StatelessWidget {
         Stack(
           alignment: Alignment.center,
           children: [
-            PixelCharacterWidget(character: character, size: 140),
+            PixelCharacterWidget(character: character, size: characterSize),
             Positioned(
               top: 0,
               left: 10,
@@ -198,7 +201,7 @@ class RecordFlowBottomBar extends StatelessWidget {
         children: [
           if (showBackButton) ...[
             Expanded(
-              child: ElevatedButton(
+          child: ElevatedButton(
                 onPressed: onBackPressed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.bgDefault,
@@ -218,7 +221,10 @@ class RecordFlowBottomBar extends StatelessWidget {
                 backgroundColor: AppColors.primaryPink,
                 foregroundColor: AppColors.textInverse,
               ),
-              child: Text(primaryLabel),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(primaryLabel, maxLines: 1),
+              ),
             ),
           ),
         ],
