@@ -64,6 +64,31 @@ public class FriendService {
   }
 
   @Transactional(readOnly = true)
+  public UUID requireActiveFriendUserId(UUID userId, String friendIdentifier) {
+    UserEntity user = requireUser(userId);
+    UserEntity friend = resolveUserIdentifier(friendIdentifier);
+    Integer count = jdbcTemplate.queryForObject(
+      """
+        select count(*)
+        from friend_settings fs
+        join friendships f on f.id = fs.friendship_id
+        where fs.user_id = ?
+          and fs.friend_user_id = ?
+          and coalesce(fs.hidden, false) = false
+          and f.status = 'active'
+          and f.deleted_at is null
+      """,
+      Integer.class,
+      user.getId(),
+      friend.getId()
+    );
+    if (count == null || count == 0) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "friend_not_found");
+    }
+    return friend.getId();
+  }
+
+  @Transactional(readOnly = true)
   public List<FriendResponse> search(UUID userId, String query) {
     requireUser(userId);
     String keyword = query == null ? "" : query.trim();

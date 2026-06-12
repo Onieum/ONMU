@@ -488,7 +488,7 @@ public class RecordService {
       null,
       author,
       request.title() != null ? request.title().trim() : "Untitled Memory",
-      request.visibility() != null ? request.visibility().toUpperCase() : "PUBLIC",
+      normalizeRecordVisibility(request.visibility()),
       payloadJson,
       moodTagsJson
     );
@@ -575,5 +575,18 @@ public class RecordService {
         aiStatus,
         record.getCreatedAt()
     );
+  }
+
+  private String normalizeRecordVisibility(String visibility) {
+    if (visibility == null || visibility.isBlank()) {
+      return "private";
+    }
+    return switch (visibility.trim().toUpperCase()) {
+      case "PRIVATE" -> "private";
+      case "PARTICIPANT_ONLY", "PARTICIPANTS" -> "participants";
+      case "GROUP_ONLY", "GROUP" -> "group";
+      case "PUBLIC" -> "private";
+      default -> visibility.trim().toLowerCase();
+    };
   }
 }
