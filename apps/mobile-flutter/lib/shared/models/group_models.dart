@@ -158,18 +158,78 @@ enum PlanProgressStatus {
   }
 }
 
+enum GroupMessageSendStatus {
+  sent,
+  sending,
+  failed;
+
+  bool get isPending => this == GroupMessageSendStatus.sending;
+
+  bool get isFailed => this == GroupMessageSendStatus.failed;
+
+  static GroupMessageSendStatus fromApi(String value) {
+    return switch (value.trim().toLowerCase()) {
+      'sending' || 'pending' => GroupMessageSendStatus.sending,
+      'failed' || 'error' => GroupMessageSendStatus.failed,
+      _ => GroupMessageSendStatus.sent,
+    };
+  }
+}
+
 class GroupMessage {
   const GroupMessage({
     required this.sender,
     required this.message,
     required this.timeLabel,
     required this.isMine,
+    this.id = '',
+    this.cursor = '',
+    this.sendStatus = GroupMessageSendStatus.sent,
   });
 
+  final String id;
+  final String cursor;
   final String sender;
   final String message;
   final String timeLabel;
   final bool isMine;
+  final GroupMessageSendStatus sendStatus;
+
+  bool get canRetry => isMine && sendStatus.isFailed;
+
+  GroupMessage copyWith({
+    String? id,
+    String? cursor,
+    String? sender,
+    String? message,
+    String? timeLabel,
+    bool? isMine,
+    GroupMessageSendStatus? sendStatus,
+  }) {
+    return GroupMessage(
+      id: id ?? this.id,
+      cursor: cursor ?? this.cursor,
+      sender: sender ?? this.sender,
+      message: message ?? this.message,
+      timeLabel: timeLabel ?? this.timeLabel,
+      isMine: isMine ?? this.isMine,
+      sendStatus: sendStatus ?? this.sendStatus,
+    );
+  }
+}
+
+class GroupMessagePage {
+  const GroupMessagePage({
+    required this.messages,
+    this.nextCursor,
+    this.hasMore = false,
+    this.unreadCount = 0,
+  });
+
+  final List<GroupMessage> messages;
+  final String? nextCursor;
+  final bool hasMore;
+  final int unreadCount;
 }
 
 class GroupMemoryRecord {

@@ -138,6 +138,38 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return _store.fetchMessagePage(
+      groupId,
+      beforeCursor: beforeCursor,
+      limit: limit,
+    );
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) async {
+    return _store.sendMessage(groupId: groupId, message: message);
+  }
+
+  @override
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
+  }) async {
+    return _store.markMessagesRead(
+      groupId: groupId,
+      lastReadMessageId: lastReadMessageId,
+    );
+  }
+
+  @override
   Future<GroupMemoryRecord> fetchMemory({
     required Object groupId,
     required Object memoryId,

@@ -25,6 +25,22 @@ abstract interface class GroupRepository {
 
   Future<List<GroupMessage>> fetchMessages(Object groupId);
 
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  });
+
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  });
+
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
+  });
+
   Future<List<VoteSummary>> fetchVotes(Object groupId);
 
   Future<VoteSummary> createVote(VoteCreateInput input);
@@ -113,7 +129,56 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return const [];
+    return (await fetchMessagePage(groupId)).messages;
+  }
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    final queryParameters = <String, String>{};
+    if (beforeCursor != null && beforeCursor.trim().isNotEmpty) {
+      queryParameters['beforeCursor'] = beforeCursor.trim();
+    }
+    if (limit != null) {
+      queryParameters['limit'] = limit.toString();
+    }
+    final path = Uri(
+      path: '/api/v1/groups/$groupId/chat/messages',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    ).toString();
+    final response = await _client.getObject(path);
+    return _groupMessagePage(response);
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) async {
+    final response = await _client.postObject(
+      '/api/v1/groups/$groupId/chat/messages',
+      body: {'message': message},
+    );
+    return _groupMessage(response);
+  }
+
+  @override
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
+  }) async {
+    final body = <String, Object?>{};
+    if (lastReadMessageId != null && lastReadMessageId.trim().isNotEmpty) {
+      body['lastReadMessageId'] = lastReadMessageId.trim();
+    }
+    final response = await _client.putObject(
+      '/api/v1/groups/$groupId/chat/read-state',
+      body: body,
+    );
+    return OnmuJson.readInt(response, 'unreadCount');
   }
 
   @override
@@ -204,6 +269,56 @@ class ApiGroupRepository implements GroupRepository {
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
     );
+  }
+
+  GroupMessagePage _groupMessagePage(Map<String, dynamic> json) {
+    return GroupMessagePage(
+      messages: OnmuJson.asMapList(
+        json['messages'],
+      ).map(_groupMessage).toList(growable: false),
+      nextCursor: OnmuJson.readString(json, 'nextCursor').trim().isEmpty
+          ? null
+          : OnmuJson.readString(json, 'nextCursor').trim(),
+      hasMore: OnmuJson.readBool(json, 'hasMore'),
+      unreadCount: OnmuJson.readInt(json, 'unreadCount'),
+    );
+  }
+
+  GroupMessage _groupMessage(Map<String, dynamic> json) {
+    return GroupMessage(
+      id: OnmuJson.readString(json, 'id'),
+      cursor: OnmuJson.readString(json, 'cursor'),
+      sender: OnmuJson.readString(
+        json,
+        'senderName',
+        OnmuJson.readString(json, 'sender', 'ONMU'),
+      ),
+      message: OnmuJson.readString(
+        json,
+        'message',
+        OnmuJson.readString(json, 'content', '새 활동이 있어요.'),
+      ),
+      timeLabel: OnmuJson.readString(
+        json,
+        'timeLabel',
+        _messageTimeLabel(OnmuJson.readString(json, 'createdAt')),
+      ),
+      isMine: OnmuJson.readBool(json, 'isMine'),
+      sendStatus: GroupMessageSendStatus.fromApi(
+        OnmuJson.readString(json, 'sendStatus', 'sent'),
+      ),
+    );
+  }
+
+  String _messageTimeLabel(String value) {
+    if (value.isEmpty) {
+      return '';
+    }
+    final match = RegExp(r'T(\d{2}):(\d{2})').firstMatch(value);
+    if (match == null) {
+      return '';
+    }
+    return '${match.group(1)}:${match.group(2)}';
   }
 
   GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {
