@@ -1,22 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/models/notification_models.dart';
+import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../view_model/home_notifications_view_model.dart';
 
-class HomeNotificationsPage extends StatelessWidget {
+class HomeNotificationsPage extends ConsumerWidget {
   const HomeNotificationsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifications = ref.watch(homeNotificationsViewModelProvider);
     return OnmuScaffold(
       title: '알림',
       showBackButton: true,
       onBack: () => context.popOrGo(RoutePaths.home),
-      children: const [_EmptyNotificationState()],
+      children: [
+        if (notifications.hasError)
+          _NotificationErrorState(
+            onRetry: () => ref.invalidate(homeNotificationsViewModelProvider),
+          )
+        else
+          notifications.when(
+            data: (items) => items.isEmpty
+                ? const _EmptyNotificationState()
+                : _NotificationList(items: items),
+            loading: () => const _NotificationLoadingState(),
+            error: (error, stackTrace) => _NotificationErrorState(
+              onRetry: () => ref.invalidate(homeNotificationsViewModelProvider),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -48,6 +69,208 @@ class _EmptyNotificationState extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NotificationLoadingState extends StatelessWidget {
+  const _NotificationLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: EdgeInsets.all(AppSpacing.xl),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _NotificationErrorState extends StatelessWidget {
+  const _NotificationErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.accentRed,
+            size: 40,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '알림을 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '잠시 후 다시 시도해 주세요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OnmuSecondaryButton(
+            label: '다시 불러오기',
+            icon: Icons.refresh_rounded,
+            onPressed: onRetry,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationList extends StatelessWidget {
+  const _NotificationList({required this.items});
+
+  final List<NotificationItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final item in items) ...[
+          _NotificationCard(item: item),
+          if (item != items.last) const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _NotificationCard extends StatelessWidget {
+  const _NotificationCard({required this.item});
+
+  final NotificationItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = _routeFor(item);
+    final textTheme = Theme.of(context).textTheme;
+    return OnmuCard(
+      onTap: route == null ? null : () => context.go(route),
+      backgroundColor: item.isRead ? AppColors.bgDefault : AppColors.bgPaper,
+      borderColor: item.isRead ? AppColors.lineSoft : AppColors.linePink,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _NotificationIcon(type: item.notificationType, isRead: item.isRead),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: textTheme.titleSmall?.copyWith(
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                    ),
+                    if (item.timeLabel.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        item.timeLabel,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (item.body.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    item.body,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSub,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (route != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String? _routeFor(NotificationItem item) {
+    final groupId = item.groupId;
+    final planId = item.planId;
+    final settlementId = item.payloadString('settlementId');
+    if (groupId != null &&
+        planId != null &&
+        settlementId != null &&
+        settlementId.isNotEmpty) {
+      return RoutePaths.planSettlementDetail(groupId, planId, settlementId);
+    }
+
+    final voteId = item.payloadString('voteId');
+    if (groupId != null && voteId != null && voteId.isNotEmpty) {
+      return RoutePaths.groupVote(groupId, voteId);
+    }
+
+    final recordId = item.payloadString('recordId');
+    if (groupId != null && recordId != null && recordId.isNotEmpty) {
+      return RoutePaths.groupMemoryDetail(groupId, recordId);
+    }
+
+    if (groupId != null) {
+      return RoutePaths.groupChat(groupId);
+    }
+    return null;
+  }
+}
+
+class _NotificationIcon extends StatelessWidget {
+  const _NotificationIcon({required this.type, required this.isRead});
+
+  final String type;
+  final bool isRead;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (type) {
+      'settlement_created' ||
+      'settlement_requested' => Icons.receipt_long_rounded,
+      'vote_created' || 'vote_closed' => Icons.how_to_vote_rounded,
+      'record_created' => Icons.auto_stories_rounded,
+      'place_candidate_created' => Icons.place_rounded,
+      _ => Icons.notifications_none_rounded,
+    };
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: isRead ? AppColors.bgWarm : AppColors.primaryPinkSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Icon(
+        icon,
+        color: isRead ? AppColors.textSub : AppColors.primaryPurpleDark,
+        size: 22,
       ),
     );
   }

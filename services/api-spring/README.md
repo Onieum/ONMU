@@ -147,6 +147,7 @@ Core API:
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
+- `GET /api/v1/notifications`
 
 Auth scaffold:
 

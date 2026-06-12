@@ -1,4 +1,5 @@
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -11,6 +12,7 @@ class InMemoryOnmuStore {
     _seedPlaces();
     _seedVotes();
     _seedSettlement();
+    _seedNotifications();
   }
 
   final _groups = <GroupSummary>[];
@@ -28,6 +30,7 @@ class InMemoryOnmuStore {
   final _voteCardsByVoteId = <int, VoteCard>{};
   final _voteVotersByVoteId = <int, Map<int, List<String>>>{};
   final _settlementsByPlanId = <int, SettlementSummary>{};
+  final _notifications = <NotificationItem>[];
 
   var _nextGroupId = 4;
   var _nextPlanId = 106;
@@ -174,6 +177,11 @@ class InMemoryOnmuStore {
 
   int markMessagesRead({required Object groupId, String? lastReadMessageId}) {
     return 0;
+  }
+
+  List<NotificationItem> fetchNotifications({int? limit}) {
+    final effectiveLimit = limit ?? _notifications.length;
+    return List.unmodifiable(_notifications.take(effectiveLimit));
   }
 
   GroupMessage sendMessage({required Object groupId, required String message}) {
@@ -1146,6 +1154,37 @@ class InMemoryOnmuStore {
     for (final planId in [101, 102, 103, 104, 105]) {
       _settlementsByPlanId[planId] = settlement;
     }
+  }
+
+  void _seedNotifications() {
+    _notifications.addAll([
+      NotificationItem(
+        id: '00000000-0000-0000-0000-000000001211',
+        notificationType: 'place_candidate_created',
+        title: '장소 후보가 추가됐어요',
+        body: '카페 오션뷰 후보가 제주도 여행에 추가됐습니다.',
+        status: 'queued',
+        createdAt: DateTime.parse('2026-06-09T14:10:00+09:00'),
+        timeLabel: '14:10',
+        groupId: '1',
+        planId: '101',
+        payload: const {'groupId': '1', 'planId': '101', 'candidateId': '204'},
+        isRead: false,
+      ),
+      NotificationItem(
+        id: '00000000-0000-0000-0000-000000001212',
+        notificationType: 'vote_created',
+        title: '투표가 열렸어요',
+        body: '제주도 여행 장소 투표가 진행 중입니다.',
+        status: 'queued',
+        createdAt: DateTime.parse('2026-06-09T14:11:00+09:00'),
+        timeLabel: '14:11',
+        groupId: '1',
+        planId: '101',
+        payload: const {'groupId': '1', 'planId': '101', 'voteId': '501'},
+        isRead: false,
+      ),
+    ]);
   }
 
   List<PlanMember> _seedPlanMembers() {
