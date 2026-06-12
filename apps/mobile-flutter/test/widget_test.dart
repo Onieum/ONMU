@@ -371,7 +371,7 @@ void main() {
     expect(find.text('제주도 여행'), findsWidgets);
   });
 
-  testWidgets('home notification bell opens empty notification state', (
+  testWidgets('home notification bell opens API notification list', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -384,7 +384,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('알림'), findsOneWidget);
-    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('장소 후보가 추가됐어요'), findsOneWidget);
+    expect(find.text('카페 오션뷰 후보가 제주도 여행에 추가됐습니다.'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsNothing);
   });
 
@@ -1235,7 +1237,7 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
-  testWidgets('home notification page does not show local settlement fixture', (
+  testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -1244,7 +1246,8 @@ void main() {
     appRouter.go(RoutePaths.homeNotifications);
     await tester.pumpAndSettle();
 
-    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('장소 후보가 추가됐어요'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('주말 나들이 정산이 만들어졌어요'), findsNothing);
     expect(find.text('약속 정산'), findsNothing);
   });
