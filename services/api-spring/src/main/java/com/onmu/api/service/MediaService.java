@@ -13,7 +13,6 @@ import io.minio.errors.ErrorResponseException;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -131,13 +130,8 @@ public class MediaService {
   }
 
   public PresignedUrlResponse generatePresignedUrl(String fileName, String contentType) {
-    String originalName = fileName != null ? fileName : "ootd.jpg";
-    if (originalName.isBlank()) {
-      originalName = "ootd.jpg";
-    }
-    String extension = originalName.contains(".") 
-      ? originalName.substring(originalName.lastIndexOf(".")) 
-      : ".jpg";
+    String extension = presignedImageExtension(fileName);
+    String imageContentType = validateImageUpload(contentType, extension);
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
@@ -148,9 +142,7 @@ public class MediaService {
               .bucket(bucket)
               .object(storageKey)
               .expiry(60 * 60) // 1 hour
-              .extraQueryParams(contentType != null && !contentType.isBlank() 
-                  ? Map.of("Content-Type", contentType) 
-                  : Collections.emptyMap())
+              .extraQueryParams(Map.of("Content-Type", imageContentType))
               .build());
 
       String publicUrl = publicMediaUrl(storageKey);
@@ -173,7 +165,7 @@ public class MediaService {
     String extension = originalName.contains(".") 
       ? originalName.substring(originalName.lastIndexOf(".")) 
       : ".jpg";
-    String contentType = validateImageUpload(file, extension);
+    String contentType = validateImageUpload(file.getContentType(), extension);
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
@@ -193,8 +185,19 @@ public class MediaService {
     }
   }
 
-  private String validateImageUpload(MultipartFile file, String extension) {
-    String contentType = file.getContentType();
+  private String presignedImageExtension(String fileName) {
+    if (!StringUtils.hasText(fileName)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    String originalName = fileName.trim();
+    int extensionStart = originalName.lastIndexOf(".");
+    if (extensionStart < 0 || extensionStart == originalName.length() - 1) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    return originalName.substring(extensionStart).toLowerCase(Locale.ROOT);
+  }
+
+  private String validateImageUpload(String contentType, String extension) {
     String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
     if (!StringUtils.hasText(contentType)
       || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")
