@@ -1,4 +1,4 @@
-# ONMU 데이터 사전
+﻿# ONMU 데이터 사전
 
 ## 문서 목적
 
@@ -1056,6 +1056,30 @@ OOTD 기록의 캐릭터 변경분은 `character_profiles`를 직접 덮어쓰�
 
 ---
 
+
+## 하루 일과 다이어리 payload 계약 메모
+
+하루 일과 기록 기능은 새 테이블을 추가하지 않고 기존 `records`, `record_media`, `record_tags`를 사용한다. 사진 원본 URL은 `record_media.public_url`에 저장하고, 사진별 코멘트/다이어리 구성 정보는 `records.payload` JSON에 보존한다.
+
+기록 삭제는 물리 삭제가 아니라 `records.deleted_at`을 채우는 soft delete로 처리한다. 목록/상세 조회는 `deleted_at IS NULL` 조건을 기준으로 한다.
+
+`record_media.public_url`은 API 서버 기준 상대 URL일 수 있으므로, Flutter Web에서는 표시 직전에 API base URL을 붙여 absolute URL로 사용한다.
+
+`records.payload`의 DAILY 기록 확장 필드는 다음과 같다.
+
+| JSON key | 설명 |
+| --- | --- |
+| `recordType` | `DAILY` 또는 `OOTD` |
+| `body` | 하루 전체 메모 |
+| `mood` | 사용자가 선택한 기분 라벨 |
+| `weather` | 사용자가 선택한 날씨 라벨 |
+| `brands.recordType` | Flutter 화면 분기용 `daily`/`ootd` |
+| `brands.theme` | 다이어리 결과 테마, 예: `diary`, `clean` |
+| `brands.crew` | OOTD/크루 포함 여부, 예: `included`, `userOnly` |
+| `timeline[]` | 결과 화면 재구성용 사진/메모 순서 |
+| `timeline[].imageUrl` | 해당 사진 카드에 표시할 `record_media.public_url` |
+
+OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭터/WITH 블록을 건너뛴다. OOTD가 있는 경우에만 다이어리 중간 캐릭터 블록 및 하단 WITH/MOOD/WEATHER 캐릭터 영역을 표시한다.
 # 9. Activity / Notification
 
 ## `chat_activity_events` (목표 설계)
@@ -1643,3 +1667,4 @@ OOTD 기록의 캐릭터 변경분은 `character_profiles`를 직접 덮어쓰�
 | Worker 결과 | FastAPI Worker는 core table을 직접 수정하지 않는다. Worker metadata를 남기고 Spring read model/API에서 조합한다. |
 | Analytics 동의 | core에는 현재 동의 상태와 append-only 동의 이력을 둔다. reporting layer 전파는 next-step 데이터사전에서 별도 설계/구현한다. |
 | Spring 모니터링 | Actuator/Micrometer -> Prometheus -> Grafana 흐름은 운영 메트릭 저장소로 분리하며 core PostgreSQL 도메인 테이블에 넣지 않는다. |
+
