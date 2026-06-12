@@ -34,12 +34,14 @@
 | 화면 | API | Read model |
 | --- | --- | --- |
 | 마이페이지 친구 목록 | `GET /api/v1/users/me/friends` | `FriendResponse[]` |
+| 친구 상세 프로필 | `GET /api/v1/users/me/friends/{friendUserId}/profile` | `UserProfile` |
 | 친구 코드/이름 검색 | `GET /api/v1/users/search?query={query}` | `FriendResponse[]` |
 | 친구 추가 | `POST /api/v1/users/me/friends` | `FriendResponse` |
 | 친구 메모/즐겨찾기 수정 | `PATCH /api/v1/users/me/friends/{friendUserId}` | `FriendResponse` |
 | 친구 삭제 | `DELETE /api/v1/users/me/friends/{friendUserId}` | `204 No Content` |
 
 친구 관계 원장은 `friendships(user_low_id, user_high_id)` canonical pair를 사용한다. 요청 방향은 `friend_requests`가 필요할 때 보존하고, MVP 친구 추가 API는 관계를 바로 `active`로 만든다. 사용자별 메모, 숨김, 즐겨찾기는 `friend_settings(friendship_id, user_id)` 기준으로 관리한다.
+친구 상세 프로필은 active friendship을 확인한 뒤 상대 사용자의 `users.preference_profile`, `users.pixel_character`, 기본 표시 정보를 반환한다. 이메일, 인증 provider, token contract 같은 내 계정 전용 필드는 포함하지 않는다. 친구 관계가 아니거나 숨김/삭제된 관계면 `404 friend_not_found`를 반환한다.
 ## Home
 
 | 화면 | API | Read model |
