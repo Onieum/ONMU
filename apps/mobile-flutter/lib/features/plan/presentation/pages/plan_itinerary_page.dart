@@ -533,7 +533,7 @@ class _RouteStopListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.sm),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -555,12 +555,16 @@ class _RouteStopListItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
+          _RouteStopThumbnail(order: point.order),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   point.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
@@ -570,12 +574,84 @@ class _RouteStopListItem extends StatelessWidget {
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    OnmuChip(
+                      label: isLast ? '마지막 장소' : '도보 연결',
+                      icon: isLast
+                          ? Icons.flag_outlined
+                          : Icons.directions_walk,
+                    ),
+                    OnmuChip(
+                      label: point.order == 1 ? '출발' : '경유 ${point.order}',
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _RouteStopThumbnail extends StatelessWidget {
+  const _RouteStopThumbnail({required this.order});
+
+  final int order;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: SizedBox.square(
+        dimension: 64,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _colors,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -8,
+                top: -8,
+                child: Icon(
+                  Icons.circle,
+                  size: 40,
+                  color: AppColors.bgDefault.withValues(alpha: 0.36),
+                ),
+              ),
+              const Center(
+                child: Icon(
+                  Icons.storefront_outlined,
+                  color: AppColors.textInverse,
+                  size: 30,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Color> get _colors {
+    switch (order % 3) {
+      case 1:
+        return const [AppColors.accentBrown, AppColors.primaryPink];
+      case 2:
+        return const [AppColors.accentGreen, AppColors.accentOrange];
+      default:
+        return const [AppColors.accentBlue, AppColors.primaryPurple];
+    }
   }
 }
 

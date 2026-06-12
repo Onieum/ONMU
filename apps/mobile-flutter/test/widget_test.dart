@@ -874,7 +874,12 @@ void main() {
     );
     expect(candidateButtonRect.size, scheduleButtonRect.size);
 
-    await tester.tap(find.text('후보에 추가').first);
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
+    );
+    await tester.ensureVisible(candidateAction);
+    await tester.pumpAndSettle();
+    await tester.tap(candidateAction);
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보 리스트'), findsOneWidget);
@@ -891,7 +896,12 @@ void main() {
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('일정에 추가').first);
+    final scheduleAction = find.byKey(
+      const ValueKey('place-action-201-schedule'),
+    );
+    await tester.ensureVisible(scheduleAction);
+    await tester.pumpAndSettle();
+    await tester.tap(scheduleAction);
     await tester.pumpAndSettle();
 
     expect(find.text('장소 동선'), findsOneWidget);
@@ -954,7 +964,10 @@ void main() {
     expect(find.text('장소 검색하기'), findsOneWidget);
     expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.text('지도 화면에서 이어서 장소를 찾아요'), findsNothing);
-    expect(find.bySemanticsLabel('온무식당 대표 사진'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('place-action-201-candidate')),
+      findsOneWidget,
+    );
     expect(find.text('후보에 추가'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
   });

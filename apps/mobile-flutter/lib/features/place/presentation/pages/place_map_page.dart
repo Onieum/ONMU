@@ -1020,6 +1020,13 @@ class _RecommendationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tags = candidate.tags.isEmpty
+        ? <String>[candidate.category]
+        : candidate.tags.take(3).toList(growable: false);
+    final sourceLabel = candidate.sourceLabel.trim().isEmpty
+        ? 'Provider'
+        : candidate.sourceLabel.trim();
+
     return OnmuCard(
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
@@ -1028,6 +1035,7 @@ class _RecommendationTile extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _PlacePhoto(candidate: candidate, index: photoIndex),
               const SizedBox(width: AppSpacing.sm),
@@ -1035,22 +1043,67 @@ class _RecommendationTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      candidate.name,
-                      style: Theme.of(context).textTheme.titleSmall,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            candidate.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        const Icon(
+                          Icons.favorite_border,
+                          color: AppColors.primaryPink,
+                          size: 22,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '${candidate.category} · ${candidate.travelTimeLabel}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      candidate.address.isEmpty
+                          ? candidate.summary
+                          : candidate.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Wrap(
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
                       children: [
-                        for (final tag in candidate.tags.take(2))
-                          OnmuChip(label: tag),
+                        _MetricChip(
+                          icon: Icons.directions_walk,
+                          label: candidate.travelTimeLabel,
+                        ),
+                        _MetricChip(
+                          icon: Icons.auto_awesome,
+                          label: '${candidate.matchPercent}%',
+                        ),
+                        _MetricChip(
+                          icon: candidate.isOpen
+                              ? Icons.circle
+                              : Icons.error_outline,
+                          label: candidate.isOpen ? '영업 중' : '확인 필요',
+                          color: candidate.isOpen
+                              ? AppColors.accentRed
+                              : AppColors.textMuted,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xxs,
+                      children: [
+                        OnmuChip(label: sourceLabel, selected: true),
+                        for (final tag in tags) OnmuChip(label: tag),
                       ],
                     ),
                   ],
@@ -1066,6 +1119,50 @@ class _RecommendationTile extends StatelessWidget {
             onRegisterPressed: onRegisterPressed,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    this.color = AppColors.primaryPink,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgPaper,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.lineWarm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1136,7 +1233,7 @@ class _PlacePhoto extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: SizedBox(
           width: 72,
-          height: 72,
+          height: 92,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -1158,11 +1255,33 @@ class _PlacePhoto extends StatelessWidget {
                 ),
                 Positioned(
                   left: 10,
-                  bottom: 10,
+                  bottom: 16,
                   child: Icon(
                     _photoIcon,
                     color: AppColors.textInverse,
                     size: 28,
+                  ),
+                ),
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDefault.withValues(alpha: 0.86),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 2,
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.primaryPink,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(
