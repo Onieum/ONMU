@@ -200,9 +200,10 @@ class PinnedPlanCard extends StatelessWidget {
 }
 
 class ChatMessageBubble extends StatelessWidget {
-  const ChatMessageBubble({required this.message, super.key});
+  const ChatMessageBubble({required this.message, this.onRetry, super.key});
 
   final GroupMessage message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +217,11 @@ class ChatMessageBubble extends StatelessWidget {
             PixelAvatar(label: message.sender, size: 32),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
-              child: _ChatMessageContent(message: message, maxWidth: 246),
+              child: _ChatMessageContent(
+                message: message,
+                maxWidth: 246,
+                onRetry: onRetry,
+              ),
             ),
           ],
         ),
@@ -225,16 +230,25 @@ class ChatMessageBubble extends StatelessWidget {
 
     return Align(
       alignment: Alignment.centerRight,
-      child: _ChatMessageContent(message: message, maxWidth: 286),
+      child: _ChatMessageContent(
+        message: message,
+        maxWidth: 286,
+        onRetry: onRetry,
+      ),
     );
   }
 }
 
 class _ChatMessageContent extends StatelessWidget {
-  const _ChatMessageContent({required this.message, required this.maxWidth});
+  const _ChatMessageContent({
+    required this.message,
+    required this.maxWidth,
+    this.onRetry,
+  });
 
   final GroupMessage message;
   final double maxWidth;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -279,9 +293,59 @@ class _ChatMessageContent extends StatelessWidget {
                       : AppColors.textMuted,
                 ),
               ),
+              if (message.isMine &&
+                  message.sendStatus != GroupMessageSendStatus.sent)
+                _SendStatusRow(message: message, onRetry: onRetry),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SendStatusRow extends StatelessWidget {
+  const _SendStatusRow({required this.message, required this.onRetry});
+
+  final GroupMessage message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFailed = message.sendStatus.isFailed;
+    final color = isFailed ? AppColors.primaryPink : AppColors.textSub;
+    final label = isFailed ? '전송 실패' : '전송 중';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isFailed ? Icons.error_outline : Icons.schedule_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
+          ),
+          if (isFailed && onRetry != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            InkWell(
+              onTap: onRetry,
+              child: Text(
+                '재시도',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: AppColors.primaryPink),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

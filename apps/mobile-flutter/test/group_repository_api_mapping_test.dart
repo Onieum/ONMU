@@ -33,6 +33,179 @@ void main() {
     },
   );
 
+  test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'messages': [
+                  {
+                    'id': 'message-1',
+                    'cursor': '2026-06-09T05:00:00Z',
+                    'senderName': '지민',
+                    'message': '안녕!',
+                    'timeLabel': '14:00',
+                    'isMine': false,
+                  },
+                  {
+                    'sender': 'ONMU',
+                    'content': '새 투표가 열렸어요.',
+                    'messageType': 'vote_card',
+                    'createdAt': '2026-06-09T14:03:00+09:00',
+                  },
+                  {'createdAt': 'not-a-date'},
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final messages = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).fetchMessages('1');
+
+    expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
+    expect(messages, hasLength(3));
+    expect(messages[0].sender, '지민');
+    expect(messages[0].message, '안녕!');
+    expect(messages[0].timeLabel, '14:00');
+    expect(messages[0].isMine, isFalse);
+    expect(messages[0].id, 'message-1');
+    expect(messages[0].cursor, '2026-06-09T05:00:00Z');
+    expect(messages[0].sendStatus, GroupMessageSendStatus.sent);
+    expect(messages[1].sender, 'ONMU');
+    expect(messages[1].message, '새 투표가 열렸어요.');
+    expect(messages[1].timeLabel, '14:03');
+    expect(messages[1].isMine, isFalse);
+    expect(messages[2].sender, 'ONMU');
+    expect(messages[2].message, '새 활동이 있어요.');
+    expect(messages[2].timeLabel, '');
+  });
+
+  test('API 메시지 페이지 JSON을 cursor pagination 상태로 매핑한다', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'messages': [
+                  {
+                    'id': 'message-2',
+                    'cursor': '2026-06-09T05:01:00Z',
+                    'senderName': '나',
+                    'message': '페이지 메시지',
+                    'timeLabel': '14:01',
+                    'isMine': true,
+                    'sendStatus': 'sent',
+                  },
+                ],
+                'nextCursor': '2026-06-09T05:00:00Z',
+                'hasMore': true,
+                'unreadCount': 2,
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final page = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).fetchMessagePage('1', beforeCursor: '2026-06-09T05:02:00Z', limit: 1);
+
+    expect(requestedPaths.single, contains('/api/v1/groups/1/chat/messages?'));
+    expect(
+      requestedPaths.single,
+      contains('beforeCursor=2026-06-09T05%3A02%3A00Z'),
+    );
+    expect(requestedPaths.single, contains('limit=1'));
+    expect(page.messages.single.id, 'message-2');
+    expect(page.nextCursor, '2026-06-09T05:00:00Z');
+    expect(page.hasMore, isTrue);
+    expect(page.unreadCount, 2);
+  });
+
+  test('API 메시지 작성은 POST 응답을 GroupMessage로 매핑한다', () async {
+    final requestedPaths = <String>[];
+    final requestBodies = <Object?>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestBodies.add(options.data);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'senderName': '나',
+                'message': '서버로 보내요',
+                'timeLabel': '방금',
+                'isMine': true,
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final message = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).sendMessage(groupId: '1', message: '서버로 보내요');
+
+    expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
+    expect(requestBodies.single, {'message': '서버로 보내요'});
+    expect(message.sender, '나');
+    expect(message.message, '서버로 보내요');
+    expect(message.timeLabel, '방금');
+    expect(message.isMine, isTrue);
+  });
+
+  test('API 읽음 상태 갱신은 PUT 응답의 unreadCount를 반환한다', () async {
+    final requestedPaths = <String>[];
+    final requestBodies = <Object?>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestBodies.add(options.data);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'lastReadMessageId': 'message-2',
+                'lastReadAt': '2026-06-09T05:02:00Z',
+                'unreadCount': 0,
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final unreadCount = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).markMessagesRead(groupId: '1', lastReadMessageId: 'message-2');
+
+    expect(requestedPaths.single, '/api/v1/groups/1/chat/read-state');
+    expect(requestBodies.single, {'lastReadMessageId': 'message-2'});
+    expect(unreadCount, 0);
+  });
+
   test('plan status API enum values are displayed in Korean', () {
     expect(PlanProgressStatus.fromApi('completed').label, '완료');
     expect(PlanProgressStatus.fromApi('draft').label, '초안');

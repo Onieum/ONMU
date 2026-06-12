@@ -35,7 +35,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     super.dispose();
   }
 
-  void _sendMessage(WidgetRef ref) {
+  Future<void> _sendMessage(WidgetRef ref) async {
     final text = _messageController.text.trim();
 
     if (text.isEmpty) {
@@ -45,10 +45,20 @@ class _GroupChatPageState extends State<GroupChatPage> {
       return;
     }
 
-    ref
+    _messageController.clear();
+    final sent = await ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendMessage(text);
-    _messageController.clear();
+    if (!mounted) {
+      return;
+    }
+    if (!sent) {
+      _messageController.text = text;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메시지를 보내지 못했어요.')));
+      return;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) {
@@ -75,6 +85,20 @@ class _GroupChatPageState extends State<GroupChatPage> {
             messageController: _messageController,
             scrollController: _scrollController,
             onSend: () => _sendMessage(ref),
+            onLoadOlderMessages: () => ref
+                .read(groupChatViewModelProvider(widget.groupId).notifier)
+                .loadOlderMessages(),
+            onRetryMessage: (messageId) async {
+              final retried = await ref
+                  .read(groupChatViewModelProvider(widget.groupId).notifier)
+                  .retryMessage(messageId);
+              if (!mounted || !context.mounted || retried) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')),
+              );
+            },
           ),
           loading: () => const OnmuScaffold(
             title: '채팅',
@@ -101,12 +125,16 @@ class _ThreadContent extends StatelessWidget {
     required this.messageController,
     required this.scrollController,
     required this.onSend,
+    required this.onLoadOlderMessages,
+    required this.onRetryMessage,
   });
 
   final GroupChatState state;
   final TextEditingController messageController;
   final ScrollController scrollController;
-  final VoidCallback onSend;
+  final Future<void> Function() onSend;
+  final Future<void> Function() onLoadOlderMessages;
+  final Future<void> Function(String messageId) onRetryMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -194,10 +222,26 @@ class _ThreadContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         const _DateDivider(label: '2024년 6월 2일'),
         const SizedBox(height: AppSpacing.md),
+        if (state.hasMoreOlderMessages) ...[
+          _LoadOlderMessagesButton(
+            loading: state.isLoadingOlderMessages,
+            onPressed: state.isLoadingOlderMessages
+                ? null
+                : onLoadOlderMessages,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (state.unreadCount > 0) ...[
+          _UnreadDivider(count: state.unreadCount),
+          const SizedBox(height: AppSpacing.md),
+        ],
         for (final message in state.messages.where(
           (message) => message.sender != 'ONMU',
         )) ...[
-          ChatMessageBubble(message: message),
+          ChatMessageBubble(
+            message: message,
+            onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
+          ),
           const SizedBox(height: AppSpacing.sm),
         ],
       ],
@@ -220,6 +264,52 @@ class _ChatMenuItem extends StatelessWidget {
         Icon(icon, size: 18, color: AppColors.primaryPink),
         const SizedBox(width: AppSpacing.xs),
         Text(label, style: Theme.of(context).textTheme.labelLarge),
+      ],
+    );
+  }
+}
+
+class _LoadOlderMessagesButton extends StatelessWidget {
+  const _LoadOlderMessagesButton({
+    required this.loading,
+    required this.onPressed,
+  });
+
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: loading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.history_outlined, size: 18),
+        label: Text(loading ? '불러오는 중' : '이전 메시지 더 보기'),
+      ),
+    );
+  }
+}
+
+class _UnreadDivider extends StatelessWidget {
+  const _UnreadDivider({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.linePink)),
+        const SizedBox(width: AppSpacing.sm),
+        OnmuChip(label: '$count개의 새 메시지', selected: true),
+        const SizedBox(width: AppSpacing.sm),
+        const Expanded(child: Divider(color: AppColors.linePink)),
       ],
     );
   }
@@ -434,7 +524,7 @@ class _MessageInput extends StatelessWidget {
   const _MessageInput({required this.controller, required this.onSend});
 
   final TextEditingController controller;
-  final VoidCallback onSend;
+  final Future<void> Function() onSend;
 
   @override
   Widget build(BuildContext context) {
