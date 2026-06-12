@@ -60,6 +60,15 @@ cd <ONMU repo>
 
 `run-flutter-dev-api.sh`는 Flutter web을 `127.0.0.1:5173`에서 실행합니다. 이 포트는 dev Spring CORS 허용 origin에 포함되어 있으므로 Mac 브라우저 검증은 이 포트를 기준으로 맞춥니다. `ONMU_ACCESS_TOKEN_SECRET`이 이미 로컬 환경변수에 있으면 macOS JWT 스크립트는 Key Vault를 호출하지 않습니다.
 
+Windows에서 `flutter build web` 산출물을 정적 서버로 확인할 때는 Python `http.server` 대신 SPA fallback 서버를 사용합니다. Flutter 라우트인 `/home`, `/groups`, `/onboarding`을 직접 새로고침해도 `index.html`로 돌아가야 브라우저 검증이 안정적입니다.
+
+```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\serve-flutter-web-spa.ps1 `
+  -WebRoot apps\mobile-flutter\build\web `
+  -Port 5173
+```
+
 로컬 Spring을 직접 볼 때는 base URL을 지정합니다.
 
 ```powershell
