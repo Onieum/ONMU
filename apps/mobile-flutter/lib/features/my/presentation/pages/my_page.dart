@@ -42,9 +42,10 @@ class _MyPageState extends ConsumerState<MyPage> {
     ref.watch(authBootstrapProvider);
     final profileAsync = ref.watch(myProfileProvider);
     final friendsAsync = ref.watch(friendsProvider);
+    final authUser = ref.watch(authUserProvider);
     final profile = _profileForAuthUser(
       profileAsync.value ?? _emptyProfile(),
-      ref.watch(authUserProvider),
+      authUser,
     );
     final friends = friendsAsync.value ?? const <FriendProfile>[];
 
@@ -69,6 +70,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                 sliver: SliverToBoxAdapter(
                   child: _ProfileHero(
                     profile: profile,
+                    profileImageUrl: authUser?.profileImageUrl,
                     onEdit: _showProfileEditor,
                   ),
                 ),
@@ -120,10 +122,9 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   Future<void> _toggleFavoriteFriend(FriendProfile friend) async {
-    await ref.read(friendRepositoryProvider).updateFriend(
-      friend,
-      favorite: !friend.isFavorite,
-    );
+    await ref
+        .read(friendRepositoryProvider)
+        .updateFriend(friend, favorite: !friend.isFavorite);
     ref.invalidate(friendsProvider);
   }
 
@@ -136,6 +137,7 @@ class _MyPageState extends ConsumerState<MyPage> {
       MaterialPageRoute(
         builder: (context) => _ProfileEditPage(
           profile: profile,
+          profileImageUrl: ref.read(authUserProvider)?.profileImageUrl,
           onCharacterSaved: _saveCharacterDraft,
         ),
       ),
@@ -354,9 +356,14 @@ class _HeaderIconButton extends StatelessWidget {
 }
 
 class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({required this.profile, required this.onEdit});
+  const _ProfileHero({
+    required this.profile,
+    this.profileImageUrl,
+    required this.onEdit,
+  });
 
   final MyProfile profile;
+  final String? profileImageUrl;
   final VoidCallback onEdit;
 
   @override
@@ -366,7 +373,7 @@ class _ProfileHero extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CharacterPortrait(size: 88),
+          _CharacterPortrait(size: 88, profileImageUrl: profileImageUrl),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -434,10 +441,15 @@ class _ProfileHero extends StatelessWidget {
 }
 
 class _CharacterPortrait extends StatelessWidget {
-  const _CharacterPortrait({required this.size, this.character});
+  const _CharacterPortrait({
+    required this.size,
+    this.character,
+    this.profileImageUrl,
+  });
 
   final double size;
   final CharacterDraft? character;
+  final String? profileImageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -454,6 +466,8 @@ class _CharacterPortrait extends StatelessWidget {
           topStyleIndex: 0,
         );
 
+    final imageUrl = profileImageUrl?.trim() ?? '';
+
     return Container(
       width: size,
       height: size,
@@ -463,18 +477,37 @@ class _CharacterPortrait extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.linePink.withOpacity(0.55)),
       ),
-      child: OverflowBox(
-        minWidth: 0,
-        minHeight: 0,
-        maxWidth: size * 1.45,
-        maxHeight: size * 1.65,
-        child: Transform.translate(
-          offset: Offset(0, size * 0.08),
-          child: PixelCharacterWidget(
-            character: draft,
-            size: size * 1.1,
-            showShadow: false,
-          ),
+      child: imageUrl.isNotEmpty
+          ? Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _CharacterPortraitFallback(size: size, draft: draft),
+            )
+          : _CharacterPortraitFallback(size: size, draft: draft),
+    );
+  }
+}
+
+class _CharacterPortraitFallback extends StatelessWidget {
+  const _CharacterPortraitFallback({required this.size, required this.draft});
+
+  final double size;
+  final CharacterDraft draft;
+
+  @override
+  Widget build(BuildContext context) {
+    return OverflowBox(
+      minWidth: 0,
+      minHeight: 0,
+      maxWidth: size * 1.45,
+      maxHeight: size * 1.65,
+      child: Transform.translate(
+        offset: Offset(0, size * 0.08),
+        child: PixelCharacterWidget(
+          character: draft,
+          size: size * 1.1,
+          showShadow: false,
         ),
       ),
     );
@@ -1345,6 +1378,7 @@ class _FavoriteFriend extends StatelessWidget {
                   child: _CharacterPortrait(
                     size: 54,
                     character: characters[characterIndex],
+                    profileImageUrl: friend.profileImageUrl,
                   ),
                 ),
                 Positioned(
@@ -1590,7 +1624,11 @@ class _FriendListTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           children: [
-            _CharacterPortrait(size: 52, character: character),
+            _CharacterPortrait(
+              size: 52,
+              character: character,
+              profileImageUrl: friend.profileImageUrl,
+            ),
             const SizedBox(width: 14),
             Expanded(
               flex: 3,
@@ -1758,7 +1796,11 @@ class _FriendProfileHero extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CharacterPortrait(size: 116, character: character),
+              _CharacterPortrait(
+                size: 116,
+                character: character,
+                profileImageUrl: friend.profileImageUrl,
+              ),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -1878,7 +1920,6 @@ CharacterDraft _characterForFriend(FriendProfile friend) {
   return characters[safeIndex];
 }
 
-
 class _FriendAddSheet extends StatefulWidget {
   const _FriendAddSheet({required this.candidates});
 
@@ -1975,8 +2016,6 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
     );
   }
 }
-
-
 
 class _ProfileDetailPage extends StatelessWidget {
   const _ProfileDetailPage({required this.section, required this.profile});
@@ -2117,8 +2156,6 @@ class _ProfileDetailPage extends StatelessWidget {
   }
 }
 
-
-
 class _DetailChipSection extends StatelessWidget {
   const _DetailChipSection({
     required this.icon,
@@ -2247,9 +2284,6 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     );
   }
 
-
-
-
   Widget _buildKeywordEditor() {
     final favoriteFoodOptions = [
       '한식',
@@ -2297,9 +2331,6 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       ],
     );
   }
-
-
-
 
   Widget _buildScheduleEditor() {
     final styleOptions = [
@@ -2368,9 +2399,6 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     );
   }
 
-
-
-
   Widget _buildPlaceEditor() {
     final favoritePlaceOptions = [
       '조용한 대화 공간',
@@ -2424,8 +2452,6 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       target.add(value);
     });
   }
-
-
 
   void _addCustomValue(List<String> target, String value) {
     final clean = value.trim();
@@ -2553,9 +2579,6 @@ class _EditableTagChip extends StatelessWidget {
   }
 }
 
-
-
-
 class _ToggleChipWrap extends StatefulWidget {
   const _ToggleChipWrap({
     required this.values,
@@ -2641,10 +2664,7 @@ class _ToggleChipWrapState extends State<_ToggleChipWrap> {
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: _add,
-                child: const Text('추가'),
-              ),
+              OutlinedButton(onPressed: _add, child: const Text('추가')),
             ],
           ),
         ],
@@ -2652,13 +2672,6 @@ class _ToggleChipWrapState extends State<_ToggleChipWrap> {
     );
   }
 }
-
-
-
-
-
-
-
 
 class _CalendarDateSelector extends StatelessWidget {
   const _CalendarDateSelector({
@@ -2730,10 +2743,12 @@ class _CalendarDateSelector extends StatelessWidget {
 class _ProfileEditPage extends StatefulWidget {
   const _ProfileEditPage({
     required this.profile,
+    this.profileImageUrl,
     required this.onCharacterSaved,
   });
 
   final MyProfile profile;
+  final String? profileImageUrl;
   final ValueChanged<CharacterDraft> onCharacterSaved;
 
   @override
@@ -2791,7 +2806,10 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            const _CharacterPortrait(size: 132),
+                            _CharacterPortrait(
+                              size: 132,
+                              profileImageUrl: widget.profileImageUrl,
+                            ),
                             Positioned(
                               right: 4,
                               bottom: 10,
@@ -3631,7 +3649,6 @@ class _CountedTextFieldState extends State<_CountedTextField> {
     setState(() {});
   }
 }
-
 
 class _RegionSelector extends StatelessWidget {
   const _RegionSelector({required this.controller});

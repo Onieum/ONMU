@@ -39,7 +39,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
               groupId: widget.groupId,
               group: state.group,
               groupName: _groupName!,
-              onRename: _showRenameSheet,
+              onRename: () => _showRenameSheet(ref, state.group.description),
               onNotification: _showNotificationSheet,
               onLeave: _confirmLeaveGroup,
             );
@@ -62,7 +62,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     );
   }
 
-  Future<void> _showRenameSheet() async {
+  Future<void> _showRenameSheet(WidgetRef ref, String description) async {
     final controller = TextEditingController(text: _groupName);
 
     try {
@@ -85,7 +85,13 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
         return;
       }
 
-      setState(() => _groupName = result);
+      final updated = await ref
+          .read(groupMembersViewModelProvider(widget.groupId).notifier)
+          .updateGroup(name: result, description: description);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _groupName = updated.name);
     } finally {
       controller.dispose();
     }

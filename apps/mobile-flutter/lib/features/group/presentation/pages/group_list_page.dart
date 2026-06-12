@@ -46,6 +46,15 @@ class _GroupListContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnmuScaffold(
       title: '온모임',
+      pinnedHeader: const Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
+        child: _GroupSearchField(key: ValueKey('group-list-sticky-search')),
+      ),
       floatingActionButton: FloatingActionButton(
         tooltip: '온모임 만들기',
         backgroundColor: AppColors.primaryPink,
@@ -55,8 +64,6 @@ class _GroupListContent extends StatelessWidget {
         child: const Icon(Icons.add),
       ),
       children: [
-        const _GroupSearchField(),
-        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Text('내 모임', style: Theme.of(context).textTheme.titleMedium),
@@ -116,7 +123,7 @@ class _GroupCountBadge extends StatelessWidget {
 }
 
 class _GroupSearchField extends StatelessWidget {
-  const _GroupSearchField();
+  const _GroupSearchField({super.key});
 
   @override
   Widget build(BuildContext context) {

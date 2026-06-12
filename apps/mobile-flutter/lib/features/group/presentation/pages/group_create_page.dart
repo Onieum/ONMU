@@ -29,6 +29,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final List<String> _invitedMemberNames = [];
+  bool _membersCustomized = false;
   bool _makeFirstPlanLater = true;
 
   @override
@@ -37,6 +38,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     _nameController.addListener(_sync);
     _descriptionController.addListener(_sync);
     _invitedMemberNames.addAll(widget.initialMemberNames);
+    _membersCustomized = widget.initialMemberNames.isNotEmpty;
   }
 
   @override
@@ -53,10 +55,20 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
   void _sync() => setState(() {});
 
   List<String> _memberNamesFor(GroupCreateState state) {
-    if (_invitedMemberNames.isNotEmpty) {
+    if (_membersCustomized) {
       return List.unmodifiable(_invitedMemberNames);
     }
     return state.recommendedMemberNames;
+  }
+
+  void _removeMember(String name, GroupCreateState state) {
+    setState(() {
+      if (!_membersCustomized) {
+        _invitedMemberNames.addAll(state.recommendedMemberNames);
+      }
+      _membersCustomized = true;
+      _invitedMemberNames.remove(name);
+    });
   }
 
   Future<void> _openMemberAddSheet(
@@ -88,9 +100,10 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     }
 
     setState(() {
-      if (_invitedMemberNames.isEmpty) {
+      if (!_membersCustomized) {
         _invitedMemberNames.addAll(state.recommendedMemberNames);
       }
+      _membersCustomized = true;
       _invitedMemberNames.add(trimmedName);
     });
   }
@@ -143,7 +156,10 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
                         if (!context.mounted) {
                           return;
                         }
-                        context.go(RoutePaths.groupDetail(created.id));
+                        final nextRoute = _makeFirstPlanLater
+                            ? RoutePaths.groupDetail(created.id)
+                            : RoutePaths.planNew(created.id);
+                        context.go(nextRoute);
                       },
               ),
               children: [
@@ -175,6 +191,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
                       _InvitePreviewRow(
                         memberNames: memberNames,
                         onAddPressed: () => _openMemberAddSheet(context, state),
+                        onRemovePressed: (name) => _removeMember(name, state),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -297,10 +314,12 @@ class _InvitePreviewRow extends StatelessWidget {
   const _InvitePreviewRow({
     required this.memberNames,
     required this.onAddPressed,
+    required this.onRemovePressed,
   });
 
   final List<String> memberNames;
   final VoidCallback onAddPressed;
+  final ValueChanged<String> onRemovePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -309,7 +328,10 @@ class _InvitePreviewRow extends StatelessWidget {
       child: Row(
         children: [
           for (final name in memberNames) ...[
-            _InviteAvatar(name: name),
+            _InviteAvatar(
+              name: name,
+              onRemovePressed: () => onRemovePressed(name),
+            ),
             const SizedBox(width: AppSpacing.md),
           ],
           Material(
@@ -343,9 +365,10 @@ class _InvitePreviewRow extends StatelessWidget {
 }
 
 class _InviteAvatar extends StatelessWidget {
-  const _InviteAvatar({required this.name});
+  const _InviteAvatar({required this.name, required this.onRemovePressed});
 
   final String name;
+  final VoidCallback onRemovePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -353,7 +376,34 @@ class _InviteAvatar extends StatelessWidget {
       width: 52,
       child: Column(
         children: [
-          PixelAvatar(label: name, size: 50),
+          SizedBox.square(
+            dimension: 56,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Center(child: PixelAvatar(label: name, size: 50)),
+                ),
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: IconButton.filled(
+                    tooltip: '$name 제거',
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primaryPink,
+                      foregroundColor: AppColors.textInverse,
+                      minimumSize: const Size(24, 24),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    iconSize: 14,
+                    onPressed: onRemovePressed,
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             name,

@@ -29,6 +29,15 @@ public class PlanEntity {
   @Column(name = "starts_at")
   private Instant startsAt;
 
+  @Column(name = "ends_at")
+  private Instant endsAt;
+
+  @Column
+  private String description;
+
+  @Column(name = "location_note")
+  private String locationNote;
+
   @Column(nullable = false)
   private String status;
 
@@ -39,18 +48,37 @@ public class PlanEntity {
   }
 
   public PlanEntity(String publicId, GroupEntity group, String title, Instant startsAt, String status) {
+    this(publicId, group, title, startsAt, null, status, null, null);
+  }
+
+  public PlanEntity(
+    String publicId,
+    GroupEntity group,
+    String title,
+    Instant startsAt,
+    Instant endsAt,
+    String status,
+    String description,
+    String locationNote
+  ) {
     this.id = UUID.randomUUID();
     this.publicId = publicId;
     this.group = group;
     this.title = title;
     this.startsAt = startsAt;
+    this.endsAt = endsAt;
     this.status = status;
+    this.description = description;
+    this.locationNote = locationNote;
   }
 
-  public void update(String title, Instant startsAt, String status) {
+  public void update(String title, Instant startsAt, Instant endsAt, String status, String description, String locationNote) {
     this.title = title;
     this.startsAt = startsAt;
+    this.endsAt = endsAt;
     this.status = status;
+    this.description = description;
+    this.locationNote = locationNote;
   }
 
   public UUID getId() {
@@ -71,6 +99,18 @@ public class PlanEntity {
 
   public Instant getStartsAt() {
     return startsAt;
+  }
+
+  public Instant getEndsAt() {
+    return endsAt;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public String getLocationNote() {
+    return locationNote;
   }
 
   public String getStatus() {

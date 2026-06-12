@@ -21,6 +21,11 @@ abstract interface class PlanRepository {
     required PlanArrivalStatus status,
   });
 
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  });
+
   Future<Plan> createPlan(PlanCreateInput input);
 
   Future<Plan> updatePlan({
@@ -54,7 +59,12 @@ class ApiPlanRepository implements PlanRepository {
   Future<Plan> createPlan(PlanCreateInput input) async {
     final plan = await _client.postObject(
       '/api/v1/groups/${input.groupId}/plans',
-      body: {'title': input.title, 'startsAt': _startsAtOrNull(input.dateTime)},
+      body: {
+        'title': input.title.trim(),
+        'startsAt': _startsAtOrNull(input.dateTime),
+        'placeName': input.location.trim(),
+        'memo': input.memo.trim(),
+      },
     );
     return _plan(plan);
   }
@@ -69,6 +79,8 @@ class ApiPlanRepository implements PlanRepository {
       body: {
         'title': input.title.trim(),
         'startsAt': _startsAtOrNull(input.dateTime),
+        'placeName': input.location.trim(),
+        'memo': input.memo.trim(),
         'status': 'draft',
       },
     );
@@ -107,6 +119,18 @@ class ApiPlanRepository implements PlanRepository {
     return _participantArrival(participant);
   }
 
+  @override
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    final participant = await _client.patchObject(
+      '/api/v1/groups/$groupId/plans/$planId/participants/me',
+      body: {'status': 'left'},
+    );
+    return _participantArrival(participant);
+  }
+
   Plan _plan(Map<String, dynamic> json) {
     final title = OnmuJson.readString(json, 'title', '약속');
     final location = OnmuJson.readString(json, 'placeName', '장소 미정');
@@ -117,7 +141,7 @@ class ApiPlanRepository implements PlanRepository {
       location: location,
       status: OnmuJson.readString(json, 'status', '예정'),
       memo: OnmuJson.readString(json, 'memo'),
-      members: const [],
+      members: _planMembers(json),
       timeCandidates: const [],
       visitPlan: [
         VisitPlan(
@@ -136,12 +160,52 @@ class ApiPlanRepository implements PlanRepository {
   PlanParticipantArrival _participantArrival(Map<String, dynamic> json) {
     return PlanParticipantArrival(
       id: OnmuJson.readString(json, 'id'),
+      userId: OnmuJson.readString(json, 'userId'),
       displayName: OnmuJson.readString(json, 'displayName', '참여자'),
       participantStatus: OnmuJson.readString(json, 'status', 'joined'),
       arrivalStatus: PlanArrivalStatus.fromApi(
         OnmuJson.readString(json, 'response'),
       ),
       isFallback: OnmuJson.readBool(json, 'fallback'),
+      profileImageUrl: _profileImageUrl(json),
+    );
+  }
+
+  List<PlanMember> _planMembers(Map<String, dynamic> json) {
+    final rawMembers = OnmuJson.asMapList(json['members']).isNotEmpty
+        ? OnmuJson.asMapList(json['members'])
+        : OnmuJson.asMapList(json['participants']);
+    return rawMembers
+        .map((member) {
+          final name = OnmuJson.readString(
+            member,
+            'name',
+            OnmuJson.readString(member, 'displayName', '참여자'),
+          );
+          return PlanMember(
+            name: name,
+            message: OnmuJson.readString(member, 'message'),
+            badge: OnmuJson.readString(
+              member,
+              'badge',
+              OnmuJson.readString(member, 'statusLabel', '참여 중'),
+            ),
+            selected: OnmuJson.readBool(member, 'selected', true),
+            profileImageUrl: _profileImageUrl(member),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  String _profileImageUrl(Map<String, dynamic> json) {
+    return OnmuJson.readString(
+      json,
+      'profileImageUrl',
+      OnmuJson.readString(
+        json,
+        'profilePhotoUrl',
+        OnmuJson.readString(json, 'avatarUrl'),
+      ),
     );
   }
 

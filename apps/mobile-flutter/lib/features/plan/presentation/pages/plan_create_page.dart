@@ -7,12 +7,14 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../view_model/plan_detail_view_model.dart';
 
 class PlanCreatePage extends ConsumerStatefulWidget {
@@ -89,6 +91,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     return state.when(
       data: (state) {
         _loadPlanIntoForm(state.plan);
+        final authUser = ref.watch(authUserProvider);
 
         return _PlanCreateContent(
           groupId: widget.groupId,
@@ -105,6 +108,13 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           locationController: _locationController,
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
+          groupMembers: state.groupMembers,
+          participantArrivals: state.participantArrivals,
+          currentUserId: authUser?.id ?? authUser?.publicId ?? '',
+          onAddCurrentUser: () =>
+              ref.read(provider.notifier).joinAsCurrentUser(),
+          onRemoveCurrentUser: () =>
+              ref.read(provider.notifier).leaveAsCurrentUser(),
           onSave: _titleController.text.trim().isEmpty
               ? null
               : () async {
@@ -155,6 +165,11 @@ class _PlanCreateContent extends StatelessWidget {
     required this.locationController,
     required this.memoController,
     required this.selectedMembers,
+    required this.groupMembers,
+    required this.participantArrivals,
+    required this.currentUserId,
+    required this.onAddCurrentUser,
+    required this.onRemoveCurrentUser,
     required this.onSave,
     this.editingPlanId,
   });
@@ -168,6 +183,11 @@ class _PlanCreateContent extends StatelessWidget {
   final TextEditingController locationController;
   final TextEditingController memoController;
   final List<PlanMember> selectedMembers;
+  final List<GroupMemberProfile> groupMembers;
+  final List<PlanParticipantArrival> participantArrivals;
+  final String currentUserId;
+  final Future<void> Function() onAddCurrentUser;
+  final Future<void> Function() onRemoveCurrentUser;
   final VoidCallback? onSave;
 
   @override
@@ -205,7 +225,14 @@ class _PlanCreateContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Text('참여 멤버', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
-        _MemberPickerRow(members: selectedMembers),
+        _MemberPickerRow(
+          members: selectedMembers,
+          groupMembers: groupMembers,
+          participantArrivals: participantArrivals,
+          currentUserId: currentUserId,
+          onAddCurrentUser: onAddCurrentUser,
+          onRemoveCurrentUser: onRemoveCurrentUser,
+        ),
         const SizedBox(height: AppSpacing.lg),
         _LabeledField(label: '메모', controller: memoController),
         const SizedBox(height: AppSpacing.xl),
@@ -292,13 +319,6 @@ class _DateTimeRangeField extends StatelessWidget {
                   '${_formatPlanDate(startsAt)} · ${_formatPlanTime(startsAt)} ~ ${_formatPlanTime(endsAt)}',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '추천 시간대 또는 직접 시간을 터치해서 선택',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-                ),
               ],
             ),
           ),
@@ -372,21 +392,89 @@ class _LocationFieldState extends State<_LocationField> {
 }
 
 class _MemberPickerRow extends StatelessWidget {
-  const _MemberPickerRow({required this.members});
+  const _MemberPickerRow({
+    required this.members,
+    required this.groupMembers,
+    required this.participantArrivals,
+    required this.currentUserId,
+    required this.onAddCurrentUser,
+    required this.onRemoveCurrentUser,
+  });
 
   final List<PlanMember> members;
+  final List<GroupMemberProfile> groupMembers;
+  final List<PlanParticipantArrival> participantArrivals;
+  final String currentUserId;
+  final Future<void> Function() onAddCurrentUser;
+  final Future<void> Function() onRemoveCurrentUser;
 
   @override
   Widget build(BuildContext context) {
+    final currentParticipant = _currentParticipant();
+
     return Row(
       children: [
         for (final member in members) ...[
           _MemberBadge(member: member),
           const SizedBox(width: AppSpacing.sm),
         ],
-        _AddMemberBadge(),
+        _AddMemberBadge(
+          onTap: () async {
+            final action = await showModalBottomSheet<_PlanMemberPickerAction>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppColors.transparent,
+              builder: (context) => _PlanMemberPickerSheet(
+                members: groupMembers,
+                selectedNames: members.map((member) => member.name).toSet(),
+                currentUserParticipating: currentParticipant != null,
+                canRemoveCurrentUser: currentParticipant != null,
+              ),
+            );
+            if (action == null || !context.mounted) {
+              return;
+            }
+            switch (action) {
+              case _PlanMemberPickerAction.addCurrentUser:
+                await onAddCurrentUser();
+              case _PlanMemberPickerAction.removeCurrentUser:
+                await onRemoveCurrentUser();
+            }
+            if (!context.mounted) {
+              return;
+            }
+            final message = switch (action) {
+              _PlanMemberPickerAction.addCurrentUser => '내 참여 상태를 추가했어요.',
+              _PlanMemberPickerAction.removeCurrentUser => '내 참여를 취소했어요.',
+            };
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(message)));
+          },
+        ),
       ],
     );
+  }
+
+  PlanParticipantArrival? _currentParticipant() {
+    final normalizedCurrentUserId = currentUserId.trim();
+    if (normalizedCurrentUserId.isEmpty) {
+      return null;
+    }
+
+    for (final participant in participantArrivals) {
+      if (participant.isFallback) {
+        continue;
+      }
+      final status = participant.participantStatus.trim().toLowerCase();
+      if (status == 'left' || status == 'declined') {
+        continue;
+      }
+      if (participant.userId == normalizedCurrentUserId) {
+        return participant;
+      }
+    }
+    return null;
   }
 }
 
@@ -401,7 +489,11 @@ class _MemberBadge extends StatelessWidget {
       width: 50,
       child: Column(
         children: [
-          PixelAvatar(label: member.name, size: 42),
+          PixelAvatar(
+            label: member.name,
+            size: 42,
+            profileImageUrl: member.profileImageUrl,
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             member.name,
@@ -416,7 +508,9 @@ class _MemberBadge extends StatelessWidget {
 }
 
 class _AddMemberBadge extends StatelessWidget {
-  const _AddMemberBadge();
+  const _AddMemberBadge({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -424,15 +518,26 @@ class _AddMemberBadge extends StatelessWidget {
       width: 50,
       child: Column(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: AppColors.lineBrown),
-            ),
-            child: const SizedBox.square(
-              dimension: 42,
-              child: Icon(Icons.add, color: AppColors.primaryPink),
+          Tooltip(
+            message: '참여 멤버 추가',
+            child: Material(
+              key: const ValueKey('plan-member-add-button'),
+              color: AppColors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                onTap: onTap,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgDefault,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: AppColors.lineBrown),
+                  ),
+                  child: const SizedBox.square(
+                    dimension: 42,
+                    child: Icon(Icons.add, color: AppColors.primaryPink),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -442,6 +547,196 @@ class _AddMemberBadge extends StatelessWidget {
     );
   }
 }
+
+class _PlanMemberPickerSheet extends StatelessWidget {
+  const _PlanMemberPickerSheet({
+    required this.members,
+    required this.selectedNames,
+    required this.currentUserParticipating,
+    required this.canRemoveCurrentUser,
+  });
+
+  final List<GroupMemberProfile> members;
+  final Set<String> selectedNames;
+  final bool currentUserParticipating;
+  final bool canRemoveCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeMembers = members
+        .where((member) => !member.invited)
+        .toList(growable: false);
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.bgGrid,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '참여 멤버 추가',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '닫기',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '모임 멤버만 약속에 참여할 수 있어요.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OnmuCard(
+                backgroundColor: AppColors.bgDefault,
+                borderColor: AppColors.linePink,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.person_add_alt_1,
+                      color: AppColors.primaryPink,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '현재 서버 계약상 내 참여만 직접 추가할 수 있어요.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    TextButton(
+                      onPressed: currentUserParticipating
+                          ? null
+                          : () => Navigator.of(
+                              context,
+                            ).pop(_PlanMemberPickerAction.addCurrentUser),
+                      child: Text(
+                        currentUserParticipating ? '참여 중' : '내 참여 추가',
+                      ),
+                    ),
+                    if (canRemoveCurrentUser) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(_PlanMemberPickerAction.removeCurrentUser),
+                        child: const Text('내 참여 취소'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: activeMembers.isEmpty
+                    ? OnmuCard(
+                        backgroundColor: AppColors.bgDefault,
+                        borderColor: AppColors.lineSoft,
+                        child: Text(
+                          '불러온 모임 멤버가 없어요.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: activeMembers.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final member = activeMembers[index];
+                          final selected = selectedNames.contains(member.name);
+                          return OnmuCard(
+                            backgroundColor: AppColors.bgDefault,
+                            borderColor: selected
+                                ? AppColors.linePink
+                                : AppColors.lineSoft,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: Row(
+                              children: [
+                                PixelAvatar(
+                                  label: member.name,
+                                  size: 36,
+                                  profileImageUrl: member.profileImageUrl,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        member.name,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleSmall,
+                                      ),
+                                      const SizedBox(height: AppSpacing.xxs),
+                                      Text(
+                                        member.note,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.textSub,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  Text(
+                                    '참여 중',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: AppColors.primaryPink,
+                                        ),
+                                  ),
+                                if (!selected)
+                                  Text(
+                                    '서버 지원 필요',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(color: AppColors.textMuted),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _PlanMemberPickerAction { addCurrentUser, removeCurrentUser }
 
 DateTime _defaultStartDateTime() {
   final now = DateTime.now();

@@ -10,6 +10,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_date_time_picker.dart';
+import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../view_model/place_candidates_view_model.dart';
 
@@ -29,9 +30,10 @@ class PlaceVoteCreatePage extends ConsumerStatefulWidget {
 }
 
 class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
-  final _titleController = TextEditingController(text: '제주도 여행 장소 투표');
+  final _titleController = TextEditingController();
   late DateTime _deadlineAt = _initialDeadlineAt();
   final Set<int> _selectedCandidateIds = {};
+  var _titleSeeded = false;
   static const _voteMode = '단일 선택';
 
   @override
@@ -51,7 +53,8 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
 
     return state.when(
       data: (state) {
-        return _buildContent(context, state.candidates);
+        _seedTitleFromPlan(state.planTitle);
+        return _buildContent(context, state);
       },
       loading: () => const OnmuScaffold(
         title: '투표 만들기',
@@ -69,14 +72,21 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, List<PlaceCandidate> candidates) {
+  Widget _buildContent(BuildContext context, PlaceCandidatesState state) {
     final provider = placeCandidatesViewModelProvider((
       groupId: widget.groupId,
       planId: widget.planId,
     ));
+    final candidates = state.candidates;
+    final candidateIds = candidates.map((candidate) => candidate.id).toSet();
+    final selectedCandidateIds = _selectedCandidateIds.intersection(
+      candidateIds,
+    );
+    final hasSelectedCandidates = selectedCandidateIds.isNotEmpty;
 
     return OnmuScaffold(
       title: '투표 만들기',
+      titleSubtitle: OnmuLocationSubtitle(location: state.planLocation),
       showBackButton: true,
       onBack: () => context.popOrGo(
         RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),
@@ -86,7 +96,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         icon: Icons.how_to_vote_outlined,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: _selectedCandidateIds.isEmpty
+        onPressed: !hasSelectedCandidates
             ? null
             : () async {
                 final voteId = await ref
@@ -96,7 +106,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
                       modeLabel: _voteMode,
                       deadlineDate: _formatDate(_deadlineAt),
                       deadlineTime: _formatTime(_deadlineAt),
-                      selectedCandidateIds: _selectedCandidateIds,
+                      selectedCandidateIds: selectedCandidateIds,
                     );
                 if (!context.mounted) {
                   return;
@@ -177,16 +187,16 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
                   ? null
                   : () => _openCandidatePicker(context, candidates),
               icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('후보 추가'),
+              label: const Text('장소 후보 리스트에서 추가'),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (_selectedCandidateIds.isEmpty)
-          const _EmptyVoteCandidateCard()
+        if (!hasSelectedCandidates)
+          _EmptyVoteCandidateCard(candidatesAvailable: candidates.isNotEmpty)
         else
           for (final candidate in candidates.where(
-            (candidate) => _selectedCandidateIds.contains(candidate.id),
+            (candidate) => selectedCandidateIds.contains(candidate.id),
           )) ...[
             _VoteCandidateTile(
               candidate: candidate,
@@ -205,6 +215,17 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
           ],
       ],
     );
+  }
+
+  void _seedTitleFromPlan(String planTitle) {
+    if (_titleSeeded) {
+      return;
+    }
+    final normalizedTitle = planTitle.trim();
+    _titleController.text = normalizedTitle.isEmpty
+        ? '장소 투표'
+        : '$normalizedTitle 장소 투표';
+    _titleSeeded = true;
   }
 
   Future<void> _pickDeadline(BuildContext context) async {
@@ -268,7 +289,9 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
 }
 
 class _EmptyVoteCandidateCard extends StatelessWidget {
-  const _EmptyVoteCandidateCard();
+  const _EmptyVoteCandidateCard({required this.candidatesAvailable});
+
+  final bool candidatesAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +304,9 @@ class _EmptyVoteCandidateCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              '투표에 올릴 후보를 추가해 주세요.',
+              candidatesAvailable
+                  ? '투표에 올릴 후보를 추가해 주세요.'
+                  : '투표에 올릴 장소 후보 리스트가 비어있어요.',
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),

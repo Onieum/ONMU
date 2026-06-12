@@ -262,7 +262,11 @@ class _MemoryCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                PixelAvatar(label: memory.author, size: 24),
+                PixelAvatar(
+                  label: memory.author,
+                  size: 24,
+                  profileImageUrl: memory.authorProfileImageUrl,
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
                   memory.author,

@@ -57,8 +57,8 @@ class ApiRecordRepository implements RecordRepository {
     final imageUrls = OnmuJson.stringList(json['imageUrls']);
     final snapshot = OnmuJson.asMap(json['characterSnapshot']);
     final memo = OnmuJson.readString(json, 'memo');
-    final date = DateTime.tryParse(OnmuJson.readString(json, 'date')) ??
-        DateTime.now();
+    final date =
+        DateTime.tryParse(OnmuJson.readString(json, 'date')) ?? DateTime.now();
     final isDaily = type == 'DAILY';
     final character = CharacterDraft(
       skinToneIndex: _readIndexedValue(snapshot['skin_tone'], 'skin'),
@@ -66,7 +66,11 @@ class ApiRecordRepository implements RecordRepository {
       hairColorIndex: _readIndexedValue(snapshot['hair_color'], 'hair_color'),
       eyeShapeIndex: _readIndexedValue(snapshot['eye_style'], 'eye_style'),
       eyeColorIndex: _readIndexedValue(snapshot['eye_color'], 'eye_color'),
-      topStyleIndex: _readIndexedValue(snapshot['clothes'], 'top', fallback: -1),
+      topStyleIndex: _readIndexedValue(
+        snapshot['clothes'],
+        'top',
+        fallback: -1,
+      ),
     );
 
     return OotdRecord(
@@ -81,8 +85,8 @@ class ApiRecordRepository implements RecordRepository {
       },
       weather: '',
       mood: '',
-      isPublic: OnmuJson.readString(json, 'visibility').toUpperCase() ==
-          'PUBLIC',
+      isPublic:
+          OnmuJson.readString(json, 'visibility').toUpperCase() == 'PUBLIC',
       timeline: [
         TimelineItem(
           time: _dateOnly(date),
@@ -96,7 +100,9 @@ class ApiRecordRepository implements RecordRepository {
 
   String _recordTitle(OotdRecord record) {
     final isDaily = record.brands['recordType'] == 'daily';
-    return isDaily ? 'Daily record ${_dateOnly(record.date)}' : 'OOTD ${_dateOnly(record.date)}';
+    return isDaily
+        ? 'Daily record ${_dateOnly(record.date)}'
+        : 'OOTD ${_dateOnly(record.date)}';
   }
 
   String _recordMemo(OotdRecord record) {
@@ -116,14 +122,11 @@ class ApiRecordRepository implements RecordRepository {
     return '${date.year}-$month-$day';
   }
 
-  int _readIndexedValue(
-    Object? value,
-    String prefix, {
-    int fallback = 0,
-  }) {
+  int _readIndexedValue(Object? value, String prefix, {int fallback = 0}) {
     final text = value?.toString() ?? '';
-    final match = RegExp('^${RegExp.escape(prefix)}_(-?\\d+)\$')
-        .firstMatch(text);
+    final match = RegExp(
+      '^${RegExp.escape(prefix)}_(-?\\d+)\$',
+    ).firstMatch(text);
     if (match != null) {
       return int.tryParse(match.group(1) ?? '') ?? fallback;
     }

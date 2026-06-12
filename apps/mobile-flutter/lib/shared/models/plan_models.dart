@@ -4,12 +4,14 @@ class PlanMember {
     required this.message,
     required this.badge,
     required this.selected,
+    this.profileImageUrl = '',
   });
 
   final String name;
   final String message;
   final String badge;
   final bool selected;
+  final String profileImageUrl;
 }
 
 enum PlanArrivalStatus {
@@ -44,17 +46,21 @@ enum PlanArrivalStatus {
 class PlanParticipantArrival {
   const PlanParticipantArrival({
     required this.id,
+    this.userId = '',
     required this.displayName,
     required this.participantStatus,
     required this.arrivalStatus,
     required this.isFallback,
+    this.profileImageUrl = '',
   });
 
   final String id;
+  final String userId;
   final String displayName;
   final String participantStatus;
   final PlanArrivalStatus arrivalStatus;
   final bool isFallback;
+  final String profileImageUrl;
 }
 
 class TimeCandidate {

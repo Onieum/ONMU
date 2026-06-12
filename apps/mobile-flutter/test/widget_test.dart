@@ -28,6 +28,10 @@ const _planId = 101;
 const _candidateId = 201;
 const _memoryId = 1001;
 
+String _weekdayLabel(DateTime date) {
+  return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
+}
+
 Widget _testOnmuApp() {
   appRouter.go(RoutePaths.splash);
   return onmuTestProviderScope(child: const app.OnmuMaterialApp());
@@ -90,7 +94,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('안녕하세요, 네이버 친구님'), findsOneWidget);
-    expect(find.text('진행 중인 약속'), findsOneWidget);
+    expect(find.text('오늘의 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
     expect(find.text('전체 보기'), findsWidgets);
     expect(find.text('홈'), findsWidgets);
@@ -226,7 +230,7 @@ void main() {
 
       expect(find.text('ONMU'), findsOneWidget);
       expect(find.text('상세 보기'), findsNothing);
-      expect(find.text('채팅'), findsOneWidget);
+      expect(find.text('오늘의 약속'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -260,6 +264,9 @@ void main() {
   testWidgets('upcoming plan see all opens the full upcoming list', (
     tester,
   ) async {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
@@ -272,10 +279,96 @@ void main() {
     expect(find.text('다가오는 약속'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('홍대 전시회 구경'), 320);
     expect(find.text('홍대 전시회 구경'), findsOneWidget);
+    expect(find.text('${tomorrow.month}월 ${tomorrow.day}일'), findsOneWidget);
+    expect(
+      find.text('${weekdayLabels[tomorrow.weekday - 1]}요일'),
+      findsOneWidget,
+    );
+    expect(find.text('14:00'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('성수 디저트 모임'), 320);
     expect(find.text('성수 디저트 모임'), findsOneWidget);
     expect(find.text('제주도 여행'), findsNothing);
     expect(find.text('한남 카페 투어'), findsNothing);
+  });
+
+  testWidgets('upcoming week selector shows past plans when selected', (
+    tester,
+  ) async {
+    final pastDate = DateTime.now().subtract(const Duration(days: 3));
+    final pastDayKey = ValueKey(
+      'upcoming-week-day-${pastDate.year}-${pastDate.month}-${pastDate.day}',
+    );
+
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeUpcomingPlans);
+    await tester.pumpAndSettle();
+
+    expect(find.text('한남 카페 투어'), findsNothing);
+
+    await tester.tap(find.byKey(pastDayKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('${pastDate.month}월 ${pastDate.day}일 약속'), findsOneWidget);
+    expect(find.text('한남 카페 투어'), findsOneWidget);
+  });
+
+  testWidgets('upcoming calendar shows only current month day cells', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final currentMonthFirstDay = DateTime(now.year, now.month);
+    final nextMonthFirstDay = DateTime(now.year, now.month + 1);
+    final currentMonthCellKey = ValueKey(
+      'upcoming-calendar-day-${currentMonthFirstDay.year}-${currentMonthFirstDay.month}-${currentMonthFirstDay.day}',
+    );
+    final nextMonthCellKey = ValueKey(
+      'upcoming-calendar-day-${nextMonthFirstDay.year}-${nextMonthFirstDay.month}-${nextMonthFirstDay.day}',
+    );
+    final currentMonthCell = find.byKey(currentMonthCellKey);
+
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeUpcomingCalendar);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 캘린더'), findsOneWidget);
+    expect(currentMonthCell, findsOneWidget);
+    expect(nextMonthCellKey, isNot(equals(currentMonthCellKey)));
+    expect(find.byKey(nextMonthCellKey), findsNothing);
+    expect(
+      find.descendant(
+        of: currentMonthCell,
+        matching: find.text(_weekdayLabel(currentMonthFirstDay)),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('upcoming calendar shows past plans when selected', (
+    tester,
+  ) async {
+    final pastDate = DateTime.now().subtract(const Duration(days: 5));
+    final pastDayKey = ValueKey(
+      'upcoming-calendar-day-${pastDate.year}-${pastDate.month}-${pastDate.day}',
+    );
+
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeUpcomingCalendar);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(pastDayKey));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('${pastDate.month}월 ${pastDate.day}일 약속'), findsOneWidget);
+    expect(find.text('제주도 여행'), findsWidgets);
   });
 
   testWidgets('home notification bell opens empty notification state', (
@@ -524,12 +617,16 @@ void main() {
     await tester.scrollUntilVisible(find.text('일정 타임라인'), 160);
     expect(find.text('일정 타임라인'), findsOneWidget);
     expect(find.text('다운타우너 성수'), findsOneWidget);
-
-    await tester.tap(find.text('6/8 일'));
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
     await tester.pumpAndSettle();
-
-    expect(find.text('협재 해수욕장'), findsOneWidget);
-    expect(find.text('다운타우너 성수'), findsNothing);
+    expect(find.text('방문 지도'), findsOneWidget);
+    expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
+    expect(find.text('1'), findsWidgets);
+    expect(find.text('2'), findsWidgets);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('약속 메모'), findsOneWidget);
+    expect(find.text('편한 복장으로 오기! 돗자리 챙기면 좋을 것 같아요.'), findsOneWidget);
 
     final searchButtonRect = tester.getRect(
       find.byKey(const ValueKey('plan-place-action-search')),
@@ -566,7 +663,7 @@ void main() {
     expect(find.text('제주도 여행'), findsOneWidget);
     expect(find.text('제주도 일대'), findsOneWidget);
     expect(find.text('선택한 일정'), findsOneWidget);
-    expect(find.text('추천 시간대 또는 직접 시간을 터치해서 선택'), findsOneWidget);
+    expect(find.text('추천 시간대 또는 직접 시간을 터치해서 선택'), findsNothing);
 
     expect(find.widgetWithText(TextFormField, '제주도 일대'), findsOneWidget);
     expect(find.byTooltip('지역 지우기'), findsOneWidget);
@@ -578,7 +675,10 @@ void main() {
     await tester.tap(find.text('선택한 일정'));
     await tester.pumpAndSettle();
     expect(find.text('날짜와 시간 선택'), findsOneWidget);
-    expect(find.text('추천 시간대'), findsOneWidget);
+    expect(find.text('추천 시간대'), findsWidgets);
+    expect(find.text('직접 시간 지정'), findsNothing);
+    expect(find.text('보통'), findsNothing);
+    expect(find.text('저녁'), findsNothing);
     await tester.tap(find.text('선택 완료'));
     await tester.pumpAndSettle();
 
@@ -592,6 +692,13 @@ void main() {
       find.widgetWithText(TextFormField, '제주도 여행'),
       '수정된 약속',
     );
+    await tester.dragUntilVisible(
+      find.byTooltip('참여 멤버 추가'),
+      find.byType(Scrollable).last,
+      const Offset(0, -120),
+    );
+    expect(find.byTooltip('참여 멤버 추가'), findsOneWidget);
+
     await tester.tap(find.widgetWithText(FilledButton, '수정 완료'));
     await tester.pumpAndSettle();
 
@@ -723,7 +830,7 @@ void main() {
     );
     expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsOneWidget);
 
-    await tester.tap(find.text('후보 추가'));
+    await tester.tap(find.text('장소 후보 리스트에서 추가'));
     await tester.pumpAndSettle();
 
     expect(find.text('투표 후보 추가'), findsOneWidget);
@@ -1290,6 +1397,14 @@ class _CandidatePlanRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _SingleMemberGroupRepository implements GroupRepository {
@@ -1308,6 +1423,15 @@ class _SingleMemberGroupRepository implements GroupRepository {
 
   @override
   Future<GroupSummary> createGroup(GroupCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupSummary> updateGroup({
+    required Object groupId,
+    required String name,
+    required String description,
+  }) {
     throw UnimplementedError();
   }
 

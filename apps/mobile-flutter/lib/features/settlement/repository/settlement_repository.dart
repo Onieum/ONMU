@@ -180,6 +180,7 @@ class ApiSettlementRepository implements SettlementRepository {
             (payer) => SettlementPayerShare(
               name: OnmuJson.readString(payer, 'name', '결제자'),
               amountLabel: OnmuJson.readString(payer, 'amountLabel', '0원'),
+              profileImageUrl: _profileImageUrl(payer),
             ),
           )
           .toList(growable: false),
@@ -197,6 +198,7 @@ class ApiSettlementRepository implements SettlementRepository {
                 '0원',
               ),
               included: OnmuJson.readBool(participant, 'included', true),
+              profileImageUrl: _profileImageUrl(participant),
             ),
           )
           .toList(growable: false),
@@ -211,6 +213,7 @@ class ApiSettlementRepository implements SettlementRepository {
       resultLabel: OnmuJson.readString(json, 'resultLabel', '정산 없음'),
       isMe: OnmuJson.readBool(json, 'isMe'),
       willReceive: OnmuJson.readBool(json, 'willReceive'),
+      profileImageUrl: _profileImageUrl(json),
     );
   }
 
@@ -219,6 +222,27 @@ class ApiSettlementRepository implements SettlementRepository {
       fromName: OnmuJson.readString(json, 'fromName', '보내는 사람'),
       toName: OnmuJson.readString(json, 'toName', '받는 사람'),
       amountLabel: OnmuJson.readString(json, 'amountLabel', '0원'),
+      fromProfileImageUrl: _profileImageUrl(json, 'fromProfileImageUrl'),
+      toProfileImageUrl: _profileImageUrl(json, 'toProfileImageUrl'),
+    );
+  }
+
+  String _profileImageUrl(
+    Map<String, dynamic> json, [
+    String primaryKey = 'profileImageUrl',
+  ]) {
+    return OnmuJson.readString(
+      json,
+      primaryKey,
+      OnmuJson.readString(
+        json,
+        'profileImageUrl',
+        OnmuJson.readString(
+          json,
+          'profilePhotoUrl',
+          OnmuJson.readString(json, 'avatarUrl'),
+        ),
+      ),
     );
   }
 }

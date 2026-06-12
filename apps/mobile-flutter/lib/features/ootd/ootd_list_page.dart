@@ -437,7 +437,6 @@ class _OotdListPageState extends State<OotdListPage> {
     return '${record.date.year}-${record.date.month}-${record.date.day}-$type';
   }
 
-
   Widget _buildHeader() {
     final daysInCurrentMonth = DateTime(
       _currentMonth.year,
@@ -548,7 +547,6 @@ class _OotdListPageState extends State<OotdListPage> {
     );
   }
 
-
   Widget _buildMonthlyProgressBadge({
     required int recordedDayCount,
     required double monthlyProgress,
@@ -633,7 +631,6 @@ class _OotdListPageState extends State<OotdListPage> {
     );
   }
 
-
   Widget _buildCalendarGrid() {
     final firstWeekday = _firstWeekday;
     final totalDays = _totalDaysInMonth;
@@ -667,7 +664,11 @@ class _OotdListPageState extends State<OotdListPage> {
           }
 
           final day = index - firstWeekday + 1;
-          final cellDate = DateTime(_currentMonth.year, _currentMonth.month, day);
+          final cellDate = DateTime(
+            _currentMonth.year,
+            _currentMonth.month,
+            day,
+          );
           final isSelected =
               cellDate.year == _selectedDay.year &&
               cellDate.month == _selectedDay.month &&
@@ -694,8 +695,8 @@ class _OotdListPageState extends State<OotdListPage> {
                     color: isSelected
                         ? AppColors.primaryPink
                         : record != null
-                            ? borderColor
-                            : AppColors.lineSoft.withOpacity(0.6),
+                        ? borderColor
+                        : AppColors.lineSoft.withOpacity(0.6),
                     width: isSelected ? 2.5 : 1.2,
                   ),
                   boxShadow: isSelected
@@ -743,7 +744,9 @@ class _OotdListPageState extends State<OotdListPage> {
                         child: Center(
                           child: PixelCharacterWidget(
                             character: record.character,
-                            size: availableCellWidth.clamp(26.0, 38.0).toDouble(),
+                            size: availableCellWidth
+                                .clamp(26.0, 38.0)
+                                .toDouble(),
                           ),
                         ),
                       ),
@@ -809,10 +812,6 @@ class _TimelineBottomSheetContentState
     super.dispose();
   }
 
-
-
-
-
   Widget _buildSheetDragHandle() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -828,7 +827,6 @@ class _TimelineBottomSheetContentState
       ),
     );
   }
-
 
   Widget _buildSheetHeader(bool isFullScreen) {
     return Padding(

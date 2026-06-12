@@ -26,8 +26,7 @@ class GroupPlanBoardState {
   final int voteId;
 }
 
-class GroupPlanBoardViewModel
-    extends AsyncNotifier<GroupPlanBoardState> {
+class GroupPlanBoardViewModel extends AsyncNotifier<GroupPlanBoardState> {
   GroupPlanBoardViewModel(this.scope);
 
   final GroupPlanBoardScope scope;

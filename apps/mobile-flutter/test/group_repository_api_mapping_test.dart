@@ -6,6 +6,85 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 
 void main() {
   test(
+    'createGroup sends description and selected member names to API',
+    () async {
+      final requestedBodies = <Map<String, dynamic>>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 4,
+                  'name': '초대 테스트 모임',
+                  'description': '같이 갈 친구들',
+                  'members': ['은지', '태호'],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final group = await repository.createGroup(
+        GroupCreateInput(
+          name: '초대 테스트 모임',
+          description: '같이 갈 친구들',
+          memberNames: const ['은지', '태호'],
+        ),
+      );
+
+      expect(requestedBodies.single, {
+        'name': '초대 테스트 모임',
+        'description': '같이 갈 친구들',
+        'memberNames': ['은지', '태호'],
+      });
+      expect(group.members, ['은지', '태호']);
+    },
+  );
+
+  test('updateGroup patches name and description through Spring API', () async {
+    final requestedPaths = <String>[];
+    final requestedBodies = <Map<String, dynamic>>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 4,
+                'name': '새 모임 이름',
+                'description': '새 소개',
+                'members': ['나'],
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final group = await repository.updateGroup(
+      groupId: 4,
+      name: '새 모임 이름',
+      description: '새 소개',
+    );
+
+    expect(requestedPaths.single, '/api/v1/groups/4');
+    expect(requestedBodies.single, {'name': '새 모임 이름', 'description': '새 소개'});
+    expect(group.name, '새 모임 이름');
+    expect(group.description, '새 소개');
+  });
+
+  test(
     'does not synthesize Spring API copy for missing group fields',
     () async {
       final dio = Dio();
@@ -238,6 +317,7 @@ void main() {
       title: '한강 피크닉',
       dateLabel: '5월 10일',
       startsAt: DateTime(2026, 5, 10, 13, 30),
+      endsAt: DateTime(2026, 5, 10, 15),
       placeName: '한강',
       statusLabel: 'completed',
       statusType: 'completed',
@@ -248,7 +328,52 @@ void main() {
     );
 
     expect(plan.displayDateTimeLabel, '5월 10일 13:30');
+    expect(plan.displayTimeRangeLabel, '13:30~15:00');
   });
+
+  test(
+    'fetchMembers uses Spring group members endpoint with invited state',
+    () async {
+      final requestedPaths = <String>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedPaths.add(options.path);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'name': '지우',
+                    'note': '모임장',
+                    'statusLabel': '참여 중',
+                    'invited': false,
+                  },
+                  {
+                    'name': '민수',
+                    'note': '멤버',
+                    'statusLabel': '초대 중',
+                    'invited': true,
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final members = await repository.fetchMembers(1);
+
+      expect(requestedPaths.single, '/api/v1/groups/1/members');
+      expect(members.first.name, '지우');
+      expect(members.first.invited, isFalse);
+      expect(members.last.name, '민수');
+      expect(members.last.statusLabel, '초대 중');
+      expect(members.last.invited, isTrue);
+    },
+  );
 
   test(
     'maps group memories from Spring API response with absolute media urls',

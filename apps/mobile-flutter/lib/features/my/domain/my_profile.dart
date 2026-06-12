@@ -110,6 +110,7 @@ class FriendProfile {
     required this.isFriend,
     this.isFavorite = false,
     this.memo = '',
+    this.profileImageUrl = '',
   });
 
   final String userId;
@@ -120,6 +121,7 @@ class FriendProfile {
   final bool isFriend;
   final bool isFavorite;
   final String memo;
+  final String profileImageUrl;
 
   String get memoOrCode {
     final cleanMemo = memo.trim();
@@ -143,6 +145,7 @@ class FriendProfile {
       isFriend: isFriend ?? this.isFriend,
       isFavorite: isFavorite ?? this.isFavorite,
       memo: memo ?? this.memo,
+      profileImageUrl: profileImageUrl,
     );
   }
 }

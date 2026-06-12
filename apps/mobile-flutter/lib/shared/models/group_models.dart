@@ -54,12 +54,14 @@ class GroupPlanSummary {
     required this.iconKind,
     required this.isPast,
     this.startsAt,
+    this.endsAt,
   });
 
   final int id;
   final String title;
   final String dateLabel;
   final DateTime? startsAt;
+  final DateTime? endsAt;
   final String placeName;
   final String statusLabel;
   final String statusType;
@@ -81,9 +83,21 @@ class GroupPlanSummary {
       return dateLabel;
     }
 
-    final hour = startsAtLocal.hour.toString().padLeft(2, '0');
-    final minute = startsAtLocal.minute.toString().padLeft(2, '0');
-    return '${startsAtLocal.month}월 ${startsAtLocal.day}일 $hour:$minute';
+    return '${startsAtLocal.month}월 ${startsAtLocal.day}일 ${_formatTime(startsAtLocal)}';
+  }
+
+  String get displayTimeRangeLabel {
+    final startsAtLocal = startsAt?.toLocal();
+    if (startsAtLocal == null) {
+      return '시간 미정';
+    }
+
+    final endsAtLocal = endsAt?.toLocal();
+    if (endsAtLocal == null) {
+      return _formatTime(startsAtLocal);
+    }
+
+    return '${_formatTime(startsAtLocal)}~${_formatTime(endsAtLocal)}';
   }
 
   bool isUpcomingFrom(DateTime now) {
@@ -91,6 +105,26 @@ class GroupPlanSummary {
     return !isPast &&
         progressStatus.isUpcomingCandidate &&
         (startsAtLocal == null || !startsAtLocal.isBefore(now.toLocal()));
+  }
+
+  bool isRemainingTodayAt(DateTime now) {
+    final startsAtLocal = startsAt?.toLocal();
+    if (startsAtLocal == null || !progressStatus.isUpcomingCandidate) {
+      return false;
+    }
+
+    final localNow = now.toLocal();
+    final isToday =
+        startsAtLocal.year == localNow.year &&
+        startsAtLocal.month == localNow.month &&
+        startsAtLocal.day == localNow.day;
+    if (!isToday) {
+      return false;
+    }
+
+    final endsAtLocal =
+        endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
+    return localNow.isBefore(endsAtLocal);
   }
 
   static int compareUpcoming(GroupPlanSummary left, GroupPlanSummary right) {
@@ -107,6 +141,12 @@ class GroupPlanSummary {
     }
     final compared = leftStartsAt.compareTo(rightStartsAt);
     return compared == 0 ? left.id.compareTo(right.id) : compared;
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }
 
@@ -185,6 +225,7 @@ class GroupMessage {
     this.id = '',
     this.cursor = '',
     this.sendStatus = GroupMessageSendStatus.sent,
+    this.senderProfileImageUrl = '',
   });
 
   final String id;
@@ -194,6 +235,7 @@ class GroupMessage {
   final String timeLabel;
   final bool isMine;
   final GroupMessageSendStatus sendStatus;
+  final String senderProfileImageUrl;
 
   bool get canRetry => isMine && sendStatus.isFailed;
 
@@ -205,6 +247,7 @@ class GroupMessage {
     String? timeLabel,
     bool? isMine,
     GroupMessageSendStatus? sendStatus,
+    String? senderProfileImageUrl,
   }) {
     return GroupMessage(
       id: id ?? this.id,
@@ -214,6 +257,8 @@ class GroupMessage {
       timeLabel: timeLabel ?? this.timeLabel,
       isMine: isMine ?? this.isMine,
       sendStatus: sendStatus ?? this.sendStatus,
+      senderProfileImageUrl:
+          senderProfileImageUrl ?? this.senderProfileImageUrl,
     );
   }
 }
@@ -242,6 +287,7 @@ class GroupMemoryRecord {
     required this.tags,
     this.apiId = '',
     this.imageUrls = const [],
+    this.authorProfileImageUrl = '',
   });
 
   final int id;
@@ -252,6 +298,7 @@ class GroupMemoryRecord {
   final String dateLabel;
   final List<String> tags;
   final List<String> imageUrls;
+  final String authorProfileImageUrl;
 
   String get routeId => apiId.isEmpty ? id.toString() : apiId;
 
@@ -278,12 +325,14 @@ class GroupMemberProfile {
     required this.note,
     required this.statusLabel,
     this.invited = false,
+    this.profileImageUrl = '',
   });
 
   final String name;
   final String note;
   final String statusLabel;
   final bool invited;
+  final String profileImageUrl;
 }
 
 class GroupCreateInput {

@@ -362,7 +362,11 @@ class _TransferRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        PixelAvatar(label: transfer.fromName, size: 30),
+        PixelAvatar(
+          label: transfer.fromName,
+          size: 30,
+          profileImageUrl: transfer.fromProfileImageUrl,
+        ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
@@ -468,7 +472,11 @@ class _MemberResultCompactCard extends StatelessWidget {
           for (final result in results.take(4)) ...[
             Row(
               children: [
-                PixelAvatar(label: result.name, size: 30),
+                PixelAvatar(
+                  label: result.name,
+                  size: 30,
+                  profileImageUrl: result.profileImageUrl,
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(

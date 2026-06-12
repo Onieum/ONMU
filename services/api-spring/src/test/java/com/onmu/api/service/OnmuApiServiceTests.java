@@ -174,7 +174,7 @@ class OnmuApiServiceTests {
     assertThatThrownBy(() -> service.updatePlan(
       "1",
       "101",
-      new UpdatePlanRequest(" ", null, null)
+      new UpdatePlanRequest(" ", null, null, null, null, null)
     ))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -190,14 +190,17 @@ class OnmuApiServiceTests {
     var updated = service.updatePlan(
       "1",
       "101",
-      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "draft")
+      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "2026-06-13T03:00:00Z", "draft", "성수동", "업데이트 메모")
     );
 
     assertThat(updated)
       .containsEntry("id", "101")
       .containsEntry("title", "업데이트 약속")
       .containsEntry("startsAt", "2026-06-13T01:00:00Z")
-      .containsEntry("status", "draft");
+      .containsEntry("endsAt", "2026-06-13T03:00:00Z")
+      .containsEntry("status", "draft")
+      .containsEntry("placeName", "성수동")
+      .containsEntry("memo", "업데이트 메모");
     verify(outboxService).record(
       eq("plan.updated"),
       eq("plan"),
@@ -535,6 +538,7 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(planParticipantRepository.findByPlanAndUser(plan, user)).thenReturn(Optional.empty());
     when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -558,6 +562,25 @@ class OnmuApiServiceTests {
         && "joined".equals(payload.get("status"))
         && "accepted".equals(payload.get("response")))
     );
+  }
+
+  @Test
+  void upsertingMyParticipantRejectsNonGroupMember() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(false);
+
+    assertThatThrownBy(() -> service.upsertMyPlanParticipant(
+      "1",
+      "101",
+      new UpsertPlanParticipantRequest("joined", "accepted")
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(exception.getReason()).isEqualTo("not_group_member");
+      });
   }
 
   @Test

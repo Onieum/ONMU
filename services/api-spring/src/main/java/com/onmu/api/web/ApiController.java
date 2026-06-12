@@ -87,7 +87,8 @@ public class ApiController {
 
   @PostMapping("/groups")
   public ResponseEntity<Map<String, Object>> createGroup(@Valid @RequestBody CreateGroupRequest request) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(groupApiService.createGroup(request.name()));
+    return ResponseEntity.status(HttpStatus.CREATED)
+      .body(groupApiService.createGroup(request.name(), request.description()));
   }
 
   @GetMapping("/groups/{groupId}")

@@ -16,7 +16,8 @@ class MemoryDetailPage extends ConsumerWidget {
   const MemoryDetailPage({super.key, required this.memoryId});
 
   OotdRecord? _findRecord(WidgetRef ref, String key) {
-    final records = ref.watch(ootdRecordsProvider).value ?? const <OotdRecord>[];
+    final records =
+        ref.watch(ootdRecordsProvider).value ?? const <OotdRecord>[];
 
     try {
       return records.firstWhere((r) {

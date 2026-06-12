@@ -82,6 +82,31 @@ class InMemoryOnmuStore {
     return group;
   }
 
+  GroupSummary updateGroup({
+    required Object groupId,
+    required String name,
+    required String description,
+  }) {
+    final parsedId = _parseId(groupId);
+    final index = _groups.indexWhere((group) => group.id == parsedId);
+    if (index < 0) {
+      return fetchGroup(groupId);
+    }
+
+    final previous = _groups[index];
+    final updated = GroupSummary(
+      id: previous.id,
+      name: name.trim(),
+      description: description.trim(),
+      members: previous.members,
+      lastMessage: previous.lastMessage,
+      unreadCount: previous.unreadCount,
+      pinnedPlanTitle: previous.pinnedPlanTitle,
+    );
+    _groups[index] = updated;
+    return updated;
+  }
+
   GroupPinnedPlan? fetchPinnedPlan(Object groupId) {
     return _pinnedPlansByGroupId[_parseId(groupId)];
   }
