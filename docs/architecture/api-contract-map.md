@@ -136,6 +136,21 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 
 `GET /settlement-draft`는 저장되지 않은 synthetic draft를 만들 수 있으며 이때 `persisted=false`, `targetPatchAvailable=false`를 반환한다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item이 생긴 뒤에만 가능하다.
 
+## Chat
+
+채팅의 제품/운영 목표는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md)를 따른다. 현재 `GET/POST /chat/messages` 계약은 MVP REST slice이며, production 목표는 카카오톡 수준의 기본 메시징 UX 위에 ONMU의 약속, 투표, 장소 후보, 정산, 기록 action card를 얹는 것이다.
+
+| 화면 | API |
+| --- | --- |
+| 채팅 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` |
+| 채팅 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` |
+
+Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity stream으로 노출한다. `POST /chat/messages`는 현재 텍스트 메시지 작성을 우선 지원하고, 응답은 기존 Flutter `GroupMessage` UI 모델에 매핑 가능한 메시지 객체를 반환한다.
+
+`GET` 응답은 `{ "messages": [...] }` 형태이며, 각 메시지는 `id`, `senderUserId`, `senderName`, `message`, `messageType`, `cardType`, `createdAt`, `timeLabel`, `isMine`을 가능한 범위에서 포함한다. `POST` 요청 body는 `{ "message": "..." }`이고, 빈 메시지는 `400 blank_chat_message`로 거부한다. 모임 멤버가 아닌 사용자는 `403 group_member_required`로 거부한다.
+
+WebSocket/SSE 실시간 수신, FCM/APNs push, 사진/파일/위치 첨부, 읽음/안읽음 projection은 이 REST 계약의 현재 범위가 아니다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
+
 ## Activity / Notification
 
 | 이벤트 | 발생 조건 |

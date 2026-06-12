@@ -122,6 +122,8 @@ Core API:
 - `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
+- `GET /api/v1/groups/{groupId}/chat/messages`
+- `POST /api/v1/groups/{groupId}/chat/messages`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
@@ -171,7 +173,7 @@ flutter run `
 
 Cloudflare Tunnel을 통할 때는 base URL을 `https://dev-api.onmu.cloud`로 바꿉니다. Android emulator에서 Windows host Spring API를 직접 볼 때는 환경에 따라 `10.0.2.2:8080` 같은 emulator host alias가 필요할 수 있습니다.
 
-현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Settlement draft/preview/create/result입니다. members/messages/memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
+현재 API repository 전환 대상은 Home summary, Group list/detail, Plan list/detail, Vote create/detail, Place candidates, Chat messages, Settlement draft/preview/create/result입니다. memories처럼 아직 Spring endpoint가 없는 화면 보조 데이터는 API mode에서도 중립 placeholder를 반환합니다.
 
 ## 아직 Dev/Mock인 부분
 
@@ -216,6 +218,8 @@ curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidate
 curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201
 curl.exe -X PUT http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201/heart -H "Content-Type: application/json" --data-binary '{ "hearted": true }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/schedule-places -H "Content-Type: application/json" --data-binary '{ "candidateId": "201", "name": "온무식당" }'
+curl http://localhost:8080/api/v1/groups/1/chat/messages
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/chat/messages -H "Content-Type: application/json" --data-binary '{ "message": "채팅 API smoke" }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
 curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/103/settlement-draft/items/401/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'

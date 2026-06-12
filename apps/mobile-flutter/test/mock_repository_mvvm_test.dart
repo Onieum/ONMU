@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/group/view_model/group_chat_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
@@ -88,9 +89,61 @@ void main() {
     expect(state.candidates.first.name, '온무식당');
     expect(state.votersFor(201), contains('민서'));
   });
+
+  test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
+    final repository = _FakeGroupRepository(
+      sentMessage: const GroupMessage(
+        sender: '나',
+        message: '서버 응답 메시지',
+        timeLabel: '방금',
+        isMine: true,
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    final initial = await container.read(provider.future);
+    final sent = await container
+        .read(provider.notifier)
+        .sendMessage('  전송 요청  ');
+    final updated = container.read(provider).requireValue;
+
+    expect(initial.messages, isEmpty);
+    expect(sent, isTrue);
+    expect(repository.sentMessages, ['전송 요청']);
+    expect(updated.messages.single.message, '서버 응답 메시지');
+    expect(updated.sendErrorMessage, isNull);
+  });
+
+  test('채팅 ViewModel은 메시지 작성 실패 시 기존 상태를 보존하고 오류를 남긴다', () async {
+    final repository = _FakeGroupRepository(throwOnSend: true);
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    final initial = await container.read(provider.future);
+    final sent = await container.read(provider.notifier).sendMessage('실패 요청');
+    final updated = container.read(provider).requireValue;
+
+    expect(initial.messages, isEmpty);
+    expect(sent, isFalse);
+    expect(updated.messages, isEmpty);
+    expect(updated.sendErrorMessage, '메시지를 보내지 못했어요.');
+  });
 }
 
 class _FakeGroupRepository implements GroupRepository {
+  _FakeGroupRepository({this.sentMessage, this.throwOnSend = false});
+
+  final GroupMessage? sentMessage;
+  final bool throwOnSend;
+  final sentMessages = <String>[];
+
   static final _group = GroupSummary(
     id: 9001,
     name: 'Spring API 전환 모임',
@@ -132,6 +185,24 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
 
   @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) async {
+    if (throwOnSend) {
+      throw StateError('send failed');
+    }
+    sentMessages.add(message);
+    return sentMessage ??
+        GroupMessage(
+          sender: '나',
+          message: message,
+          timeLabel: '방금',
+          isMine: true,
+        );
+  }
+
+  @override
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
 
   @override
@@ -154,9 +225,12 @@ class _FakeGroupRepository implements GroupRepository {
   Future<VoteCard> fetchVoteCard({
     required Object groupId,
     required Object voteId,
-  }) {
-    throw UnimplementedError();
-  }
+  }) async => const VoteCard(
+    title: '테스트 투표',
+    summary: '테스트 후보',
+    statusLabel: '진행 중',
+    actionLabel: '투표 보기',
+  );
 
   @override
   Future<Map<int, List<String>>> fetchVoteVoters({

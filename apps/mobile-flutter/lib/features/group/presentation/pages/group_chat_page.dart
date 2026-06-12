@@ -35,7 +35,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     super.dispose();
   }
 
-  void _sendMessage(WidgetRef ref) {
+  Future<void> _sendMessage(WidgetRef ref) async {
     final text = _messageController.text.trim();
 
     if (text.isEmpty) {
@@ -45,9 +45,19 @@ class _GroupChatPageState extends State<GroupChatPage> {
       return;
     }
 
-    ref
+    final sent = await ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendMessage(text);
+    if (!mounted) {
+      return;
+    }
+    if (!sent) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메시지를 보내지 못했어요.')));
+      return;
+    }
+
     _messageController.clear();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -106,7 +116,7 @@ class _ThreadContent extends StatelessWidget {
   final GroupChatState state;
   final TextEditingController messageController;
   final ScrollController scrollController;
-  final VoidCallback onSend;
+  final Future<void> Function() onSend;
 
   @override
   Widget build(BuildContext context) {
@@ -434,7 +444,7 @@ class _MessageInput extends StatelessWidget {
   const _MessageInput({required this.controller, required this.onSend});
 
   final TextEditingController controller;
-  final VoidCallback onSend;
+  final Future<void> Function() onSend;
 
   @override
   Widget build(BuildContext context) {

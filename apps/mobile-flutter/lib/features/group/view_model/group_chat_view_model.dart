@@ -19,6 +19,7 @@ class GroupChatState {
     required this.planId,
     required this.settlement,
     this.pinnedPlan,
+    this.sendErrorMessage,
   });
 
   final GroupSummary group;
@@ -28,8 +29,13 @@ class GroupChatState {
   final int voteId;
   final int planId;
   final SettlementSummary settlement;
+  final String? sendErrorMessage;
 
-  GroupChatState copyWith({List<GroupMessage>? messages}) {
+  GroupChatState copyWith({
+    List<GroupMessage>? messages,
+    String? sendErrorMessage,
+    bool clearSendErrorMessage = false,
+  }) {
     return GroupChatState(
       group: group,
       pinnedPlan: pinnedPlan,
@@ -38,6 +44,9 @@ class GroupChatState {
       voteId: voteId,
       planId: planId,
       settlement: settlement,
+      sendErrorMessage: clearSendErrorMessage
+          ? null
+          : sendErrorMessage ?? this.sendErrorMessage,
     );
   }
 }
@@ -75,24 +84,31 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     );
   }
 
-  void sendMessage(String text) {
+  Future<bool> sendMessage(String text) async {
     final value = state.asData?.value;
     if (value == null) {
-      return;
+      return false;
     }
 
-    state = AsyncData(
-      value.copyWith(
-        messages: [
-          ...value.messages,
-          GroupMessage(
-            sender: '나',
-            message: text,
-            timeLabel: '방금',
-            isMine: true,
-          ),
-        ],
-      ),
-    );
+    final message = text.trim();
+    if (message.isEmpty) {
+      return false;
+    }
+
+    try {
+      final sent = await ref
+          .read(groupRepositoryProvider)
+          .sendMessage(groupId: groupId, message: message);
+      state = AsyncData(
+        value.copyWith(
+          messages: [...value.messages, sent],
+          clearSendErrorMessage: true,
+        ),
+      );
+      return true;
+    } catch (_) {
+      state = AsyncData(value.copyWith(sendErrorMessage: '메시지를 보내지 못했어요.'));
+      return false;
+    }
   }
 }

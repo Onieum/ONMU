@@ -29,6 +29,11 @@ abstract interface class GroupRepository {
 
   Future<List<GroupMessage>> fetchMessages(Object groupId);
 
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  });
+
   Future<List<VoteSummary>> fetchVotes(Object groupId);
 
   Future<VoteSummary> createVote(VoteCreateInput input);
@@ -87,6 +92,14 @@ class MockGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
     return _store.fetchMessages(groupId);
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) async {
+    return _store.sendMessage(groupId: groupId, message: message);
   }
 
   @override
@@ -199,14 +212,24 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
-    return const [
-      GroupMessage(
-        sender: 'ONMU',
-        message: 'Spring Main API 연결을 확인하는 개발 채팅 카드입니다.',
-        timeLabel: '방금',
-        isMine: false,
-      ),
-    ];
+    final response = await _client.getObject(
+      '/api/v1/groups/$groupId/chat/messages',
+    );
+    return OnmuJson.asMapList(
+      response['messages'],
+    ).map(_groupMessage).toList(growable: false);
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+  }) async {
+    final response = await _client.postObject(
+      '/api/v1/groups/$groupId/chat/messages',
+      body: {'message': message},
+    );
+    return _groupMessage(response);
   }
 
   @override
@@ -250,7 +273,9 @@ class ApiGroupRepository implements GroupRepository {
     required Object groupId,
     required Object voteId,
   }) async {
-    final vote = await _client.getObject('/api/v1/groups/$groupId/votes/$voteId');
+    final vote = await _client.getObject(
+      '/api/v1/groups/$groupId/votes/$voteId',
+    );
     final options = _optionLabels(vote);
     return VoteCard(
       title: OnmuJson.readString(vote, 'title', '투표'),
@@ -287,13 +312,49 @@ class ApiGroupRepository implements GroupRepository {
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       placeName: OnmuJson.readString(json, 'placeName', '장소 미정'),
-      statusLabel: OnmuJson.readString(json, 'statusLabel', OnmuJson.readString(json, 'status', '예정')),
+      statusLabel: OnmuJson.readString(
+        json,
+        'statusLabel',
+        OnmuJson.readString(json, 'status', '예정'),
+      ),
       statusType: OnmuJson.readString(json, 'status', '예정'),
       memberCount: OnmuJson.readInt(json, 'memberCount', 1),
       extraMemberCount: OnmuJson.readInt(json, 'extraMemberCount'),
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
     );
+  }
+
+  GroupMessage _groupMessage(Map<String, dynamic> json) {
+    return GroupMessage(
+      sender: OnmuJson.readString(
+        json,
+        'senderName',
+        OnmuJson.readString(json, 'sender', 'ONMU'),
+      ),
+      message: OnmuJson.readString(
+        json,
+        'message',
+        OnmuJson.readString(json, 'content', '새 활동이 있어요.'),
+      ),
+      timeLabel: OnmuJson.readString(
+        json,
+        'timeLabel',
+        _messageTimeLabel(OnmuJson.readString(json, 'createdAt')),
+      ),
+      isMine: OnmuJson.readBool(json, 'isMine'),
+    );
+  }
+
+  String _messageTimeLabel(String value) {
+    if (value.isEmpty) {
+      return '';
+    }
+    final match = RegExp(r'T(\d{2}):(\d{2})').firstMatch(value);
+    if (match == null) {
+      return '';
+    }
+    return '${match.group(1)}:${match.group(2)}';
   }
 
   VoteSummary _voteSummary(Map<String, dynamic> json) {
@@ -311,11 +372,8 @@ class ApiGroupRepository implements GroupRepository {
       participants: const ['ONMU Dev User'],
       options: options
           .map(
-            (label) => VoteOptionSummary(
-              label: label,
-              countLabel: '0표',
-              progress: 0,
-            ),
+            (label) =>
+                VoteOptionSummary(label: label, countLabel: '0표', progress: 0),
           )
           .toList(growable: false),
       closed: closed,
@@ -330,7 +388,9 @@ class ApiGroupRepository implements GroupRepository {
       return rawOptions
           .map((option) {
             if (option is Map) {
-              return option['label']?.toString() ?? option['name']?.toString() ?? '';
+              return option['label']?.toString() ??
+                  option['name']?.toString() ??
+                  '';
             }
             return option.toString();
           })

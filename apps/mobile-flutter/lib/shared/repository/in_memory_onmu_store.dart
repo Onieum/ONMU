@@ -119,6 +119,21 @@ class InMemoryOnmuStore {
     return List.unmodifiable(_messagesByGroupId[_parseId(groupId)] ?? []);
   }
 
+  GroupMessage sendMessage({required Object groupId, required String message}) {
+    final groupMessages = _messagesByGroupId.putIfAbsent(
+      _parseId(groupId),
+      () => [],
+    );
+    final created = GroupMessage(
+      sender: '나',
+      message: message.trim(),
+      timeLabel: '방금',
+      isMine: true,
+    );
+    groupMessages.add(created);
+    return created;
+  }
+
   Plan fetchPlan({required Object groupId, required Object planId}) {
     final parsedPlanId = _parseId(planId);
     return _plansById[parsedPlanId] ?? _plansById.values.first;

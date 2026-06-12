@@ -4,7 +4,7 @@
 
 ONMU는 처음부터 실제 서비스 릴리스를 전제로 설계합니다. 구현은 애자일하게 작게 나누어 진행하지만, 목표 아키텍처는 운영 가능한 제품 수준을 기준으로 둡니다. Flutter 앱, API, 실시간 게이트웨이, 워커, 관리형 데이터 서비스, AKS, 관측성, CI/CD를 초기 설계에 포함합니다.
 
-발표용 다이어그램과 기술 스택 기준은 [현재 아키텍처 다이어그램과 기술 스택 결정안](./current-architecture-diagram.md)을 기준으로 함께 관리합니다. Flutter 구조는 [Flutter 프론트 아키텍처](./frontend-architecture.md), API 계약은 [API Contract Map](./api-contract-map.md), 백엔드 확정안은 [백엔드 결정 원본과 기술스택](./backend-stack-options.md)을 함께 봅니다.
+발표용 다이어그램과 기술 스택 기준은 [현재 아키텍처 다이어그램과 기술 스택 결정안](./current-architecture-diagram.md)을 기준으로 함께 관리합니다. Flutter 구조는 [Flutter 프론트 아키텍처](./frontend-architecture.md), API 계약은 [API Contract Map](./api-contract-map.md), 채팅/ChatActivity 목표 구조는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md), 백엔드 확정안은 [백엔드 결정 원본과 기술스택](./backend-stack-options.md)을 함께 봅니다.
 
 ## 제품 표면
 
