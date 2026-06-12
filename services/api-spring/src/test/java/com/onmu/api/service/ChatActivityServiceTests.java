@@ -271,10 +271,17 @@ class ChatActivityServiceTests {
 
   @Test
   void postMessageAllowsBlankTextWhenImageAttachmentExists() {
+    UserEntity recipientUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000008"), "수신자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(
+      new GroupMemberEntity(group, currentUser, "member", "active"),
+      new GroupMemberEntity(group, recipientUser, "member", "active")
+    ));
     when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationRepository.save(any(NotificationEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
 
     Map<String, Object> response = service.createMessage(
@@ -309,8 +316,22 @@ class ChatActivityServiceTests {
     ArgumentCaptor<ChatActivityEventEntity> eventCaptor = ArgumentCaptor.forClass(ChatActivityEventEntity.class);
     verify(chatActivityEventRepository).save(eventCaptor.capture());
     assertThat(eventCaptor.getValue().getPayload()).contains("\"attachments\"");
-    verify(outboxService).record(eq("chat.message"), eq("chat_activity_event"), eq(eventCaptor.getValue().getId()), any());
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    ArgumentCaptor<Map<String, Object>> outboxPayloadCaptor = ArgumentCaptor.forClass((Class) Map.class);
+    verify(outboxService).record(
+      eq("chat.message"),
+      eq("chat_activity_event"),
+      eq(eventCaptor.getValue().getId()),
+      outboxPayloadCaptor.capture()
+    );
+    assertThat(outboxPayloadCaptor.getValue()).containsEntry("attachmentCount", 1);
     verify(chatRealtimePublisher).publishMessage(eq("1"), any());
+
+    ArgumentCaptor<NotificationEntity> notificationCaptor = ArgumentCaptor.forClass(NotificationEntity.class);
+    verify(notificationRepository).save(notificationCaptor.capture());
+    assertThat(notificationCaptor.getValue().getUser()).isEqualTo(recipientUser);
+    assertThat(notificationCaptor.getValue().getBody()).isEqualTo("사진을 보냈어요.");
+    assertThat(notificationCaptor.getValue().getNotificationType()).isEqualTo("chat_message");
   }
 
   @Test

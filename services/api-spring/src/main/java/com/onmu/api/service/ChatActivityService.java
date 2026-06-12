@@ -144,7 +144,7 @@ public class ChatActivityService {
       toJson(payload),
       Instant.now()
     ));
-    createMessageNotifications(group, actorUser, event, message.trim());
+    createMessageNotifications(group, actorUser, event, message, attachments.size());
     Map<String, Object> response = toMessage(event, currentUserId);
     outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
       "groupId", group.getPublicId(),
@@ -159,7 +159,8 @@ public class ChatActivityService {
     GroupEntity group,
     UserEntity actorUser,
     ChatActivityEventEntity event,
-    String message
+    String message,
+    int attachmentCount
   ) {
     Map<UUID, UserEntity> recipients = new LinkedHashMap<>();
     for (GroupMemberEntity member : groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)) {
@@ -181,7 +182,7 @@ public class ChatActivityService {
 
     Instant createdAt = Instant.now();
     String senderName = displayName(actorUser);
-    String body = messagePreview(message);
+    String body = messagePreview(message, attachmentCount);
     String payload = toJson(Map.of(
       "groupId", group.getPublicId(),
       "messageId", event.getId().toString(),
@@ -208,7 +209,10 @@ public class ChatActivityService {
     return member.getLeftAt() == null && ("active".equals(member.getStatus()) || "joined".equals(member.getStatus()));
   }
 
-  private String messagePreview(String message) {
+  private String messagePreview(String message, int attachmentCount) {
+    if (message == null || message.isBlank()) {
+      return attachmentCount > 0 ? "사진을 보냈어요." : "메시지를 확인해 주세요.";
+    }
     String normalized = message.replaceAll("\\R+", " ").replaceAll("[\\t ]+", " ").trim();
     if (normalized.length() <= 80) {
       return normalized;
