@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
@@ -46,6 +49,8 @@ abstract interface class GroupRepository {
     required Object groupId,
     String? lastReadMessageId,
   });
+
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor});
 
   Future<List<VoteSummary>> fetchVotes(Object groupId);
 
@@ -197,6 +202,25 @@ class ApiGroupRepository implements GroupRepository {
       body: body,
     );
     return OnmuJson.readInt(response, 'unreadCount');
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(
+    Object groupId, {
+    String? afterCursor,
+  }) async* {
+    final queryParameters = <String, String>{};
+    if (afterCursor != null && afterCursor.trim().isNotEmpty) {
+      queryParameters['afterCursor'] = afterCursor.trim();
+    }
+    final path = Uri(
+      path: '/api/v1/groups/$groupId/chat/events',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    ).toString();
+    final lines = await _client.getLineStream(path);
+    await for (final json in const GroupChatSseDecoder().decode(lines)) {
+      yield _groupMessage(json);
+    }
   }
 
   @override
@@ -506,5 +530,46 @@ class ApiGroupRepository implements GroupRepository {
           .toList(growable: false);
     }
     return const [];
+  }
+}
+
+class GroupChatSseDecoder {
+  const GroupChatSseDecoder();
+
+  Stream<Map<String, dynamic>> decode(Stream<String> lines) async* {
+    final dataLines = <String>[];
+    await for (final line in lines) {
+      if (line.isEmpty) {
+        final decoded = _decodeData(dataLines);
+        dataLines.clear();
+        if (decoded != null) {
+          yield decoded;
+        }
+        continue;
+      }
+      if (line.startsWith(':')) {
+        continue;
+      }
+      if (line.startsWith('data:')) {
+        dataLines.add(line.substring(5).trimLeft());
+      }
+    }
+
+    final decoded = _decodeData(dataLines);
+    if (decoded != null) {
+      yield decoded;
+    }
+  }
+
+  Map<String, dynamic>? _decodeData(List<String> dataLines) {
+    if (dataLines.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(dataLines.join('\n'));
+      return OnmuJson.asMap(decoded);
+    } catch (_) {
+      return null;
+    }
   }
 }

@@ -264,6 +264,11 @@ class _PlanDetailGroupRepository implements GroupRepository {
   }
 
   @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) {
     throw UnimplementedError();
   }

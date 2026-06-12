@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
@@ -417,6 +419,157 @@ void main() {
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
     expect(updated.sendErrorMessage, isNull);
   });
+
+  test('채팅 ViewModel은 realtime 메시지를 추가하고 중복 수신은 건너뛴다', () async {
+    final realtime = StreamController<GroupMessage>();
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-1',
+          cursor: '2026-06-09T05:00:00Z',
+          sender: '민서',
+          message: '이미 본 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+      realtimeMessages: realtime.stream,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await realtime.close();
+      container.dispose();
+    });
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    realtime.add(
+      const GroupMessage(
+        id: 'message-1',
+        cursor: '2026-06-09T05:00:00Z',
+        sender: '민서',
+        message: '이미 본 메시지',
+        timeLabel: '14:00',
+        isMine: false,
+      ),
+    );
+    realtime.add(
+      const GroupMessage(
+        id: 'message-2',
+        cursor: '2026-06-09T05:01:00Z',
+        sender: '지우',
+        message: '새로 온 메시지',
+        timeLabel: '14:01',
+        isMine: false,
+      ),
+    );
+    await pumpEventQueue();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.map((message) => message.id), [
+      'message-1',
+      'message-2',
+    ]);
+    expect(repository.markedReadMessages, contains('message-2'));
+  });
+
+  test('채팅 ViewModel은 realtime stream 오류가 나도 기존 메시지를 유지한다', () async {
+    final realtime = StreamController<GroupMessage>();
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-1',
+          sender: '민서',
+          message: '유지할 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+      realtimeMessages: realtime.stream,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await realtime.close();
+      container.dispose();
+    });
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    realtime.addError(StateError('stream failed'));
+    await pumpEventQueue();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.single.message, '유지할 메시지');
+    expect(updated.sendErrorMessage, isNull);
+  });
+
+  test('채팅 ViewModel은 timestamp cursor가 없으면 afterCursor를 보내지 않는다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-id-only',
+          sender: '민서',
+          message: 'cursor 없는 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+
+    expect(repository.watchedAfterCursors.single, isNull);
+  });
+
+  test('채팅 ViewModel dispose는 realtime subscription을 정리한다', () async {
+    var canceled = false;
+    final realtime = StreamController<GroupMessage>(
+      onCancel: () {
+        canceled = true;
+      },
+    );
+    final repository = _FakeGroupRepository(realtimeMessages: realtime.stream);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    container.dispose();
+    await pumpEventQueue();
+
+    expect(canceled, isTrue);
+    await realtime.close();
+  });
 }
 
 class _FakeGroupRepository implements GroupRepository {
@@ -426,15 +579,20 @@ class _FakeGroupRepository implements GroupRepository {
     this.sendFailuresBeforeSuccess = 0,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
-  }) : _remainingSendFailures = sendFailuresBeforeSuccess;
+    Stream<GroupMessage>? realtimeMessages,
+  }) : realtimeMessages =
+           realtimeMessages ?? Stream<GroupMessage>.multi((_) {}),
+       _remainingSendFailures = sendFailuresBeforeSuccess;
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
   final int sendFailuresBeforeSuccess;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
+  final Stream<GroupMessage> realtimeMessages;
   final sentMessages = <String>[];
   final markedReadMessages = <String?>[];
+  final watchedAfterCursors = <String?>[];
   int _remainingSendFailures;
 
   static final _group = GroupSummary(
@@ -528,6 +686,12 @@ class _FakeGroupRepository implements GroupRepository {
   }) async {
     markedReadMessages.add(lastReadMessageId);
     return 0;
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    watchedAfterCursors.add(afterCursor);
+    return realtimeMessages;
   }
 
   @override
@@ -637,6 +801,11 @@ class _EmptyGroupRepository implements GroupRepository {
     String? lastReadMessageId,
   }) {
     throw UnimplementedError();
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
   }
 
   @override

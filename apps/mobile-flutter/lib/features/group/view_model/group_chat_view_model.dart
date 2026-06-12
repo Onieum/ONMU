@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
@@ -73,9 +75,13 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   GroupChatViewModel(this.groupId);
 
   final String groupId;
+  StreamSubscription<GroupMessage>? _realtimeSubscription;
+  Timer? _reconnectTimer;
+  bool _realtimeDisposed = false;
 
   @override
   Future<GroupChatState> build() async {
+    ref.onDispose(_disposeRealtime);
     final groupRepository = ref.watch(groupRepositoryProvider);
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
@@ -87,7 +93,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     final messagePage = await groupRepository.fetchMessagePage(groupId);
     await _markNewestMessageRead(groupRepository, messagePage.messages);
 
-    return GroupChatState(
+    final chatState = GroupChatState(
       group: await groupRepository.fetchGroup(groupId),
       pinnedPlan: pinnedPlan,
       messages: messagePage.messages,
@@ -105,6 +111,11 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         planId: planId,
       ),
     );
+    _startRealtimeSubscription(
+      groupRepository,
+      afterCursor: _latestCursor(chatState.messages),
+    );
+    return chatState;
   }
 
   Future<bool> sendMessage(String text) async {
@@ -270,6 +281,51 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  void _startRealtimeSubscription(
+    GroupRepository repository, {
+    String? afterCursor,
+  }) {
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = repository
+        .watchMessages(groupId, afterCursor: afterCursor)
+        .listen(
+          _handleRealtimeMessage,
+          onError: (_) => _scheduleRealtimeReconnect(),
+          onDone: _scheduleRealtimeReconnect,
+        );
+  }
+
+  void _handleRealtimeMessage(GroupMessage message) {
+    final value = state.asData?.value;
+    if (value == null) {
+      return;
+    }
+    final messages = _appendRealtimeMessage(value.messages, message);
+    state = AsyncData(value.copyWith(messages: messages));
+    _markSentMessageRead(message);
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (_realtimeDisposed || (_reconnectTimer?.isActive ?? false)) {
+      return;
+    }
+    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+      if (_realtimeDisposed) {
+        return;
+      }
+      _startRealtimeSubscription(
+        ref.read(groupRepositoryProvider),
+        afterCursor: _latestCursor(state.asData?.value.messages ?? const []),
+      );
+    });
+  }
+
+  void _disposeRealtime() {
+    _realtimeDisposed = true;
+    _reconnectTimer?.cancel();
+    _realtimeSubscription?.cancel();
+  }
+
   Future<void> _markNewestMessageRead(
     GroupRepository repository,
     List<GroupMessage> messages,
@@ -321,6 +377,40 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         .where((message) => knownKeys.add(_messageKey(message)))
         .toList(growable: false);
     return [...uniqueOlder, ...currentMessages];
+  }
+
+  List<GroupMessage> _appendRealtimeMessage(
+    List<GroupMessage> currentMessages,
+    GroupMessage incoming,
+  ) {
+    final incomingKey = _messageKey(incoming);
+    final knownKeys = currentMessages.map(_messageKey).toSet();
+    if (knownKeys.contains(incomingKey)) {
+      return currentMessages;
+    }
+
+    final pendingIndex = currentMessages.indexWhere((message) {
+      return message.isMine &&
+          message.sendStatus.isPending &&
+          incoming.isMine &&
+          message.message == incoming.message;
+    });
+    if (pendingIndex < 0) {
+      return [...currentMessages, incoming];
+    }
+    return [
+      for (var index = 0; index < currentMessages.length; index += 1)
+        if (index == pendingIndex) incoming else currentMessages[index],
+    ];
+  }
+
+  String? _latestCursor(List<GroupMessage> messages) {
+    for (final message in messages.reversed) {
+      if (message.cursor.isNotEmpty) {
+        return message.cursor;
+      }
+    }
+    return null;
   }
 
   String _messageKey(GroupMessage message) {

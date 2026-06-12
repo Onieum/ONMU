@@ -26,6 +26,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -43,19 +46,25 @@ public class ChatActivityService {
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
+  private final ChatRealtimePublisher chatRealtimePublisher;
+  private final OutboxService outboxService;
 
   public ChatActivityService(
     ChatActivityEventRepository chatActivityEventRepository,
     ChatReadStateRepository chatReadStateRepository,
     GroupRepository groupRepository,
     UserRepository userRepository,
-    ObjectMapper objectMapper
+    ObjectMapper objectMapper,
+    ChatRealtimePublisher chatRealtimePublisher,
+    OutboxService outboxService
   ) {
     this.chatActivityEventRepository = chatActivityEventRepository;
     this.chatReadStateRepository = chatReadStateRepository;
     this.groupRepository = groupRepository;
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
+    this.chatRealtimePublisher = chatRealtimePublisher;
+    this.outboxService = outboxService;
   }
 
   @Transactional(readOnly = true)
@@ -91,6 +100,13 @@ public class ChatActivityService {
     return response;
   }
 
+  @Transactional(readOnly = true)
+  public SseEmitter events(String groupId, UUID currentUserId, String afterCursor) {
+    GroupEntity group = findMemberGroup(groupId, currentUserId);
+    List<Map<String, Object>> replayMessages = replayMessagesAfter(group, currentUserId, afterCursor);
+    return chatRealtimePublisher.subscribe(group.getPublicId(), replayMessages);
+  }
+
   @Transactional
   public Map<String, Object> createMessage(String groupId, UUID currentUserId, CreateChatMessageRequest request) {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
@@ -114,7 +130,13 @@ public class ChatActivityService {
       toJson(payload),
       Instant.now()
     ));
-    return toMessage(event, currentUserId);
+    Map<String, Object> response = toMessage(event, currentUserId);
+    outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "message", response
+    ));
+    publishAfterCommit(group.getPublicId(), response);
+    return response;
   }
 
   @Transactional
@@ -143,6 +165,35 @@ public class ChatActivityService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "group_member_required");
     }
     return group;
+  }
+
+  private List<Map<String, Object>> replayMessagesAfter(GroupEntity group, UUID currentUserId, String afterCursor) {
+    String cursor = textValue(afterCursor);
+    if (cursor == null) {
+      return List.of();
+    }
+    Instant afterCreatedAt = parseCursor(cursor);
+    return chatActivityEventRepository.findPageAfter(
+        group,
+        afterCreatedAt,
+        PageRequest.of(0, MAX_MESSAGE_LIMIT)
+      )
+      .stream()
+      .map(event -> toMessage(event, currentUserId))
+      .toList();
+  }
+
+  private void publishAfterCommit(String groupId, Map<String, Object> message) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      chatRealtimePublisher.publishMessage(groupId, message);
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCommit() {
+        chatRealtimePublisher.publishMessage(groupId, message);
+      }
+    });
   }
 
   private Map<String, Object> toMessage(ChatActivityEventEntity event, UUID currentUserId) {

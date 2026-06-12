@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,6 +65,24 @@ class OnmuApiClient {
   Future<Map<String, dynamic>> getObject(String path) async {
     final response = await _dio.get<Object?>(path);
     return OnmuJson.asMap(response.data);
+  }
+
+  Future<Stream<String>> getLineStream(
+    String path, {
+    String accept = 'text/event-stream',
+  }) async {
+    final response = await _dio.get<ResponseBody>(
+      path,
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': accept},
+      ),
+    );
+    final body = response.data;
+    if (body == null) {
+      return const Stream.empty();
+    }
+    return utf8.decoder.bind(body.stream).transform(const LineSplitter());
   }
 
   Future<List<Map<String, dynamic>>> getList(String path) async {

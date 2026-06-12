@@ -44,6 +44,10 @@ class ChatActivityServiceTests {
   private GroupRepository groupRepository;
   @Mock
   private UserRepository userRepository;
+  @Mock
+  private ChatRealtimePublisher chatRealtimePublisher;
+  @Mock
+  private OutboxService outboxService;
 
   private ChatActivityService service;
   private GroupEntity group;
@@ -57,7 +61,9 @@ class ChatActivityServiceTests {
       chatReadStateRepository,
       groupRepository,
       userRepository,
-      new ObjectMapper()
+      new ObjectMapper(),
+      chatRealtimePublisher,
+      outboxService
     );
     currentUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000001"), "나");
     otherUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000002"), "지민");
@@ -177,6 +183,47 @@ class ChatActivityServiceTests {
     assertThat(eventCaptor.getValue().getActorUser()).isEqualTo(currentUser);
     assertThat(eventCaptor.getValue().getEventType()).isEqualTo("chat.message");
     assertThat(eventCaptor.getValue().getPayload()).contains("\"message\":\"새 메시지입니다\"");
+    verify(outboxService).record(eq("chat.message"), eq("chat_activity_event"), eq(eventCaptor.getValue().getId()), any());
+    verify(chatRealtimePublisher).publishMessage(eq("1"), any());
+  }
+
+  @Test
+  void eventsChecksMembershipAndReplaysMessagesAfterCursor() {
+    ChatActivityEventEntity replayMessage = new ChatActivityEventEntity(
+      group,
+      otherUser,
+      "chat.message",
+      "{\"senderName\":\"지민\",\"message\":\"놓친 메시지\"}",
+      Instant.parse("2026-06-09T05:03:00Z")
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(chatActivityEventRepository.findPageAfter(
+      eq(group),
+      eq(Instant.parse("2026-06-09T05:02:00Z")),
+      any(Pageable.class)
+    )).thenReturn(List.of(replayMessage));
+
+    service.events("1", currentUser.getId(), "2026-06-09T05:02:00Z");
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    ArgumentCaptor<List<Map<String, Object>>> replayCaptor = ArgumentCaptor.forClass((Class) List.class);
+    verify(chatRealtimePublisher).subscribe(eq("1"), replayCaptor.capture());
+    assertThat(replayCaptor.getValue()).hasSize(1);
+    assertThat(replayCaptor.getValue().getFirst())
+      .containsEntry("id", replayMessage.getId().toString())
+      .containsEntry("message", "놓친 메시지")
+      .containsEntry("isMine", false);
+  }
+
+  @Test
+  void nonMemberCannotSubscribeGroupEvents() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(false);
+
+    assertThatThrownBy(() -> service.events("1", currentUser.getId(), null))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
   }
 
   @Test
