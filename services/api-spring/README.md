@@ -139,6 +139,7 @@ Core API:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places`
 - `GET /api/v1/groups/{groupId}/chat/messages`
 - `POST /api/v1/groups/{groupId}/chat/messages`
+- `PUT /api/v1/groups/{groupId}/chat/read-state`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
@@ -295,7 +296,9 @@ curl http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201
 curl.exe -X PUT http://localhost:8080/api/v1/groups/1/plans/101/place-candidates/201/heart -H "Content-Type: application/json" --data-binary '{ "hearted": true }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/schedule-places -H "Content-Type: application/json" --data-binary '{ "candidateId": "201", "name": "온무식당" }'
 curl http://localhost:8080/api/v1/groups/1/chat/messages
+curl "http://localhost:8080/api/v1/groups/1/chat/messages?limit=20"
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/chat/messages -H "Content-Type: application/json" --data-binary '{ "message": "채팅 API smoke" }'
+curl.exe -X PUT http://localhost:8080/api/v1/groups/1/chat/read-state -H "Content-Type: application/json" --data-binary '{ "lastReadMessageId": "메시지 UUID" }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
 curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/103/settlement-draft/items/401/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }'
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'

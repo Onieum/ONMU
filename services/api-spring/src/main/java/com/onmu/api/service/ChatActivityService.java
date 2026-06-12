@@ -5,11 +5,16 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.ChatActivityEventEntity;
 import com.onmu.api.domain.ChatActivityEventRepository;
+import com.onmu.api.domain.ChatReadStateEntity;
+import com.onmu.api.domain.ChatReadStateRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.CreateChatMessageRequest;
+import com.onmu.api.web.dto.UpdateChatReadStateRequest;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +30,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ChatActivityService {
+  private static final int DEFAULT_MESSAGE_LIMIT = 50;
+  private static final int MAX_MESSAGE_LIMIT = 100;
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
   };
   private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter
@@ -31,30 +39,56 @@ public class ChatActivityService {
     .withZone(ZoneId.of("Asia/Seoul"));
 
   private final ChatActivityEventRepository chatActivityEventRepository;
+  private final ChatReadStateRepository chatReadStateRepository;
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
 
   public ChatActivityService(
     ChatActivityEventRepository chatActivityEventRepository,
+    ChatReadStateRepository chatReadStateRepository,
     GroupRepository groupRepository,
     UserRepository userRepository,
     ObjectMapper objectMapper
   ) {
     this.chatActivityEventRepository = chatActivityEventRepository;
+    this.chatReadStateRepository = chatReadStateRepository;
     this.groupRepository = groupRepository;
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> messages(String groupId, UUID currentUserId) {
+  public Map<String, Object> messages(String groupId, UUID currentUserId, String beforeCursor, Integer limit) {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
-    List<Map<String, Object>> messages = chatActivityEventRepository.findByGroupOrderByCreatedAtAsc(group)
+    int pageLimit = boundedLimit(limit);
+    Instant beforeCreatedAt = parseCursor(beforeCursor);
+    List<ChatActivityEventEntity> eventsDesc = new ArrayList<>(
+      chatActivityEventRepository.findPageBefore(
+        group,
+        beforeCreatedAt,
+        PageRequest.of(0, pageLimit + 1)
+      )
+    );
+    boolean hasMore = eventsDesc.size() > pageLimit;
+    if (hasMore) {
+      eventsDesc = new ArrayList<>(eventsDesc.subList(0, pageLimit));
+    }
+    Collections.reverse(eventsDesc);
+
+    List<Map<String, Object>> messages = eventsDesc
       .stream()
       .map(event -> toMessage(event, currentUserId))
       .toList();
-    return Map.of("messages", messages);
+    String nextCursor = hasMore && !eventsDesc.isEmpty() ? cursorFor(eventsDesc.getFirst()) : null;
+
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("messages", messages);
+    response.put("nextCursor", nextCursor);
+    response.put("hasMore", hasMore);
+    response.put("limit", pageLimit);
+    response.put("unreadCount", unreadCount(group, currentUserId));
+    return response;
   }
 
   @Transactional
@@ -83,6 +117,25 @@ public class ChatActivityService {
     return toMessage(event, currentUserId);
   }
 
+  @Transactional
+  public Map<String, Object> markRead(String groupId, UUID currentUserId, UpdateChatReadStateRequest request) {
+    GroupEntity group = findMemberGroup(groupId, currentUserId);
+    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(currentUserId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
+    ChatActivityEventEntity lastReadEvent = lastReadEvent(group, request);
+    Instant now = Instant.now();
+    ChatReadStateEntity readState = chatReadStateRepository.findByGroupAndUser(group, user)
+      .orElseGet(() -> new ChatReadStateEntity(group, user, lastReadEvent, now));
+    readState.markRead(lastReadEvent, now);
+    ChatReadStateEntity saved = chatReadStateRepository.save(readState);
+
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("lastReadMessageId", saved.getLastReadEvent() == null ? null : saved.getLastReadEvent().getId().toString());
+    response.put("lastReadAt", saved.getLastReadAt().toString());
+    response.put("unreadCount", unreadCount(group, currentUserId));
+    return response;
+  }
+
   private GroupEntity findMemberGroup(String groupId, UUID currentUserId) {
     GroupEntity group = groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
@@ -109,9 +162,60 @@ public class ChatActivityService {
     response.put("messageType", messageType);
     response.put("cardType", textValue(payload.get("cardType")));
     response.put("createdAt", event.getCreatedAt().toString());
+    response.put("cursor", cursorFor(event));
     response.put("timeLabel", TIME_LABEL_FORMATTER.format(event.getCreatedAt()));
     response.put("isMine", actorUser != null && actorUser.getId().equals(currentUserId));
+    response.put("sendStatus", "sent");
     return response;
+  }
+
+  private long unreadCount(GroupEntity group, UUID currentUserId) {
+    Instant lastReadAt = chatReadStateRepository.findByGroupAndUser(
+        group,
+        userRepository.findByIdAndDeletedAtIsNull(currentUserId)
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"))
+      )
+      .map(ChatReadStateEntity::getLastReadAt)
+      .orElse(null);
+    return chatActivityEventRepository.countUnreadAfter(group, currentUserId, lastReadAt);
+  }
+
+  private ChatActivityEventEntity lastReadEvent(GroupEntity group, UpdateChatReadStateRequest request) {
+    String messageId = request == null ? null : textValue(request.lastReadMessageId());
+    if (messageId == null) {
+      return chatActivityEventRepository.findFirstByGroupOrderByCreatedAtDesc(group).orElse(null);
+    }
+    UUID eventId;
+    try {
+      eventId = UUID.fromString(messageId);
+    } catch (IllegalArgumentException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_message_id");
+    }
+    return chatActivityEventRepository.findByIdAndGroup(eventId, group)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "chat_message_not_found"));
+  }
+
+  private int boundedLimit(Integer limit) {
+    if (limit == null) {
+      return DEFAULT_MESSAGE_LIMIT;
+    }
+    return Math.max(1, Math.min(limit, MAX_MESSAGE_LIMIT));
+  }
+
+  private Instant parseCursor(String beforeCursor) {
+    String cursor = textValue(beforeCursor);
+    if (cursor == null) {
+      return null;
+    }
+    try {
+      return Instant.parse(cursor);
+    } catch (RuntimeException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_cursor");
+    }
+  }
+
+  private String cursorFor(ChatActivityEventEntity event) {
+    return event.getCreatedAt().toString();
   }
 
   private String messageType(ChatActivityEventEntity event, Map<String, Object> payload) {

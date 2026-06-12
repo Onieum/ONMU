@@ -36,8 +36,9 @@ ONMU의 채팅은 단순한 부가 기능이 아니라 약속을 잡는 핵심 �
 
 | 기능 | API | 설명 |
 | --- | --- | --- |
-| 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` | 모임 채팅 화면의 초기 메시지 stream을 조회한다. |
+| 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` | 모임 채팅 화면의 메시지 stream을 cursor 기반으로 조회한다. |
 | 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` | 텍스트 메시지를 append하고 작성된 메시지 객체를 반환한다. |
+| 읽음 상태 갱신 | `PUT /api/v1/groups/{groupId}/chat/read-state` | 마지막으로 확인한 메시지를 저장하고 unread count를 반환한다. |
 
 MVP slice는 다음 범위를 의도적으로 제외한다.
 
@@ -132,7 +133,7 @@ Spring Boot Main API는 group membership 권한을 확인한 뒤 `chat_activity_
 | 단계 | 목표 | 산출물 |
 | --- | --- | --- |
 | Phase 1 | REST 메시지 조회/작성 | `GET/POST /chat/messages`, Flutter Repository/ViewModel 연결 |
-| Phase 2 | 채팅 UX 기초 품질 | 낙관적 전송, failed bubble, retry, cursor pagination, unread count |
+| Phase 2 | 채팅 UX 기초 품질 | REST 기반 낙관적 전송, failed bubble, retry, cursor pagination, unread count, read-state 저장 |
 | Phase 3 | 실시간 fan-out | Realtime Gateway, group room 구독, outbox 기반 WebSocket/SSE 전달 |
 | Phase 4 | 알림과 첨부 | FCM/APNs, 사진/장소/지도 링크 첨부, media storage |
 | Phase 5 | ONMU action 전환 | 대화에서 약속/투표/정산/기록 생성, AI 보조 추천 |
