@@ -8,6 +8,7 @@ import com.onmu.api.place.PlaceSearchProvider;
 import com.onmu.api.place.PlaceSearchQuery;
 import com.onmu.api.place.PlaceSearchResult;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -128,6 +129,76 @@ class PlaceSearchServiceTests {
     assertThat(results).isEmpty();
   }
 
+  @Test
+  void searchFallsBackWhenUppercaseEnvOptInIsSetAndAvailableProviderFails() {
+    MockEnvironment environment = prodEnvironment()
+      .withProperty("ONMU_PLACE_DEV_MOCK_FALLBACK_ENABLED", "true");
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new ThrowingProvider("kakao", true)),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      environment
+    );
+
+    var results = service.search("홍대 카페", "1", "104");
+
+    assertThat(results).hasSize(3);
+    assertThat(results.getFirst())
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("source", "dev-mock")
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
+    assertThat(results.getFirst()).extracting("context")
+      .isInstanceOfSatisfying(Map.class, context ->
+        assertThat(context).containsEntry("source", "dev-mock"));
+  }
+
+  @Test
+  void searchFallsBackWhenSystemPropertyOptInIsSetInProdLikeEnvironment() {
+    String previous = System.getProperty("onmu.place.dev-mock-fallback-enabled");
+    System.setProperty("onmu.place.dev-mock-fallback-enabled", "true");
+    try {
+      PlaceSearchService service = new PlaceSearchService(
+        List.of(new FakeProvider("kakao", true, List.of())),
+        new DevMockPlaceSearchProvider(),
+        new NoopCache(),
+        prodEnvironment()
+      );
+
+      var results = service.search("성수동 카페", "1", "105");
+
+      assertThat(results).hasSize(3);
+      assertThat(results.getFirst()).containsEntry("provider", "dev-mock");
+    } finally {
+      if (previous == null) {
+        System.clearProperty("onmu.place.dev-mock-fallback-enabled");
+      } else {
+        System.setProperty("onmu.place.dev-mock-fallback-enabled", previous);
+      }
+    }
+  }
+
+  @Test
+  void enablingExplicitFallbackDoesNotReuseCachedEmptyExternalResults() {
+    MockEnvironment environment = prodEnvironment();
+    MemoryCache cache = new MemoryCache();
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new FakeProvider("kakao", true, List.of())),
+      new DevMockPlaceSearchProvider(),
+      cache,
+      environment
+    );
+
+    var externalOnlyResults = service.search("홍대 카페", "1", "104");
+    environment.withProperty("ONMU_PLACE_DEV_MOCK_FALLBACK_ENABLED", "true");
+    var fallbackResults = service.search("홍대 카페", "1", "104");
+
+    assertThat(externalOnlyResults).isEmpty();
+    assertThat(fallbackResults).hasSize(3);
+    assertThat(fallbackResults.getFirst()).containsEntry("provider", "dev-mock");
+    assertThat(cache.keys()).hasSize(2);
+  }
+
   private static PlaceSearchResult result(
     String provider,
     String providerPlaceId,
@@ -144,6 +215,13 @@ class PlaceSearchServiceTests {
       .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:15432/onmu");
   }
 
+  private static MockEnvironment prodEnvironment() {
+    MockEnvironment environment = new MockEnvironment()
+      .withProperty("spring.datasource.url", "jdbc:postgresql://prod-db.internal/onmu");
+    environment.setActiveProfiles("prod");
+    return environment;
+  }
+
   private record FakeProvider(String provider, boolean available, List<PlaceSearchResult> results) implements PlaceSearchProvider {
     @Override
     public boolean isAvailable() {
@@ -156,6 +234,18 @@ class PlaceSearchServiceTests {
     }
   }
 
+  private record ThrowingProvider(String provider, boolean available) implements PlaceSearchProvider {
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      throw new IllegalStateException("Forbidden");
+    }
+  }
+
   private static class NoopCache implements PlaceSearchCache {
     @Override
     public Optional<List<Map<String, Object>>> get(String key) {
@@ -164,6 +254,24 @@ class PlaceSearchServiceTests {
 
     @Override
     public void put(String key, List<Map<String, Object>> results) {
+    }
+  }
+
+  private static class MemoryCache implements PlaceSearchCache {
+    private final Map<String, List<Map<String, Object>>> values = new HashMap<>();
+
+    @Override
+    public Optional<List<Map<String, Object>>> get(String key) {
+      return Optional.ofNullable(values.get(key));
+    }
+
+    @Override
+    public void put(String key, List<Map<String, Object>> results) {
+      values.put(key, results);
+    }
+
+    List<String> keys() {
+      return values.keySet().stream().toList();
     }
   }
 }

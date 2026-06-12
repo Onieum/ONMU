@@ -28,6 +28,8 @@ public class PlaceSearchService {
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaceSearchService.class);
   private static final int RESULT_LIMIT = 5;
   private static final List<String> PROVIDER_ORDER = List.of("naver", "kakao");
+  private static final String FALLBACK_PROPERTY = "onmu.place.dev-mock-fallback-enabled";
+  private static final String FALLBACK_ENV = "ONMU_PLACE_DEV_MOCK_FALLBACK_ENABLED";
 
   private final List<PlaceSearchProvider> providers;
   private final DevMockPlaceSearchProvider devMockProvider;
@@ -54,6 +56,8 @@ public class PlaceSearchService {
     Map<String, Object> availability = new LinkedHashMap<>();
     providers.forEach(provider -> availability.put(provider.provider(), provider.isAvailable()));
     LOGGER.info("Place search provider availability: {}", availability);
+    DevMockFallbackMode fallbackMode = devMockFallbackMode();
+    LOGGER.info("Place search dev mock fallback: enabled={}, source={}", fallbackMode.enabled(), fallbackMode.source());
   }
 
   public List<Map<String, Object>> search(String query, String groupId, String planId) {
@@ -94,7 +98,8 @@ public class PlaceSearchService {
       requestedProviders,
       compare
     );
-    String cacheKey = cacheKey(searchQuery);
+    DevMockFallbackMode fallbackMode = devMockFallbackMode();
+    String cacheKey = cacheKey(searchQuery, fallbackMode);
     var cached = cache.get(cacheKey);
     if (cached.isPresent()) {
       return cached.get();
@@ -107,17 +112,19 @@ public class PlaceSearchService {
     boolean usedDevMock = false;
     List<PlaceSearchResult> normalizedResults = List.of();
     if (availableProviders.isEmpty()) {
-      if (devMockFallbackEnabled()) {
+      if (fallbackMode.enabled()) {
         usedDevMock = true;
         normalizedResults = devMockProvider.search(searchQuery);
+        LOGGER.info("Using dev mock place search fallback after no available providers: groupId={}, planId={}, source={}",
+          searchQuery.groupId(), searchQuery.planId(), fallbackMode.source());
       }
     } else {
       normalizedResults = searchExternalProviders(searchQuery, availableProviders);
-      if (normalizedResults.isEmpty() && devMockFallbackEnabled()) {
+      if (normalizedResults.isEmpty() && fallbackMode.enabled()) {
         usedDevMock = true;
         normalizedResults = devMockProvider.search(searchQuery);
-        LOGGER.info("Using dev mock place search fallback after empty provider results: query={}, groupId={}, planId={}",
-          searchQuery.normalizedQuery(), searchQuery.groupId(), searchQuery.planId());
+        LOGGER.info("Using dev mock place search fallback after empty or failed provider results: groupId={}, planId={}, source={}",
+          searchQuery.groupId(), searchQuery.planId(), fallbackMode.source());
       }
     }
 
@@ -186,21 +193,29 @@ public class PlaceSearchService {
     return values.stream().map(PlaceSearchProvider::provider).toList();
   }
 
-  private boolean devMockFallbackEnabled() {
-    String explicit = environment.getProperty("onmu.place.dev-mock-fallback-enabled");
-    if (explicit != null && !explicit.isBlank()) {
-      return Boolean.parseBoolean(explicit);
+  private DevMockFallbackMode devMockFallbackMode() {
+    List<PropertyCandidate> explicitCandidates = List.of(
+      new PropertyCandidate(FALLBACK_PROPERTY, environment.getProperty(FALLBACK_PROPERTY)),
+      new PropertyCandidate(FALLBACK_ENV, environment.getProperty(FALLBACK_ENV)),
+      new PropertyCandidate("system:" + FALLBACK_PROPERTY, System.getProperty(FALLBACK_PROPERTY)),
+      new PropertyCandidate("env:" + FALLBACK_ENV, System.getenv(FALLBACK_ENV))
+    );
+    for (PropertyCandidate candidate : explicitCandidates) {
+      if (candidate.value() != null && !candidate.value().isBlank()) {
+        return new DevMockFallbackMode(Boolean.parseBoolean(candidate.value().trim()), candidate.name());
+      }
     }
     for (String profile : environment.getActiveProfiles()) {
       String normalizedProfile = profile.toLowerCase(Locale.ROOT);
       if (List.of("local", "dev", "test").contains(normalizedProfile)) {
-        return true;
+        return new DevMockFallbackMode(true, "profile:" + normalizedProfile);
       }
     }
     String datasourceUrl = environment.getProperty("spring.datasource.url", "");
-    return datasourceUrl.contains("localhost")
+    boolean localDatasource = datasourceUrl.contains("localhost")
       || datasourceUrl.contains("127.0.0.1")
       || datasourceUrl.contains("jdbc:h2:");
+    return new DevMockFallbackMode(localDatasource, localDatasource ? "local-datasource" : "disabled");
   }
 
   private String dedupeKey(PlaceSearchResult result) {
@@ -216,8 +231,9 @@ public class PlaceSearchService {
     return index < 0 ? PROVIDER_ORDER.size() : index;
   }
 
-  private String cacheKey(PlaceSearchQuery query) {
+  private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode) {
     String value = String.join("|",
+      "v2",
       query.normalizedQuery(),
       nullToBlank(query.groupId()),
       nullToBlank(query.planId()),
@@ -226,12 +242,13 @@ public class PlaceSearchService {
       nullToBlank(query.radius()),
       query.normalizedCategory(),
       String.join(",", query.providers()),
-      Boolean.toString(query.compare())
+      Boolean.toString(query.compare()),
+      Boolean.toString(fallbackMode.enabled())
     );
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-      return "place-search:v1:" + HexFormat.of().formatHex(hash, 0, 16);
+      return "place-search:v2:" + HexFormat.of().formatHex(hash, 0, 16);
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is required", exception);
     }
@@ -239,5 +256,11 @@ public class PlaceSearchService {
 
   private String nullToBlank(Object value) {
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private record PropertyCandidate(String name, String value) {
+  }
+
+  private record DevMockFallbackMode(boolean enabled, String source) {
   }
 }
