@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,11 +32,13 @@ public class PlaceSearchService {
   private final List<PlaceSearchProvider> providers;
   private final DevMockPlaceSearchProvider devMockProvider;
   private final PlaceSearchCache cache;
+  private final Environment environment;
 
   public PlaceSearchService(
     List<PlaceSearchProvider> providers,
     DevMockPlaceSearchProvider devMockProvider,
-    PlaceSearchCache cache
+    PlaceSearchCache cache,
+    Environment environment
   ) {
     this.providers = providers.stream()
       .filter(provider -> !"dev-mock".equals(provider.provider()))
@@ -43,6 +46,7 @@ public class PlaceSearchService {
       .toList();
     this.devMockProvider = devMockProvider;
     this.cache = cache;
+    this.environment = environment;
   }
 
   @PostConstruct
@@ -100,10 +104,22 @@ public class PlaceSearchService {
     List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
       .filter(PlaceSearchProvider::isAvailable)
       .toList();
-    boolean usedDevMock = availableProviders.isEmpty();
-    List<PlaceSearchResult> normalizedResults = usedDevMock
-      ? devMockProvider.search(searchQuery)
-      : searchExternalProviders(searchQuery, availableProviders);
+    boolean usedDevMock = false;
+    List<PlaceSearchResult> normalizedResults = List.of();
+    if (availableProviders.isEmpty()) {
+      if (devMockFallbackEnabled()) {
+        usedDevMock = true;
+        normalizedResults = devMockProvider.search(searchQuery);
+      }
+    } else {
+      normalizedResults = searchExternalProviders(searchQuery, availableProviders);
+      if (normalizedResults.isEmpty() && devMockFallbackEnabled()) {
+        usedDevMock = true;
+        normalizedResults = devMockProvider.search(searchQuery);
+        LOGGER.info("Using dev mock place search fallback after empty provider results: query={}, groupId={}, planId={}",
+          searchQuery.normalizedQuery(), searchQuery.groupId(), searchQuery.planId());
+      }
+    }
 
     Map<String, Object> context = context(searchQuery, usedDevMock ? List.of(devMockProvider.provider()) : providerNames(availableProviders), usedDevMock);
     List<Map<String, Object>> results = normalizedResults.stream()
@@ -168,6 +184,23 @@ public class PlaceSearchService {
 
   private List<String> providerNames(List<PlaceSearchProvider> values) {
     return values.stream().map(PlaceSearchProvider::provider).toList();
+  }
+
+  private boolean devMockFallbackEnabled() {
+    String explicit = environment.getProperty("onmu.place.dev-mock-fallback-enabled");
+    if (explicit != null && !explicit.isBlank()) {
+      return Boolean.parseBoolean(explicit);
+    }
+    for (String profile : environment.getActiveProfiles()) {
+      String normalizedProfile = profile.toLowerCase(Locale.ROOT);
+      if (List.of("local", "dev", "test").contains(normalizedProfile)) {
+        return true;
+      }
+    }
+    String datasourceUrl = environment.getProperty("spring.datasource.url", "");
+    return datasourceUrl.contains("localhost")
+      || datasourceUrl.contains("127.0.0.1")
+      || datasourceUrl.contains("jdbc:h2:");
   }
 
   private String dedupeKey(PlaceSearchResult result) {

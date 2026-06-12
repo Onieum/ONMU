@@ -32,14 +32,85 @@
   <link
     href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
     rel="stylesheet">
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
   <script>
-    if (window.maplibregl && window.pmtiles) {
-      const protocol = new window.pmtiles.Protocol();
-      window.maplibregl.addProtocol('pmtiles', protocol.tile);
-      window.onmuPmtilesProtocol = protocol;
-    }
+    (function () {
+      window.onmuPmtilesProtocolReady = false;
+      window.onmuPmtilesProtocolStatus = 'pending';
+      window.onmuPmtilesProtocolError = null;
+
+      function errorMessage(error) {
+        if (!error) {
+          return 'unknown error';
+        }
+        return error.message || String(error);
+      }
+
+      window.onmuMaplibreLoadFailed = function (event) {
+        window.onmuPmtilesProtocolReady = false;
+        window.onmuPmtilesProtocolStatus = 'maplibre-load-failed';
+        window.onmuPmtilesProtocolError = 'maplibre-gl script failed to load';
+        console.error('[ONMU map] maplibre-gl script failed to load.', event);
+      };
+
+      window.onmuPmtilesLoadFailed = function (event) {
+        window.onmuPmtilesProtocolReady = false;
+        window.onmuPmtilesProtocolStatus = 'pmtiles-load-failed';
+        window.onmuPmtilesProtocolError = 'pmtiles script failed to load';
+        console.error('[ONMU map] pmtiles script failed to load.', event);
+      };
+
+      window.onmuRegisterPmtilesProtocol = function () {
+        if (window.onmuPmtilesProtocolReady === true) {
+          return true;
+        }
+        if (!window.maplibregl) {
+          window.onmuPmtilesProtocolStatus = 'waiting-maplibre';
+          console.info('[ONMU map] maplibregl global is not ready yet.');
+          return false;
+        }
+        if (!window.pmtiles || !window.pmtiles.Protocol) {
+          window.onmuPmtilesProtocolStatus = 'waiting-pmtiles';
+          console.info('[ONMU map] pmtiles global is not ready yet.');
+          return false;
+        }
+
+        try {
+          const protocol = window.onmuPmtilesProtocol || new window.pmtiles.Protocol();
+          window.maplibregl.addProtocol('pmtiles', protocol.tile);
+          window.onmuPmtilesProtocol = protocol;
+          window.onmuPmtilesProtocolReady = true;
+          window.onmuPmtilesProtocolStatus = 'ready';
+          window.onmuPmtilesProtocolError = null;
+          console.info('[ONMU map] PMTiles protocol registered.');
+          return true;
+        } catch (error) {
+          const message = errorMessage(error);
+          if (window.onmuPmtilesProtocol && message.toLowerCase().includes('pmtiles')) {
+            window.onmuPmtilesProtocolReady = true;
+            window.onmuPmtilesProtocolStatus = 'ready-existing';
+            window.onmuPmtilesProtocolError = null;
+            console.warn('[ONMU map] PMTiles protocol was already registered.', error);
+            return true;
+          }
+          window.onmuPmtilesProtocolReady = false;
+          window.onmuPmtilesProtocolStatus = 'registration-failed';
+          window.onmuPmtilesProtocolError = message;
+          console.error('[ONMU map] PMTiles protocol registration failed.', error);
+          return false;
+        }
+      };
+    })();
+  </script>
+  <script
+    src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"
+    onload="window.onmuMaplibreLoaded = true; window.onmuRegisterPmtilesProtocol();"
+    onerror="window.onmuMaplibreLoadFailed(event);"></script>
+  <script
+    src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"
+    onload="window.onmuPmtilesLoaded = true; window.onmuRegisterPmtilesProtocol();"
+    onerror="window.onmuPmtilesLoadFailed(event);"></script>
+  <script>
+    window.onmuRegisterPmtilesProtocol();
   </script>
 </head>
 <body>
