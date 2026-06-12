@@ -1,4 +1,4 @@
-# ONMU API Contract Map
+﻿# ONMU API Contract Map
 
 ## 목적
 
@@ -173,6 +173,59 @@ Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity s
 
 Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 계약의 현재 범위가 아니다. 사진 첨부는 `POST /api/v1/media/upload`로 먼저 업로드한 뒤 `POST /chat/messages`의 image attachment metadata로 연결한다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
 
+
+## Records / Memories
+
+| 화면 | API | Read model |
+| --- | --- | --- |
+| 기록 탭 월간 목록 | `GET /api/v1/memories` | `MemoryResponse[]` |
+| 하루 일과/OOTD 저장 | `POST /api/v1/memories` | `MemoryResponse` |
+| 하루 일과 상세/수정 진입 | `GET /api/v1/memories/{memoryId}` | `MemoryResponse` |
+| 하루 일과 수정 저장 | `PUT/PATCH /api/v1/memories/{memoryId}` | `MemoryResponse` |
+| 하루 일과/OOTD 삭제 | `DELETE /api/v1/memories/{memoryId}` | `204 No Content` |
+| 사진 업로드 | `POST /api/v1/media/upload` | `{ storageKey, publicUrl }` |
+
+하루 일과 기록은 `type=DAILY`, OOTD 기록은 `type=OOTD`를 사용한다. 사진은 먼저 `POST /api/v1/media/upload`로 업로드해 `publicUrl`을 받은 뒤, `imageUrls[]`에 담아 memory create/update 요청으로 저장한다.
+
+`publicUrl`은 API 서버 기준 상대 경로(`/api/v1/media/public?...`)로 내려올 수 있다. Flutter Web에서는 이 값을 그대로 렌더링하면 프론트 dev server를 호출하게 되므로, 클라이언트에서 `ONMU_API_BASE_URL` 기준 absolute URL로 정규화해 사용한다. Flutter Web 수정 저장은 dev CORS 허용 메서드와 맞추기 위해 `PATCH`를 우선 사용한다.
+
+Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `payload`를 받는다. `payload.timeline[]`은 사진별 코멘트와 image URL 매핑을 보존하고, `payload.brands`, `payload.mood`, `payload.weather`는 결과/수정 화면에서 다시 렌더링할 메타데이터를 보존한다.
+
+```json
+{
+  "type": "DAILY",
+  "title": "Daily record 2026-06-13",
+  "memo": "오늘의 소중한 순간을 기록했어요.",
+  "date": "2026-06-13",
+  "tags": ["#하루기록", "#카페"],
+  "imageUrls": ["https://.../daily-1.jpg"],
+  "visibility": "PRIVATE",
+  "payload": {
+    "mood": "행복",
+    "weather": "맑음",
+    "brands": {
+      "recordType": "daily",
+      "theme": "diary",
+      "crew": "userOnly"
+    },
+    "timeline": [
+      {
+        "time": "사진 1",
+        "placeName": "추가한 사진",
+        "category": "photo",
+        "description": "케이크가 맛있었어요.",
+        "imageUrl": "https://.../daily-1.jpg"
+      },
+      {
+        "time": "오늘",
+        "placeName": "하루 일과",
+        "category": "daily",
+        "description": "오늘의 소중한 순간을 기록했어요."
+      }
+    ]
+  }
+}
+```
 ## Activity / Notification
 
 | 이벤트 | 발생 조건 |
@@ -189,3 +242,4 @@ Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 �
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
 Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비하고, 아직 구현하지 않은 notification/media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
+
