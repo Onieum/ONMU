@@ -45,6 +45,12 @@ class ApiMyRepository implements MyRepository {
     final displayName = OnmuJson.readString(json, 'displayName', '사용자');
     return MyProfile(
       realName: displayName,
+      introText: OnmuJson.readString(
+        preference,
+        'introText',
+        '기록하고, 만나고, 추억해요  ♥',
+      ),
+      region: OnmuJson.readString(preference, 'region', '서울 성수동'),
       visibility: ProfileVisibility.friends,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
@@ -66,6 +72,8 @@ class ApiMyRepository implements MyRepository {
   Map<String, Object?> _preferenceProfileJson(MyProfile profile) {
     return {
       'favoriteKeywords': profile.favoriteKeywords,
+      'introText': profile.introText,
+      'region': profile.region,
       'dislikedKeywords': profile.dislikedKeywords,
       'preferredTimes': profile.preferredTimes,
       'availableDays': profile.availableDays,

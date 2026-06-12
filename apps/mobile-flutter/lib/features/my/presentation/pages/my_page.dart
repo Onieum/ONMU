@@ -12,6 +12,7 @@ import '../../../../shared/widgets/pixel_character.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../character/character_start_page.dart';
+import '../../../character/repository/character_repository.dart';
 import '../../domain/my_profile.dart';
 import '../../repository/friend_repository.dart';
 import '../../repository/my_repository.dart';
@@ -149,6 +150,8 @@ class _MyPageState extends ConsumerState<MyPage> {
 
     final updatedProfile = profile.copyWith(
       realName: result.realName,
+      introText: result.introText,
+      region: result.region,
       visibility: result.visibility,
       favoriteKeywords: result.favoriteKeywords,
     );
@@ -156,8 +159,16 @@ class _MyPageState extends ConsumerState<MyPage> {
     ref.invalidate(myProfileProvider);
   }
 
-  void _saveCharacterDraft(CharacterDraft draft) {
-    ref.read(userCharacterProvider.notifier).state = draft;
+  Future<void> _saveCharacterDraft(CharacterDraft draft) async {
+    try {
+      final saved = await ref
+          .read(characterRepositoryProvider)
+          .saveMyCharacter(draft);
+      ref.read(userCharacterProvider.notifier).state = saved;
+      ref.invalidate(characterProfileProvider);
+    } catch (_) {
+      ref.read(userCharacterProvider.notifier).state = draft;
+    }
     ref.read(skippedCharacterProvider.notifier).state = false;
   }
 
@@ -211,16 +222,9 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   void _openFriendProfile(FriendProfile friend) {
-    final profile = _profileForAuthUser(
-      ref.read(myProfileProvider).value ?? _emptyProfile(),
-      ref.read(authUserProvider),
-    );
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _FriendProfilePage(
-          friend: friend,
-          profile: profile.copyWith(realName: friend.name),
-        ),
+        builder: (context) => _FriendProfilePage(friend: friend),
       ),
     );
   }
@@ -263,6 +267,10 @@ MyProfile _emptyProfile() {
 }
 
 MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
+  if (profile.realName.trim().isNotEmpty) {
+    return profile;
+  }
+
   final displayName = user?.displayName.trim();
   if (displayName == null || displayName.isEmpty) {
     return profile.copyWith(realName: '사용자');
@@ -400,7 +408,7 @@ class _ProfileHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '기록하고, 만나고, 추억해요  ♥',
+                  profile.introText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmall.copyWith(
@@ -419,7 +427,7 @@ class _ProfileHero extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      '서울 성수동',
+                      profile.region,
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSub,
                         fontWeight: FontWeight.w700,
@@ -429,7 +437,7 @@ class _ProfileHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _HorizontalChipList(
-                  labels: profile.preferenceHighlights.take(5).toList(),
+                  labels: profile.favoriteKeywords.take(5).toList(),
                 ),
               ],
             ),
@@ -440,7 +448,7 @@ class _ProfileHero extends StatelessWidget {
   }
 }
 
-class _CharacterPortrait extends StatelessWidget {
+class _CharacterPortrait extends ConsumerWidget {
   const _CharacterPortrait({
     required this.size,
     this.character,
@@ -452,9 +460,11 @@ class _CharacterPortrait extends StatelessWidget {
   final String? profileImageUrl;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final draft =
         character ??
+        ref.watch(userCharacterProvider) ??
+        ref.watch(characterProfileProvider).value ??
         const CharacterDraft(
           gender: 'female',
           nickname: '온이음',
@@ -1677,14 +1687,15 @@ class _FriendListTile extends StatelessWidget {
   }
 }
 
-class _FriendProfilePage extends StatelessWidget {
-  const _FriendProfilePage({required this.friend, required this.profile});
+class _FriendProfilePage extends ConsumerWidget {
+  const _FriendProfilePage({required this.friend});
 
   final FriendProfile friend;
-  final MyProfile profile;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(friendProfileProvider(friend));
+
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
       body: SafeArea(
@@ -1702,29 +1713,41 @@ class _FriendProfilePage extends StatelessWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
                 sliver: SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      _FriendProfileHero(
-                        friend: friend,
-                        profile: profile,
-                        onDelete: () =>
-                            _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
-                        onCreatePlan: () => context.go(
-                          RoutePaths.groupNew,
-                          extra: [friend.name],
+                  child: profileAsync.when(
+                    data: (profile) => Column(
+                      children: [
+                        _FriendProfileHero(
+                          friend: friend,
+                          profile: profile,
+                          onDelete: () => _showFriendMessage(
+                            context,
+                            '친구 삭제 기능을 준비 중이에요.',
+                          ),
+                          onCreatePlan: () => context.go(
+                            RoutePaths.groupNew,
+                            extra: [friend.name],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      _ProfileTab(
-                        profile: profile,
-                        onKeywordEdit: () {},
-                        onScheduleEdit: () {},
-                        onPlaceEdit: () {},
-                        onDetail: (section) =>
-                            _openFriendProfileDetail(context, section),
-                        showActions: false,
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        _ProfileTab(
+                          profile: profile,
+                          onKeywordEdit: () {},
+                          onScheduleEdit: () {},
+                          onPlaceEdit: () {},
+                          onDetail: (section) => _openFriendProfileDetail(
+                            context,
+                            section,
+                            profile,
+                          ),
+                          showActions: false,
+                        ),
+                      ],
+                    ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 80),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (_, __) => _FriendProfileErrorCard(friend: friend),
                   ),
                 ),
               ),
@@ -1744,11 +1767,47 @@ class _FriendProfilePage extends StatelessWidget {
   void _openFriendProfileDetail(
     BuildContext context,
     _ProfileDetailSection section,
+    MyProfile profile,
   ) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) =>
             _ProfileDetailPage(section: section, profile: profile),
+      ),
+    );
+  }
+}
+
+class _FriendProfileErrorCard extends StatelessWidget {
+  const _FriendProfileErrorCard({required this.friend});
+
+  final FriendProfile friend;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SoftCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          _CharacterPortrait(size: 84, character: _characterForFriend(friend)),
+          const SizedBox(height: 14),
+          Text(
+            friend.name,
+            style: AppTextStyles.titleLarge.copyWith(
+              color: AppColors.textMain,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '친구 프로필을 불러오지 못했어요.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSub,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2749,7 +2808,7 @@ class _ProfileEditPage extends StatefulWidget {
 
   final MyProfile profile;
   final String? profileImageUrl;
-  final ValueChanged<CharacterDraft> onCharacterSaved;
+  final Future<void> Function(CharacterDraft) onCharacterSaved;
 
   @override
   State<_ProfileEditPage> createState() => _ProfileEditPageState();
@@ -2767,8 +2826,8 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.profile.realName);
-    _introController = TextEditingController(text: '기록하고, 만나고, 추억해요  ♥');
-    _regionController = TextEditingController(text: '서울 성수동');
+    _introController = TextEditingController(text: widget.profile.introText);
+    _regionController = TextEditingController(text: widget.profile.region);
     _interestController = TextEditingController();
     _visibility = widget.profile.visibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
@@ -3007,6 +3066,12 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
         realName: _nameController.text.trim().isEmpty
             ? widget.profile.realName
             : _nameController.text.trim(),
+        introText: _introController.text.trim().isEmpty
+            ? widget.profile.introText
+            : _introController.text.trim(),
+        region: _regionController.text.trim().isEmpty
+            ? widget.profile.region
+            : _regionController.text.trim(),
         visibility: _visibility,
         favoriteKeywords: _interests,
       ),
@@ -3057,8 +3122,11 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
           onBackToOnboarding: () {
             Navigator.of(context).pop();
           },
-          onCompleted: (draft) {
-            widget.onCharacterSaved(draft);
+          onCompleted: (draft) async {
+            await widget.onCharacterSaved(draft);
+            if (!context.mounted) {
+              return;
+            }
             Navigator.of(context).pop();
           },
         ),
@@ -4218,11 +4286,15 @@ class _PlacePreferenceRowData {
 class _ProfileEditResult {
   const _ProfileEditResult({
     required this.realName,
+    required this.introText,
+    required this.region,
     required this.visibility,
     required this.favoriteKeywords,
   });
 
   final String realName;
+  final String introText;
+  final String region;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
 }

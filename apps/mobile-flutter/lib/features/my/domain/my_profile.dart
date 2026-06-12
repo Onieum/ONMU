@@ -32,6 +32,8 @@ class MyProfile {
     required this.favoritePlaces,
     required this.wantToGoPlaces,
     required this.dislikedPlaces,
+    this.introText = '기록하고, 만나고, 추억해요  ♥',
+    this.region = '서울 성수동',
     this.favoriteFoodTags = const [],
     this.dislikedFoodTags = const [],
     this.favoritePlaceTags = const [],
@@ -41,6 +43,8 @@ class MyProfile {
   });
 
   final String realName;
+  final String introText;
+  final String region;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
   final List<String> dislikedKeywords;
@@ -63,6 +67,8 @@ class MyProfile {
 
   MyProfile copyWith({
     String? realName,
+    String? introText,
+    String? region,
     ProfileVisibility? visibility,
     List<String>? favoriteKeywords,
     List<String>? dislikedKeywords,
@@ -81,6 +87,8 @@ class MyProfile {
   }) {
     return MyProfile(
       realName: realName ?? this.realName,
+      introText: introText ?? this.introText,
+      region: region ?? this.region,
       visibility: visibility ?? this.visibility,
       favoriteKeywords: favoriteKeywords ?? this.favoriteKeywords,
       dislikedKeywords: dislikedKeywords ?? this.dislikedKeywords,

@@ -36,52 +36,46 @@ class OnboardingHubPage extends ConsumerWidget {
             builder: (context, constraints) {
               final layout = _OnboardingLayout.from(constraints);
 
-              return Stack(
-                children: [
-                  Positioned(
-                    top: layout.titleTop,
-                    left: 24,
-                    right: 24,
-                    child: _OnboardingTitle(
-                      displayName: displayName,
-                      compact: layout.compact,
-                    ),
-                  ),
-                  Positioned(
-                    top: layout.subtitleTop,
-                    left: 24,
-                    right: 24,
-                    child: Text(
-                      '캐릭터와 취향은 지금 설정해도 좋고,\n나중에 천천히 채워도 괜찮아요.',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: const Color(0xFF8A6F63),
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: layout.imageTop,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Image.asset(
-                        _selectScreenAsset,
-                        width: layout.imageWidth,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.none,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: layout.firstCardTop,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SizedBox(
-                        width: layout.contentWidth,
-                        child: _OnboardingTaskCard(
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                layout.compact ? 24 : 42,
+                24,
+                28,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - (layout.compact ? 52 : 70),
+                ),
+                child: Center(
+                  child: SizedBox(
+                    width: layout.contentWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _OnboardingTitle(
+                          displayName: displayName,
+                          compact: layout.compact,
+                        ),
+                        SizedBox(height: layout.compact ? 20 : 28),
+                        Text(
+                          '캐릭터와 취향은 지금 설정해도 좋고,\n나중에 천천히 채워도 괜찮아요.',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: const Color(0xFF8A6F63),
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: layout.compact ? 17 : 25),
+                        Image.asset(
+                          _selectScreenAsset,
+                          width: layout.imageWidth,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.none,
+                        ),
+                        SizedBox(height: layout.compact ? 10 : 14),
+                        _OnboardingTaskCard(
                           compact: layout.compact,
                           title: '캐릭터 만들기',
                           description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
@@ -97,17 +91,8 @@ class OnboardingHubPage extends ConsumerWidget {
                           onPrimary: () =>
                               context.go(RoutePaths.onboardingCharacter),
                         ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: layout.secondCardTop,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SizedBox(
-                        width: layout.contentWidth,
-                        child: _OnboardingTaskCard(
+                        SizedBox(height: layout.compact ? 12 : 14),
+                        _OnboardingTaskCard(
                           compact: layout.compact,
                           title: '취향 선택',
                           description: '음식, 장소, 약속 스타일\n추천에 쓸 취향을 골라요.',
@@ -123,40 +108,33 @@ class OnboardingHubPage extends ConsumerWidget {
                           onPrimary: () =>
                               context.go(RoutePaths.onboardingPreferences),
                         ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: layout.homeTop,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SizedBox(
-                        width: layout.homeWidth,
-                        child: _HomeButton(
-                          compact: layout.compact,
-                          onPressed: () {
-                            if (!characterReady) {
-                              ref
-                                      .read(skippedCharacterProvider.notifier)
-                                      .state =
-                                  true;
-                            }
-                            if (!preferenceReady) {
-                              ref
-                                      .read(skippedPreferenceProvider.notifier)
-                                      .state =
-                                  true;
-                            }
-                            context.go(RoutePaths.home);
-                          },
+                        SizedBox(height: layout.compact ? 22 : 28),
+                        SizedBox(
+                          width: layout.homeWidth,
+                          child: _HomeButton(
+                            compact: layout.compact,
+                            onPressed: () {
+                              if (!characterReady) {
+                                ref
+                                    .read(skippedCharacterProvider.notifier)
+                                    .state = true;
+                              }
+                              if (!preferenceReady) {
+                                ref
+                                    .read(skippedPreferenceProvider.notifier)
+                                    .state = true;
+                              }
+                              context.go(RoutePaths.home);
+                            },
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            );
+          },
           ),
         ),
       ),
@@ -194,24 +172,12 @@ class _OnboardingLayout {
     required this.contentWidth,
     required this.homeWidth,
     required this.imageWidth,
-    required this.titleTop,
-    required this.subtitleTop,
-    required this.imageTop,
-    required this.firstCardTop,
-    required this.secondCardTop,
-    required this.homeTop,
   });
 
   final bool compact;
   final double contentWidth;
   final double homeWidth;
   final double imageWidth;
-  final double titleTop;
-  final double subtitleTop;
-  final double imageTop;
-  final double firstCardTop;
-  final double secondCardTop;
-  final double homeTop;
 
   static _OnboardingLayout from(BoxConstraints constraints) {
     final width = constraints.maxWidth;
@@ -223,13 +189,7 @@ class _OnboardingLayout {
       compact: compact,
       contentWidth: contentWidth,
       homeWidth: (contentWidth * 0.7).clamp(230.0, 280.0),
-      imageWidth: width.clamp(210.0, compact ? 230.0 : 290.0),
-      titleTop: height * (compact ? 0.035 : 0.055),
-      subtitleTop: height * (compact ? 0.145 : 0.17),
-      imageTop: height * (compact ? 0.215 : 0.245),
-      firstCardTop: height * (compact ? 0.44 : 0.495),
-      secondCardTop: height * (compact ? 0.65 : 0.685),
-      homeTop: height * (compact ? 0.88 : 0.905),
+      imageWidth: width.clamp(210.0, compact ? 238.0 : 290.0),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
+import '../../features/my/repository/my_repository.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/onmu_design.dart';
@@ -100,11 +101,48 @@ class PreferenceSummaryPage extends ConsumerWidget {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           ref.read(preferenceProfileProvider.notifier).state =
                               profile;
                           ref.read(skippedPreferenceProvider.notifier).state =
                               false;
+                          final currentProfile = ref
+                              .read(myProfileProvider)
+                              .value;
+                          if (currentProfile != null) {
+                            final updatedProfile = currentProfile.copyWith(
+                              favoriteFoodTags: _withOther(
+                                profile.favoriteFoodTags,
+                                profile.otherFavoriteFood,
+                              ),
+                              dislikedFoodTags: _withOther(
+                                profile.dislikedFoodTags,
+                                profile.otherDislikedFood,
+                              ),
+                              favoritePlaceTags: _withOther(
+                                profile.favoritePlaceTags,
+                                profile.otherFavoritePlace,
+                              ),
+                              dislikedPlaceTags: _withOther(
+                                profile.dislikedPlaceTags,
+                                profile.otherDislikedPlace,
+                              ),
+                              planStyles: profile.planStyles,
+                              preferredWeekdays: profile.preferredWeekdays,
+                              preferredTimes: profile.preferredTimes,
+                            );
+                            try {
+                              await ref
+                                  .read(myRepositoryProvider)
+                                  .updateMyProfile(updatedProfile);
+                              ref.invalidate(myProfileProvider);
+                            } catch (_) {
+                              // 온보딩 흐름은 막지 않고 로컬 선택값은 유지한다.
+                            }
+                          }
+                          if (!context.mounted) {
+                            return;
+                          }
                           context.go(RoutePaths.onboarding);
                         },
                         style: ElevatedButton.styleFrom(
@@ -122,6 +160,14 @@ class PreferenceSummaryPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+List<String> _withOther(List<String> values, String other) {
+  final cleanOther = other.trim();
+  if (cleanOther.isEmpty) {
+    return values;
+  }
+  return [...values, cleanOther];
 }
 
 class _PreferenceSummarySheet extends StatelessWidget {
