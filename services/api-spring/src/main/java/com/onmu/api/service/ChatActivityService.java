@@ -103,8 +103,9 @@ public class ChatActivityService {
   @Transactional(readOnly = true)
   public SseEmitter events(String groupId, UUID currentUserId, String afterCursor) {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
+    UserEntity currentUser = findUser(currentUserId);
     List<Map<String, Object>> replayMessages = replayMessagesAfter(group, currentUserId, afterCursor);
-    return chatRealtimePublisher.subscribe(group.getPublicId(), replayMessages);
+    return chatRealtimePublisher.subscribe(group.getPublicId(), currentUser.getPublicId(), replayMessages);
   }
 
   @Transactional
@@ -114,8 +115,7 @@ public class ChatActivityService {
     if (message == null || message.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_chat_message");
     }
-    UserEntity actorUser = userRepository.findByIdAndDeletedAtIsNull(currentUserId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
+    UserEntity actorUser = findUser(currentUserId);
 
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("senderName", displayName(actorUser));
@@ -133,7 +133,7 @@ public class ChatActivityService {
     Map<String, Object> response = toMessage(event, currentUserId);
     outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
       "groupId", group.getPublicId(),
-      "message", response
+      "chatActivityEventId", event.getId().toString()
     ));
     publishAfterCommit(group.getPublicId(), response);
     return response;
@@ -165,6 +165,11 @@ public class ChatActivityService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "group_member_required");
     }
     return group;
+  }
+
+  private UserEntity findUser(UUID currentUserId) {
+    return userRepository.findByIdAndDeletedAtIsNull(currentUserId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
   }
 
   private List<Map<String, Object>> replayMessagesAfter(GroupEntity group, UUID currentUserId, String afterCursor) {

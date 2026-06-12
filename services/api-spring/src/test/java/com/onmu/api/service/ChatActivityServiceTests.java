@@ -198,6 +198,7 @@ class ChatActivityServiceTests {
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(chatActivityEventRepository.findPageAfter(
       eq(group),
       eq(Instant.parse("2026-06-09T05:02:00Z")),
@@ -208,7 +209,7 @@ class ChatActivityServiceTests {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     ArgumentCaptor<List<Map<String, Object>>> replayCaptor = ArgumentCaptor.forClass((Class) List.class);
-    verify(chatRealtimePublisher).subscribe(eq("1"), replayCaptor.capture());
+    verify(chatRealtimePublisher).subscribe(eq("1"), eq(currentUser.getPublicId()), replayCaptor.capture());
     assertThat(replayCaptor.getValue()).hasSize(1);
     assertThat(replayCaptor.getValue().getFirst())
       .containsEntry("id", replayMessage.getId().toString())

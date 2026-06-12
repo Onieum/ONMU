@@ -1,6 +1,7 @@
 package com.onmu.api.service;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,16 +13,17 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher {
   private static final long EMITTER_TIMEOUT_MILLIS = 30L * 60L * 1000L;
 
-  private final Map<String, Set<SseEmitter>> emittersByGroupId = new ConcurrentHashMap<>();
+  private final Map<String, Set<Subscriber>> subscribersByGroupId = new ConcurrentHashMap<>();
 
   @Override
-  public SseEmitter subscribe(String groupId, List<Map<String, Object>> replayMessages) {
+  public SseEmitter subscribe(String groupId, String viewerUserPublicId, List<Map<String, Object>> replayMessages) {
     SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
-    emittersByGroupId.computeIfAbsent(groupId, ignored -> ConcurrentHashMap.newKeySet()).add(emitter);
+    Subscriber subscriber = new Subscriber(emitter, viewerUserPublicId);
+    subscribersByGroupId.computeIfAbsent(groupId, ignored -> ConcurrentHashMap.newKeySet()).add(subscriber);
 
-    emitter.onCompletion(() -> remove(groupId, emitter));
-    emitter.onTimeout(() -> remove(groupId, emitter));
-    emitter.onError(ignored -> remove(groupId, emitter));
+    emitter.onCompletion(() -> remove(groupId, subscriber));
+    emitter.onTimeout(() -> remove(groupId, subscriber));
+    emitter.onError(ignored -> remove(groupId, subscriber));
 
     try {
       emitter.send(SseEmitter.event().comment("connected"));
@@ -29,7 +31,7 @@ public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher 
         sendMessage(emitter, message);
       }
     } catch (IOException exception) {
-      remove(groupId, emitter);
+      remove(groupId, subscriber);
       emitter.completeWithError(exception);
     }
     return emitter;
@@ -37,18 +39,28 @@ public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher 
 
   @Override
   public void publishMessage(String groupId, Map<String, Object> message) {
-    Set<SseEmitter> emitters = emittersByGroupId.get(groupId);
-    if (emitters == null || emitters.isEmpty()) {
+    Set<Subscriber> subscribers = subscribersByGroupId.get(groupId);
+    if (subscribers == null || subscribers.isEmpty()) {
       return;
     }
-    for (SseEmitter emitter : emitters) {
+    for (Subscriber subscriber : subscribers) {
       try {
-        sendMessage(emitter, message);
+        sendMessage(subscriber.emitter(), messageForViewer(message, subscriber.viewerUserPublicId()));
       } catch (IOException exception) {
-        remove(groupId, emitter);
-        emitter.completeWithError(exception);
+        remove(groupId, subscriber);
+        subscriber.emitter().completeWithError(exception);
       }
     }
+  }
+
+  Map<String, Object> messageForViewer(Map<String, Object> message, String viewerUserPublicId) {
+    Map<String, Object> viewerMessage = new LinkedHashMap<>(message);
+    Object senderUserId = viewerMessage.get("senderUserId");
+    viewerMessage.put(
+      "isMine",
+      senderUserId != null && senderUserId.toString().equals(viewerUserPublicId)
+    );
+    return viewerMessage;
   }
 
   private void sendMessage(SseEmitter emitter, Map<String, Object> message) throws IOException {
@@ -58,14 +70,17 @@ public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher 
       .data(message));
   }
 
-  private void remove(String groupId, SseEmitter emitter) {
-    Set<SseEmitter> emitters = emittersByGroupId.get(groupId);
-    if (emitters == null) {
+  private void remove(String groupId, Subscriber subscriber) {
+    Set<Subscriber> subscribers = subscribersByGroupId.get(groupId);
+    if (subscribers == null) {
       return;
     }
-    emitters.remove(emitter);
-    if (emitters.isEmpty()) {
-      emittersByGroupId.remove(groupId, emitters);
+    subscribers.remove(subscriber);
+    if (subscribers.isEmpty()) {
+      subscribersByGroupId.remove(groupId, subscribers);
     }
+  }
+
+  private record Subscriber(SseEmitter emitter, String viewerUserPublicId) {
   }
 }
