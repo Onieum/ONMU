@@ -85,11 +85,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     final votes = await groupRepository.fetchVotes(groupId);
     final voteId = votes.isEmpty ? 0 : votes.first.id;
     final messagePage = await groupRepository.fetchMessagePage(groupId);
-    final unreadCount = await _markNewestMessageRead(
-      groupRepository,
-      messagePage.messages,
-      fallbackUnreadCount: messagePage.unreadCount,
-    );
+    await _markNewestMessageRead(groupRepository, messagePage.messages);
 
     return GroupChatState(
       group: await groupRepository.fetchGroup(groupId),
@@ -97,7 +93,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       messages: messagePage.messages,
       nextCursor: messagePage.nextCursor,
       hasMoreOlderMessages: messagePage.hasMore,
-      unreadCount: unreadCount,
+      unreadCount: messagePage.unreadCount,
       vote: await groupRepository.fetchVoteCard(
         groupId: groupId,
         voteId: voteId,
@@ -261,7 +257,6 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
           clearNextCursor: page.nextCursor == null,
           hasMoreOlderMessages: page.hasMore,
           isLoadingOlderMessages: false,
-          unreadCount: page.unreadCount,
         ),
       );
     } catch (_) {
@@ -275,22 +270,21 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
-  Future<int> _markNewestMessageRead(
+  Future<void> _markNewestMessageRead(
     GroupRepository repository,
-    List<GroupMessage> messages, {
-    required int fallbackUnreadCount,
-  }) async {
+    List<GroupMessage> messages,
+  ) async {
     final lastReadMessageId = messages.lastOrNull?.id;
     if (lastReadMessageId == null || lastReadMessageId.isEmpty) {
-      return fallbackUnreadCount;
+      return;
     }
     try {
-      return repository.markMessagesRead(
+      await repository.markMessagesRead(
         groupId: groupId,
         lastReadMessageId: lastReadMessageId,
       );
     } catch (_) {
-      return fallbackUnreadCount;
+      // 읽음 동기화 실패는 초기 메시지 표시를 막지 않는다.
     }
   }
 
@@ -299,13 +293,9 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       return;
     }
     try {
-      final unreadCount = await ref
+      await ref
           .read(groupRepositoryProvider)
           .markMessagesRead(groupId: groupId, lastReadMessageId: message.id);
-      final latest = state.asData?.value;
-      if (latest != null) {
-        state = AsyncData(latest.copyWith(unreadCount: unreadCount));
-      }
     } catch (_) {
       // 읽음 동기화 실패는 말풍선 전송 성공을 되돌리지 않는다.
     }

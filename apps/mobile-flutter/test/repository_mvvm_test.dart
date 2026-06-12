@@ -240,6 +240,36 @@ void main() {
     expect(updated.sendErrorMessage, isNull);
   });
 
+  test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-1',
+          sender: '민서',
+          message: '새 메시지 확인해줘',
+          timeLabel: '09:01',
+          isMine: false,
+        ),
+      ],
+      initialUnreadCount: 3,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    final state = await container.read(provider.future);
+
+    expect(repository.markedReadMessages, ['message-1']);
+    expect(state.unreadCount, 3);
+  });
+
   test('채팅 ViewModel은 메시지 작성 실패 시 실패 말풍선과 오류를 남긴다', () async {
     final repository = _FakeGroupRepository(throwOnSend: true);
     final container = ProviderContainer(
@@ -309,11 +339,15 @@ class _FakeGroupRepository implements GroupRepository {
     this.sentMessage,
     this.throwOnSend = false,
     this.sendFailuresBeforeSuccess = 0,
+    this.initialMessages = const [],
+    this.initialUnreadCount = 0,
   }) : _remainingSendFailures = sendFailuresBeforeSuccess;
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
   final int sendFailuresBeforeSuccess;
+  final List<GroupMessage> initialMessages;
+  final int initialUnreadCount;
   final sentMessages = <String>[];
   final markedReadMessages = <String?>[];
   int _remainingSendFailures;
@@ -356,7 +390,8 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async =>
+      initialMessages;
 
   @override
   Future<GroupMessagePage> fetchMessagePage(
@@ -364,7 +399,10 @@ class _FakeGroupRepository implements GroupRepository {
     String? beforeCursor,
     int? limit,
   }) async {
-    return const GroupMessagePage(messages: []);
+    return GroupMessagePage(
+      messages: initialMessages,
+      unreadCount: initialUnreadCount,
+    );
   }
 
   @override
