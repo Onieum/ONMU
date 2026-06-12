@@ -33,32 +33,41 @@ void main() {
     expect(tester.getRect(memoCard).width, greaterThan(scrollableWidth * 0.85));
   });
 
-  testWidgets('participant add button opens member picker and joins me', (
+  testWidgets('itinerary preview keeps map without visit map label', (
     tester,
   ) async {
-    final repository = _PlanDetailTestRepository();
+    await tester.pumpWidget(_planDetailTestApp(_PlanDetailTestRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('일정 타임라인'), findsOneWidget);
+    expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
+    expect(find.text('방문 지도'), findsNothing);
+  });
+
+  testWidgets('participant leave action is available only from more menu', (
+    tester,
+  ) async {
+    final repository = _PlanDetailTestRepository(
+      currentUserParticipating: true,
+    );
 
     await tester.pumpWidget(_planDetailTestApp(repository));
     await tester.pumpAndSettle();
 
-    expect(find.text('참여자 1명'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('참여 멤버 추가'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('참여 멤버 추가'), findsOneWidget);
-    expect(find.text('모임 멤버만 약속에 참여할 수 있어요.'), findsOneWidget);
-    expect(find.text('현재 서버 계약상 내 참여만 직접 추가할 수 있어요.'), findsOneWidget);
-    expect(find.text('지우'), findsWidgets);
-    expect(find.text('서버 지원 필요'), findsWidgets);
-
-    await tester.tap(find.text('내 참여 추가'));
-    await tester.pumpAndSettle();
-
-    expect(repository.joinCount, 1);
-    expect(find.text('내 참여 상태를 추가했어요.'), findsOneWidget);
     expect(find.text('참여자 2명'), findsOneWidget);
-    expect(find.text('나'), findsWidgets);
+    expect(find.byTooltip('참여 멤버 추가'), findsNothing);
+    expect(find.text('약속에서 나가기'), findsNothing);
+
+    await tester.tap(find.byTooltip('더보기'));
+    await tester.pumpAndSettle();
+    expect(find.text('약속 수정하기'), findsOneWidget);
+    expect(find.text('약속에서 나가기'), findsOneWidget);
+    await tester.tap(find.text('약속에서 나가기'));
+    await tester.pumpAndSettle();
+
+    expect(repository.leaveCount, 1);
+    expect(find.text('약속에서 나갔어요.'), findsOneWidget);
+    expect(find.text('참여자 1명'), findsOneWidget);
   });
 }
 
@@ -85,7 +94,20 @@ Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
 }
 
 class _PlanDetailTestRepository implements PlanRepository {
+  _PlanDetailTestRepository({bool currentUserParticipating = false})
+    : _currentParticipant = currentUserParticipating
+          ? const PlanParticipantArrival(
+              id: 'participant-me',
+              userId: 'user-me',
+              displayName: '나',
+              participantStatus: 'joined',
+              arrivalStatus: PlanArrivalStatus.none,
+              isFallback: false,
+            )
+          : null;
+
   var joinCount = 0;
+  var leaveCount = 0;
   PlanParticipantArrival? _currentParticipant;
 
   @override
@@ -166,6 +188,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     required Object groupId,
     required Object planId,
   }) async {
+    leaveCount += 1;
     _currentParticipant = const PlanParticipantArrival(
       id: 'participant-me',
       userId: 'user-me',

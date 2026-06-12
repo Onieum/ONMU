@@ -2,9 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../group/view_model/group_plan_list_view_model.dart';
 import '../../home/view_model/home_view_model.dart';
-import '../../../shared/models/group_models.dart';
 import '../../../shared/models/plan_models.dart';
-import '../../group/repository/group_repository.dart';
 import '../repository/plan_repository.dart';
 
 typedef PlanScope = ({String groupId, String planId});
@@ -20,7 +18,6 @@ class PlanDetailState {
   const PlanDetailState({
     required this.plan,
     required this.selectedMembers,
-    required this.groupMembers,
     required this.visitPlansByDate,
     required this.participantArrivals,
     this.currentTime,
@@ -28,7 +25,6 @@ class PlanDetailState {
 
   final Plan plan;
   final List<PlanMember> selectedMembers;
-  final List<GroupMemberProfile> groupMembers;
   final List<List<VisitPlan>> visitPlansByDate;
   final List<PlanParticipantArrival> participantArrivals;
   final DateTime? currentTime;
@@ -53,7 +49,6 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
   @override
   Future<PlanDetailState> build() async {
     final repository = ref.watch(planRepositoryProvider);
-    final groupRepository = ref.watch(groupRepositoryProvider);
     final plan = await repository.fetchPlan(
       groupId: scope.groupId,
       planId: scope.planId,
@@ -66,7 +61,6 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       groupId: scope.groupId,
       planId: scope.planId,
     );
-    final groupMembers = await groupRepository.fetchMembers(scope.groupId);
     final displayVisitPlansByDate =
         visitPlansByDate.isEmpty && plan.visitPlan.isNotEmpty
         ? [plan.visitPlan]
@@ -77,7 +71,6 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       selectedMembers: List.unmodifiable(
         _selectedMembers(plan, participantArrivals),
       ),
-      groupMembers: List.unmodifiable(groupMembers),
       visitPlansByDate: List.unmodifiable(
         displayVisitPlansByDate.map(List<VisitPlan>.unmodifiable),
       ),

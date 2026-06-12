@@ -227,7 +227,6 @@ void main() {
     PlanDetailState detailAt(DateTime currentTime) => PlanDetailState(
       plan: basePlan,
       selectedMembers: const [],
-      groupMembers: const [],
       visitPlansByDate: const [],
       participantArrivals: const [],
       currentTime: currentTime,

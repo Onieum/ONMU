@@ -619,7 +619,7 @@ void main() {
     expect(find.text('다운타우너 성수'), findsOneWidget);
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
     await tester.pumpAndSettle();
-    expect(find.text('방문 지도'), findsOneWidget);
+    expect(find.text('방문 지도'), findsNothing);
     expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
     expect(find.text('2'), findsWidgets);
@@ -642,7 +642,7 @@ void main() {
     expect(find.text('장소 후보 리스트'), findsOneWidget);
   });
 
-  testWidgets('plan detail more menu opens edit flow', (tester) async {
+  testWidgets('plan detail edit flow returns home after save', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
@@ -693,16 +693,18 @@ void main() {
       '수정된 약속',
     );
     await tester.dragUntilVisible(
-      find.byTooltip('참여 멤버 추가'),
+      find.text('참여 멤버'),
       find.byType(Scrollable).last,
       const Offset(0, -120),
     );
-    expect(find.byTooltip('참여 멤버 추가'), findsOneWidget);
+    expect(find.byTooltip('참여 멤버 추가'), findsNothing);
 
     await tester.tap(find.widgetWithText(FilledButton, '수정 완료'));
     await tester.pumpAndSettle();
 
-    expect(find.text('수정된 약속'), findsOneWidget);
+    expect(find.text('약속 수정하기'), findsNothing);
+    expect(find.textContaining('안녕하세요,'), findsOneWidget);
+    expect(find.text('오늘의 약속'), findsOneWidget);
   });
 
   testWidgets('canonical group and plan routes open operating screens', (
