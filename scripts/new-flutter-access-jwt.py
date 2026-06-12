@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -40,9 +41,26 @@ def key_vault_secret_name(environment: str) -> str:
     return f"{prefix}-access-token-secret"
 
 
+def kakao_rest_api_key_secret_name(environment: str) -> str:
+    prefix = "int" if environment == "integration" else "dev"
+    return f"{prefix}-kakao-rest-api-key"
+
+
+def default_kakao_oauth_redirect_uri(api_base_url: str) -> str:
+    return f"{api_base_url.rstrip('/')}/api/v1/auth/oauth/kakao/callback"
+
+
+def azure_cli_executable() -> str:
+    candidates = ["az.cmd", "az.exe", "az"] if os.name == "nt" else ["az"]
+    for candidate in candidates:
+        if shutil.which(candidate):
+            return candidate
+    return "az"
+
+
 def read_secret_from_key_vault(vault_name: str, secret_name: str) -> str:
     command = [
-        "az",
+        azure_cli_executable(),
         "keyvault",
         "secret",
         "show",
@@ -93,6 +111,20 @@ def resolve_secret(environment: str, vault_name: Optional[str]) -> str:
     return read_secret_from_key_vault(vault_name, secret_name)
 
 
+def resolve_kakao_rest_api_key(environment: str, vault_name: Optional[str]) -> str:
+    env_value = os.environ.get("KAKAO_REST_API_KEY") or os.environ.get("KAKAO_OAUTH_CLIENT_ID")
+    if env_value:
+        return env_value.strip()
+
+    secret_name = kakao_rest_api_key_secret_name(environment)
+    if not vault_name:
+        raise RuntimeError(
+            "KAKAO_REST_API_KEY is not set. Set it for local testing or pass "
+            f"--vault-name to load {secret_name} from Key Vault."
+        )
+    return read_secret_from_key_vault(vault_name, secret_name)
+
+
 def build_jwt(
     secret: str,
     issuer: str,
@@ -135,6 +167,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--audience", default=os.environ.get("ONMU_AUTH_AUDIENCE") or "onmu-mobile")
     parser.add_argument("--api-base-url")
     parser.add_argument("--output-path")
+    parser.add_argument(
+        "--include-kakao-oauth",
+        action="store_true",
+        help="Include Kakao browser OAuth public client id and redirect URI in the local dart-define file.",
+    )
+    parser.add_argument("--kakao-oauth-redirect-uri")
     return parser.parse_args()
 
 
@@ -172,6 +210,21 @@ def main() -> int:
         "ONMU_API_ACCESS_JWT": token,
         "ONMU_DEV_ACCESS_TOKEN": token,
     }
+
+    if args.include_kakao_oauth:
+        try:
+            kakao_rest_api_key = resolve_kakao_rest_api_key(args.environment, args.vault_name)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        if not kakao_rest_api_key:
+            print("KAKAO_REST_API_KEY could not be loaded.", file=sys.stderr)
+            return 1
+        defines["KAKAO_REST_API_KEY"] = kakao_rest_api_key
+        defines["KAKAO_OAUTH_REDIRECT_URI"] = (
+            args.kakao_oauth_redirect_uri or default_kakao_oauth_redirect_uri(api_base_url)
+        )
+
     output_path.write_text(
         json.dumps(defines, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -181,6 +234,8 @@ def main() -> int:
     print(f"JWT subject: {subject}")
     print(f"JWT expires at UTC: {expires_at.strftime('%Y-%m-%dT%H:%M:%SZ')}")
     print("Token value is stored only in the local ignored dart-define file and is not printed.")
+    if args.include_kakao_oauth:
+        print("Included Kakao OAuth dart-define keys without printing their values.")
     return 0
 
 

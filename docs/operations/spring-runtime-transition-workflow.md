@@ -76,6 +76,16 @@ Naver OAuth 로그인용 서버 env는 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLI
 
 Kakao OAuth 로그인용 서버 secret env는 `KAKAO_CLIENT_SECRET`이다. Key Vault secret name은 dev `dev-kakao-client-secret`, integration `int-kakao-client-secret`을 사용한다. 이 값은 Spring 서버 환경변수로만 주입하고 Flutter dart-define, manifest, plist, 앱 bundle에는 넣지 않는다.
 
+Kakao OAuth 로그인용 공개 client id는 `KAKAO_REST_API_KEY`를 사용한다. Key Vault secret name은 dev `dev-kakao-rest-api-key`, integration `int-kakao-rest-api-key`를 사용한다. 이 값은 Kakao Developers 앱의 REST API 키와 정확히 일치해야 하며, 앞뒤 공백이나 따옴표 없이 32자리 hex 형태인지 확인한다. 같은 env는 Spring의 Kakao authorization code exchange와 Kakao place search provider가 함께 사용하므로, Key Vault 값을 고친 뒤 이미 실행 중인 Spring 프로세스에는 재기동 또는 재배포가 필요하다.
+
+Kakao browser OAuth device smoke 전 Kakao Developers 콘솔에서 다음 공개 설정을 확인한다.
+
+- 로그인 Redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- iOS 네이티브 앱 키 번들 ID: `io.onieum.onmuMobile`
+- Android deep link: 앱 manifest의 `io.onieum.onmu://oauth/kakao/callback`
+
+Kakao 인증 페이지에서 `Admin Settings Issue (KOE101)`이 보이면 앱 코드보다 `dev-kakao-rest-api-key` 값과 Kakao Developers REST API 키 불일치를 먼저 의심한다. Key Vault 값을 고친 뒤에는 Spring 재기동과 Flutter 앱 재빌드를 모두 수행한다.
+
 Naver redirect URI 후보는 `http://localhost:8080/api/v1/auth/oauth/naver/callback`, `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, future prod `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`이다.
 
 dev Flutter 실행:
@@ -101,6 +111,26 @@ cd <ONMU repo>
   --vault-name "$AZURE_KEY_VAULT_NAME"
 
 ./scripts/macos/run-flutter-dev-api.sh
+```
+
+Kakao OAuth smoke처럼 Flutter 앱에서 Kakao browser authorization URL을 열어야 할 때는 Kakao 공개 OAuth define을 함께 생성한다.
+
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -VaultName $env:AZURE_KEY_VAULT_NAME `
+  -IncludeKakaoOAuth
+```
+
+macOS:
+
+```bash
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-kakao-oauth
 ```
 
 macOS Flutter web 검증은 `http://127.0.0.1:5173` 기준으로 실행한다. 이 origin은 dev Spring CORS 허용 목록에 포함되어 있어야 하며, 임의 wildcard로 넓히지 않는다. `ONMU_ACCESS_TOKEN_SECRET`이 이미 로컬 환경변수에 있으면 macOS JWT 스크립트는 Key Vault를 호출하지 않고 해당 값으로 짧은 수명의 JWT만 발급한다.
