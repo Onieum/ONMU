@@ -240,7 +240,7 @@ void main() {
     expect(updated.sendErrorMessage, isNull);
   });
 
-  test('채팅 ViewModel은 메시지 작성 실패 시 기존 상태를 보존하고 오류를 남긴다', () async {
+  test('채팅 ViewModel은 메시지 작성 실패 시 실패 말풍선과 오류를 남긴다', () async {
     final repository = _FakeGroupRepository(throwOnSend: true);
     final container = ProviderContainer(
       overrides: [
@@ -258,18 +258,65 @@ void main() {
     final updated = container.read(provider).requireValue;
 
     expect(initial.messages, isEmpty);
-    expect(sent, isFalse);
-    expect(updated.messages, isEmpty);
+    expect(sent, isTrue);
+    expect(updated.messages.single.message, '실패 요청');
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.failed);
     expect(updated.sendErrorMessage, '메시지를 보내지 못했어요.');
+  });
+
+  test('채팅 ViewModel은 실패한 메시지를 재시도해 서버 응답으로 교체한다', () async {
+    final repository = _FakeGroupRepository(
+      sendFailuresBeforeSuccess: 1,
+      sentMessage: const GroupMessage(
+        id: 'server-message-2',
+        sender: '나',
+        message: '재시도 성공',
+        timeLabel: '방금',
+        isMine: true,
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await container.read(provider.notifier).sendMessage('재시도 요청');
+    final failed = container.read(provider).requireValue.messages.single;
+    final retried = await container
+        .read(provider.notifier)
+        .retryMessage(failed.id);
+    final updated = container.read(provider).requireValue;
+
+    expect(failed.sendStatus, GroupMessageSendStatus.failed);
+    expect(retried, isTrue);
+    expect(repository.sentMessages, ['재시도 요청', '재시도 요청']);
+    expect(updated.messages.single.id, 'server-message-2');
+    expect(updated.messages.single.message, '재시도 성공');
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+    expect(updated.sendErrorMessage, isNull);
   });
 }
 
 class _FakeGroupRepository implements GroupRepository {
-  _FakeGroupRepository({this.sentMessage, this.throwOnSend = false});
+  _FakeGroupRepository({
+    this.sentMessage,
+    this.throwOnSend = false,
+    this.sendFailuresBeforeSuccess = 0,
+  }) : _remainingSendFailures = sendFailuresBeforeSuccess;
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
+  final int sendFailuresBeforeSuccess;
   final sentMessages = <String>[];
+  final markedReadMessages = <String?>[];
+  int _remainingSendFailures;
 
   static final _group = GroupSummary(
     id: 9001,
@@ -312,21 +359,43 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
 
   @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(messages: []);
+  }
+
+  @override
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
   }) async {
-    if (throwOnSend) {
+    sentMessages.add(message);
+    if (throwOnSend || _remainingSendFailures > 0) {
+      if (_remainingSendFailures > 0) {
+        _remainingSendFailures -= 1;
+      }
       throw StateError('send failed');
     }
-    sentMessages.add(message);
     return sentMessage ??
         GroupMessage(
+          id: 'server-message-${sentMessages.length}',
           sender: '나',
           message: message,
           timeLabel: '방금',
           isMine: true,
         );
+  }
+
+  @override
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
+  }) async {
+    markedReadMessages.add(lastReadMessageId);
+    return 0;
   }
 
   @override
@@ -405,9 +474,26 @@ class _EmptyGroupRepository implements GroupRepository {
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
 
   @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(messages: []);
+  }
+
+  @override
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
   }) {
     throw UnimplementedError();
   }

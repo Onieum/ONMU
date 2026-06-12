@@ -1333,11 +1333,28 @@ class _SingleMemberGroupRepository implements GroupRepository {
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => const [];
 
   @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(messages: []);
+  }
+
+  @override
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
   }) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<int> markMessagesRead({
+    required Object groupId,
+    String? lastReadMessageId,
+  }) async {
+    return 0;
   }
 
   @override

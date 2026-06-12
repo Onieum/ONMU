@@ -32,6 +32,7 @@ class InMemoryOnmuStore {
   var _nextGroupId = 4;
   var _nextPlanId = 106;
   var _nextVoteId = 505;
+  var _nextMessageId = 1;
 
   List<GroupSummary> fetchGroups() => List.unmodifiable(_groups);
 
@@ -110,7 +111,44 @@ class InMemoryOnmuStore {
   }
 
   List<GroupMessage> fetchMessages(Object groupId) {
-    return List.unmodifiable(_messagesByGroupId[_parseId(groupId)] ?? []);
+    final parsedGroupId = _parseId(groupId);
+    return List.unmodifiable(
+      _withMessageIds(parsedGroupId, _messagesByGroupId[parsedGroupId] ?? []),
+    );
+  }
+
+  GroupMessagePage fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) {
+    final messages = fetchMessages(groupId);
+    final cursor = beforeCursor?.trim();
+    final source = cursor == null || cursor.isEmpty
+        ? messages
+        : messages
+              .takeWhile((message) {
+                return message.cursor != cursor && message.id != cursor;
+              })
+              .toList(growable: false);
+    final effectiveLimit = limit ?? 50;
+    final hasMore = source.length > effectiveLimit;
+    final pageMessages = hasMore
+        ? source.sublist(source.length - effectiveLimit)
+        : source;
+
+    return GroupMessagePage(
+      messages: List.unmodifiable(pageMessages),
+      nextCursor: hasMore && pageMessages.isNotEmpty
+          ? pageMessages.first.cursor
+          : null,
+      hasMore: hasMore,
+      unreadCount: 0,
+    );
+  }
+
+  int markMessagesRead({required Object groupId, String? lastReadMessageId}) {
+    return 0;
   }
 
   GroupMessage sendMessage({required Object groupId, required String message}) {
@@ -118,7 +156,10 @@ class InMemoryOnmuStore {
       _parseId(groupId),
       () => [],
     );
+    final messageId = 'store-message-${_nextMessageId++}';
     final created = GroupMessage(
+      id: messageId,
+      cursor: messageId,
       sender: '나',
       message: message.trim(),
       timeLabel: '방금',
@@ -126,6 +167,22 @@ class InMemoryOnmuStore {
     );
     groupMessages.add(created);
     return created;
+  }
+
+  List<GroupMessage> _withMessageIds(int groupId, List<GroupMessage> messages) {
+    return [
+      for (var index = 0; index < messages.length; index += 1)
+        messages[index].id.isEmpty || messages[index].cursor.isEmpty
+            ? messages[index].copyWith(
+                id: messages[index].id.isEmpty
+                    ? 'group-$groupId-message-$index'
+                    : messages[index].id,
+                cursor: messages[index].cursor.isEmpty
+                    ? 'group-$groupId-message-$index'
+                    : messages[index].cursor,
+              )
+            : messages[index],
+    ];
   }
 
   Plan fetchPlan({required Object groupId, required Object planId}) {
