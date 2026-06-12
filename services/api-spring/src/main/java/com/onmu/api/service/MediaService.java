@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -43,6 +44,7 @@ public class MediaService {
   private final String bucket;
   private final MinioClient minioClient;
 
+  @Autowired
   public MediaService(
       @Value("${OBJECT_STORAGE_ENDPOINT:http://localhost:9000}") String endpoint,
       @Value("${OBJECT_STORAGE_BUCKET:onmu-local}") String bucket,
