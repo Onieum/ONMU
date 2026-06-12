@@ -140,6 +140,7 @@ Core API:
 - `GET /api/v1/groups/{groupId}/chat/messages`
 - `POST /api/v1/groups/{groupId}/chat/messages`
 - `PUT /api/v1/groups/{groupId}/chat/read-state`
+- `GET /api/v1/groups/{groupId}/chat/events`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
@@ -196,7 +197,9 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `group.created`
 - `group.updated`
 - `group.member_left`
+- `chat.message`
 
+`chat.message`는 이번 SCRUM-50 slice에서 in-process SSE fan-out과 함께 future Realtime Gateway hook 용도로 기록합니다.
 아직 queue publisher/consumer가 없으므로 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
 
 ## Flutter API Mode

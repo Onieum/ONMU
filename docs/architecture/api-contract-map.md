@@ -163,12 +163,15 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 | 채팅 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` |
 | 채팅 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` |
 | 채팅 읽음 상태 갱신 | `PUT /api/v1/groups/{groupId}/chat/read-state` |
+| 채팅 실시간 수신 | `GET /api/v1/groups/{groupId}/chat/events` |
 
 Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity stream으로 노출한다. `POST /chat/messages`는 현재 텍스트 메시지 작성을 우선 지원하고, 응답은 기존 Flutter `GroupMessage` UI 모델에 매핑 가능한 메시지 객체를 반환한다.
 
 `GET`은 선택 query로 `beforeCursor`, `limit`을 받는다. 응답은 `{ "messages": [...], "nextCursor": "...", "hasMore": true, "unreadCount": 0 }` 형태이며, 각 메시지는 `id`, `cursor`, `senderUserId`, `senderName`, `message`, `messageType`, `cardType`, `createdAt`, `timeLabel`, `isMine`, `sendStatus`를 가능한 범위에서 포함한다. `POST` 요청 body는 `{ "message": "..." }`이고, 빈 메시지는 `400 blank_chat_message`로 거부한다. `PUT /chat/read-state` 요청 body는 `{ "lastReadMessageId": "..." }`이고, 생략하면 최신 메시지를 기준으로 읽음 상태를 갱신한다. 모임 멤버가 아닌 사용자는 `403 group_member_required`로 거부한다.
 
-WebSocket/SSE 실시간 수신, FCM/APNs push, 사진/파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 REST 계약의 현재 범위가 아니다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
+`GET /chat/events`는 SCRUM-50의 첫 실시간 fan-out slice다. `text/event-stream`으로 `data: { ...message... }` SSE 이벤트를 보내며, 선택 query `afterCursor`는 기존 메시지 `cursor`와 같은 ISO timestamp 문자열만 사용한다. 현재 구현은 Spring Boot 단일 runtime 안의 in-process room broadcaster이며, 메시지 source of truth는 계속 `chat_activity_events`다. 멤버가 아닌 사용자는 stream 구독도 `403 group_member_required`로 거부한다.
+
+Redis/별도 Realtime Gateway, FCM/APNs push, 사진/파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 계약의 현재 범위가 아니다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
 
 ## Activity / Notification
 

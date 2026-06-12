@@ -183,6 +183,11 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
+  }
+
+  @override
   Future<GroupMemoryRecord> fetchMemory({
     required Object groupId,
     required Object memoryId,

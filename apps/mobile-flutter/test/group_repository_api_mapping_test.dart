@@ -285,6 +285,51 @@ void main() {
     expect(unreadCount, 0);
   });
 
+  test('SSE data JSON을 GroupMessage stream으로 매핑하고 깨진 payload는 버린다', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<ResponseBody>(
+              requestOptions: options,
+              data: ResponseBody.fromString(
+                ': connected\n'
+                'event: chat.message\n'
+                'data: {"id":"message-3","message":"실시간 도착","senderName":"지우","timeLabel":"14:02"}\n'
+                '\n'
+                'data: {not-json\n'
+                '\n'
+                'data: {"id":"message-4","message":"마지막 메시지","senderName":"나","isMine":true}\n',
+                200,
+                headers: {
+                  Headers.contentTypeHeader: ['text/event-stream'],
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    final messages = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).watchMessages('1', afterCursor: '2026-06-09T05:00:00Z').toList();
+
+    expect(requestedPaths.single, contains('/api/v1/groups/1/chat/events?'));
+    expect(
+      requestedPaths.single,
+      contains('afterCursor=2026-06-09T05%3A00%3A00Z'),
+    );
+    expect(messages, hasLength(2));
+    expect(messages[0].id, 'message-3');
+    expect(messages[0].message, '실시간 도착');
+    expect(messages[1].id, 'message-4');
+    expect(messages[1].isMine, isTrue);
+  });
+
   test('plan status API enum values are displayed in Korean', () {
     expect(PlanProgressStatus.fromApi('completed').label, '완료');
     expect(PlanProgressStatus.fromApi('draft').label, '초안');

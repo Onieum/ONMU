@@ -1482,6 +1482,11 @@ class _SingleMemberGroupRepository implements GroupRepository {
   }
 
   @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
+  }
+
+  @override
   Future<List<VoteSummary>> fetchVotes(Object groupId) async => const [];
 
   @override
