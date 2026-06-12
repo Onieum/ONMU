@@ -35,6 +35,7 @@ import com.onmu.api.domain.VoteOptionEntity;
 import com.onmu.api.domain.VoteOptionRepository;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
+import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
@@ -135,7 +136,7 @@ class OnmuApiServiceTests {
   void homeSummaryUsesAuthenticatedViewer() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "인증 사용자");
     when(groupRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(group));
-    when(planRepository.findByGroupOrderByStartsAtAsc(group)).thenReturn(List.of(plan));
+    when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
     when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
     when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
@@ -209,6 +210,87 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "업데이트 약속".equals(payload.get("title")))
     );
+  }
+
+  @Test
+  void planCardIncludesActiveParticipantsForUiCounts() {
+    UserEntity jimin = user("00000000-0000-0000-0000-000000000001", "지민");
+    UserEntity minsu = user("00000000-0000-0000-0000-000000000002", "민수");
+    PlanParticipantEntity joined = new PlanParticipantEntity(plan, jimin, "joined", "accepted");
+    PlanParticipantEntity left = new PlanParticipantEntity(plan, minsu, "left", "accepted");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(joined, left));
+
+    var detail = service.plan("1", "101");
+
+    assertThat(detail)
+      .containsEntry("memberCount", 1)
+      .containsEntry("memberCountLabel", "1명");
+    assertThat(detail.get("participants"))
+      .isInstanceOfSatisfying(List.class, participants -> {
+        assertThat(participants).hasSize(1);
+        Map<?, ?> participant = (Map<?, ?>) participants.getFirst();
+        assertThat(participant.get("displayName")).isEqualTo("지민");
+        assertThat(participant.get("status")).isEqualTo("joined");
+        assertThat(participant.get("fallback")).isEqualTo(false);
+      });
+    assertThat(detail.get("members"))
+      .isInstanceOfSatisfying(List.class, members -> {
+        assertThat(members).hasSize(1);
+        Map<?, ?> member = (Map<?, ?>) members.getFirst();
+        assertThat(member.get("name")).isEqualTo("지민");
+        assertThat(member.get("selected")).isEqualTo(true);
+      });
+  }
+
+  @Test
+  void planListUsesAuthenticatedParticipantScope() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    PlanEntity otherPlan = new PlanEntity(
+      "102",
+      group,
+      "다른 멤버 약속",
+      Instant.parse("2026-06-13T01:00:00Z"),
+      "draft"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of());
+
+    var plans = service.plans("1", viewer.getId());
+
+    assertThat(plans).hasSize(1);
+    assertThat(plans.getFirst()).containsEntry("id", "101");
+    assertThat(plans).noneSatisfy(planCard -> assertThat(planCard).containsEntry("id", otherPlan.getPublicId()));
+  }
+
+  @Test
+  void creatingPlanAddsCreatorAsParticipant() {
+    UserEntity creator = user("00000000-0000-0000-0000-000000000001", "지민");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(creator.getId())).thenReturn(Optional.of(creator));
+    when(planRepository.findAll()).thenReturn(List.of(plan));
+    when(planRepository.save(any(PlanEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(planParticipantRepository.findByPlanAndUser(any(PlanEntity.class), eq(creator))).thenReturn(Optional.empty());
+    when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(any(PlanEntity.class))).thenReturn(List.of());
+
+    var created = service.createPlan("1", creator.getId(), new CreatePlanRequest(
+      "새 약속",
+      "2026-06-14T05:00:00Z",
+      "2026-06-14T07:00:00Z",
+      "성수동",
+      "생성 메모"
+    ));
+
+    assertThat(created).containsEntry("id", "102").containsEntry("title", "새 약속");
+    verify(planParticipantRepository).save(argThat(participant ->
+      participant.getUser().equals(creator)
+        && "joined".equals(participant.getStatus())
+        && "accepted".equals(participant.getResponse())
+    ));
   }
 
   @Test
@@ -514,22 +596,14 @@ class OnmuApiServiceTests {
   }
 
   @Test
-  void participantsFallbackToCurrentUserWhenNoRowsExist() {
-    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+  void participantsReturnEmptyWhenNoRowsExist() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of());
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
 
     var participants = service.planParticipants("1", "101");
 
-    assertThat(participants).singleElement()
-      .satisfies(participant -> assertThat(participant)
-        .containsEntry("userId", user.getId().toString())
-        .containsEntry("displayName", "테스트 사용자")
-        .containsEntry("status", "joined")
-        .containsEntry("response", "accepted")
-        .containsEntry("fallback", true));
+    assertThat(participants).isEmpty();
   }
 
   @Test
