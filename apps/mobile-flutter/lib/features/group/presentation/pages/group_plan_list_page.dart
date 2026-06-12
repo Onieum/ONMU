@@ -401,7 +401,11 @@ class _PlanSummaryCard extends StatelessWidget {
                     for (final member in members.take(
                       plan.memberCount > 4 ? 4 : plan.memberCount,
                     )) ...[
-                      PixelAvatar(label: member.name, size: 22),
+                      PixelAvatar(
+                        label: member.name,
+                        size: 22,
+                        profileImageUrl: member.profileImageUrl,
+                      ),
                       const SizedBox(width: AppSpacing.xxs),
                     ],
                     if (plan.extraMemberCount > 0)

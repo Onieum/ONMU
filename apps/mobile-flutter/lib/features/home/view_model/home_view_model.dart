@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../group/repository/group_repository.dart';
-import '../../plan/repository/plan_repository.dart';
-import '../../settlement/repository/settlement_repository.dart';
 
 final homeViewModelProvider = AsyncNotifierProvider<HomeViewModel, HomeState>(
   HomeViewModel.new,
@@ -14,7 +12,9 @@ class HomeState {
   const HomeState({
     required this.groupId,
     required this.activePlan,
+    required this.todayPlans,
     required this.upcomingPlans,
+    required this.calendarPlans,
     required this.settlementId,
     required this.todayPlanCount,
   });
@@ -22,13 +22,17 @@ class HomeState {
   const HomeState.empty()
     : groupId = null,
       activePlan = null,
+      todayPlans = const [],
       upcomingPlans = const [],
+      calendarPlans = const [],
       settlementId = null,
       todayPlanCount = 0;
 
   final int? groupId;
   final Plan? activePlan;
+  final List<GroupPlanSummary> todayPlans;
   final List<GroupPlanSummary> upcomingPlans;
+  final List<GroupPlanSummary> calendarPlans;
   final int? settlementId;
   final int todayPlanCount;
 }
@@ -37,8 +41,6 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
   @override
   Future<HomeState> build() async {
     final groupRepository = ref.watch(groupRepositoryProvider);
-    final planRepository = ref.watch(planRepositoryProvider);
-    final settlementRepository = ref.watch(settlementRepositoryProvider);
 
     final groups = await groupRepository.fetchGroups();
     if (groups.isEmpty) {
@@ -51,105 +53,54 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
       final candidatePlans = await groupRepository.fetchPlans(
         candidateGroup.id,
       );
-      if (_activePlanSummary(candidatePlans) != null ||
+      if (_todayPlans(candidatePlans).isNotEmpty ||
           _upcomingPlans(candidatePlans).isNotEmpty) {
         group = candidateGroup;
         plans = candidatePlans;
         break;
       }
     }
-    final activePlanSummary = _activePlanSummary(plans);
-    if (activePlanSummary == null) {
-      return HomeState(
-        groupId: group.id,
-        activePlan: null,
-        upcomingPlans: _upcomingPlans(plans),
-        settlementId: null,
-        todayPlanCount: _countTodayPlans(plans),
-      );
-    }
-
-    final activePlan = await planRepository.fetchPlan(
-      groupId: group.id,
-      planId: activePlanSummary.id,
-    );
-    final settlementId = await _fetchSettlementIdOrNull(
-      settlementRepository: settlementRepository,
-      groupId: group.id,
-      planId: activePlan.id,
-    );
+    final todayPlans = _todayPlans(plans);
 
     return HomeState(
       groupId: group.id,
-      activePlan: activePlan,
+      activePlan: null,
+      todayPlans: todayPlans,
       upcomingPlans: _upcomingPlans(plans),
-      settlementId: settlementId,
-      todayPlanCount: _countTodayPlans(plans),
+      calendarPlans: _calendarPlans(plans),
+      settlementId: null,
+      todayPlanCount: todayPlans.length,
     );
   }
 
-  GroupPlanSummary? _activePlanSummary(List<GroupPlanSummary> plans) {
+  List<GroupPlanSummary> _todayPlans(List<GroupPlanSummary> plans) {
     final now = DateTime.now().toLocal();
-    final activePlans = plans.where((plan) {
-      final status = plan.progressStatus;
-      if (plan.isPast || status != PlanProgressStatus.active) {
-        return false;
-      }
-
-      final startsAt = plan.startsAt?.toLocal();
-      return startsAt != null && !startsAt.isAfter(now);
-    }).toList();
-
-    activePlans.sort((left, right) {
-      final leftStartsAt = left.startsAt?.toLocal();
-      final rightStartsAt = right.startsAt?.toLocal();
-      if (leftStartsAt == null && rightStartsAt == null) {
-        return left.id.compareTo(right.id);
-      }
-      if (leftStartsAt == null) {
-        return 1;
-      }
-      if (rightStartsAt == null) {
-        return -1;
-      }
-      final compared = rightStartsAt.compareTo(leftStartsAt);
-      return compared == 0 ? left.id.compareTo(right.id) : compared;
-    });
-    return activePlans.firstOrNull;
+    return plans.where((plan) => plan.isRemainingTodayAt(now)).toList()
+      ..sort(GroupPlanSummary.compareUpcoming);
   }
 
   List<GroupPlanSummary> _upcomingPlans(List<GroupPlanSummary> plans) {
     final now = DateTime.now().toLocal();
-    return plans.where((plan) => plan.isUpcomingFrom(now)).toList()
+    return plans.where((plan) {
+      if (!plan.isUpcomingFrom(now)) {
+        return false;
+      }
+      final startsAt = plan.startsAt?.toLocal();
+      if (startsAt == null) {
+        return true;
+      }
+      return !_isSameLocalDate(startsAt, now);
+    }).toList()..sort(GroupPlanSummary.compareUpcoming);
+  }
+
+  List<GroupPlanSummary> _calendarPlans(List<GroupPlanSummary> plans) {
+    return plans.where((plan) => plan.startsAt != null).toList()
       ..sort(GroupPlanSummary.compareUpcoming);
   }
 
-  int _countTodayPlans(List<GroupPlanSummary> plans) {
-    final now = DateTime.now().toLocal();
-    return plans.where((plan) {
-      final startsAt = plan.startsAt?.toLocal();
-      if (startsAt == null) {
-        return false;
-      }
-      return startsAt.year == now.year &&
-          startsAt.month == now.month &&
-          startsAt.day == now.day;
-    }).length;
-  }
-
-  Future<int?> _fetchSettlementIdOrNull({
-    required SettlementRepository settlementRepository,
-    required Object groupId,
-    required Object planId,
-  }) async {
-    try {
-      final settlement = await settlementRepository.fetchSettlement(
-        groupId: groupId,
-        planId: planId,
-      );
-      return settlement.id;
-    } catch (_) {
-      return null;
-    }
+  bool _isSameLocalDate(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
   }
 }

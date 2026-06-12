@@ -9,6 +9,7 @@ class RoutePaths {
   static const onboardingCharacter = '/onboarding/character';
   static const home = '/home';
   static const homeUpcomingPlans = '/home/upcoming-plans';
+  static const homeUpcomingCalendar = '/home/upcoming-plans/calendar';
   static const homeNotifications = '/home/notifications';
   static const homeRecentRecords = '/home/recent-records';
   static const groups = '/groups';

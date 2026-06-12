@@ -138,6 +138,10 @@ final appRouter = GoRouter(
               builder: (context, state) => const UpcomingPlansPage(),
             ),
             GoRoute(
+              path: RoutePaths.homeUpcomingCalendar,
+              builder: (context, state) => const UpcomingPlansCalendarPage(),
+            ),
+            GoRoute(
               path: RoutePaths.homeNotifications,
               builder: (context, state) => const HomeNotificationsPage(),
             ),
