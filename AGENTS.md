@@ -101,6 +101,14 @@ lib/features/<feature>/
 - 개인 DB 계정은 read-only 중심이며, `CREATE`/`INSERT`/`UPDATE`/`DELETE`가 가능하면 권한 설정 오류로 본다.
 - Cloudflare API token, `Secrets Officer`, 전체 secret 관리 권한은 일반 팀원 연결 확인 용도로 부여하지 않는다.
 
+## OAuth 로그인 검증
+
+- Kakao/Naver 같은 browser authorization-code 로그인은 웹 smoke와 모바일 smoke를 분리해서 판정한다.
+- Flutter web이나 Chrome에서는 provider authorize URL 생성, redirect URI, Spring callback의 `code`/`state` 수신까지만 확인할 수 있다. 웹에서 모바일 custom scheme 화면이 비거나 멈춘 것처럼 보여도 그것만으로 모바일 로그인 실패로 단정하지 않는다.
+- Android/iOS 로그인 완료 판정은 실제 모바일 빌드에서 `io.onieum.onmu://oauth/<provider>/callback` 딥링크 수신, Spring token exchange, secure storage 저장, 온보딩/홈 진입, 앱 재실행 후 세션 유지까지 확인한 뒤 내린다.
+- 실제 OAuth smoke에는 JWT 우회용 dart-define을 섞지 않는다. `ONMU_API_BASE_URL`과 provider 공개 client id/redirect URI만 주입하고, provider secret과 JWT signing secret은 앱 bundle에 넣지 않는다.
+- OAuth 검증 절차와 실패 판별은 `docs/operations/oauth-mobile-smoke.md`를 따른다.
+
 ## 검증
 
 - Flutter 코드를 바꾸면 가능한 범위에서 `flutter analyze`와 관련 `flutter test`를 실행한다.
