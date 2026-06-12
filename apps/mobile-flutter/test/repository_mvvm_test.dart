@@ -525,6 +525,93 @@ void main() {
     expect(repository.markedReadMessages, contains('message-2'));
   });
 
+  test(
+    '채팅 ViewModel은 첨부-only realtime 수신 시 storageKey가 맞는 pending만 교체한다',
+    () async {
+      final realtime = StreamController<GroupMessage>();
+      final repository = _FakeGroupRepository(
+        initialMessages: const [
+          GroupMessage(
+            id: 'local-a',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/a.jpg',
+                storageKey: 'records/media/a.jpg',
+              ),
+            ],
+          ),
+          GroupMessage(
+            id: 'local-b',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+                storageKey: 'records/media/b.jpg',
+              ),
+            ],
+          ),
+        ],
+        realtimeMessages: realtime.stream,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(repository),
+          settlementRepositoryProvider.overrideWithValue(
+            _ChatSettlementRepository(),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        await realtime.close();
+        container.dispose();
+      });
+      final provider = groupChatViewModelProvider('1');
+
+      await container.read(provider.future);
+      realtime.add(
+        const GroupMessage(
+          id: 'server-b',
+          cursor: '2026-06-09T05:02:00Z',
+          sender: '나',
+          message: '',
+          timeLabel: '14:02',
+          isMine: true,
+          attachments: [
+            GroupMessageAttachment(
+              type: 'image',
+              publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+              storageKey: 'records/media/b.jpg',
+            ),
+          ],
+        ),
+      );
+      await pumpEventQueue();
+
+      final updated = container.read(provider).requireValue;
+      expect(updated.messages.map((message) => message.id), [
+        'local-a',
+        'server-b',
+      ]);
+      expect(updated.messages.first.sendStatus, GroupMessageSendStatus.sending);
+      expect(
+        updated.messages.last.attachments.single.storageKey,
+        'records/media/b.jpg',
+      );
+      expect(repository.markedReadMessages, contains('server-b'));
+    },
+  );
+
   test('채팅 ViewModel은 realtime stream 오류가 나도 기존 메시지를 유지한다', () async {
     final realtime = StreamController<GroupMessage>();
     final repository = _FakeGroupRepository(

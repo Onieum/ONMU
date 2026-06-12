@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class MediaService {
   private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
   private static final String UPLOADED_MEDIA_PREFIX = "records/media/";
+  private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".heic",
+    ".heif"
+  );
 
   private final String endpoint;
   private final String bucket;
@@ -46,6 +57,12 @@ public class MediaService {
         .credentials(accessKey, secretKey)
         .build();
     ensureBucketExists();
+  }
+
+  MediaService(String endpoint, String bucket, MinioClient minioClient) {
+    this.endpoint = endpoint;
+    this.bucket = bucket;
+    this.minioClient = minioClient;
   }
 
   private void ensureBucketExists() {
@@ -156,6 +173,7 @@ public class MediaService {
     String extension = originalName.contains(".") 
       ? originalName.substring(originalName.lastIndexOf(".")) 
       : ".jpg";
+    String contentType = validateImageUpload(file, extension);
 
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
@@ -165,7 +183,7 @@ public class MediaService {
               .bucket(bucket)
               .object(storageKey)
               .stream(file.getInputStream(), file.getSize(), -1)
-              .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
+              .contentType(contentType)
               .build());
 
       String publicUrl = publicMediaUrl(storageKey);
@@ -173,6 +191,17 @@ public class MediaService {
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", e);
     }
+  }
+
+  private String validateImageUpload(MultipartFile file, String extension) {
+    String contentType = file.getContentType();
+    String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+    if (!StringUtils.hasText(contentType)
+      || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")
+      || !ALLOWED_IMAGE_EXTENSIONS.contains(normalizedExtension)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_media_type");
+    }
+    return contentType;
   }
 
   public record PublicMediaObject(byte[] content, String contentType) {

@@ -476,7 +476,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       return message.isMine &&
           message.sendStatus.isPending &&
           incoming.isMine &&
-          message.message == incoming.message;
+          message.message == incoming.message &&
+          _attachmentSignature(message) == _attachmentSignature(incoming);
     });
     if (pendingIndex < 0) {
       return [...currentMessages, incoming];
@@ -504,5 +505,12 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       return 'cursor:${message.cursor}';
     }
     return '${message.sender}|${message.message}|${message.timeLabel}|${message.isMine}';
+  }
+
+  String _attachmentSignature(GroupMessage message) {
+    return message.attachments
+        .map((attachment) => attachment.storageKey.trim())
+        .where((storageKey) => storageKey.isNotEmpty)
+        .join('|');
   }
 }
