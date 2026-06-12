@@ -8,7 +8,9 @@ param(
   [string]$Issuer = $env:ONMU_AUTH_ISSUER,
   [string]$Audience = $env:ONMU_AUTH_AUDIENCE,
   [string]$ApiBaseUrl,
-  [string]$OutputPath
+  [string]$OutputPath,
+  [switch]$IncludeKakaoOAuth,
+  [string]$KakaoOAuthRedirectUri
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,6 +41,9 @@ if (-not $OutputPath) {
   }
   $OutputPath = Join-Path $repoRoot "apps\mobile-flutter\.dart_tool\$fileName"
 }
+if ($IncludeKakaoOAuth -and -not $KakaoOAuthRedirectUri) {
+  $KakaoOAuthRedirectUri = "$($ApiBaseUrl.TrimEnd('/'))/api/v1/auth/oauth/kakao/callback"
+}
 
 if ($ExpiresInMinutes -lt 5 -or $ExpiresInMinutes -gt 1440) {
   throw "ExpiresInMinutes must be between 5 and 1440."
@@ -57,6 +62,19 @@ if ($VaultName -and ($vaultNameWasProvided -or -not $env:ONMU_ACCESS_TOKEN_SECRE
     -Quiet
 } elseif (-not $env:ONMU_ACCESS_TOKEN_SECRET) {
   throw "ONMU_ACCESS_TOKEN_SECRET is not set. Set it for local testing or pass -VaultName to load $secretName from Key Vault."
+}
+
+if ($IncludeKakaoOAuth -and -not $env:KAKAO_REST_API_KEY) {
+  if (-not $VaultName) {
+    throw "KAKAO_REST_API_KEY is not set. Set it for local testing or pass -VaultName to load $secretPrefix-kakao-rest-api-key from Key Vault."
+  }
+  $loadKeyVaultEnv = Join-Path $repoRoot "scripts\load-key-vault-env.ps1"
+  & $loadKeyVaultEnv `
+    -VaultName $VaultName `
+    -SecretPrefix $secretPrefix `
+    -EnvName KAKAO_REST_API_KEY `
+    -RequiredEnv KAKAO_REST_API_KEY `
+    -Quiet
 }
 
 $secret = $env:ONMU_ACCESS_TOKEN_SECRET
@@ -103,6 +121,13 @@ $defines = [ordered]@{
   ONMU_API_ACCESS_JWT = $accessToken
   ONMU_DEV_ACCESS_TOKEN = $accessToken
 }
+if ($IncludeKakaoOAuth) {
+  if (-not $env:KAKAO_REST_API_KEY) {
+    throw "KAKAO_REST_API_KEY could not be loaded."
+  }
+  $defines.KAKAO_REST_API_KEY = $env:KAKAO_REST_API_KEY.Trim()
+  $defines.KAKAO_OAUTH_REDIRECT_URI = $KakaoOAuthRedirectUri
+}
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if (-not (Test-Path -LiteralPath $outputDirectory)) {
@@ -116,3 +141,6 @@ Write-Host "Wrote Flutter dart-define file: $OutputPath"
 Write-Host "JWT subject: $($UserPublicId.Trim())"
 Write-Host "JWT expires at UTC: $($expiresAt.ToString("yyyy-MM-ddTHH:mm:ssZ"))"
 Write-Host "Token value is stored only in the local ignored dart-define file and is not printed."
+if ($IncludeKakaoOAuth) {
+  Write-Host "Included Kakao OAuth dart-define keys without printing their values."
+}

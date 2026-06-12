@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 class PlaceSearchServiceTests {
   @Test
@@ -19,7 +20,8 @@ class PlaceSearchServiceTests {
     PlaceSearchService service = new PlaceSearchService(
       List.of(new FakeProvider("naver", false, List.of())),
       new DevMockPlaceSearchProvider(),
-      new NoopCache()
+      new NoopCache(),
+      localEnvironment()
     );
 
     var results = service.search("카페", "1", "101");
@@ -46,7 +48,8 @@ class PlaceSearchServiceTests {
         new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울 종로구", null, null)))
       ),
       new DevMockPlaceSearchProvider(),
-      new NoopCache()
+      new NoopCache(),
+      localEnvironment()
     );
 
     var results = service.search("카페", "1", "101");
@@ -72,13 +75,57 @@ class PlaceSearchServiceTests {
         new FakeProvider("kakao", true, List.of(result("kakao", "kakao-1", "카카오 후보", "서울", 37.5, 127.0)))
       ),
       new DevMockPlaceSearchProvider(),
-      new NoopCache()
+      new NoopCache(),
+      localEnvironment()
     );
 
     var results = service.search("카페", "1", "101", null, null, null, null, List.of("kakao"), true);
 
     assertThat(results).singleElement()
       .satisfies(result -> assertThat(result).containsEntry("provider", "kakao"));
+  }
+
+  @Test
+  void searchFallsBackToDevMockInLocalWhenExternalProviderReturnsNoResults() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new FakeProvider("naver", true, List.of())),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("홍대 카페", "1", "104");
+
+    assertThat(results).hasSize(3);
+    assertThat(results.getFirst())
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("source", "dev-mock")
+      .containsEntry("category", "cafe")
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
+    assertThat(results.getFirst()).extracting("context")
+      .isInstanceOfSatisfying(Map.class, context ->
+        assertThat(context)
+          .containsEntry("groupId", "1")
+          .containsEntry("planId", "104")
+          .containsEntry("source", "dev-mock"));
+  }
+
+  @Test
+  void searchDoesNotMixDevMockInProdWhenExternalProviderReturnsNoResults() {
+    MockEnvironment environment = new MockEnvironment()
+      .withProperty("spring.datasource.url", "jdbc:postgresql://prod-db.internal/onmu");
+    environment.setActiveProfiles("prod");
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new FakeProvider("naver", true, List.of())),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      environment
+    );
+
+    var results = service.search("홍대 카페", "1", "104");
+
+    assertThat(results).isEmpty();
   }
 
   private static PlaceSearchResult result(
@@ -90,6 +137,11 @@ class PlaceSearchServiceTests {
     Double lng
   ) {
     return new PlaceSearchResult(provider, providerPlaceId, name, "카페", address, address, lat, lng, null, Instant.parse("2026-06-10T00:00:00Z"));
+  }
+
+  private static MockEnvironment localEnvironment() {
+    return new MockEnvironment()
+      .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:15432/onmu");
   }
 
   private record FakeProvider(String provider, boolean available, List<PlaceSearchResult> results) implements PlaceSearchProvider {

@@ -9,6 +9,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../model/map_models.dart';
 import '../repository/tile_manifest_repository.dart';
+import '../web/onmu_map_web_bootstrap.dart';
 
 class OnmuMapView extends ConsumerWidget {
   const OnmuMapView({
@@ -19,6 +20,7 @@ class OnmuMapView extends ConsumerWidget {
     this.focusedPointId,
     this.onPointTap,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
+    this.debugWebPmtilesProtocolReady,
     super.key,
   });
 
@@ -29,6 +31,7 @@ class OnmuMapView extends ConsumerWidget {
   final String? focusedPointId;
   final ValueChanged<OnmuMapPoint>? onPointTap;
   final String fallbackLabel;
+  final bool? debugWebPmtilesProtocolReady;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,7 +43,13 @@ class OnmuMapView extends ConsumerWidget {
         manifest?.center ??
         const OnmuLatLng(lat: 36.5, lng: 127.8);
     final styleUrl = manifest?.styleUrl ?? '';
-    final useMapLibre = _canUseMapLibre && styleUrl.isNotEmpty;
+    final webBootstrapReady =
+        debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
+    final useMapLibre =
+        _canUseMapLibre && styleUrl.isNotEmpty && webBootstrapReady;
+    final effectiveFallbackLabel = styleUrl.isNotEmpty && !webBootstrapReady
+        ? '지도 스크립트를 준비하는 중입니다.'
+        : fallbackLabel;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -62,7 +71,7 @@ class OnmuMapView extends ConsumerWidget {
                     tiltGesturesEnabled: false,
                     myLocationEnabled: false,
                   )
-                : _FallbackMapBackground(label: fallbackLabel),
+                : _FallbackMapBackground(label: effectiveFallbackLabel),
           ),
           Positioned.fill(
             child: _ProjectedMapOverlay(

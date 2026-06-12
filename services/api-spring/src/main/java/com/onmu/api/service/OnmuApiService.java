@@ -730,6 +730,13 @@ public class OnmuApiService {
 
   private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate, UserEntity user) {
     Map<String, Object> payload = readObject(candidate.getPayload());
+    ExternalPlaceEntity externalPlace = candidate.getExternalPlace();
+    Double lat = firstNonNullDouble(payload.get("lat"), payload.get("latitude"), externalPlace == null ? null : externalPlace.getLatitude());
+    Double lng = firstNonNullDouble(payload.get("lng"), payload.get("longitude"), externalPlace == null ? null : externalPlace.getLongitude());
+    String provider = stringOrDefault(asString(payload.get("provider")), externalPlace == null ? null : externalPlace.getProvider());
+    String providerPlaceId = stringOrDefault(asString(payload.get("providerPlaceId")), externalPlace == null ? null : externalPlace.getProviderPlaceId());
+    String roadAddress = stringOrDefault(asString(payload.get("roadAddress")), externalPlace == null ? null : externalPlace.getRoadAddress());
+    String sourceUrl = stringOrDefault(asString(payload.get("sourceUrl")), externalPlace == null ? null : externalPlace.getHomepageUrl());
     int heartCount = candidateHeartCount(candidate);
     boolean myHearted = placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user);
     Map<String, Object> value = new LinkedHashMap<>();
@@ -746,18 +753,18 @@ public class OnmuApiService {
     value.put("travelTimeLabel", stringOrDefault(asString(payload.get("travelTimeLabel")), "이동 시간 준비 중"));
     value.put("priceLabel", stringOrDefault(asString(payload.get("priceLabel")), "가격 정보 준비 중"));
     value.put("isOpen", true);
-    value.put("address", stringOrDefault(candidate.getAddress(), ""));
+    value.put("address", stringOrDefault(candidate.getAddress(), externalPlace == null ? "" : stringOrDefault(externalPlace.getAddress(), "")));
     value.put("source", stringOrDefault(asString(payload.get("source")), "manual"));
     value.put("sourceLabel", stringOrDefault(asString(payload.get("sourceLabel")), "직접 추가"));
-    value.put("externalPlaceId", candidate.getExternalPlace() == null ? null : candidate.getExternalPlace().getPublicId());
-    value.put("provider", payload.get("provider"));
-    value.put("providerPlaceId", payload.get("providerPlaceId"));
-    value.put("roadAddress", payload.get("roadAddress"));
-    value.put("sourceUrl", payload.get("sourceUrl"));
-    value.put("lat", payload.get("lat"));
-    value.put("lng", payload.get("lng"));
-    value.put("latitude", payload.get("lat"));
-    value.put("longitude", payload.get("lng"));
+    value.put("externalPlaceId", externalPlace == null ? null : externalPlace.getPublicId());
+    value.put("provider", provider);
+    value.put("providerPlaceId", providerPlaceId);
+    value.put("roadAddress", roadAddress);
+    value.put("sourceUrl", sourceUrl);
+    value.put("lat", lat);
+    value.put("lng", lng);
+    value.put("latitude", lat);
+    value.put("longitude", lng);
     value.put("fetchedAt", payload.get("fetchedAt"));
     value.put("createdAt", candidate.getCreatedAt() == null ? null : candidate.getCreatedAt().toString());
     value.put("openingLabel", stringOrDefault(asString(payload.get("openingLabel")), "영업 정보 확인 중"));
@@ -1164,6 +1171,22 @@ public class OnmuApiService {
 
   private Double firstNonNull(Double first, Double second) {
     return first == null ? second : first;
+  }
+
+  private Double firstNonNullDouble(Object... values) {
+    for (Object value : values) {
+      if (value instanceof Number number) {
+        return number.doubleValue();
+      }
+      if (value instanceof String string && !string.isBlank()) {
+        try {
+          return Double.parseDouble(string);
+        } catch (NumberFormatException ignored) {
+          // Try the next fallback value.
+        }
+      }
+    }
+    return null;
   }
 
   private String blankToNull(String value) {

@@ -115,6 +115,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
           orElse: () => localVisibleCandidates,
         ) ??
         localVisibleCandidates;
+    final searchLoading = remoteSearchState?.isLoading ?? false;
+    final searchHadError = remoteSearchState?.hasError ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.bgGrid,
@@ -134,6 +136,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                   Positioned.fill(
                     child: OnmuMapView(
                       points: _mapPointsFor(visibleCandidates),
+                      fallbackLabel: _mapFallbackLabel(
+                        visibleCandidates,
+                        searchLoading: searchLoading,
+                        searchHadError: searchHadError,
+                      ),
                       focusedPointId: _selectedCandidate?.id.toString(),
                       onPointTap: (point) {
                         final selected = _candidateByPointId(
@@ -200,6 +207,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                           searchActive: _searchActive,
                           query: _query,
                           selectedCategory: _selectedCategory,
+                          searchLoading: searchLoading,
+                          searchHadError: searchHadError,
                           selectedCandidate: _selectedCandidate,
                           onBackToResults: () {
                             setState(() {
@@ -307,6 +316,23 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
           order: index + 1,
         ),
     ];
+  }
+
+  String _mapFallbackLabel(
+    List<PlaceCandidate> candidates, {
+    required bool searchLoading,
+    required bool searchHadError,
+  }) {
+    if (candidates.isNotEmpty) {
+      return '지도 타일을 준비하는 동안 후보 위치를 표시하고 있어요';
+    }
+    if (searchLoading) {
+      return '지도 위에 보여줄 장소를 찾는 중이에요';
+    }
+    if (searchHadError) {
+      return '지도 타일과 검색 결과를 다시 확인하고 있어요';
+    }
+    return '검색어를 입력하면 지도 위에 후보 위치가 표시돼요';
   }
 }
 
@@ -549,6 +575,8 @@ class _RecommendationSheet extends StatelessWidget {
     required this.searchActive,
     required this.query,
     required this.selectedCategory,
+    required this.searchLoading,
+    required this.searchHadError,
     required this.selectedCandidate,
     required this.onBackToResults,
     required this.onCandidateSelected,
@@ -561,6 +589,8 @@ class _RecommendationSheet extends StatelessWidget {
   final bool searchActive;
   final String query;
   final String selectedCategory;
+  final bool searchLoading;
+  final bool searchHadError;
   final PlaceCandidate? selectedCandidate;
   final VoidCallback onBackToResults;
   final ValueChanged<PlaceCandidate> onCandidateSelected;
@@ -621,14 +651,13 @@ class _RecommendationSheet extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             if (candidates.isEmpty) ...[
-              OnmuCard(
-                backgroundColor: AppColors.bgDefault,
-                borderColor: AppColors.lineSoft,
-                child: Text(
-                  '조건에 맞는 장소를 찾지 못했어요',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+              _EmptyPlaceSearchCard(
+                searchActive: searchActive,
+                searchLoading: searchLoading,
+                searchHadError: searchHadError,
+                selectedCategory: selectedCategory,
               ),
+              const SizedBox(height: AppSpacing.sm),
             ],
             for (var index = 0; index < candidates.length; index += 1) ...[
               _RecommendationTile(
@@ -663,6 +692,78 @@ class _RecommendationSheet extends StatelessWidget {
     }
 
     return '"$normalizedQuery" 검색 결과를 지도 위에서 확인해요';
+  }
+}
+
+class _EmptyPlaceSearchCard extends StatelessWidget {
+  const _EmptyPlaceSearchCard({
+    required this.searchActive,
+    required this.searchLoading,
+    required this.searchHadError,
+    required this.selectedCategory,
+  });
+
+  final bool searchActive;
+  final bool searchLoading;
+  final bool searchHadError;
+  final String selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(_icon, color: AppColors.primaryPink),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_title, style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(_body, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData get _icon {
+    if (searchLoading) {
+      return Icons.explore_outlined;
+    }
+    if (searchHadError) {
+      return Icons.refresh;
+    }
+    return Icons.search;
+  }
+
+  String get _title {
+    if (searchLoading) {
+      return '장소를 찾는 중이에요';
+    }
+    if (searchHadError) {
+      return '검색 결과를 불러오지 못했어요';
+    }
+    return searchActive ? '다른 키워드로 다시 찾아볼까요?' : '검색어를 입력해 주세요';
+  }
+
+  String get _body {
+    if (searchLoading) {
+      return '잠시 뒤 후보가 지도와 함께 나타나요.';
+    }
+    if (searchHadError) {
+      return '잠시 후 다시 검색하거나 카테고리를 바꿔보세요.';
+    }
+    if (searchActive && selectedCategory != '전체') {
+      return '$selectedCategory 말고 전체로 넓혀서 찾아볼 수도 있어요.';
+    }
+    return '카페, 전시, 홍대 카페처럼 입력하면 후보를 지도에 표시해요.';
   }
 }
 
