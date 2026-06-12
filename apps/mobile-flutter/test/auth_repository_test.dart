@@ -124,6 +124,59 @@ void main() {
   );
 
   test(
+    'exchanges Kakao authorization code and state for ONMU tokens',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/kakao');
+            expect(options.headers['Authorization'], isNull);
+            expect(options.data, {
+              'authorizationCode': 'kakao-auth-code',
+              'state': 'state-123',
+            });
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_kakao_code',
+                    'displayName': 'Kakao User',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'kakao',
+          authorizationCode: 'kakao-auth-code',
+          state: 'state-123',
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.user.publicId, 'usr_kakao_code');
+      expect(session.user.provider, 'KAKAO');
+    },
+  );
+
+  test(
     'exchanges Naver provider token for ONMU tokens without using it as bearer',
     () async {
       const providerToken = 'naver-provider-token';
@@ -175,6 +228,59 @@ void main() {
       expect(session.user.publicId, 'usr_naver');
       expect(session.user.provider, 'NAVER');
       expect(session.user.displayName, '네이버 사용자');
+    },
+  );
+
+  test(
+    'exchanges Naver authorization code and state for ONMU tokens',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/naver');
+            expect(options.headers['Authorization'], isNull);
+            expect(options.data, {
+              'authorizationCode': 'naver-auth-code',
+              'state': 'state-123',
+            });
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_naver_code',
+                    'displayName': '네이버 사용자',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'naver',
+          authorizationCode: 'naver-auth-code',
+          state: 'state-123',
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.user.publicId, 'usr_naver_code');
+      expect(session.user.provider, 'NAVER');
     },
   );
 }

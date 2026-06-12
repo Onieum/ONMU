@@ -74,6 +74,8 @@ Azure/Terraform 기반 prod 전환 시에는 Flutter가 OAuth login을 시작하
 
 Naver OAuth 로그인용 서버 env는 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`이다. Key Vault secret name은 dev `dev-naver-oauth-client-id`, `dev-naver-oauth-client-secret`, integration `int-naver-oauth-client-id`, `int-naver-oauth-client-secret`을 사용한다. `dev-naver-client-id`, `dev-naver-client-secret`은 이름이 모호하므로 OAuth 로그인에는 사용하지 않는다.
 
+Kakao OAuth 로그인용 서버 secret env는 `KAKAO_CLIENT_SECRET`이다. Key Vault secret name은 dev `dev-kakao-client-secret`, integration `int-kakao-client-secret`을 사용한다. 이 값은 Spring 서버 환경변수로만 주입하고 Flutter dart-define, manifest, plist, 앱 bundle에는 넣지 않는다.
+
 Naver redirect URI 후보는 `http://localhost:8080/api/v1/auth/oauth/naver/callback`, `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`, future prod `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`이다.
 
 dev Flutter 실행:
