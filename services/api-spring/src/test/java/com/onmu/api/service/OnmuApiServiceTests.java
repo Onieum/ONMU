@@ -682,6 +682,52 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void placeCandidateDetailFallsBackToExternalPlaceCoordinatesAndProviderFields() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    ExternalPlaceEntity externalPlace = new ExternalPlaceEntity(
+      "NAVER",
+      "naver-dev-place-201",
+      "무드카페",
+      "카페",
+      "서울시 예시구 무드길 2",
+      "무드길 2",
+      37.5002,
+      126.9002,
+      "https://example.test/place/mood-cafe",
+      "{\"source\":\"synthetic\"}"
+    );
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      externalPlace,
+      "무드카페",
+      "카페",
+      "서울시 예시구 무드길 2",
+      "{\"favoriteCount\":1}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(false);
+
+    var detail = service.placeCandidate("1", "101", "201");
+
+    assertThat(detail)
+      .containsEntry("provider", "NAVER")
+      .containsEntry("providerPlaceId", "naver-dev-place-201")
+      .containsEntry("roadAddress", "무드길 2")
+      .containsEntry("sourceUrl", "https://example.test/place/mood-cafe")
+      .containsEntry("lat", 37.5002)
+      .containsEntry("lng", 126.9002)
+      .containsEntry("latitude", 37.5002)
+      .containsEntry("longitude", 126.9002);
+    assertThat(detail.get("externalPlaceId")).isEqualTo(externalPlace.getPublicId());
+  }
+
+  @Test
   void placeCandidateListIncludesHeartState() {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     PlaceCandidateEntity candidate = new PlaceCandidateEntity(
