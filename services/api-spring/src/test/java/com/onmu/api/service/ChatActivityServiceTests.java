@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +16,11 @@ import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.ChatReadStateEntity;
 import com.onmu.api.domain.ChatReadStateRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.NotificationEntity;
+import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.ChatMessageAttachmentRequest;
@@ -44,6 +50,10 @@ class ChatActivityServiceTests {
   @Mock
   private GroupRepository groupRepository;
   @Mock
+  private GroupMemberRepository groupMemberRepository;
+  @Mock
+  private NotificationRepository notificationRepository;
+  @Mock
   private UserRepository userRepository;
   @Mock
   private ChatRealtimePublisher chatRealtimePublisher;
@@ -61,6 +71,8 @@ class ChatActivityServiceTests {
       chatActivityEventRepository,
       chatReadStateRepository,
       groupRepository,
+      groupMemberRepository,
+      notificationRepository,
       userRepository,
       new ObjectMapper(),
       chatRealtimePublisher,
@@ -162,6 +174,7 @@ class ChatActivityServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of());
     when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -186,6 +199,74 @@ class ChatActivityServiceTests {
     assertThat(eventCaptor.getValue().getPayload()).contains("\"message\":\"새 메시지입니다\"");
     verify(outboxService).record(eq("chat.message"), eq("chat_activity_event"), eq(eventCaptor.getValue().getId()), any());
     verify(chatRealtimePublisher).publishMessage(eq("1"), any());
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
+  }
+
+  @Test
+  void postMessageCreatesNotificationsForActiveJoinedMembersAndOwnerExceptActor() {
+    UserEntity ownerUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000003"), "온무장");
+    UserEntity activeUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000004"), "민수");
+    UserEntity joinedUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000005"), "서연");
+    group = new GroupEntity("1", "제주 여행 모임", ownerUser);
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(
+      new GroupMemberEntity(group, currentUser, "member", "active"),
+      new GroupMemberEntity(group, activeUser, "member", "active"),
+      new GroupMemberEntity(group, joinedUser, "member", "joined")
+    ));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationRepository.save(any(NotificationEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.createMessage(
+      "1",
+      currentUser.getId(),
+      new CreateChatMessageRequest("첫 줄입니다.\n둘째 줄이고 아주 긴 메시지 preview가 80자를 넘으면 잘려야 합니다. 개인정보 없이 짧게만 보여줘요.")
+    );
+
+    ArgumentCaptor<NotificationEntity> notificationCaptor = ArgumentCaptor.forClass(NotificationEntity.class);
+    verify(notificationRepository, times(3)).save(notificationCaptor.capture());
+    assertThat(notificationCaptor.getAllValues())
+      .extracting(notification -> notification.getUser().getId())
+      .containsExactly(activeUser.getId(), joinedUser.getId(), ownerUser.getId());
+    assertThat(notificationCaptor.getAllValues()).allSatisfy(notification -> {
+      assertThat(notification.getNotificationType()).isEqualTo("chat_message");
+      assertThat(notification.getTitle()).isEqualTo("나님의 새 메시지");
+      assertThat(notification.getBody()).doesNotContain("\n");
+      assertThat(notification.getBody()).hasSizeLessThanOrEqualTo(80);
+      assertThat(notification.getPayload())
+        .contains("\"groupId\":\"1\"")
+        .contains("\"messageId\"")
+        .contains("\"senderUserId\":\"" + currentUser.getPublicId() + "\"")
+        .contains("\"chatActivityEventId\"");
+      assertThat(notification.getStatus()).isEqualTo("queued");
+      assertThat(notification.getReadAt()).isNull();
+    });
+  }
+
+  @Test
+  void postMessageDoesNotNotifyLeftInactiveMembersOrActor() {
+    UserEntity inactiveUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000006"), "휴면");
+    UserEntity leftUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000007"), "탈퇴");
+    GroupMemberEntity leftMember = new GroupMemberEntity(group, leftUser, "member", "active");
+    leftMember.markLeft();
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(
+      new GroupMemberEntity(group, currentUser, "member", "active"),
+      new GroupMemberEntity(group, inactiveUser, "member", "inactive"),
+      leftMember
+    ));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.createMessage("1", currentUser.getId(), new CreateChatMessageRequest("안녕"));
+
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
   }
 
   @Test
@@ -305,6 +386,7 @@ class ChatActivityServiceTests {
     assertThatThrownBy(() -> service.createMessage("1", currentUser.getId(), new CreateChatMessageRequest(" ")))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
   }
 
   @Test
@@ -334,6 +416,7 @@ class ChatActivityServiceTests {
     assertThatThrownBy(() -> service.createMessage("1", currentUser.getId(), new CreateChatMessageRequest("안녕")))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
   }
 
   @Test
