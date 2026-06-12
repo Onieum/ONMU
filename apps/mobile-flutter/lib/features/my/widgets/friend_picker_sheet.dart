@@ -132,7 +132,11 @@ class _FriendPickerTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         children: [
-          PixelAvatar(label: friend.name, size: 44),
+          PixelAvatar(
+            label: friend.name,
+            size: 44,
+            profileImageUrl: friend.profileImageUrl,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(

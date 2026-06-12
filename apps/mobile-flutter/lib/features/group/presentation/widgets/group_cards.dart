@@ -214,7 +214,11 @@ class ChatMessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PixelAvatar(label: message.sender, size: 32),
+            PixelAvatar(
+              label: message.sender,
+              size: 32,
+              profileImageUrl: message.senderProfileImageUrl,
+            ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: _ChatMessageContent(

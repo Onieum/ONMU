@@ -15,6 +15,12 @@ abstract interface class GroupRepository {
 
   Future<GroupSummary> createGroup(GroupCreateInput input);
 
+  Future<GroupSummary> updateGroup({
+    required Object groupId,
+    required String name,
+    required String description,
+  });
+
   Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId);
 
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId);
@@ -74,15 +80,32 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<GroupSummary> fetchGroup(Object groupId) async {
-    final summary = await _client.getObject('/api/v1/groups/$groupId/summary');
-    return _groupSummary(OnmuJson.asMap(summary['group']));
+    final group = await _client.getObject('/api/v1/groups/$groupId');
+    return _groupSummary(group);
   }
 
   @override
   Future<GroupSummary> createGroup(GroupCreateInput input) async {
     final group = await _client.postObject(
       '/api/v1/groups',
-      body: {'name': input.name},
+      body: {
+        'name': input.name.trim(),
+        'description': input.description.trim(),
+        'memberNames': input.memberNames,
+      },
+    );
+    return _groupSummary(group);
+  }
+
+  @override
+  Future<GroupSummary> updateGroup({
+    required Object groupId,
+    required String name,
+    required String description,
+  }) async {
+    final group = await _client.patchObject(
+      '/api/v1/groups/$groupId',
+      body: {'name': name.trim(), 'description': description.trim()},
     );
     return _groupSummary(group);
   }
@@ -112,13 +135,8 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
-    final group = await fetchGroup(groupId);
-    return group.members
-        .map(
-          (name) =>
-              GroupMemberProfile(name: name, note: '', statusLabel: '참여 중'),
-        )
-        .toList(growable: false);
+    final members = await _client.getList('/api/v1/groups/$groupId/members');
+    return members.map(_groupMemberProfile).toList(growable: false);
   }
 
   @override
@@ -257,6 +275,7 @@ class ApiGroupRepository implements GroupRepository {
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
+      endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
       placeName: OnmuJson.readString(json, 'placeName', '장소 미정'),
       statusLabel: OnmuJson.readString(
         json,
@@ -304,6 +323,7 @@ class ApiGroupRepository implements GroupRepository {
         _messageTimeLabel(OnmuJson.readString(json, 'createdAt')),
       ),
       isMine: OnmuJson.readBool(json, 'isMine'),
+      senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
       sendStatus: GroupMessageSendStatus.fromApi(
         OnmuJson.readString(json, 'sendStatus', 'sent'),
       ),
@@ -319,6 +339,24 @@ class ApiGroupRepository implements GroupRepository {
       return '';
     }
     return '${match.group(1)}:${match.group(2)}';
+  }
+
+  GroupMemberProfile _groupMemberProfile(Map<String, dynamic> json) {
+    return GroupMemberProfile(
+      name: OnmuJson.readString(
+        json,
+        'name',
+        OnmuJson.readString(
+          json,
+          'displayName',
+          OnmuJson.readString(json, 'nickname', '멤버'),
+        ),
+      ),
+      note: OnmuJson.readString(json, 'note'),
+      statusLabel: OnmuJson.readString(json, 'statusLabel', '참여 중'),
+      invited: OnmuJson.readBool(json, 'invited'),
+      profileImageUrl: _profileImageUrl(json),
+    );
   }
 
   GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {
@@ -353,6 +391,7 @@ class ApiGroupRepository implements GroupRepository {
       ),
       tags: OnmuJson.stringList(json['tags']),
       imageUrls: _absoluteMediaUrls(json['imageUrls']),
+      authorProfileImageUrl: _profileImageUrl(json, 'authorProfileImageUrl'),
     );
   }
 
@@ -393,6 +432,26 @@ class ApiGroupRepository implements GroupRepository {
       return url;
     }
     return baseUri.resolve(url).toString();
+  }
+
+  String _profileImageUrl(
+    Map<String, dynamic> json, [
+    String primaryKey = 'profileImageUrl',
+  ]) {
+    final url = OnmuJson.readString(
+      json,
+      primaryKey,
+      OnmuJson.readString(
+        json,
+        'profileImageUrl',
+        OnmuJson.readString(
+          json,
+          'profilePhotoUrl',
+          OnmuJson.readString(json, 'avatarUrl'),
+        ),
+      ),
+    );
+    return _absoluteMediaUrl(url);
   }
 
   String _memoryDateLabel(String value) {

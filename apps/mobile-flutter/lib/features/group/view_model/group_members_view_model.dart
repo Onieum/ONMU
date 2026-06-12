@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
 import '../repository/group_repository.dart';
+import 'group_home_view_model.dart';
+import 'group_list_view_model.dart';
 
 final groupMembersViewModelProvider =
     AsyncNotifierProvider.family<
@@ -22,8 +24,7 @@ class GroupMembersState {
   final List<GroupMemberProfile> inviteCandidates;
 }
 
-class GroupMembersViewModel
-    extends AsyncNotifier<GroupMembersState> {
+class GroupMembersViewModel extends AsyncNotifier<GroupMembersState> {
   GroupMembersViewModel(this.groupId);
 
   final String groupId;
@@ -41,5 +42,31 @@ class GroupMembersViewModel
           .where((profile) => profile.invited || profile.name == '소연')
           .toList(growable: false),
     );
+  }
+
+  Future<GroupSummary> updateGroup({
+    required String name,
+    required String description,
+  }) async {
+    final repository = ref.read(groupRepositoryProvider);
+    final updated = await repository.updateGroup(
+      groupId: groupId,
+      name: name,
+      description: description,
+    );
+    final current = state.asData?.value;
+    if (current != null) {
+      state = AsyncData(
+        GroupMembersState(
+          group: updated,
+          members: current.members,
+          inviteCandidates: current.inviteCandidates,
+        ),
+      );
+    }
+    ref
+      ..invalidate(groupListViewModelProvider)
+      ..invalidate(groupHomeViewModelProvider(groupId));
+    return updated;
   }
 }

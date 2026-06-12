@@ -230,7 +230,11 @@ class _MemberRow extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         children: [
-          PixelAvatar(label: profile.name, size: 48),
+          PixelAvatar(
+            label: profile.name,
+            size: 48,
+            profileImageUrl: profile.profileImageUrl,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -267,41 +271,23 @@ class _InviteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: AppColors.linePink,
-              style: BorderStyle.solid,
-            ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryPink,
+          side: const BorderSide(color: AppColors.linePink),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircleAvatar(
-                  backgroundColor: AppColors.primaryPink,
-                  foregroundColor: AppColors.textInverse,
-                  child: Icon(Icons.add),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '친구 초대하기',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.primaryPink,
-                  ),
-                ),
-              ],
-            ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
         ),
+        icon: const Icon(Icons.person_add_outlined, size: 18),
+        label: const Text('친구 초대하기'),
       ),
     );
   }
@@ -359,7 +345,11 @@ class _InviteCandidateRow extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
-            PixelAvatar(label: profile.name, size: 48),
+            PixelAvatar(
+              label: profile.name,
+              size: 48,
+              profileImageUrl: profile.profileImageUrl,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
