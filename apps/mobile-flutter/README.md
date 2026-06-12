@@ -58,6 +58,42 @@ cd <ONMU repo>
 ./scripts/macos/run-flutter-dev-api.sh
 ```
 
+Kakao 로그인을 실제 Android/iPhone 기기에서 smoke할 때는 JWT define 파일에 Kakao OAuth 공개 설정도 함께 넣습니다. `KAKAO_CLIENT_SECRET`은 여전히 Spring 서버에만 있어야 하며, 아래 옵션은 Kakao REST API key와 redirect URI만 로컬 git ignored define 파일에 추가합니다.
+
+Windows PowerShell:
+
+```powershell
+cd C:\dev\ONMU
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
+  -Environment dev `
+  -VaultName $env:AZURE_KEY_VAULT_NAME `
+  -IncludeKakaoOAuth
+
+cd apps\mobile-flutter
+flutter run --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
+```
+
+macOS:
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-access-jwt.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-kakao-oauth
+
+cd apps/mobile-flutter
+flutter run --dart-define-from-file=.dart_tool/onmu-dev-api.defines.json
+```
+
+Kakao 인증 페이지에서 `Admin Settings Issue (KOE101)`이 보이면 앱 코드보다 Kakao Developers 앱 키 설정을 먼저 확인합니다.
+
+- Key Vault `dev-kakao-rest-api-key`가 ONMU Kakao Developers 앱의 REST API 키와 정확히 일치해야 합니다.
+- `dev-kakao-rest-api-key`는 앞뒤 공백이나 따옴표 없이 32자리 hex 형태여야 합니다.
+- Kakao Developers 로그인 Redirect URI에 `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`이 등록되어 있어야 합니다.
+- iPhone smoke 전 Kakao Developers 네이티브 앱 키의 iOS 번들 ID에 `io.onieum.onmuMobile`이 등록되어 있어야 합니다.
+- Key Vault 값을 고친 뒤에는 Flutter 앱을 같은 dart-define 파일로 다시 빌드/실행해야 합니다.
+
 `run-flutter-dev-api.sh`는 Flutter web을 `127.0.0.1:5173`에서 실행합니다. 이 포트는 dev Spring CORS 허용 origin에 포함되어 있으므로 Mac 브라우저 검증은 이 포트를 기준으로 맞춥니다. `ONMU_ACCESS_TOKEN_SECRET`이 이미 로컬 환경변수에 있으면 macOS JWT 스크립트는 Key Vault를 호출하지 않습니다.
 
 Windows에서 `flutter build web` 산출물을 정적 서버로 확인할 때는 Python `http.server` 대신 SPA fallback 서버를 사용합니다. Flutter 라우트인 `/home`, `/groups`, `/onboarding`을 직접 새로고침해도 `index.html`로 돌아가야 브라우저 검증이 안정적입니다.
