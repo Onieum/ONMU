@@ -186,8 +186,13 @@ class TestGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) async {
-    return _store.sendMessage(groupId: groupId, message: message);
+    return _store.sendMessage(
+      groupId: groupId,
+      message: message,
+      attachments: attachments,
+    );
   }
 
   @override

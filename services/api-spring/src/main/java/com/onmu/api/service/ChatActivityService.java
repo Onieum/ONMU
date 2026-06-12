@@ -11,6 +11,7 @@ import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.web.dto.ChatMessageAttachmentRequest;
 import com.onmu.api.web.dto.CreateChatMessageRequest;
 import com.onmu.api.web.dto.UpdateChatReadStateRequest;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ChatActivityService {
   private static final int DEFAULT_MESSAGE_LIMIT = 50;
   private static final int MAX_MESSAGE_LIMIT = 100;
+  private static final int MAX_ATTACHMENT_COUNT = 4;
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
   };
   private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter
@@ -111,15 +113,17 @@ public class ChatActivityService {
   @Transactional
   public Map<String, Object> createMessage(String groupId, UUID currentUserId, CreateChatMessageRequest request) {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
-    String message = request == null ? null : request.message();
-    if (message == null || message.isBlank()) {
+    String message = textValue(request == null ? null : request.message());
+    List<Map<String, Object>> attachments = normalizeAttachments(request == null ? null : request.attachments());
+    if (message == null && attachments.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_chat_message");
     }
     UserEntity actorUser = findUser(currentUserId);
 
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("senderName", displayName(actorUser));
-    payload.put("message", message.trim());
+    payload.put("message", message == null ? "" : message);
+    payload.put("attachments", attachments);
     payload.put("messageType", "message");
     payload.put("source", "spring_api");
 
@@ -133,7 +137,8 @@ public class ChatActivityService {
     Map<String, Object> response = toMessage(event, currentUserId);
     outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
       "groupId", group.getPublicId(),
-      "chatActivityEventId", event.getId().toString()
+      "chatActivityEventId", event.getId().toString(),
+      "attachmentCount", attachments.size()
     ));
     publishAfterCommit(group.getPublicId(), response);
     return response;
@@ -206,8 +211,11 @@ public class ChatActivityService {
     UserEntity actorUser = event.getActorUser();
     String messageType = messageType(event, payload);
     String message = firstText(payload, "message", "content");
-    if (message == null || message.isBlank()) {
+    List<Map<String, Object>> attachments = attachmentPayloads(payload.get("attachments"));
+    if ((message == null || message.isBlank()) && attachments.isEmpty()) {
       message = fallbackMessage(messageType);
+    } else if (message == null) {
+      message = "";
     }
 
     Map<String, Object> response = new LinkedHashMap<>();
@@ -215,6 +223,7 @@ public class ChatActivityService {
     response.put("senderUserId", actorUser == null ? null : actorUser.getPublicId());
     response.put("senderName", senderName(payload, actorUser, messageType));
     response.put("message", message);
+    response.put("attachments", attachments);
     response.put("messageType", messageType);
     response.put("cardType", textValue(payload.get("cardType")));
     response.put("createdAt", event.getCreatedAt().toString());
@@ -328,6 +337,98 @@ public class ChatActivityService {
       return first;
     }
     return textValue(payload.get(secondKey));
+  }
+
+  private List<Map<String, Object>> normalizeAttachments(List<ChatMessageAttachmentRequest> attachments) {
+    if (attachments == null || attachments.isEmpty()) {
+      return List.of();
+    }
+    if (attachments.size() > MAX_ATTACHMENT_COUNT) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "too_many_chat_attachments");
+    }
+    return attachments.stream()
+      .map(this::normalizeAttachment)
+      .toList();
+  }
+
+  private Map<String, Object> normalizeAttachment(ChatMessageAttachmentRequest attachment) {
+    if (attachment == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment");
+    }
+    String type = textValue(attachment.type());
+    if (!"image".equals(type)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_chat_attachment_type");
+    }
+    String storageKey = textValue(attachment.storageKey());
+    if (!MediaService.isAllowedPublicMediaKey(storageKey)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment_storage_key");
+    }
+    String contentType = textValue(attachment.contentType());
+    if (contentType != null && !contentType.toLowerCase().startsWith("image/")) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment_content_type");
+    }
+
+    Map<String, Object> normalized = new LinkedHashMap<>();
+    normalized.put("type", type);
+    normalized.put("storageKey", storageKey);
+    normalized.put("publicUrl", MediaService.publicMediaUrl(storageKey));
+    normalized.put("contentType", contentType);
+    normalized.put("fileName", textValue(attachment.fileName()));
+    normalized.put("width", positiveDimension(attachment.width()));
+    normalized.put("height", positiveDimension(attachment.height()));
+    return normalized;
+  }
+
+  private Integer positiveDimension(Integer value) {
+    if (value == null || value <= 0) {
+      return null;
+    }
+    return value;
+  }
+
+  private List<Map<String, Object>> attachmentPayloads(Object value) {
+    if (!(value instanceof List<?> values)) {
+      return List.of();
+    }
+    return values.stream()
+      .map(this::mapValue)
+      .filter(map -> "image".equals(textValue(map.get("type"))))
+      .map(map -> {
+        String storageKey = textValue(map.get("storageKey"));
+        String publicUrl = textValue(map.get("publicUrl"));
+        Map<String, Object> attachment = new LinkedHashMap<>();
+        attachment.put("type", "image");
+        attachment.put("storageKey", storageKey);
+        attachment.put("publicUrl", publicUrl == null && MediaService.isAllowedPublicMediaKey(storageKey)
+          ? MediaService.publicMediaUrl(storageKey)
+          : publicUrl);
+        attachment.put("contentType", textValue(map.get("contentType")));
+        attachment.put("fileName", textValue(map.get("fileName")));
+        attachment.put("width", integerValue(map.get("width")));
+        attachment.put("height", integerValue(map.get("height")));
+        return attachment;
+      })
+      .toList();
+  }
+
+  private Map<String, Object> mapValue(Object value) {
+    if (!(value instanceof Map<?, ?> raw)) {
+      return Map.of();
+    }
+    Map<String, Object> mapped = new LinkedHashMap<>();
+    raw.forEach((key, item) -> mapped.put(String.valueOf(key), item));
+    return mapped;
+  }
+
+  private Integer integerValue(Object value) {
+    if (value instanceof Number number) {
+      return number.intValue();
+    }
+    try {
+      return value == null ? null : Integer.parseInt(value.toString());
+    } catch (NumberFormatException exception) {
+      return null;
+    }
   }
 
   private String textValue(Object value) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../repository/media_repository.dart';
 import '../../view_model/group_chat_view_model.dart';
 import '../widgets/group_cards.dart';
 
@@ -27,6 +29,7 @@ class GroupChatPage extends StatefulWidget {
 class _GroupChatPageState extends State<GroupChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -73,6 +76,51 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
+  Future<void> _sendImageMessage(WidgetRef ref) async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1800,
+    );
+    if (picked == null) {
+      return;
+    }
+
+    final text = _messageController.text.trim();
+    _messageController.clear();
+    final sent = await ref
+        .read(groupChatViewModelProvider(widget.groupId).notifier)
+        .sendImageMessage(
+          PickedChatImage(
+            path: picked.path,
+            fileName: picked.name,
+            contentType: picked.mimeType ?? 'image/jpeg',
+          ),
+          text: text,
+        );
+    if (!mounted) {
+      return;
+    }
+    if (!sent) {
+      _messageController.text = text;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진을 보내지 못했어요.')));
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
@@ -85,6 +133,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
             messageController: _messageController,
             scrollController: _scrollController,
             onSend: () => _sendMessage(ref),
+            onPickImage: () => _sendImageMessage(ref),
             onLoadOlderMessages: () => ref
                 .read(groupChatViewModelProvider(widget.groupId).notifier)
                 .loadOlderMessages(),
@@ -125,6 +174,7 @@ class _ThreadContent extends StatelessWidget {
     required this.messageController,
     required this.scrollController,
     required this.onSend,
+    required this.onPickImage,
     required this.onLoadOlderMessages,
     required this.onRetryMessage,
   });
@@ -133,6 +183,7 @@ class _ThreadContent extends StatelessWidget {
   final TextEditingController messageController;
   final ScrollController scrollController;
   final Future<void> Function() onSend;
+  final Future<void> Function() onPickImage;
   final Future<void> Function() onLoadOlderMessages;
   final Future<void> Function(String messageId) onRetryMessage;
 
@@ -193,7 +244,11 @@ class _ThreadContent extends StatelessWidget {
           ),
         ],
       ),
-      bottom: _MessageInput(controller: messageController, onSend: onSend),
+      bottom: _MessageInput(
+        controller: messageController,
+        onSend: onSend,
+        onPickImage: onPickImage,
+      ),
       scrollController: scrollController,
       children: [
         if (state.pinnedPlan != null)
@@ -521,10 +576,15 @@ class _DateDivider extends StatelessWidget {
 }
 
 class _MessageInput extends StatelessWidget {
-  const _MessageInput({required this.controller, required this.onSend});
+  const _MessageInput({
+    required this.controller,
+    required this.onSend,
+    required this.onPickImage,
+  });
 
   final TextEditingController controller;
   final Future<void> Function() onSend;
+  final Future<void> Function() onPickImage;
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +597,14 @@ class _MessageInput extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: AppSpacing.sm),
-          const Icon(Icons.add_circle_outline, color: AppColors.primaryPink),
+          IconButton(
+            tooltip: '사진 첨부',
+            onPressed: onPickImage,
+            icon: const Icon(
+              Icons.add_photo_alternate_outlined,
+              color: AppColors.primaryPink,
+            ),
+          ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: TextField(

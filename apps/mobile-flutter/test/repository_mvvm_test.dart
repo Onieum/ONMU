@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/features/group/repository/media_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/group/view_model/group_chat_view_model.dart';
@@ -343,6 +344,50 @@ void main() {
     expect(updated.sendErrorMessage, isNull);
   });
 
+  test('채팅 ViewModel은 사진 업로드 후 첨부 메시지를 전송한다', () async {
+    final repository = _FakeGroupRepository();
+    final mediaRepository = _FakeMediaRepository(
+      uploaded: const GroupMessageAttachment(
+        type: 'image',
+        publicUrl:
+            'https://dev-api.onmu.cloud/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+        storageKey: 'records/media/photo.jpg',
+        contentType: 'image/jpeg',
+        fileName: 'photo.jpg',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        mediaRepositoryProvider.overrideWithValue(mediaRepository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final sent = await container
+        .read(provider.notifier)
+        .sendImageMessage(
+          const PickedChatImage(path: '/tmp/photo.jpg', fileName: 'photo.jpg'),
+          text: '사진 공유해요',
+        );
+    final updated = container.read(provider).requireValue;
+
+    expect(sent, isTrue);
+    expect(mediaRepository.uploadedPaths, ['/tmp/photo.jpg']);
+    expect(repository.sentMessages, ['사진 공유해요']);
+    expect(
+      repository.sentAttachments.single.single.storageKey,
+      'records/media/photo.jpg',
+    );
+    expect(updated.messages.single.attachments.single.type, 'image');
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+  });
+
   test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
     final repository = _FakeGroupRepository(
       initialMessages: const [
@@ -496,6 +541,93 @@ void main() {
     expect(repository.markedReadMessages, contains('message-2'));
   });
 
+  test(
+    '채팅 ViewModel은 첨부-only realtime 수신 시 storageKey가 맞는 pending만 교체한다',
+    () async {
+      final realtime = StreamController<GroupMessage>();
+      final repository = _FakeGroupRepository(
+        initialMessages: const [
+          GroupMessage(
+            id: 'local-a',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/a.jpg',
+                storageKey: 'records/media/a.jpg',
+              ),
+            ],
+          ),
+          GroupMessage(
+            id: 'local-b',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+                storageKey: 'records/media/b.jpg',
+              ),
+            ],
+          ),
+        ],
+        realtimeMessages: realtime.stream,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(repository),
+          settlementRepositoryProvider.overrideWithValue(
+            _ChatSettlementRepository(),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        await realtime.close();
+        container.dispose();
+      });
+      final provider = groupChatViewModelProvider('1');
+
+      await container.read(provider.future);
+      realtime.add(
+        const GroupMessage(
+          id: 'server-b',
+          cursor: '2026-06-09T05:02:00Z',
+          sender: '나',
+          message: '',
+          timeLabel: '14:02',
+          isMine: true,
+          attachments: [
+            GroupMessageAttachment(
+              type: 'image',
+              publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+              storageKey: 'records/media/b.jpg',
+            ),
+          ],
+        ),
+      );
+      await pumpEventQueue();
+
+      final updated = container.read(provider).requireValue;
+      expect(updated.messages.map((message) => message.id), [
+        'local-a',
+        'server-b',
+      ]);
+      expect(updated.messages.first.sendStatus, GroupMessageSendStatus.sending);
+      expect(
+        updated.messages.last.attachments.single.storageKey,
+        'records/media/b.jpg',
+      );
+      expect(repository.markedReadMessages, contains('server-b'));
+    },
+  );
+
   test('채팅 ViewModel은 realtime stream 오류가 나도 기존 메시지를 유지한다', () async {
     final realtime = StreamController<GroupMessage>();
     final repository = _FakeGroupRepository(
@@ -609,6 +741,7 @@ class _FakeGroupRepository implements GroupRepository {
   final int initialUnreadCount;
   final Stream<GroupMessage> realtimeMessages;
   final sentMessages = <String>[];
+  final sentAttachments = <List<GroupMessageAttachment>>[];
   final markedReadMessages = <String?>[];
   final watchedAfterCursors = <String?>[];
   int _remainingSendFailures;
@@ -683,8 +816,10 @@ class _FakeGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) async {
     sentMessages.add(message);
+    sentAttachments.add(attachments);
     if (throwOnSend || _remainingSendFailures > 0) {
       if (_remainingSendFailures > 0) {
         _remainingSendFailures -= 1;
@@ -698,6 +833,7 @@ class _FakeGroupRepository implements GroupRepository {
           message: message,
           timeLabel: '방금',
           isMine: true,
+          attachments: attachments,
         );
   }
 
@@ -752,6 +888,19 @@ class _FakeGroupRepository implements GroupRepository {
     required Object voteId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _FakeMediaRepository implements MediaRepository {
+  _FakeMediaRepository({required this.uploaded});
+
+  final GroupMessageAttachment uploaded;
+  final uploadedPaths = <String>[];
+
+  @override
+  Future<GroupMessageAttachment> uploadChatImage(PickedChatImage image) async {
+    uploadedPaths.add(image.path);
+    return uploaded;
   }
 }
 
@@ -813,6 +962,7 @@ class _EmptyGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) {
     throw UnimplementedError();
   }

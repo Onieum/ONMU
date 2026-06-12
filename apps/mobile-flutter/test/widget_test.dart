@@ -1472,6 +1472,7 @@ class _SingleMemberGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) {
     throw UnimplementedError();
   }

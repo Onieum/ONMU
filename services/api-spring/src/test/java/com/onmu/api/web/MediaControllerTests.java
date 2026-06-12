@@ -63,11 +63,11 @@ class MediaControllerTests {
 
   @Test
   void disallowedPublicSeedMediaPrefixReturnsBadRequest() throws Exception {
-    when(mediaService.readPublicSeedMedia("records/media/not-public.jpg"))
+    when(mediaService.readPublicSeedMedia("private/media/not-public.jpg"))
       .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_media_key_prefix"));
 
     mvc.perform(get("/api/v1/media/public")
-        .queryParam("key", "records/media/not-public.jpg"))
+        .queryParam("key", "private/media/not-public.jpg"))
       .andExpect(status().isBadRequest());
   }
 }
