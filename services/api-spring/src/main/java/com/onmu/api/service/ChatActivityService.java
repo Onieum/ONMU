@@ -8,7 +8,11 @@ import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.ChatReadStateEntity;
 import com.onmu.api.domain.ChatReadStateRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.NotificationEntity;
+import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.ChatMessageAttachmentRequest;
@@ -46,6 +50,8 @@ public class ChatActivityService {
   private final ChatActivityEventRepository chatActivityEventRepository;
   private final ChatReadStateRepository chatReadStateRepository;
   private final GroupRepository groupRepository;
+  private final GroupMemberRepository groupMemberRepository;
+  private final NotificationRepository notificationRepository;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
   private final ChatRealtimePublisher chatRealtimePublisher;
@@ -55,6 +61,8 @@ public class ChatActivityService {
     ChatActivityEventRepository chatActivityEventRepository,
     ChatReadStateRepository chatReadStateRepository,
     GroupRepository groupRepository,
+    GroupMemberRepository groupMemberRepository,
+    NotificationRepository notificationRepository,
     UserRepository userRepository,
     ObjectMapper objectMapper,
     ChatRealtimePublisher chatRealtimePublisher,
@@ -63,6 +71,8 @@ public class ChatActivityService {
     this.chatActivityEventRepository = chatActivityEventRepository;
     this.chatReadStateRepository = chatReadStateRepository;
     this.groupRepository = groupRepository;
+    this.groupMemberRepository = groupMemberRepository;
+    this.notificationRepository = notificationRepository;
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
     this.chatRealtimePublisher = chatRealtimePublisher;
@@ -134,6 +144,7 @@ public class ChatActivityService {
       toJson(payload),
       Instant.now()
     ));
+    createMessageNotifications(group, actorUser, event, message, attachments.size());
     Map<String, Object> response = toMessage(event, currentUserId);
     outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
       "groupId", group.getPublicId(),
@@ -142,6 +153,71 @@ public class ChatActivityService {
     ));
     publishAfterCommit(group.getPublicId(), response);
     return response;
+  }
+
+  private void createMessageNotifications(
+    GroupEntity group,
+    UserEntity actorUser,
+    ChatActivityEventEntity event,
+    String message,
+    int attachmentCount
+  ) {
+    Map<UUID, UserEntity> recipients = new LinkedHashMap<>();
+    for (GroupMemberEntity member : groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)) {
+      UserEntity memberUser = member.getUser();
+      if (memberUser == null || !isActiveChatRecipient(member) || memberUser.getId().equals(actorUser.getId())) {
+        continue;
+      }
+      recipients.putIfAbsent(memberUser.getId(), memberUser);
+    }
+
+    UserEntity ownerUser = group.getOwnerUser();
+    if (ownerUser != null && !ownerUser.getId().equals(actorUser.getId())) {
+      recipients.putIfAbsent(ownerUser.getId(), ownerUser);
+    }
+
+    if (recipients.isEmpty()) {
+      return;
+    }
+
+    Instant createdAt = Instant.now();
+    String senderName = displayName(actorUser);
+    String body = messagePreview(message, attachmentCount);
+    String payload = toJson(Map.of(
+      "groupId", group.getPublicId(),
+      "messageId", event.getId().toString(),
+      "senderUserId", actorUser.getPublicId(),
+      "chatActivityEventId", event.getId().toString()
+    ));
+    for (UserEntity recipient : recipients.values()) {
+      notificationRepository.save(new NotificationEntity(
+        recipient,
+        group,
+        null,
+        "chat_message",
+        senderName + "님의 새 메시지",
+        body,
+        payload,
+        "queued",
+        null,
+        createdAt
+      ));
+    }
+  }
+
+  private boolean isActiveChatRecipient(GroupMemberEntity member) {
+    return member.getLeftAt() == null && ("active".equals(member.getStatus()) || "joined".equals(member.getStatus()));
+  }
+
+  private String messagePreview(String message, int attachmentCount) {
+    if (message == null || message.isBlank()) {
+      return attachmentCount > 0 ? "사진을 보냈어요." : "메시지를 확인해 주세요.";
+    }
+    String normalized = message.replaceAll("\\R+", " ").replaceAll("[\\t ]+", " ").trim();
+    if (normalized.length() <= 80) {
+      return normalized;
+    }
+    return normalized.substring(0, 80);
   }
 
   @Transactional
