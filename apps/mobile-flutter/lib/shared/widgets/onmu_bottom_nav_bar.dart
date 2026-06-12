@@ -49,8 +49,10 @@ class OnmuBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final selectedIndex = navigationShell?.currentIndex ?? currentIndex ?? 0;
     final items = _createItems();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Container(
+      height: 64 + bottomInset,
       decoration: const BoxDecoration(
         color: AppColors.bgDefault,
         border: Border(top: BorderSide(color: AppColors.lineSoft)),

@@ -34,6 +34,7 @@ class InMemoryOnmuStore {
 
   var _nextGroupId = 4;
   var _nextPlanId = 106;
+  var _nextCandidateId = 204;
   var _nextVoteId = 505;
   var _nextMessageId = 1;
 
@@ -337,6 +338,28 @@ class InMemoryOnmuStore {
       (candidate) => candidate.id == parsedCandidateId,
       orElse: () => candidates.first,
     );
+  }
+
+  PlaceCandidate createPlaceCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) {
+    final parsedPlanId = _parseId(planId);
+    final candidates = _candidatesByPlanId.putIfAbsent(parsedPlanId, () => []);
+    final existingIndex = candidates.indexWhere(
+      (current) => _samePlaceCandidate(current, candidate),
+    );
+    final saved = _savedPlaceCandidate(
+      existingIndex == -1 ? _nextCandidateId++ : candidates[existingIndex].id,
+      candidate,
+    );
+    if (existingIndex == -1) {
+      candidates.add(saved);
+    } else {
+      candidates[existingIndex] = saved;
+    }
+    return saved;
   }
 
   List<PlaceRisk> fetchPlaceRisks({
@@ -774,6 +797,70 @@ class InMemoryOnmuStore {
       _voteResultsByPlanId[planId] = _createPlaceVoteResult();
       _risksByPlanId[planId] = _createPlaceRisks();
     }
+  }
+
+  bool _samePlaceCandidate(PlaceCandidate current, PlaceCandidate next) {
+    if (current.id == next.id) {
+      return true;
+    }
+    final currentProviderKey = _placeProviderKey(current);
+    final nextProviderKey = _placeProviderKey(next);
+    if (currentProviderKey.isNotEmpty &&
+        currentProviderKey == nextProviderKey) {
+      return true;
+    }
+    final currentPlaceKey = _placeNameAddressKey(current);
+    final nextPlaceKey = _placeNameAddressKey(next);
+    return currentPlaceKey.isNotEmpty && currentPlaceKey == nextPlaceKey;
+  }
+
+  String _placeProviderKey(PlaceCandidate candidate) {
+    final provider = candidate.provider.trim().toLowerCase();
+    final providerPlaceId = candidate.providerPlaceId.trim().toLowerCase();
+    if (provider.isEmpty || providerPlaceId.isEmpty) {
+      return '';
+    }
+    return '$provider|$providerPlaceId';
+  }
+
+  String _placeNameAddressKey(PlaceCandidate candidate) {
+    final name = candidate.name.trim().toLowerCase();
+    final address = candidate.address.trim().toLowerCase();
+    if (name.isEmpty || address.isEmpty) {
+      return '';
+    }
+    return '$name|$address';
+  }
+
+  PlaceCandidate _savedPlaceCandidate(int id, PlaceCandidate candidate) {
+    return PlaceCandidate(
+      id: id,
+      name: candidate.name,
+      category: candidate.category,
+      summary: candidate.summary,
+      score: candidate.score,
+      matchPercent: candidate.matchPercent,
+      distanceLabel: candidate.distanceLabel,
+      travelTimeLabel: candidate.travelTimeLabel,
+      priceLabel: candidate.priceLabel,
+      isOpen: candidate.isOpen,
+      address: candidate.address,
+      openingLabel: candidate.openingLabel,
+      sourceLabel: candidate.sourceLabel,
+      riskLabel: candidate.riskLabel,
+      riskTone: candidate.riskTone,
+      memberFits: candidate.memberFits,
+      tags: candidate.tags,
+      reasons: candidate.reasons,
+      risks: candidate.risks,
+      provider: candidate.provider,
+      providerPlaceId: candidate.providerPlaceId,
+      roadAddress: candidate.roadAddress,
+      sourceUrl: candidate.sourceUrl,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      fetchedAt: candidate.fetchedAt,
+    );
   }
 
   List<PlaceCandidate> _createPlaceCandidates() {

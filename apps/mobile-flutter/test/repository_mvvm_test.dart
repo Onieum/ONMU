@@ -167,19 +167,25 @@ void main() {
     expect(state.recentMessage, isNotNull);
   });
 
-  test('온모임 홈 ViewModel은 채팅 미리보기 실패로 홈 전체를 실패 처리하지 않는다', () async {
+  test('온모임 홈 ViewModel은 최근 기록/채팅 실패 시에도 홈을 렌더링한다', () async {
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(
-          _FakeGroupRepository(throwOnFetchMessages: true),
+          _FakeGroupRepository(
+            throwOnFetchMemories: true,
+            throwOnFetchMessages: true,
+          ),
         ),
       ],
     );
     addTearDown(container.dispose);
 
-    final state = await container.read(groupHomeViewModelProvider('1').future);
+    final state = await container.read(
+      groupHomeViewModelProvider('9001').future,
+    );
 
     expect(state.group.id, 9001);
+    expect(state.recentMemories, isEmpty);
     expect(state.recentMessage, isNull);
   });
 
@@ -724,8 +730,9 @@ class _FakeGroupRepository implements GroupRepository {
   _FakeGroupRepository({
     this.sentMessage,
     this.throwOnSend = false,
-    this.throwOnFetchMessages = false,
     this.sendFailuresBeforeSuccess = 0,
+    this.throwOnFetchMemories = false,
+    this.throwOnFetchMessages = false,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
     Stream<GroupMessage>? realtimeMessages,
@@ -735,8 +742,9 @@ class _FakeGroupRepository implements GroupRepository {
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
-  final bool throwOnFetchMessages;
   final int sendFailuresBeforeSuccess;
+  final bool throwOnFetchMemories;
+  final bool throwOnFetchMessages;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
   final Stream<GroupMessage> realtimeMessages;
@@ -787,7 +795,12 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
 
   @override
-  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
+    if (throwOnFetchMemories) {
+      throw StateError('memories failed');
+    }
+    return [];
+  }
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
@@ -1512,6 +1525,13 @@ class _FakePlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
   }) async => _candidate;
+
+  @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async => candidate;
 
   @override
   Future<List<PlaceCandidate>> searchPlaces({

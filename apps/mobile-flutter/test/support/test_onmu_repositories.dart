@@ -342,6 +342,19 @@ class TestPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async {
+    return _store.createPlaceCandidate(
+      groupId: groupId,
+      planId: planId,
+      candidate: candidate,
+    );
+  }
+
+  @override
   Future<List<PlaceCandidate>> fetchCandidates({
     required Object groupId,
     required Object planId,
