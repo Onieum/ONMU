@@ -98,6 +98,29 @@ class OnmuApiClient {
     return OnmuJson.asMap(response.data);
   }
 
+  Future<Map<String, dynamic>> postMultipartFile(
+    String path, {
+    required String fieldName,
+    required String filePath,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final mediaType = contentType == null || contentType.trim().isEmpty
+        ? null
+        : DioMediaType.parse(contentType.trim());
+    final response = await _dio.post<Object?>(
+      path,
+      data: FormData.fromMap({
+        fieldName: await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+          contentType: mediaType,
+        ),
+      }),
+    );
+    return OnmuJson.asMap(response.data);
+  }
+
   Future<Map<String, dynamic>> putObject(
     String path, {
     Map<String, Object?> body = const {},

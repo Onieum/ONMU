@@ -11,6 +11,8 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -25,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MediaService {
   private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
+  private static final String UPLOADED_MEDIA_PREFIX = "records/media/";
 
   private final String endpoint;
   private final String bucket;
@@ -84,10 +87,30 @@ public class MediaService {
     }
   }
 
+  public static String publicMediaUrl(String objectKey) {
+    validatePublicMediaKey(objectKey);
+    return "/api/v1/media/public?key=" + URLEncoder.encode(objectKey, StandardCharsets.UTF_8);
+  }
+
   static void validatePublicSeedMediaKey(String objectKey) {
-    if (!StringUtils.hasText(objectKey) || !objectKey.startsWith(PUBLIC_SEED_MEDIA_PREFIX)) {
+    validatePublicMediaKey(objectKey);
+  }
+
+  public static void validatePublicMediaKey(String objectKey) {
+    if (!isAllowedPublicMediaKey(objectKey)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_media_key_prefix");
     }
+  }
+
+  public static boolean isAllowedPublicMediaKey(String objectKey) {
+    if (!StringUtils.hasText(objectKey)) {
+      return false;
+    }
+    String key = objectKey.trim();
+    if (key.contains("..") || key.startsWith("/") || key.contains("\\")) {
+      return false;
+    }
+    return key.startsWith(PUBLIC_SEED_MEDIA_PREFIX) || key.startsWith(UPLOADED_MEDIA_PREFIX);
   }
 
   public PresignedUrlResponse generatePresignedUrl(String fileName, String contentType) {
@@ -113,8 +136,7 @@ public class MediaService {
                   : Collections.emptyMap())
               .build());
 
-      // Public URL to view the file
-      String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+      String publicUrl = publicMediaUrl(storageKey);
 
       return new PresignedUrlResponse(uploadUrl, storageKey, publicUrl);
     } catch (Exception e) {
@@ -146,7 +168,7 @@ public class MediaService {
               .contentType(file.getContentType() != null ? file.getContentType() : "image/jpeg")
               .build());
 
-      String publicUrl = endpoint + "/" + bucket + "/" + storageKey;
+      String publicUrl = publicMediaUrl(storageKey);
       return new UploadMediaResponse(storageKey, publicUrl);
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", e);

@@ -6,6 +6,7 @@ import '../../../shared/models/group_models.dart';
 import '../../../shared/models/settlement_models.dart';
 import '../../settlement/repository/settlement_repository.dart';
 import '../repository/group_repository.dart';
+import '../repository/media_repository.dart';
 
 final groupChatViewModelProvider =
     AsyncNotifierProvider.family<GroupChatViewModel, GroupChatState, String>(
@@ -181,6 +182,84 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  Future<bool> sendImageMessage(
+    PickedChatImage image, {
+    String text = '',
+  }) async {
+    final value = state.asData?.value;
+    if (value == null) {
+      return false;
+    }
+
+    final message = text.trim();
+    GroupMessageAttachment attachment;
+    try {
+      attachment = await ref
+          .read(mediaRepositoryProvider)
+          .uploadChatImage(image);
+    } catch (_) {
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(latest.copyWith(sendErrorMessage: '사진을 올리지 못했어요.'));
+      return false;
+    }
+
+    final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final pending = GroupMessage(
+      id: localId,
+      sender: '나',
+      message: message,
+      timeLabel: '전송 중',
+      isMine: true,
+      sendStatus: GroupMessageSendStatus.sending,
+      attachments: [attachment],
+    );
+    state = AsyncData(
+      value.copyWith(
+        messages: [...value.messages, pending],
+        clearSendErrorMessage: true,
+      ),
+    );
+
+    try {
+      final sent = await ref
+          .read(groupRepositoryProvider)
+          .sendMessage(
+            groupId: groupId,
+            message: message,
+            attachments: [attachment],
+          );
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(
+        latest.copyWith(
+          messages: _replaceMessage(
+            latest.messages,
+            localId,
+            sent.copyWith(sendStatus: GroupMessageSendStatus.sent),
+          ),
+          clearSendErrorMessage: true,
+        ),
+      );
+      await _markSentMessageRead(sent);
+      return true;
+    } catch (_) {
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(
+        latest.copyWith(
+          messages: _replaceMessage(
+            latest.messages,
+            localId,
+            pending.copyWith(
+              timeLabel: '전송 실패',
+              sendStatus: GroupMessageSendStatus.failed,
+            ),
+          ),
+          sendErrorMessage: '사진 메시지를 보내지 못했어요.',
+        ),
+      );
+      return true;
+    }
+  }
+
   Future<bool> retryMessage(String messageId) async {
     final value = state.asData?.value;
     if (value == null || messageId.isEmpty) {
@@ -210,7 +289,11 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     try {
       final sent = await ref
           .read(groupRepositoryProvider)
-          .sendMessage(groupId: groupId, message: failed.message);
+          .sendMessage(
+            groupId: groupId,
+            message: failed.message,
+            attachments: failed.attachments,
+          );
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
