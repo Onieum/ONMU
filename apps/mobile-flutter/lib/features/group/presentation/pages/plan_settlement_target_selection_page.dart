@@ -407,7 +407,11 @@ class _TargetParticipantRow extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Row(
         children: [
-          PixelAvatar(label: participant.name, size: 36),
+          PixelAvatar(
+            label: participant.name,
+            size: 36,
+            profileImageUrl: participant.profileImageUrl,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

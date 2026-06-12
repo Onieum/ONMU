@@ -55,12 +55,14 @@ class PlaceCandidatesState {
     required this.candidates,
     required this.likedCandidateIds,
     required this.baseFavoriteCounts,
+    required this.planTitle,
     required this.planLocation,
   });
 
   final List<PlaceCandidate> candidates;
   final Set<int> likedCandidateIds;
   final Map<int, int> baseFavoriteCounts;
+  final String planTitle;
   final String planLocation;
 
   bool isLiked(int candidateId) => likedCandidateIds.contains(candidateId);
@@ -80,6 +82,7 @@ class PlaceCandidatesState {
       candidates: candidates,
       likedCandidateIds: Set.unmodifiable(nextLikedIds),
       baseFavoriteCounts: baseFavoriteCounts,
+      planTitle: planTitle,
       planLocation: planLocation,
     );
   }
@@ -107,6 +110,7 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       candidates: List.unmodifiable(candidates),
       likedCandidateIds: <int>{},
       baseFavoriteCounts: _favoriteCountsFor(candidates),
+      planTitle: plan.title,
       planLocation: plan.location,
     );
   }

@@ -1,10 +1,15 @@
 enum SettlementSplitType { equal, custom }
 
 class SettlementPayerShare {
-  const SettlementPayerShare({required this.name, required this.amountLabel});
+  const SettlementPayerShare({
+    required this.name,
+    required this.amountLabel,
+    this.profileImageUrl = '',
+  });
 
   final String name;
   final String amountLabel;
+  final String profileImageUrl;
 }
 
 class SettlementPaymentParticipant {
@@ -12,11 +17,13 @@ class SettlementPaymentParticipant {
     required this.name,
     required this.owedAmountLabel,
     this.included = true,
+    this.profileImageUrl = '',
   });
 
   final String name;
   final String owedAmountLabel;
   final bool included;
+  final String profileImageUrl;
 }
 
 class SettlementPaymentItem {
@@ -55,11 +62,15 @@ class SettlementTransferSummary {
     required this.fromName,
     required this.toName,
     required this.amountLabel,
+    this.fromProfileImageUrl = '',
+    this.toProfileImageUrl = '',
   });
 
   final String fromName;
   final String toName;
   final String amountLabel;
+  final String fromProfileImageUrl;
+  final String toProfileImageUrl;
 }
 
 class SettlementMemberResult {
@@ -70,6 +81,7 @@ class SettlementMemberResult {
     required this.resultLabel,
     this.isMe = false,
     this.willReceive = false,
+    this.profileImageUrl = '',
   });
 
   final String name;
@@ -78,6 +90,7 @@ class SettlementMemberResult {
   final String resultLabel;
   final bool isMe;
   final bool willReceive;
+  final String profileImageUrl;
 }
 
 class SettlementSummary {

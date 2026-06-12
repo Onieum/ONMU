@@ -117,7 +117,11 @@ class _MemoryBody extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PixelAvatar(label: memory.author, size: 40),
+            PixelAvatar(
+              label: memory.author,
+              size: 40,
+              profileImageUrl: memory.authorProfileImageUrl,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
