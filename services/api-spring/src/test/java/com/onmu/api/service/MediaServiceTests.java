@@ -20,6 +20,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 class MediaServiceTests {
   @Test
+  void publicSeedMediaAcceptsDevAvatarPrefix() {
+    MediaService.validatePublicSeedMediaKey("dev/avatars/user-me.png");
+  }
+
+  @Test
   void presignedUrlAcceptsImageContentTypeAndExtension() throws Exception {
     MinioClient minioClient = mock(MinioClient.class);
     when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))

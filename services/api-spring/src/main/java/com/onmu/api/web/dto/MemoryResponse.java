@@ -23,4 +23,3 @@ public record MemoryResponse(
   String aiStatus,
   Instant createdAt
 ) {}
-

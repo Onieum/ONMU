@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/api/onmu_media_url.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
@@ -476,7 +477,7 @@ class _CharacterPortrait extends ConsumerWidget {
           topStyleIndex: 0,
         );
 
-    final imageUrl = profileImageUrl?.trim() ?? '';
+    final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
     return Container(
       width: size,

@@ -63,6 +63,32 @@ class PlanParticipantArrival {
   final String profileImageUrl;
 }
 
+extension PlanParticipantArrivalListX on Iterable<PlanParticipantArrival> {
+  PlanParticipantArrival? activeParticipantFor(Set<String> userIds) {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (normalizedUserIds.isEmpty) {
+      return null;
+    }
+
+    for (final participant in this) {
+      if (participant.isFallback) {
+        continue;
+      }
+      final status = participant.participantStatus.trim().toLowerCase();
+      if (status == 'left' || status == 'declined') {
+        continue;
+      }
+      if (normalizedUserIds.contains(participant.userId.trim())) {
+        return participant;
+      }
+    }
+    return null;
+  }
+}
+
 class TimeCandidate {
   const TimeCandidate({
     required this.time,

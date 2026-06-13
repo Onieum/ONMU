@@ -24,6 +24,28 @@ void main() {
     expect(find.text('지'), findsNothing);
   });
 
+  testWidgets('resolves dev avatar key through public media route', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PixelAvatar(
+            label: '나',
+            profileImageUrl: 'dev/avatars/user-me.png',
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(
+      (image.image as NetworkImage).url,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fuser-me.png',
+    );
+    expect(find.text('나'), findsNothing);
+  });
+
   testWidgets('keeps pixel fallback when image url is missing', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

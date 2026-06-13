@@ -4,9 +4,25 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PlanRepository extends JpaRepository<PlanEntity, UUID> {
   List<PlanEntity> findByGroupOrderByStartsAtAsc(GroupEntity group);
+
+  @Query("""
+    select plan
+    from PlanEntity plan
+    join PlanParticipantEntity participant on participant.plan = plan
+    where plan.group = :group
+      and participant.user = :user
+      and (participant.status is null or lower(participant.status) not in ('left', 'declined'))
+    order by plan.startsAt asc
+    """)
+  List<PlanEntity> findParticipatingByGroupAndUser(
+    @Param("group") GroupEntity group,
+    @Param("user") UserEntity user
+  );
 
   Optional<PlanEntity> findByGroupAndPublicId(GroupEntity group, String publicId);
 

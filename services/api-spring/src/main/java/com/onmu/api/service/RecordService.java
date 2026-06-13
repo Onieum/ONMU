@@ -692,5 +692,3 @@ public class RecordService {
     };
   }
 }
-
-
