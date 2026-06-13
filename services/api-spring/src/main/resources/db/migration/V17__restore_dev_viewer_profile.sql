@@ -7,8 +7,8 @@ set
 where id = '00000000-0000-0000-0000-000000000001';
 
 update auth_identities
-set raw_profile = jsonb_set(
-  coalesce(raw_profile, '{}'::jsonb),
+set provider_profile = jsonb_set(
+  coalesce(provider_profile, '{}'::jsonb),
   '{displayName}',
   to_jsonb('나'::text),
   true
