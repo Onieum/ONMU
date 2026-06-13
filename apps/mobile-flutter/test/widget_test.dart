@@ -861,24 +861,35 @@ void main() {
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
     await tester.pumpAndSettle();
 
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
+    );
+    final scheduleAction = find.byKey(
+      const ValueKey('place-action-201-schedule'),
+    );
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      candidateAction,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('후보에 추가'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
     expect(find.text('후보에 추가하기'), findsNothing);
     expect(find.text('일정에 바로 등록하기'), findsNothing);
 
-    final candidateButtonRect = tester.getRect(
-      find.byKey(const ValueKey('place-action-201-candidate')),
-    );
-    final scheduleButtonRect = tester.getRect(
-      find.byKey(const ValueKey('place-action-201-schedule')),
-    );
+    final candidateButtonRect = tester.getRect(candidateAction);
+    final scheduleButtonRect = tester.getRect(scheduleAction);
     expect(candidateButtonRect.size, scheduleButtonRect.size);
 
-    final candidateAction = find.byKey(
-      const ValueKey('place-action-201-candidate'),
-    );
-    await tester.ensureVisible(candidateAction);
-    await tester.pumpAndSettle();
     await tester.tap(candidateAction);
     await tester.pumpAndSettle();
 
@@ -899,7 +910,18 @@ void main() {
     final scheduleAction = find.byKey(
       const ValueKey('place-action-201-schedule'),
     );
-    await tester.ensureVisible(scheduleAction);
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      scheduleAction,
+      300,
+      scrollable: sheetScrollable,
+    );
     await tester.pumpAndSettle();
     await tester.tap(scheduleAction);
     await tester.pumpAndSettle();
@@ -908,6 +930,52 @@ void main() {
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
     expect(find.text('장소 검색하기'), findsOneWidget);
+  });
+
+  testWidgets('place map comparison card shows signals and opens itinerary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
+    await tester.pumpAndSettle();
+
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    final signalGrid = find.byKey(
+      const ValueKey('place-comparison-signal-grid'),
+    );
+    await tester.scrollUntilVisible(
+      signalGrid,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('선택한 3곳 비교'), findsOneWidget);
+    expect(find.text('거리'), findsOneWidget);
+    expect(find.text('분위기'), findsOneWidget);
+    expect(find.text('영업'), findsOneWidget);
+    expect(find.text('도보 7분'), findsWidgets);
+    expect(find.text('조용한'), findsWidgets);
+
+    final routeAction = find.text('이 장소들로 동선 추천 받기');
+    await tester.scrollUntilVisible(
+      routeAction,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(routeAction);
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 동선'), findsOneWidget);
   });
 
   testWidgets(
@@ -919,7 +987,22 @@ void main() {
       appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('온무식당'));
+      final candidateName = find.text('온무식당');
+      final sheetScrollable = find.descendant(
+        of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
+      );
+      await tester.scrollUntilVisible(
+        candidateName,
+        300,
+        scrollable: sheetScrollable,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(candidateName);
       await tester.pumpAndSettle();
 
       expect(find.text('장소 검색하기'), findsOneWidget);
@@ -964,10 +1047,23 @@ void main() {
     expect(find.text('장소 검색하기'), findsOneWidget);
     expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.text('지도 화면에서 이어서 장소를 찾아요'), findsNothing);
-    expect(
-      find.byKey(const ValueKey('place-action-201-candidate')),
-      findsOneWidget,
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
     );
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      candidateAction,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(candidateAction, findsOneWidget);
     expect(find.text('후보에 추가'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
   });
@@ -997,7 +1093,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보 ✨'), findsOneWidget);
-    expect(find.text('무드카페'), findsOneWidget);
+    final cafeCandidateName = find.text('무드카페');
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      cafeCandidateName,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(cafeCandidateName, findsOneWidget);
     expect(find.text('온무식당'), findsNothing);
   });
 
