@@ -12,8 +12,8 @@ import 'data/kakao_oauth_credential_loader.dart';
 import 'data/naver_oauth_credential_loader.dart';
 import 'data/social_auth_service.dart';
 import 'domain/auth_user.dart';
+import 'domain/oauth_provider_credential.dart';
 import 'providers/auth_providers.dart';
-import 'widgets/google_sign_in_button.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -30,7 +30,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   _SocialProvider? _loadingProvider;
   String? _errorMessage;
-  StreamSubscription<AuthUser?>? _googleAuthSubscription;
+  StreamSubscription<OAuthProviderCredential?>? _googleAuthSubscription;
   bool _redirectScheduled = false;
 
   bool get _isLoading => _loadingProvider != null;
@@ -222,17 +222,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
 
     try {
-      _googleAuthSubscription = service.googleAuthUserEvents().listen(
-        (user) {
-          if (user != null) {
-            final accepted = actions.applyGoogleAuthUser(user);
-            if (!accepted && mounted) {
-              setState(() {
-                _errorMessage = _messageForSignInError(
-                  const GoogleSpringOAuthUnavailableException(),
-                );
-              });
+      _googleAuthSubscription = service.googleCredentialEvents().listen(
+        (credential) async {
+          if (credential != null && _isLoading) {
+            return;
+          }
+
+          try {
+            await actions.applyGoogleCredential(credential);
+            if (credential != null && mounted) {
+              context.go(RoutePaths.onboarding);
             }
+          } catch (error) {
+            if (!mounted) return;
+            setState(() {
+              _errorMessage = _messageForSignInError(error);
+            });
           }
         },
         onError: (Object error) {
@@ -279,7 +284,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
     }
 
-    if (actions.shouldUseGoogleWebButton) {
+    if (!actions.canUseGoogleAppButton) {
       return Align(
         alignment: Alignment.center,
         child: SizedBox(
@@ -289,6 +294,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             fit: StackFit.expand,
             children: [
               IgnorePointer(
+                ignoring: false,
                 child: _LoginButton(
                   width: layout.buttonWidth,
                   height: layout.buttonHeight,
@@ -300,10 +306,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   fallbackIconLabel: 'G',
                   fallbackIconForeground: AppColors.primaryPurple,
                   isLoading: _loadingProvider == _SocialProvider.google,
-                  onPressed: () {},
+                  onPressed: () => _signIn(_SocialProvider.google),
                 ),
               ),
-              Opacity(opacity: 0.01, child: buildGoogleSignInButton()),
+              const SizedBox.shrink(),
             ],
           ),
         ),
@@ -368,11 +374,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (error is NaverSignInCallbackException) {
       return '네이버 로그인 응답을 확인하지 못했어요. 다시 시도해 주세요.';
     }
+    if (error is GoogleCredentialUnavailableException) {
+      return 'Google idToken을 가져오지 못했어요. GOOGLE_CLIENT_ID와 Google OAuth 설정을 확인해 주세요.';
+    }
     if (error is GoogleSignInMissingClientIdException) {
       return 'Google Client ID가 설정되지 않았어요. GOOGLE_CLIENT_ID 값을 넣고 다시 실행해 주세요.';
     }
+    if (error is GoogleSignInTimeoutException) {
+      return 'Google 로그인이 응답하지 않아요. 팝업 허용, Google Cloud 원본 http://127.0.0.1:5173, OAuth 테스트 사용자 설정을 확인해 주세요.';
+    }
     if (error is GoogleSignInWebButtonRequiredException) {
-      return '웹에서는 Google 공식 로그인 버튼으로 진행해 주세요.';
+      return 'Google 웹 로그인을 시작하지 못했어요. 팝업 허용, Google Cloud 원본 http://127.0.0.1:5173, OAuth 테스트 사용자 설정을 확인해 주세요.';
     }
     if (error is GoogleSpringOAuthUnavailableException) {
       return 'Google 로그인은 Spring idToken 검증이 연결된 뒤 사용할 수 있어요.';

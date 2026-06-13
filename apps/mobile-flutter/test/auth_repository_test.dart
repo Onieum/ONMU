@@ -299,4 +299,59 @@ void main() {
       expect(session.user.provider, 'NAVER');
     },
   );
+
+  test(
+    'exchanges Google idToken for ONMU tokens without using it as bearer',
+    () async {
+      const googleIdToken = 'google-provider-id-token';
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.path, '/api/v1/auth/oauth/google');
+            expect(
+              options.headers['Authorization'],
+              isNot('Bearer $googleIdToken'),
+            );
+            expect(options.data, {'providerIdToken': googleIdToken});
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'ok': true,
+                  'authenticated': true,
+                  'tokens': {
+                    'accessToken': 'onmu-access-jwt',
+                    'refreshToken': 'onmu-refresh-token',
+                    'tokenType': 'Bearer',
+                    'accessTokenExpiresAt': '2026-06-11T10:00:00Z',
+                    'refreshTokenExpiresAt': '2026-07-11T10:00:00Z',
+                  },
+                  'user': {
+                    'id': 'usr_google',
+                    'displayName': 'Google User',
+                    'onboardingStatus': 'PENDING',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+      final session = await repository.exchangeOAuthLogin(
+        const OAuthProviderCredential(
+          provider: 'google',
+          providerIdToken: googleIdToken,
+        ),
+      );
+
+      expect(session.tokens.accessToken, 'onmu-access-jwt');
+      expect(session.tokens.refreshToken, 'onmu-refresh-token');
+      expect(session.user.publicId, 'usr_google');
+      expect(session.user.provider, 'GOOGLE');
+      expect(session.user.displayName, 'Google User');
+    },
+  );
 }
