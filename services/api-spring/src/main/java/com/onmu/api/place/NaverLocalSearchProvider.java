@@ -2,8 +2,11 @@ package com.onmu.api.place;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -51,22 +54,28 @@ public class NaverLocalSearchProvider implements PlaceSearchProvider {
       .build()
       .encode()
       .toUri();
-    String body = httpClient.get(uri, Map.of(
-      "X-Naver-Client-Id", clientId(),
-      "X-Naver-Client-Secret", clientSecret()
-    ));
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+    headers.put(HttpHeaders.USER_AGENT, "ONMU-Spring-PlaceSearch/1.0");
+    headers.put("X-Naver-Client-Id", clientId());
+    headers.put("X-Naver-Client-Secret", clientSecret());
+    String body = httpClient.get(uri, headers);
     return mapper.map(body, Instant.now());
   }
 
   private String clientId() {
-    return environment.getProperty("NAVER_SEARCH_CLIENT_ID");
+    return trimmed(environment.getProperty("NAVER_SEARCH_CLIENT_ID"));
   }
 
   private String clientSecret() {
-    return environment.getProperty("NAVER_SEARCH_CLIENT_SECRET");
+    return trimmed(environment.getProperty("NAVER_SEARCH_CLIENT_SECRET"));
   }
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
+  }
+
+  private String trimmed(String value) {
+    return value == null ? null : value.trim();
   }
 }

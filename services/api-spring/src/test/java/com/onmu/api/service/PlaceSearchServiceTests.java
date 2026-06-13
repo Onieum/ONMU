@@ -87,6 +87,29 @@ class PlaceSearchServiceTests {
   }
 
   @Test
+  void searchKeepsNaverOnlyProviderResultsInsteadOfDevMockFallback() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울", 37.5, 127.0))),
+        new FakeProvider("kakao", true, List.of(result("kakao", "kakao-1", "카카오 후보", "서울", 37.6, 127.1)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("카페", "1", "101", null, null, null, null, List.of("naver"), false);
+
+    assertThat(results).singleElement()
+      .satisfies(result -> assertThat(result)
+        .containsEntry("provider", "naver")
+        .containsEntry("source", "naver")
+        .containsEntry("providerPlaceId", "naver-1")
+        .containsEntry("lat", 37.5)
+        .containsEntry("lng", 127.0));
+  }
+
+  @Test
   void searchFallsBackToDevMockInLocalWhenExternalProviderReturnsNoResults() {
     PlaceSearchService service = new PlaceSearchService(
       List.of(new FakeProvider("naver", true, List.of())),
