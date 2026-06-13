@@ -78,6 +78,8 @@ Kakao OAuth 로그인용 서버 secret env는 `KAKAO_CLIENT_SECRET`이다. Key V
 
 Kakao OAuth 로그인용 공개 client id는 `KAKAO_REST_API_KEY`를 사용한다. Key Vault secret name은 dev `dev-kakao-rest-api-key`, integration `int-kakao-rest-api-key`를 사용한다. 이 값은 Kakao Developers 앱의 REST API 키와 정확히 일치해야 하며, 앞뒤 공백이나 따옴표 없이 32자리 hex 형태인지 확인한다. 같은 env는 Spring의 Kakao authorization code exchange와 Kakao place search provider가 함께 사용하므로, Key Vault 값을 고친 뒤 이미 실행 중인 Spring 프로세스에는 재기동 또는 재배포가 필요하다.
 
+Google OAuth 로그인용 서버 env는 `GOOGLE_OAUTH_CLIENT_ID` 또는 Flutter server client id와 같은 `GOOGLE_SERVER_CLIENT_ID`이다. Key Vault secret name은 dev `dev-google-oauth-client-id`, integration `int-google-oauth-client-id`를 사용한다. 이 값은 Google idToken의 `aud` 검증에만 사용하며, Flutter 앱 bundle에는 backend signing secret이나 Google client secret을 넣지 않는다. Spring은 Google idToken을 Google tokeninfo endpoint로 확인한 뒤 issuer, audience, subject, expiration을 검증하고 ONMU access/refresh token을 발급한다.
+
 Kakao browser OAuth device smoke 전 Kakao Developers 콘솔에서 다음 공개 설정을 확인한다.
 
 - 로그인 Redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`

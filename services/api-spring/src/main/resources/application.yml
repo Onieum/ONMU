@@ -33,3 +33,7 @@ onmu:
     access-token-ttl: ${ONMU_ACCESS_TOKEN_TTL:30m}
     refresh-token-ttl: ${ONMU_REFRESH_TOKEN_TTL:30d}
     allowed-origins: ${ONMU_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080,https://dev-api.onmu.cloud,https://int-api.onmu.cloud}
+  oauth:
+    google:
+      client-id: ${GOOGLE_OAUTH_CLIENT_ID:${GOOGLE_SERVER_CLIENT_ID:}}
+      token-info-url: ${GOOGLE_OAUTH_TOKEN_INFO_URL:https://oauth2.googleapis.com/tokeninfo}
