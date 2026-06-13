@@ -48,8 +48,13 @@
 | --- | --- | --- |
 | 홈 | `GET /api/v1/home/summary` | `HomeSummary` |
 | 다가오는 약속 | `GET /api/v1/users/me/plans?status=upcoming` | `UpcomingPlanCard` |
-| 알림 | `GET /api/v1/notifications` | `NotificationItem` |
+| 알림 | `GET /api/v1/notifications` | `NotificationItem[]` |
+| 알림 unread count | `GET /api/v1/notifications/unread-count` | `{ "unreadCount": 0 }` |
+| 알림 단건 읽음 | `PUT /api/v1/notifications/{notificationId}/read` | `NotificationItem` |
+| 알림 전체 읽음 | `PUT /api/v1/notifications/read-all` | `{ "updatedCount": 0 }` |
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
+
+알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 실제 FCM/APNs push delivery와 notification worker는 별도 production slice로 분리한다.
 
 ## Groups
 

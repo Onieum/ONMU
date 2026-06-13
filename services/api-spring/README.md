@@ -149,6 +149,9 @@ Core API:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 - `GET /api/v1/notifications`
+- `GET /api/v1/notifications/unread-count`
+- `PUT /api/v1/notifications/{notificationId}/read`
+- `PUT /api/v1/notifications/read-all`
 
 Auth scaffold:
 
@@ -309,6 +312,10 @@ curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/pre
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
+curl http://localhost:8080/api/v1/notifications
+curl http://localhost:8080/api/v1/notifications/unread-count
+curl.exe -X PUT http://localhost:8080/api/v1/notifications/00000000-0000-0000-0000-000000001211/read
+curl.exe -X PUT http://localhost:8080/api/v1/notifications/read-all
 ```
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
