@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -101,7 +100,7 @@ class ChatActivityServiceTests {
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
-    when(chatActivityEventRepository.findPageBefore(eq(group), isNull(), any(Pageable.class)))
+    when(chatActivityEventRepository.findLatestPage(eq(group), any(Pageable.class)))
       .thenReturn(List.of(myMessage, otherMessage));
     stubUnread(1L);
 
@@ -458,7 +457,7 @@ class ChatActivityServiceTests {
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
-    when(chatActivityEventRepository.findPageBefore(eq(group), isNull(), any(Pageable.class)))
+    when(chatActivityEventRepository.findLatestPage(eq(group), any(Pageable.class)))
       .thenReturn(List.of(cardMessage, systemMessage));
     stubUnread(0L);
 
@@ -525,6 +524,6 @@ class ChatActivityServiceTests {
   private void stubUnread(long count) {
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(chatReadStateRepository.findByGroupAndUser(group, currentUser)).thenReturn(Optional.empty());
-    when(chatActivityEventRepository.countUnreadAfter(group, currentUser.getId(), null)).thenReturn(count);
+    when(chatActivityEventRepository.countUnread(group, currentUser.getId())).thenReturn(count);
   }
 }

@@ -84,12 +84,11 @@ public class ChatActivityService {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
     int pageLimit = boundedLimit(limit);
     Instant beforeCreatedAt = parseCursor(beforeCursor);
+    PageRequest pageable = PageRequest.of(0, pageLimit + 1);
     List<ChatActivityEventEntity> eventsDesc = new ArrayList<>(
-      chatActivityEventRepository.findPageBefore(
-        group,
-        beforeCreatedAt,
-        PageRequest.of(0, pageLimit + 1)
-      )
+      beforeCreatedAt == null
+        ? chatActivityEventRepository.findLatestPage(group, pageable)
+        : chatActivityEventRepository.findPageBefore(group, beforeCreatedAt, pageable)
     );
     boolean hasMore = eventsDesc.size() > pageLimit;
     if (hasMore) {
@@ -318,6 +317,9 @@ public class ChatActivityService {
       )
       .map(ChatReadStateEntity::getLastReadAt)
       .orElse(null);
+    if (lastReadAt == null) {
+      return chatActivityEventRepository.countUnread(group, currentUserId);
+    }
     return chatActivityEventRepository.countUnreadAfter(group, currentUserId, lastReadAt);
   }
 

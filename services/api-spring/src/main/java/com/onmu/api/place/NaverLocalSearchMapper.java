@@ -16,6 +16,11 @@ import org.springframework.web.util.HtmlUtils;
 @Component
 public class NaverLocalSearchMapper {
   private static final Pattern TAG_PATTERN = Pattern.compile("<[^>]+>");
+  private static final double NAVER_COORDINATE_SCALE = 10_000_000.0;
+  private static final double KOREA_MIN_LONGITUDE = 124.0;
+  private static final double KOREA_MAX_LONGITUDE = 132.0;
+  private static final double KOREA_MIN_LATITUDE = 33.0;
+  private static final double KOREA_MAX_LATITUDE = 39.0;
 
   private final ObjectMapper objectMapper;
 
@@ -38,6 +43,7 @@ public class NaverLocalSearchMapper {
         String roadAddress = blankToNull(cleanText(text(item, "roadAddress")));
         String address = blankToNull(cleanText(text(item, "address")));
         String sourceUrl = blankToNull(text(item, "link"));
+        Coordinates coordinates = coordinates(item);
         String providerPlaceId = "naver-" + stableId(name, roadAddress, address, sourceUrl);
         results.add(new PlaceSearchResult(
           "naver",
@@ -46,8 +52,8 @@ public class NaverLocalSearchMapper {
           blankToNull(cleanText(text(item, "category"))),
           address,
           roadAddress,
-          null,
-          null,
+          coordinates == null ? null : coordinates.latitude(),
+          coordinates == null ? null : coordinates.longitude(),
           sourceUrl,
           fetchedAt
         ));
@@ -76,6 +82,41 @@ public class NaverLocalSearchMapper {
     return value == null || value.isBlank() ? null : value.trim();
   }
 
+  private Coordinates coordinates(JsonNode item) {
+    Double longitude = coordinateValue(text(item, "mapx"));
+    Double latitude = coordinateValue(text(item, "mapy"));
+    if (longitude == null || latitude == null) {
+      return null;
+    }
+    if (isKoreaCoordinate(longitude, latitude)) {
+      return new Coordinates(latitude, longitude);
+    }
+    double scaledLongitude = longitude / NAVER_COORDINATE_SCALE;
+    double scaledLatitude = latitude / NAVER_COORDINATE_SCALE;
+    if (isKoreaCoordinate(scaledLongitude, scaledLatitude)) {
+      return new Coordinates(scaledLatitude, scaledLongitude);
+    }
+    return null;
+  }
+
+  private Double coordinateValue(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    try {
+      return Double.parseDouble(value.trim());
+    } catch (NumberFormatException exception) {
+      return null;
+    }
+  }
+
+  private boolean isKoreaCoordinate(double longitude, double latitude) {
+    return longitude >= KOREA_MIN_LONGITUDE &&
+      longitude <= KOREA_MAX_LONGITUDE &&
+      latitude >= KOREA_MIN_LATITUDE &&
+      latitude <= KOREA_MAX_LATITUDE;
+  }
+
   private String stableId(String... parts) {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -90,5 +131,8 @@ public class NaverLocalSearchMapper {
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is required", exception);
     }
+  }
+
+  private record Coordinates(Double latitude, Double longitude) {
   }
 }
