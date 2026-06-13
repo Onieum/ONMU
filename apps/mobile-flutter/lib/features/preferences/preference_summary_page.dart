@@ -36,7 +36,7 @@ Future<void> showPreferenceSummaryBottomSheet(
   );
 }
 
-class PreferenceSummaryPage extends ConsumerWidget {
+class PreferenceSummaryPage extends ConsumerStatefulWidget {
   const PreferenceSummaryPage({super.key, required this.profile});
 
   static const _completedImageAsset =
@@ -45,8 +45,19 @@ class PreferenceSummaryPage extends ConsumerWidget {
   final PreferenceProfile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PreferenceSummaryPage> createState() =>
+      _PreferenceSummaryPageState();
+}
+
+class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
+  static const _saveTimeout = Duration(seconds: 12);
+
+  var _isSaving = false;
+
+  @override
+  Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final profile = widget.profile;
 
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
@@ -59,7 +70,7 @@ class PreferenceSummaryPage extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                   children: [
                     const _PreferenceCompletedImage(
-                      assetPath: _completedImageAsset,
+                      assetPath: PreferenceSummaryPage._completedImageAsset,
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -101,54 +112,20 @@ class PreferenceSummaryPage extends ConsumerWidget {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed: () async {
-                          ref.read(preferenceProfileProvider.notifier).state =
-                              profile;
-                          ref.read(skippedPreferenceProvider.notifier).state =
-                              false;
-                          final currentProfile = ref
-                              .read(myProfileProvider)
-                              .value;
-                          if (currentProfile != null) {
-                            final updatedProfile = currentProfile.copyWith(
-                              favoriteFoodTags: _withOther(
-                                profile.favoriteFoodTags,
-                                profile.otherFavoriteFood,
-                              ),
-                              dislikedFoodTags: _withOther(
-                                profile.dislikedFoodTags,
-                                profile.otherDislikedFood,
-                              ),
-                              favoritePlaceTags: _withOther(
-                                profile.favoritePlaceTags,
-                                profile.otherFavoritePlace,
-                              ),
-                              dislikedPlaceTags: _withOther(
-                                profile.dislikedPlaceTags,
-                                profile.otherDislikedPlace,
-                              ),
-                              planStyles: profile.planStyles,
-                              preferredWeekdays: profile.preferredWeekdays,
-                              preferredTimes: profile.preferredTimes,
-                            );
-                            try {
-                              await ref
-                                  .read(myRepositoryProvider)
-                                  .updateMyProfile(updatedProfile);
-                              ref.invalidate(myProfileProvider);
-                            } catch (_) {
-                              // 온보딩 흐름은 막지 않고 로컬 선택값은 유지한다.
-                            }
-                          }
-                          if (!context.mounted) {
-                            return;
-                          }
-                          context.go(RoutePaths.onboarding);
-                        },
+                        onPressed: _isSaving ? null : _savePreferenceProfile,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryPink,
                         ),
-                        child: const Text('첫 설정 페이지로 돌아가기'),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.bgDefault,
+                                ),
+                              )
+                            : const Text('첫 설정 페이지로 돌아가기'),
                       ),
                     ),
                   ],
@@ -159,6 +136,62 @@ class PreferenceSummaryPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _savePreferenceProfile() async {
+    setState(() => _isSaving = true);
+
+    try {
+      final profile = widget.profile;
+      final currentProfile = await ref
+          .read(myProfileProvider.future)
+          .timeout(_saveTimeout);
+      final updatedProfile = currentProfile.copyWith(
+        favoriteFoodTags: _withOther(
+          profile.favoriteFoodTags,
+          profile.otherFavoriteFood,
+        ),
+        dislikedFoodTags: _withOther(
+          profile.dislikedFoodTags,
+          profile.otherDislikedFood,
+        ),
+        favoritePlaceTags: _withOther(
+          profile.favoritePlaceTags,
+          profile.otherFavoritePlace,
+        ),
+        dislikedPlaceTags: _withOther(
+          profile.dislikedPlaceTags,
+          profile.otherDislikedPlace,
+        ),
+        planStyles: profile.planStyles,
+        preferredWeekdays: profile.preferredWeekdays,
+        preferredTimes: profile.preferredTimes,
+      );
+
+      await ref
+          .read(myRepositoryProvider)
+          .updateMyProfile(updatedProfile)
+          .timeout(_saveTimeout);
+      ref.read(preferenceProfileProvider.notifier).state = profile;
+      ref.read(skippedPreferenceProvider.notifier).state = false;
+      ref.invalidate(myProfileProvider);
+
+      if (!mounted) {
+        return;
+      }
+      context.go(RoutePaths.onboarding);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('취향 저장에 실패했어요. API 연결 상태를 확인해 주세요.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 }
 
