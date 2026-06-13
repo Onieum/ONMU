@@ -131,7 +131,8 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", user.getPublicId());
     value.put("databaseId", user.getId().toString());
-    value.put("displayName", user.getDisplayName());
+    value.put("displayName", displayName(user));
+    value.put("nickname", user.getNickname());
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
@@ -165,7 +166,7 @@ public class OnmuApiService {
     UserEntity viewer = userOrThrow(userId);
     List<GroupEntity> groups = groupRepository.findAllByOrderByCreatedAtAsc();
     GroupEntity firstGroup = groups.stream().findFirst().orElseThrow(this::noSeedData);
-    List<PlanEntity> plans = planRepository.findParticipatingByGroupAndUser(firstGroup, viewer);
+    List<PlanEntity> plans = participatingPlans(firstGroup, viewer);
     List<VoteEntity> votes = voteRepository.findByGroupOrderByCreatedAtAsc(firstGroup);
 
     Map<String, Object> value = new LinkedHashMap<>();
@@ -223,7 +224,19 @@ public class OnmuApiService {
   public List<Map<String, Object>> plans(String groupId, java.util.UUID userId) {
     GroupEntity group = groupOrThrow(groupId);
     UserEntity user = userOrThrow(userId);
-    return planRepository.findParticipatingByGroupAndUser(group, user).stream().map(this::planCard).toList();
+    return participatingPlans(group, user).stream().map(this::planCard).toList();
+  }
+
+  private List<PlanEntity> participatingPlans(GroupEntity group, UserEntity user) {
+    return planRepository.findParticipatingByGroupAndUser(group, user).stream()
+      .filter(plan -> hasActiveParticipant(plan, user))
+      .toList();
+  }
+
+  private boolean hasActiveParticipant(PlanEntity plan, UserEntity user) {
+    return planParticipantRepository.findByPlanAndUser(plan, user)
+      .filter(this::isActivePlanParticipant)
+      .isPresent();
   }
 
   @Transactional

@@ -135,17 +135,33 @@ class OnmuApiServiceTests {
   @Test
   void homeSummaryUsesAuthenticatedViewer() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "인증 사용자");
+    PlanParticipantEntity participant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
     when(groupRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(group));
     when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
     when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
     when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+    when(planParticipantRepository.findByPlanAndUser(plan, viewer)).thenReturn(Optional.of(participant));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(participant));
 
     Map<String, Object> summary = service.homeSummary(viewer.getId());
 
     assertThat(summary).extracting("viewer")
       .isInstanceOfSatisfying(Map.class, viewerValue ->
         assertThat(viewerValue).containsEntry("displayName", "인증 사용자"));
+  }
+
+  @Test
+  void userMeIncludesNicknameForFlutterProfile() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "나");
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+
+    Map<String, Object> profile = service.userMe(viewer.getId());
+
+    assertThat(profile)
+      .containsEntry("displayName", "나")
+      .containsEntry("nickname", "나");
   }
 
   @Test
@@ -247,6 +263,7 @@ class OnmuApiServiceTests {
   @Test
   void planListUsesAuthenticatedParticipantScope() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    PlanParticipantEntity participant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
     PlanEntity otherPlan = new PlanEntity(
       "102",
       group,
@@ -257,13 +274,38 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
     when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
-    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of());
+    when(planParticipantRepository.findByPlanAndUser(plan, viewer)).thenReturn(Optional.of(participant));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(participant));
 
     var plans = service.plans("1", viewer.getId());
 
     assertThat(plans).hasSize(1);
     assertThat(plans.getFirst()).containsEntry("id", "101");
     assertThat(plans).noneSatisfy(planCard -> assertThat(planCard).containsEntry("id", otherPlan.getPublicId()));
+  }
+
+  @Test
+  void planListDropsRowsWithoutAuthenticatedParticipant() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    PlanEntity otherPlan = new PlanEntity(
+      "102",
+      group,
+      "다른 멤버 약속",
+      Instant.parse("2026-06-13T01:00:00Z"),
+      "draft"
+    );
+    PlanParticipantEntity viewerParticipant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan, otherPlan));
+    when(planParticipantRepository.findByPlanAndUser(plan, viewer)).thenReturn(Optional.of(viewerParticipant));
+    when(planParticipantRepository.findByPlanAndUser(otherPlan, viewer)).thenReturn(Optional.empty());
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(viewerParticipant));
+
+    var plans = service.plans("1", viewer.getId());
+
+    assertThat(plans).singleElement().satisfies(planCard ->
+      assertThat(planCard).containsEntry("id", "101"));
   }
 
   @Test
