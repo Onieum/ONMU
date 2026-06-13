@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,11 +125,52 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
-  test('Google action fails safe without Spring idToken verifier', () async {
+  test(
+    'Google action sends idToken to Spring and applies ONMU access JWT',
+    () async {
+      const googleIdToken = 'google-provider-id-token';
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(Dio());
+      final repository = RecordingAuthRepository();
+      final socialAuthService = SocialAuthService(
+        googleCredentialLoader: () async => const OAuthProviderCredential(
+          provider: 'google',
+          providerIdToken: googleIdToken,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          socialAuthServiceProvider.overrideWithValue(socialAuthService),
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authActionProvider).signInWithGoogle();
+
+      expect(repository.lastCredential?.provider, 'google');
+      expect(repository.lastCredential?.providerIdToken, googleIdToken);
+      expect(repository.lastCredential?.providerAccessToken, isNull);
+      expect(container.read(authUserProvider)?.publicId, 'usr_google');
+      expect((await tokenStore.read())?.accessToken, 'onmu-access-jwt');
+      expect(apiClient.authorizationHeader, startsWith('Bearer '));
+      expect(apiClient.authorizationHeader, contains('onmu-access-jwt'));
+      expect(apiClient.authorizationHeader, isNot('Bearer $googleIdToken'));
+    },
+  );
+
+  test('Google action fails safe when idToken is unavailable', () async {
     final tokenStore = InMemoryAuthTokenStore();
     final apiClient = OnmuApiClient(Dio());
+    final socialAuthService = SocialAuthService(
+      googleCredentialLoader: () async =>
+          throw const GoogleCredentialUnavailableException(),
+    );
     final container = ProviderContainer(
       overrides: [
+        socialAuthServiceProvider.overrideWithValue(socialAuthService),
         authTokenStoreProvider.overrideWithValue(tokenStore),
         onmuApiClientProvider.overrideWithValue(apiClient),
       ],
@@ -136,30 +179,68 @@ void main() {
 
     await expectLater(
       container.read(authActionProvider).signInWithGoogle(),
-      throwsA(isA<GoogleSpringOAuthUnavailableException>()),
+      throwsA(isA<GoogleCredentialUnavailableException>()),
     );
     expect(container.read(authUserProvider), isNull);
     expect(apiClient.authorizationHeader, isNull);
     expect(await tokenStore.read(), isNull);
   });
 
-  test('Google provider account event is not treated as ONMU session', () {
-    final container = ProviderContainer();
+  test('Google web sign-in start failure keeps auth state empty', () async {
+    final tokenStore = InMemoryAuthTokenStore();
+    final apiClient = OnmuApiClient(Dio());
+    final socialAuthService = SocialAuthService(
+      googleCredentialLoader: () async =>
+          throw const GoogleSignInWebButtonRequiredException(),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        socialAuthServiceProvider.overrideWithValue(socialAuthService),
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        onmuApiClientProvider.overrideWithValue(apiClient),
+      ],
+    );
     addTearDown(container.dispose);
 
-    final accepted = container
-        .read(authActionProvider)
-        .applyGoogleAuthUser(
-          const AuthUser(
-            id: 'google-provider-subject',
-            provider: 'GOOGLE',
-            displayName: 'Google User',
-          ),
-        );
-
-    expect(accepted, isFalse);
+    await expectLater(
+      container.read(authActionProvider).signInWithGoogle(),
+      throwsA(isA<GoogleSignInWebButtonRequiredException>()),
+    );
     expect(container.read(authUserProvider), isNull);
+    expect(apiClient.authorizationHeader, isNull);
+    expect(await tokenStore.read(), isNull);
   });
+
+  test(
+    'Google credential acquisition timeout keeps auth state empty',
+    () async {
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(Dio());
+      final pendingCredential = Completer<OAuthProviderCredential>();
+      final socialAuthService = SocialAuthService(
+        googleCredentialLoader: () => pendingCredential.future,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          socialAuthServiceProvider.overrideWithValue(socialAuthService),
+          googleSignInTimeoutProvider.overrideWithValue(
+            const Duration(milliseconds: 10),
+          ),
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(authActionProvider).signInWithGoogle(),
+        throwsA(isA<GoogleSignInTimeoutException>()),
+      );
+      expect(container.read(authUserProvider), isNull);
+      expect(apiClient.authorizationHeader, isNull);
+      expect(await tokenStore.read(), isNull);
+    },
+  );
 }
 
 class RecordingAuthRepository implements AuthRepository {

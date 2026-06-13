@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -40,6 +41,10 @@ final authActionProvider = Provider<AuthActionController>((ref) {
   return AuthActionController(ref);
 });
 
+final googleSignInTimeoutProvider = Provider<Duration>((ref) {
+  return const Duration(seconds: 25);
+});
+
 class AuthBootstrapResult {
   const AuthBootstrapResult({required this.user});
 
@@ -61,7 +66,18 @@ class AuthActionController {
   }
 
   Future<void> signInWithGoogle() async {
-    throw const GoogleSpringOAuthUnavailableException();
+    final timeout = _ref.read(googleSignInTimeoutProvider);
+    final credential = await _ref
+        .read(socialAuthServiceProvider)
+        .acquireGoogleCredential()
+        .timeout(
+          timeout,
+          onTimeout: () {
+            debugPrint('Google sign-in timed out before credential exchange.');
+            throw const GoogleSignInTimeoutException();
+          },
+        );
+    await _completeOAuthLogin(credential);
   }
 
   Future<void> initializeGoogleSignIn() {
@@ -74,12 +90,17 @@ class AuthActionController {
         .attemptGoogleLightweightAuthentication();
   }
 
-  bool applyGoogleAuthUser(AuthUser? user) {
-    if (user == null) {
+  Future<bool> applyGoogleCredential(
+    OAuthProviderCredential? credential,
+  ) async {
+    if (credential == null) {
+      await _ref.read(authTokenStoreProvider).clear();
+      _ref.read(onmuApiClientProvider).clearAccessToken();
       _ref.read(authUserProvider.notifier).state = null;
       return true;
     }
-    return false;
+    await _completeOAuthLogin(credential);
+    return true;
   }
 
   bool get isGoogleConfigured {
@@ -88,10 +109,6 @@ class AuthActionController {
 
   bool get canUseGoogleAppButton {
     return _ref.read(socialAuthServiceProvider).canUseGoogleAppButton;
-  }
-
-  bool get shouldUseGoogleWebButton {
-    return _ref.read(socialAuthServiceProvider).shouldUseGoogleWebButton;
   }
 
   Future<void> signInWithNaver() async {

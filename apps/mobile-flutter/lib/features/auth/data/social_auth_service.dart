@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
 import 'kakao_oauth_credential_loader.dart';
 import 'naver_oauth_credential_loader.dart';
@@ -13,6 +12,7 @@ typedef OAuthCredentialLoader = Future<OAuthProviderCredential> Function();
 class SocialAuthService {
   SocialAuthService({
     OAuthCredentialLoader? kakaoCredentialLoader,
+    this.googleCredentialLoader,
     OAuthCredentialLoader? naverCredentialLoader,
   }) : _kakaoCredentialLoader =
            kakaoCredentialLoader ?? _defaultKakaoCredentialLoader,
@@ -25,25 +25,22 @@ class SocialAuthService {
   );
 
   final OAuthCredentialLoader _kakaoCredentialLoader;
+  final OAuthCredentialLoader? googleCredentialLoader;
   final OAuthCredentialLoader _naverCredentialLoader;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   Future<void>? _googleInitializeFuture;
 
   bool get isGoogleConfigured {
-    return !kIsWeb || _googleClientId.trim().isNotEmpty;
+    return !kIsWeb || _googleClientIdValue.isNotEmpty;
   }
 
   bool get canUseGoogleAppButton {
     return isGoogleConfigured && _googleSignIn.supportsAuthenticate();
   }
 
-  bool get shouldUseGoogleWebButton {
-    return kIsWeb && isGoogleConfigured && !canUseGoogleAppButton;
-  }
-
   Future<void> initializeGoogleSignIn() {
-    final clientId = _emptyToNull(_googleClientId);
-    final serverClientId = _emptyToNull(_googleServerClientId);
+    final clientId = _emptyToNull(_googleClientIdValue);
+    final serverClientId = _emptyToNull(_googleServerClientIdValue);
 
     return _googleInitializeFuture ??= _googleSignIn.initialize(
       clientId: clientId,
@@ -51,13 +48,13 @@ class SocialAuthService {
     );
   }
 
-  Stream<AuthUser?> googleAuthUserEvents() async* {
+  Stream<OAuthProviderCredential?> googleCredentialEvents() async* {
     await initializeGoogleSignIn();
 
     await for (final event in _googleSignIn.authenticationEvents) {
       switch (event) {
         case GoogleSignInAuthenticationEventSignIn():
-          yield _authUserFromGoogleAccount(event.user);
+          yield _credentialFromGoogleAccount(event.user);
         case GoogleSignInAuthenticationEventSignOut():
           yield null;
       }
@@ -73,7 +70,12 @@ class SocialAuthService {
     return _kakaoCredentialLoader();
   }
 
-  Future<AuthUser> signInWithGoogle() async {
+  Future<OAuthProviderCredential> acquireGoogleCredential() async {
+    final loader = googleCredentialLoader;
+    if (loader != null) {
+      return loader();
+    }
+
     await initializeGoogleSignIn();
 
     if (!isGoogleConfigured) {
@@ -85,7 +87,7 @@ class SocialAuthService {
     }
 
     final account = await _googleSignIn.authenticate();
-    return _authUserFromGoogleAccount(account);
+    return _credentialFromGoogleAccount(account);
   }
 
   Future<OAuthProviderCredential> acquireNaverCredential() {
@@ -97,10 +99,17 @@ class SocialAuthService {
     await _googleSignIn.signOut();
   }
 
-  AuthUser _authUserFromGoogleAccount(GoogleSignInAccount account) {
-    return AuthUser(
-      id: account.id,
+  OAuthProviderCredential _credentialFromGoogleAccount(
+    GoogleSignInAccount account,
+  ) {
+    final idToken = account.authentication.idToken;
+    if (!_hasText(idToken)) {
+      throw const GoogleCredentialUnavailableException();
+    }
+
+    return OAuthProviderCredential(
       provider: 'google',
+      providerIdToken: idToken,
       displayName: account.displayName ?? account.email,
       email: account.email,
       profileImageUrl: account.photoUrl,
@@ -110,6 +119,14 @@ class SocialAuthService {
   static String? _emptyToNull(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static String get _googleClientIdValue => _googleClientId.trim();
+
+  static String get _googleServerClientIdValue => _googleServerClientId.trim();
+
+  static bool _hasText(String? value) {
+    return value != null && value.trim().isNotEmpty;
   }
 
   static Future<OAuthProviderCredential> _defaultKakaoCredentialLoader() async {
@@ -131,6 +148,14 @@ class GoogleSignInMissingClientIdException implements Exception {
 
 class GoogleSpringOAuthUnavailableException implements Exception {
   const GoogleSpringOAuthUnavailableException();
+}
+
+class GoogleCredentialUnavailableException implements Exception {
+  const GoogleCredentialUnavailableException();
+}
+
+class GoogleSignInTimeoutException implements Exception {
+  const GoogleSignInTimeoutException();
 }
 
 class KakaoSignInUnavailableException implements Exception {

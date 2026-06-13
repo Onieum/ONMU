@@ -151,7 +151,7 @@ Kakao 버튼은 browser authorization-code 흐름을 사용합니다. Flutter는
 
 Naver 버튼은 browser authorization-code 흐름을 사용합니다. Flutter는 `NAVER_OAUTH_CLIENT_ID`와 `NAVER_OAUTH_REDIRECT_URI` dart-define으로 Naver 인증 URL을 열고, `io.onieum.onmu://oauth/naver/callback` deep link에서 받은 `authorizationCode`와 `state`를 Spring `POST /api/v1/auth/oauth/naver`로 전달합니다. Spring은 서버 환경변수의 `NAVER_OAUTH_CLIENT_SECRET`으로 provider token을 교환하고 ONMU access JWT와 refresh token을 발급합니다.
 
-Google은 이후 idToken 검증 provider를 Spring에 추가할 때까지 ONMU 인증 완료 세션으로 처리하지 않고 안전하게 실패합니다.
+Google 버튼은 Google idToken을 Spring `POST /api/v1/auth/oauth/google`의 `providerIdToken`으로 전달하고, Spring이 Google tokeninfo 검증 뒤 발급한 ONMU access JWT와 refresh token만 저장합니다.
 
 `KAKAO_CLIENT_SECRET`은 Spring 서버 환경변수 또는 Key Vault secret 역할로만 관리합니다. Flutter dart-define, 앱 bundle, 문서 본문에는 secret 값을 넣지 않습니다.
 
