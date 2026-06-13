@@ -19,6 +19,7 @@ public record MemoryResponse(
   List<String> imageUrls,
   String visibility,
   Map<String, Object> characterSnapshot,
+  Map<String, Object> payload,
   String aiStatus,
   Instant createdAt
 ) {}

@@ -120,6 +120,7 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                   Text('동선 목록', style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: AppSpacing.md),
                   _RouteList(
+                    routeState: routeState,
                     visitPlan: state.visitPlanForDate(_selectedDateIndex),
                   ),
                 ],
@@ -152,6 +153,26 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   }
 }
 
+List<OnmuMapPoint> _uniqueRouteStops(List<OnmuMapPoint> stops) {
+  final uniqueStops = <OnmuMapPoint>[];
+  final seen = <String>{};
+  for (final stop in stops) {
+    final key = stop.label.trim().toLowerCase();
+    if (key.isEmpty || !seen.add(key)) {
+      continue;
+    }
+    uniqueStops.add(
+      OnmuMapPoint(
+        id: stop.id,
+        label: stop.label,
+        coordinate: stop.coordinate,
+        order: uniqueStops.length + 1,
+      ),
+    );
+  }
+  return uniqueStops;
+}
+
 class _RouteMap extends StatelessWidget {
   const _RouteMap({
     required this.routeState,
@@ -176,7 +197,7 @@ class _RouteMap extends StatelessWidget {
             Positioned.fill(
               child: routeState.when(
                 data: (route) => OnmuMapView(
-                  points: route.stops,
+                  points: _uniqueRouteStops(route.stops),
                   routeGeometry: route.geometry,
                   fallbackLabel: '동선 지도 미리보기',
                 ),
@@ -217,14 +238,12 @@ class _RouteMap extends StatelessWidget {
             ),
             Positioned(
               left: AppSpacing.sm,
+              right: AppSpacing.sm,
               bottom: AppSpacing.sm,
               child: routeState.maybeWhen(
-                data: (route) => OnmuChip(
-                  label:
-                      '${route.provider} · ${(route.distanceMeters / 1000).toStringAsFixed(1)}km',
-                  selected: true,
-                ),
-                orElse: () => const OnmuChip(label: 'route'),
+                data: (route) => _RouteSummaryPill(route: route),
+                loading: () => const _RouteStatusPill(label: '동선 계산 중'),
+                orElse: () => const _RouteStatusPill(label: '동선 준비 중'),
               ),
             ),
           ],
@@ -232,6 +251,98 @@ class _RouteMap extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RouteSummaryPill extends StatelessWidget {
+  const _RouteSummaryPill({required this.route});
+
+  final RouteRecommendation route;
+
+  @override
+  Widget build(BuildContext context) {
+    final stops = _uniqueRouteStops(route.stops);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.lineSoft),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.route, color: AppColors.primaryPink),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                '${_durationLabel(route.durationSeconds)} · '
+                '${_distanceLabel(route.distanceMeters)} · '
+                '${stops.length}곳',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteStatusPill extends StatelessWidget {
+  const _RouteStatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+      ),
+    );
+  }
+}
+
+String _durationLabel(int seconds) {
+  if (seconds <= 0) {
+    return '시간 계산 중';
+  }
+  final minutes = (seconds / 60).ceil();
+  if (minutes < 60) {
+    return '$minutes분';
+  }
+  final hours = minutes ~/ 60;
+  final restMinutes = minutes % 60;
+  return restMinutes == 0 ? '$hours시간' : '$hours시간 $restMinutes분';
+}
+
+String _distanceLabel(int meters) {
+  if (meters <= 0) {
+    return '거리 계산 중';
+  }
+  if (meters < 1000) {
+    return '${meters}m';
+  }
+  return '${(meters / 1000).toStringAsFixed(1)}km';
 }
 
 class _TravelModeChip extends StatelessWidget {
@@ -371,12 +482,32 @@ class _DateTabs extends StatelessWidget {
 }
 
 class _RouteList extends StatelessWidget {
-  const _RouteList({required this.visitPlan});
+  const _RouteList({required this.routeState, required this.visitPlan});
 
+  final AsyncValue<RouteRecommendation> routeState;
   final List<VisitPlan> visitPlan;
 
   @override
   Widget build(BuildContext context) {
+    final stops = routeState.maybeWhen(
+      data: (route) => _uniqueRouteStops(route.stops),
+      orElse: () => const <OnmuMapPoint>[],
+    );
+    if (stops.isNotEmpty) {
+      return OnmuCard(
+        backgroundColor: AppColors.bgDefault,
+        child: Column(
+          children: [
+            for (var index = 0; index < stops.length; index += 1)
+              _RouteStopListItem(
+                point: stops[index],
+                isLast: index == stops.length - 1,
+              ),
+          ],
+        ),
+      );
+    }
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       child: Column(
@@ -390,6 +521,137 @@ class _RouteList extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _RouteStopListItem extends StatelessWidget {
+  const _RouteStopListItem({required this.point, required this.isLast});
+
+  final OnmuMapPoint point;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.primaryPink,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: SizedBox.square(
+              dimension: 28,
+              child: Center(
+                child: Text(
+                  '${point.order}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textInverse,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _RouteStopThumbnail(order: point.order),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  point.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  isLast ? '도착 장소' : '다음 장소로 이동',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    OnmuChip(
+                      label: isLast ? '마지막 장소' : '도보 연결',
+                      icon: isLast
+                          ? Icons.flag_outlined
+                          : Icons.directions_walk,
+                    ),
+                    OnmuChip(
+                      label: point.order == 1 ? '출발' : '경유 ${point.order}',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteStopThumbnail extends StatelessWidget {
+  const _RouteStopThumbnail({required this.order});
+
+  final int order;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: SizedBox.square(
+        dimension: 64,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _colors,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -8,
+                top: -8,
+                child: Icon(
+                  Icons.circle,
+                  size: 40,
+                  color: AppColors.bgDefault.withValues(alpha: 0.36),
+                ),
+              ),
+              const Center(
+                child: Icon(
+                  Icons.storefront_outlined,
+                  color: AppColors.textInverse,
+                  size: 30,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Color> get _colors {
+    switch (order % 3) {
+      case 1:
+        return const [AppColors.accentBrown, AppColors.primaryPink];
+      case 2:
+        return const [AppColors.accentGreen, AppColors.accentOrange];
+      default:
+        return const [AppColors.accentBlue, AppColors.primaryPurple];
+    }
   }
 }
 

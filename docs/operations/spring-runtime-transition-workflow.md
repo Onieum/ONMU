@@ -114,6 +114,7 @@ cd <ONMU repo>
 ```
 
 Kakao OAuth smoke처럼 Flutter 앱에서 Kakao browser authorization URL을 열어야 할 때는 Kakao 공개 OAuth define을 함께 생성한다.
+웹/Chrome smoke와 Android/iOS 모바일 완료 검증은 `docs/operations/oauth-mobile-smoke.md` 기준으로 분리해 판정한다.
 
 Windows PowerShell:
 

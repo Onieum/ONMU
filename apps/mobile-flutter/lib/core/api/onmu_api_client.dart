@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,6 +67,24 @@ class OnmuApiClient {
     return OnmuJson.asMap(response.data);
   }
 
+  Future<Stream<String>> getLineStream(
+    String path, {
+    String accept = 'text/event-stream',
+  }) async {
+    final response = await _dio.get<ResponseBody>(
+      path,
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': accept},
+      ),
+    );
+    final body = response.data;
+    if (body == null) {
+      return const Stream.empty();
+    }
+    return utf8.decoder.bind(body.stream).transform(const LineSplitter());
+  }
+
   Future<List<Map<String, dynamic>>> getList(String path) async {
     final response = await _dio.get<Object?>(path);
     return OnmuJson.asMapList(response.data);
@@ -75,6 +95,29 @@ class OnmuApiClient {
     Map<String, Object?> body = const {},
   }) async {
     final response = await _dio.post<Object?>(path, data: body);
+    return OnmuJson.asMap(response.data);
+  }
+
+  Future<Map<String, dynamic>> postMultipartFile(
+    String path, {
+    required String fieldName,
+    required String filePath,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final mediaType = contentType == null || contentType.trim().isEmpty
+        ? null
+        : DioMediaType.parse(contentType.trim());
+    final response = await _dio.post<Object?>(
+      path,
+      data: FormData.fromMap({
+        fieldName: await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+          contentType: mediaType,
+        ),
+      }),
+    );
     return OnmuJson.asMap(response.data);
   }
 

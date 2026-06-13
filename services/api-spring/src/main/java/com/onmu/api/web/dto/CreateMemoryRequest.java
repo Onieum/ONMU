@@ -2,6 +2,7 @@ package com.onmu.api.web.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Map;
 
 public record CreateMemoryRequest(
   @NotBlank String type, // DAILY, OOTD, GROUP_MEETUP
@@ -15,5 +16,6 @@ public record CreateMemoryRequest(
   // Custom character overrides for OOTD
   String hairStyle,
   String hairColor,
-  String eyeColor
+  String eyeColor,
+  Map<String, Object> payload
 ) {}

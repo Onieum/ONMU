@@ -32,8 +32,12 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
     final repository = ref.watch(groupRepositoryProvider);
     final group = await repository.fetchGroup(groupId);
     final plans = await repository.fetchPlans(groupId);
-    final memories = await repository.fetchMemories(groupId);
-    final messages = await _fetchRecentMessages(repository);
+    final memories = await _optionalList(
+      () => repository.fetchMemories(groupId),
+    );
+    final messages = await _optionalList(
+      () => repository.fetchMessages(groupId),
+    );
 
     return GroupHomeState(
       group: group,
@@ -43,11 +47,9 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
     );
   }
 
-  Future<List<GroupMessage>> _fetchRecentMessages(
-    GroupRepository repository,
-  ) async {
+  Future<List<T>> _optionalList<T>(Future<List<T>> Function() load) async {
     try {
-      return await repository.fetchMessages(groupId);
+      return await load();
     } catch (_) {
       return const [];
     }

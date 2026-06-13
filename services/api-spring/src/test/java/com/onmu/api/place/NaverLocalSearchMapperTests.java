@@ -43,6 +43,33 @@ class NaverLocalSearchMapperTests {
   }
 
   @Test
+  void mapsLiveScaledMapxMapyToWgs84Coordinates() {
+    String json = """
+      {
+        "items": [
+          {
+            "title": "ONMU Cafe",
+            "link": "https://example.com/naver-place",
+            "category": "Cafe",
+            "address": "Seoul",
+            "roadAddress": "Seoul Road",
+            "mapx": "1269780000",
+            "mapy": "375665000"
+          }
+        ]
+      }
+      """;
+
+    var results = mapper.map(json, Instant.parse("2026-06-10T00:00:00Z"));
+
+    assertThat(results).singleElement()
+      .satisfies(result -> {
+        assertThat(result.latitude()).isEqualTo(37.5665);
+        assertThat(result.longitude()).isEqualTo(126.9780);
+      });
+  }
+
+  @Test
   void invalidJsonReturnsEmptyResults() {
     assertThat(mapper.map("{", Instant.parse("2026-06-10T00:00:00Z"))).isEmpty();
   }

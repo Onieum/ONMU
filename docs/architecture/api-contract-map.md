@@ -1,4 +1,4 @@
-# ONMU API Contract Map
+﻿# ONMU API Contract Map
 
 ## 목적
 
@@ -34,12 +34,14 @@
 | 화면 | API | Read model |
 | --- | --- | --- |
 | 마이페이지 친구 목록 | `GET /api/v1/users/me/friends` | `FriendResponse[]` |
+| 친구 상세 프로필 | `GET /api/v1/users/me/friends/{friendUserId}/profile` | `UserProfile` |
 | 친구 코드/이름 검색 | `GET /api/v1/users/search?query={query}` | `FriendResponse[]` |
 | 친구 추가 | `POST /api/v1/users/me/friends` | `FriendResponse` |
 | 친구 메모/즐겨찾기 수정 | `PATCH /api/v1/users/me/friends/{friendUserId}` | `FriendResponse` |
 | 친구 삭제 | `DELETE /api/v1/users/me/friends/{friendUserId}` | `204 No Content` |
 
 친구 관계 원장은 `friendships(user_low_id, user_high_id)` canonical pair를 사용한다. 요청 방향은 `friend_requests`가 필요할 때 보존하고, MVP 친구 추가 API는 관계를 바로 `active`로 만든다. 사용자별 메모, 숨김, 즐겨찾기는 `friend_settings(friendship_id, user_id)` 기준으로 관리한다.
+친구 상세 프로필은 active friendship을 확인한 뒤 상대 사용자의 `users.preference_profile`, `users.pixel_character`, 기본 표시 정보를 반환한다. 이메일, 인증 provider, token contract 같은 내 계정 전용 필드는 포함하지 않는다. 친구 관계가 아니거나 숨김/삭제된 관계면 `404 friend_not_found`를 반환한다.
 ## Home
 
 | 화면 | API | Read model |
@@ -161,13 +163,69 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 | 채팅 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` |
 | 채팅 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` |
 | 채팅 읽음 상태 갱신 | `PUT /api/v1/groups/{groupId}/chat/read-state` |
+| 채팅 실시간 수신 | `GET /api/v1/groups/{groupId}/chat/events` |
 
-Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity stream으로 노출한다. `POST /chat/messages`는 현재 텍스트 메시지 작성을 우선 지원하고, 응답은 기존 Flutter `GroupMessage` UI 모델에 매핑 가능한 메시지 객체를 반환한다.
+Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity stream으로 노출한다. `POST /chat/messages`는 텍스트 메시지와 이미지 첨부 metadata를 지원하고, 응답은 기존 Flutter `GroupMessage` UI 모델에 매핑 가능한 메시지 객체를 반환한다.
 
-`GET`은 선택 query로 `beforeCursor`, `limit`을 받는다. 응답은 `{ "messages": [...], "nextCursor": "...", "hasMore": true, "unreadCount": 0 }` 형태이며, 각 메시지는 `id`, `cursor`, `senderUserId`, `senderName`, `message`, `messageType`, `cardType`, `createdAt`, `timeLabel`, `isMine`, `sendStatus`를 가능한 범위에서 포함한다. `POST` 요청 body는 `{ "message": "..." }`이고, 빈 메시지는 `400 blank_chat_message`로 거부한다. `PUT /chat/read-state` 요청 body는 `{ "lastReadMessageId": "..." }`이고, 생략하면 최신 메시지를 기준으로 읽음 상태를 갱신한다. 모임 멤버가 아닌 사용자는 `403 group_member_required`로 거부한다.
+`GET`은 선택 query로 `beforeCursor`, `limit`을 받는다. 응답은 `{ "messages": [...], "nextCursor": "...", "hasMore": true, "unreadCount": 0 }` 형태이며, 각 메시지는 `id`, `cursor`, `senderUserId`, `senderName`, `message`, `attachments`, `messageType`, `cardType`, `createdAt`, `timeLabel`, `isMine`, `sendStatus`를 가능한 범위에서 포함한다. `POST` 요청 body는 `{ "message": "...", "attachments": [...] }`이다. 첨부가 없을 때 빈 메시지는 `400 blank_chat_message`로 거부하고, 이미지 첨부가 있으면 `message`는 빈 문자열을 허용한다. 이번 slice의 첨부 `type`은 `image`만 허용하며 최대 4개까지 받는다. `PUT /chat/read-state` 요청 body는 `{ "lastReadMessageId": "..." }`이고, 생략하면 최신 메시지를 기준으로 읽음 상태를 갱신한다. 모임 멤버가 아닌 사용자는 `403 group_member_required`로 거부한다.
 
-WebSocket/SSE 실시간 수신, FCM/APNs push, 사진/파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 REST 계약의 현재 범위가 아니다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
+`GET /chat/events`는 SCRUM-50의 첫 실시간 fan-out slice다. `text/event-stream`으로 `data: { ...message... }` SSE 이벤트를 보내며, 선택 query `afterCursor`는 기존 메시지 `cursor`와 같은 ISO timestamp 문자열만 사용한다. 현재 구현은 Spring Boot 단일 runtime 안의 in-process room broadcaster이며, 메시지 source of truth는 계속 `chat_activity_events`다. 멤버가 아닌 사용자는 stream 구독도 `403 group_member_required`로 거부한다.
 
+Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 계약의 현재 범위가 아니다. 사진 첨부는 `POST /api/v1/media/upload`로 먼저 업로드한 뒤 `POST /chat/messages`의 image attachment metadata로 연결한다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
+
+
+## Records / Memories
+
+| 화면 | API | Read model |
+| --- | --- | --- |
+| 기록 탭 월간 목록 | `GET /api/v1/memories` | `MemoryResponse[]` |
+| 하루 일과/OOTD 저장 | `POST /api/v1/memories` | `MemoryResponse` |
+| 하루 일과 상세/수정 진입 | `GET /api/v1/memories/{memoryId}` | `MemoryResponse` |
+| 하루 일과 수정 저장 | `PUT/PATCH /api/v1/memories/{memoryId}` | `MemoryResponse` |
+| 하루 일과/OOTD 삭제 | `DELETE /api/v1/memories/{memoryId}` | `204 No Content` |
+| 사진 업로드 | `POST /api/v1/media/upload` | `{ storageKey, publicUrl }` |
+
+하루 일과 기록은 `type=DAILY`, OOTD 기록은 `type=OOTD`를 사용한다. 사진은 먼저 `POST /api/v1/media/upload`로 업로드해 `publicUrl`을 받은 뒤, `imageUrls[]`에 담아 memory create/update 요청으로 저장한다.
+
+`publicUrl`은 API 서버 기준 상대 경로(`/api/v1/media/public?...`)로 내려올 수 있다. Flutter Web에서는 이 값을 그대로 렌더링하면 프론트 dev server를 호출하게 되므로, 클라이언트에서 `ONMU_API_BASE_URL` 기준 absolute URL로 정규화해 사용한다. Flutter Web 수정 저장은 dev CORS 허용 메서드와 맞추기 위해 `PATCH`를 우선 사용한다.
+
+Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `payload`를 받는다. `payload.timeline[]`은 사진별 코멘트와 image URL 매핑을 보존하고, `payload.brands`, `payload.mood`, `payload.weather`는 결과/수정 화면에서 다시 렌더링할 메타데이터를 보존한다.
+
+```json
+{
+  "type": "DAILY",
+  "title": "Daily record 2026-06-13",
+  "memo": "오늘의 소중한 순간을 기록했어요.",
+  "date": "2026-06-13",
+  "tags": ["#하루기록", "#카페"],
+  "imageUrls": ["https://.../daily-1.jpg"],
+  "visibility": "PRIVATE",
+  "payload": {
+    "mood": "행복",
+    "weather": "맑음",
+    "brands": {
+      "recordType": "daily",
+      "theme": "diary",
+      "crew": "userOnly"
+    },
+    "timeline": [
+      {
+        "time": "사진 1",
+        "placeName": "추가한 사진",
+        "category": "photo",
+        "description": "케이크가 맛있었어요.",
+        "imageUrl": "https://.../daily-1.jpg"
+      },
+      {
+        "time": "오늘",
+        "placeName": "하루 일과",
+        "category": "daily",
+        "description": "오늘의 소중한 순간을 기록했어요."
+      }
+    ]
+  }
+}
+```
 ## Activity / Notification
 
 | 이벤트 | 발생 조건 |

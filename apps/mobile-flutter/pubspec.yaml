@@ -40,6 +40,7 @@ dependencies:
   url_launcher: ^6.3.2
   app_links: ^7.1.2
   maplibre_gl: ^0.26.1
+  image_picker: ^1.2.2
 
   # 라우팅: StatefulShellRoute 기반 하단 탭 구조
 

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/features/group/repository/media_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/group/view_model/group_chat_view_model.dart';
@@ -162,6 +165,28 @@ void main() {
     expect(state.group.name, '퇴근 후 러닝크루');
     expect(state.recentMemories, isNotEmpty);
     expect(state.recentMessage, isNotNull);
+  });
+
+  test('온모임 홈 ViewModel은 최근 기록/채팅 실패 시에도 홈을 렌더링한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(
+            throwOnFetchMemories: true,
+            throwOnFetchMessages: true,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupHomeViewModelProvider('9001').future,
+    );
+
+    expect(state.group.id, 9001);
+    expect(state.recentMemories, isEmpty);
+    expect(state.recentMessage, isNull);
   });
 
   test('온모임 홈 ViewModel은 미래 약속만 날짜순으로 다가오는 약속에 노출한다', () async {
@@ -340,6 +365,50 @@ void main() {
     expect(updated.sendErrorMessage, isNull);
   });
 
+  test('채팅 ViewModel은 사진 업로드 후 첨부 메시지를 전송한다', () async {
+    final repository = _FakeGroupRepository();
+    final mediaRepository = _FakeMediaRepository(
+      uploaded: const GroupMessageAttachment(
+        type: 'image',
+        publicUrl:
+            'https://dev-api.onmu.cloud/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+        storageKey: 'records/media/photo.jpg',
+        contentType: 'image/jpeg',
+        fileName: 'photo.jpg',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        mediaRepositoryProvider.overrideWithValue(mediaRepository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final sent = await container
+        .read(provider.notifier)
+        .sendImageMessage(
+          const PickedChatImage(path: '/tmp/photo.jpg', fileName: 'photo.jpg'),
+          text: '사진 공유해요',
+        );
+    final updated = container.read(provider).requireValue;
+
+    expect(sent, isTrue);
+    expect(mediaRepository.uploadedPaths, ['/tmp/photo.jpg']);
+    expect(repository.sentMessages, ['사진 공유해요']);
+    expect(
+      repository.sentAttachments.single.single.storageKey,
+      'records/media/photo.jpg',
+    );
+    expect(updated.messages.single.attachments.single.type, 'image');
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+  });
+
   test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
     final repository = _FakeGroupRepository(
       initialMessages: const [
@@ -432,6 +501,244 @@ void main() {
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
     expect(updated.sendErrorMessage, isNull);
   });
+
+  test('채팅 ViewModel은 realtime 메시지를 추가하고 중복 수신은 건너뛴다', () async {
+    final realtime = StreamController<GroupMessage>();
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-1',
+          cursor: '2026-06-09T05:00:00Z',
+          sender: '민서',
+          message: '이미 본 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+      realtimeMessages: realtime.stream,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await realtime.close();
+      container.dispose();
+    });
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    realtime.add(
+      const GroupMessage(
+        id: 'message-1',
+        cursor: '2026-06-09T05:00:00Z',
+        sender: '민서',
+        message: '이미 본 메시지',
+        timeLabel: '14:00',
+        isMine: false,
+      ),
+    );
+    realtime.add(
+      const GroupMessage(
+        id: 'message-2',
+        cursor: '2026-06-09T05:01:00Z',
+        sender: '지우',
+        message: '새로 온 메시지',
+        timeLabel: '14:01',
+        isMine: false,
+      ),
+    );
+    await pumpEventQueue();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.map((message) => message.id), [
+      'message-1',
+      'message-2',
+    ]);
+    expect(repository.markedReadMessages, contains('message-2'));
+  });
+
+  test(
+    '채팅 ViewModel은 첨부-only realtime 수신 시 storageKey가 맞는 pending만 교체한다',
+    () async {
+      final realtime = StreamController<GroupMessage>();
+      final repository = _FakeGroupRepository(
+        initialMessages: const [
+          GroupMessage(
+            id: 'local-a',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/a.jpg',
+                storageKey: 'records/media/a.jpg',
+              ),
+            ],
+          ),
+          GroupMessage(
+            id: 'local-b',
+            sender: '나',
+            message: '',
+            timeLabel: '전송 중',
+            isMine: true,
+            sendStatus: GroupMessageSendStatus.sending,
+            attachments: [
+              GroupMessageAttachment(
+                type: 'image',
+                publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+                storageKey: 'records/media/b.jpg',
+              ),
+            ],
+          ),
+        ],
+        realtimeMessages: realtime.stream,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(repository),
+          settlementRepositoryProvider.overrideWithValue(
+            _ChatSettlementRepository(),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        await realtime.close();
+        container.dispose();
+      });
+      final provider = groupChatViewModelProvider('1');
+
+      await container.read(provider.future);
+      realtime.add(
+        const GroupMessage(
+          id: 'server-b',
+          cursor: '2026-06-09T05:02:00Z',
+          sender: '나',
+          message: '',
+          timeLabel: '14:02',
+          isMine: true,
+          attachments: [
+            GroupMessageAttachment(
+              type: 'image',
+              publicUrl: 'https://dev-api.onmu.cloud/b.jpg',
+              storageKey: 'records/media/b.jpg',
+            ),
+          ],
+        ),
+      );
+      await pumpEventQueue();
+
+      final updated = container.read(provider).requireValue;
+      expect(updated.messages.map((message) => message.id), [
+        'local-a',
+        'server-b',
+      ]);
+      expect(updated.messages.first.sendStatus, GroupMessageSendStatus.sending);
+      expect(
+        updated.messages.last.attachments.single.storageKey,
+        'records/media/b.jpg',
+      );
+      expect(repository.markedReadMessages, contains('server-b'));
+    },
+  );
+
+  test('채팅 ViewModel은 realtime stream 오류가 나도 기존 메시지를 유지한다', () async {
+    final realtime = StreamController<GroupMessage>();
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-1',
+          sender: '민서',
+          message: '유지할 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+      realtimeMessages: realtime.stream,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await realtime.close();
+      container.dispose();
+    });
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    realtime.addError(StateError('stream failed'));
+    await pumpEventQueue();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.single.message, '유지할 메시지');
+    expect(updated.sendErrorMessage, isNull);
+  });
+
+  test('채팅 ViewModel은 timestamp cursor가 없으면 afterCursor를 보내지 않는다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-id-only',
+          sender: '민서',
+          message: 'cursor 없는 메시지',
+          timeLabel: '14:00',
+          isMine: false,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+
+    expect(repository.watchedAfterCursors.single, isNull);
+  });
+
+  test('채팅 ViewModel dispose는 realtime subscription을 정리한다', () async {
+    var canceled = false;
+    final realtime = StreamController<GroupMessage>(
+      onCancel: () {
+        canceled = true;
+      },
+    );
+    final repository = _FakeGroupRepository(realtimeMessages: realtime.stream);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    container.dispose();
+    await pumpEventQueue();
+
+    expect(canceled, isTrue);
+    await realtime.close();
+  });
 }
 
 class _FakeGroupRepository implements GroupRepository {
@@ -439,19 +746,27 @@ class _FakeGroupRepository implements GroupRepository {
     this.sentMessage,
     this.throwOnSend = false,
     this.sendFailuresBeforeSuccess = 0,
+    this.throwOnFetchMemories = false,
+    this.throwOnFetchMessages = false,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
-    this.throwOnFetchMessages = false,
-  }) : _remainingSendFailures = sendFailuresBeforeSuccess;
+    Stream<GroupMessage>? realtimeMessages,
+  }) : realtimeMessages =
+           realtimeMessages ?? Stream<GroupMessage>.multi((_) {}),
+       _remainingSendFailures = sendFailuresBeforeSuccess;
 
   final GroupMessage? sentMessage;
   final bool throwOnSend;
   final int sendFailuresBeforeSuccess;
+  final bool throwOnFetchMemories;
+  final bool throwOnFetchMessages;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
-  final bool throwOnFetchMessages;
+  final Stream<GroupMessage> realtimeMessages;
   final sentMessages = <String>[];
+  final sentAttachments = <List<GroupMessageAttachment>>[];
   final markedReadMessages = <String?>[];
+  final watchedAfterCursors = <String?>[];
   int _remainingSendFailures;
 
   static final _group = GroupSummary(
@@ -495,7 +810,12 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
 
   @override
-  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
+  Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
+    if (throwOnFetchMemories) {
+      throw StateError('memories failed');
+    }
+    return [];
+  }
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
@@ -524,8 +844,10 @@ class _FakeGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) async {
     sentMessages.add(message);
+    sentAttachments.add(attachments);
     if (throwOnSend || _remainingSendFailures > 0) {
       if (_remainingSendFailures > 0) {
         _remainingSendFailures -= 1;
@@ -539,6 +861,7 @@ class _FakeGroupRepository implements GroupRepository {
           message: message,
           timeLabel: '방금',
           isMine: true,
+          attachments: attachments,
         );
   }
 
@@ -549,6 +872,12 @@ class _FakeGroupRepository implements GroupRepository {
   }) async {
     markedReadMessages.add(lastReadMessageId);
     return 0;
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    watchedAfterCursors.add(afterCursor);
+    return realtimeMessages;
   }
 
   @override
@@ -587,6 +916,19 @@ class _FakeGroupRepository implements GroupRepository {
     required Object voteId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _FakeMediaRepository implements MediaRepository {
+  _FakeMediaRepository({required this.uploaded});
+
+  final GroupMessageAttachment uploaded;
+  final uploadedPaths = <String>[];
+
+  @override
+  Future<GroupMessageAttachment> uploadChatImage(PickedChatImage image) async {
+    uploadedPaths.add(image.path);
+    return uploaded;
   }
 }
 
@@ -648,6 +990,7 @@ class _EmptyGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) {
     throw UnimplementedError();
   }
@@ -658,6 +1001,11 @@ class _EmptyGroupRepository implements GroupRepository {
     String? lastReadMessageId,
   }) {
     throw UnimplementedError();
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
   }
 
   @override
@@ -1192,6 +1540,13 @@ class _FakePlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
   }) async => _candidate;
+
+  @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async => candidate;
 
   @override
   Future<List<PlaceCandidate>> searchPlaces({

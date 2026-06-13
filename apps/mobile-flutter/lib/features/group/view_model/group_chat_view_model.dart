@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/settlement_models.dart';
 import '../../settlement/repository/settlement_repository.dart';
 import '../repository/group_repository.dart';
+import '../repository/media_repository.dart';
 
 final groupChatViewModelProvider =
     AsyncNotifierProvider.family<GroupChatViewModel, GroupChatState, String>(
@@ -73,9 +76,13 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   GroupChatViewModel(this.groupId);
 
   final String groupId;
+  StreamSubscription<GroupMessage>? _realtimeSubscription;
+  Timer? _reconnectTimer;
+  bool _realtimeDisposed = false;
 
   @override
   Future<GroupChatState> build() async {
+    ref.onDispose(_disposeRealtime);
     final groupRepository = ref.watch(groupRepositoryProvider);
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
@@ -87,7 +94,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     final messagePage = await groupRepository.fetchMessagePage(groupId);
     await _markNewestMessageRead(groupRepository, messagePage.messages);
 
-    return GroupChatState(
+    final chatState = GroupChatState(
       group: await groupRepository.fetchGroup(groupId),
       pinnedPlan: pinnedPlan,
       messages: messagePage.messages,
@@ -105,6 +112,11 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         planId: planId,
       ),
     );
+    _startRealtimeSubscription(
+      groupRepository,
+      afterCursor: _latestCursor(chatState.messages),
+    );
+    return chatState;
   }
 
   Future<bool> sendMessage(String text) async {
@@ -170,6 +182,84 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  Future<bool> sendImageMessage(
+    PickedChatImage image, {
+    String text = '',
+  }) async {
+    final value = state.asData?.value;
+    if (value == null) {
+      return false;
+    }
+
+    final message = text.trim();
+    GroupMessageAttachment attachment;
+    try {
+      attachment = await ref
+          .read(mediaRepositoryProvider)
+          .uploadChatImage(image);
+    } catch (_) {
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(latest.copyWith(sendErrorMessage: '사진을 올리지 못했어요.'));
+      return false;
+    }
+
+    final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final pending = GroupMessage(
+      id: localId,
+      sender: '나',
+      message: message,
+      timeLabel: '전송 중',
+      isMine: true,
+      sendStatus: GroupMessageSendStatus.sending,
+      attachments: [attachment],
+    );
+    state = AsyncData(
+      value.copyWith(
+        messages: [...value.messages, pending],
+        clearSendErrorMessage: true,
+      ),
+    );
+
+    try {
+      final sent = await ref
+          .read(groupRepositoryProvider)
+          .sendMessage(
+            groupId: groupId,
+            message: message,
+            attachments: [attachment],
+          );
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(
+        latest.copyWith(
+          messages: _replaceMessage(
+            latest.messages,
+            localId,
+            sent.copyWith(sendStatus: GroupMessageSendStatus.sent),
+          ),
+          clearSendErrorMessage: true,
+        ),
+      );
+      await _markSentMessageRead(sent);
+      return true;
+    } catch (_) {
+      final latest = state.asData?.value ?? value;
+      state = AsyncData(
+        latest.copyWith(
+          messages: _replaceMessage(
+            latest.messages,
+            localId,
+            pending.copyWith(
+              timeLabel: '전송 실패',
+              sendStatus: GroupMessageSendStatus.failed,
+            ),
+          ),
+          sendErrorMessage: '사진 메시지를 보내지 못했어요.',
+        ),
+      );
+      return true;
+    }
+  }
+
   Future<bool> retryMessage(String messageId) async {
     final value = state.asData?.value;
     if (value == null || messageId.isEmpty) {
@@ -199,7 +289,11 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     try {
       final sent = await ref
           .read(groupRepositoryProvider)
-          .sendMessage(groupId: groupId, message: failed.message);
+          .sendMessage(
+            groupId: groupId,
+            message: failed.message,
+            attachments: failed.attachments,
+          );
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
@@ -270,6 +364,51 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  void _startRealtimeSubscription(
+    GroupRepository repository, {
+    String? afterCursor,
+  }) {
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = repository
+        .watchMessages(groupId, afterCursor: afterCursor)
+        .listen(
+          _handleRealtimeMessage,
+          onError: (_) => _scheduleRealtimeReconnect(),
+          onDone: _scheduleRealtimeReconnect,
+        );
+  }
+
+  void _handleRealtimeMessage(GroupMessage message) {
+    final value = state.asData?.value;
+    if (value == null) {
+      return;
+    }
+    final messages = _appendRealtimeMessage(value.messages, message);
+    state = AsyncData(value.copyWith(messages: messages));
+    _markSentMessageRead(message);
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (_realtimeDisposed || (_reconnectTimer?.isActive ?? false)) {
+      return;
+    }
+    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+      if (_realtimeDisposed) {
+        return;
+      }
+      _startRealtimeSubscription(
+        ref.read(groupRepositoryProvider),
+        afterCursor: _latestCursor(state.asData?.value.messages ?? const []),
+      );
+    });
+  }
+
+  void _disposeRealtime() {
+    _realtimeDisposed = true;
+    _reconnectTimer?.cancel();
+    _realtimeSubscription?.cancel();
+  }
+
   Future<void> _markNewestMessageRead(
     GroupRepository repository,
     List<GroupMessage> messages,
@@ -323,6 +462,41 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     return [...uniqueOlder, ...currentMessages];
   }
 
+  List<GroupMessage> _appendRealtimeMessage(
+    List<GroupMessage> currentMessages,
+    GroupMessage incoming,
+  ) {
+    final incomingKey = _messageKey(incoming);
+    final knownKeys = currentMessages.map(_messageKey).toSet();
+    if (knownKeys.contains(incomingKey)) {
+      return currentMessages;
+    }
+
+    final pendingIndex = currentMessages.indexWhere((message) {
+      return message.isMine &&
+          message.sendStatus.isPending &&
+          incoming.isMine &&
+          message.message == incoming.message &&
+          _attachmentSignature(message) == _attachmentSignature(incoming);
+    });
+    if (pendingIndex < 0) {
+      return [...currentMessages, incoming];
+    }
+    return [
+      for (var index = 0; index < currentMessages.length; index += 1)
+        if (index == pendingIndex) incoming else currentMessages[index],
+    ];
+  }
+
+  String? _latestCursor(List<GroupMessage> messages) {
+    for (final message in messages.reversed) {
+      if (message.cursor.isNotEmpty) {
+        return message.cursor;
+      }
+    }
+    return null;
+  }
+
   String _messageKey(GroupMessage message) {
     if (message.id.isNotEmpty) {
       return 'id:${message.id}';
@@ -331,5 +505,12 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       return 'cursor:${message.cursor}';
     }
     return '${message.sender}|${message.message}|${message.timeLabel}|${message.isMine}';
+  }
+
+  String _attachmentSignature(GroupMessage message) {
+    return message.attachments
+        .map((attachment) => attachment.storageKey.trim())
+        .where((storageKey) => storageKey.isNotEmpty)
+        .join('|');
   }
 }

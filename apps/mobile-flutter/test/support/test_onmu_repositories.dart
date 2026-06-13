@@ -8,10 +8,12 @@ import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart'
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -32,6 +34,9 @@ ProviderContainer createOnmuTestContainer() {
       settlementRepositoryProvider.overrideWithValue(
         TestSettlementRepository(store),
       ),
+      notificationRepositoryProvider.overrideWithValue(
+        TestNotificationRepository(store),
+      ),
     ],
   );
 }
@@ -49,9 +54,23 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
       settlementRepositoryProvider.overrideWithValue(
         TestSettlementRepository(store),
       ),
+      notificationRepositoryProvider.overrideWithValue(
+        TestNotificationRepository(store),
+      ),
     ],
     child: child,
   );
+}
+
+class TestNotificationRepository implements NotificationRepository {
+  TestNotificationRepository(this._store);
+
+  final InMemoryOnmuStore _store;
+
+  @override
+  Future<List<NotificationItem>> fetchNotifications({int? limit}) async {
+    return _store.fetchNotifications(limit: limit);
+  }
 }
 
 SocialAuthService testSocialAuthService() {
@@ -167,8 +186,13 @@ class TestGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) async {
-    return _store.sendMessage(groupId: groupId, message: message);
+    return _store.sendMessage(
+      groupId: groupId,
+      message: message,
+      attachments: attachments,
+    );
   }
 
   @override
@@ -180,6 +204,11 @@ class TestGroupRepository implements GroupRepository {
       groupId: groupId,
       lastReadMessageId: lastReadMessageId,
     );
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
   }
 
   @override
@@ -309,6 +338,19 @@ class TestPlaceRepository implements PlaceRepository {
       groupId: groupId,
       planId: planId,
       candidateId: candidateId,
+    );
+  }
+
+  @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async {
+    return _store.createPlaceCandidate(
+      groupId: groupId,
+      planId: planId,
+      candidate: candidate,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -11,6 +12,7 @@ class InMemoryOnmuStore {
     _seedPlaces();
     _seedVotes();
     _seedSettlement();
+    _seedNotifications();
   }
 
   final _groups = <GroupSummary>[];
@@ -28,9 +30,11 @@ class InMemoryOnmuStore {
   final _voteCardsByVoteId = <int, VoteCard>{};
   final _voteVotersByVoteId = <int, Map<int, List<String>>>{};
   final _settlementsByPlanId = <int, SettlementSummary>{};
+  final _notifications = <NotificationItem>[];
 
   var _nextGroupId = 4;
   var _nextPlanId = 106;
+  var _nextCandidateId = 204;
   var _nextVoteId = 505;
   var _nextMessageId = 1;
 
@@ -176,7 +180,16 @@ class InMemoryOnmuStore {
     return 0;
   }
 
-  GroupMessage sendMessage({required Object groupId, required String message}) {
+  List<NotificationItem> fetchNotifications({int? limit}) {
+    final effectiveLimit = limit ?? _notifications.length;
+    return List.unmodifiable(_notifications.take(effectiveLimit));
+  }
+
+  GroupMessage sendMessage({
+    required Object groupId,
+    required String message,
+    List<GroupMessageAttachment> attachments = const [],
+  }) {
     final groupMessages = _messagesByGroupId.putIfAbsent(
       _parseId(groupId),
       () => [],
@@ -189,6 +202,7 @@ class InMemoryOnmuStore {
       message: message.trim(),
       timeLabel: '방금',
       isMine: true,
+      attachments: attachments,
     );
     groupMessages.add(created);
     return created;
@@ -324,6 +338,28 @@ class InMemoryOnmuStore {
       (candidate) => candidate.id == parsedCandidateId,
       orElse: () => candidates.first,
     );
+  }
+
+  PlaceCandidate createPlaceCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) {
+    final parsedPlanId = _parseId(planId);
+    final candidates = _candidatesByPlanId.putIfAbsent(parsedPlanId, () => []);
+    final existingIndex = candidates.indexWhere(
+      (current) => _samePlaceCandidate(current, candidate),
+    );
+    final saved = _savedPlaceCandidate(
+      existingIndex == -1 ? _nextCandidateId++ : candidates[existingIndex].id,
+      candidate,
+    );
+    if (existingIndex == -1) {
+      candidates.add(saved);
+    } else {
+      candidates[existingIndex] = saved;
+    }
+    return saved;
   }
 
   List<PlaceRisk> fetchPlaceRisks({
@@ -763,6 +799,70 @@ class InMemoryOnmuStore {
     }
   }
 
+  bool _samePlaceCandidate(PlaceCandidate current, PlaceCandidate next) {
+    if (current.id == next.id) {
+      return true;
+    }
+    final currentProviderKey = _placeProviderKey(current);
+    final nextProviderKey = _placeProviderKey(next);
+    if (currentProviderKey.isNotEmpty &&
+        currentProviderKey == nextProviderKey) {
+      return true;
+    }
+    final currentPlaceKey = _placeNameAddressKey(current);
+    final nextPlaceKey = _placeNameAddressKey(next);
+    return currentPlaceKey.isNotEmpty && currentPlaceKey == nextPlaceKey;
+  }
+
+  String _placeProviderKey(PlaceCandidate candidate) {
+    final provider = candidate.provider.trim().toLowerCase();
+    final providerPlaceId = candidate.providerPlaceId.trim().toLowerCase();
+    if (provider.isEmpty || providerPlaceId.isEmpty) {
+      return '';
+    }
+    return '$provider|$providerPlaceId';
+  }
+
+  String _placeNameAddressKey(PlaceCandidate candidate) {
+    final name = candidate.name.trim().toLowerCase();
+    final address = candidate.address.trim().toLowerCase();
+    if (name.isEmpty || address.isEmpty) {
+      return '';
+    }
+    return '$name|$address';
+  }
+
+  PlaceCandidate _savedPlaceCandidate(int id, PlaceCandidate candidate) {
+    return PlaceCandidate(
+      id: id,
+      name: candidate.name,
+      category: candidate.category,
+      summary: candidate.summary,
+      score: candidate.score,
+      matchPercent: candidate.matchPercent,
+      distanceLabel: candidate.distanceLabel,
+      travelTimeLabel: candidate.travelTimeLabel,
+      priceLabel: candidate.priceLabel,
+      isOpen: candidate.isOpen,
+      address: candidate.address,
+      openingLabel: candidate.openingLabel,
+      sourceLabel: candidate.sourceLabel,
+      riskLabel: candidate.riskLabel,
+      riskTone: candidate.riskTone,
+      memberFits: candidate.memberFits,
+      tags: candidate.tags,
+      reasons: candidate.reasons,
+      risks: candidate.risks,
+      provider: candidate.provider,
+      providerPlaceId: candidate.providerPlaceId,
+      roadAddress: candidate.roadAddress,
+      sourceUrl: candidate.sourceUrl,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      fetchedAt: candidate.fetchedAt,
+    );
+  }
+
   List<PlaceCandidate> _createPlaceCandidates() {
     return [
       PlaceCandidate(
@@ -1146,6 +1246,37 @@ class InMemoryOnmuStore {
     for (final planId in [101, 102, 103, 104, 105]) {
       _settlementsByPlanId[planId] = settlement;
     }
+  }
+
+  void _seedNotifications() {
+    _notifications.addAll([
+      NotificationItem(
+        id: '00000000-0000-0000-0000-000000001211',
+        notificationType: 'place_candidate_created',
+        title: '장소 후보가 추가됐어요',
+        body: '카페 오션뷰 후보가 제주도 여행에 추가됐습니다.',
+        status: 'queued',
+        createdAt: DateTime.parse('2026-06-09T14:10:00+09:00'),
+        timeLabel: '14:10',
+        groupId: '1',
+        planId: '101',
+        payload: const {'groupId': '1', 'planId': '101', 'candidateId': '204'},
+        isRead: false,
+      ),
+      NotificationItem(
+        id: '00000000-0000-0000-0000-000000001212',
+        notificationType: 'vote_created',
+        title: '투표가 열렸어요',
+        body: '제주도 여행 장소 투표가 진행 중입니다.',
+        status: 'queued',
+        createdAt: DateTime.parse('2026-06-09T14:11:00+09:00'),
+        timeLabel: '14:11',
+        groupId: '1',
+        planId: '101',
+        payload: const {'groupId': '1', 'planId': '101', 'voteId': '501'},
+        isRead: false,
+      ),
+    ]);
   }
 
   List<PlanMember> _seedPlanMembers() {

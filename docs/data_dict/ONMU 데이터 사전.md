@@ -1,4 +1,4 @@
-# ONMU 데이터 사전
+﻿# ONMU 데이터 사전
 
 ## 문서 목적
 
@@ -93,6 +93,8 @@
 | `display_name` | 표시 이름 | Text | 앱에서 보이는 사용자 이름 | Not Null |
 | `nickname` | 닉네임 | Text | 친구/모임에서 표시할 별칭 | 목표 설계 |
 | `profile_image_url` | 프로필 이미지 URL | Text | Blob/CDN에 저장된 프로필 이미지 주소 | 목표 설계 |
+| `pixel_character` | 픽셀 캐릭터 JSON | Jsonb | 기본 캐릭터 렌더링에 필요한 성별/피부/머리/눈/의상 선택값 | Not Null, Default `{}` |
+| `preference_profile` | 취향 프로필 JSON | Jsonb | 마이페이지 프로필/친구 상세 프로필에 표시할 관심사, 음식/장소/약속 스타일, 지역, 소개 문구 | Not Null, Default `{}` |
 | `status_message` | 상태 메시지 | Text | 마이페이지의 짧은 소개 문구 | 목표 설계 |
 | `phone_hash` | 전화번호 해시 | Text | 연락처 동기화용 비가역 해시 | 미래 확장, Unique 후보 |
 | `email` | 이메일 | Text | OAuth provider가 제공하는 이메일 | Nullable |
@@ -299,6 +301,7 @@
 
 > UNIQUE: `(friendship_id, user_id)`
 > 한 친구 관계가 수락되면 두 사용자의 기본 설정 row를 생성한다. 설정 row의 불일치는 관계 원장 정합성에 영향을 주지 않는다. `memo`, `display_alias`, `hidden`, `is_favorite`는 모두 설정 소유자인 `user_id` 기준 개인 값이다.
+> API 구현 메모: 친구 상세 프로필 조회 `GET /api/v1/users/me/friends/{friendUserId}/profile`은 `friend_settings`와 `friendships`로 active 관계를 확인한 뒤 상대 사용자의 `users.preference_profile`과 `users.pixel_character`를 반환한다. 이때 `friend_settings.memo`는 조회자 개인 메모로 친구의 공개 취향 프로필을 대체하지 않는다.
 
 ## `friend_requests` (다음 구현)
 
@@ -1053,6 +1056,30 @@ OOTD 기록의 캐릭터 변경분은 `character_profiles`를 직접 덮어쓰�
 
 ---
 
+
+## 하루 일과 다이어리 payload 계약 메모
+
+하루 일과 기록 기능은 새 테이블을 추가하지 않고 기존 `records`, `record_media`, `record_tags`를 사용한다. 사진 원본 URL은 `record_media.public_url`에 저장하고, 사진별 코멘트/다이어리 구성 정보는 `records.payload` JSON에 보존한다.
+
+기록 삭제는 물리 삭제가 아니라 `records.deleted_at`을 채우는 soft delete로 처리한다. 목록/상세 조회는 `deleted_at IS NULL` 조건을 기준으로 한다.
+
+`record_media.public_url`은 API 서버 기준 상대 URL일 수 있으므로, Flutter Web에서는 표시 직전에 API base URL을 붙여 absolute URL로 사용한다.
+
+`records.payload`의 DAILY 기록 확장 필드는 다음과 같다.
+
+| JSON key | 설명 |
+| --- | --- |
+| `recordType` | `DAILY` 또는 `OOTD` |
+| `body` | 하루 전체 메모 |
+| `mood` | 사용자가 선택한 기분 라벨 |
+| `weather` | 사용자가 선택한 날씨 라벨 |
+| `brands.recordType` | Flutter 화면 분기용 `daily`/`ootd` |
+| `brands.theme` | 다이어리 결과 테마, 예: `diary`, `clean` |
+| `brands.crew` | OOTD/크루 포함 여부, 예: `included`, `userOnly` |
+| `timeline[]` | 결과 화면 재구성용 사진/메모 순서 |
+| `timeline[].imageUrl` | 해당 사진 카드에 표시할 `record_media.public_url` |
+
+OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭터/WITH 블록을 건너뛴다. OOTD가 있는 경우에만 다이어리 중간 캐릭터 블록 및 하단 WITH/MOOD/WEATHER 캐릭터 영역을 표시한다.
 # 9. Activity / Notification
 
 ## `chat_activity_events` (목표 설계)

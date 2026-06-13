@@ -74,4 +74,21 @@ class OutboxServiceTests {
     assertThat(recentFailedEvent.getLockedAt()).isNotNull();
     assertThat(recentFailedEvent.getLastError()).isEqualTo("Connection timeout");
   }
+
+  @Test
+  void chatMessageOutboxHasNoExternalConsumerInThisSlice() {
+    OutboxEventEntity chatMessageEvent = new OutboxEventEntity(
+      "chat.message",
+      "chat_activity_event",
+      UUID.randomUUID(),
+      "{}"
+    );
+    when(outboxEventRepository.findByStatusOrderByCreatedAtAsc("pending"))
+      .thenReturn(List.of(chatMessageEvent));
+
+    service.publishPendingEvents();
+
+    assertThat(chatMessageEvent.getStatus()).isEqualTo("no_consumer");
+    verify(outboxEventRepository).save(chatMessageEvent);
+  }
 }

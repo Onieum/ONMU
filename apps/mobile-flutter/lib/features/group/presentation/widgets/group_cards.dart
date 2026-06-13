@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/settlement_models.dart';
@@ -282,12 +283,18 @@ class _ChatMessageContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xxs),
-              Text(
-                message.message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
-              ),
+              if (message.attachments.isNotEmpty) ...[
+                _MessageAttachments(attachments: message.attachments),
+                if (message.message.trim().isNotEmpty)
+                  const SizedBox(height: AppSpacing.xs),
+              ],
+              if (message.message.trim().isNotEmpty)
+                Text(
+                  message.message,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
+                ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 message.timeLabel,
@@ -302,6 +309,83 @@ class _ChatMessageContent extends StatelessWidget {
                 _SendStatusRow(message: message, onRetry: onRetry),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageAttachments extends StatelessWidget {
+  const _MessageAttachments({required this.attachments});
+
+  final List<GroupMessageAttachment> attachments;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final attachment in attachments.where(
+          (attachment) => attachment.type == 'image',
+        )) ...[
+          _ChatImagePreview(attachment: attachment),
+          if (attachment != attachments.last)
+            const SizedBox(height: AppSpacing.xs),
+        ],
+      ],
+    );
+  }
+}
+
+class _ChatImagePreview extends StatelessWidget {
+  const _ChatImagePreview({required this.attachment});
+
+  final GroupMessageAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = attachment.publicUrl;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: AspectRatio(
+        aspectRatio: _aspectRatio,
+        child: url.isEmpty
+            ? const _ChatImageFallback()
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    const _ChatImageFallback(),
+              ),
+      ),
+    );
+  }
+
+  double get _aspectRatio {
+    final width = attachment.width;
+    final height = attachment.height;
+    if (width == null || height == null || width <= 0 || height <= 0) {
+      return 4 / 3;
+    }
+    return (width / height).clamp(0.7, 1.8);
+  }
+}
+
+class _ChatImageFallback extends StatelessWidget {
+  const _ChatImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgPaper,
+        border: Border.all(color: AppColors.lineWarm),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: AppColors.textMuted,
+          size: 28,
         ),
       ),
     );

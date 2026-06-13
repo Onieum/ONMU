@@ -226,6 +226,7 @@ class GroupMessage {
     this.cursor = '',
     this.sendStatus = GroupMessageSendStatus.sent,
     this.senderProfileImageUrl = '',
+    this.attachments = const [],
   });
 
   final String id;
@@ -236,8 +237,10 @@ class GroupMessage {
   final bool isMine;
   final GroupMessageSendStatus sendStatus;
   final String senderProfileImageUrl;
+  final List<GroupMessageAttachment> attachments;
 
   bool get canRetry => isMine && sendStatus.isFailed;
+  bool get hasAttachments => attachments.isNotEmpty;
 
   GroupMessage copyWith({
     String? id,
@@ -248,6 +251,7 @@ class GroupMessage {
     bool? isMine,
     GroupMessageSendStatus? sendStatus,
     String? senderProfileImageUrl,
+    List<GroupMessageAttachment>? attachments,
   }) {
     return GroupMessage(
       id: id ?? this.id,
@@ -259,7 +263,40 @@ class GroupMessage {
       sendStatus: sendStatus ?? this.sendStatus,
       senderProfileImageUrl:
           senderProfileImageUrl ?? this.senderProfileImageUrl,
+      attachments: attachments ?? this.attachments,
     );
+  }
+}
+
+class GroupMessageAttachment {
+  const GroupMessageAttachment({
+    required this.type,
+    required this.publicUrl,
+    required this.storageKey,
+    this.contentType = '',
+    this.fileName = '',
+    this.width,
+    this.height,
+  });
+
+  final String type;
+  final String publicUrl;
+  final String storageKey;
+  final String contentType;
+  final String fileName;
+  final int? width;
+  final int? height;
+
+  Map<String, Object?> toApiJson() {
+    return {
+      'type': type,
+      'storageKey': storageKey,
+      'publicUrl': publicUrl,
+      'contentType': contentType.isEmpty ? null : contentType,
+      'fileName': fileName.isEmpty ? null : fileName,
+      'width': width,
+      'height': height,
+    };
   }
 }
 

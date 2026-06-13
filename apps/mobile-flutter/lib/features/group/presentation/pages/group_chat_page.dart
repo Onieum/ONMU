@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../repository/media_repository.dart';
 import '../../view_model/group_chat_view_model.dart';
 import '../widgets/group_cards.dart';
 
@@ -27,6 +29,7 @@ class GroupChatPage extends StatefulWidget {
 class _GroupChatPageState extends State<GroupChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -73,6 +76,51 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
+  Future<void> _sendImageMessage(WidgetRef ref) async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1800,
+    );
+    if (picked == null) {
+      return;
+    }
+
+    final text = _messageController.text.trim();
+    _messageController.clear();
+    final sent = await ref
+        .read(groupChatViewModelProvider(widget.groupId).notifier)
+        .sendImageMessage(
+          PickedChatImage(
+            path: picked.path,
+            fileName: picked.name,
+            contentType: picked.mimeType ?? 'image/jpeg',
+          ),
+          text: text,
+        );
+    if (!mounted) {
+      return;
+    }
+    if (!sent) {
+      _messageController.text = text;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진을 보내지 못했어요.')));
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
@@ -85,6 +133,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
             messageController: _messageController,
             scrollController: _scrollController,
             onSend: () => _sendMessage(ref),
+            onPickImage: () => _sendImageMessage(ref),
             onLoadOlderMessages: () => ref
                 .read(groupChatViewModelProvider(widget.groupId).notifier)
                 .loadOlderMessages(),
@@ -125,6 +174,7 @@ class _ThreadContent extends StatelessWidget {
     required this.messageController,
     required this.scrollController,
     required this.onSend,
+    required this.onPickImage,
     required this.onLoadOlderMessages,
     required this.onRetryMessage,
   });
@@ -133,6 +183,7 @@ class _ThreadContent extends StatelessWidget {
   final TextEditingController messageController;
   final ScrollController scrollController;
   final Future<void> Function() onSend;
+  final Future<void> Function() onPickImage;
   final Future<void> Function() onLoadOlderMessages;
   final Future<void> Function(String messageId) onRetryMessage;
 
@@ -193,7 +244,11 @@ class _ThreadContent extends StatelessWidget {
           ),
         ],
       ),
-      bottom: _MessageInput(controller: messageController, onSend: onSend),
+      bottom: _MessageInput(
+        controller: messageController,
+        onSend: onSend,
+        onOpenActions: () => _showChatActions(context),
+      ),
       scrollController: scrollController,
       children: [
         if (state.pinnedPlan != null)
@@ -247,9 +302,155 @@ class _ThreadContent extends StatelessWidget {
       ],
     );
   }
+
+  Future<void> _showChatActions(BuildContext context) async {
+    final group = state.group;
+    final action = await showModalBottomSheet<_ChatActionCommand>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (context) => const _ChatActionSheet(),
+    );
+    if (action == null || !context.mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _ChatActionCommand.image:
+        await onPickImage();
+      case _ChatActionCommand.plan:
+        context.push(RoutePaths.planNew(group.id));
+      case _ChatActionCommand.place:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planPlaceSearch(group.id, state.planId)
+              : RoutePaths.planNew(group.id),
+        );
+      case _ChatActionCommand.vote:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planVoteNew(group.id, state.planId)
+              : RoutePaths.groupVotes(group.id),
+        );
+      case _ChatActionCommand.settlement:
+        context.push(
+          state.planId > 0
+              ? RoutePaths.planSettlementNew(group.id, state.planId)
+              : RoutePaths.planNew(group.id),
+        );
+    }
+  }
 }
 
 enum _ChatMenuAction { votes, plan, settings }
+
+enum _ChatActionCommand { image, plan, place, vote, settlement }
+
+class _ChatActionSheet extends StatelessWidget {
+  const _ChatActionSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.lineSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('채팅 액션', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              _ChatActionTile(
+                icon: Icons.add_photo_alternate_outlined,
+                label: '사진 첨부',
+                command: _ChatActionCommand.image,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.event_available_outlined,
+                label: '약속 만들기',
+                command: _ChatActionCommand.plan,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.place_outlined,
+                label: '장소 후보 찾기',
+                command: _ChatActionCommand.place,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.how_to_vote_outlined,
+                label: '투표 만들기',
+                command: _ChatActionCommand.vote,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+              _ChatActionTile(
+                icon: Icons.receipt_long_outlined,
+                label: '정산 시작',
+                command: _ChatActionCommand.settlement,
+                onSelected: (command) => Navigator.of(context).pop(command),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatActionTile extends StatelessWidget {
+  const _ChatActionTile({
+    required this.icon,
+    required this.label,
+    required this.command,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final _ChatActionCommand command;
+  final ValueChanged<_ChatActionCommand> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      minLeadingWidth: 32,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      leading: Icon(icon, color: AppColors.primaryPink),
+      title: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelLarge,
+      ),
+      onTap: () => onSelected(command),
+    );
+  }
+}
 
 class _ChatMenuItem extends StatelessWidget {
   const _ChatMenuItem({required this.icon, required this.label});
@@ -521,10 +722,15 @@ class _DateDivider extends StatelessWidget {
 }
 
 class _MessageInput extends StatelessWidget {
-  const _MessageInput({required this.controller, required this.onSend});
+  const _MessageInput({
+    required this.controller,
+    required this.onSend,
+    required this.onOpenActions,
+  });
 
   final TextEditingController controller;
   final Future<void> Function() onSend;
+  final VoidCallback onOpenActions;
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +743,14 @@ class _MessageInput extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: AppSpacing.sm),
-          const Icon(Icons.add_circle_outline, color: AppColors.primaryPink),
+          IconButton(
+            tooltip: '채팅 액션',
+            onPressed: onOpenActions,
+            icon: const Icon(
+              Icons.add_circle_outline,
+              color: AppColors.primaryPink,
+            ),
+          ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: TextField(

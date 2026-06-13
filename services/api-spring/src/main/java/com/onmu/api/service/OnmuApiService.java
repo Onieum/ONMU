@@ -125,6 +125,22 @@ public class OnmuApiService {
     return userMe(userOrThrow(userId));
   }
 
+  @Transactional(readOnly = true)
+  public Map<String, Object> userProfile(java.util.UUID userId) {
+    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", user.getPublicId());
+    value.put("databaseId", user.getId().toString());
+    value.put("displayName", user.getDisplayName());
+    value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
+    value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
+    value.put("onboardingStatus", user.getOnboardingStatus());
+    return value;
+  }
+
   private Map<String, Object> userMe(UserEntity user) {
     AuthIdentityEntity identity = authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(user).orElse(null);
 

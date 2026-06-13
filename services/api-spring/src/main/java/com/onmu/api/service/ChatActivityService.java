@@ -8,9 +8,14 @@ import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.ChatReadStateEntity;
 import com.onmu.api.domain.ChatReadStateRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.NotificationEntity;
+import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.web.dto.ChatMessageAttachmentRequest;
 import com.onmu.api.web.dto.CreateChatMessageRequest;
 import com.onmu.api.web.dto.UpdateChatReadStateRequest;
 import java.util.ArrayList;
@@ -26,12 +31,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ChatActivityService {
   private static final int DEFAULT_MESSAGE_LIMIT = 50;
   private static final int MAX_MESSAGE_LIMIT = 100;
+  private static final int MAX_ATTACHMENT_COUNT = 4;
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
   };
   private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter
@@ -41,21 +50,33 @@ public class ChatActivityService {
   private final ChatActivityEventRepository chatActivityEventRepository;
   private final ChatReadStateRepository chatReadStateRepository;
   private final GroupRepository groupRepository;
+  private final GroupMemberRepository groupMemberRepository;
+  private final NotificationRepository notificationRepository;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
+  private final ChatRealtimePublisher chatRealtimePublisher;
+  private final OutboxService outboxService;
 
   public ChatActivityService(
     ChatActivityEventRepository chatActivityEventRepository,
     ChatReadStateRepository chatReadStateRepository,
     GroupRepository groupRepository,
+    GroupMemberRepository groupMemberRepository,
+    NotificationRepository notificationRepository,
     UserRepository userRepository,
-    ObjectMapper objectMapper
+    ObjectMapper objectMapper,
+    ChatRealtimePublisher chatRealtimePublisher,
+    OutboxService outboxService
   ) {
     this.chatActivityEventRepository = chatActivityEventRepository;
     this.chatReadStateRepository = chatReadStateRepository;
     this.groupRepository = groupRepository;
+    this.groupMemberRepository = groupMemberRepository;
+    this.notificationRepository = notificationRepository;
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
+    this.chatRealtimePublisher = chatRealtimePublisher;
+    this.outboxService = outboxService;
   }
 
   @Transactional(readOnly = true)
@@ -63,12 +84,11 @@ public class ChatActivityService {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
     int pageLimit = boundedLimit(limit);
     Instant beforeCreatedAt = parseCursor(beforeCursor);
+    PageRequest pageable = PageRequest.of(0, pageLimit + 1);
     List<ChatActivityEventEntity> eventsDesc = new ArrayList<>(
-      chatActivityEventRepository.findPageBefore(
-        group,
-        beforeCreatedAt,
-        PageRequest.of(0, pageLimit + 1)
-      )
+      beforeCreatedAt == null
+        ? chatActivityEventRepository.findLatestPage(group, pageable)
+        : chatActivityEventRepository.findPageBefore(group, beforeCreatedAt, pageable)
     );
     boolean hasMore = eventsDesc.size() > pageLimit;
     if (hasMore) {
@@ -91,19 +111,28 @@ public class ChatActivityService {
     return response;
   }
 
+  @Transactional(readOnly = true)
+  public SseEmitter events(String groupId, UUID currentUserId, String afterCursor) {
+    GroupEntity group = findMemberGroup(groupId, currentUserId);
+    UserEntity currentUser = findUser(currentUserId);
+    List<Map<String, Object>> replayMessages = replayMessagesAfter(group, currentUserId, afterCursor);
+    return chatRealtimePublisher.subscribe(group.getPublicId(), currentUser.getPublicId(), replayMessages);
+  }
+
   @Transactional
   public Map<String, Object> createMessage(String groupId, UUID currentUserId, CreateChatMessageRequest request) {
     GroupEntity group = findMemberGroup(groupId, currentUserId);
-    String message = request == null ? null : request.message();
-    if (message == null || message.isBlank()) {
+    String message = textValue(request == null ? null : request.message());
+    List<Map<String, Object>> attachments = normalizeAttachments(request == null ? null : request.attachments());
+    if (message == null && attachments.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_chat_message");
     }
-    UserEntity actorUser = userRepository.findByIdAndDeletedAtIsNull(currentUserId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
+    UserEntity actorUser = findUser(currentUserId);
 
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("senderName", displayName(actorUser));
-    payload.put("message", message.trim());
+    payload.put("message", message == null ? "" : message);
+    payload.put("attachments", attachments);
     payload.put("messageType", "message");
     payload.put("source", "spring_api");
 
@@ -114,7 +143,80 @@ public class ChatActivityService {
       toJson(payload),
       Instant.now()
     ));
-    return toMessage(event, currentUserId);
+    createMessageNotifications(group, actorUser, event, message, attachments.size());
+    Map<String, Object> response = toMessage(event, currentUserId);
+    outboxService.record("chat.message", "chat_activity_event", event.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "chatActivityEventId", event.getId().toString(),
+      "attachmentCount", attachments.size()
+    ));
+    publishAfterCommit(group.getPublicId(), response);
+    return response;
+  }
+
+  private void createMessageNotifications(
+    GroupEntity group,
+    UserEntity actorUser,
+    ChatActivityEventEntity event,
+    String message,
+    int attachmentCount
+  ) {
+    Map<UUID, UserEntity> recipients = new LinkedHashMap<>();
+    for (GroupMemberEntity member : groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)) {
+      UserEntity memberUser = member.getUser();
+      if (memberUser == null || !isActiveChatRecipient(member) || memberUser.getId().equals(actorUser.getId())) {
+        continue;
+      }
+      recipients.putIfAbsent(memberUser.getId(), memberUser);
+    }
+
+    UserEntity ownerUser = group.getOwnerUser();
+    if (ownerUser != null && !ownerUser.getId().equals(actorUser.getId())) {
+      recipients.putIfAbsent(ownerUser.getId(), ownerUser);
+    }
+
+    if (recipients.isEmpty()) {
+      return;
+    }
+
+    Instant createdAt = Instant.now();
+    String senderName = displayName(actorUser);
+    String body = messagePreview(message, attachmentCount);
+    String payload = toJson(Map.of(
+      "groupId", group.getPublicId(),
+      "messageId", event.getId().toString(),
+      "senderUserId", actorUser.getPublicId(),
+      "chatActivityEventId", event.getId().toString()
+    ));
+    for (UserEntity recipient : recipients.values()) {
+      notificationRepository.save(new NotificationEntity(
+        recipient,
+        group,
+        null,
+        "chat_message",
+        senderName + "님의 새 메시지",
+        body,
+        payload,
+        "queued",
+        null,
+        createdAt
+      ));
+    }
+  }
+
+  private boolean isActiveChatRecipient(GroupMemberEntity member) {
+    return member.getLeftAt() == null && ("active".equals(member.getStatus()) || "joined".equals(member.getStatus()));
+  }
+
+  private String messagePreview(String message, int attachmentCount) {
+    if (message == null || message.isBlank()) {
+      return attachmentCount > 0 ? "사진을 보냈어요." : "메시지를 확인해 주세요.";
+    }
+    String normalized = message.replaceAll("\\R+", " ").replaceAll("[\\t ]+", " ").trim();
+    if (normalized.length() <= 80) {
+      return normalized;
+    }
+    return normalized.substring(0, 80);
   }
 
   @Transactional
@@ -145,13 +247,50 @@ public class ChatActivityService {
     return group;
   }
 
+  private UserEntity findUser(UUID currentUserId) {
+    return userRepository.findByIdAndDeletedAtIsNull(currentUserId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
+  }
+
+  private List<Map<String, Object>> replayMessagesAfter(GroupEntity group, UUID currentUserId, String afterCursor) {
+    String cursor = textValue(afterCursor);
+    if (cursor == null) {
+      return List.of();
+    }
+    Instant afterCreatedAt = parseCursor(cursor);
+    return chatActivityEventRepository.findPageAfter(
+        group,
+        afterCreatedAt,
+        PageRequest.of(0, MAX_MESSAGE_LIMIT)
+      )
+      .stream()
+      .map(event -> toMessage(event, currentUserId))
+      .toList();
+  }
+
+  private void publishAfterCommit(String groupId, Map<String, Object> message) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      chatRealtimePublisher.publishMessage(groupId, message);
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCommit() {
+        chatRealtimePublisher.publishMessage(groupId, message);
+      }
+    });
+  }
+
   private Map<String, Object> toMessage(ChatActivityEventEntity event, UUID currentUserId) {
     Map<String, Object> payload = readPayload(event.getPayload());
     UserEntity actorUser = event.getActorUser();
     String messageType = messageType(event, payload);
     String message = firstText(payload, "message", "content");
-    if (message == null || message.isBlank()) {
+    List<Map<String, Object>> attachments = attachmentPayloads(payload.get("attachments"));
+    if ((message == null || message.isBlank()) && attachments.isEmpty()) {
       message = fallbackMessage(messageType);
+    } else if (message == null) {
+      message = "";
     }
 
     Map<String, Object> response = new LinkedHashMap<>();
@@ -159,6 +298,7 @@ public class ChatActivityService {
     response.put("senderUserId", actorUser == null ? null : actorUser.getPublicId());
     response.put("senderName", senderName(payload, actorUser, messageType));
     response.put("message", message);
+    response.put("attachments", attachments);
     response.put("messageType", messageType);
     response.put("cardType", textValue(payload.get("cardType")));
     response.put("createdAt", event.getCreatedAt().toString());
@@ -177,6 +317,9 @@ public class ChatActivityService {
       )
       .map(ChatReadStateEntity::getLastReadAt)
       .orElse(null);
+    if (lastReadAt == null) {
+      return chatActivityEventRepository.countUnread(group, currentUserId);
+    }
     return chatActivityEventRepository.countUnreadAfter(group, currentUserId, lastReadAt);
   }
 
@@ -272,6 +415,98 @@ public class ChatActivityService {
       return first;
     }
     return textValue(payload.get(secondKey));
+  }
+
+  private List<Map<String, Object>> normalizeAttachments(List<ChatMessageAttachmentRequest> attachments) {
+    if (attachments == null || attachments.isEmpty()) {
+      return List.of();
+    }
+    if (attachments.size() > MAX_ATTACHMENT_COUNT) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "too_many_chat_attachments");
+    }
+    return attachments.stream()
+      .map(this::normalizeAttachment)
+      .toList();
+  }
+
+  private Map<String, Object> normalizeAttachment(ChatMessageAttachmentRequest attachment) {
+    if (attachment == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment");
+    }
+    String type = textValue(attachment.type());
+    if (!"image".equals(type)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_chat_attachment_type");
+    }
+    String storageKey = textValue(attachment.storageKey());
+    if (!MediaService.isAllowedPublicMediaKey(storageKey)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment_storage_key");
+    }
+    String contentType = textValue(attachment.contentType());
+    if (contentType != null && !contentType.toLowerCase().startsWith("image/")) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_chat_attachment_content_type");
+    }
+
+    Map<String, Object> normalized = new LinkedHashMap<>();
+    normalized.put("type", type);
+    normalized.put("storageKey", storageKey);
+    normalized.put("publicUrl", MediaService.publicMediaUrl(storageKey));
+    normalized.put("contentType", contentType);
+    normalized.put("fileName", textValue(attachment.fileName()));
+    normalized.put("width", positiveDimension(attachment.width()));
+    normalized.put("height", positiveDimension(attachment.height()));
+    return normalized;
+  }
+
+  private Integer positiveDimension(Integer value) {
+    if (value == null || value <= 0) {
+      return null;
+    }
+    return value;
+  }
+
+  private List<Map<String, Object>> attachmentPayloads(Object value) {
+    if (!(value instanceof List<?> values)) {
+      return List.of();
+    }
+    return values.stream()
+      .map(this::mapValue)
+      .filter(map -> "image".equals(textValue(map.get("type"))))
+      .map(map -> {
+        String storageKey = textValue(map.get("storageKey"));
+        String publicUrl = textValue(map.get("publicUrl"));
+        Map<String, Object> attachment = new LinkedHashMap<>();
+        attachment.put("type", "image");
+        attachment.put("storageKey", storageKey);
+        attachment.put("publicUrl", publicUrl == null && MediaService.isAllowedPublicMediaKey(storageKey)
+          ? MediaService.publicMediaUrl(storageKey)
+          : publicUrl);
+        attachment.put("contentType", textValue(map.get("contentType")));
+        attachment.put("fileName", textValue(map.get("fileName")));
+        attachment.put("width", integerValue(map.get("width")));
+        attachment.put("height", integerValue(map.get("height")));
+        return attachment;
+      })
+      .toList();
+  }
+
+  private Map<String, Object> mapValue(Object value) {
+    if (!(value instanceof Map<?, ?> raw)) {
+      return Map.of();
+    }
+    Map<String, Object> mapped = new LinkedHashMap<>();
+    raw.forEach((key, item) -> mapped.put(String.valueOf(key), item));
+    return mapped;
+  }
+
+  private Integer integerValue(Object value) {
+    if (value instanceof Number number) {
+      return number.intValue();
+    }
+    try {
+      return value == null ? null : Integer.parseInt(value.toString());
+    } catch (NumberFormatException exception) {
+      return null;
+    }
   }
 
   private String textValue(Object value) {

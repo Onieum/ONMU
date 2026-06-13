@@ -476,6 +476,13 @@ public class RecordService {
     recordPayload.put("recordType", request.type() != null ? request.type().trim() : "OOTD");
     recordPayload.put("recordedAt", request.date() != null ? request.date().trim() : Instant.now().toString());
     recordPayload.put("characterSnapshot", snapshot);
+    if (request.payload() != null) {
+      recordPayload.putAll(request.payload());
+      recordPayload.put("characterSnapshot", snapshot);
+      recordPayload.put("recordType", request.type() != null ? request.type().trim() : "OOTD");
+      recordPayload.put("recordedAt", request.date() != null ? request.date().trim() : Instant.now().toString());
+      recordPayload.put("body", request.memo() != null ? request.memo().trim() : "");
+    }
     
     boolean hasConsent = userRepository.checkPrivacyConsent(author.getId());
     recordPayload.put("aiStatus", hasConsent ? "PENDING" : "SKIPPED");
@@ -488,7 +495,7 @@ public class RecordService {
       null,
       author,
       request.title() != null ? request.title().trim() : "Untitled Memory",
-      request.visibility() != null ? request.visibility().toUpperCase() : "PUBLIC",
+      normalizeRecordVisibility(request.visibility()),
       payloadJson,
       moodTagsJson
     );
@@ -541,6 +548,100 @@ public class RecordService {
     return mapToMemoryResponse(savedRecord);
   }
 
+  @Transactional
+  public MemoryResponse updateMemory(String memoryId, CreateMemoryRequest request) {
+    UserEntity author = currentUser();
+    RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
+    if (!record.getAuthor().getId().equals(author.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "memory_update_forbidden");
+    }
+
+    CharacterProfileEntity characterProfile = characterProfileRepository.findByUserId(author.getId())
+        .orElseGet(() -> new CharacterProfileEntity(
+            author.getId(),
+            "female",
+            "type_warm",
+            "short_black",
+            "black",
+            "round",
+            "brown",
+            "casual_tshirt"
+        ));
+
+    Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("skin_tone", characterProfile.getSkinTone());
+    snapshot.put("hair_style", request.hairStyle() != null ? request.hairStyle() : characterProfile.getHairStyle());
+    snapshot.put("hair_color", request.hairColor() != null ? request.hairColor() : characterProfile.getHairColor());
+    snapshot.put("eye_style", characterProfile.getEyeStyle());
+    snapshot.put("eye_color", request.eyeColor() != null ? request.eyeColor() : characterProfile.getEyeColor());
+    snapshot.put("clothes", "none");
+
+    Map<String, Object> previousPayload = readObject(record.getPayload());
+    Map<String, Object> recordPayload = new LinkedHashMap<>();
+    recordPayload.put("body", request.memo() != null ? request.memo().trim() : "");
+    recordPayload.put("recordType", request.type() != null ? request.type().trim() : "OOTD");
+    recordPayload.put("recordedAt", request.date() != null ? request.date().trim() : Instant.now().toString());
+    recordPayload.put("characterSnapshot", snapshot);
+    if (request.payload() != null) {
+      recordPayload.putAll(request.payload());
+      recordPayload.put("characterSnapshot", snapshot);
+      recordPayload.put("recordType", request.type() != null ? request.type().trim() : "OOTD");
+      recordPayload.put("recordedAt", request.date() != null ? request.date().trim() : Instant.now().toString());
+      recordPayload.put("body", request.memo() != null ? request.memo().trim() : "");
+    }
+    recordPayload.put("aiStatus", previousPayload.getOrDefault("aiStatus", "SKIPPED"));
+
+    record.setTitle(request.title() != null ? request.title().trim() : record.getTitle());
+    record.setVisibility(normalizeRecordVisibility(request.visibility()));
+    record.setPayload(toJson(recordPayload));
+    record.setMoodTags(toJson(request.tags() != null ? request.tags() : List.of()));
+    record.setUpdatedAt(Instant.now());
+
+    recordTagRepository.deleteByRecord(record);
+    recordMediaRepository.deleteByRecord(record);
+
+    if (request.imageUrls() != null) {
+      int order = 0;
+      for (String url : request.imageUrls()) {
+        String key = "records/media/" + UUID.randomUUID().toString() + ".jpg";
+        recordMediaRepository.save(new RecordMediaEntity(
+          record,
+          "IMAGE",
+          key,
+          url,
+          800,
+          800,
+          null,
+          order++,
+          "{}"
+        ));
+      }
+    }
+
+    if (request.tags() != null) {
+      for (String tag : request.tags()) {
+        recordTagRepository.save(new RecordTagEntity(record, "user", tag));
+      }
+    }
+
+    RecordEntity saved = recordRepository.save(record);
+    return mapToMemoryResponse(saved);
+  }
+
+  @Transactional
+  public void deleteMemory(String memoryId) {
+    UserEntity author = currentUser();
+    RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
+    if (!record.getAuthor().getId().equals(author.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "memory_delete_forbidden");
+    }
+    record.setDeletedAt(Instant.now());
+    record.setUpdatedAt(Instant.now());
+    recordRepository.save(record);
+  }
+
   private MemoryResponse mapToMemoryResponse(RecordEntity record) {
     Map<String, Object> payloadMap = readObject(record.getPayload());
     String memo = (String) payloadMap.getOrDefault("body", "");
@@ -572,8 +673,22 @@ public class RecordService {
         imageUrls,
         record.getVisibility(),
         characterSnapshot,
+        payloadMap,
         aiStatus,
         record.getCreatedAt()
     );
+  }
+
+  private String normalizeRecordVisibility(String visibility) {
+    if (visibility == null || visibility.isBlank()) {
+      return "private";
+    }
+    return switch (visibility.trim().toUpperCase()) {
+      case "PRIVATE" -> "private";
+      case "PARTICIPANT_ONLY", "PARTICIPANTS" -> "participants";
+      case "GROUP_ONLY", "GROUP" -> "group";
+      case "PUBLIC" -> "private";
+      default -> visibility.trim().toLowerCase();
+    };
   }
 }

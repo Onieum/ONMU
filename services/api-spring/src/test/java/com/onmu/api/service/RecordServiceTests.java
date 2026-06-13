@@ -347,7 +347,8 @@ class RecordServiceTests {
       "PUBLIC",
       "short_hair",
       "blonde",
-      "green"
+      "green",
+      Map.of()
     );
 
     MemoryResponse response = service.createMemory("1", request);

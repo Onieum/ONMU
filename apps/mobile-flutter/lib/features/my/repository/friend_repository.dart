@@ -11,10 +11,19 @@ final friendsProvider = FutureProvider<List<FriendProfile>>((ref) {
   return ref.watch(friendRepositoryProvider).fetchFriends();
 });
 
+final friendProfileProvider = FutureProvider.family<MyProfile, FriendProfile>((
+  ref,
+  friend,
+) {
+  return ref.watch(friendRepositoryProvider).fetchFriendProfile(friend);
+});
+
 abstract interface class FriendRepository {
   Future<List<FriendProfile>> fetchFriends();
 
   Future<List<FriendProfile>> searchFriends(String query);
+
+  Future<MyProfile> fetchFriendProfile(FriendProfile friend);
 
   Future<FriendProfile> addFriend(String publicId, {String? memo});
 
@@ -48,6 +57,14 @@ class ApiFriendRepository implements FriendRepository {
       '/api/v1/users/search?query=${Uri.encodeQueryComponent(cleanQuery)}',
     );
     return json.map(_friendFromJson).toList(growable: false);
+  }
+
+  @override
+  Future<MyProfile> fetchFriendProfile(FriendProfile friend) async {
+    final json = await _client.getObject(
+      '/api/v1/users/me/friends/${Uri.encodeComponent(friend.publicId)}/profile',
+    );
+    return _profileFromJson(json, friend);
   }
 
   @override
@@ -109,6 +126,35 @@ class ApiFriendRepository implements FriendRepository {
           OnmuJson.readString(json, 'avatarUrl'),
         ),
       ),
+    );
+  }
+
+  MyProfile _profileFromJson(Map<String, dynamic> json, FriendProfile friend) {
+    final preference = OnmuJson.asMap(json['preferenceProfile']);
+    final displayName = OnmuJson.readString(json, 'displayName', friend.name);
+    return MyProfile(
+      realName: displayName.isEmpty ? friend.name : displayName,
+      introText: OnmuJson.readString(
+        preference,
+        'introText',
+        '기록하고, 만나고, 추억해요  ♥',
+      ),
+      region: OnmuJson.readString(preference, 'region', ''),
+      visibility: ProfileVisibility.friends,
+      favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
+      dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
+      preferredTimes: OnmuJson.stringList(preference['preferredTimes']),
+      availableDays: OnmuJson.stringList(preference['availableDays']),
+      unavailableDates: OnmuJson.stringList(preference['unavailableDates']),
+      favoritePlaces: const [],
+      wantToGoPlaces: const [],
+      dislikedPlaces: const [],
+      favoriteFoodTags: OnmuJson.stringList(preference['favoriteFoodTags']),
+      dislikedFoodTags: OnmuJson.stringList(preference['dislikedFoodTags']),
+      favoritePlaceTags: OnmuJson.stringList(preference['favoritePlaceTags']),
+      dislikedPlaceTags: OnmuJson.stringList(preference['dislikedPlaceTags']),
+      planStyles: OnmuJson.stringList(preference['planStyles']),
+      preferredWeekdays: OnmuJson.stringList(preference['preferredWeekdays']),
     );
   }
 }

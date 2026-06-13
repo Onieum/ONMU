@@ -93,6 +93,13 @@ class _StaticPlaceRepository implements PlaceRepository {
   }) async => _candidates.first;
 
   @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async => candidate;
+
+  @override
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,

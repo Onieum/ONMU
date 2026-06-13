@@ -274,6 +274,7 @@ class _PlanDetailGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) {
     throw UnimplementedError();
   }
@@ -283,6 +284,11 @@ class _PlanDetailGroupRepository implements GroupRepository {
     required Object groupId,
     String? lastReadMessageId,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
     throw UnimplementedError();
   }
 

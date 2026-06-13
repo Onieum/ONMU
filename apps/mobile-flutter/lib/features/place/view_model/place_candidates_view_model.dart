@@ -72,6 +72,38 @@ class PlaceCandidatesState {
     return baseCount + (isLiked(candidateId) ? 1 : 0);
   }
 
+  PlaceCandidatesState withCandidate(PlaceCandidate candidate) {
+    final nextCandidates = [...candidates];
+    final existingIndex = nextCandidates.indexWhere(
+      (current) => _sameCandidate(current, candidate),
+    );
+    if (existingIndex == -1) {
+      nextCandidates.add(candidate);
+    } else {
+      nextCandidates[existingIndex] = candidate;
+    }
+
+    final nextFavoriteCounts = {...baseFavoriteCounts};
+    nextFavoriteCounts.putIfAbsent(candidate.id, () => 0);
+
+    return PlaceCandidatesState(
+      candidates: List.unmodifiable(nextCandidates),
+      likedCandidateIds: likedCandidateIds,
+      baseFavoriteCounts: Map.unmodifiable(nextFavoriteCounts),
+      planTitle: planTitle,
+      planLocation: planLocation,
+    );
+  }
+
+  PlaceCandidate? findMatchingCandidate(PlaceCandidate candidate) {
+    for (final current in candidates) {
+      if (_sameCandidate(current, candidate)) {
+        return current;
+      }
+    }
+    return null;
+  }
+
   PlaceCandidatesState toggledFavorite(int candidateId) {
     final nextLikedIds = {...likedCandidateIds};
     if (!nextLikedIds.add(candidateId)) {
@@ -85,6 +117,52 @@ class PlaceCandidatesState {
       planTitle: planTitle,
       planLocation: planLocation,
     );
+  }
+
+  static bool _sameCandidate(PlaceCandidate current, PlaceCandidate next) {
+    if (current.id == next.id) {
+      return true;
+    }
+
+    final currentProviderKey = _providerKey(current);
+    final nextProviderKey = _providerKey(next);
+    if (currentProviderKey.isNotEmpty &&
+        currentProviderKey == nextProviderKey) {
+      return true;
+    }
+
+    final currentPlaceKey = _placeKey(current);
+    final nextPlaceKey = _placeKey(next);
+    if (currentPlaceKey.isNotEmpty && currentPlaceKey == nextPlaceKey) {
+      return true;
+    }
+
+    final currentNameKey = _nameKey(current);
+    final nextNameKey = _nameKey(next);
+    return currentNameKey.isNotEmpty && currentNameKey == nextNameKey;
+  }
+
+  static String _providerKey(PlaceCandidate candidate) {
+    final provider = candidate.provider.trim().toLowerCase();
+    final providerPlaceId = candidate.providerPlaceId.trim().toLowerCase();
+    if (provider.isEmpty || providerPlaceId.isEmpty) {
+      return '';
+    }
+    return '$provider|$providerPlaceId';
+  }
+
+  static String _placeKey(PlaceCandidate candidate) {
+    final name = candidate.name.trim().toLowerCase();
+    final address = candidate.address.trim().toLowerCase();
+    if (name.isEmpty || address.isEmpty) {
+      return '';
+    }
+    return '$name|$address';
+  }
+
+  static String _nameKey(PlaceCandidate candidate) {
+    final name = candidate.name.trim().toLowerCase();
+    return name;
   }
 }
 
@@ -122,6 +200,25 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
     }
 
     state = AsyncData(value.toggledFavorite(candidateId));
+  }
+
+  Future<PlaceCandidate> addCandidate(PlaceCandidate candidate) async {
+    final value = state.asData?.value;
+    final existingCandidate = value?.findMatchingCandidate(candidate);
+    if (existingCandidate != null) {
+      return existingCandidate;
+    }
+
+    final repository = ref.read(placeRepositoryProvider);
+    final savedCandidate = await repository.createCandidate(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      candidate: candidate,
+    );
+    if (value != null) {
+      state = AsyncData(value.withCandidate(savedCandidate));
+    }
+    return savedCandidate;
   }
 
   Future<int> createPlaceVote({

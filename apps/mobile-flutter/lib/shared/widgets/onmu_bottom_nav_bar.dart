@@ -49,70 +49,74 @@ class OnmuBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final selectedIndex = navigationShell?.currentIndex ?? currentIndex ?? 0;
     final items = _createItems();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Container(
-      height: 60,
+      height: 64 + bottomInset,
       decoration: const BoxDecoration(
         color: AppColors.bgDefault,
         border: Border(top: BorderSide(color: AppColors.lineSoft)),
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(items.length, (index) {
-            final item = items[index];
-            final selected = selectedIndex == index;
-            final color = selected
-                ? AppColors.primaryPurple
-                : AppColors.textMuted;
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final selected = selectedIndex == index;
+              final color = selected
+                  ? AppColors.primaryPurple
+                  : AppColors.textMuted;
 
-            return Expanded(
-              child: InkWell(
-                onTap: () {
-                  if (navigationShell != null) {
-                    final isCurrentBranch =
-                        index == navigationShell!.currentIndex;
-                    final isMyBranch = index == 3;
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    if (navigationShell != null) {
+                      final isCurrentBranch =
+                          index == navigationShell!.currentIndex;
+                      final isMyBranch = index == 3;
 
-                    if (isCurrentBranch && isMyBranch) {
-                      navigationShell!.goBranch(index, initialLocation: true);
-                      onMyTabReselected?.call();
+                      if (isCurrentBranch && isMyBranch) {
+                        navigationShell!.goBranch(index, initialLocation: true);
+                        onMyTabReselected?.call();
+                        return;
+                      }
+
+                      navigationShell!.goBranch(
+                        index,
+                        initialLocation: isCurrentBranch,
+                      );
                       return;
                     }
-
-                    navigationShell!.goBranch(
-                      index,
-                      initialLocation: isCurrentBranch,
-                    );
-                    return;
-                  }
-                  onTap?.call(index);
-                },
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      selected ? item.activeIcon : item.icon,
-                      size: 24,
-                      color: color,
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      item.label,
-                      style: AppTextStyles.labelSmall.copyWith(
-                        height: 1.2,
+                    onTap?.call(index);
+                  },
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        selected ? item.activeIcon : item.icon,
+                        size: 24,
                         color: color,
-                        letterSpacing: 0,
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 2),
+                      Text(
+                        item.label,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          height: 1.2,
+                          color: color,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ),
       ),
     );

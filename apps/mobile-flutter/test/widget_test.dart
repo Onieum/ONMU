@@ -371,7 +371,7 @@ void main() {
     expect(find.text('제주도 여행'), findsWidgets);
   });
 
-  testWidgets('home notification bell opens empty notification state', (
+  testWidgets('home notification bell opens API notification list', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -384,7 +384,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('알림'), findsOneWidget);
-    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('장소 후보가 추가됐어요'), findsOneWidget);
+    expect(find.text('카페 오션뷰 후보가 제주도 여행에 추가됐습니다.'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsNothing);
   });
 
@@ -852,13 +854,33 @@ void main() {
     expect(find.text('온무식당'), findsOneWidget);
   });
 
-  testWidgets('place map actions show confirmation without navigation', (
+  testWidgets('place map candidate action saves and opens candidate list', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
+    await tester.pumpAndSettle();
+
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
+    );
+    final scheduleAction = find.byKey(
+      const ValueKey('place-action-201-schedule'),
+    );
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      candidateAction,
+      300,
+      scrollable: sheetScrollable,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('후보에 추가'), findsWidgets);
@@ -866,42 +888,19 @@ void main() {
     expect(find.text('후보에 추가하기'), findsNothing);
     expect(find.text('일정에 바로 등록하기'), findsNothing);
 
-    final candidateButtonRect = tester.getRect(
-      find.byKey(const ValueKey('place-action-201-candidate')),
-    );
-    final scheduleButtonRect = tester.getRect(
-      find.byKey(const ValueKey('place-action-201-schedule')),
-    );
+    final candidateButtonRect = tester.getRect(candidateAction);
+    final scheduleButtonRect = tester.getRect(scheduleAction);
     expect(candidateButtonRect.size, scheduleButtonRect.size);
 
-    await tester.tap(find.text('후보에 추가').first);
+    await tester.tap(candidateAction);
     await tester.pumpAndSettle();
 
-    expect(find.text('후보에 추가되었어요!'), findsOneWidget);
-    expect(find.text('후보 리스트 보러가기'), findsOneWidget);
-    expect(find.text('확인'), findsOneWidget);
-
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('장소 검색하기'), findsOneWidget);
-    expect(find.text('장소 후보 리스트'), findsNothing);
-
-    await tester.tap(find.text('일정에 추가').first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('일정에 등록되었어요!'), findsOneWidget);
-    expect(find.text('일정 보러가기'), findsOneWidget);
-    expect(find.text('확인'), findsOneWidget);
-
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('장소 검색하기'), findsOneWidget);
-    expect(find.text('일정 타임라인'), findsNothing);
+    expect(find.text('장소 후보 리스트'), findsOneWidget);
+    expect(find.text('후보 리스트 보러가기'), findsNothing);
+    expect(find.text('확인'), findsNothing);
   });
 
-  testWidgets('place map confirmation ctas navigate to target pages', (
+  testWidgets('place map schedule action saves and opens itinerary', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -910,28 +909,75 @@ void main() {
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('후보에 추가').first);
+    final scheduleAction = find.byKey(
+      const ValueKey('place-action-201-schedule'),
+    );
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      scheduleAction,
+      300,
+      scrollable: sheetScrollable,
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('후보 리스트 보러가기'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('장소 후보 리스트'), findsOneWidget);
-    await tester.tap(find.byTooltip('뒤로'));
-    await tester.pumpAndSettle();
-    expect(find.text('장소 검색하기'), findsOneWidget);
-
-    appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('일정에 추가').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('일정 보러가기'));
+    await tester.tap(scheduleAction);
     await tester.pumpAndSettle();
 
     expect(find.text('장소 동선'), findsOneWidget);
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
     expect(find.text('장소 검색하기'), findsOneWidget);
+  });
+
+  testWidgets('place map comparison card shows signals and opens itinerary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
+    await tester.pumpAndSettle();
+
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    final signalGrid = find.byKey(
+      const ValueKey('place-comparison-signal-grid'),
+    );
+    await tester.scrollUntilVisible(
+      signalGrid,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('선택한 3곳 비교'), findsOneWidget);
+    expect(find.text('거리'), findsOneWidget);
+    expect(find.text('분위기'), findsOneWidget);
+    expect(find.text('영업'), findsOneWidget);
+    expect(find.text('도보 7분'), findsWidgets);
+    expect(find.text('조용한'), findsWidgets);
+
+    final routeAction = find.text('이 장소들로 동선 추천 받기');
+    await tester.scrollUntilVisible(
+      routeAction,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(routeAction);
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 동선'), findsOneWidget);
   });
 
   testWidgets(
@@ -943,7 +989,22 @@ void main() {
       appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('온무식당'));
+      final candidateName = find.text('온무식당');
+      final sheetScrollable = find.descendant(
+        of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
+      );
+      await tester.scrollUntilVisible(
+        candidateName,
+        300,
+        scrollable: sheetScrollable,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(candidateName);
       await tester.pumpAndSettle();
 
       expect(find.text('장소 검색하기'), findsOneWidget);
@@ -986,9 +1047,25 @@ void main() {
     expect(searchField.decoration?.errorBorder, InputBorder.none);
     expect(searchField.decoration?.focusedErrorBorder, InputBorder.none);
     expect(find.text('장소 검색하기'), findsOneWidget);
-    expect(find.text('검색 결과'), findsOneWidget);
+    expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.text('지도 화면에서 이어서 장소를 찾아요'), findsNothing);
-    expect(find.bySemanticsLabel('온무식당 대표 사진'), findsOneWidget);
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
+    );
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      candidateAction,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(candidateAction, findsOneWidget);
     expect(find.text('후보에 추가'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
   });
@@ -1017,8 +1094,22 @@ void main() {
     await tester.tap(find.text('카페'));
     await tester.pumpAndSettle();
 
-    expect(find.text('검색 결과'), findsOneWidget);
-    expect(find.text('무드카페'), findsOneWidget);
+    expect(find.text('장소 후보 ✨'), findsOneWidget);
+    final cafeCandidateName = find.text('무드카페');
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const ValueKey('place-map-bottom-sheet')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      cafeCandidateName,
+      300,
+      scrollable: sheetScrollable,
+    );
+    await tester.pumpAndSettle();
+    expect(cafeCandidateName, findsOneWidget);
     expect(find.text('온무식당'), findsNothing);
   });
 
@@ -1142,6 +1233,53 @@ void main() {
     expect(find.text('확인 메시지'), findsOneWidget);
   });
 
+  testWidgets('group chat action launcher shows core actions', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사진 첨부'), findsOneWidget);
+    expect(find.text('약속 만들기'), findsOneWidget);
+    expect(find.text('장소 후보 찾기'), findsOneWidget);
+    expect(find.text('투표 만들기'), findsOneWidget);
+    expect(find.text('정산 시작'), findsOneWidget);
+  });
+
+  testWidgets('group chat action launcher opens plan create', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('약속 만들기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 이름'), findsOneWidget);
+  });
+
+  testWidgets('group chat action launcher opens place search', (tester) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 액션'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('장소 후보 찾기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 검색하기'), findsOneWidget);
+  });
+
   testWidgets('group chat vote notice opens vote detail', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
@@ -1237,7 +1375,7 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
-  testWidgets('home notification page does not show local settlement fixture', (
+  testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -1246,7 +1384,8 @@ void main() {
     appRouter.go(RoutePaths.homeNotifications);
     await tester.pumpAndSettle();
 
-    expect(find.text('알림이 없어요.'), findsOneWidget);
+    expect(find.text('장소 후보가 추가됐어요'), findsOneWidget);
+    expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('주말 나들이 정산이 만들어졌어요'), findsNothing);
     expect(find.text('약속 정산'), findsNothing);
   });
@@ -1319,6 +1458,13 @@ class _EmptyPlaceRepository implements PlaceRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<PlaceCandidate> createCandidate({
+    required Object groupId,
+    required Object planId,
+    required PlaceCandidate candidate,
+  }) async => candidate;
 
   @override
   Future<List<PlaceCandidate>> searchPlaces({
@@ -1471,6 +1617,7 @@ class _SingleMemberGroupRepository implements GroupRepository {
   Future<GroupMessage> sendMessage({
     required Object groupId,
     required String message,
+    List<GroupMessageAttachment> attachments = const [],
   }) {
     throw UnimplementedError();
   }
@@ -1481,6 +1628,11 @@ class _SingleMemberGroupRepository implements GroupRepository {
     String? lastReadMessageId,
   }) async {
     return 0;
+  }
+
+  @override
+  Stream<GroupMessage> watchMessages(Object groupId, {String? afterCursor}) {
+    return Stream<GroupMessage>.multi((_) {});
   }
 
   @override
