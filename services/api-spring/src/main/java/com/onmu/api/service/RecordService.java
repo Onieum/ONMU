@@ -600,6 +600,8 @@ public class RecordService {
 
     recordTagRepository.deleteByRecord(record);
     recordMediaRepository.deleteByRecord(record);
+    recordTagRepository.flush();
+    recordMediaRepository.flush();
 
     if (request.imageUrls() != null) {
       int order = 0;
@@ -620,7 +622,7 @@ public class RecordService {
     }
 
     if (request.tags() != null) {
-      for (String tag : request.tags()) {
+      for (String tag : request.tags().stream().filter(t -> t != null && !t.isBlank()).distinct().toList()) {
         recordTagRepository.save(new RecordTagEntity(record, "user", tag));
       }
     }
