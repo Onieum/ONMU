@@ -19,4 +19,3 @@ public record CreateMemoryRequest(
   String eyeColor,
   Map<String, Object> payload
 ) {}
-

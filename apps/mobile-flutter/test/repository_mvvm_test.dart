@@ -203,6 +203,22 @@ void main() {
     expect(state.upcomingPlan?.displayStatusLabel, '초안');
   });
 
+  test('온모임 홈 ViewModel은 최근 대화 API가 실패해도 상세 홈을 표시한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(throwOnFetchMessages: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupHomeViewModelProvider('1').future);
+
+    expect(state.group.name, 'Spring API 전환 모임');
+    expect(state.recentMessage, isNull);
+  });
+
   test('약속 상세 ViewModel은 선택 멤버와 날짜별 방문 계획을 분리한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
@@ -252,7 +268,6 @@ void main() {
     PlanDetailState detailAt(DateTime currentTime) => PlanDetailState(
       plan: basePlan,
       selectedMembers: const [],
-      groupMembers: const [],
       visitPlansByDate: const [],
       participantArrivals: const [],
       currentTime: currentTime,
@@ -808,7 +823,7 @@ class _FakeGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
     if (throwOnFetchMessages) {
-      throw StateError('fetch messages failed');
+      throw StateError('messages failed');
     }
     return initialMessages;
   }

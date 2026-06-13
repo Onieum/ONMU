@@ -116,21 +116,28 @@ public class ApiController {
   }
 
   @GetMapping("/groups/{groupId}/summary")
-  public Map<String, Object> groupSummary(@PathVariable String groupId) {
-    return onmuApiService.groupSummary(groupId);
+  public Map<String, Object> groupSummary(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.groupSummary(groupId, user.userId());
   }
 
   @GetMapping("/groups/{groupId}/plans")
-  public List<Map<String, Object>> plans(@PathVariable String groupId) {
-    return onmuApiService.plans(groupId);
+  public List<Map<String, Object>> plans(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.plans(groupId, user.userId());
   }
 
   @PostMapping("/groups/{groupId}/plans")
   public ResponseEntity<Map<String, Object>> createPlan(
     @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @Valid @RequestBody CreatePlanRequest request
   ) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createPlan(groupId, request));
+    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createPlan(groupId, user.userId(), request));
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}")
@@ -159,18 +166,20 @@ public class ApiController {
   public Map<String, Object> putMyPlanParticipant(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpsertPlanParticipantRequest request
   ) {
-    return onmuApiService.upsertMyPlanParticipant(groupId, planId, request);
+    return onmuApiService.upsertMyPlanParticipant(groupId, planId, user.userId(), request);
   }
 
   @PatchMapping("/groups/{groupId}/plans/{planId}/participants/me")
   public Map<String, Object> patchMyPlanParticipant(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpsertPlanParticipantRequest request
   ) {
-    return onmuApiService.upsertMyPlanParticipant(groupId, planId, request);
+    return onmuApiService.upsertMyPlanParticipant(groupId, planId, user.userId(), request);
   }
 
   @PostMapping("/place-search")

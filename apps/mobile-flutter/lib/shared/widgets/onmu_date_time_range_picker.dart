@@ -124,6 +124,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                     _DateSummaryField(
                       label: '시작 날짜',
                       value: _formatDate(_start),
+                      timeValue: _formatClock(_start.hour, _start.minute),
                       selected: _expandedDateTarget == _DateFieldTarget.start,
                       onTap: () => _toggleDateTarget(_DateFieldTarget.start),
                     ),
@@ -141,11 +142,25 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           }),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      OnmuSlidingTimePicker(
+                        title: '시작 시간',
+                        selectedDateTime: _start,
+                        minimumDateTime: _today(),
+                        maximumDateTime: _today().add(
+                          const Duration(days: 365),
+                        ),
+                        sliderKey: const ValueKey('start-time-slider'),
+                        onChanged: (value) => setState(() {
+                          _updateStart(_roundedToFiveMinutes(value));
+                        }),
+                      ),
                     ],
                     const SizedBox(height: AppSpacing.md),
                     _DateSummaryField(
                       label: '종료 날짜',
                       value: _formatDate(_end),
+                      timeValue: _formatClock(_end.hour, _end.minute),
                       selected: _expandedDateTarget == _DateFieldTarget.end,
                       onTap: () => _toggleDateTarget(_DateFieldTarget.end),
                     ),
@@ -163,27 +178,20 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           }),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      OnmuSlidingTimePicker(
+                        title: '종료 시간',
+                        selectedDateTime: _end,
+                        minimumDateTime: _start.add(
+                          const Duration(minutes: 30),
+                        ),
+                        maximumDateTime: _start.add(const Duration(days: 1)),
+                        sliderKey: const ValueKey('end-time-slider'),
+                        onChanged: (value) => setState(() {
+                          _end = _normalizedEnd(_start, value);
+                        }),
+                      ),
                     ],
-                    const SizedBox(height: AppSpacing.lg),
-                    OnmuTimeChipPicker(
-                      title: '시작 시간',
-                      selectedDateTime: _start,
-                      minimumDateTime: _today(),
-                      maximumDateTime: _today().add(const Duration(days: 365)),
-                      onChanged: (value) => setState(() {
-                        _updateStart(_roundedToFiveMinutes(value));
-                      }),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    OnmuTimeChipPicker(
-                      title: '종료 시간',
-                      selectedDateTime: _end,
-                      minimumDateTime: _start.add(const Duration(minutes: 30)),
-                      maximumDateTime: _start.add(const Duration(days: 1)),
-                      onChanged: (value) => setState(() {
-                        _end = _normalizedEnd(_start, value);
-                      }),
-                    ),
                     const SizedBox(height: AppSpacing.lg),
                     Text(
                       '추천/비추천 시간대',
@@ -309,12 +317,14 @@ class _DateSummaryField extends StatelessWidget {
   const _DateSummaryField({
     required this.label,
     required this.value,
+    required this.timeValue,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
   final String value;
+  final String timeValue;
   final bool selected;
   final VoidCallback onTap;
 
@@ -347,6 +357,26 @@ class _DateSummaryField extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPinkSoft,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: AppColors.linePink),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      child: Text(
+                        timeValue,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: AppColors.primaryPurpleDark),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
                   Icon(
                     selected ? Icons.expand_less : Icons.expand_more,
                     color: AppColors.textMuted,

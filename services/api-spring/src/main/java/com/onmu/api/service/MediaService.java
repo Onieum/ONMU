@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class MediaService {
+  private static final String PUBLIC_AVATAR_MEDIA_PREFIX = "dev/avatars/";
   private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
   private static final String UPLOADED_MEDIA_PREFIX = "records/media/";
   private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(
@@ -128,7 +129,9 @@ public class MediaService {
     if (key.contains("..") || key.startsWith("/") || key.contains("\\")) {
       return false;
     }
-    return key.startsWith(PUBLIC_SEED_MEDIA_PREFIX) || key.startsWith(UPLOADED_MEDIA_PREFIX);
+    return key.startsWith(PUBLIC_SEED_MEDIA_PREFIX)
+      || key.startsWith(PUBLIC_AVATAR_MEDIA_PREFIX)
+      || key.startsWith(UPLOADED_MEDIA_PREFIX);
   }
 
   public PresignedUrlResponse generatePresignedUrl(String fileName, String contentType) {

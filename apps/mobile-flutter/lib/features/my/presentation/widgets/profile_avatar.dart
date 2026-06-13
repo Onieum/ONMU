@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/api/onmu_media_url.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -19,7 +20,7 @@ class ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = profileImageUrl?.trim() ?? '';
+    final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
     return Semantics(
       label: '나의 아바타',

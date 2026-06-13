@@ -1667,4 +1667,3 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | Worker 결과 | FastAPI Worker는 core table을 직접 수정하지 않는다. Worker metadata를 남기고 Spring read model/API에서 조합한다. |
 | Analytics 동의 | core에는 현재 동의 상태와 append-only 동의 이력을 둔다. reporting layer 전파는 next-step 데이터사전에서 별도 설계/구현한다. |
 | Spring 모니터링 | Actuator/Micrometer -> Prometheus -> Grafana 흐름은 운영 메트릭 저장소로 분리하며 core PostgreSQL 도메인 테이블에 넣지 않는다. |
-

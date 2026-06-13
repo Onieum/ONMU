@@ -52,6 +52,18 @@ class MediaControllerTests {
   }
 
   @Test
+  void publicAvatarMediaReadDoesNotRequireBearerToken() throws Exception {
+    when(mediaService.readPublicSeedMedia("dev/avatars/user-me.png"))
+      .thenReturn(new MediaService.PublicMediaObject(new byte[] {4, 5, 6}, "image/png"));
+
+    mvc.perform(get("/api/v1/media/public")
+        .queryParam("key", "dev/avatars/user-me.png"))
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("image/png"))
+      .andExpect(content().bytes(new byte[] {4, 5, 6}));
+  }
+
+  @Test
   void missingPublicSeedMediaReturnsNotFound() throws Exception {
     when(mediaService.readPublicSeedMedia("dev/media/records/memory-404/image-1.jpg"))
       .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "media_not_found"));

@@ -6,7 +6,7 @@ import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 
 void main() {
   test('maps the current dev user from users me API', () async {
-    final dio = Dio();
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -36,6 +36,10 @@ void main() {
     expect(user!.id, '00000000-0000-0000-0000-000000000001');
     expect(user.publicId, 'user-me');
     expect(user.displayName, '나');
+    expect(
+      user.profileImageUrl,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fuser-me.png',
+    );
     expect(user.onboardingStatus, 'COMPLETED');
     expect(user.hasCompletedOnboarding, isTrue);
   });
@@ -66,6 +70,18 @@ void main() {
 
     expect(user, isNotNull);
     expect(user!.displayName, '지무');
+  });
+
+  test('prefers nickname over stale displayName for current user label', () {
+    final user = authUserFromJson({
+      'databaseId': '00000000-0000-0000-0000-000000000001',
+      'id': 'user-me',
+      'displayName': '온이음',
+      'nickname': '나',
+      'authProvider': 'NAVER',
+    });
+
+    expect(user.displayName, '나');
   });
 
   test(

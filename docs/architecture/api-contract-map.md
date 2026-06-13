@@ -242,4 +242,3 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
 Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비하고, 아직 구현하지 않은 notification/media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
-

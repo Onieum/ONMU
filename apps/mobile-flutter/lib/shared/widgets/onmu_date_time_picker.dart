@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'onmu_button.dart';
+import 'onmu_card.dart';
 import 'onmu_chip.dart';
 
 class OnmuDateTimePicker {
@@ -171,7 +172,7 @@ class OnmuCalendarDateTimeSelector extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.lg),
-        OnmuTimeChipPicker(
+        OnmuSlidingTimePicker(
           title: timeTitle,
           selectedDateTime: selectedDateTime,
           minimumDateTime: minimumDate,
@@ -179,6 +180,290 @@ class OnmuCalendarDateTimeSelector extends StatelessWidget {
           onChanged: onChanged,
         ),
       ],
+    );
+  }
+}
+
+class OnmuSlidingTimePicker extends StatefulWidget {
+  const OnmuSlidingTimePicker({
+    required this.title,
+    required this.selectedDateTime,
+    required this.onChanged,
+    super.key,
+    this.minimumDateTime,
+    this.maximumDateTime,
+    this.minuteInterval = 5,
+    this.sliderKey,
+  });
+
+  final String title;
+  final DateTime selectedDateTime;
+  final DateTime? minimumDateTime;
+  final DateTime? maximumDateTime;
+  final int minuteInterval;
+  final Key? sliderKey;
+  final ValueChanged<DateTime> onChanged;
+
+  @override
+  State<OnmuSlidingTimePicker> createState() => _OnmuSlidingTimePickerState();
+}
+
+class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
+  static const _hourItemExtent = 46.0;
+  static const _minuteItemExtent = 46.0;
+
+  late final FixedExtentScrollController _hourController;
+  late final FixedExtentScrollController _minuteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _hourController = FixedExtentScrollController(
+      initialItem: widget.selectedDateTime.hour,
+    );
+    _minuteController = FixedExtentScrollController(
+      initialItem: _minuteIndex(widget.selectedDateTime.minute),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant OnmuSlidingTimePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedDateTime.hour != oldWidget.selectedDateTime.hour &&
+        _hourController.hasClients) {
+      _hourController.jumpToItem(widget.selectedDateTime.hour);
+    }
+
+    final nextMinuteIndex = _minuteIndex(widget.selectedDateTime.minute);
+    final previousMinuteIndex = _minuteIndex(oldWidget.selectedDateTime.minute);
+    if (nextMinuteIndex != previousMinuteIndex &&
+        _minuteController.hasClients) {
+      _minuteController.jumpToItem(nextMinuteIndex);
+    }
+  }
+
+  @override
+  void dispose() {
+    _hourController.dispose();
+    _minuteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedStep = _timeStep(
+      widget.selectedDateTime,
+      widget.minuteInterval,
+    );
+    final minutes = _minuteValues(widget.minuteInterval);
+    final selectedMinute = _minuteFromIndex(
+      _minuteIndex(widget.selectedDateTime.minute),
+      widget.minuteInterval,
+    );
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.schedule, color: AppColors.primaryPink),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              _SelectedTimePill(timeText: _formatClockFromStep(selectedStep)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: _hourItemExtent * 3,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  top: _hourItemExtent,
+                  bottom: _hourItemExtent,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPinkSoft.withValues(alpha: 0.58),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.linePink),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TimeWheel(
+                        key: _wheelKey('hour'),
+                        controller: _hourController,
+                        itemExtent: _hourItemExtent,
+                        itemCount: 24,
+                        selectedValue: widget.selectedDateTime.hour,
+                        labelFor: (index) => index.toString().padLeft(2, '0'),
+                        semanticSuffix: '시',
+                        onSelectedItemChanged: (hour) => _emit(hour: hour),
+                      ),
+                    ),
+                    Text(
+                      ':',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                    Expanded(
+                      child: _TimeWheel(
+                        key: _wheelKey('minute'),
+                        controller: _minuteController,
+                        itemExtent: _minuteItemExtent,
+                        itemCount: minutes.length,
+                        selectedValue: selectedMinute,
+                        labelFor: (index) =>
+                            minutes[index].toString().padLeft(2, '0'),
+                        semanticSuffix: '분',
+                        onSelectedItemChanged: (index) =>
+                            _emit(minute: minutes[index]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '시간을 위아래로 밀어서 조정',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Key _wheelKey(String suffix) {
+    final sliderKey = widget.sliderKey;
+    if (sliderKey is ValueKey<String>) {
+      return ValueKey('${sliderKey.value}-$suffix');
+    }
+    return ValueKey('onmu-time-wheel-$suffix');
+  }
+
+  int _minuteIndex(int minute) {
+    return (minute / widget.minuteInterval).round().clamp(
+      0,
+      _minuteValues(widget.minuteInterval).length - 1,
+    );
+  }
+
+  void _emit({int? hour, int? minute}) {
+    final next = DateTime(
+      widget.selectedDateTime.year,
+      widget.selectedDateTime.month,
+      widget.selectedDateTime.day,
+      hour ?? widget.selectedDateTime.hour,
+      minute ??
+          _minuteFromIndex(
+            _minuteIndex(widget.selectedDateTime.minute),
+            widget.minuteInterval,
+          ),
+    );
+    widget.onChanged(
+      _clampDateTime(next, widget.minimumDateTime, widget.maximumDateTime),
+    );
+  }
+}
+
+class _TimeWheel extends StatelessWidget {
+  const _TimeWheel({
+    required this.controller,
+    required this.itemExtent,
+    required this.itemCount,
+    required this.selectedValue,
+    required this.labelFor,
+    required this.semanticSuffix,
+    required this.onSelectedItemChanged,
+    super.key,
+  });
+
+  final FixedExtentScrollController controller;
+  final double itemExtent;
+  final int itemCount;
+  final int selectedValue;
+  final String Function(int index) labelFor;
+  final String semanticSuffix;
+  final ValueChanged<int> onSelectedItemChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListWheelScrollView.useDelegate(
+      controller: controller,
+      itemExtent: itemExtent,
+      physics: const FixedExtentScrollPhysics(),
+      diameterRatio: 1.6,
+      perspective: 0.002,
+      overAndUnderCenterOpacity: 0.34,
+      onSelectedItemChanged: onSelectedItemChanged,
+      childDelegate: ListWheelChildBuilderDelegate(
+        childCount: itemCount,
+        builder: (context, index) {
+          final label = labelFor(index);
+          final selected = int.tryParse(label) == selectedValue;
+          return Center(
+            child: Semantics(
+              label: '$label$semanticSuffix',
+              selected: selected,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: selected
+                      ? AppColors.primaryPurpleDark
+                      : AppColors.textSub,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SelectedTimePill extends StatelessWidget {
+  const _SelectedTimePill({required this.timeText});
+
+  final String timeText;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.primaryPinkSoft,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.linePink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          timeText,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.primaryPurpleDark),
+        ),
+      ),
     );
   }
 }
@@ -615,6 +900,34 @@ DateTime _clampDateTime(
     return maximumDateTime;
   }
   return value;
+}
+
+List<int> _minuteValues(int minuteInterval) {
+  return [for (var minute = 0; minute < 60; minute += minuteInterval) minute];
+}
+
+int _minuteFromIndex(int index, int minuteInterval) {
+  final values = _minuteValues(minuteInterval);
+  return values[index.clamp(0, values.length - 1)];
+}
+
+int _maxTimeStep(int minuteInterval) {
+  return (Duration.minutesPerDay ~/ minuteInterval) - 1;
+}
+
+int _timeStep(DateTime dateTime, int minuteInterval) {
+  final minutes = dateTime.hour * 60 + dateTime.minute;
+  return (minutes / minuteInterval).round().clamp(
+    0,
+    _maxTimeStep(minuteInterval),
+  );
+}
+
+String _formatClockFromStep(int step, {int minuteInterval = 5}) {
+  final totalMinutes = step * minuteInterval;
+  final hour = totalMinutes ~/ 60;
+  final minute = totalMinutes % 60;
+  return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 }
 
 DateTime _monthOf(DateTime date) {

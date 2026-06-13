@@ -122,9 +122,7 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> userMe(java.util.UUID userId) {
-    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
-    return userMe(user);
+    return userMe(userOrThrow(userId));
   }
 
   @Transactional(readOnly = true)
@@ -149,7 +147,8 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", user.getPublicId());
     value.put("databaseId", user.getId().toString());
-    value.put("displayName", user.getDisplayName());
+    value.put("displayName", displayName(user));
+    value.put("nickname", user.getNickname());
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
@@ -167,8 +166,7 @@ public class OnmuApiService {
 
   @Transactional
   public Map<String, Object> updateUserProfile(java.util.UUID userId, UpdateUserProfileRequest request) {
-    UserEntity user = userRepository.findByIdAndDeletedAtIsNull(userId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+    UserEntity user = userOrThrow(userId);
     user.updateProfile(
       request.displayName(),
       request.profileImageUrl(),
@@ -181,15 +179,16 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> homeSummary(java.util.UUID userId) {
+    UserEntity viewer = userOrThrow(userId);
     List<GroupEntity> groups = groupRepository.findAllByOrderByCreatedAtAsc();
     GroupEntity firstGroup = groups.stream().findFirst().orElseThrow(this::noSeedData);
-    List<PlanEntity> plans = planRepository.findByGroupOrderByStartsAtAsc(firstGroup);
+    List<PlanEntity> plans = participatingPlans(firstGroup, viewer);
     List<VoteEntity> votes = voteRepository.findByGroupOrderByCreatedAtAsc(firstGroup);
 
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("service", "onmu-api-spring");
     value.put("env", "local");
-    value.put("viewer", userMe(userId));
+    value.put("viewer", userMe(viewer));
     value.put("groups", groups.stream().map(this::groupCard).toList());
     value.put("upcomingPlans", plans.stream().map(this::planCard).toList());
     value.put("activeVotes", votes.stream().map(this::voteCard).toList());
@@ -222,13 +221,51 @@ public class OnmuApiService {
   }
 
   @Transactional(readOnly = true)
+  public Map<String, Object> groupSummary(String groupId, java.util.UUID userId) {
+    GroupEntity group = groupOrThrow(groupId);
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("group", groupCard(group));
+    value.put("plans", plans(group.getPublicId(), userId));
+    value.put("votes", votes(group.getPublicId()));
+    return value;
+  }
+
+  @Transactional(readOnly = true)
   public List<Map<String, Object>> plans(String groupId) {
     GroupEntity group = groupOrThrow(groupId);
     return planRepository.findByGroupOrderByStartsAtAsc(group).stream().map(this::planCard).toList();
   }
 
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> plans(String groupId, java.util.UUID userId) {
+    GroupEntity group = groupOrThrow(groupId);
+    UserEntity user = userOrThrow(userId);
+    return participatingPlans(group, user).stream().map(this::planCard).toList();
+  }
+
+  private List<PlanEntity> participatingPlans(GroupEntity group, UserEntity user) {
+    return planRepository.findParticipatingByGroupAndUser(group, user).stream()
+      .filter(plan -> hasActiveParticipant(plan, user))
+      .toList();
+  }
+
+  private boolean hasActiveParticipant(PlanEntity plan, UserEntity user) {
+    return planParticipantRepository.findByPlanAndUser(plan, user)
+      .filter(this::isActivePlanParticipant)
+      .isPresent();
+  }
+
   @Transactional
   public Map<String, Object> createPlan(String groupId, CreatePlanRequest request) {
+    return createPlan(groupId, currentUser(), request);
+  }
+
+  @Transactional
+  public Map<String, Object> createPlan(String groupId, java.util.UUID userId, CreatePlanRequest request) {
+    return createPlan(groupId, userOrThrow(userId), request);
+  }
+
+  private Map<String, Object> createPlan(String groupId, UserEntity creator, CreatePlanRequest request) {
     GroupEntity group = groupOrThrow(groupId);
     String publicId = nextPublicId(planRepository.findAll().stream()
       .map(PlanEntity::getPublicId)
@@ -245,6 +282,10 @@ public class OnmuApiService {
       blankToNull(request.memo()),
       blankToNull(request.placeName())
     ));
+    PlanParticipantEntity participant = planParticipantRepository.findByPlanAndUser(plan, creator)
+      .orElseGet(() -> new PlanParticipantEntity(plan, creator, "joined", "accepted"));
+    participant.update("joined", "accepted");
+    planParticipantRepository.save(participant);
     outboxService.record("plan.created", "plan", plan.getId(), Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
@@ -290,11 +331,8 @@ public class OnmuApiService {
   public List<Map<String, Object>> planParticipants(String groupId, String planId) {
     PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
     List<PlanParticipantEntity> participants = planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan);
-    if (participants.isEmpty()) {
-      return List.of(participantFallbackCard(currentUser()));
-    }
     return participants.stream()
-      .filter(participant -> !"left".equalsIgnoreCase(participant.getStatus()))
+      .filter(this::isActivePlanParticipant)
       .map(this::participantCard)
       .toList();
   }
@@ -305,9 +343,27 @@ public class OnmuApiService {
     String planId,
     UpsertPlanParticipantRequest request
   ) {
+    return upsertMyPlanParticipant(groupId, planId, currentUser(), request);
+  }
+
+  @Transactional
+  public Map<String, Object> upsertMyPlanParticipant(
+    String groupId,
+    String planId,
+    java.util.UUID userId,
+    UpsertPlanParticipantRequest request
+  ) {
+    return upsertMyPlanParticipant(groupId, planId, userOrThrow(userId), request);
+  }
+
+  private Map<String, Object> upsertMyPlanParticipant(
+    String groupId,
+    String planId,
+    UserEntity user,
+    UpsertPlanParticipantRequest request
+  ) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
-    UserEntity user = currentUser();
     if (user.getId() == null || !groupRepository.isUserMember(group.getPublicId(), user.getId())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
     }
@@ -587,6 +643,11 @@ public class OnmuApiService {
     return userRepository.findFirstByOrderByCreatedAtAsc().orElseThrow(this::noSeedData);
   }
 
+  private UserEntity userOrThrow(java.util.UUID userId) {
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+  }
+
   private GroupEntity groupOrThrow(String groupId) {
     return groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
@@ -624,6 +685,7 @@ public class OnmuApiService {
   }
 
   private Map<String, Object> planCard(PlanEntity plan) {
+    List<Map<String, Object>> participants = activeParticipantCards(plan);
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", plan.getPublicId());
     value.put("groupId", plan.getGroup().getPublicId());
@@ -634,6 +696,10 @@ public class OnmuApiService {
     value.put("status", plan.getStatus());
     value.put("placeName", stringOrDefault(plan.getLocationNote(), "장소 미정"));
     value.put("memo", stringOrDefault(plan.getDescription(), ""));
+    value.put("participants", participants);
+    value.put("members", participants.stream().map(this::memberCard).toList());
+    value.put("memberCount", participants.size());
+    value.put("memberCountLabel", participants.size() + "명");
     return value;
   }
 
@@ -906,6 +972,7 @@ public class OnmuApiService {
     value.put("id", participant.getId().toString());
     value.put("userId", user.getId().toString());
     value.put("displayName", displayName(user));
+    value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("status", participant.getStatus());
     value.put("response", participant.getResponse());
     value.put("joinedAt", participant.getJoinedAt() == null ? null : participant.getJoinedAt().toString());
@@ -913,15 +980,26 @@ public class OnmuApiService {
     return value;
   }
 
-  private Map<String, Object> participantFallbackCard(UserEntity user) {
+  private List<Map<String, Object>> activeParticipantCards(PlanEntity plan) {
+    return planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan).stream()
+      .filter(this::isActivePlanParticipant)
+      .map(this::participantCard)
+      .toList();
+  }
+
+  private boolean isActivePlanParticipant(PlanParticipantEntity participant) {
+    String status = participant.getStatus();
+    return status == null
+      || (!"left".equalsIgnoreCase(status) && !"declined".equalsIgnoreCase(status));
+  }
+
+  private Map<String, Object> memberCard(Map<String, Object> participant) {
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("id", "current-user");
-    value.put("userId", user.getId().toString());
-    value.put("displayName", displayName(user));
-    value.put("status", "joined");
-    value.put("response", "accepted");
-    value.put("joinedAt", null);
-    value.put("fallback", true);
+    value.put("name", stringOrDefault((String) participant.get("displayName"), "참여자"));
+    value.put("message", "");
+    value.put("badge", "참여 중");
+    value.put("selected", true);
+    value.put("profileImageUrl", participant.get("profileImageUrl"));
     return value;
   }
 
