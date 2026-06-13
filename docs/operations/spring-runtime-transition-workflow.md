@@ -135,6 +135,16 @@ macOS:
 
 macOS Flutter web 검증은 `http://127.0.0.1:5173` 기준으로 실행한다. 이 origin은 dev Spring CORS 허용 목록에 포함되어 있어야 하며, 임의 wildcard로 넓히지 않는다. `ONMU_ACCESS_TOKEN_SECRET`이 이미 로컬 환경변수에 있으면 macOS JWT 스크립트는 Key Vault를 호출하지 않고 해당 값으로 짧은 수명의 JWT만 발급한다.
 
+`flutter run -d web-server`는 hot reload용 dev server라서 Flutter path URL인 `/home`, `/groups`, `/onboarding`을 브라우저에서 직접 새로고침하면 `index.html` fallback 없이 `404`가 날 수 있다. 인앱 브라우저에서 path URL 직접 진입까지 확인할 때는 macOS SPA fallback 서버를 사용한다.
+
+```bash
+cd <ONMU repo>/apps/mobile-flutter
+flutter build web --dart-define-from-file=.dart_tool/onmu-dev-api.defines.json
+
+cd <ONMU repo>
+./scripts/macos/serve-flutter-web-spa.sh --port 5173
+```
+
 Mac에서 dev API 연결이 의심될 때는 browser-like User-Agent와 IPv4/HTTP1.1 조건으로 public endpoint를 먼저 확인한다.
 
 ```bash
