@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/api/onmu_media_url.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
@@ -25,7 +26,7 @@ class ApiAuthRepository implements AuthRepository {
   Future<AuthUser?> fetchCurrentUser() async {
     try {
       final json = await _client.getObject('/api/v1/users/me');
-      return authUserFromJson(json);
+      return authUserFromJson(json, mediaBaseUrl: _client.baseUrl);
     } on DioException catch (error) {
       final statusCode = error.response?.statusCode;
       if (statusCode == 401 || statusCode == 403) {
@@ -50,12 +51,15 @@ class ApiAuthRepository implements AuthRepository {
       ...userJson,
       if (OnmuJson.readString(userJson, 'authProvider').isEmpty)
         'authProvider': provider.toUpperCase(),
-    });
+    }, mediaBaseUrl: _client.baseUrl);
     return AuthSession(user: user, tokens: tokens);
   }
 }
 
-AuthUser authUserFromJson(Map<String, dynamic> json) {
+AuthUser authUserFromJson(
+  Map<String, dynamic> json, {
+  String mediaBaseUrl = defaultOnmuApiBaseUrl,
+}) {
   final databaseId = OnmuJson.readString(json, 'databaseId');
   final publicId = OnmuJson.readString(json, 'id');
   final displayName = OnmuJson.readString(json, 'displayName');
@@ -67,13 +71,16 @@ AuthUser authUserFromJson(Map<String, dynamic> json) {
     publicId: publicId.isEmpty ? null : publicId,
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
     displayName: [
-      displayName,
       nickname,
+      displayName,
       name,
       username,
     ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => '사용자'),
     email: OnmuJson.readString(json, 'email'),
-    profileImageUrl: OnmuJson.readString(json, 'profileImageUrl'),
+    profileImageUrl: resolveOnmuMediaUrl(
+      OnmuJson.readString(json, 'profileImageUrl'),
+      baseUrl: mediaBaseUrl,
+    ),
     onboardingStatus: OnmuJson.readString(json, 'onboardingStatus', 'PENDING'),
   );
 }

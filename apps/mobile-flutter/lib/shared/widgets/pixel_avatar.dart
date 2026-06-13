@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/api/onmu_media_url.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 
@@ -23,6 +24,7 @@ class PixelAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final trimmedLabel = label.trim();
     final initial = trimmedLabel.isEmpty ? '?' : trimmedLabel.characters.first;
+    final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
     return SizedBox.square(
       dimension: size,
@@ -32,11 +34,11 @@ class PixelAvatar extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(color: AppColors.lineSoft),
         ),
-        child: _hasProfileImage
+        child: imageUrl.isNotEmpty
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 child: Image.network(
-                  profileImageUrl!.trim(),
+                  imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       _PixelAvatarFallback(
@@ -56,8 +58,6 @@ class PixelAvatar extends StatelessWidget {
       ),
     );
   }
-
-  bool get _hasProfileImage => profileImageUrl?.trim().isNotEmpty == true;
 }
 
 class _PixelAvatarFallback extends StatelessWidget {
