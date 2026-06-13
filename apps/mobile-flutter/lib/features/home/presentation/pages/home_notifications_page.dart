@@ -31,13 +31,96 @@ class HomeNotificationsPage extends ConsumerWidget {
           notifications.when(
             data: (items) => items.isEmpty
                 ? const _EmptyNotificationState()
-                : _NotificationList(items: items),
+                : _NotificationContent(
+                    items: items,
+                    onMarkAllRead: () => ref
+                        .read(homeNotificationsViewModelProvider.notifier)
+                        .markAllRead(),
+                    onTapItem: (item) async {
+                      final route = _routeForNotification(item);
+                      if (route == null) {
+                        return;
+                      }
+                      await ref
+                          .read(homeNotificationsViewModelProvider.notifier)
+                          .markRead(item);
+                      if (context.mounted) {
+                        context.go(route);
+                      }
+                    },
+                  ),
             loading: () => const _NotificationLoadingState(),
             error: (error, stackTrace) => _NotificationErrorState(
               onRetry: () => ref.invalidate(homeNotificationsViewModelProvider),
             ),
           ),
       ],
+    );
+  }
+}
+
+class _NotificationContent extends StatelessWidget {
+  const _NotificationContent({
+    required this.items,
+    required this.onMarkAllRead,
+    required this.onTapItem,
+  });
+
+  final List<NotificationItem> items;
+  final VoidCallback onMarkAllRead;
+  final ValueChanged<NotificationItem> onTapItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final unreadCount = items.where((item) => !item.isRead).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (unreadCount > 0) ...[
+          _NotificationSummary(
+            unreadCount: unreadCount,
+            onMarkAllRead: onMarkAllRead,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        _NotificationList(items: items, onTapItem: onTapItem),
+      ],
+    );
+  }
+}
+
+class _NotificationSummary extends StatelessWidget {
+  const _NotificationSummary({
+    required this.unreadCount,
+    required this.onMarkAllRead,
+  });
+
+  final int unreadCount;
+  final VoidCallback onMarkAllRead;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.linePink,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '읽지 않은 알림 $unreadCount개',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(color: AppColors.textMain),
+            ),
+          ),
+          OnmuSecondaryButton(
+            label: '모두 읽음',
+            icon: Icons.done_all_rounded,
+            onPressed: onMarkAllRead,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -132,16 +215,17 @@ class _NotificationErrorState extends StatelessWidget {
 }
 
 class _NotificationList extends StatelessWidget {
-  const _NotificationList({required this.items});
+  const _NotificationList({required this.items, required this.onTapItem});
 
   final List<NotificationItem> items;
+  final ValueChanged<NotificationItem> onTapItem;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         for (final item in items) ...[
-          _NotificationCard(item: item),
+          _NotificationCard(item: item, onTap: () => onTapItem(item)),
           if (item != items.last) const SizedBox(height: AppSpacing.sm),
         ],
       ],
@@ -150,16 +234,17 @@ class _NotificationList extends StatelessWidget {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item});
+  const _NotificationCard({required this.item, required this.onTap});
 
   final NotificationItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final route = _routeFor(item);
+    final route = _routeForNotification(item);
     final textTheme = Theme.of(context).textTheme;
     return OnmuCard(
-      onTap: route == null ? null : () => context.go(route),
+      onTap: route == null ? null : onTap,
       backgroundColor: item.isRead ? AppColors.bgDefault : AppColors.bgPaper,
       borderColor: item.isRead ? AppColors.lineSoft : AppColors.linePink,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -214,33 +299,33 @@ class _NotificationCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  String? _routeFor(NotificationItem item) {
-    final groupId = item.groupId;
-    final planId = item.planId;
-    final settlementId = item.payloadString('settlementId');
-    if (groupId != null &&
-        planId != null &&
-        settlementId != null &&
-        settlementId.isNotEmpty) {
-      return RoutePaths.planSettlementDetail(groupId, planId, settlementId);
-    }
-
-    final voteId = item.payloadString('voteId');
-    if (groupId != null && voteId != null && voteId.isNotEmpty) {
-      return RoutePaths.groupVote(groupId, voteId);
-    }
-
-    final recordId = item.payloadString('recordId');
-    if (groupId != null && recordId != null && recordId.isNotEmpty) {
-      return RoutePaths.groupMemoryDetail(groupId, recordId);
-    }
-
-    if (groupId != null) {
-      return RoutePaths.groupChat(groupId);
-    }
-    return null;
+String? _routeForNotification(NotificationItem item) {
+  final groupId = item.groupId;
+  final planId = item.planId;
+  final settlementId = item.payloadString('settlementId');
+  if (groupId != null &&
+      planId != null &&
+      settlementId != null &&
+      settlementId.isNotEmpty) {
+    return RoutePaths.planSettlementDetail(groupId, planId, settlementId);
   }
+
+  final voteId = item.payloadString('voteId');
+  if (groupId != null && voteId != null && voteId.isNotEmpty) {
+    return RoutePaths.groupVote(groupId, voteId);
+  }
+
+  final recordId = item.payloadString('recordId');
+  if (groupId != null && recordId != null && recordId.isNotEmpty) {
+    return RoutePaths.groupMemoryDetail(groupId, recordId);
+  }
+
+  if (groupId != null) {
+    return RoutePaths.groupChat(groupId);
+  }
+  return null;
 }
 
 class _NotificationIcon extends StatelessWidget {

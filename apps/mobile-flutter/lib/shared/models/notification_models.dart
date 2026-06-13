@@ -56,6 +56,31 @@ class NotificationItem {
   final Map<String, dynamic> payload;
   final bool isRead;
 
+  NotificationItem copyWith({String? status, DateTime? readAt, bool? isRead}) {
+    return NotificationItem(
+      id: id,
+      notificationType: notificationType,
+      title: title,
+      body: body,
+      status: status ?? this.status,
+      readAt: readAt ?? this.readAt,
+      createdAt: createdAt,
+      timeLabel: timeLabel,
+      groupId: groupId,
+      planId: planId,
+      payload: payload,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
+  NotificationItem markRead({DateTime? readAt}) {
+    return copyWith(
+      status: 'read',
+      readAt: readAt ?? this.readAt ?? DateTime.now(),
+      isRead: true,
+    );
+  }
+
   String? payloadString(String key) {
     final value = payload[key];
     if (value == null) {

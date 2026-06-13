@@ -14,4 +14,50 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
     final repository = ref.watch(notificationRepositoryProvider);
     return repository.fetchNotifications(limit: 50);
   }
+
+  Future<void> markRead(NotificationItem item) async {
+    if (item.id.trim().isEmpty || item.isRead) {
+      return;
+    }
+    final previous = state.value;
+    if (previous == null) {
+      return;
+    }
+
+    state = AsyncValue.data(_replaceItem(previous, item.id, item.markRead()));
+    try {
+      final repository = ref.read(notificationRepositoryProvider);
+      final updated = await repository.markNotificationRead(item.id);
+      state = AsyncValue.data(
+        _replaceItem(state.value ?? previous, updated.id, updated),
+      );
+    } catch (_) {
+      state = AsyncValue.data(previous);
+    }
+  }
+
+  Future<void> markAllRead() async {
+    final previous = state.value;
+    if (previous == null || previous.every((item) => item.isRead)) {
+      return;
+    }
+
+    state = AsyncValue.data([
+      for (final item in previous) item.isRead ? item : item.markRead(),
+    ]);
+    try {
+      final repository = ref.read(notificationRepositoryProvider);
+      await repository.markAllNotificationsRead();
+    } catch (_) {
+      state = AsyncValue.data(previous);
+    }
+  }
+
+  List<NotificationItem> _replaceItem(
+    List<NotificationItem> items,
+    String id,
+    NotificationItem replacement,
+  ) {
+    return [for (final item in items) item.id == id ? replacement : item];
+  }
 }

@@ -185,6 +185,35 @@ class InMemoryOnmuStore {
     return List.unmodifiable(_notifications.take(effectiveLimit));
   }
 
+  int fetchUnreadNotificationCount() {
+    return _notifications.where((notification) => !notification.isRead).length;
+  }
+
+  NotificationItem markNotificationRead(String notificationId) {
+    final index = _notifications.indexWhere(
+      (notification) => notification.id == notificationId,
+    );
+    if (index < 0) {
+      return _notifications.first;
+    }
+    final updated = _notifications[index].markRead();
+    _notifications[index] = updated;
+    return updated;
+  }
+
+  int markAllNotificationsRead() {
+    var updatedCount = 0;
+    for (var index = 0; index < _notifications.length; index += 1) {
+      final notification = _notifications[index];
+      if (notification.isRead) {
+        continue;
+      }
+      _notifications[index] = notification.markRead();
+      updatedCount += 1;
+    }
+    return updatedCount;
+  }
+
   GroupMessage sendMessage({
     required Object groupId,
     required String message,
