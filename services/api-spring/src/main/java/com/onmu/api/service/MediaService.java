@@ -24,7 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class MediaService {
-  private static final String PUBLIC_SEED_MEDIA_PREFIX = "dev/media/records/";
+  private static final String PUBLIC_RECORD_MEDIA_PREFIX = "dev/media/records/";
+  private static final String PUBLIC_AVATAR_MEDIA_PREFIX = "dev/avatars/";
 
   private final String endpoint;
   private final String bucket;
@@ -85,7 +86,9 @@ public class MediaService {
   }
 
   static void validatePublicSeedMediaKey(String objectKey) {
-    if (!StringUtils.hasText(objectKey) || !objectKey.startsWith(PUBLIC_SEED_MEDIA_PREFIX)) {
+    if (!StringUtils.hasText(objectKey)
+        || (!objectKey.startsWith(PUBLIC_RECORD_MEDIA_PREFIX)
+            && !objectKey.startsWith(PUBLIC_AVATAR_MEDIA_PREFIX))) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_media_key_prefix");
     }
   }
