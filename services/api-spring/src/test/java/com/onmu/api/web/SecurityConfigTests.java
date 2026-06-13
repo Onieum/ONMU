@@ -117,6 +117,29 @@ class SecurityConfigTests {
   }
 
   @Test
+  void placeSearchResponseIncludesProviderAndCoordinateCounts() throws Exception {
+    authenticatedUser();
+    when(placeSearchService.search("홍대 카페", "1", "101", null, null, null, null, null, false))
+      .thenReturn(List.of(Map.of(
+        "provider", "naver",
+        "source", "naver",
+        "lat", 37.5665,
+        "lng", 126.9780,
+        "name", "네이버 후보"
+      )));
+
+    mvc.perform(post("/api/v1/place-search")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"query\":\"홍대 카페\",\"groupId\":\"1\",\"planId\":\"101\"}"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.provider_counts.naver").value(1))
+      .andExpect(jsonPath("$.source_counts.naver").value(1))
+      .andExpect(jsonPath("$.coordinate_count").value(1))
+      .andExpect(jsonPath("$.results[0].provider").value("naver"));
+  }
+
+  @Test
   void invalidBearerTokenIsRejected() throws Exception {
     when(accessTokenVerifier.verify("wrong-token"))
       .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_token"));

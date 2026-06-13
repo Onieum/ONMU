@@ -98,17 +98,17 @@ public class PlaceSearchService {
       requestedProviders,
       compare
     );
+    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers());
+    List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
+      .filter(PlaceSearchProvider::isAvailable)
+      .toList();
     DevMockFallbackMode fallbackMode = devMockFallbackMode();
-    String cacheKey = cacheKey(searchQuery, fallbackMode);
+    String cacheKey = cacheKey(searchQuery, fallbackMode, providerNames(availableProviders));
     var cached = cache.get(cacheKey);
     if (cached.isPresent()) {
       return cached.get();
     }
 
-    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers());
-    List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
-      .filter(PlaceSearchProvider::isAvailable)
-      .toList();
     boolean usedDevMock = false;
     List<PlaceSearchResult> normalizedResults = List.of();
     if (availableProviders.isEmpty()) {
@@ -133,7 +133,9 @@ public class PlaceSearchService {
       .limit(RESULT_LIMIT)
       .map(result -> result.toApiMap(context))
       .toList();
-    cache.put(cacheKey, results);
+    if (!(usedDevMock && !availableProviders.isEmpty())) {
+      cache.put(cacheKey, results);
+    }
     return results;
   }
 
@@ -231,7 +233,7 @@ public class PlaceSearchService {
     return index < 0 ? PROVIDER_ORDER.size() : index;
   }
 
-  private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode) {
+  private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode, List<String> availableProviders) {
     String value = String.join("|",
       "v2",
       query.normalizedQuery(),
@@ -242,6 +244,7 @@ public class PlaceSearchService {
       nullToBlank(query.radius()),
       query.normalizedCategory(),
       String.join(",", query.providers()),
+      String.join(",", availableProviders),
       Boolean.toString(query.compare()),
       Boolean.toString(fallbackMode.enabled())
     );

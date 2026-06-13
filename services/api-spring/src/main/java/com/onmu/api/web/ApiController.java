@@ -21,6 +21,7 @@ import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import jakarta.validation.Valid;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -184,21 +185,42 @@ public class ApiController {
 
   @PostMapping("/place-search")
   public Map<String, Object> placeSearch(@Valid @RequestBody PlaceSearchRequest request) {
-    return Map.of(
-      "query", request.query(),
-      "canonical", true,
-      "results", placeSearchService.search(
-        request.query(),
-        request.groupId(),
-        request.planId(),
-        request.lat(),
-        request.lng(),
-        request.radius(),
-        request.category(),
-        request.providers(),
-        Boolean.TRUE.equals(request.compare())
-      )
+    List<Map<String, Object>> results = placeSearchService.search(
+      request.query(),
+      request.groupId(),
+      request.planId(),
+      request.lat(),
+      request.lng(),
+      request.radius(),
+      request.category(),
+      request.providers(),
+      Boolean.TRUE.equals(request.compare())
     );
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("query", request.query());
+    response.put("canonical", true);
+    response.put("results", results);
+    response.put("provider_counts", countBy(results, "provider"));
+    response.put("source_counts", countBy(results, "source"));
+    response.put("coordinate_count", coordinateCount(results));
+    return response;
+  }
+
+  private Map<String, Integer> countBy(List<Map<String, Object>> results, String key) {
+    Map<String, Integer> counts = new LinkedHashMap<>();
+    for (Map<String, Object> result : results) {
+      Object value = result.get(key);
+      if (value instanceof String name && !name.isBlank()) {
+        counts.merge(name, 1, Integer::sum);
+      }
+    }
+    return counts;
+  }
+
+  private long coordinateCount(List<Map<String, Object>> results) {
+    return results.stream()
+      .filter(result -> result.get("lat") instanceof Number && result.get("lng") instanceof Number)
+      .count();
   }
 
   @PostMapping("/routes/recommend")

@@ -196,6 +196,32 @@ class PlaceSearchServiceTests {
     assertThat(externalOnlyResults).isEmpty();
     assertThat(fallbackResults).hasSize(3);
     assertThat(fallbackResults.getFirst()).containsEntry("provider", "dev-mock");
+    assertThat(cache.keys()).hasSize(1);
+  }
+
+  @Test
+  void cachedDevMockFromUnavailableProviderDoesNotMaskRecoveredProvider() {
+    MutableProvider naver = new MutableProvider("naver", false, List.of());
+    MemoryCache cache = new MemoryCache();
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(naver),
+      new DevMockPlaceSearchProvider(),
+      cache,
+      localEnvironment()
+    );
+
+    var fallbackResults = service.search("홍대 카페", "1", "104");
+    naver.available = true;
+    naver.results = List.of(result("naver", "naver-1", "네이버 후보", "서울", 37.5, 127.0));
+    var recoveredResults = service.search("홍대 카페", "1", "104");
+
+    assertThat(fallbackResults.getFirst()).containsEntry("provider", "dev-mock");
+    assertThat(recoveredResults).singleElement()
+      .satisfies(result -> assertThat(result)
+        .containsEntry("provider", "naver")
+        .containsEntry("source", "naver")
+        .containsEntry("lat", 37.5)
+        .containsEntry("lng", 127.0));
     assertThat(cache.keys()).hasSize(2);
   }
 
@@ -243,6 +269,33 @@ class PlaceSearchServiceTests {
     @Override
     public List<PlaceSearchResult> search(PlaceSearchQuery query) {
       throw new IllegalStateException("Forbidden");
+    }
+  }
+
+  private static class MutableProvider implements PlaceSearchProvider {
+    private final String provider;
+    private boolean available;
+    private List<PlaceSearchResult> results;
+
+    private MutableProvider(String provider, boolean available, List<PlaceSearchResult> results) {
+      this.provider = provider;
+      this.available = available;
+      this.results = results;
+    }
+
+    @Override
+    public String provider() {
+      return provider;
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      return results;
     }
   }
 

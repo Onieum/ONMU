@@ -35,9 +35,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   String _query = '';
   String _selectedCategory = _allCategory;
   PlaceCandidate? _selectedCandidate;
-  final Set<int> _comparisonCandidateIds = {};
   final Set<int> _savingCandidateIds = {};
-  bool _routeSaving = false;
 
   List<PlaceCandidate> _visibleCandidates(List<PlaceCandidate> candidates) {
     final normalizedQuery = _query.trim().toLowerCase();
@@ -187,7 +185,6 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
           orElse: () => localVisibleCandidates,
         ) ??
         localVisibleCandidates;
-    final comparisonCandidates = _comparisonCandidatesFor(visibleCandidates);
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
 
@@ -214,11 +211,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                         searchLoading: searchLoading,
                         searchHadError: searchHadError,
                       ),
-                      focusedPointId:
-                          _selectedCandidate?.id.toString() ??
-                          (comparisonCandidates.isEmpty
-                              ? null
-                              : comparisonCandidates.first.id.toString()),
+                      focusedPointId: _selectedCandidate?.id.toString(),
                       onPointTap: (point) {
                         final selected = _candidateByPointId(
                           visibleCandidates,
@@ -289,10 +282,6 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                           searchLoading: searchLoading,
                           searchHadError: searchHadError,
                           selectedCandidate: _selectedCandidate,
-                          comparisonCandidates: comparisonCandidates,
-                          selectedComparisonCount:
-                              _comparisonCandidateIds.length,
-                          routeSaving: _routeSaving,
                           isSavingCandidate: (candidate) =>
                               _savingCandidateIds.contains(candidate.id),
                           onBackToResults: () {
@@ -305,14 +294,6 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                               _selectedCandidate = candidate;
                             });
                           },
-                          isComparisonSelected: _isComparisonCandidate,
-                          onComparisonToggled: _toggleComparisonCandidate,
-                          onRecommendRoutePressed: comparisonCandidates.isEmpty
-                              ? null
-                              : () => _saveComparisonAndNavigate(
-                                  comparisonCandidates,
-                                  context,
-                                ),
                           onRegisterPressed: (candidate) =>
                               _saveCandidateAndNavigate(
                                 candidate,
@@ -395,87 +376,6 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         });
       }
     }
-  }
-
-  Future<void> _saveComparisonAndNavigate(
-    List<PlaceCandidate> candidates,
-    BuildContext context,
-  ) async {
-    if (_routeSaving || candidates.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _routeSaving = true;
-    });
-
-    try {
-      final notifier = ref.read(
-        placeCandidatesViewModelProvider((
-          groupId: widget.groupId,
-          planId: widget.planId,
-        )).notifier,
-      );
-      for (final candidate in candidates.take(3)) {
-        await notifier.addCandidate(candidate);
-      }
-      if (!mounted || !context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('선택한 장소로 동선을 준비했어요!')));
-      context.push(RoutePaths.planItinerary(widget.groupId, widget.planId));
-    } catch (_) {
-      if (!mounted || !context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('동선 추천을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.')),
-        );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _routeSaving = false;
-        });
-      }
-    }
-  }
-
-  List<PlaceCandidate> _comparisonCandidatesFor(
-    List<PlaceCandidate> visibleCandidates,
-  ) {
-    final selected = visibleCandidates
-        .where((candidate) => _comparisonCandidateIds.contains(candidate.id))
-        .toList(growable: true);
-    final selectedIds = selected.map((candidate) => candidate.id).toSet();
-    for (final candidate in visibleCandidates) {
-      if (selected.length >= 3) {
-        break;
-      }
-      if (!selectedIds.contains(candidate.id)) {
-        selected.add(candidate);
-      }
-    }
-    return List.unmodifiable(selected.take(3));
-  }
-
-  bool _isComparisonCandidate(PlaceCandidate candidate) {
-    return _comparisonCandidateIds.contains(candidate.id);
-  }
-
-  void _toggleComparisonCandidate(PlaceCandidate candidate) {
-    setState(() {
-      if (!_comparisonCandidateIds.remove(candidate.id)) {
-        if (_comparisonCandidateIds.length >= 3) {
-          _comparisonCandidateIds.remove(_comparisonCandidateIds.first);
-        }
-        _comparisonCandidateIds.add(candidate.id);
-      }
-      _selectedCandidate = candidate;
-    });
   }
 
   PlaceCandidate? _candidateByPointId(
@@ -775,15 +675,9 @@ class _RecommendationSheet extends StatelessWidget {
     required this.searchLoading,
     required this.searchHadError,
     required this.selectedCandidate,
-    required this.comparisonCandidates,
-    required this.selectedComparisonCount,
-    required this.routeSaving,
     required this.isSavingCandidate,
     required this.onBackToResults,
     required this.onCandidateSelected,
-    required this.isComparisonSelected,
-    required this.onComparisonToggled,
-    required this.onRecommendRoutePressed,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
   });
@@ -799,15 +693,9 @@ class _RecommendationSheet extends StatelessWidget {
   final bool searchLoading;
   final bool searchHadError;
   final PlaceCandidate? selectedCandidate;
-  final List<PlaceCandidate> comparisonCandidates;
-  final int selectedComparisonCount;
-  final bool routeSaving;
   final bool Function(PlaceCandidate candidate) isSavingCandidate;
   final VoidCallback onBackToResults;
   final ValueChanged<PlaceCandidate> onCandidateSelected;
-  final bool Function(PlaceCandidate candidate) isComparisonSelected;
-  final ValueChanged<PlaceCandidate> onComparisonToggled;
-  final VoidCallback? onRecommendRoutePressed;
   final ValueChanged<PlaceCandidate> onRegisterPressed;
   final ValueChanged<PlaceCandidate> onAddCandidatePressed;
 
@@ -859,7 +747,7 @@ class _RecommendationSheet extends StatelessWidget {
                   ? '장소 후보 ✨'
                   : searchActive
                   ? '검색 결과'
-                  : '추천 장소',
+                  : '장소 후보',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -870,15 +758,6 @@ class _RecommendationSheet extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.md),
-            if (comparisonCandidates.isNotEmpty) ...[
-              _PlaceComparisonCard(
-                candidates: comparisonCandidates,
-                selectedCount: selectedComparisonCount,
-                routeSaving: routeSaving,
-                onRecommendRoutePressed: onRecommendRoutePressed,
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
             if (candidates.isEmpty) ...[
               _EmptyPlaceSearchCard(
                 searchActive: searchActive,
@@ -893,9 +772,6 @@ class _RecommendationSheet extends StatelessWidget {
                 candidate: candidates[index],
                 photoIndex: index,
                 onTap: () => onCandidateSelected(candidates[index]),
-                comparisonSelected: isComparisonSelected(candidates[index]),
-                onComparisonToggled: () =>
-                    onComparisonToggled(candidates[index]),
                 isSaving: isSavingCandidate(candidates[index]),
                 onRegisterPressed: () => onRegisterPressed(candidates[index]),
                 onAddCandidatePressed: () =>
@@ -929,260 +805,6 @@ class _RecommendationSheet extends StatelessWidget {
     }
 
     return '"$normalizedQuery" 검색 결과를 지도 위에서 확인해요';
-  }
-}
-
-class _PlaceComparisonCard extends StatelessWidget {
-  const _PlaceComparisonCard({
-    required this.candidates,
-    required this.selectedCount,
-    required this.routeSaving,
-    required this.onRecommendRoutePressed,
-  });
-
-  final List<PlaceCandidate> candidates;
-  final int selectedCount;
-  final bool routeSaving;
-  final VoidCallback? onRecommendRoutePressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final comparisonCount = candidates.length;
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.linePink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: AppColors.primaryPink),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  '선택한 $comparisonCount곳 비교',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              OnmuChip(
-                label: selectedCount == 0 ? '추천' : '$selectedCount/3',
-                selected: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            selectedCount == 0
-                ? '상위 후보 3곳으로 바로 동선을 미리 볼 수 있어요.'
-                : '지도 핀과 후보 카드가 선택한 장소 기준으로 정리돼요.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemBuilder: (context, index) => _ComparisonPlacePill(
-                order: index + 1,
-                candidate: candidates[index],
-              ),
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: AppSpacing.xs),
-              itemCount: candidates.length,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _ComparisonSignalGrid(candidates: candidates),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OnmuPrimaryButton(
-              label: routeSaving ? '동선 준비 중' : '이 장소들로 동선 추천 받기',
-              icon: Icons.route_outlined,
-              color: AppColors.primaryPink,
-              foregroundColor: AppColors.textInverse,
-              onPressed: routeSaving ? null : onRecommendRoutePressed,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComparisonSignalGrid extends StatelessWidget {
-  const _ComparisonSignalGrid({required this.candidates});
-
-  final List<PlaceCandidate> candidates;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      key: const ValueKey('place-comparison-signal-grid'),
-      decoration: BoxDecoration(
-        color: AppColors.bgPaper,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Column(
-        children: [
-          _ComparisonSignalRow(
-            label: '거리',
-            values: candidates.map(_distanceSignal).toList(growable: false),
-          ),
-          const Divider(height: 1, color: AppColors.lineSoft),
-          _ComparisonSignalRow(
-            label: '분위기',
-            values: candidates.map(_moodSignal).toList(growable: false),
-          ),
-          const Divider(height: 1, color: AppColors.lineSoft),
-          _ComparisonSignalRow(
-            label: '영업',
-            values: candidates.map(_openSignal).toList(growable: false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _distanceSignal(PlaceCandidate candidate) {
-    final travelTime = candidate.travelTimeLabel.trim();
-    if (travelTime.isNotEmpty) {
-      return travelTime;
-    }
-
-    final distance = candidate.distanceLabel.trim();
-    return distance.isNotEmpty ? distance : '-';
-  }
-
-  String _moodSignal(PlaceCandidate candidate) {
-    final tags = candidate.tags
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toList(growable: false);
-    if (tags.isNotEmpty) {
-      return tags.first;
-    }
-
-    return candidate.category.trim().isNotEmpty ? candidate.category : '-';
-  }
-
-  String _openSignal(PlaceCandidate candidate) {
-    if (candidate.isOpen) {
-      return '영업 중';
-    }
-
-    final openingLabel = candidate.openingLabel.trim();
-    return openingLabel.isNotEmpty ? openingLabel : '확인 필요';
-  }
-}
-
-class _ComparisonSignalRow extends StatelessWidget {
-  const _ComparisonSignalRow({required this.label, required this.values});
-
-  final String label;
-  final List<String> values;
-
-  @override
-  Widget build(BuildContext context) {
-    final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: AppColors.textSub,
-      fontWeight: FontWeight.w700,
-    );
-    final valueStyle = Theme.of(
-      context,
-    ).textTheme.labelSmall?.copyWith(color: AppColors.textMain);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          SizedBox(width: 44, child: Text(label, style: labelStyle)),
-          const SizedBox(width: AppSpacing.xs),
-          for (var index = 0; index < values.length; index += 1) ...[
-            Expanded(
-              child: Text(
-                values[index],
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: valueStyle,
-              ),
-            ),
-            if (index < values.length - 1)
-              const SizedBox(
-                height: 18,
-                child: VerticalDivider(
-                  width: AppSpacing.xs,
-                  color: AppColors.lineSoft,
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ComparisonPlacePill extends StatelessWidget {
-  const _ComparisonPlacePill({required this.order, required this.candidate});
-
-  final int order;
-  final PlaceCandidate candidate;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 112,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.bgPaper,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: AppColors.lineWarm),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPink,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: SizedBox.square(
-                  dimension: 22,
-                  child: Center(
-                    child: Text(
-                      '$order',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textInverse,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  '후보 $order',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -1386,8 +1008,6 @@ class _RecommendationTile extends StatelessWidget {
     required this.candidate,
     required this.photoIndex,
     required this.onTap,
-    required this.comparisonSelected,
-    required this.onComparisonToggled,
     required this.isSaving,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
@@ -1396,8 +1016,6 @@ class _RecommendationTile extends StatelessWidget {
   final PlaceCandidate candidate;
   final int photoIndex;
   final VoidCallback onTap;
-  final bool comparisonSelected;
-  final VoidCallback onComparisonToggled;
   final bool isSaving;
   final VoidCallback onRegisterPressed;
   final VoidCallback onAddCandidatePressed;
@@ -1407,9 +1025,6 @@ class _RecommendationTile extends StatelessWidget {
     final tags = candidate.tags.isEmpty
         ? <String>[candidate.category]
         : candidate.tags.take(3).toList(growable: false);
-    final sourceLabel = candidate.sourceLabel.trim().isEmpty
-        ? 'Provider'
-        : candidate.sourceLabel.trim();
 
     return OnmuCard(
       onTap: onTap,
@@ -1438,24 +1053,6 @@ class _RecommendationTile extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.xs),
-                        IconButton(
-                          tooltip: comparisonSelected
-                              ? '비교 후보에서 빼기'
-                              : '비교 후보로 선택',
-                          onPressed: onComparisonToggled,
-                          icon: Icon(
-                            comparisonSelected
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: AppColors.primaryPink,
-                          ),
-                          visualDensity: VisualDensity.compact,
-                          constraints: const BoxConstraints.tightFor(
-                            width: 36,
-                            height: 36,
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xxs),
@@ -1479,10 +1076,6 @@ class _RecommendationTile extends StatelessWidget {
                           label: candidate.travelTimeLabel,
                         ),
                         _MetricChip(
-                          icon: Icons.auto_awesome,
-                          label: '${candidate.matchPercent}%',
-                        ),
-                        _MetricChip(
                           icon: candidate.isOpen
                               ? Icons.circle
                               : Icons.error_outline,
@@ -1497,10 +1090,7 @@ class _RecommendationTile extends StatelessWidget {
                     Wrap(
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
-                      children: [
-                        OnmuChip(label: sourceLabel, selected: true),
-                        for (final tag in tags) OnmuChip(label: tag),
-                      ],
+                      children: [for (final tag in tags) OnmuChip(label: tag)],
                     ),
                   ],
                 ),
