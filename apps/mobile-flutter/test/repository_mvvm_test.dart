@@ -178,6 +178,22 @@ void main() {
     expect(state.upcomingPlan?.displayStatusLabel, '초안');
   });
 
+  test('온모임 홈 ViewModel은 최근 대화 API가 실패해도 상세 홈을 표시한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(throwOnFetchMessages: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupHomeViewModelProvider('1').future);
+
+    expect(state.group.name, 'Spring API 전환 모임');
+    expect(state.recentMessage, isNull);
+  });
+
   test('약속 상세 ViewModel은 선택 멤버와 날짜별 방문 계획을 분리한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
@@ -425,6 +441,7 @@ class _FakeGroupRepository implements GroupRepository {
     this.sendFailuresBeforeSuccess = 0,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
+    this.throwOnFetchMessages = false,
   }) : _remainingSendFailures = sendFailuresBeforeSuccess;
 
   final GroupMessage? sentMessage;
@@ -432,6 +449,7 @@ class _FakeGroupRepository implements GroupRepository {
   final int sendFailuresBeforeSuccess;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
+  final bool throwOnFetchMessages;
   final sentMessages = <String>[];
   final markedReadMessages = <String?>[];
   int _remainingSendFailures;
@@ -483,8 +501,12 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
-  Future<List<GroupMessage>> fetchMessages(Object groupId) async =>
-      initialMessages;
+  Future<List<GroupMessage>> fetchMessages(Object groupId) async {
+    if (throwOnFetchMessages) {
+      throw StateError('messages failed');
+    }
+    return initialMessages;
+  }
 
   @override
   Future<GroupMessagePage> fetchMessagePage(
