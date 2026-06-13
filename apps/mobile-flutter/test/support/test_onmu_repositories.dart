@@ -9,6 +9,8 @@ import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
+import 'package:onmu_mobile/features/my/domain/my_profile.dart';
+import 'package:onmu_mobile/features/my/repository/my_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
@@ -37,6 +39,7 @@ ProviderContainer createOnmuTestContainer() {
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
       ),
+      myRepositoryProvider.overrideWithValue(TestMyRepository()),
     ],
   );
 }
@@ -57,9 +60,34 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
       ),
+      myRepositoryProvider.overrideWithValue(TestMyRepository()),
     ],
     child: child,
   );
+}
+
+class TestMyRepository implements MyRepository {
+  MyProfile _profile = const MyProfile(
+    realName: 'ONMU User',
+    visibility: ProfileVisibility.friends,
+    favoriteKeywords: [],
+    dislikedKeywords: [],
+    preferredTimes: [],
+    availableDays: [],
+    unavailableDates: [],
+    favoritePlaces: [],
+    wantToGoPlaces: [],
+    dislikedPlaces: [],
+  );
+
+  @override
+  Future<MyProfile> fetchMyProfile() async => _profile;
+
+  @override
+  Future<MyProfile> updateMyProfile(MyProfile profile) async {
+    _profile = profile;
+    return _profile;
+  }
 }
 
 class TestNotificationRepository implements NotificationRepository {
