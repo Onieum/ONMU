@@ -4,6 +4,7 @@ import com.onmu.api.web.dto.OAuthLoginRequest;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class GoogleOAuthIdentityVerifier implements OAuthProviderVerifier {
   private final String clientId;
   private final Clock clock;
 
+  @Autowired
   public GoogleOAuthIdentityVerifier(
     GoogleIdTokenInfoClient idTokenInfoClient,
     Environment environment
