@@ -65,7 +65,7 @@ public class NaverLocalSearchMapper {
       if (results.isEmpty() && !items.isEmpty()) {
         LOGGER.warn("Naver local search mapped zero usable results: item_count={}", items.size());
       } else {
-        LOGGER.debug("Naver local search mapped results: item_count={}, result_count={}", items.size(), results.size());
+        LOGGER.info("Naver local search mapped results: item_count={}, result_count={}", items.size(), results.size());
       }
       return results;
     } catch (Exception exception) {

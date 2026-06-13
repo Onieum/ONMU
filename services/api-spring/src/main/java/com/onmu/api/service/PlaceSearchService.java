@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class PlaceSearchService {
@@ -102,6 +103,8 @@ public class PlaceSearchService {
     List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
       .filter(PlaceSearchProvider::isAvailable)
       .toList();
+    LOGGER.info("Place search provider selection: requested_count={}, selected={}, available={}",
+      searchQuery.providers().size(), providerNames(selectedProviders), providerNames(availableProviders));
     DevMockFallbackMode fallbackMode = devMockFallbackMode();
     String cacheKey = cacheKey(searchQuery, fallbackMode, providerNames(availableProviders));
     var cached = cache.get(cacheKey);
@@ -150,7 +153,9 @@ public class PlaceSearchService {
         break;
       }
       try {
+        LOGGER.info("Place search provider invocation started: provider={}", provider.provider());
         List<PlaceSearchResult> providerResults = provider.search(query);
+        int acceptedBefore = results.size();
         for (PlaceSearchResult result : providerResults) {
           String key = dedupeKey(result);
           if (seen.add(key)) {
@@ -160,8 +165,13 @@ public class PlaceSearchService {
             break;
           }
         }
+        LOGGER.info("Place search provider invocation finished: provider={}, result_count={}, accepted_count={}",
+          provider.provider(), providerResults.size(), results.size() - acceptedBefore);
+      } catch (RestClientResponseException exception) {
+        LOGGER.warn("Place search provider HTTP failed: provider={}, status={}, error_type={}",
+          provider.provider(), exception.getStatusCode().value(), exception.getClass().getSimpleName());
       } catch (RuntimeException exception) {
-        LOGGER.warn("Place search provider failed: provider={}, message={}", provider.provider(), exception.getClass().getSimpleName());
+        LOGGER.warn("Place search provider failed: provider={}, error_type={}", provider.provider(), exception.getClass().getSimpleName());
       }
     }
     return results;
