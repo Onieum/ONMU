@@ -126,6 +126,44 @@ void main() {
     ]);
   });
 
+  test('API notification preferences endpoint를 호출한다', () async {
+    final requested = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requested.add('${options.method} ${options.path}');
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'preferences': [
+                  {
+                    'notificationType': 'chat_message',
+                    'channel': 'in_app',
+                    'enabled': false,
+                    'quietHours': {'start': '22:00'},
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiNotificationRepository(OnmuApiClient(dio));
+
+    final fetched = await repository.fetchPreferences();
+    final saved = await repository.updatePreferences(fetched.items);
+
+    expect(fetched.enabledFor('chat_message', 'in_app'), isFalse);
+    expect(saved.items.single.quietHours, containsPair('start', '22:00'));
+    expect(requested, [
+      'GET /api/v1/notification-preferences',
+      'PUT /api/v1/notification-preferences',
+    ]);
+  });
+
   testWidgets('API 실패 시 알림 화면에 에러 상태가 보인다', (tester) async {
     final repository = _FailingNotificationRepository();
     await tester.pumpWidget(
@@ -223,6 +261,18 @@ class _FailingNotificationRepository implements NotificationRepository {
   Future<NotificationItem> markNotificationRead(String notificationId) async {
     throw Exception('network failed');
   }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    throw Exception('network failed');
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    throw Exception('network failed');
+  }
 }
 
 class _StaticNotificationRepository implements NotificationRepository {
@@ -256,6 +306,26 @@ class _StaticNotificationRepository implements NotificationRepository {
   @override
   Future<NotificationItem> markNotificationRead(String notificationId) async {
     return (await fetchNotifications()).single.markRead();
+  }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    return const NotificationPreferences(
+      items: [
+        NotificationPreferenceItem(
+          notificationType: 'chat_message',
+          channel: 'in_app',
+          enabled: true,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    return NotificationPreferences(items: preferences);
   }
 }
 
@@ -309,5 +379,25 @@ class _MutableNotificationRepository implements NotificationRepository {
     final updated = _notifications[index].markRead();
     _notifications[index] = updated;
     return updated;
+  }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    return const NotificationPreferences(
+      items: [
+        NotificationPreferenceItem(
+          notificationType: 'chat_message',
+          channel: 'in_app',
+          enabled: true,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    return NotificationPreferences(items: preferences);
   }
 }

@@ -25,9 +25,9 @@ public class OutboxService {
   private final RestTemplate restTemplate;
 
   public OutboxService(
-      OutboxEventRepository outboxEventRepository, 
-      ObjectMapper objectMapper,
-      @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl
+    OutboxEventRepository outboxEventRepository,
+    ObjectMapper objectMapper,
+    @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl
   ) {
     this.outboxEventRepository = outboxEventRepository;
     this.objectMapper = objectMapper;

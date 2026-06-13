@@ -15,6 +15,12 @@ abstract interface class NotificationRepository {
   Future<NotificationItem> markNotificationRead(String notificationId);
 
   Future<int> markAllNotificationsRead();
+
+  Future<NotificationPreferences> fetchPreferences();
+
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  );
 }
 
 class ApiNotificationRepository implements NotificationRepository {
@@ -55,5 +61,28 @@ class ApiNotificationRepository implements NotificationRepository {
   Future<int> markAllNotificationsRead() async {
     final response = await _client.putObject('/api/v1/notifications/read-all');
     return OnmuJson.readInt(response, 'updatedCount');
+  }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    final response = await _client.getObject(
+      '/api/v1/notification-preferences',
+    );
+    return NotificationPreferences.fromJson(response);
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    final response = await _client.putObject(
+      '/api/v1/notification-preferences',
+      body: {
+        'preferences': [
+          for (final preference in preferences) preference.toJson(),
+        ],
+      },
+    );
+    return NotificationPreferences.fromJson(response);
   }
 }

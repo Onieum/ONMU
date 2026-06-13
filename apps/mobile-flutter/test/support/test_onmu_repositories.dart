@@ -114,6 +114,18 @@ class TestNotificationRepository implements NotificationRepository {
   Future<int> markAllNotificationsRead() async {
     return _store.markAllNotificationsRead();
   }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    return _store.fetchNotificationPreferences();
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    return _store.updateNotificationPreferences(preferences);
+  }
 }
 
 SocialAuthService testSocialAuthService() {

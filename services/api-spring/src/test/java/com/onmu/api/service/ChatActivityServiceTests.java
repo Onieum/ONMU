@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -53,6 +54,8 @@ class ChatActivityServiceTests {
   @Mock
   private NotificationRepository notificationRepository;
   @Mock
+  private NotificationPreferenceService notificationPreferenceService;
+  @Mock
   private UserRepository userRepository;
   @Mock
   private ChatRealtimePublisher chatRealtimePublisher;
@@ -72,6 +75,7 @@ class ChatActivityServiceTests {
       groupRepository,
       groupMemberRepository,
       notificationRepository,
+      notificationPreferenceService,
       userRepository,
       new ObjectMapper(),
       chatRealtimePublisher,
@@ -80,6 +84,8 @@ class ChatActivityServiceTests {
     currentUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000001"), "나");
     otherUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000002"), "지민");
     group = new GroupEntity("1", "제주 여행 모임", currentUser);
+    lenient().when(notificationPreferenceService.isEnabled(any(UUID.class), any(String.class), any(String.class)))
+      .thenReturn(true);
   }
 
   @Test
@@ -244,6 +250,26 @@ class ChatActivityServiceTests {
       assertThat(notification.getStatus()).isEqualTo("queued");
       assertThat(notification.getReadAt()).isNull();
     });
+  }
+
+  @Test
+  void postMessageSkipsInAppNotificationWhenPreferenceIsDisabled() {
+    UserEntity recipientUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000004"), "민수");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(
+      new GroupMemberEntity(group, currentUser, "member", "active"),
+      new GroupMemberEntity(group, recipientUser, "member", "active")
+    ));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationPreferenceService.isEnabled(recipientUser.getId(), "chat_message", "in_app"))
+      .thenReturn(false);
+
+    service.createMessage("1", currentUser.getId(), new CreateChatMessageRequest("안녕"));
+
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
   }
 
   @Test

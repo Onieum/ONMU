@@ -8,6 +8,24 @@ final homeNotificationsViewModelProvider =
       HomeNotificationsViewModel.new,
     );
 
+final notificationUnreadCountProvider =
+    AsyncNotifierProvider<NotificationUnreadCountViewModel, int>(
+      NotificationUnreadCountViewModel.new,
+    );
+
+class NotificationUnreadCountViewModel extends AsyncNotifier<int> {
+  @override
+  Future<int> build() async {
+    final repository = ref.watch(notificationRepositoryProvider);
+    return repository.fetchUnreadCount();
+  }
+
+  Future<void> refresh() async {
+    final repository = ref.read(notificationRepositoryProvider);
+    state = await AsyncValue.guard(repository.fetchUnreadCount);
+  }
+}
+
 class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
   @override
   Future<List<NotificationItem>> build() async {
@@ -31,6 +49,7 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
       state = AsyncValue.data(
         _replaceItem(state.value ?? previous, updated.id, updated),
       );
+      ref.invalidate(notificationUnreadCountProvider);
     } catch (_) {
       state = AsyncValue.data(previous);
     }
@@ -48,6 +67,7 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
     try {
       final repository = ref.read(notificationRepositoryProvider);
       await repository.markAllNotificationsRead();
+      ref.invalidate(notificationUnreadCountProvider);
     } catch (_) {
       state = AsyncValue.data(previous);
     }
