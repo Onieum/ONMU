@@ -100,6 +100,27 @@ class AuthServiceTests {
   }
 
   @Test
+  void googleOAuthLoginUsesVerifiedIdTokenSubjectAndIssuesOnmuTokens() {
+    OAuthLoginRequest request = new OAuthLoginRequest(null, null, "google-id-token", null, null, null, null, null);
+    AuthIdentityEntity identity = new AuthIdentityEntity("aid_google", user, "GOOGLE", "google-subject", "google@example.test");
+    when(oAuthIdentityVerifier.verify("GOOGLE", request))
+      .thenReturn(new VerifiedOAuthIdentity("GOOGLE", "google-subject", "Google User", "google@example.test", null));
+    when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("GOOGLE", "google-subject"))
+      .thenReturn(Optional.of(identity));
+    when(accessTokenIssuer.issue(user))
+      .thenReturn(new IssuedAccessToken("onmu-access-token", Instant.parse("2026-07-01T00:00:00Z")));
+    when(refreshTokenRepository.save(any(RefreshTokenEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = authService.oauthLogin("GOOGLE", request, "127.0.0.1", "test-agent");
+
+    assertThat(response).containsEntry("authenticated", true);
+    assertThat(response).extracting("tokens")
+      .isInstanceOfSatisfying(Map.class, tokens ->
+        assertThat(tokens).containsEntry("accessToken", "onmu-access-token"));
+    verify(refreshTokenRepository).save(any(RefreshTokenEntity.class));
+  }
+
+  @Test
   void refreshRotatesActiveToken() {
     UUID familyId = UUID.randomUUID();
     RefreshTokenEntity currentToken = new RefreshTokenEntity(

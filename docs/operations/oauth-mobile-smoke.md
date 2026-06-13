@@ -50,6 +50,14 @@ Naver 설정:
 - Android deep link: `io.onieum.onmu://oauth/naver/callback`
 - iOS URL scheme: `io.onieum.onmu`
 
+Google 설정:
+
+- Flutter 공개 define: `ONMU_API_BASE_URL`, `GOOGLE_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`
+- Spring 서버 env: `GOOGLE_OAUTH_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`
+- Key Vault secret name: `dev-google-oauth-client-id`
+- Flutter는 Google idToken을 Spring `POST /api/v1/auth/oauth/google`의 `providerIdToken`으로 전달한다.
+- Spring은 Google tokeninfo 응답에서 issuer, audience, subject, expiration을 검증한 뒤 ONMU access/refresh token을 발급한다.
+
 ## Web/Chrome smoke
 
 이 smoke는 모바일 로그인 완료 검증이 아니다. provider 설정과 Spring callback wiring만 빠르게 확인한다.
