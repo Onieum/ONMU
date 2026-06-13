@@ -35,7 +35,14 @@ class SocialAuthService {
   }
 
   bool get canUseGoogleAppButton {
-    return isGoogleConfigured && _googleSignIn.supportsAuthenticate();
+    if (!isGoogleConfigured) {
+      return false;
+    }
+    try {
+      return _googleSignIn.supportsAuthenticate();
+    } on UnimplementedError {
+      return false;
+    }
   }
 
   Future<void> initializeGoogleSignIn() {
