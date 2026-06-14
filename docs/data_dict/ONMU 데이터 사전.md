@@ -182,7 +182,7 @@
 > UNIQUE: `code`
 > 회의 결정: 기본 코드는 대문자/숫자 8-10자리, 혼동 문자인 `O`, `0`, `I`, `1`은 제외한다. 사용자 self-service 재발급은 제공하지 않고, 악용/탈퇴/운영 조치가 필요한 경우에만 비활성화한다. 코드 검색은 `rate_limit_counters.bucket_key=friend_code_lookup`으로 분당 5회, 일 30회 수준에서 시작한다.
 
-## `user_devices` (다음 구현)
+## `user_devices` (구현됨, 확장 필요)
 
 > 모바일 앱 설치/기기 단위 상태를 관리한다. refresh token, push token, 보안 이벤트를 기기 기준으로 묶기 위한 테이블이다.
 
@@ -198,7 +198,13 @@
 | `last_ip_hash` | 마지막 IP 해시 | Text | 보안 분석용 IP hash | Nullable |
 | `last_user_agent` | 마지막 User-Agent | Text | 접속 client 정보 | Nullable |
 | `trusted` | 신뢰 기기 여부 | Boolean | 이상 로그인 판단 보조 | 기본값 false |
-| `status` | 기기 상태 | Varchar(20) | `active`, `revoked`, `blocked` | Not Null |
+| `status` | 기기 상태 | Varchar(20) | `active`, `inactive`, `revoked`, `blocked` | Not Null |
+| `push_provider` | Push 제공자 | Varchar(30) | `fcm`, `apns`, `dev` | Nullable |
+| `push_token` | Push token | Text | provider 발송에 필요한 기기 token. 응답/로그에 원문 출력 금지 | Nullable |
+| `push_token_hash` | Push token 해시 | Text | token 중복/이전 사용자 비활성화 판단용 SHA-256 hash | Nullable |
+| `push_token_last4` | Push token 마지막 4자리 | Varchar(8) | 운영 smoke와 응답 확인용 부분 식별자 | Nullable |
+| `push_token_updated_at` | Push token 갱신 시각 | Timestamptz | token 등록/갱신 시각 | Nullable |
+| `push_token_disabled_at` | Push token 비활성 시각 | Timestamptz | token 비활성화 시각 | Nullable |
 | `last_seen_at` | 마지막 접속 시각 | Timestamptz | 마지막 API 요청 시각 | Nullable |
 | `created_at` | 생성 시각 | Timestamptz | 기기 등록 시각 | Not Null |
 | `updated_at` | 수정 시각 | Timestamptz | 기기 상태 수정 시각 | Not Null |
@@ -1134,9 +1140,9 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | `attempted_at` | 시도 시각 | Timestamptz | 발송 시도 시각 | Not Null |
 | `delivered_at` | 발송 시각 | Timestamptz | 발송 성공 시각 | Nullable |
 
-## `push_tokens` (목표 설계)
+## `push_tokens` (미래 분리 후보)
 
-> 모바일 push 발송에 필요한 기기별 token을 관리한다. token 원문은 필요 최소 범위에서만 저장하고 로그에는 남기지 않는다.
+> 현재 push token readiness는 `user_devices`에 구현한다. 별도 token lifecycle, 암호화 저장, provider별 무효화 callback이 필요해지면 이 테이블로 분리할 수 있다. token 원문은 필요 최소 범위에서만 저장하고 로그에는 남기지 않는다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |

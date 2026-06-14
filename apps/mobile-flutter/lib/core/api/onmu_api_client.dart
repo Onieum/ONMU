@@ -137,8 +137,15 @@ class OnmuApiClient {
     return OnmuJson.asMap(response.data);
   }
 
-  Future<void> deleteObject(String path) async {
-    await _dio.delete<Object?>(path);
+  Future<Map<String, dynamic>> deleteObject(
+    String path, {
+    Map<String, Object?> body = const {},
+  }) async {
+    final response = await _dio.delete<Object?>(
+      path,
+      data: body.isEmpty ? null : body,
+    );
+    return OnmuJson.asMap(response.data);
   }
 }
 
