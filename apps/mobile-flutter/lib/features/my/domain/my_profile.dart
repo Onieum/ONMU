@@ -1,3 +1,5 @@
+import 'korea_region.dart';
+
 enum ProfileVisibility {
   private('비공개'),
   friends('친구 공개'),
@@ -33,7 +35,8 @@ class MyProfile {
     required this.wantToGoPlaces,
     required this.dislikedPlaces,
     this.introText = '기록하고, 만나고, 추억해요  ♥',
-    this.region = '서울 성수동',
+    this.region = '서울 성동구',
+    this.regionSelection,
     this.favoriteFoodTags = const [],
     this.dislikedFoodTags = const [],
     this.favoritePlaceTags = const [],
@@ -45,6 +48,7 @@ class MyProfile {
   final String realName;
   final String introText;
   final String region;
+  final KoreaRegionSelection? regionSelection;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
   final List<String> dislikedKeywords;
@@ -65,10 +69,15 @@ class MyProfile {
     return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
   }
 
+  KoreaRegionSelection get effectiveRegionSelection {
+    return regionSelection ?? KoreaRegionSelection.fromDisplayName(region);
+  }
+
   MyProfile copyWith({
     String? realName,
     String? introText,
     String? region,
+    KoreaRegionSelection? regionSelection,
     ProfileVisibility? visibility,
     List<String>? favoriteKeywords,
     List<String>? dislikedKeywords,
@@ -89,6 +98,11 @@ class MyProfile {
       realName: realName ?? this.realName,
       introText: introText ?? this.introText,
       region: region ?? this.region,
+      regionSelection:
+          regionSelection ??
+          (region == null
+              ? this.regionSelection
+              : KoreaRegionSelection.fromDisplayName(region)),
       visibility: visibility ?? this.visibility,
       favoriteKeywords: favoriteKeywords ?? this.favoriteKeywords,
       dislikedKeywords: dislikedKeywords ?? this.dislikedKeywords,

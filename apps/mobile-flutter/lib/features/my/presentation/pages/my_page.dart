@@ -14,6 +14,7 @@ import '../../../auth/domain/auth_user.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../character/character_start_page.dart';
 import '../../../character/repository/character_repository.dart';
+import '../../domain/korea_region.dart';
 import '../../domain/my_profile.dart';
 import '../../repository/friend_repository.dart';
 import '../../repository/my_repository.dart';
@@ -153,6 +154,7 @@ class _MyPageState extends ConsumerState<MyPage> {
       realName: result.realName,
       introText: result.introText,
       region: result.region,
+      regionSelection: result.regionSelection,
       visibility: result.visibility,
       favoriteKeywords: result.favoriteKeywords,
     );
@@ -1720,10 +1722,8 @@ class _FriendProfilePage extends ConsumerWidget {
                         _FriendProfileHero(
                           friend: friend,
                           profile: profile,
-                          onDelete: () => _showFriendMessage(
-                            context,
-                            '친구 삭제 기능을 준비 중이에요.',
-                          ),
+                          onDelete: () =>
+                              _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
                           onCreatePlan: () => context.go(
                             RoutePaths.groupNew,
                             extra: [friend.name],
@@ -2828,7 +2828,9 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     super.initState();
     _nameController = TextEditingController(text: widget.profile.realName);
     _introController = TextEditingController(text: widget.profile.introText);
-    _regionController = TextEditingController(text: widget.profile.region);
+    _regionController = TextEditingController(
+      text: widget.profile.effectiveRegionSelection.displayName,
+    );
     _interestController = TextEditingController();
     _visibility = widget.profile.visibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
@@ -3073,6 +3075,11 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
         region: _regionController.text.trim().isEmpty
             ? widget.profile.region
             : _regionController.text.trim(),
+        regionSelection: KoreaRegionSelection.fromDisplayName(
+          _regionController.text.trim().isEmpty
+              ? widget.profile.region
+              : _regionController.text.trim(),
+        ),
         visibility: _visibility,
         favoriteKeywords: _interests,
       ),
@@ -3719,21 +3726,121 @@ class _CountedTextFieldState extends State<_CountedTextField> {
   }
 }
 
-class _RegionSelector extends StatelessWidget {
+class _RegionSelector extends StatefulWidget {
   const _RegionSelector({required this.controller});
 
   final TextEditingController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      textInputAction: TextInputAction.done,
-      decoration: const InputDecoration(
-        hintText: '예: 서울특별시 성동구 / 경기도 수원시',
-        prefixIcon: Icon(Icons.location_on_outlined),
-      ),
+  State<_RegionSelector> createState() => _RegionSelectorState();
+}
+
+class _RegionSelectorState extends State<_RegionSelector> {
+  late String _sido;
+  late String _sigungu;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = KoreaRegionSelection.fromDisplayName(
+      widget.controller.text,
     );
+    final hasInitialRegion = widget.controller.text.trim().isNotEmpty;
+    _sido = !hasInitialRegion || initial.sido.trim().isEmpty
+        ? KoreaRegionSelection.fallback.sido
+        : initial.sido;
+    final sigunguOptions = sigunguOptionsFor(_sido);
+    _sigungu = initial.sigungu.trim().isEmpty
+        ? hasInitialRegion
+              ? ''
+              : sigunguOptions.isEmpty
+              ? KoreaRegionSelection.fallback.sigungu
+              : sigunguOptions.first
+        : initial.sigungu;
+    _syncController();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sidoOptions = _sidoOptions();
+    final sigunguOptions = _sigunguOptions();
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          value: _sido,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.location_on_outlined),
+            labelText: '시/도',
+          ),
+          items: [
+            for (final sido in sidoOptions)
+              DropdownMenuItem(value: sido, child: Text(sido)),
+          ],
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+            setState(() {
+              _sido = value;
+              final nextSigunguOptions = sigunguOptionsFor(value);
+              _sigungu = nextSigunguOptions.isEmpty
+                  ? _sigungu
+                  : nextSigunguOptions.first;
+              _syncController();
+            });
+          },
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _sigungu,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.location_city_outlined),
+            labelText: '시/군/구',
+          ),
+          items: [
+            for (final sigungu in sigunguOptions)
+              DropdownMenuItem(
+                value: sigungu,
+                child: Text(sigungu.isEmpty ? '선택 안 함' : sigungu),
+              ),
+          ],
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+            setState(() {
+              _sigungu = value;
+              _syncController();
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  void _syncController() {
+    widget.controller.text = KoreaRegionSelection(
+      sido: _sido,
+      sigungu: _sigungu,
+    ).displayName;
+  }
+
+  List<String> _sidoOptions() {
+    if (koreaRegionOptions.containsKey(_sido)) {
+      return koreaSidoOptions;
+    }
+    return [_sido, ...koreaSidoOptions];
+  }
+
+  List<String> _sigunguOptions() {
+    final options = sigunguOptionsFor(_sido);
+    if (_sigungu.trim().isEmpty) {
+      return ['', ...options];
+    }
+    if (options.contains(_sigungu)) {
+      return options;
+    }
+    return [_sigungu, ...options];
   }
 }
 
@@ -4289,6 +4396,7 @@ class _ProfileEditResult {
     required this.realName,
     required this.introText,
     required this.region,
+    required this.regionSelection,
     required this.visibility,
     required this.favoriteKeywords,
   });
@@ -4296,6 +4404,7 @@ class _ProfileEditResult {
   final String realName;
   final String introText;
   final String region;
+  final KoreaRegionSelection regionSelection;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
 
 final friendRepositoryProvider = Provider<FriendRepository>((ref) {
@@ -132,6 +133,7 @@ class ApiFriendRepository implements FriendRepository {
   MyProfile _profileFromJson(Map<String, dynamic> json, FriendProfile friend) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final displayName = OnmuJson.readString(json, 'displayName', friend.name);
+    final regionValue = preference['region'];
     return MyProfile(
       realName: displayName.isEmpty ? friend.name : displayName,
       introText: OnmuJson.readString(
@@ -139,7 +141,9 @@ class ApiFriendRepository implements FriendRepository {
         'introText',
         '기록하고, 만나고, 추억해요  ♥',
       ),
-      region: OnmuJson.readString(preference, 'region', ''),
+      region: regionValue == null
+          ? ''
+          : KoreaRegionSelection.fromJson(regionValue).displayName,
       visibility: ProfileVisibility.friends,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
