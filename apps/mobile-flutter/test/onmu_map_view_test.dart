@@ -6,6 +6,47 @@ import 'package:onmu_mobile/features/map/repository/tile_manifest_repository.dar
 import 'package:onmu_mobile/features/map/widgets/onmu_map_view.dart';
 
 void main() {
+  test(
+    'uses MapLibre for ready PMTiles manifest when runtime is available',
+    () {
+      expect(
+        shouldUseOnmuMapLibre(
+          manifest: _readyPmtilesManifest,
+          platformViewAvailable: true,
+          pmtilesProtocolReady: true,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('keeps fallback gates for missing runtime prerequisites', () {
+    expect(
+      shouldUseOnmuMapLibre(
+        manifest: null,
+        platformViewAvailable: true,
+        pmtilesProtocolReady: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldUseOnmuMapLibre(
+        manifest: _readyPmtilesManifest,
+        platformViewAvailable: false,
+        pmtilesProtocolReady: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldUseOnmuMapLibre(
+        manifest: _readyPmtilesManifest,
+        platformViewAvailable: true,
+        pmtilesProtocolReady: false,
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('renders fallback map state when manifest fetch fails', (
     tester,
   ) async {
@@ -78,46 +119,47 @@ void main() {
     expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('keeps nonblank native fallback for PMTiles manifest', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          tileManifestRepositoryProvider.overrideWithValue(
-            const _ReadyTileManifestRepository(),
-          ),
-        ],
-        child: const MaterialApp(
-          home: SizedBox(
-            width: 320,
-            height: 240,
-            child: OnmuMapView(
-              fallbackLabel: '지도 타일 fallback',
-              points: [
-                OnmuMapPoint(
-                  id: '1',
-                  label: 'PMTiles 후보',
-                  coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
-                  order: 1,
-                ),
-              ],
-              routeGeometry: [
-                OnmuLatLng(lat: 37.5665, lng: 126.978),
-                OnmuLatLng(lat: 37.5651, lng: 126.9895),
-              ],
-              debugWebPmtilesProtocolReady: true,
+  testWidgets(
+    'keeps overlay pin when widget test binding prevents platform view',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            tileManifestRepositoryProvider.overrideWithValue(
+              const _ReadyTileManifestRepository(),
+            ),
+          ],
+          child: const MaterialApp(
+            home: SizedBox(
+              width: 320,
+              height: 240,
+              child: OnmuMapView(
+                fallbackLabel: '지도 타일 fallback',
+                points: [
+                  OnmuMapPoint(
+                    id: '1',
+                    label: 'PMTiles 후보',
+                    coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+                    order: 1,
+                  ),
+                ],
+                routeGeometry: [
+                  OnmuLatLng(lat: 37.5665, lng: 126.978),
+                  OnmuLatLng(lat: 37.5651, lng: 126.9895),
+                ],
+                debugWebPmtilesProtocolReady: true,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(find.text('지도 타일 fallback'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
-  });
+      expect(find.text('지도 타일 fallback'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
+    },
+  );
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {
@@ -134,13 +176,15 @@ class _ReadyTileManifestRepository implements TileManifestRepository {
 
   @override
   Future<TileManifest> fetchManifest() async {
-    return const TileManifest(
-      styleUrl: 'https://tiles.onmu.cloud/styles/onmu-light.json',
-      currentPmtilesUrl:
-          'pmtiles://https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles',
-      bounds: [124, 33, 132, 39],
-      center: OnmuLatLng(lat: 37.5665, lng: 126.978),
-      generatedAt: null,
-    );
+    return _readyPmtilesManifest;
   }
 }
+
+const _readyPmtilesManifest = TileManifest(
+  styleUrl: 'https://tiles.onmu.cloud/styles/onmu-light.json',
+  currentPmtilesUrl:
+      'pmtiles://https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles',
+  bounds: [124, 33, 132, 39],
+  center: OnmuLatLng(lat: 37.5665, lng: 126.978),
+  generatedAt: null,
+);
