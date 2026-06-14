@@ -1,6 +1,8 @@
 package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class OutboxServiceTests {
   @Mock
   private OutboxEventRepository outboxEventRepository;
+  @Mock
+  private NotificationDeliveryService notificationDeliveryService;
 
   private OutboxService service;
 
@@ -27,6 +31,7 @@ class OutboxServiceTests {
   void setUp() {
     service = new OutboxService(
       outboxEventRepository,
+      notificationDeliveryService,
       new ObjectMapper(),
       "http://localhost:8090/tasks/ootd"
     );
@@ -90,5 +95,47 @@ class OutboxServiceTests {
 
     assertThat(chatMessageEvent.getStatus()).isEqualTo("no_consumer");
     verify(outboxEventRepository).save(chatMessageEvent);
+  }
+
+  @Test
+  void notificationRequestedIsHandledByNotificationDeliveryService() {
+    OutboxEventEntity event = new OutboxEventEntity(
+      "notification.requested",
+      "notification",
+      UUID.randomUUID(),
+      "{\"notificationId\":\"00000000-0000-0000-0000-000000001211\"}"
+    );
+    when(outboxEventRepository.findByStatusOrderByCreatedAtAsc("pending"))
+      .thenReturn(List.of(event));
+    when(notificationDeliveryService.processRequested(eq(event), any()))
+      .thenReturn(NotificationDeliveryOutcome.skippedDev(null));
+
+    service.publishPendingEvents();
+
+    assertThat(event.getStatus()).isEqualTo("skipped_dev");
+    assertThat(event.getPublishedAt()).isNotNull();
+    assertThat(event.getLastError()).isNull();
+    verify(notificationDeliveryService).processRequested(eq(event), any());
+    verify(outboxEventRepository).save(event);
+  }
+
+  @Test
+  void notificationRequestedKeepsSkipReasonWhenDeliveryCannotResolveNotification() {
+    OutboxEventEntity event = new OutboxEventEntity(
+      "notification.requested",
+      "settlement",
+      UUID.randomUUID(),
+      "{\"settlementId\":\"302\"}"
+    );
+    when(outboxEventRepository.findByStatusOrderByCreatedAtAsc("pending"))
+      .thenReturn(List.of(event));
+    when(notificationDeliveryService.processRequested(eq(event), any()))
+      .thenReturn(NotificationDeliveryOutcome.skippedDev("notification_id_missing"));
+
+    service.publishPendingEvents();
+
+    assertThat(event.getStatus()).isEqualTo("skipped_dev");
+    assertThat(event.getLastError()).isEqualTo("notification_id_missing");
+    verify(outboxEventRepository).save(event);
   }
 }

@@ -55,7 +55,7 @@
 | 알림 설정 | `GET/PUT /api/v1/notification-preferences` | `NotificationPreferences` |
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
 
-알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. worker/outbox/push abstraction과 실제 FCM/APNs push delivery는 별도 slice로 분리한다.
+알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다.
 
 ## Groups
 
@@ -247,4 +247,4 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `notification.requested` | 알림 발송 요청 |
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
-Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비하고, 아직 구현하지 않은 notification/media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
+Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
