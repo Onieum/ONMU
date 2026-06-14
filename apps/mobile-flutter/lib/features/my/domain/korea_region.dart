@@ -88,6 +88,29 @@ class KoreaRegionSelection {
   }
 }
 
+enum RegionVisibility {
+  private('PRIVATE', '비공개'),
+  public('PUBLIC', '공개');
+
+  const RegionVisibility(this.value, this.label);
+
+  final String value;
+  final String label;
+
+  bool get isPublic => this == RegionVisibility.public;
+
+  static RegionVisibility fromJson(Object? value) {
+    if (value is bool) {
+      return value ? RegionVisibility.public : RegionVisibility.private;
+    }
+    final normalized = value?.toString().trim().toUpperCase();
+    return switch (normalized) {
+      'PUBLIC' => RegionVisibility.public,
+      _ => RegionVisibility.private,
+    };
+  }
+}
+
 const koreaRegionOptions = <String, List<String>>{
   '서울': ['강남구', '마포구', '성동구', '송파구', '중구'],
   '부산': ['해운대구', '부산진구', '수영구', '중구'],

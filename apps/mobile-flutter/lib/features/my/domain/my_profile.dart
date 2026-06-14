@@ -37,6 +37,7 @@ class MyProfile {
     this.introText = '기록하고, 만나고, 추억해요  ♥',
     this.region = '서울 성동구',
     this.regionSelection,
+    this.regionVisibility = RegionVisibility.private,
     this.favoriteFoodTags = const [],
     this.dislikedFoodTags = const [],
     this.favoritePlaceTags = const [],
@@ -49,6 +50,7 @@ class MyProfile {
   final String introText;
   final String region;
   final KoreaRegionSelection? regionSelection;
+  final RegionVisibility regionVisibility;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
   final List<String> dislikedKeywords;
@@ -78,6 +80,7 @@ class MyProfile {
     String? introText,
     String? region,
     KoreaRegionSelection? regionSelection,
+    RegionVisibility? regionVisibility,
     ProfileVisibility? visibility,
     List<String>? favoriteKeywords,
     List<String>? dislikedKeywords,
@@ -103,6 +106,7 @@ class MyProfile {
           (region == null
               ? this.regionSelection
               : KoreaRegionSelection.fromDisplayName(region)),
+      regionVisibility: regionVisibility ?? this.regionVisibility,
       visibility: visibility ?? this.visibility,
       favoriteKeywords: favoriteKeywords ?? this.favoriteKeywords,
       dislikedKeywords: dislikedKeywords ?? this.dislikedKeywords,
