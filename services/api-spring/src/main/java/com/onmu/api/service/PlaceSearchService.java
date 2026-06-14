@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class PlaceSearchService {
@@ -98,17 +99,19 @@ public class PlaceSearchService {
       requestedProviders,
       compare
     );
+    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers());
+    List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
+      .filter(PlaceSearchProvider::isAvailable)
+      .toList();
+    LOGGER.info("Place search provider selection: requested_count={}, selected={}, available={}",
+      searchQuery.providers().size(), providerNames(selectedProviders), providerNames(availableProviders));
     DevMockFallbackMode fallbackMode = devMockFallbackMode();
-    String cacheKey = cacheKey(searchQuery, fallbackMode);
+    String cacheKey = cacheKey(searchQuery, fallbackMode, providerNames(availableProviders));
     var cached = cache.get(cacheKey);
     if (cached.isPresent()) {
       return cached.get();
     }
 
-    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers());
-    List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
-      .filter(PlaceSearchProvider::isAvailable)
-      .toList();
     boolean usedDevMock = false;
     List<PlaceSearchResult> normalizedResults = List.of();
     if (availableProviders.isEmpty()) {
@@ -133,7 +136,9 @@ public class PlaceSearchService {
       .limit(RESULT_LIMIT)
       .map(result -> result.toApiMap(context))
       .toList();
-    cache.put(cacheKey, results);
+    if (!(usedDevMock && !availableProviders.isEmpty())) {
+      cache.put(cacheKey, results);
+    }
     return results;
   }
 
@@ -148,7 +153,9 @@ public class PlaceSearchService {
         break;
       }
       try {
+        LOGGER.info("Place search provider invocation started: provider={}", provider.provider());
         List<PlaceSearchResult> providerResults = provider.search(query);
+        int acceptedBefore = results.size();
         for (PlaceSearchResult result : providerResults) {
           String key = dedupeKey(result);
           if (seen.add(key)) {
@@ -158,8 +165,13 @@ public class PlaceSearchService {
             break;
           }
         }
+        LOGGER.info("Place search provider invocation finished: provider={}, result_count={}, accepted_count={}",
+          provider.provider(), providerResults.size(), results.size() - acceptedBefore);
+      } catch (RestClientResponseException exception) {
+        LOGGER.warn("Place search provider HTTP failed: provider={}, status={}, error_type={}",
+          provider.provider(), exception.getStatusCode().value(), exception.getClass().getSimpleName());
       } catch (RuntimeException exception) {
-        LOGGER.warn("Place search provider failed: provider={}, message={}", provider.provider(), exception.getClass().getSimpleName());
+        LOGGER.warn("Place search provider failed: provider={}, error_type={}", provider.provider(), exception.getClass().getSimpleName());
       }
     }
     return results;
@@ -231,7 +243,7 @@ public class PlaceSearchService {
     return index < 0 ? PROVIDER_ORDER.size() : index;
   }
 
-  private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode) {
+  private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode, List<String> availableProviders) {
     String value = String.join("|",
       "v2",
       query.normalizedQuery(),
@@ -242,6 +254,7 @@ public class PlaceSearchService {
       nullToBlank(query.radius()),
       query.normalizedCategory(),
       String.join(",", query.providers()),
+      String.join(",", availableProviders),
       Boolean.toString(query.compare()),
       Boolean.toString(fallbackMode.enabled())
     );

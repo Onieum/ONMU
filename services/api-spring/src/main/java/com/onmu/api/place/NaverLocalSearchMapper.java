@@ -10,11 +10,14 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
 
 @Component
 public class NaverLocalSearchMapper {
+  private static final Logger LOGGER = LoggerFactory.getLogger(NaverLocalSearchMapper.class);
   private static final Pattern TAG_PATTERN = Pattern.compile("<[^>]+>");
   private static final double NAVER_COORDINATE_SCALE = 10_000_000.0;
   private static final double KOREA_MIN_LONGITUDE = 124.0;
@@ -32,6 +35,7 @@ public class NaverLocalSearchMapper {
     try {
       JsonNode items = objectMapper.readTree(json).path("items");
       if (!items.isArray()) {
+        LOGGER.warn("Naver local search response did not include an items array");
         return List.of();
       }
       List<PlaceSearchResult> results = new ArrayList<>();
@@ -58,8 +62,14 @@ public class NaverLocalSearchMapper {
           fetchedAt
         ));
       }
+      if (results.isEmpty() && !items.isEmpty()) {
+        LOGGER.warn("Naver local search mapped zero usable results: item_count={}", items.size());
+      } else {
+        LOGGER.info("Naver local search mapped results: item_count={}, result_count={}", items.size(), results.size());
+      }
       return results;
     } catch (Exception exception) {
+      LOGGER.warn("Naver local search response could not be parsed: error_type={}", exception.getClass().getSimpleName());
       return List.of();
     }
   }

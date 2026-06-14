@@ -77,6 +77,47 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
   });
+
+  testWidgets('keeps nonblank native fallback for PMTiles manifest', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tileManifestRepositoryProvider.overrideWithValue(
+            const _ReadyTileManifestRepository(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: SizedBox(
+            width: 320,
+            height: 240,
+            child: OnmuMapView(
+              fallbackLabel: '지도 타일 fallback',
+              points: [
+                OnmuMapPoint(
+                  id: '1',
+                  label: 'PMTiles 후보',
+                  coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+                  order: 1,
+                ),
+              ],
+              routeGeometry: [
+                OnmuLatLng(lat: 37.5665, lng: 126.978),
+                OnmuLatLng(lat: 37.5651, lng: 126.9895),
+              ],
+              debugWebPmtilesProtocolReady: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('지도 타일 fallback'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
+  });
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {

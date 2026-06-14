@@ -2,20 +2,50 @@ package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.place.DevMockPlaceSearchProvider;
+import com.onmu.api.place.NaverLocalSearchMapper;
+import com.onmu.api.place.NaverLocalSearchProvider;
 import com.onmu.api.place.PlaceSearchCache;
+import com.onmu.api.place.PlaceSearchHttpClient;
 import com.onmu.api.place.PlaceSearchProvider;
 import com.onmu.api.place.PlaceSearchQuery;
 import com.onmu.api.place.PlaceSearchResult;
+import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.web.client.HttpClientErrorException;
 
 class PlaceSearchServiceTests {
+  private static final String SYNTHETIC_NAVER_JSON = """
+    {
+      "lastBuildDate": "Sun, 14 Jun 2026 00:00:00 +0900",
+      "total": 1,
+      "start": 1,
+      "display": 1,
+      "items": [
+        {
+          "title": "<b>ONMU Cafe</b>",
+          "link": "https://example.test/naver-place",
+          "category": "Cafe>Brunch",
+          "description": "",
+          "telephone": "",
+          "address": "Seoul Jongno-gu",
+          "roadAddress": "Seoul Road 10",
+          "mapx": "1269780000",
+          "mapy": "375665000"
+        }
+      ]
+    }
+    """;
+
   @Test
   void searchReturnsNeutralDevCandidatesWhenExternalCredentialsAreUnavailable() {
     PlaceSearchService service = new PlaceSearchService(
@@ -84,6 +114,87 @@ class PlaceSearchServiceTests {
 
     assertThat(results).singleElement()
       .satisfies(result -> assertThat(result).containsEntry("provider", "kakao"));
+  }
+
+  @Test
+  void searchKeepsNaverOnlyProviderResultsInsteadOfDevMockFallback() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울", 37.5, 127.0))),
+        new FakeProvider("kakao", true, List.of(result("kakao", "kakao-1", "카카오 후보", "서울", 37.6, 127.1)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("카페", "1", "101", null, null, null, null, List.of("naver"), false);
+
+    assertThat(results).singleElement()
+      .satisfies(result -> assertThat(result)
+        .containsEntry("provider", "naver")
+        .containsEntry("source", "naver")
+        .containsEntry("providerPlaceId", "naver-1")
+        .containsEntry("lat", 37.5)
+        .containsEntry("lng", 127.0));
+  }
+
+  @Test
+  void searchNaverOnlyThroughNaverProviderReturnsExternalResults() {
+    CapturingHttpClient httpClient = new CapturingHttpClient(SYNTHETIC_NAVER_JSON);
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(naverProvider(httpClient, naverEnvironmentWithCredentials())),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("홍대 카페", "1", "104", null, null, null, null, List.of(" NAVER ", "naver"), false);
+
+    assertThat(results).singleElement()
+      .satisfies(result -> {
+        assertThat(result)
+          .containsEntry("provider", "naver")
+          .containsEntry("source", "naver")
+          .containsEntry("name", "ONMU Cafe")
+          .containsEntry("category", "Cafe > Brunch")
+          .containsEntry("address", "Seoul Jongno-gu")
+          .containsEntry("roadAddress", "Seoul Road 10")
+          .containsEntry("sourceUrl", "https://example.test/naver-place")
+          .containsEntry("lat", 37.5665)
+          .containsEntry("lng", 126.9780);
+        assertThat(result.get("context"))
+          .isInstanceOfSatisfying(Map.class, context ->
+            assertThat(context)
+              .containsEntry("source", "external-provider")
+              .containsEntry("providers", List.of("naver")));
+      });
+    assertThat(httpClient.requestedUri).isNotNull();
+    assertThat(httpClient.requestedUri.getRawQuery())
+      .contains("query=%ED%99%8D%EB%8C%80%20%EC%B9%B4%ED%8E%98")
+      .contains("display=5")
+      .contains("start=1")
+      .contains("sort=random");
+    assertThat(httpClient.headers).containsKeys("X-Naver-Client-Id", "X-Naver-Client-Secret");
+  }
+
+  @Test
+  void searchFallsBackToDevMockWhenNaverHttpClientFails() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(naverProvider(new FailingHttpClient(), naverEnvironmentWithCredentials())),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("홍대 카페", "1", "104", null, null, null, null, List.of("naver"), false);
+
+    assertThat(results).hasSize(3);
+    assertThat(results.getFirst())
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("source", "dev-mock")
+      .containsEntry("lat", 37.5665)
+      .containsEntry("lng", 126.9780);
   }
 
   @Test
@@ -196,6 +307,32 @@ class PlaceSearchServiceTests {
     assertThat(externalOnlyResults).isEmpty();
     assertThat(fallbackResults).hasSize(3);
     assertThat(fallbackResults.getFirst()).containsEntry("provider", "dev-mock");
+    assertThat(cache.keys()).hasSize(1);
+  }
+
+  @Test
+  void cachedDevMockFromUnavailableProviderDoesNotMaskRecoveredProvider() {
+    MutableProvider naver = new MutableProvider("naver", false, List.of());
+    MemoryCache cache = new MemoryCache();
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(naver),
+      new DevMockPlaceSearchProvider(),
+      cache,
+      localEnvironment()
+    );
+
+    var fallbackResults = service.search("홍대 카페", "1", "104");
+    naver.available = true;
+    naver.results = List.of(result("naver", "naver-1", "네이버 후보", "서울", 37.5, 127.0));
+    var recoveredResults = service.search("홍대 카페", "1", "104");
+
+    assertThat(fallbackResults.getFirst()).containsEntry("provider", "dev-mock");
+    assertThat(recoveredResults).singleElement()
+      .satisfies(result -> assertThat(result)
+        .containsEntry("provider", "naver")
+        .containsEntry("source", "naver")
+        .containsEntry("lat", 37.5)
+        .containsEntry("lng", 127.0));
     assertThat(cache.keys()).hasSize(2);
   }
 
@@ -222,6 +359,21 @@ class PlaceSearchServiceTests {
     return environment;
   }
 
+  private static MockEnvironment naverEnvironmentWithCredentials() {
+    return new MockEnvironment()
+      .withProperty("NAVER_SEARCH_CLIENT_ID", " synthetic-client-id ")
+      .withProperty("NAVER_SEARCH_CLIENT_SECRET", " synthetic-client-secret ");
+  }
+
+  private static NaverLocalSearchProvider naverProvider(PlaceSearchHttpClient httpClient, MockEnvironment environment) {
+    return new NaverLocalSearchProvider(
+      environment,
+      httpClient,
+      new NaverLocalSearchMapper(new ObjectMapper()),
+      "https://openapi.naver.com/v1/search/local.json"
+    );
+  }
+
   private record FakeProvider(String provider, boolean available, List<PlaceSearchResult> results) implements PlaceSearchProvider {
     @Override
     public boolean isAvailable() {
@@ -243,6 +395,33 @@ class PlaceSearchServiceTests {
     @Override
     public List<PlaceSearchResult> search(PlaceSearchQuery query) {
       throw new IllegalStateException("Forbidden");
+    }
+  }
+
+  private static class MutableProvider implements PlaceSearchProvider {
+    private final String provider;
+    private boolean available;
+    private List<PlaceSearchResult> results;
+
+    private MutableProvider(String provider, boolean available, List<PlaceSearchResult> results) {
+      this.provider = provider;
+      this.available = available;
+      this.results = results;
+    }
+
+    @Override
+    public String provider() {
+      return provider;
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      return results;
     }
   }
 
@@ -272,6 +451,30 @@ class PlaceSearchServiceTests {
 
     List<String> keys() {
       return values.keySet().stream().toList();
+    }
+  }
+
+  private static class CapturingHttpClient implements PlaceSearchHttpClient {
+    private final String response;
+    private URI requestedUri;
+    private Map<String, String> headers = Map.of();
+
+    private CapturingHttpClient(String response) {
+      this.response = response;
+    }
+
+    @Override
+    public String get(URI uri, Map<String, String> headers) {
+      this.requestedUri = uri;
+      this.headers = new LinkedHashMap<>(headers);
+      return response;
+    }
+  }
+
+  private static class FailingHttpClient implements PlaceSearchHttpClient {
+    @Override
+    public String get(URI uri, Map<String, String> headers) {
+      throw new HttpClientErrorException(HttpStatus.UNAUTHORIZED);
     }
   }
 }

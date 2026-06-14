@@ -934,7 +934,7 @@ void main() {
     expect(find.text('장소 검색하기'), findsOneWidget);
   });
 
-  testWidgets('place map comparison card shows signals and opens itinerary', (
+  testWidgets('place map hides comparison source and score labels', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -950,34 +950,28 @@ void main() {
             widget is Scrollable && widget.axisDirection == AxisDirection.down,
       ),
     );
-    final signalGrid = find.byKey(
-      const ValueKey('place-comparison-signal-grid'),
+    final candidateAction = find.byKey(
+      const ValueKey('place-action-201-candidate'),
     );
     await tester.scrollUntilVisible(
-      signalGrid,
+      candidateAction,
       300,
       scrollable: sheetScrollable,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('선택한 3곳 비교'), findsOneWidget);
-    expect(find.text('거리'), findsOneWidget);
-    expect(find.text('분위기'), findsOneWidget);
-    expect(find.text('영업'), findsOneWidget);
-    expect(find.text('도보 7분'), findsWidgets);
-    expect(find.text('조용한'), findsWidgets);
-
-    final routeAction = find.text('이 장소들로 동선 추천 받기');
-    await tester.scrollUntilVisible(
-      routeAction,
-      300,
-      scrollable: sheetScrollable,
+    expect(
+      find.byKey(const ValueKey('place-comparison-signal-grid')),
+      findsNothing,
     );
-    await tester.pumpAndSettle();
-    await tester.tap(routeAction);
-    await tester.pumpAndSettle();
-
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.textContaining('비교'), findsNothing);
+    expect(find.textContaining('추천 받기'), findsNothing);
+    expect(find.textContaining('Kakao'), findsNothing);
+    expect(find.textContaining('Naver'), findsNothing);
+    expect(find.text('Provider'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
+    expect(find.text('후보에 추가'), findsWidgets);
+    expect(find.text('일정에 추가'), findsWidgets);
   });
 
   testWidgets(
@@ -1012,17 +1006,6 @@ void main() {
       expect(find.text('리뷰 키워드'), findsOneWidget);
       expect(find.text('참여자 선호'), findsOneWidget);
       expect(find.byKey(const ValueKey('focused-place-pin-1')), findsOneWidget);
-
-      await tester.drag(
-        find.byKey(const ValueKey('place-map-bottom-sheet')),
-        const Offset(0, -500),
-      );
-      await tester.pumpAndSettle();
-
-      final sheetRect = tester.getRect(
-        find.byKey(const ValueKey('place-map-bottom-sheet')),
-      );
-      expect(sheetRect.top, lessThan(90));
     },
   );
 

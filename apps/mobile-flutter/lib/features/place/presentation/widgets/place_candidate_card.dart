@@ -6,7 +6,6 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_decorations.dart';
 
 class PlaceCandidateCard extends StatelessWidget {
   const PlaceCandidateCard({
@@ -130,22 +129,6 @@ class MemberPreferenceList extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class ExternalSourceBadge extends StatelessWidget {
-  const ExternalSourceBadge({required this.label, super.key});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuStickerLabel(
-      label: label,
-      icon: Icons.sync,
-      backgroundColor: AppColors.bgPaper,
-      borderColor: AppColors.lineWarm,
     );
   }
 }
