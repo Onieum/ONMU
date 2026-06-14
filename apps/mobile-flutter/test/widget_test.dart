@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onmu_mobile/main.dart' as app;
 import 'package:flutter/material.dart';
@@ -259,6 +261,138 @@ void main() {
 
     expect(find.text('나'), findsOneWidget);
     expect(find.text('온이음'), findsNothing);
+  });
+
+  testWidgets('my page profile editor saves display name through repository', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final repository = TestMyRepository();
+
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        myRepository: repository,
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '프로필 수정'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '수정된 나');
+    await tester.ensureVisible(find.text('저장하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장하기'));
+    await tester.pumpAndSettle();
+
+    expect(repository.updateProfileCallCount, 1);
+    expect(repository.lastUpdatedProfile?.realName, '수정된 나');
+    expect(find.text('수정된 나'), findsOneWidget);
+    expect(find.text('저장하기'), findsNothing);
+  });
+
+  testWidgets('my page profile editor stays open when save fails', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final repository = TestMyRepository(failUpdates: true);
+
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        myRepository: repository,
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '프로필 수정'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '저장 실패');
+    await tester.ensureVisible(find.text('저장하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장하기'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repository.updateProfileCallCount, 1);
+    expect(repository.lastUpdatedProfile?.realName, '저장 실패');
+    expect(find.text('프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요.'), findsOneWidget);
+    expect(find.text('저장하기'), findsOneWidget);
+  });
+
+  testWidgets('my page profile editor blocks top-bar back while saving', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final saveGate = Completer<void>();
+    final repository = TestMyRepository(
+      failUpdates: true,
+      updateProfileGate: saveGate,
+    );
+
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        myRepository: repository,
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '프로필 수정'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '저장 대기');
+    await tester.ensureVisible(find.text('저장하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장하기'));
+    await tester.pump();
+
+    expect(repository.updateProfileCallCount, 1);
+    expect(find.text('저장 중'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded).last);
+    await tester.pump();
+
+    expect(find.text('프로필 수정'), findsOneWidget);
+    expect(find.text('저장 중'), findsOneWidget);
+
+    saveGate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요.'), findsOneWidget);
+    expect(find.text('저장하기'), findsOneWidget);
   });
 
   testWidgets('upcoming plan see all opens the full upcoming list', (

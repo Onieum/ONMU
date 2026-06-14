@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
@@ -47,7 +49,11 @@ ProviderContainer createOnmuTestContainer() {
   );
 }
 
-ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
+ProviderScope onmuTestProviderScope({
+  required Widget child,
+  AuthUser? user,
+  MyRepository? myRepository,
+}) {
   final store = InMemoryOnmuStore.seeded();
   return ProviderScope(
     overrides: [
@@ -63,7 +69,9 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
       ),
-      myRepositoryProvider.overrideWithValue(TestMyRepository()),
+      myRepositoryProvider.overrideWithValue(
+        myRepository ?? TestMyRepository(),
+      ),
       characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
     ],
     child: child,
@@ -71,7 +79,13 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
 }
 
 class TestMyRepository implements MyRepository {
-  MyProfile _profile = const MyProfile(
+  TestMyRepository({
+    MyProfile? profile,
+    this.failUpdates = false,
+    this.updateProfileGate,
+  }) : _profile = profile ?? _defaultProfile;
+
+  static const _defaultProfile = MyProfile(
     realName: 'ONMU User',
     visibility: ProfileVisibility.friends,
     favoriteKeywords: [],
@@ -83,7 +97,13 @@ class TestMyRepository implements MyRepository {
     wantToGoPlaces: [],
     dislikedPlaces: [],
   );
+
+  MyProfile _profile;
+  final bool failUpdates;
+  final Completer<void>? updateProfileGate;
   String? lastOnboardingStatus;
+  MyProfile? lastUpdatedProfile;
+  var updateProfileCallCount = 0;
 
   @override
   Future<MyProfile> fetchMyProfile() async => _profile;
@@ -93,8 +113,14 @@ class TestMyRepository implements MyRepository {
     MyProfile profile, {
     String? onboardingStatus,
   }) async {
-    _profile = profile;
+    updateProfileCallCount += 1;
+    lastUpdatedProfile = profile;
     lastOnboardingStatus = onboardingStatus;
+    await updateProfileGate?.future;
+    if (failUpdates) {
+      throw StateError('profile update failed');
+    }
+    _profile = profile;
     return _profile;
   }
 
