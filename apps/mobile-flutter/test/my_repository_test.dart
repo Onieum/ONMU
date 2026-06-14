@@ -16,6 +16,7 @@ void main() {
             expect(options.path, '/api/v1/users/me');
             expect(options.data, {
               'displayName': 'Shinseok',
+              'onboardingStatus': 'COMPLETED',
               'preferenceProfile': {
                 'favoriteKeywords': ['quiet'],
                 'introText': 'hello',
@@ -82,6 +83,7 @@ void main() {
           planStyles: ['planned'],
           preferredWeekdays: ['friday'],
         ),
+        onboardingStatus: 'COMPLETED',
       );
 
       expect(updated.realName, 'Shinseok');
@@ -89,4 +91,34 @@ void main() {
       expect(updated.preferredWeekdays, ['friday']);
     },
   );
+
+  test('updates onboarding status through users me API', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.method, 'PATCH');
+          expect(options.path, '/api/v1/users/me');
+          expect(options.data, {'onboardingStatus': 'PREFERENCE_READY'});
+
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'displayName': 'Shinseok',
+                'onboardingStatus': 'PREFERENCE_READY',
+                'preferenceProfile': {'introText': 'hello', 'region': 'Seoul'},
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiMyRepository(OnmuApiClient(dio));
+
+    final updated = await repository.updateOnboardingStatus('PREFERENCE_READY');
+
+    expect(updated.realName, 'Shinseok');
+    expect(updated.introText, 'hello');
+  });
 }
