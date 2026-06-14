@@ -33,6 +33,53 @@ jobs:
     runs-on: [self-hosted, Windows, onmu-dev-backend]
     timeout-minutes: 20
     steps:
+      - name: Stop previous workspace Spring backend before checkout
+        shell: powershell
+        run: |
+          $workspace = $env:GITHUB_WORKSPACE
+          if ([string]::IsNullOrWhiteSpace($workspace)) {
+            Write-Host "GITHUB_WORKSPACE is empty; skipping pre-checkout backend cleanup."
+            return
+          }
+
+          $resolvedWorkspace = [System.IO.Path]::GetFullPath($workspace)
+          $candidatePids = [System.Collections.Generic.HashSet[int]]::new()
+          $pidFile = Join-Path $resolvedWorkspace "logs\dev-backend-api.pid"
+
+          if (Test-Path -LiteralPath $pidFile) {
+            $rawPid = (Get-Content -LiteralPath $pidFile -Raw).Trim()
+            [int]$parsedPid = 0
+            if ([int]::TryParse($rawPid, [ref]$parsedPid)) {
+              [void]$candidatePids.Add($parsedPid)
+            }
+          }
+
+          $workspaceJavaProcesses = Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.CommandLine -and
+              $_.CommandLine.IndexOf($resolvedWorkspace, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            }
+
+          foreach ($javaProcess in $workspaceJavaProcesses) {
+            [void]$candidatePids.Add([int]$javaProcess.ProcessId)
+          }
+
+          if ($candidatePids.Count -eq 0) {
+            Write-Host "No previous workspace Spring backend process detected."
+            return
+          }
+
+          foreach ($candidatePid in $candidatePids) {
+            $process = Get-Process -Id $candidatePid -ErrorAction SilentlyContinue
+            if (-not $process) {
+              continue
+            }
+
+            Write-Host "Stopping previous workspace Spring backend PID=$candidatePid before checkout."
+            Stop-Process -Id $candidatePid -Force
+            Wait-Process -Id $candidatePid -Timeout 15 -ErrorAction SilentlyContinue
+          }
+
       - name: Checkout dev branch
         uses: actions/checkout@v6
         with:

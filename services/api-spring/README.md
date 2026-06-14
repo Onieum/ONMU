@@ -155,6 +155,8 @@ Core API:
 - `PUT /api/v1/notifications/read-all`
 - `GET /api/v1/notification-preferences`
 - `PUT /api/v1/notification-preferences`
+- `POST /api/v1/devices/push-token`
+- `DELETE /api/v1/devices/push-token`
 
 Auth scaffold:
 
@@ -207,7 +209,7 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `chat.message`
 
 `chat.message`는 SCRUM-50의 in-process SSE fan-out과 SCRUM-51의 이미지 첨부 metadata를 함께 담아 future Realtime Gateway, Notification Worker, Media Worker hook 용도로 기록합니다.
-아직 외부 queue publisher/consumer가 없으므로 외부 worker 대상이 없는 이벤트 status는 `no_consumer`로 저장합니다. `notification.requested`는 Spring runtime 안에서 dev-safe delivery abstraction으로 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남깁니다. 모바일 앱 bundle에는 push token, provider secret, JWT signing secret을 넣지 않습니다. 실제 push provider 연결은 별도 보안/인프라 검증 후 진행합니다.
+아직 외부 queue publisher/consumer가 없으므로 외부 worker 대상이 없는 이벤트 status는 `no_consumer`로 저장합니다. `notification.requested`는 Spring runtime 안에서 dev-safe delivery abstraction으로 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남깁니다. Push token 등록/비활성화는 `user_devices`에 저장하지만 응답에는 `tokenLast4`만 반환하고 token 원문은 반환하지 않습니다. 모바일 앱 bundle에는 provider secret, JWT signing secret을 넣지 않습니다. 실제 push provider 연결은 별도 보안/인프라 검증 후 진행합니다.
 
 ## Flutter API Mode
 
@@ -321,6 +323,8 @@ curl.exe -X PUT http://localhost:8080/api/v1/notifications/00000000-0000-0000-00
 curl.exe -X PUT http://localhost:8080/api/v1/notifications/read-all
 curl http://localhost:8080/api/v1/notification-preferences
 curl.exe -X PUT http://localhost:8080/api/v1/notification-preferences -H "Content-Type: application/json" --data-binary '{ "preferences": [{ "notificationType": "chat_message", "channel": "in_app", "enabled": true }] }'
+curl.exe -X POST http://localhost:8080/api/v1/devices/push-token -H "Content-Type: application/json" --data-binary '{ "provider": "dev", "token": "synthetic-dev-push-token", "platform": "android" }'
+curl.exe -X DELETE http://localhost:8080/api/v1/devices/push-token -H "Content-Type: application/json" --data-binary '{ "provider": "dev", "token": "synthetic-dev-push-token", "platform": "android" }'
 ```
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.

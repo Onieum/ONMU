@@ -527,6 +527,8 @@ Cloudflare Tunnel은 배포 스크립트가 새로 실행하지 않습니다. `d
 
 배포 스크립트는 runtime 시작 직후 공개 smoke를 바로 실행하지 않고, 먼저 local `http://127.0.0.1:8080/healthz`가 성공할 때까지 재시도합니다. 기본 timeout은 60초, retry interval은 2초입니다. Spring runtime에서는 `ONMU_ACCESS_LOG_PATH`를 repo 루트의 `logs/api-access.log`로 주입합니다. 실패하면 stdout/stderr 로그 위치만 안내하고 secret/env 값은 출력하지 않습니다.
 
+GitHub Actions self-hosted runner에서 실행될 때는 Spring backend 프로세스가 Actions job cleanup 대상이 되지 않아야 합니다. `deploy-dev-backend.ps1`는 backend child process를 시작하는 순간에만 `RUNNER_TRACKING_ID` 상속을 끊고, 시작 직후 원래 환경변수를 복원합니다. 이렇게 해야 CD job이 성공적으로 끝난 뒤에도 `127.0.0.1:8080` listener가 유지되고 `dev-api.onmu.cloud` tunnel이 502로 떨어지지 않습니다. 다음 workflow run의 `actions/checkout`이 이전 run에서 살아남은 Spring 로그/JAR 파일 잠금 때문에 실패하지 않도록, workflow는 checkout 전에 현재 `GITHUB_WORKSPACE` 경로를 잡고 있는 이전 Spring PID를 먼저 중지합니다.
+
 주의: `deploy-dev-backend.ps1`는 배포용 스크립트라 실행 중 `git switch dev`, `git pull --ff-only origin dev`를 수행합니다. 기능 브랜치에서 검증할 때는 실제 공용 Windows backend-host 변경 대신 dry-run이나 로컬 수동 Spring smoke를 우선합니다.
 
 CD smoke test:
