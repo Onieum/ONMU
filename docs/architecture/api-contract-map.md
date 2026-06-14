@@ -28,6 +28,10 @@
 | refresh | `POST /api/v1/auth/refresh` |
 | logout | `DELETE /api/v1/auth/session` |
 | 내 정보 | `GET /api/v1/users/me` |
+| Push token 등록 | `POST /api/v1/devices/push-token` |
+| Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
+
+Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
 ## Friends
 
@@ -55,7 +59,7 @@
 | 알림 설정 | `GET/PUT /api/v1/notification-preferences` | `NotificationPreferences` |
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
 
-알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다.
+알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다. Push token 등록/비활성화는 `user_devices`에 연결되지만, 실제 provider delivery는 feature flag와 secret 검증 전까지 켜지 않는다.
 
 ## Groups
 
@@ -247,4 +251,4 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `notification.requested` | 알림 발송 요청 |
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
-Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
+Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. `user_devices`는 push token 등록 readiness를 제공하지만 provider delivery secret과 production 발송은 아직 연결하지 않는다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.

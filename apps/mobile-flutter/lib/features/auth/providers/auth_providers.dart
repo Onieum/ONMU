@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../notifications/repository/device_push_token_repository.dart';
 import '../data/auth_token_store.dart';
 import '../data/social_auth_service.dart';
 import '../domain/auth_session.dart';
@@ -34,6 +35,11 @@ final authBootstrapProvider = FutureProvider<AuthBootstrapResult>((ref) async {
     ref.read(onmuApiClientProvider).clearAccessToken();
   }
   ref.read(authUserProvider.notifier).state = user;
+  if (user != null) {
+    await ref
+        .read(pushTokenRegistrationCoordinatorProvider)
+        .registerCurrentDevice();
+  }
   return AuthBootstrapResult(user: user);
 });
 
@@ -119,6 +125,9 @@ class AuthActionController {
   }
 
   Future<void> signOut() async {
+    await _ref
+        .read(pushTokenRegistrationCoordinatorProvider)
+        .deactivateCurrentDevice();
     await _ref.read(socialAuthServiceProvider).signOut();
     await _ref.read(authTokenStoreProvider).clear();
     _ref.read(onmuApiClientProvider).clearAccessToken();
@@ -136,5 +145,8 @@ class AuthActionController {
     await _ref.read(authTokenStoreProvider).save(session.tokens);
     _ref.read(onmuApiClientProvider).setAccessToken(session.tokens.accessToken);
     _ref.read(authUserProvider.notifier).state = session.user;
+    await _ref
+        .read(pushTokenRegistrationCoordinatorProvider)
+        .registerCurrentDevice();
   }
 }
