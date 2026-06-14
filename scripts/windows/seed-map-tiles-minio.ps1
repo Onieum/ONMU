@@ -284,7 +284,7 @@ function New-MapLibreStyle {
         minzoom = 5
         layout = [ordered]@{
           "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Noto Sans Regular")
+          "text-font" = @("Open Sans Regular")
           "text-size" = @("interpolate", @("linear"), @("zoom"), 5, 10, 12, 14)
         }
         paint = [ordered]@{

@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -11,6 +10,17 @@ import '../../../core/theme/app_spacing.dart';
 import '../model/map_models.dart';
 import '../repository/tile_manifest_repository.dart';
 import '../web/onmu_map_web_bootstrap.dart';
+
+@visibleForTesting
+bool shouldUseOnmuMapLibre({
+  required TileManifest? manifest,
+  required bool platformViewAvailable,
+  required bool pmtilesProtocolReady,
+}) {
+  return platformViewAvailable &&
+      (manifest?.styleUrl.trim().isNotEmpty ?? false) &&
+      pmtilesProtocolReady;
+}
 
 class OnmuMapView extends ConsumerWidget {
   const OnmuMapView({
@@ -46,14 +56,11 @@ class OnmuMapView extends ConsumerWidget {
     final styleUrl = manifest?.styleUrl ?? '';
     final webBootstrapReady =
         debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
-    final nativePmtilesSource =
-        !kIsWeb &&
-        (manifest?.currentPmtilesUrl.startsWith('pmtiles://') ?? false);
-    final useMapLibre =
-        _canUseMapLibre &&
-        styleUrl.isNotEmpty &&
-        webBootstrapReady &&
-        !nativePmtilesSource;
+    final useMapLibre = shouldUseOnmuMapLibre(
+      manifest: manifest,
+      platformViewAvailable: _canUseMapLibre,
+      pmtilesProtocolReady: webBootstrapReady,
+    );
     final effectiveFallbackLabel = styleUrl.isNotEmpty && !webBootstrapReady
         ? '지도 스크립트를 준비하는 중입니다.'
         : fallbackLabel;
