@@ -72,6 +72,9 @@ class ApiMyRepository implements MyRepository {
       ),
       region: regionSelection.displayName,
       regionSelection: regionSelection,
+      regionVisibility: RegionVisibility.fromJson(
+        preference['regionVisibility'],
+      ),
       visibility: ProfileVisibility.friends,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
@@ -95,6 +98,7 @@ class ApiMyRepository implements MyRepository {
       'favoriteKeywords': profile.favoriteKeywords,
       'introText': profile.introText,
       'region': profile.effectiveRegionSelection.toJson(),
+      'regionVisibility': profile.regionVisibility.value,
       'dislikedKeywords': profile.dislikedKeywords,
       'preferredTimes': profile.preferredTimes,
       'availableDays': profile.availableDays,

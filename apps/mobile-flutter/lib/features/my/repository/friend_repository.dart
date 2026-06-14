@@ -134,6 +134,9 @@ class ApiFriendRepository implements FriendRepository {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final displayName = OnmuJson.readString(json, 'displayName', friend.name);
     final regionValue = preference['region'];
+    final regionVisibility = RegionVisibility.fromJson(
+      preference['regionVisibility'],
+    );
     return MyProfile(
       realName: displayName.isEmpty ? friend.name : displayName,
       introText: OnmuJson.readString(
@@ -141,9 +144,10 @@ class ApiFriendRepository implements FriendRepository {
         'introText',
         '기록하고, 만나고, 추억해요  ♥',
       ),
-      region: regionValue == null
+      region: !regionVisibility.isPublic || regionValue == null
           ? ''
           : KoreaRegionSelection.fromJson(regionValue).displayName,
+      regionVisibility: regionVisibility,
       visibility: ProfileVisibility.friends,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),

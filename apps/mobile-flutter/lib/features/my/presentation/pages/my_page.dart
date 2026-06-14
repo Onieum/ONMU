@@ -155,6 +155,7 @@ class _MyPageState extends ConsumerState<MyPage> {
       introText: result.introText,
       region: result.region,
       regionSelection: result.regionSelection,
+      regionVisibility: result.regionVisibility,
       visibility: result.visibility,
       favoriteKeywords: result.favoriteKeywords,
     );
@@ -2821,6 +2822,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
   late final TextEditingController _regionController;
   late final TextEditingController _interestController;
   late ProfileVisibility _visibility;
+  late RegionVisibility _regionVisibility;
   late List<String> _interests;
 
   @override
@@ -2833,6 +2835,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     );
     _interestController = TextEditingController();
     _visibility = widget.profile.visibility;
+    _regionVisibility = widget.profile.regionVisibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
   }
 
@@ -2949,8 +2952,20 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
                       const SizedBox(height: 14),
                       _EditFieldCard(
                         icon: Icons.location_on_outlined,
-                        label: '지역',
-                        child: _RegionSelector(controller: _regionController),
+                        label: '현재 거주지역',
+                        subLabel: '지역 설정하기',
+                        child: Column(
+                          children: [
+                            _RegionSelector(controller: _regionController),
+                            const SizedBox(height: 12),
+                            _RegionVisibilitySelector(
+                              value: _regionVisibility,
+                              onChanged: (value) {
+                                setState(() => _regionVisibility = value);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 14),
                       _EditFieldCard(
@@ -3080,6 +3095,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
               ? widget.profile.region
               : _regionController.text.trim(),
         ),
+        regionVisibility: _regionVisibility,
         visibility: _visibility,
         favoriteKeywords: _interests,
       ),
@@ -3844,6 +3860,58 @@ class _RegionSelectorState extends State<_RegionSelector> {
   }
 }
 
+class _RegionVisibilitySelector extends StatelessWidget {
+  const _RegionVisibilitySelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final RegionVisibility value;
+  final ValueChanged<RegionVisibility> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          value.isPublic ? Icons.visibility_outlined : Icons.lock_outline,
+          color: AppColors.textSub,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            '공개 범위',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: AppColors.textMain,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        SegmentedButton<RegionVisibility>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            selectedBackgroundColor: AppColors.primaryPinkSoft,
+            selectedForegroundColor: AppColors.primaryPurple,
+            foregroundColor: AppColors.textSub,
+            side: const BorderSide(color: AppColors.lineSoft),
+            textStyle: AppTextStyles.labelMedium.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          segments: const [
+            ButtonSegment(value: RegionVisibility.private, label: Text('비공개')),
+            ButtonSegment(value: RegionVisibility.public, label: Text('공개')),
+          ],
+          selected: {value},
+          onSelectionChanged: (selection) => onChanged(selection.first),
+        ),
+      ],
+    );
+  }
+}
+
 class _RemovableInterestChip extends StatelessWidget {
   const _RemovableInterestChip({required this.label, required this.onRemove});
 
@@ -4397,6 +4465,7 @@ class _ProfileEditResult {
     required this.introText,
     required this.region,
     required this.regionSelection,
+    required this.regionVisibility,
     required this.visibility,
     required this.favoriteKeywords,
   });
@@ -4405,6 +4474,7 @@ class _ProfileEditResult {
   final String introText;
   final String region;
   final KoreaRegionSelection regionSelection;
+  final RegionVisibility regionVisibility;
   final ProfileVisibility visibility;
   final List<String> favoriteKeywords;
 }

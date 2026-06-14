@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
+import 'package:onmu_mobile/features/my/domain/korea_region.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/repository/my_repository.dart';
 
@@ -26,6 +27,7 @@ void main() {
                   'sigungu': '성동구',
                   'displayName': '서울 성동구',
                 },
+                'regionVisibility': 'PUBLIC',
                 'dislikedKeywords': ['crowded'],
                 'preferredTimes': ['evening'],
                 'availableDays': ['friday'],
@@ -53,6 +55,7 @@ void main() {
                       'sigungu': '성동구',
                       'displayName': '서울 성동구',
                     },
+                    'regionVisibility': 'PUBLIC',
                     'dislikedKeywords': ['crowded'],
                     'preferredTimes': ['evening'],
                     'availableDays': ['friday'],
@@ -77,6 +80,7 @@ void main() {
           realName: 'Shinseok',
           introText: 'hello',
           region: '서울 성동구',
+          regionVisibility: RegionVisibility.public,
           visibility: ProfileVisibility.friends,
           favoriteKeywords: ['quiet'],
           dislikedKeywords: ['crowded'],
@@ -98,6 +102,7 @@ void main() {
 
       expect(updated.realName, 'Shinseok');
       expect(updated.region, '서울 성동구');
+      expect(updated.regionVisibility, RegionVisibility.public);
       expect(updated.favoriteFoodTags, ['pasta']);
       expect(updated.preferredWeekdays, ['friday']);
     },
@@ -162,6 +167,7 @@ void main() {
     expect(profile.region, '부산 해운대구');
     expect(profile.effectiveRegionSelection.sido, '부산');
     expect(profile.effectiveRegionSelection.sigungu, '해운대구');
+    expect(profile.regionVisibility, RegionVisibility.private);
   });
 
   test('preserves legacy string region outside current option list', () async {
@@ -218,6 +224,7 @@ void main() {
                     'sigungu': '연수구',
                     'displayName': '인천 연수구',
                   },
+                  'regionVisibility': 'PUBLIC',
                 },
               },
             ),
@@ -236,5 +243,6 @@ void main() {
       'sigungu': '연수구',
       'displayName': '인천 연수구',
     });
+    expect(profile.regionVisibility, RegionVisibility.public);
   });
 }
