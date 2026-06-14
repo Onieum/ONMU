@@ -89,6 +89,26 @@ function Write-DeployLog {
   }
 }
 
+function Start-BackendProcessOutsideActionsCleanup {
+  param([scriptblock]$StartProcess)
+
+  $runnerTrackingIdWasPresent = Test-Path Env:\RUNNER_TRACKING_ID
+  $runnerTrackingId = $env:RUNNER_TRACKING_ID
+
+  if ($runnerTrackingIdWasPresent) {
+    Write-DeployLog "Temporarily removing RUNNER_TRACKING_ID before starting backend process so GitHub Actions does not stop it after the job."
+    Remove-Item Env:\RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+  }
+
+  try {
+    & $StartProcess
+  } finally {
+    if ($runnerTrackingIdWasPresent) {
+      Set-Item -Path Env:\RUNNER_TRACKING_ID -Value $runnerTrackingId
+    }
+  }
+}
+
 function Resolve-BackendRuntime {
   if ($RuntimeWasProvided -and $Runtime) {
     $candidate = $Runtime
@@ -534,6 +554,7 @@ function Start-SpringBackend {
       Write-DeployLog "[dry-run] services/api-spring/mvnw.cmd -DskipTests clean package"
       Write-DeployLog "[dry-run] java -jar services/api-spring/target/onmu-api-spring-*.jar"
     }
+    Write-DeployLog "[dry-run] Backend process will not inherit GitHub Actions RUNNER_TRACKING_ID when present."
     Write-DeployLog "[dry-run] Write PID to $PidFile"
     Wait-BackendHealthz -ProcessId 0 -RuntimeName "Spring Boot Main API"
     return
@@ -555,14 +576,16 @@ function Start-SpringBackend {
   if ($Environment -eq "integration") {
     Clear-SpringGeneratedMigrationClasses
     Write-DeployLog "Starting integration Spring Boot Main API with Maven spring-boot:run on ${ApiHost}:${ApiPort}."
-    $process = Start-Process `
-      -FilePath $mavenWrapper `
-      -ArgumentList @("-DskipTests", "spring-boot:run") `
-      -WorkingDirectory $SpringDir `
-      -RedirectStandardOutput $StdoutLogFile `
-      -RedirectStandardError $StderrLogFile `
-      -PassThru `
-      -WindowStyle Hidden
+    $process = Start-BackendProcessOutsideActionsCleanup {
+      Start-Process `
+        -FilePath $mavenWrapper `
+        -ArgumentList @("-DskipTests", "spring-boot:run") `
+        -WorkingDirectory $SpringDir `
+        -RedirectStandardOutput $StdoutLogFile `
+        -RedirectStandardError $StderrLogFile `
+        -PassThru `
+        -WindowStyle Hidden
+    }
 
     Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
     Write-DeployLog "Integration Spring Boot Main API started via Maven. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
@@ -588,14 +611,16 @@ function Start-SpringBackend {
   }
 
   Write-DeployLog "Starting Spring Boot Main API on ${ApiHost}:${ApiPort}."
-  $process = Start-Process `
-    -FilePath "java" `
-    -ArgumentList @("-jar", $jar.FullName) `
-    -WorkingDirectory $SpringDir `
-    -RedirectStandardOutput $StdoutLogFile `
-    -RedirectStandardError $StderrLogFile `
-    -PassThru `
-    -WindowStyle Hidden
+  $process = Start-BackendProcessOutsideActionsCleanup {
+    Start-Process `
+      -FilePath "java" `
+      -ArgumentList @("-jar", $jar.FullName) `
+      -WorkingDirectory $SpringDir `
+      -RedirectStandardOutput $StdoutLogFile `
+      -RedirectStandardError $StderrLogFile `
+      -PassThru `
+      -WindowStyle Hidden
+  }
 
   Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
   Write-DeployLog "Spring Boot Main API started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
