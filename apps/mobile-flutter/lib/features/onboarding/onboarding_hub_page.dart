@@ -5,24 +5,31 @@ import 'package:go_router/go_router.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_radius.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/my/repository/my_repository.dart';
 import '../../shared/onmu_design.dart';
 import '../../shared/providers/state_providers.dart';
 import '../../shared/widgets/grid_background.dart';
+import 'onboarding_status.dart';
 
-class OnboardingHubPage extends ConsumerWidget {
+class OnboardingHubPage extends ConsumerStatefulWidget {
   const OnboardingHubPage({super.key});
 
   static const _selectScreenAsset = 'assets/images/splash/Select_Screen.png';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OnboardingHubPage> createState() => _OnboardingHubPageState();
+}
+
+class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
+  var _isSavingHomeStatus = false;
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authUserProvider);
     final hasCharacter = ref.watch(userCharacterProvider) != null;
     final hasPreference = ref.watch(preferenceProfileProvider) != null;
     final skippedCharacter = ref.watch(skippedCharacterProvider);
     final skippedPreference = ref.watch(skippedPreferenceProvider);
-    final characterReady = hasCharacter || skippedCharacter;
-    final preferenceReady = hasPreference || skippedPreference;
     final rawDisplayName = user?.displayName.trim();
     final displayName = rawDisplayName != null && rawDisplayName.isNotEmpty
         ? rawDisplayName
@@ -36,109 +43,148 @@ class OnboardingHubPage extends ConsumerWidget {
             builder: (context, constraints) {
               final layout = _OnboardingLayout.from(constraints);
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                layout.compact ? 24 : 42,
-                24,
-                28,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - (layout.compact ? 52 : 70),
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  layout.compact ? 24 : 42,
+                  24,
+                  28,
                 ),
-                child: Center(
-                  child: SizedBox(
-                    width: layout.contentWidth,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _OnboardingTitle(
-                          displayName: displayName,
-                          compact: layout.compact,
-                        ),
-                        SizedBox(height: layout.compact ? 20 : 28),
-                        Text(
-                          '캐릭터와 취향은 지금 설정해도 좋고,\n나중에 천천히 채워도 괜찮아요.',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: const Color(0xFF8A6F63),
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: layout.compact ? 17 : 25),
-                        Image.asset(
-                          _selectScreenAsset,
-                          width: layout.imageWidth,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.none,
-                        ),
-                        SizedBox(height: layout.compact ? 10 : 14),
-                        _OnboardingTaskCard(
-                          compact: layout.compact,
-                          title: '캐릭터 만들기',
-                          description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
-                          icon: Icons.face_retouching_natural_outlined,
-                          state: _TaskState.from(
-                            hasCharacter,
-                            skippedCharacter,
-                          ),
-                          primaryLabel: _taskButtonLabel(
-                            completed: hasCharacter,
-                            skipped: skippedCharacter,
-                          ),
-                          onPrimary: () =>
-                              context.go(RoutePaths.onboardingCharacter),
-                        ),
-                        SizedBox(height: layout.compact ? 12 : 14),
-                        _OnboardingTaskCard(
-                          compact: layout.compact,
-                          title: '취향 선택',
-                          description: '음식, 장소, 약속 스타일\n추천에 쓸 취향을 골라요.',
-                          icon: Icons.tune_rounded,
-                          state: _TaskState.from(
-                            hasPreference,
-                            skippedPreference,
-                          ),
-                          primaryLabel: _taskButtonLabel(
-                            completed: hasPreference,
-                            skipped: skippedPreference,
-                          ),
-                          onPrimary: () =>
-                              context.go(RoutePaths.onboardingPreferences),
-                        ),
-                        SizedBox(height: layout.compact ? 22 : 28),
-                        SizedBox(
-                          width: layout.homeWidth,
-                          child: _HomeButton(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        constraints.maxHeight - (layout.compact ? 52 : 70),
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: layout.contentWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _OnboardingTitle(
+                            displayName: displayName,
                             compact: layout.compact,
-                            onPressed: () {
-                              if (!characterReady) {
-                                ref
-                                    .read(skippedCharacterProvider.notifier)
-                                    .state = true;
-                              }
-                              if (!preferenceReady) {
-                                ref
-                                    .read(skippedPreferenceProvider.notifier)
-                                    .state = true;
-                              }
-                              context.go(RoutePaths.home);
-                            },
                           ),
-                        ),
-                      ],
+                          SizedBox(height: layout.compact ? 20 : 28),
+                          Text(
+                            '캐릭터와 취향은 지금 설정해도 좋고,\n나중에 천천히 채워도 괜찮아요.',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: const Color(0xFF8A6F63),
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: layout.compact ? 17 : 25),
+                          Image.asset(
+                            OnboardingHubPage._selectScreenAsset,
+                            width: layout.imageWidth,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.none,
+                          ),
+                          SizedBox(height: layout.compact ? 10 : 14),
+                          _OnboardingTaskCard(
+                            compact: layout.compact,
+                            title: '캐릭터 만들기',
+                            description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
+                            icon: Icons.face_retouching_natural_outlined,
+                            state: _TaskState.from(
+                              hasCharacter,
+                              skippedCharacter,
+                            ),
+                            primaryLabel: _taskButtonLabel(
+                              completed: hasCharacter,
+                              skipped: skippedCharacter,
+                            ),
+                            onPrimary: () =>
+                                context.go(RoutePaths.onboardingCharacter),
+                          ),
+                          SizedBox(height: layout.compact ? 12 : 14),
+                          _OnboardingTaskCard(
+                            compact: layout.compact,
+                            title: '취향 선택',
+                            description: '음식, 장소, 약속 스타일\n추천에 쓸 취향을 골라요.',
+                            icon: Icons.tune_rounded,
+                            state: _TaskState.from(
+                              hasPreference,
+                              skippedPreference,
+                            ),
+                            primaryLabel: _taskButtonLabel(
+                              completed: hasPreference,
+                              skipped: skippedPreference,
+                            ),
+                            onPrimary: () =>
+                                context.go(RoutePaths.onboardingPreferences),
+                          ),
+                          SizedBox(height: layout.compact ? 22 : 28),
+                          SizedBox(
+                            width: layout.homeWidth,
+                            child: _HomeButton(
+                              compact: layout.compact,
+                              isSaving: _isSavingHomeStatus,
+                              onPressed: _isSavingHomeStatus
+                                  ? null
+                                  : () => _saveSkipStatusAndGoHome(
+                                      hasCharacter: hasCharacter,
+                                      hasPreference: hasPreference,
+                                      skippedCharacter: skippedCharacter,
+                                      skippedPreference: skippedPreference,
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _saveSkipStatusAndGoHome({
+    required bool hasCharacter,
+    required bool hasPreference,
+    required bool skippedCharacter,
+    required bool skippedPreference,
+  }) async {
+    final nextSkippedCharacter = skippedCharacter || !hasCharacter;
+    final nextSkippedPreference = skippedPreference || !hasPreference;
+    final onboardingStatus = deriveOnboardingStatus(
+      preferenceReady: hasPreference || nextSkippedPreference,
+      characterReady: hasCharacter || nextSkippedCharacter,
+    );
+
+    setState(() => _isSavingHomeStatus = true);
+    try {
+      await ref
+          .read(myRepositoryProvider)
+          .updateOnboardingStatus(onboardingStatus.value);
+      ref.read(skippedCharacterProvider.notifier).state = nextSkippedCharacter;
+      ref.read(skippedPreferenceProvider.notifier).state =
+          nextSkippedPreference;
+      syncAuthUserOnboardingStatus(ref, onboardingStatus);
+      ref.invalidate(myProfileProvider);
+
+      if (!mounted) {
+        return;
+      }
+      context.go(RoutePaths.home);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('온보딩 상태 저장에 실패했어요. 다시 시도해 주세요.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingHomeStatus = false);
+      }
+    }
   }
 }
 
@@ -396,10 +442,15 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _HomeButton extends StatelessWidget {
-  const _HomeButton({required this.onPressed, required this.compact});
+  const _HomeButton({
+    required this.onPressed,
+    required this.compact,
+    required this.isSaving,
+  });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool compact;
+  final bool isSaving;
 
   @override
   Widget build(BuildContext context) {
@@ -407,8 +458,17 @@ class _HomeButton extends StatelessWidget {
       height: compact ? 48 : 56,
       child: FilledButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.home_rounded, size: 24),
-        label: const Text('홈으로 가기'),
+        icon: isSaving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.textInverse,
+                ),
+              )
+            : const Icon(Icons.home_rounded, size: 24),
+        label: Text(isSaving ? '저장 중' : '홈으로 가기'),
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFFF637B),
           foregroundColor: AppColors.textInverse,

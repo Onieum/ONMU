@@ -33,6 +33,7 @@ import '../../features/group/presentation/pages/plan_settlement_target_selection
 import '../../features/group/presentation/pages/group_chat_page.dart';
 import '../../features/group/presentation/pages/vote_detail_page.dart';
 import '../../features/onboarding/onboarding_hub_page.dart';
+import '../../features/onboarding/onboarding_status.dart';
 import '../../features/ootd/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
@@ -44,6 +45,7 @@ import '../../features/place/presentation/pages/place_map_page.dart';
 import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../features/place/presentation/pages/place_vote_create_page.dart';
 import '../../features/preferences/preference_intro_page.dart';
+import '../../features/my/repository/my_repository.dart';
 import '../../main_shell.dart';
 import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
@@ -102,18 +104,34 @@ final appRouter = GoRouter(
           onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
           onCompleted: (draft) async {
             final router = GoRouter.of(context);
-            CharacterDraft saved;
             try {
-              saved = await ref
+              final saved = await ref
                   .read(characterRepositoryProvider)
                   .saveMyCharacter(draft);
+              final onboardingStatus = deriveOnboardingStatus(
+                preferenceReady:
+                    ref.read(preferenceProfileProvider) != null ||
+                    ref.read(skippedPreferenceProvider),
+                characterReady: true,
+              );
+              await ref
+                  .read(myRepositoryProvider)
+                  .updateOnboardingStatus(onboardingStatus.value);
+              ref.read(userCharacterProvider.notifier).state = saved;
+              ref.read(skippedCharacterProvider.notifier).state = false;
+              syncAuthUserOnboardingStatus(ref, onboardingStatus);
+              ref.invalidate(characterProfileProvider);
+              ref.invalidate(myProfileProvider);
+              router.go(RoutePaths.onboarding);
             } catch (_) {
-              saved = draft;
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
+                  ),
+                );
+              }
             }
-            ref.read(userCharacterProvider.notifier).state = saved;
-            ref.read(skippedCharacterProvider.notifier).state = false;
-            ref.invalidate(characterProfileProvider);
-            router.go(RoutePaths.onboarding);
           },
         ),
       ),

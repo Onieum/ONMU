@@ -7,6 +7,7 @@ import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
+import 'package:onmu_mobile/features/character/repository/character_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
@@ -20,6 +21,7 @@ import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
+import 'package:onmu_mobile/shared/models/character_model.dart';
 
 import 'in_memory_onmu_store.dart';
 
@@ -40,6 +42,7 @@ ProviderContainer createOnmuTestContainer() {
         TestNotificationRepository(store),
       ),
       myRepositoryProvider.overrideWithValue(TestMyRepository()),
+      characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
     ],
   );
 }
@@ -61,6 +64,7 @@ ProviderScope onmuTestProviderScope({required Widget child, AuthUser? user}) {
         TestNotificationRepository(store),
       ),
       myRepositoryProvider.overrideWithValue(TestMyRepository()),
+      characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
     ],
     child: child,
   );
@@ -79,14 +83,38 @@ class TestMyRepository implements MyRepository {
     wantToGoPlaces: [],
     dislikedPlaces: [],
   );
+  String? lastOnboardingStatus;
 
   @override
   Future<MyProfile> fetchMyProfile() async => _profile;
 
   @override
-  Future<MyProfile> updateMyProfile(MyProfile profile) async {
+  Future<MyProfile> updateMyProfile(
+    MyProfile profile, {
+    String? onboardingStatus,
+  }) async {
     _profile = profile;
+    lastOnboardingStatus = onboardingStatus;
     return _profile;
+  }
+
+  @override
+  Future<MyProfile> updateOnboardingStatus(String onboardingStatus) async {
+    lastOnboardingStatus = onboardingStatus;
+    return _profile;
+  }
+}
+
+class TestCharacterRepository implements CharacterRepository {
+  CharacterDraft? _draft;
+
+  @override
+  Future<CharacterDraft?> fetchMyCharacter() async => _draft;
+
+  @override
+  Future<CharacterDraft> saveMyCharacter(CharacterDraft draft) async {
+    _draft = draft;
+    return draft;
   }
 }
 

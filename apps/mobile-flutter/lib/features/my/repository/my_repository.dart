@@ -14,7 +14,12 @@ final myProfileProvider = FutureProvider<MyProfile>((ref) {
 abstract interface class MyRepository {
   Future<MyProfile> fetchMyProfile();
 
-  Future<MyProfile> updateMyProfile(MyProfile profile);
+  Future<MyProfile> updateMyProfile(
+    MyProfile profile, {
+    String? onboardingStatus,
+  });
+
+  Future<MyProfile> updateOnboardingStatus(String onboardingStatus);
 }
 
 class ApiMyRepository implements MyRepository {
@@ -29,13 +34,26 @@ class ApiMyRepository implements MyRepository {
   }
 
   @override
-  Future<MyProfile> updateMyProfile(MyProfile profile) async {
+  Future<MyProfile> updateMyProfile(
+    MyProfile profile, {
+    String? onboardingStatus,
+  }) async {
+    final body = {
+      'displayName': profile.realName,
+      'preferenceProfile': _preferenceProfileJson(profile),
+    };
+    if (onboardingStatus != null) {
+      body['onboardingStatus'] = onboardingStatus;
+    }
+    final json = await _client.patchObject('/api/v1/users/me', body: body);
+    return _profileFromJson(json);
+  }
+
+  @override
+  Future<MyProfile> updateOnboardingStatus(String onboardingStatus) async {
     final json = await _client.patchObject(
       '/api/v1/users/me',
-      body: {
-        'displayName': profile.realName,
-        'preferenceProfile': _preferenceProfileJson(profile),
-      },
+      body: {'onboardingStatus': onboardingStatus},
     );
     return _profileFromJson(json);
   }

@@ -18,4 +18,24 @@ class AuthUser {
   final String onboardingStatus;
 
   bool get hasCompletedOnboarding => onboardingStatus == 'COMPLETED';
+
+  AuthUser copyWith({
+    String? id,
+    String? publicId,
+    String? provider,
+    String? displayName,
+    String? email,
+    String? profileImageUrl,
+    String? onboardingStatus,
+  }) {
+    return AuthUser(
+      id: id ?? this.id,
+      publicId: publicId ?? this.publicId,
+      provider: provider ?? this.provider,
+      displayName: displayName ?? this.displayName,
+      email: email ?? this.email,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      onboardingStatus: onboardingStatus ?? this.onboardingStatus,
+    );
+  }
 }

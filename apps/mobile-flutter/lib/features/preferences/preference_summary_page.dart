@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
 import '../../features/my/repository/my_repository.dart';
+import '../../features/onboarding/onboarding_status.dart';
 import '../../core/theme/app_radius.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/onmu_design.dart';
@@ -143,6 +144,12 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
 
     try {
       final profile = widget.profile;
+      final onboardingStatus = deriveOnboardingStatus(
+        preferenceReady: true,
+        characterReady:
+            ref.read(userCharacterProvider) != null ||
+            ref.read(skippedCharacterProvider),
+      );
       final currentProfile = await ref
           .read(myProfileProvider.future)
           .timeout(_saveTimeout);
@@ -170,10 +177,14 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
 
       await ref
           .read(myRepositoryProvider)
-          .updateMyProfile(updatedProfile)
+          .updateMyProfile(
+            updatedProfile,
+            onboardingStatus: onboardingStatus.value,
+          )
           .timeout(_saveTimeout);
       ref.read(preferenceProfileProvider.notifier).state = profile;
       ref.read(skippedPreferenceProvider.notifier).state = false;
+      syncAuthUserOnboardingStatus(ref, onboardingStatus);
       ref.invalidate(myProfileProvider);
 
       if (!mounted) {
