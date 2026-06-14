@@ -200,6 +200,27 @@ function Get-CommandLineForProcess {
   return ""
 }
 
+function Get-CommandPathForProcess {
+  param([int]$ProcessId)
+
+  $processInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+  if ($processInfo -and $processInfo.ExecutablePath) {
+    return [string]$processInfo.ExecutablePath
+  }
+
+  return ""
+}
+
+function Get-BackendListenerProcessId {
+  $listener = Get-NetTCPConnection -LocalPort $ApiPort -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+  if ($listener) {
+    return [int]$listener.OwningProcess
+  }
+
+  return 0
+}
+
 function Test-OnmuBackendProcess {
   param([int]$ProcessId)
 
@@ -434,6 +455,38 @@ function Wait-BackendHealthz {
   throw "$RuntimeName did not pass local /healthz within ${HealthzWaitTimeoutSeconds}s. Check stdout=$StdoutLogFile stderr=$StderrLogFile"
 }
 
+function Update-BackendPidFileFromListener {
+  param(
+    [int]$StartedProcessId,
+    [string]$RuntimeName
+  )
+
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Resolve ${ApiHost}:${ApiPort} listener PID and update $PidFile after $RuntimeName healthz is ready."
+    return
+  }
+
+  $listenerPid = Get-BackendListenerProcessId
+  if ($listenerPid -le 0) {
+    Write-DeployLog "Could not resolve listener PID for ${ApiHost}:${ApiPort}; keeping started PID in pid file. pid_file=$PidFile started_pid=$StartedProcessId"
+    return
+  }
+
+  $pidFilePid = ""
+  if (Test-Path $PidFile) {
+    $pidFilePid = (Get-Content -LiteralPath $PidFile -Raw).Trim()
+  }
+  $commandPath = Get-CommandPathForProcess -ProcessId $listenerPid
+
+  if ($pidFilePid -ne [string]$listenerPid) {
+    Write-DeployLog "Updating backend pid file to actual listener. pid_file=$PidFile pid_file_pid=$pidFilePid listener_pid=$listenerPid started_pid=$StartedProcessId command_path=$commandPath"
+  } else {
+    Write-DeployLog "Backend pid file already matches listener. pid_file=$PidFile listener_pid=$listenerPid command_path=$commandPath"
+  }
+
+  Set-Content -LiteralPath $PidFile -Value $listenerPid -Encoding ASCII
+}
+
 function Test-SpringExecutableProject {
   $gradleWrapper = Join-Path $SpringDir "gradlew.bat"
   $gradleBuild = Join-Path $SpringDir "build.gradle"
@@ -557,6 +610,7 @@ function Start-SpringBackend {
     Write-DeployLog "[dry-run] Backend process will not inherit GitHub Actions RUNNER_TRACKING_ID when present."
     Write-DeployLog "[dry-run] Write PID to $PidFile"
     Wait-BackendHealthz -ProcessId 0 -RuntimeName "Spring Boot Main API"
+    Update-BackendPidFileFromListener -StartedProcessId 0 -RuntimeName "Spring Boot Main API"
     return
   }
 
@@ -591,6 +645,7 @@ function Start-SpringBackend {
     Write-DeployLog "Integration Spring Boot Main API started via Maven. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
 
     Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Spring Boot Main API"
+    Update-BackendPidFileFromListener -StartedProcessId $process.Id -RuntimeName "Spring Boot Main API"
     return
   }
 
@@ -626,6 +681,7 @@ function Start-SpringBackend {
   Write-DeployLog "Spring Boot Main API started. PID=$($process.Id). Stdout=$StdoutLogFile Stderr=$StderrLogFile"
 
   Wait-BackendHealthz -ProcessId $process.Id -RuntimeName "Spring Boot Main API"
+  Update-BackendPidFileFromListener -StartedProcessId $process.Id -RuntimeName "Spring Boot Main API"
 }
 
 function New-TempJsonFile {
@@ -740,13 +796,17 @@ function Invoke-SmokeRequest {
 
     $statusText = & curl.exe @curlArgs
     if ($LASTEXITCODE -ne 0) {
+      Write-PublicSmokeDiagnostics -TargetUrl $targetUrl -TargetStatus "curl_exit_$LASTEXITCODE" -Reason "curl_failed"
       throw "curl failed for $Method $targetUrl"
     }
 
     $status = [int]$statusText
     $responseBody = [System.IO.File]::ReadAllText($responseFile, [System.Text.Encoding]::UTF8)
     if ($ExpectedStatus -notcontains $status) {
-      throw "Smoke failed: $Method $targetUrl returned $status. Body=$responseBody"
+      if (@(502, 530, 1033) -contains $status) {
+        Write-PublicSmokeDiagnostics -TargetUrl $targetUrl -TargetStatus ([string]$status) -Reason "public_gateway_status"
+      }
+      throw "Smoke failed: $Method $targetUrl returned $status. body_length=$($responseBody.Length)"
     }
 
     Write-DeployLog "Smoke passed: $Method $targetUrl -> $status"
@@ -756,6 +816,39 @@ function Invoke-SmokeRequest {
       Remove-Item -LiteralPath $bodyFile -ErrorAction SilentlyContinue
     }
   }
+}
+
+function Write-PublicSmokeDiagnostics {
+  param(
+    [string]$TargetUrl,
+    [string]$TargetStatus,
+    [string]$Reason
+  )
+
+  if ($DryRun) {
+    Write-DeployLog "[dry-run] Collect public smoke diagnostics for $TargetUrl."
+    return
+  }
+
+  $probeHost = Get-LocalProbeHost
+  $localHealthzUrl = "http://${probeHost}:${ApiPort}/healthz"
+  $localHealthzStatus = "unavailable"
+  try {
+    $localResponse = Invoke-WebRequest -Uri $localHealthzUrl -Method GET -UseBasicParsing -TimeoutSec 3
+    $localHealthzStatus = [string]$localResponse.StatusCode
+  } catch {
+    $localHealthzStatus = $_.Exception.GetType().Name
+  }
+
+  $listenerPid = Get-BackendListenerProcessId
+  $commandPath = if ($listenerPid -gt 0) { Get-CommandPathForProcess -ProcessId $listenerPid } else { "" }
+  $cloudflaredPids = @(
+    Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue |
+      Select-Object -ExpandProperty Id
+  )
+  $cloudflaredPidText = if ($cloudflaredPids.Count -gt 0) { $cloudflaredPids -join "," } else { "none" }
+
+  Write-DeployLog "Public smoke diagnostics: target_url=$TargetUrl target_status=$TargetStatus local_healthz_status=$localHealthzStatus cloudflared_pid=$cloudflaredPidText listener_pid=$listenerPid command_path=$commandPath reason=$Reason"
 }
 
 function Invoke-CorsPreflightSmoke {

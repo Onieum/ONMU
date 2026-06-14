@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/settlement_models.dart';
+import '../../../shared/models/vote_models.dart';
 import '../../settlement/repository/settlement_repository.dart';
 import '../repository/group_repository.dart';
 import '../repository/media_repository.dart';
@@ -17,10 +18,10 @@ class GroupChatState {
   const GroupChatState({
     required this.group,
     required this.messages,
-    required this.vote,
     required this.voteId,
     required this.planId,
-    required this.settlement,
+    this.vote,
+    this.settlement,
     this.pinnedPlan,
     this.sendErrorMessage,
     this.nextCursor,
@@ -32,10 +33,10 @@ class GroupChatState {
   final GroupSummary group;
   final GroupPinnedPlan? pinnedPlan;
   final List<GroupMessage> messages;
-  final VoteCard vote;
+  final VoteCard? vote;
   final int voteId;
   final int planId;
-  final SettlementSummary settlement;
+  final SettlementSummary? settlement;
   final String? sendErrorMessage;
   final String? nextCursor;
   final bool hasMoreOlderMessages;
@@ -43,7 +44,12 @@ class GroupChatState {
   final int unreadCount;
 
   GroupChatState copyWith({
+    GroupPinnedPlan? pinnedPlan,
     List<GroupMessage>? messages,
+    VoteCard? vote,
+    int? voteId,
+    int? planId,
+    SettlementSummary? settlement,
     String? sendErrorMessage,
     bool clearSendErrorMessage = false,
     String? nextCursor,
@@ -54,12 +60,12 @@ class GroupChatState {
   }) {
     return GroupChatState(
       group: group,
-      pinnedPlan: pinnedPlan,
+      pinnedPlan: pinnedPlan ?? this.pinnedPlan,
       messages: messages ?? this.messages,
-      vote: vote,
-      voteId: voteId,
-      planId: planId,
-      settlement: settlement,
+      vote: vote ?? this.vote,
+      voteId: voteId ?? this.voteId,
+      planId: planId ?? this.planId,
+      settlement: settlement ?? this.settlement,
       sendErrorMessage: clearSendErrorMessage
           ? null
           : sendErrorMessage ?? this.sendErrorMessage,
@@ -86,37 +92,98 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     final groupRepository = ref.watch(groupRepositoryProvider);
     final settlementRepository = ref.watch(settlementRepositoryProvider);
 
-    final pinnedPlan = await groupRepository.fetchPinnedPlan(groupId);
-    final plans = await groupRepository.fetchPlans(groupId);
-    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
-    final votes = await groupRepository.fetchVotes(groupId);
-    final voteId = votes.isEmpty ? 0 : votes.first.id;
-    final messagePage = await groupRepository.fetchMessagePage(groupId);
-    await _markNewestMessageRead(groupRepository, messagePage.messages);
+    final groupFuture = groupRepository.fetchGroup(groupId);
+    final messagePageFuture = groupRepository.fetchMessagePage(groupId);
+    final group = await groupFuture;
+    final messagePage = await messagePageFuture;
+    unawaited(_markNewestMessageRead(groupRepository, messagePage.messages));
 
     final chatState = GroupChatState(
-      group: await groupRepository.fetchGroup(groupId),
-      pinnedPlan: pinnedPlan,
+      group: group,
       messages: messagePage.messages,
       nextCursor: messagePage.nextCursor,
       hasMoreOlderMessages: messagePage.hasMore,
       unreadCount: messagePage.unreadCount,
-      vote: await groupRepository.fetchVoteCard(
-        groupId: groupId,
-        voteId: voteId,
-      ),
-      voteId: voteId,
-      planId: planId,
-      settlement: await settlementRepository.fetchSettlement(
-        groupId: groupId,
-        planId: planId,
-      ),
+      voteId: 0,
+      planId: 0,
     );
+    unawaited(_loadAuxiliaryChatState(groupRepository, settlementRepository));
     _startRealtimeSubscription(
       groupRepository,
       afterCursor: _latestCursor(chatState.messages),
     );
     return chatState;
+  }
+
+  Future<void> _loadAuxiliaryChatState(
+    GroupRepository groupRepository,
+    SettlementRepository settlementRepository,
+  ) async {
+    GroupPinnedPlan? pinnedPlan;
+    List<GroupPlanSummary> plans = const [];
+    List<VoteSummary> votes = const [];
+
+    try {
+      pinnedPlan = await groupRepository.fetchPinnedPlan(groupId);
+    } catch (_) {
+      // 보조 카드 실패는 메시지와 입력창 표시를 막지 않는다.
+    }
+
+    try {
+      plans = await groupRepository.fetchPlans(groupId);
+    } catch (_) {
+      // 약속 목록 실패는 채팅 본문 표시와 독립적으로 처리한다.
+    }
+
+    try {
+      votes = await groupRepository.fetchVotes(groupId);
+    } catch (_) {
+      // 투표 목록 실패는 투표 카드만 생략한다.
+    }
+
+    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
+    final voteId = votes.isEmpty ? 0 : votes.first.id;
+    VoteCard? vote;
+    SettlementSummary? settlement;
+
+    if (voteId > 0) {
+      try {
+        vote = await groupRepository.fetchVoteCard(
+          groupId: groupId,
+          voteId: voteId,
+        );
+      } catch (_) {
+        // 투표 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
+      }
+    }
+
+    if (planId > 0) {
+      try {
+        settlement = await settlementRepository.fetchSettlement(
+          groupId: groupId,
+          planId: planId,
+        );
+      } catch (_) {
+        // 정산 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
+      }
+    }
+
+    if (_realtimeDisposed) {
+      return;
+    }
+    final latest = state.asData?.value;
+    if (latest == null) {
+      return;
+    }
+    state = AsyncData(
+      latest.copyWith(
+        pinnedPlan: pinnedPlan,
+        planId: planId,
+        vote: vote,
+        voteId: voteId,
+        settlement: settlement,
+      ),
+    );
   }
 
   Future<bool> sendMessage(String text) async {

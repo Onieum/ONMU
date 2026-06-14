@@ -1,10 +1,14 @@
 package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class InProcessSseChatRealtimePublisherTests {
   @Test
@@ -39,5 +43,15 @@ class InProcessSseChatRealtimePublisherTests {
     Map<String, Object> viewerMessage = publisher.messageForViewer(systemMessage, "viewer-public-id");
 
     assertThat(viewerMessage).containsEntry("isMine", false);
+  }
+
+  @Test
+  void heartbeatUsesSseCommentEvent() throws Exception {
+    InProcessSseChatRealtimePublisher publisher = new InProcessSseChatRealtimePublisher();
+    SseEmitter emitter = mock(SseEmitter.class);
+
+    publisher.sendHeartbeat(emitter);
+
+    verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
   }
 }

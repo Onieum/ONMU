@@ -75,6 +75,7 @@ class OnmuApiClient {
       path,
       options: Options(
         responseType: ResponseType.stream,
+        receiveTimeout: Duration.zero,
         headers: {'Accept': accept},
       ),
     );

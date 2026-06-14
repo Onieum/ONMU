@@ -370,11 +370,13 @@ void main() {
 
   test('SSE data JSON을 GroupMessage stream으로 매핑하고 깨진 payload는 버린다', () async {
     final requestedPaths = <String>[];
+    final requestedOptions = <RequestOptions>[];
     final dio = Dio();
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           requestedPaths.add(options.path);
+          requestedOptions.add(options);
           handler.resolve(
             Response<ResponseBody>(
               requestOptions: options,
@@ -382,6 +384,8 @@ void main() {
                 ': connected\n'
                 'event: chat.message\n'
                 'data: {"id":"message-3","message":"실시간 도착","senderName":"지우","timeLabel":"14:02"}\n'
+                '\n'
+                ': heartbeat\n'
                 '\n'
                 'data: {not-json\n'
                 '\n'
@@ -406,6 +410,8 @@ void main() {
       requestedPaths.single,
       contains('afterCursor=2026-06-09T05%3A00%3A00Z'),
     );
+    expect(requestedOptions.single.responseType, ResponseType.stream);
+    expect(requestedOptions.single.receiveTimeout, Duration.zero);
     expect(messages, hasLength(2));
     expect(messages[0].id, 'message-3');
     expect(messages[0].message, '실시간 도착');
