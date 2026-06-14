@@ -150,6 +150,11 @@ Core API:
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
 - `GET /api/v1/notifications`
+- `GET /api/v1/notifications/unread-count`
+- `PUT /api/v1/notifications/{notificationId}/read`
+- `PUT /api/v1/notifications/read-all`
+- `GET /api/v1/notification-preferences`
+- `PUT /api/v1/notification-preferences`
 
 Auth scaffold:
 
@@ -202,7 +207,7 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `chat.message`
 
 `chat.message`는 SCRUM-50의 in-process SSE fan-out과 SCRUM-51의 이미지 첨부 metadata를 함께 담아 future Realtime Gateway, Notification Worker, Media Worker hook 용도로 기록합니다.
-아직 queue publisher/consumer가 없으므로 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
+아직 외부 queue publisher/consumer가 없으므로 외부 worker 대상이 없는 이벤트 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
 
 ## Flutter API Mode
 
@@ -310,6 +315,12 @@ curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/pre
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
 curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
+curl http://localhost:8080/api/v1/notifications
+curl http://localhost:8080/api/v1/notifications/unread-count
+curl.exe -X PUT http://localhost:8080/api/v1/notifications/00000000-0000-0000-0000-000000001211/read
+curl.exe -X PUT http://localhost:8080/api/v1/notifications/read-all
+curl http://localhost:8080/api/v1/notification-preferences
+curl.exe -X PUT http://localhost:8080/api/v1/notification-preferences -H "Content-Type: application/json" --data-binary '{ "preferences": [{ "notificationType": "chat_message", "channel": "in_app", "enabled": true }] }'
 ```
 
 `POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.

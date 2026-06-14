@@ -16,6 +16,7 @@ import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/home_view_model.dart';
+import '../../view_model/home_notifications_view_model.dart';
 import '../../../preferences/preference_summary_page.dart';
 
 String _resolveDisplayName(AuthUser? user) {
@@ -101,7 +102,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends ConsumerWidget {
   const _HomeContent({
     required this.showOnlyPlans,
     required this.displayName,
@@ -121,7 +122,10 @@ class _HomeContent extends StatelessWidget {
   final int todayPlanCount;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref
+        .watch(notificationUnreadCountProvider)
+        .maybeWhen(data: (count) => count, orElse: () => 0);
     return OnmuScaffold(
       children: [
         if (!showOnlyPlans) ...[
@@ -129,7 +133,11 @@ class _HomeContent extends StatelessWidget {
             displayName: displayName,
             profileImageUrl: profileImageUrl,
             todayPlanCount: todayPlanCount,
-            onNotificationTap: () => context.push(RoutePaths.homeNotifications),
+            unreadNotificationCount: unreadCount,
+            onNotificationTap: () async {
+              await context.push(RoutePaths.homeNotifications);
+              ref.invalidate(notificationUnreadCountProvider);
+            },
           ),
           const SizedBox(height: AppSpacing.xxl),
         ],
@@ -217,12 +225,14 @@ class _HomeHeader extends StatelessWidget {
     required this.displayName,
     this.profileImageUrl,
     required this.todayPlanCount,
+    required this.unreadNotificationCount,
     required this.onNotificationTap,
   });
 
   final String displayName;
   final String? profileImageUrl;
   final int todayPlanCount;
+  final int unreadNotificationCount;
   final VoidCallback onNotificationTap;
 
   @override
@@ -236,10 +246,9 @@ class _HomeHeader extends StatelessWidget {
           children: [
             const _HomeLogo(),
             const Spacer(),
-            IconButton(
-              tooltip: '알림',
+            _NotificationIconButton(
+              unreadCount: unreadNotificationCount,
               onPressed: onNotificationTap,
-              icon: const Icon(Icons.notifications_none),
             ),
           ],
         ),
@@ -275,6 +284,55 @@ class _HomeHeader extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _NotificationIconButton extends StatelessWidget {
+  const _NotificationIconButton({
+    required this.unreadCount,
+    required this.onPressed,
+  });
+
+  final int unreadCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = unreadCount > 99 ? '99+' : unreadCount.toString();
+    return SizedBox.square(
+      dimension: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            tooltip: '알림',
+            onPressed: onPressed,
+            icon: const Icon(Icons.notifications_none),
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              top: 7,
+              right: 5,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.accentRed,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: AppColors.bgDefault, width: 2),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textInverse,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

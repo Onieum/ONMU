@@ -12,6 +12,7 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../home/view_model/notification_preferences_view_model.dart';
 import '../../view_model/group_members_view_model.dart';
 
 class GroupSettingsPage extends StatefulWidget {
@@ -446,19 +447,17 @@ class _RenameGroupSheet extends StatelessWidget {
   }
 }
 
-class _NotificationSheet extends StatefulWidget {
+class _NotificationSheet extends ConsumerStatefulWidget {
   const _NotificationSheet();
 
   @override
-  State<_NotificationSheet> createState() => _NotificationSheetState();
+  ConsumerState<_NotificationSheet> createState() => _NotificationSheetState();
 }
 
-class _NotificationSheetState extends State<_NotificationSheet> {
-  bool _chat = true;
-  bool _plan = true;
-
+class _NotificationSheetState extends ConsumerState<_NotificationSheet> {
   @override
   Widget build(BuildContext context) {
+    final preferences = ref.watch(notificationPreferencesViewModelProvider);
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.bgWarm,
@@ -472,17 +471,55 @@ class _NotificationSheetState extends State<_NotificationSheet> {
           children: [
             Text('알림', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.md),
-            SwitchListTile(
-              value: _chat,
-              onChanged: (value) => setState(() => _chat = value),
-              title: const Text('새 채팅'),
-              subtitle: const Text('모임 대화가 올라오면 알려드려요.'),
-            ),
-            SwitchListTile(
-              value: _plan,
-              onChanged: (value) => setState(() => _plan = value),
-              title: const Text('약속 변경'),
-              subtitle: const Text('약속 시간과 장소 변경을 알려드려요.'),
+            preferences.when(
+              data: (state) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    value: state.enabledFor('chat_message', 'in_app'),
+                    onChanged: (value) => _setEnabled(
+                      notificationType: 'chat_message',
+                      channel: 'in_app',
+                      enabled: value,
+                    ),
+                    title: const Text('새 채팅'),
+                    subtitle: const Text('모임 대화가 올라오면 알려드려요.'),
+                  ),
+                  SwitchListTile(
+                    value: state.enabledFor('plan_reminder', 'push'),
+                    onChanged: (value) => _setEnabled(
+                      notificationType: 'plan_reminder',
+                      channel: 'push',
+                      enabled: value,
+                    ),
+                    title: const Text('약속 알림'),
+                    subtitle: const Text('약속 시간과 장소 알림을 받을게요.'),
+                  ),
+                ],
+              ),
+              loading: () => const Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, stackTrace) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '알림 설정을 불러오지 못했어요.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  OnmuSecondaryButton(
+                    label: '다시 불러오기',
+                    icon: Icons.refresh_rounded,
+                    onPressed: () => ref.invalidate(
+                      notificationPreferencesViewModelProvider,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             OnmuPrimaryButton(
@@ -493,5 +530,28 @@ class _NotificationSheetState extends State<_NotificationSheet> {
         ),
       ),
     );
+  }
+
+  Future<void> _setEnabled({
+    required String notificationType,
+    required String channel,
+    required bool enabled,
+  }) async {
+    try {
+      await ref
+          .read(notificationPreferencesViewModelProvider.notifier)
+          .setEnabled(
+            notificationType: notificationType,
+            channel: channel,
+            enabled: enabled,
+          );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('알림 설정을 저장하지 못했어요.')));
+    }
   }
 }

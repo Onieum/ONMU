@@ -123,4 +123,9 @@ public class NotificationEntity {
   public Instant getCreatedAt() {
     return createdAt;
   }
+
+  public void markRead(Instant readAt) {
+    this.readAt = readAt;
+    this.status = "read";
+  }
 }

@@ -8,6 +8,9 @@ import com.onmu.api.domain.NotificationEntity;
 import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.web.dto.NotificationItemResponse;
+import com.onmu.api.web.dto.NotificationReadAllResponse;
+import com.onmu.api.web.dto.NotificationUnreadCountResponse;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -15,8 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class NotificationService {
@@ -48,6 +53,35 @@ public class NotificationService {
       .stream()
       .map(this::toResponse)
       .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public NotificationUnreadCountResponse unreadCount(UUID currentUserId) {
+    return new NotificationUnreadCountResponse(
+      notificationRepository.countByUser_IdAndReadAtIsNull(currentUserId)
+    );
+  }
+
+  @Transactional
+  public NotificationItemResponse markRead(UUID currentUserId, UUID notificationId) {
+    NotificationEntity notification = notificationRepository
+      .findInboxItemByIdAndUserId(notificationId, currentUserId)
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "notification_not_found")
+      );
+    notification.markRead(
+      notification.getReadAt() == null ? Instant.now() : notification.getReadAt()
+    );
+    return toResponse(notification);
+  }
+
+  @Transactional
+  public NotificationReadAllResponse markAllRead(UUID currentUserId) {
+    int updatedCount = notificationRepository.markUnreadAsReadByUserId(
+      currentUserId,
+      Instant.now()
+    );
+    return new NotificationReadAllResponse(updatedCount);
   }
 
   private NotificationItemResponse toResponse(NotificationEntity notification) {

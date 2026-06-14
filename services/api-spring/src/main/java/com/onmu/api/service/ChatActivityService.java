@@ -52,6 +52,7 @@ public class ChatActivityService {
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final NotificationRepository notificationRepository;
+  private final NotificationPreferenceService notificationPreferenceService;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
   private final ChatRealtimePublisher chatRealtimePublisher;
@@ -63,6 +64,7 @@ public class ChatActivityService {
     GroupRepository groupRepository,
     GroupMemberRepository groupMemberRepository,
     NotificationRepository notificationRepository,
+    NotificationPreferenceService notificationPreferenceService,
     UserRepository userRepository,
     ObjectMapper objectMapper,
     ChatRealtimePublisher chatRealtimePublisher,
@@ -73,6 +75,7 @@ public class ChatActivityService {
     this.groupRepository = groupRepository;
     this.groupMemberRepository = groupMemberRepository;
     this.notificationRepository = notificationRepository;
+    this.notificationPreferenceService = notificationPreferenceService;
     this.userRepository = userRepository;
     this.objectMapper = objectMapper;
     this.chatRealtimePublisher = chatRealtimePublisher;
@@ -189,6 +192,9 @@ public class ChatActivityService {
       "chatActivityEventId", event.getId().toString()
     ));
     for (UserEntity recipient : recipients.values()) {
+      if (!notificationPreferenceService.isEnabled(recipient.getId(), "chat_message", "in_app")) {
+        continue;
+      }
       notificationRepository.save(new NotificationEntity(
         recipient,
         group,

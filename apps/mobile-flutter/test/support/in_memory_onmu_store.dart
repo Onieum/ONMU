@@ -31,6 +31,23 @@ class InMemoryOnmuStore {
   final _voteVotersByVoteId = <int, Map<int, List<String>>>{};
   final _settlementsByPlanId = <int, SettlementSummary>{};
   final _notifications = <NotificationItem>[];
+  var _notificationPreferences = NotificationPreferences(
+    items: [
+      for (final type in [
+        'chat_message',
+        'plan_reminder',
+        'vote_created',
+        'settlement_requested',
+        'record_created',
+      ])
+        for (final channel in ['in_app', 'push'])
+          NotificationPreferenceItem(
+            notificationType: type,
+            channel: channel,
+            enabled: true,
+          ),
+    ],
+  );
 
   var _nextGroupId = 4;
   var _nextPlanId = 106;
@@ -183,6 +200,54 @@ class InMemoryOnmuStore {
   List<NotificationItem> fetchNotifications({int? limit}) {
     final effectiveLimit = limit ?? _notifications.length;
     return List.unmodifiable(_notifications.take(effectiveLimit));
+  }
+
+  int fetchUnreadNotificationCount() {
+    return _notifications.where((notification) => !notification.isRead).length;
+  }
+
+  NotificationItem markNotificationRead(String notificationId) {
+    final index = _notifications.indexWhere(
+      (notification) => notification.id == notificationId,
+    );
+    if (index < 0) {
+      return _notifications.first;
+    }
+    final updated = _notifications[index].markRead();
+    _notifications[index] = updated;
+    return updated;
+  }
+
+  int markAllNotificationsRead() {
+    var updatedCount = 0;
+    for (var index = 0; index < _notifications.length; index += 1) {
+      final notification = _notifications[index];
+      if (notification.isRead) {
+        continue;
+      }
+      _notifications[index] = notification.markRead();
+      updatedCount += 1;
+    }
+    return updatedCount;
+  }
+
+  NotificationPreferences fetchNotificationPreferences() {
+    return _notificationPreferences;
+  }
+
+  NotificationPreferences updateNotificationPreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) {
+    var next = _notificationPreferences;
+    for (final preference in preferences) {
+      next = next.replace(
+        notificationType: preference.notificationType,
+        channel: preference.channel,
+        enabled: preference.enabled,
+      );
+    }
+    _notificationPreferences = next;
+    return _notificationPreferences;
   }
 
   GroupMessage sendMessage({

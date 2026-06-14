@@ -9,6 +9,18 @@ final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
 
 abstract interface class NotificationRepository {
   Future<List<NotificationItem>> fetchNotifications({int? limit});
+
+  Future<int> fetchUnreadCount();
+
+  Future<NotificationItem> markNotificationRead(String notificationId);
+
+  Future<int> markAllNotificationsRead();
+
+  Future<NotificationPreferences> fetchPreferences();
+
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  );
 }
 
 class ApiNotificationRepository implements NotificationRepository {
@@ -28,5 +40,49 @@ class ApiNotificationRepository implements NotificationRepository {
     ).toString();
     final notifications = await _client.getList(path);
     return notifications.map(NotificationItem.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<int> fetchUnreadCount() async {
+    final response = await _client.getObject(
+      '/api/v1/notifications/unread-count',
+    );
+    return OnmuJson.readInt(response, 'unreadCount');
+  }
+
+  @override
+  Future<NotificationItem> markNotificationRead(String notificationId) async {
+    final id = Uri.encodeComponent(notificationId.trim());
+    final response = await _client.putObject('/api/v1/notifications/$id/read');
+    return NotificationItem.fromJson(response);
+  }
+
+  @override
+  Future<int> markAllNotificationsRead() async {
+    final response = await _client.putObject('/api/v1/notifications/read-all');
+    return OnmuJson.readInt(response, 'updatedCount');
+  }
+
+  @override
+  Future<NotificationPreferences> fetchPreferences() async {
+    final response = await _client.getObject(
+      '/api/v1/notification-preferences',
+    );
+    return NotificationPreferences.fromJson(response);
+  }
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    List<NotificationPreferenceItem> preferences,
+  ) async {
+    final response = await _client.putObject(
+      '/api/v1/notification-preferences',
+      body: {
+        'preferences': [
+          for (final preference in preferences) preference.toJson(),
+        ],
+      },
+    );
+    return NotificationPreferences.fromJson(response);
   }
 }

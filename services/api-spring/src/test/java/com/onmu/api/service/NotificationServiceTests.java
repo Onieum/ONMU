@@ -14,6 +14,7 @@ import com.onmu.api.domain.UserEntity;
 import com.onmu.api.web.dto.NotificationItemResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTests {
@@ -127,6 +129,62 @@ class NotificationServiceTests {
     assertThat(notifications).hasSize(1);
     org.mockito.Mockito.verify(notificationRepository)
       .findInboxByUserId(eq(otherUser.getId()), any(Pageable.class));
+  }
+
+  @Test
+  void unreadCountReturnsCurrentUserUnreadCount() {
+    when(notificationRepository.countByUser_IdAndReadAtIsNull(currentUser.getId()))
+      .thenReturn(3L);
+
+    var response = service.unreadCount(currentUser.getId());
+
+    assertThat(response.unreadCount()).isEqualTo(3L);
+  }
+
+  @Test
+  void markReadUpdatesOnlyCurrentUserNotification() {
+    UUID notificationId = UUID.fromString("00000000-0000-0000-0000-000000001211");
+    NotificationEntity notification = notification(
+      currentUser,
+      group,
+      plan,
+      "chat_message",
+      "{\"groupId\":\"1\",\"messageId\":\"message-1\"}",
+      null,
+      Instant.parse("2026-06-09T05:12:00Z")
+    );
+    when(notificationRepository.findInboxItemByIdAndUserId(notificationId, currentUser.getId()))
+      .thenReturn(Optional.of(notification));
+
+    NotificationItemResponse response = service.markRead(currentUser.getId(), notificationId);
+
+    assertThat(response.id()).isEqualTo(notification.getId().toString());
+    assertThat(response.isRead()).isTrue();
+    assertThat(response.readAt()).isNotBlank();
+    assertThat(response.status()).isEqualTo("read");
+  }
+
+  @Test
+  void markReadRejectsOtherUsersNotification() {
+    UUID notificationId = UUID.fromString("00000000-0000-0000-0000-000000001212");
+    when(notificationRepository.findInboxItemByIdAndUserId(notificationId, currentUser.getId()))
+      .thenReturn(Optional.empty());
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+        () -> service.markRead(currentUser.getId(), notificationId)
+      )
+      .isInstanceOf(ResponseStatusException.class)
+      .hasMessageContaining("notification_not_found");
+  }
+
+  @Test
+  void markAllReadReturnsUpdatedCount() {
+    when(notificationRepository.markUnreadAsReadByUserId(eq(currentUser.getId()), any(Instant.class)))
+      .thenReturn(2);
+
+    var response = service.markAllRead(currentUser.getId());
+
+    assertThat(response.updatedCount()).isEqualTo(2);
   }
 
   private NotificationEntity notification(
