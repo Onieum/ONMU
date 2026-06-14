@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
 
 final myRepositoryProvider = Provider<MyRepository>((ref) {
@@ -61,6 +62,7 @@ class ApiMyRepository implements MyRepository {
   MyProfile _profileFromJson(Map<String, dynamic> json) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final displayName = OnmuJson.readString(json, 'displayName', '사용자');
+    final regionSelection = KoreaRegionSelection.fromJson(preference['region']);
     return MyProfile(
       realName: displayName,
       introText: OnmuJson.readString(
@@ -68,7 +70,8 @@ class ApiMyRepository implements MyRepository {
         'introText',
         '기록하고, 만나고, 추억해요  ♥',
       ),
-      region: OnmuJson.readString(preference, 'region', '서울 성수동'),
+      region: regionSelection.displayName,
+      regionSelection: regionSelection,
       visibility: ProfileVisibility.friends,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
@@ -91,7 +94,7 @@ class ApiMyRepository implements MyRepository {
     return {
       'favoriteKeywords': profile.favoriteKeywords,
       'introText': profile.introText,
-      'region': profile.region,
+      'region': profile.effectiveRegionSelection.toJson(),
       'dislikedKeywords': profile.dislikedKeywords,
       'preferredTimes': profile.preferredTimes,
       'availableDays': profile.availableDays,

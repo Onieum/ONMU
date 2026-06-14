@@ -20,7 +20,12 @@ void main() {
               'preferenceProfile': {
                 'favoriteKeywords': ['quiet'],
                 'introText': 'hello',
-                'region': 'Seoul',
+                'region': {
+                  'country': 'KR',
+                  'sido': '서울',
+                  'sigungu': '성동구',
+                  'displayName': '서울 성동구',
+                },
                 'dislikedKeywords': ['crowded'],
                 'preferredTimes': ['evening'],
                 'availableDays': ['friday'],
@@ -42,7 +47,12 @@ void main() {
                   'preferenceProfile': {
                     'favoriteKeywords': ['quiet'],
                     'introText': 'hello',
-                    'region': 'Seoul',
+                    'region': {
+                      'country': 'KR',
+                      'sido': '서울',
+                      'sigungu': '성동구',
+                      'displayName': '서울 성동구',
+                    },
                     'dislikedKeywords': ['crowded'],
                     'preferredTimes': ['evening'],
                     'availableDays': ['friday'],
@@ -66,7 +76,7 @@ void main() {
         const MyProfile(
           realName: 'Shinseok',
           introText: 'hello',
-          region: 'Seoul',
+          region: '서울 성동구',
           visibility: ProfileVisibility.friends,
           favoriteKeywords: ['quiet'],
           dislikedKeywords: ['crowded'],
@@ -87,6 +97,7 @@ void main() {
       );
 
       expect(updated.realName, 'Shinseok');
+      expect(updated.region, '서울 성동구');
       expect(updated.favoriteFoodTags, ['pasta']);
       expect(updated.preferredWeekdays, ['friday']);
     },
@@ -107,7 +118,7 @@ void main() {
               data: {
                 'displayName': 'Shinseok',
                 'onboardingStatus': 'PREFERENCE_READY',
-                'preferenceProfile': {'introText': 'hello', 'region': 'Seoul'},
+                'preferenceProfile': {'introText': 'hello', 'region': '서울 성동구'},
               },
             ),
           );
@@ -120,5 +131,110 @@ void main() {
 
     expect(updated.realName, 'Shinseok');
     expect(updated.introText, 'hello');
+  });
+
+  test('reads legacy string region as display region', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.method, 'GET');
+          expect(options.path, '/api/v1/users/me');
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'displayName': 'Shinseok',
+                'preferenceProfile': {
+                  'introText': 'hello',
+                  'region': '부산 해운대구',
+                },
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiMyRepository(OnmuApiClient(dio));
+
+    final profile = await repository.fetchMyProfile();
+
+    expect(profile.region, '부산 해운대구');
+    expect(profile.effectiveRegionSelection.sido, '부산');
+    expect(profile.effectiveRegionSelection.sigungu, '해운대구');
+  });
+
+  test('preserves legacy string region outside current option list', () async {
+    final requestedRegions = <String>['서울 성수동', '서울 강서구'];
+
+    for (final requestedRegion in requestedRegions) {
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.method, 'GET');
+            expect(options.path, '/api/v1/users/me');
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'displayName': 'Shinseok',
+                  'preferenceProfile': {
+                    'introText': 'hello',
+                    'region': requestedRegion,
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiMyRepository(OnmuApiClient(dio));
+
+      final profile = await repository.fetchMyProfile();
+
+      expect(profile.region, requestedRegion);
+      expect(profile.effectiveRegionSelection.displayName, requestedRegion);
+    }
+  });
+
+  test('reads structured region object as display region', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.method, 'GET');
+          expect(options.path, '/api/v1/users/me');
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'displayName': 'Shinseok',
+                'preferenceProfile': {
+                  'introText': 'hello',
+                  'region': {
+                    'country': 'KR',
+                    'sido': '인천',
+                    'sigungu': '연수구',
+                    'displayName': '인천 연수구',
+                  },
+                },
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiMyRepository(OnmuApiClient(dio));
+
+    final profile = await repository.fetchMyProfile();
+
+    expect(profile.region, '인천 연수구');
+    expect(profile.effectiveRegionSelection.toJson(), {
+      'country': 'KR',
+      'sido': '인천',
+      'sigungu': '연수구',
+      'displayName': '인천 연수구',
+    });
   });
 }
