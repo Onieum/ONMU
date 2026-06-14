@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class PushTokenService {
   private final UserDeviceRepository userDeviceRepository;
   private final Clock clock;
 
+  @Autowired
   public PushTokenService(
     UserRepository userRepository,
     UserDeviceRepository userDeviceRepository
