@@ -195,7 +195,7 @@ public class ChatActivityService {
       if (!notificationPreferenceService.isEnabled(recipient.getId(), "chat_message", "in_app")) {
         continue;
       }
-      notificationRepository.save(new NotificationEntity(
+      NotificationEntity notification = notificationRepository.save(new NotificationEntity(
         recipient,
         group,
         null,
@@ -206,6 +206,12 @@ public class ChatActivityService {
         "queued",
         null,
         createdAt
+      ));
+      outboxService.record("notification.requested", "notification", notification.getId(), Map.of(
+        "groupId", group.getPublicId(),
+        "notificationId", notification.getId().toString(),
+        "notificationType", notification.getNotificationType(),
+        "channels", List.of("push")
       ));
     }
   }

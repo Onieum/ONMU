@@ -1118,21 +1118,21 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | `read_at` | 읽은 시각 | Timestamptz | 사용자가 읽은 시각 | Nullable |
 | `created_at` | 생성 시각 | Timestamptz | 알림 생성 시각 | Not Null |
 
-## `notification_deliveries` (미래 확장)
+## `notification_deliveries` (구현됨, 확장 필요)
 
-> push, email, 카카오 알림 등 실제 발송 시도와 결과를 저장한다.
+> 알림 발송 시도와 결과를 저장한다. 현재 dev slice는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`로 추적 row를 남긴다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 발송 ID | UUID | 발송 row 식별자 | PK |
 | `notification_id` | 알림 ID | UUID | 원본 알림 | FK, Not Null |
 | `channel` | 발송 채널 | Varchar(30) | `push`, `email`, `kakao`, `sms` | Not Null |
-| `provider` | 제공자 | Varchar(30) | FCM, APNs 등 | Nullable |
-| `status` | 발송 상태 | Varchar(20) | `pending`, `sent`, `failed`, `skipped` | Not Null |
+| `provider` | 제공자 | Varchar(30) | `dev`, FCM, APNs 등 | Nullable |
+| `status` | 발송 상태 | Varchar(20) | `pending`, `sent`, `failed`, `skipped_dev` | Not Null |
 | `provider_message_id` | Provider 메시지 ID | Text | 외부 발송 ID | Nullable |
-| `error_code` | 오류 코드 | Text | 실패 코드 | Nullable |
-| `created_at` | 생성 시각 | Timestamptz | 발송 row 생성 시각 | Not Null |
-| `sent_at` | 발송 시각 | Timestamptz | 발송 성공 시각 | Nullable |
+| `error_message` | 오류 메시지 | Text | 실패/skip 이유 | Nullable |
+| `attempted_at` | 시도 시각 | Timestamptz | 발송 시도 시각 | Not Null |
+| `delivered_at` | 발송 시각 | Timestamptz | 발송 성공 시각 | Nullable |
 
 ## `push_tokens` (목표 설계)
 

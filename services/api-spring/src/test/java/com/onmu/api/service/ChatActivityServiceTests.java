@@ -3,6 +3,7 @@ package com.onmu.api.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.lenient;
@@ -250,6 +251,12 @@ class ChatActivityServiceTests {
       assertThat(notification.getStatus()).isEqualTo("queued");
       assertThat(notification.getReadAt()).isNull();
     });
+    verify(outboxService, times(3)).record(eq("notification.requested"), eq("notification"), any(), argThat(payload ->
+      "1".equals(payload.get("groupId"))
+        && "chat_message".equals(payload.get("notificationType"))
+        && payload.containsKey("notificationId")
+        && payload.containsKey("channels")
+    ));
   }
 
   @Test
@@ -270,6 +277,7 @@ class ChatActivityServiceTests {
     service.createMessage("1", currentUser.getId(), new CreateChatMessageRequest("안녕"));
 
     verify(notificationRepository, never()).save(any(NotificationEntity.class));
+    verify(outboxService, never()).record(eq("notification.requested"), eq("notification"), any(), any());
   }
 
   @Test
@@ -357,6 +365,12 @@ class ChatActivityServiceTests {
     assertThat(notificationCaptor.getValue().getUser()).isEqualTo(recipientUser);
     assertThat(notificationCaptor.getValue().getBody()).isEqualTo("사진을 보냈어요.");
     assertThat(notificationCaptor.getValue().getNotificationType()).isEqualTo("chat_message");
+    verify(outboxService).record(eq("notification.requested"), eq("notification"), any(), argThat(payload ->
+      "1".equals(payload.get("groupId"))
+        && "chat_message".equals(payload.get("notificationType"))
+        && payload.containsKey("notificationId")
+        && payload.containsKey("channels")
+    ));
   }
 
   @Test

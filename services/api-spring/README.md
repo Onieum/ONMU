@@ -207,7 +207,7 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `chat.message`
 
 `chat.message`는 SCRUM-50의 in-process SSE fan-out과 SCRUM-51의 이미지 첨부 metadata를 함께 담아 future Realtime Gateway, Notification Worker, Media Worker hook 용도로 기록합니다.
-아직 외부 queue publisher/consumer가 없으므로 외부 worker 대상이 없는 이벤트 status는 `no_consumer`로 저장합니다. 다음 단계에서 Spring Boot publisher와 FastAPI Worker consumer를 연결합니다.
+아직 외부 queue publisher/consumer가 없으므로 외부 worker 대상이 없는 이벤트 status는 `no_consumer`로 저장합니다. `notification.requested`는 Spring runtime 안에서 dev-safe delivery abstraction으로 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남깁니다. 모바일 앱 bundle에는 push token, provider secret, JWT signing secret을 넣지 않습니다. 실제 push provider 연결은 별도 보안/인프라 검증 후 진행합니다.
 
 ## Flutter API Mode
 

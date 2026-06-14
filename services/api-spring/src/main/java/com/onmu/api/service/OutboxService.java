@@ -20,16 +20,19 @@ import java.util.UUID;
 @Service
 public class OutboxService {
   private final OutboxEventRepository outboxEventRepository;
+  private final NotificationDeliveryService notificationDeliveryService;
   private final ObjectMapper objectMapper;
   private final String workerUrl;
   private final RestTemplate restTemplate;
 
   public OutboxService(
     OutboxEventRepository outboxEventRepository,
+    NotificationDeliveryService notificationDeliveryService,
     ObjectMapper objectMapper,
     @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl
   ) {
     this.outboxEventRepository = outboxEventRepository;
+    this.notificationDeliveryService = notificationDeliveryService;
     this.objectMapper = objectMapper;
     this.workerUrl = workerUrl;
     
@@ -54,6 +57,15 @@ public class OutboxService {
     List<OutboxEventEntity> pendingEvents = outboxEventRepository.findByStatusOrderByCreatedAtAsc("pending");
     for (OutboxEventEntity event : pendingEvents) {
       String eventType = event.getEventType();
+      if ("notification.requested".equals(eventType)) {
+        NotificationDeliveryOutcome outcome = notificationDeliveryService.processRequested(event, readMap(event.getPayload()));
+        event.setStatus(outcome.outboxStatus());
+        event.setPublishedAt(Instant.now());
+        event.setLastError(outcome.lastError());
+        outboxEventRepository.save(event);
+        continue;
+      }
+
       boolean hasConsumer = "record.created".equals(eventType) 
           || "place_candidate.created".equals(eventType) 
           || "ai.summary.requested".equals(eventType);
