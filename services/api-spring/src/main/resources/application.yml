@@ -5,6 +5,9 @@ server:
 spring:
   application:
     name: onmu-api-spring
+  data:
+    redis:
+      url: ${SPRING_DATA_REDIS_URL:${REDIS_URL:redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}/0}}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_HOST_PORT:15432}/onmu}
     username: ${SPRING_DATASOURCE_USERNAME:onmu}

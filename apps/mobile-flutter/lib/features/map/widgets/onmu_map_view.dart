@@ -56,8 +56,6 @@ class OnmuMapView extends ConsumerWidget {
         !nativePmtilesSource;
     final effectiveFallbackLabel = styleUrl.isNotEmpty && !webBootstrapReady
         ? '지도 스크립트를 준비하는 중입니다.'
-        : styleUrl.isNotEmpty && nativePmtilesSource
-        ? ''
         : fallbackLabel;
 
     return ClipRRect(

@@ -53,8 +53,9 @@ cd C:\dev\ONMU\services\api-spring
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:${POSTGRES_HOST_PORT}/onmu` | Spring JDBC URL |
 | `SPRING_DATASOURCE_USERNAME` | `onmu` | DB 사용자 |
 | `SPRING_DATASOURCE_PASSWORD` | `POSTGRES_PASSWORD` 또는 dev 기본값 | DB 비밀번호 |
-| `REDIS_URL` | 없음 | Redis readiness 우선 연결 문자열 |
-| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | `REDIS_URL`이 없을 때 Redis TCP check 대상 |
+| `REDIS_URL` | 없음 | Redis readiness와 Spring Data Redis cache가 함께 사용하는 우선 연결 문자열. DB 번호까지 포함한 URL을 권장 |
+| `SPRING_DATA_REDIS_URL` | 없음 | Spring Data Redis cache 전용 override. 설정되면 `REDIS_URL`보다 우선 |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | `REDIS_URL`이 없을 때 Redis TCP check와 Spring Data Redis cache의 fallback 대상 |
 | `OBJECT_STORAGE_ENDPOINT` | 없음 | MinIO readiness 우선 endpoint |
 | `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
