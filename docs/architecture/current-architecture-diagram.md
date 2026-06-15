@@ -15,7 +15,7 @@
 | 계층 | 설명 | 현재 상태 |
 | --- | --- | --- |
 | Frontend-first Prototype | Flutter route, mock data, 화면 흐름, 디자인 시스템 | 구현 중 |
-| Integration Architecture | API contract, repository, full social OAuth, realtime event, notification, file upload | 다음 설계/구현 대상 |
+| Integration Architecture | API contract, repository, full social OAuth, Spring SSE realtime vertical slice, notification, file upload | 구현 중 |
 | Target Operation Architecture | Azure edge, API Management, Spring Boot Main API, FastAPI Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
 
 Flutter는 확정 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker` 구조로 결정한다. Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션을 맡고, FastAPI Worker는 AI/추천/분석성 비동기 작업을 맡는다.
@@ -50,16 +50,21 @@ flowchart LR
 
     subgraph app["애플리케이션 서비스 경계"]
         ingress --> mainApi["Spring Boot Main API"]
-        ingress --> realtime["Realtime Gateway"]
+        mainApi --> currentSse["현재 Spring SSE\nin-process fan-out"]
+        ingress --> realtime["목표 Realtime Gateway"]
+        mainApi --> notificationApi["Notification\nin-app/dev-safe delivery"]
         mainApi --> outbox["Outbox Events"]
         outbox --> bus["Azure Service Bus 또는 Event Hubs"]
         bus --> worker["FastAPI AI/Data Worker"]
+        bus --> notificationWorker["Notification Worker 또는 Spring Provider Adapter"]
     end
 
     subgraph data["데이터/상태 경계"]
         mainApi --> postgres["Azure Database for PostgreSQL Flexible Server + PostGIS"]
         mainApi --> redis["Azure Cache for Redis"]
         mainApi --> blob["Azure Blob Storage"]
+        mainApi --> devices["Device Registry / user_devices"]
+        currentSse --> postgres
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
         worker --> search["Azure AI Search 또는 PostgreSQL 검색"]
@@ -78,6 +83,7 @@ flowchart LR
     subgraph external["외부 API 경계"]
         mainApi --> naver["Naver Maps/Place API"]
         worker --> publicInfo["휴무/공지/리뷰 외부 정보"]
+        notificationWorker --> pushProvider["FCM/APNs"]
         mobile --> share["카카오톡/인스타그램 공유"]
     end
 
@@ -87,9 +93,12 @@ flowchart LR
         terraform["Terraform"] --> azureInfra["Azure 리소스"]
         keyvault["Azure Key Vault"] --> mainApi
         keyvault --> worker
+        keyvault --> notificationWorker
         monitor["Azure Monitor + Application Insights"] --> mainApi
         monitor --> worker
+        monitor --> currentSse
         monitor --> realtime
+        monitor --> notificationWorker
     end
 ```
 
@@ -99,8 +108,10 @@ flowchart LR
 | --- | --- |
 | 클라이언트 경계 | 사용자가 직접 만나는 영역이다. 핵심 제품은 Flutter 앱이고, 웹은 브랜드/프로젝트 소개만 담당한다. |
 | Azure 보안/진입 경계 | 외부 요청이 처음 들어오는 곳이다. WAF, API 정책, 인증 검증, rate limit을 이 계층에서 설명한다. |
-| 애플리케이션 서비스 경계 | Spring Boot Main API는 트랜잭션과 도메인 계약, FastAPI Worker는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
+| 애플리케이션 서비스 경계 | Spring Boot Main API는 트랜잭션과 도메인 계약을 맡고, 현재 채팅 실시간 slice는 Spring SSE in-process fan-out으로 검증한다. FastAPI Worker는 추천/분석/AI 작업, Realtime Gateway는 운영 목표의 실시간 fan-out 경계를 맡는다. |
 | 외부 API 경계 | 네이버 지도/장소, 공유 채널, 외부 공지 정보는 내부 데이터가 아니므로 호출, 캐시, 장애 대응 정책을 따로 둔다. |
+
+현재 채팅의 source of truth는 `chat_activity_events`이며, SSE는 단일 Spring runtime 안의 delivery layer다. 운영 단계에서 Realtime Gateway를 분리하더라도 Redis나 Gateway가 메시지 원장을 대신하지 않는다. 채팅 메시지 작성은 `notification.requested` outbox와 in-app notification row를 만들 수 있지만, 실제 FCM/APNs provider push는 별도 보안/인프라 검증 뒤 연결한다.
 
 ## 4. 제품 데이터 흐름
 
@@ -212,11 +223,11 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 캐시 | Redis | 장소 API 캐시, 실시간 presence, 짧은 TTL 상태에 적합하다. | Sprint 1 |
 | 파일 저장 | Azure Blob Storage, 로컬 MinIO | 사진/OOTD/공유 카드 같은 비정형 미디어를 DB에서 분리한다. | Sprint 1 |
 | 검색/RAG | 초기에는 PostgreSQL 검색, 확장 시 Azure AI Search | 처음부터 검색 엔진을 크게 가져가지 않고, 발표용 AI/RAG 확장성을 보여줄 수 있다. | Sprint 2 이후 |
-| 이벤트/큐 | Spring Boot Outbox, Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | Spring Boot와 FastAPI Worker 사이의 작업 요청을 queue/outbox로 관리한다. | Sprint 0부터 |
+| 이벤트/큐 | Spring Boot Outbox, Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | Spring Boot와 FastAPI Worker, Notification Worker 사이의 작업 요청을 queue/outbox로 관리한다. | Sprint 0부터 |
 | AI | Azure OpenAI | 추천 설명, 기록 문장 생성, OOTD 분석 결과 요약에 사용한다. 앱에서 직접 호출하지 않고 worker 뒤에 둔다. | Sprint 2 이후 |
 | 인증 | Naver OAuth 우선 + access/refresh token | Flutter에서 Naver 소셜 로그인을 시작하고 Spring Boot가 provider token 검증, access/refresh token 발급, refresh/로그아웃을 관리한다. | Sprint 0 |
 | DB Migration | Spring Boot Flyway + FastAPI Alembic | core domain은 Flyway, `worker_ai` schema는 Alembic이 관리한다. | Sprint 0부터 |
-| 비밀값 | Azure Key Vault, Managed Identity | 외부 API 키와 DB 비밀번호를 코드/GitHub/Jira에 남기지 않는다. | Staging |
+| 비밀값 | Azure Key Vault, Managed Identity | 외부 API 키, DB 비밀번호, push provider credential을 코드/GitHub/Jira에 남기지 않는다. | Staging |
 | 관측성 | Azure Monitor, Application Insights, OpenTelemetry | Spring/FastAPI/Realtime의 요청 흐름을 trace로 묶어 보여준다. | Sprint 1부터 |
 | IaC/CI | Terraform, GitHub Actions, Dependabot | 로컬에서 Azure로 옮기는 과정을 반복 가능하게 만들고, 공개 저장소 운영 기준을 세운다. | Sprint 0부터 |
 
@@ -274,7 +285,7 @@ Redis는 영구 데이터의 원본이 아니다. ONMU에서 원본은 PostgreSQ
 | 기술 | ONMU에서 쓰는 위치 | 처리하는 것 | 선택 이유 |
 | --- | --- | --- | --- |
 | Outbox Pattern | Spring Boot 내부 | 약속 생성, 장소 후보 추가, 기록 생성, 정산 생성, AI 작업 요청 후 이벤트 발행 예약 | DB 저장과 이벤트 발행 사이의 유실을 줄인다. |
-| Azure Service Bus | 기본 비동기 큐 | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 | Spring Boot와 FastAPI Worker를 느슨하게 연결하고 재시도/장애 격리를 쉽게 한다. |
+| Azure Service Bus | 기본 비동기 큐 | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 | Spring Boot와 FastAPI Worker/Notification Worker를 느슨하게 연결하고 재시도/장애 격리를 쉽게 한다. |
 | Kafka/Event Hubs | 확장 이벤트 스트림 | 실시간 행동 로그, 추천 학습용 이벤트, 대량 상태 이벤트 | Kafka 역량을 보여주거나 스트리밍 분석이 필요할 때 확장한다. |
 | GitHub Actions scheduled job | 가벼운 배치 | 문서 링크 점검, 의존성 점검, 간단한 health check | 별도 배치 플랫폼 없이 반복 검증을 자동화한다. |
 
@@ -330,6 +341,8 @@ Databricks 기반 주간/월간 리포트, 기업용 집계 데이터, 광고 �
 
 보안 설명의 핵심은 `민감 데이터는 DB/Storage에 분리 저장하고, 접근은 인증/인가/API 정책/Key Vault로 통제한다`는 것이다.
 
+Notification / Push / Devices 영역에서는 `notifications`를 사용자별 inbox source of truth로 두고, 실제 provider 발송 시도와 결과는 `notification_deliveries` projection으로 분리한다. 현재 dev-safe provider는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`를 남긴다. Terraform은 Key Vault, Managed Identity, Service Bus, Application Insights 같은 리소스 경계를 만들 수 있지만 `notifications`, `notification_deliveries`, `notification_preferences`, `user_devices` table은 Spring Flyway가 소유한다. 세부 기준은 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
+
 ### 7.9 배포와 인프라
 
 | 기술 | ONMU에서 쓰는 위치 | 처리하는 것 | 선택 이유 |
@@ -342,6 +355,59 @@ Databricks 기반 주간/월간 리포트, 기업용 집계 데이터, 광고 �
 | Dependabot | 의존성 관리 | GitHub Actions, npm, Flutter pub, Gradle/Maven 업데이트 | public 저장소에서 보안 업데이트를 놓치지 않는다. |
 
 개발 순서는 `Docker Compose로 로컬 통합 -> Windows 개발 서버로 팀 테스트 -> Container Apps staging -> AKS 목표 구조`가 가장 현실적이다.
+
+### 7.9.1 Terraform 전환 Agent Notes
+
+이 섹션은 나중에 AI Agent가 Windows dev backend와 Docker Compose 기준을 Azure/Terraform staging으로 옮길 때 먼저 읽는 작업 기준이다. 실제 Azure 리소스 생성, 비용 발생, DNS 변경, secret 쓰기, `terraform apply`는 사람 승인 후에만 실행한다.
+
+Terraform 전환의 목표는 "현재 dev에서 검증된 Spring Main API 계약을 Azure staging에 반복 가능하게 배치"하는 것이다. 앱 기능이나 DB schema를 Terraform 전환 중에 선제 변경하지 않는다.
+
+| 구분 | 현재 기준 | Terraform 전환 기준 |
+| --- | --- | --- |
+| Main API | `services/api-spring` Spring Boot, Windows dev backend-host | Azure Container Apps staging 또는 AKS service로 배포 |
+| Worker | `services/workers/ai-data-worker`, queue/outbox 소비 목표 | Container Apps job/service 또는 AKS deployment로 분리 |
+| DB | Docker PostgreSQL/Flyway, dev PostgreSQL | Azure Database for PostgreSQL Flexible Server + Flyway migration |
+| Object storage | MinIO, `/api/v1/media/upload` contract | Azure Blob Storage. Flutter는 API 응답 URL contract만 본다 |
+| Cache/realtime 보조 | Redis dev dependency, 현재 채팅은 Spring SSE in-process | Azure Cache for Redis. 운영 Realtime Gateway를 붙일 때만 fan-out 계층에 연결 |
+| Event/queue | `outbox_events`, 외부 broker 없음 또는 dev-safe 처리 | Azure Service Bus를 1차 선택. Kafka 호환성이 필요하면 Event Hubs 검토 |
+| Notification/push | `notifications` inbox, `user_devices` push token readiness, `provider=dev` skipped delivery | Key Vault provider secret reference, Managed Identity, Service Bus 기반 delivery fan-out, Application Insights push metric |
+| Secrets | 로컬 env, GitHub Secrets, Key Vault secret name 문서화 | Azure Key Vault + Managed Identity. Terraform에는 secret 값이 아니라 secret name/reference만 둔다 |
+| Observability | access log, GitHub Actions, Windows logs | Azure Monitor/Application Insights/OpenTelemetry |
+| Edge | Cloudflare Tunnel 기반 dev endpoint | Azure Front Door 또는 Application Gateway WAF + API Management + Container ingress |
+
+Terraform 작업 단위는 아래 순서로 쪼갠다.
+
+1. `infra/terraform` skeleton만 만든다: provider, backend, environment folder, naming locals, common tags.
+2. 네트워크/리소스 그룹/Log Analytics/Key Vault를 먼저 만든다. secret 값은 넣지 않고 secret 이름과 access policy/RBAC만 정의한다.
+3. PostgreSQL Flexible Server, Redis, Storage, Container Registry를 만든다. DB schema 변경은 Flyway가 맡고 Terraform은 schema DDL을 만들지 않는다.
+4. Spring Main API container 배포를 만든다. `/healthz`, `/readyz`, `/api/v1/**` 인증/CORS env를 먼저 검증한다.
+5. FastAPI Worker와 Service Bus 연결을 붙인다. Flutter 앱은 Worker를 직접 호출하지 않는다.
+6. Notification provider delivery는 dev-safe `provider=dev` 결과와 실제 FCM/APNs 발송을 분리해 붙인다. Provider secret 값은 Key Vault에만 두고, Terraform은 secret name/reference와 Managed Identity 권한만 관리한다.
+7. Realtime Gateway는 현재 Spring SSE slice가 안정된 뒤 별도 module로 추가한다. Redis나 Gateway를 `chat_activity_events`의 source of truth로 만들지 않는다.
+8. API Management/WAF/DNS를 붙인다. `dev-api.onmu.cloud`, `int-api.onmu.cloud`, future `api.onmu.cloud`의 역할을 문서에 함께 갱신한다.
+9. GitHub Actions는 `terraform fmt`, `terraform validate`, `terraform plan`을 PR check로 먼저 붙이고, `apply`는 protected environment approval 뒤에만 허용한다.
+
+Agent가 Terraform 코드를 작성하기 전에 확인할 입력은 다음이다.
+
+| 입력 | 확인 위치 | 주의 |
+| --- | --- | --- |
+| API runtime env | `services/api-spring/README.md`, `docs/operations/spring-runtime-transition-workflow.md` | secret 값 출력 금지. env var 이름과 Key Vault secret name만 사용 |
+| API contract | `docs/architecture/api-contract-map.md` | Flutter가 직접 호출하는 표면은 Spring `/api/v1`만 |
+| Chat/realtime boundary | `docs/architecture/chat-activity-architecture.md` | 현재 Spring SSE와 목표 Realtime Gateway를 분리 |
+| Notification/push boundary | `docs/architecture/api-contract-map.md`, `docs/data_dict/ONMU 데이터 사전.md` | in-app inbox, dev-safe delivery, 실제 FCM/APNs provider delivery를 분리 |
+| Data ownership | `docs/data_dict/ONMU 데이터 사전.md` | Spring Flyway는 core schema, FastAPI Alembic은 `worker_ai` schema |
+| Windows dev baseline | `docs/operations/windows-backend-server.md`, `docs/operations/spring-runtime-transition-workflow.md` | Azure 전환 전 dev endpoint와 runtime이 Spring인지 확인 |
+| AI 도구 권한 | `docs/development/team-ai-tooling.md` | Terraform `apply`, 리소스 삭제, DNS 변경은 사람 승인 후 실행 |
+
+Terraform 전환 중 금지한다.
+
+- Terraform state, `.tfvars`, plan output에 secret 값을 남기지 않는다.
+- Flutter bundle, dart-define, 문서, PR 본문에 JWT signing secret, OAuth client secret, DB password를 넣지 않는다.
+- Terraform으로 core DB table을 직접 만들거나 수정하지 않는다. schema는 Spring Flyway와 Worker Alembic이 소유한다.
+- dev/main에 직접 push하지 않는다.
+- 비용 발생 리소스, public endpoint, DNS, WAF/APIM 정책을 승인 없이 apply하지 않는다.
+- 현재 Spring SSE slice를 Realtime Gateway 구현으로 착각해 Redis/Gateway에 메시지 원장을 만들지 않는다.
+- dev-safe `skipped_dev` notification delivery를 실제 FCM/APNs 발송 성공으로 해석하지 않는다.
 
 ## 8. Frontend-first Prototype 반영
 
@@ -380,6 +446,7 @@ Databricks 기반 주간/월간 리포트, 기업용 집계 데이터, 광고 �
 | Privacy | 기록 공개 범위, 항목별 공개 여부, 외부 공유 정책 |
 | Share | 카카오톡 공유 카드, 인스타그램 저장 이미지, 공유 링크 |
 | Notification | 약속, 투표, 정산, 기록 이벤트의 사용자별 알림 |
+| Devices / Push | 로그인 사용자 기기 token readiness, provider 발송 시도/결과, 앱 밖 알림 |
 | AnalyticsEvent | 미래 리포팅을 위한 비식별 이벤트와 taxonomy 연결 |
 
 초기 구현 범위는 작게 잡는다.
@@ -428,6 +495,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | --- | --- |
 | [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
+| [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
 | [데이터/리포팅 로드맵](./data-analytics-reporting-roadmap.md) | Databricks, 기업용 리포트, 광고 세그먼트, OOTD/persona feature의 미래 확장 |
 | [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |

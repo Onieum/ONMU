@@ -545,6 +545,15 @@ POST https://dev-api.onmu.cloud/api/v1/groups/1/plans/101/settlements/preview?cl
 
 smoke test가 실패하면 GitHub Actions job도 실패합니다. `readyz`는 PostgreSQL, Redis, MinIO 연결까지 확인하므로 Docker Desktop과 로컬 compose 의존성이 먼저 정상이어야 합니다.
 
+Notification / Push / Devices smoke는 dev-safe delivery와 실제 provider delivery를 분리해서 본다.
+
+| 단계 | 확인 대상 | 성공 기준 | 주의 |
+| --- | --- | --- | --- |
+| Dev-safe delivery smoke | `/api/v1/notifications`, `/api/v1/notification-preferences`, `/api/v1/devices/push-token`, `notification_deliveries` | API 계약이 동작하고 dev provider 결과가 `provider=dev`, `status=skipped_dev`로 남는다. | 실제 FCM/APNs 발송 성공이 아니다. |
+| Real provider smoke | 실제 Android/iOS build, OS push token source, FCM/APNs provider, provider credential | `notification_deliveries.status=sent` 또는 provider error taxonomy가 남고 기기에서 push 수신과 탭 routing을 확인한다. | Key Vault secret, Managed Identity, feature flag가 준비된 뒤 사람 승인으로만 실행한다. |
+
+Windows dev 서버의 기본 CD smoke에는 실제 FCM/APNs provider 호출을 넣지 않는다. provider secret 값은 GitHub Actions log, PowerShell transcript, `logs\api-access.log`, PR 본문에 출력하지 않는다. 실제 provider smoke를 추가할 때도 Flutter 앱에는 provider secret, JWT signing secret, OAuth secret을 넣지 않는다.
+
 로그 확인:
 
 ```powershell
@@ -815,6 +824,10 @@ Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azur
 - `dev-api.onmu.cloud`가 로컬 터널인지 Azure staging인지 팀원이 혼동하지 않게 DNS와 문서를 갱신합니다.
 
 Windows 서버에서 검증한 compose 설정은 Azure Container Apps, AKS manifest, Helm/Kustomize 설정을 만들 때 기준 입력으로 사용합니다. Azure staging으로 옮긴 뒤에는 Cloudflare Tunnel을 끄고, `onmu.cloud` 또는 `www.onmu.cloud`는 제품/비즈니스 소개 페이지로만 사용합니다.
+
+AI Agent가 Terraform 전환 작업을 준비할 때는 [현재 아키텍처 다이어그램과 기술 스택 결정안](../architecture/current-architecture-diagram.md)의 `Terraform 전환 Agent Notes`를 먼저 읽습니다. Agent는 `terraform fmt`, `terraform validate`, `terraform plan`까지를 기본 작업 범위로 삼고, Azure 리소스 생성/삭제, DNS 변경, `terraform apply`, 비용 발생 작업은 사람 승인 후에만 실행합니다. secret 값은 문서, 로그, plan 공유본, PR 본문에 출력하지 않고 env var 이름과 Key Vault secret name만 남깁니다.
+
+알림 push smoke는 dev-safe delivery와 실제 provider delivery를 분리해서 판정합니다. 현재 Spring runtime의 `provider=dev`, `status=skipped_dev` 결과는 FCM/APNs 발송 성공이 아니라 delivery 경계가 호출됐다는 추적 결과입니다. 실제 FCM/APNs smoke는 provider secret, feature flag, device token source, `notification.requested` payload의 `notificationId` 규칙이 모두 준비된 뒤 별도 승인된 환경에서 실행합니다.
 
 ## Spring Runtime 운영 인증/CORS 체크
 

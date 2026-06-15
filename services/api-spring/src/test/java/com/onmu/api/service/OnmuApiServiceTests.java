@@ -42,8 +42,10 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -162,6 +164,79 @@ class OnmuApiServiceTests {
     assertThat(profile)
       .containsEntry("displayName", "나")
       .containsEntry("nickname", "나");
+  }
+
+  @Test
+  void userMeFiltersCorruptedPreferenceProfileForFlutterProfile() throws Exception {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "나");
+    String brokenRegion = mojibake("서울 성동구");
+    String nestedJsonText = new ObjectMapper().writeValueAsString(Map.of("region", "서울 성동구"));
+    viewer.updateProfile(
+      null,
+      null,
+      new ObjectMapper().writeValueAsString(Map.of(
+        "introText", nestedJsonText,
+        "region", brokenRegion,
+        "regionVisibility", "PUBLIC",
+        "favoriteFoodTags", List.of(brokenRegion, "pasta")
+      )),
+      null,
+      null
+    );
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+
+    Map<String, Object> profile = service.userMe(viewer.getId());
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> preference = (Map<String, Object>) profile.get("preferenceProfile");
+    assertThat(preference)
+      .doesNotContainEntry("introText", nestedJsonText)
+      .doesNotContainEntry("region", brokenRegion)
+      .containsEntry("regionVisibility", "PUBLIC");
+    assertThat(preference.get("favoriteFoodTags")).isEqualTo(List.of("pasta"));
+  }
+
+  @Test
+  void updateUserProfileDoesNotPersistCorruptedPreferencePayload() throws Exception {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "나");
+    String brokenRegion = mojibake("서울 성동구");
+    String nestedJsonText = new ObjectMapper().writeValueAsString(Map.of("style", "조용한"));
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+
+    service.updateUserProfile(
+      viewer.getId(),
+      new UpdateUserProfileRequest(
+        null,
+        null,
+        Map.of(
+          "introText", nestedJsonText,
+          "region", Map.of(
+            "country", "KR",
+            "sido", brokenRegion,
+            "sigungu", "성동구",
+            "displayName", brokenRegion
+          ),
+          "favoriteFoodTags", List.of(brokenRegion, "pasta")
+        ),
+        null,
+        null
+      )
+    );
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> preference = new ObjectMapper().readValue(viewer.getPreferenceProfile(), Map.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> region = (Map<String, Object>) preference.get("region");
+    assertThat(preference)
+      .doesNotContainEntry("introText", nestedJsonText)
+      .containsEntry("favoriteFoodTags", List.of("pasta"));
+    assertThat(region)
+      .doesNotContainKey("sido")
+      .doesNotContainKey("displayName")
+      .containsEntry("country", "KR")
+      .containsEntry("sigungu", "성동구");
   }
 
   @Test
@@ -1045,5 +1120,9 @@ class OnmuApiServiceTests {
 
   private UserEntity user(String id, String displayName) {
     return new UserEntity(java.util.UUID.fromString(id), displayName);
+  }
+
+  private String mojibake(String value) {
+    return new String(value.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);
   }
 }

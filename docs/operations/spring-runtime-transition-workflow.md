@@ -80,6 +80,8 @@ Kakao OAuth 로그인용 공개 client id는 `KAKAO_REST_API_KEY`를 사용한�
 
 Google OAuth 로그인용 서버 env는 `GOOGLE_OAUTH_CLIENT_ID` 또는 Flutter server client id와 같은 `GOOGLE_SERVER_CLIENT_ID`이다. Key Vault secret name은 기본으로 dev `dev-google-oauth-client-id`, integration `int-google-oauth-client-id`를 사용하고, runtime fallback용 `GOOGLE_SERVER_CLIENT_ID`는 dev `dev-google-server-client-id`, integration `int-google-server-client-id`에서 로드할 수 있다. 이 값은 Google idToken의 `aud` 검증에만 사용하며, Flutter 앱 bundle에는 backend signing secret이나 Google client secret을 넣지 않는다. Spring은 Google idToken을 Google tokeninfo endpoint로 확인한 뒤 issuer, audience, subject, expiration을 검증하고 ONMU access/refresh token을 발급한다.
 
+Push provider delivery는 현재 dev-safe abstraction까지만 공식 운영 범위다. 실제 FCM/APNs 발송을 켤 때는 provider credential env var와 Key Vault secret name을 별도 문서/PR에서 확정한 뒤 Spring 서버 환경변수 또는 Managed Identity/Key Vault reference로만 주입한다. Flutter dart-define, 앱 bundle, PR 본문, 로그에는 FCM/APNs credential, JWT signing secret, OAuth secret 값을 넣지 않는다. `notification.requested` outbox가 provider delivery로 이어지려면 payload에 `notificationId`를 포함하거나 aggregate가 `notification`을 직접 가리켜야 한다.
+
 Kakao browser OAuth device smoke 전 Kakao Developers 콘솔에서 다음 공개 설정을 확인한다.
 
 - 로그인 Redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
@@ -167,6 +169,24 @@ curl -4 --http1.1 --connect-timeout 5 --max-time 12 \
 - refresh token, OAuth secret, DB password, Cloudflare token 값은 문서, 로그, PR 본문, 채팅에 출력하지 않는다.
 - CORS origin은 `ONMU_CORS_ORIGINS` 또는 dev fallback `ONMU_DEV_CORS_ORIGINS`로 명시한다.
 - wildcard origin/header를 운영 기준으로 쓰지 않는다.
+
+## Notification / Push / Devices 운영 경계
+
+현재 Spring runtime의 `notification.requested` 처리는 dev-safe delivery abstraction이다. `DevNotificationPushProvider`는 실제 FCM/APNs provider를 호출하지 않고 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` 성격의 결과를 남긴다. 이 상태는 API와 DB side effect smoke에는 유효하지만 실제 모바일 push 성공으로 판정하지 않는다.
+
+실제 provider delivery를 켜기 전에는 다음 항목을 별도 결정한다.
+
+| 목적 | Env var 후보 | Key Vault secret name 후보 | 비고 |
+| --- | --- | --- | --- |
+| FCM service account | `ONMU_FCM_SERVICE_ACCOUNT_JSON` | `dev-fcm-service-account-json`, `int-fcm-service-account-json`, `prod-fcm-service-account-json` | Flutter bundle에 넣지 않는다. |
+| APNs private key | `ONMU_APNS_PRIVATE_KEY` | `dev-apns-private-key`, `int-apns-private-key`, `prod-apns-private-key` | 값은 출력하지 않는다. |
+| APNs key id | `ONMU_APNS_KEY_ID` | `dev-apns-key-id`, `int-apns-key-id`, `prod-apns-key-id` | provider 설정용 식별자다. |
+| APNs team id | `ONMU_APNS_TEAM_ID` | `dev-apns-team-id`, `int-apns-team-id`, `prod-apns-team-id` | provider 설정용 식별자다. |
+| APNs bundle id | `ONMU_APNS_BUNDLE_ID` | `dev-apns-bundle-id`, `int-apns-bundle-id`, `prod-apns-bundle-id` | secret과 함께 앱에 넣지 않는다. |
+| Push delivery flag | `ONMU_PUSH_DELIVERY_ENABLED` | config/env 후보 | 실제 provider smoke 전 명시적으로 켠다. |
+| Push provider mode | `ONMU_PUSH_PROVIDER_MODE` | config/env 후보 | `dev`, `fcm`, `apns`, `mixed` 같은 값은 팀 결정 후 고정한다. |
+
+Dev-safe smoke는 `/api/v1/notifications`, `/api/v1/notification-preferences`, `/api/v1/devices/push-token` 계약과 `notification_deliveries.status=skipped_dev` 기록만 확인한다. Real provider smoke는 Key Vault secret, Managed Identity, feature flag, 실제 iOS/Android 빌드의 OS token source가 준비된 뒤 별도 승인으로 진행한다.
 
 ## 로그
 

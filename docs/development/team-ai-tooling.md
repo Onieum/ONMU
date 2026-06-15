@@ -62,9 +62,13 @@ MCP는 AI에게 도구 사용 능력을 주는 것이므로 권한 관리가 중
 | 저장소에 실제 MCP 설정을 커밋하지 않는다. | 토큰, 로컬 경로, 계정 정보가 들어갈 수 있다. 예시는 `.example`로만 둔다. |
 | 개인 토큰은 최소 권한으로 만든다. | GitHub는 repo 범위, Jira/Notion은 ONMU 프로젝트 범위만 허용한다. |
 | 운영 DB, 운영 Redis, 운영 Storage 직접 연결을 피한다. | AI 도구는 local 또는 staging read-only부터 사용한다. |
-| 삭제/배포/결제 관련 작업은 사람 승인 후 실행한다. | Azure/AWS 리소스 삭제, 비용 발생 작업, 도메인 변경은 자동 실행하지 않는다. |
+| 삭제/배포/결제 관련 작업은 사람 승인 후 실행한다. | Azure/AWS 리소스 삭제, 비용 발생 작업, 도메인 변경, Terraform `apply`는 자동 실행하지 않는다. |
 | secret은 Key Vault, GitHub Secrets, 로컬 `.env`에 둔다. | Jira, Notion, Markdown, PR 본문에 secret을 적지 않는다. |
 | MCP 로그에 개인정보를 남기지 않는다. | 실제 사용자 사진, 위치, 전화번호, 결제/정산 정보는 테스트 데이터로 대체한다. |
+
+Terraform 전환 작업에서 AI Agent의 기본 범위는 코드 작성, 문서 갱신, `terraform fmt`, `terraform validate`, `terraform plan`까지다. 실제 `apply`, public endpoint/DNS 변경, Key Vault secret 값 쓰기, Azure 리소스 삭제는 사람 승인과 protected environment gate 뒤에만 실행한다.
+
+Notification / Push / Devices처럼 Terraform 전환과 앱 런타임 변경이 함께 걸린 문서 작업에서는 소유 경계를 먼저 분리한다. Terraform/Azure 작업은 Key Vault, Managed Identity, Service Bus/Event Queue, Application Insights, runtime identity, provider secret reference 같은 클라우드 리소스 경계를 만든다. DB table, index, enum-like 체크 제약, seed/default preference 같은 schema와 데이터 계약은 Spring Flyway가 소유하며 Terraform으로 생성하지 않는다. AI Agent는 provider secret 값, JWT signing secret, OAuth secret을 출력하거나 Flutter bundle에 넣는 제안을 하지 않는다.
 
 ## 6. 추천 Skill 목록
 
