@@ -302,6 +302,7 @@ class ApiGroupRepository implements GroupRepository {
   }
 
   GroupPlanSummary _groupPlanSummary(Map<String, dynamic> json) {
+    final memberAvatars = _groupPlanMemberAvatars(json);
     return GroupPlanSummary(
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '약속'),
@@ -319,7 +320,34 @@ class ApiGroupRepository implements GroupRepository {
       extraMemberCount: OnmuJson.readInt(json, 'extraMemberCount'),
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
+      memberAvatars: memberAvatars,
     );
+  }
+
+  List<GroupPlanMemberAvatar> _groupPlanMemberAvatars(
+    Map<String, dynamic> json,
+  ) {
+    final members = OnmuJson.asMapList(json['members']);
+    final rawMembers = members.isNotEmpty
+        ? members
+        : OnmuJson.asMapList(json['participants']);
+    return rawMembers
+        .map((member) {
+          final name = OnmuJson.readString(
+            member,
+            'name',
+            OnmuJson.readString(
+              member,
+              'displayName',
+              OnmuJson.readString(member, 'nickname', '참여자'),
+            ),
+          );
+          return GroupPlanMemberAvatar(
+            name: name,
+            profileImageUrl: _profileImageUrl(member),
+          );
+        })
+        .toList(growable: false);
   }
 
   GroupMessagePage _groupMessagePage(Map<String, dynamic> json) {
@@ -336,6 +364,8 @@ class ApiGroupRepository implements GroupRepository {
   }
 
   GroupMessage _groupMessage(Map<String, dynamic> json) {
+    final createdAt = OnmuJson.readString(json, 'createdAt');
+    final localTimeLabel = _messageTimeLabel(createdAt);
     return GroupMessage(
       id: OnmuJson.readString(json, 'id'),
       cursor: OnmuJson.readString(json, 'cursor'),
@@ -345,11 +375,9 @@ class ApiGroupRepository implements GroupRepository {
         OnmuJson.readString(json, 'sender', 'ONMU'),
       ),
       message: _messageText(json),
-      timeLabel: OnmuJson.readString(
-        json,
-        'timeLabel',
-        _messageTimeLabel(OnmuJson.readString(json, 'createdAt')),
-      ),
+      timeLabel: localTimeLabel.isEmpty
+          ? OnmuJson.readString(json, 'timeLabel')
+          : localTimeLabel,
       isMine: OnmuJson.readBool(json, 'isMine'),
       senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
       attachments: _messageAttachments(json['attachments']),
@@ -363,11 +391,13 @@ class ApiGroupRepository implements GroupRepository {
     if (value.isEmpty) {
       return '';
     }
-    final match = RegExp(r'T(\d{2}):(\d{2})').firstMatch(value);
-    if (match == null) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
       return '';
     }
-    return '${match.group(1)}:${match.group(2)}';
+    final local = parsed.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
   }
 
   String _messageText(Map<String, dynamic> json) {

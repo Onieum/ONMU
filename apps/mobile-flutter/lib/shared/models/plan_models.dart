@@ -1,3 +1,5 @@
+import 'preference_profile.dart';
+
 class PlanMember {
   const PlanMember({
     required this.name,
@@ -5,6 +7,7 @@ class PlanMember {
     required this.badge,
     required this.selected,
     this.profileImageUrl = '',
+    this.preferenceProfile,
   });
 
   final String name;
@@ -12,6 +15,7 @@ class PlanMember {
   final String badge;
   final bool selected;
   final String profileImageUrl;
+  final PreferenceProfile? preferenceProfile;
 }
 
 enum PlanArrivalStatus {
@@ -52,6 +56,7 @@ class PlanParticipantArrival {
     required this.arrivalStatus,
     required this.isFallback,
     this.profileImageUrl = '',
+    this.preferenceProfile,
   });
 
   final String id;
@@ -61,6 +66,7 @@ class PlanParticipantArrival {
   final PlanArrivalStatus arrivalStatus;
   final bool isFallback;
   final String profileImageUrl;
+  final PreferenceProfile? preferenceProfile;
 }
 
 extension PlanParticipantArrivalListX on Iterable<PlanParticipantArrival> {
@@ -166,6 +172,7 @@ class PlanCreateInput {
     required this.groupId,
     required this.title,
     required this.dateTime,
+    required this.endsAt,
     required this.location,
     required this.memo,
     required this.members,
@@ -174,6 +181,7 @@ class PlanCreateInput {
   final Object groupId;
   final String title;
   final String dateTime;
+  final String endsAt;
   final String location;
   final String memo;
   final List<PlanMember> members;

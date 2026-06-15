@@ -306,6 +306,13 @@ class OnmuApiServiceTests {
   @Test
   void planCardIncludesActiveParticipantsForUiCounts() {
     UserEntity jimin = user("00000000-0000-0000-0000-000000000001", "지민");
+    jimin.updateProfile(
+      null,
+      null,
+      "{\"preferredTimes\":[\"evening\"],\"unavailableDates\":[\"2026-06-17\"]}",
+      null,
+      null
+    );
     UserEntity minsu = user("00000000-0000-0000-0000-000000000002", "민수");
     PlanParticipantEntity joined = new PlanParticipantEntity(plan, jimin, "joined", "accepted");
     PlanParticipantEntity left = new PlanParticipantEntity(plan, minsu, "left", "accepted");
@@ -325,6 +332,9 @@ class OnmuApiServiceTests {
         assertThat(participant.get("displayName")).isEqualTo("지민");
         assertThat(participant.get("status")).isEqualTo("joined");
         assertThat(participant.get("fallback")).isEqualTo(false);
+        assertThat(participant.get("preferenceProfile"))
+          .isInstanceOfSatisfying(Map.class, profile ->
+            assertThat(profile).containsEntry("preferredTimes", List.of("evening")));
       });
     assertThat(detail.get("members"))
       .isInstanceOfSatisfying(List.class, members -> {
@@ -332,6 +342,9 @@ class OnmuApiServiceTests {
         Map<?, ?> member = (Map<?, ?>) members.getFirst();
         assertThat(member.get("name")).isEqualTo("지민");
         assertThat(member.get("selected")).isEqualTo(true);
+        assertThat(member.get("preferenceProfile"))
+          .isInstanceOfSatisfying(Map.class, profile ->
+            assertThat(profile).containsEntry("unavailableDates", List.of("2026-06-17")));
       });
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/plan_models.dart';
+import '../../../shared/models/preference_profile.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
   return ApiPlanRepository(ref.watch(onmuApiClientProvider));
@@ -62,6 +63,7 @@ class ApiPlanRepository implements PlanRepository {
       body: {
         'title': input.title.trim(),
         'startsAt': _startsAtOrNull(input.dateTime),
+        'endsAt': _startsAtOrNull(input.endsAt),
         'placeName': input.location.trim(),
         'memo': input.memo.trim(),
       },
@@ -79,6 +81,7 @@ class ApiPlanRepository implements PlanRepository {
       body: {
         'title': input.title.trim(),
         'startsAt': _startsAtOrNull(input.dateTime),
+        'endsAt': _startsAtOrNull(input.endsAt),
         'placeName': input.location.trim(),
         'memo': input.memo.trim(),
         'status': 'draft',
@@ -168,6 +171,7 @@ class ApiPlanRepository implements PlanRepository {
       ),
       isFallback: OnmuJson.readBool(json, 'fallback'),
       profileImageUrl: _profileImageUrl(json),
+      preferenceProfile: _preferenceProfile(json),
     );
   }
 
@@ -192,6 +196,7 @@ class ApiPlanRepository implements PlanRepository {
             ),
             selected: OnmuJson.readBool(member, 'selected', true),
             profileImageUrl: _profileImageUrl(member),
+            preferenceProfile: _preferenceProfile(member),
           );
         })
         .toList(growable: false);
@@ -207,6 +212,14 @@ class ApiPlanRepository implements PlanRepository {
         OnmuJson.readString(json, 'avatarUrl'),
       ),
     );
+  }
+
+  PreferenceProfile? _preferenceProfile(Map<String, dynamic> json) {
+    final preferenceJson = OnmuJson.asMap(json['preferenceProfile']);
+    if (preferenceJson.isEmpty) {
+      return null;
+    }
+    return PreferenceProfile.fromJson(preferenceJson);
   }
 
   String? _startsAtOrNull(String value) {

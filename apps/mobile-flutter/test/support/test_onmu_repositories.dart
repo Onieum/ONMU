@@ -21,9 +21,11 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 import 'package:onmu_mobile/shared/models/character_model.dart';
+import 'package:onmu_mobile/shared/providers/state_providers.dart';
 
 import 'in_memory_onmu_store.dart';
 
@@ -53,6 +55,7 @@ ProviderScope onmuTestProviderScope({
   required Widget child,
   AuthUser? user,
   MyRepository? myRepository,
+  PreferenceProfile? preferenceProfile,
 }) {
   final store = InMemoryOnmuStore.seeded();
   return ProviderScope(
@@ -73,6 +76,8 @@ ProviderScope onmuTestProviderScope({
         myRepository ?? TestMyRepository(),
       ),
       characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
+      if (preferenceProfile != null)
+        preferenceProfileProvider.overrideWith((ref) => preferenceProfile),
     ],
     child: child,
   );

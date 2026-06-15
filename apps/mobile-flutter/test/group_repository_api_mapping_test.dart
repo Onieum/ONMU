@@ -112,6 +112,53 @@ void main() {
     },
   );
 
+  test('maps plan member profile image urls for plan cards', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 101,
+                  'title': '성수 브런치',
+                  'dateLabel': '오늘 12:00',
+                  'placeName': '성수동',
+                  'status': 'scheduled',
+                  'memberCount': 2,
+                  'members': [
+                    {
+                      'displayName': '지우',
+                      'profileImageUrl': 'dev/avatars/jiwoo.png',
+                    },
+                    {
+                      'name': '민수',
+                      'profilePhotoUrl': 'https://example.test/minsu.png',
+                    },
+                  ],
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(plans.single.memberAvatars.map((member) => member.name), [
+      '지우',
+      '민수',
+    ]);
+    expect(plans.single.memberAvatars.map((member) => member.profileImageUrl), [
+      'dev/avatars/jiwoo.png',
+      'https://example.test/minsu.png',
+    ]);
+  });
+
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
     final requestedPaths = <String>[];
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
@@ -183,7 +230,7 @@ void main() {
     );
     expect(messages[1].sender, 'ONMU');
     expect(messages[1].message, '새 투표가 열렸어요.');
-    expect(messages[1].timeLabel, '14:03');
+    expect(messages[1].timeLabel, _localTimeLabel('2026-06-09T14:03:00+09:00'));
     expect(messages[1].isMine, isFalse);
     expect(messages[2].sender, 'ONMU');
     expect(messages[2].message, '새 활동이 있어요.');
@@ -596,4 +643,11 @@ void main() {
       'http://127.0.0.1:8080/api/v1/media/public?key=dev%2Fmedia%2Frecords%2Fmemory-1004%2Fimage-1.jpg',
     );
   });
+}
+
+String _localTimeLabel(String value) {
+  final local = DateTime.parse(value).toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

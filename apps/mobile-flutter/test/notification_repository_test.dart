@@ -62,7 +62,10 @@ void main() {
     expect(notifications.single.planId, '103');
     expect(notifications.single.payloadString('settlementId'), '301');
     expect(notifications.single.isRead, isFalse);
-    expect(notifications.single.timeLabel, '14:12');
+    expect(
+      notifications.single.timeLabel,
+      _localTimeLabel('2026-06-09T05:12:00Z'),
+    );
   });
 
   test('payload groupId와 planId를 fallback으로 사용한다', () {
@@ -273,6 +276,13 @@ class _FailingNotificationRepository implements NotificationRepository {
   ) async {
     throw Exception('network failed');
   }
+}
+
+String _localTimeLabel(String value) {
+  final local = DateTime.parse(value).toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }
 
 class _StaticNotificationRepository implements NotificationRepository {
