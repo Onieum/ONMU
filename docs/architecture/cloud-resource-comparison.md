@@ -32,7 +32,7 @@
 | --- | --- | --- | --- | --- |
 | Phase 0: 문서화/계획 | current-to-target, ownership, smoke, rollback | `.azure/deployment-plan.md`, 운영 문서 세트 | 반영 | 실제 리소스 생성 없음 |
 | Phase 1: Azure staging MVP | Spring Main API, DB, Redis, object storage, secret, logs | Container Apps, PostgreSQL Flexible Server + PostGIS, Azure Cache for Redis, Blob Storage, Key Vault, Log Analytics/App Insights | 적합 | AKS보다 ACA가 초기 운영 부담이 낮음 |
-| Phase 1: tile 안정화 | manifest/style/PMTiles Range/CORS | Blob Storage + CDN/Front Door 후보 | 적합 | public tile gateway를 Blob/CDN으로 이전 가능 |
+| Phase 1: tile 안정화 | manifest/style/PMTiles Range/CORS | Blob Storage + CDN/Front Door 후보 | 적합 | public tile gateway를 Blob/CDN으로 이전 가능. 단, 최종 hosting, cache invalidation, rollback 방식은 Terraform 적용 전 결정 |
 | Phase 1: place/route provider | Naver/Kakao/OpenRouteService secret, short TTL cache | Key Vault, Managed Identity, Azure Cache for Redis | 적합 | Flutter가 provider API 직접 호출하지 않음 |
 | Phase 2: chat/notification 안정화 | SSE, outbox, delivery record, push token | Spring SSE 유지 + Service Bus 후보 + App Insights | 적합 | Realtime Gateway는 후속 |
 | Phase 2: worker 분리 | AI/Data Worker, notification worker, async jobs | Container Apps Worker 또는 Container Apps Jobs, Service Bus | 적합 | worker schema는 Alembic 후보 |
@@ -46,6 +46,45 @@
 - 초기 staging은 AKS보다 Container Apps가 더 현실적이다.
 - Production/portfolio 목표에는 AKS, APIM, WAF, private networking을 남겨 두는 구성이 적절하다.
 - 지금 당장 확정해야 할 것은 "ACA staging first"와 "AKS production target 후보"의 우선순위이지, AKS를 처음부터 강제하는 것이 아니다.
+
+### Place/Search/Route/Map 확정 전 체크
+
+Place/Search/Route/Map 영역은 기준선 문서와 smoke checklist에는 반영되어 있지만, Terraform으로 리소스를 생성하기 전 다음 항목을 운영 결정으로 닫아야 한다.
+
+| 항목 | 결정 필요 내용 | Terraform 반영 위치 |
+| --- | --- | --- |
+| Tile hosting | Blob Storage + CDN, Front Door, gateway fallback 중 staging/prod traffic 경로 선택 | storage/edge module, endpoint output |
+| Tile rollback | versioned manifest/style/PMTiles object, current pointer 전환, purge/invalidation 권한 | storage lifecycle, edge purge 권한 |
+| Provider production | Kakao Local 심사/권한, Naver/Kakao quota, route provider quota/약관 | Key Vault secret name, runtime env binding |
+| Provider retention | raw provider body 장기 저장 금지, 최소 snapshot field와 TTL/삭제 기준 | 앱/Flyway/운영 정책. Terraform 소유 아님 |
+| PostGIS query | geometry/geography column, GiST/SP-GiST index, radius/nearby query | DB extension은 Terraform 후보, table/index는 Flyway |
+| Android map regression | MapLibre/PMTiles emulator matrix, 담당자, artifact 기준 | CI/CD smoke job 후보 |
+| 비용 산정 | staging/prod별 Blob egress, edge, PostgreSQL/PostGIS, Redis, provider 호출량 | pricing calculator 산출물. Terraform 코드가 아님 |
+
+### Records/Media/OOTD 확정 전 체크
+
+Records/Media/OOTD 영역은 Blob Storage 리소스만으로 완성되지 않는다. Terraform 적용 전 Spring upload boundary, DB metadata, Flutter state 갱신 기준을 함께 닫는다.
+
+| 항목 | 결정 필요 내용 | Terraform 반영 위치 |
+| --- | --- | --- |
+| Media upload boundary | Flutter 직접 Blob/MinIO write 금지, Spring multipart/proxy 또는 Spring-issued presigned flow 중 선택 | Container Apps env, storage identity, CORS 최소화 |
+| Storage provider | local/dev MinIO compatibility, Azure staging/prod Blob Storage target | storage module, managed identity/RBAC |
+| Media metadata | `record_media` object key, content type, size, sort order, comment, target `media[]` contract | DB schema는 Flyway, Terraform 소유 아님 |
+| Upload limits | max count, MIME/extension, per-file/body size, client compression, error code | Container Apps ingress/body limit, Spring env |
+| OOTD display | DAILY/OOTD same-day coexistence, OOTD 없는 날짜 character 미표시 | Flutter/API smoke. Terraform 소유 아님 |
+| Diary reproducibility | `layoutType`, decoration seed 또는 selected asset key 저장 | 앱/Flyway 계약. Terraform 소유 아님 |
+
+### Edge/API Gateway 확정 전 체크
+
+| 항목 | staging 1차 | production 후보 |
+| --- | --- | --- |
+| Ingress | Container Apps ingress + Spring CORS | Front Door/WAF 또는 API Management |
+| CORS | 환경별 allowlist, credential 최소화 | web origin 고정, preflight cache policy |
+| OAuth callback | Spring public route 직접 도달 | custom domain/edge route smoke 후 cutover |
+| Rate limit | 앱 내부 또는 edge 없이 시작 가능 | APIM/WAF policy 후보 |
+| WAF | 기본 미적용 | production traffic 전 별도 비용/운영 승인 |
+
+MVP staging은 Container Apps ingress를 기본값으로 둔다. Front Door/WAF/APIM은 production hardening 후보이며, 도입 전에는 OAuth callback, mobile deep link, CORS preflight, `/readyz`, domain smoke가 edge 뒤에서 모두 통과해야 한다.
 
 ## 3. Cloud resource 대응표
 
@@ -100,6 +139,19 @@
 3. WAF/APIM/private networking은 production cutover 직전까지 optional로 둔다.
 4. Log retention과 sampling을 제한한다.
 5. AI/RAG는 rule-based MVP 이후 별도 budget gate로 연다.
+
+Azure 비용 guardrail 후보:
+
+| 항목 | staging 기본 | production 전 확인 |
+| --- | --- | --- |
+| SKU | 최소 HA/replica, scale-to-zero 가능 runtime 우선 | HA/zone redundancy는 비용 승인 후 |
+| Budget alert | resource group 또는 subscription budget alert 후보 | monthly budget, forecast alert, owner 지정 |
+| Auto-shutdown | dev/test성 worker/job은 예약 실행 또는 scale-to-zero | production 상시 runtime만 예외 |
+| Log retention | 짧은 retention으로 시작 | incident/SLO 요구에 맞춰 연장 |
+| Blob lifecycle | old media/tile version lifecycle 후보 | legal/product retention 결정 후 적용 |
+| AI/LLM | 기본 disabled 또는 quota 제한 | 별도 budget gate |
+
+비용 산출물에는 SKU, count, region, 월 예상 범위, 주요 비용 원인만 남긴다. billing account 식별자나 결제 정보는 문서/PR에 남기지 않는다.
 
 ## 6. 무료 크레딧 방어 가능성
 

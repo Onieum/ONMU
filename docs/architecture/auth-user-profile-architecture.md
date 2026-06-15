@@ -53,6 +53,18 @@ Flutter login action
 | Provider verifier | Naver/Kakao는 provider access token 또는 authorization code exchange를 지원하고, Google은 idToken tokeninfo 검증을 수행한다. |
 | Refresh/logout | `refresh_tokens` table 기반 저장, 회전, reuse 감지, family revoke를 수행한다. logout은 refresh token 기반 공개/idempotent route다. |
 
+현재 JWT/session runtime 기준:
+
+| 항목 | 현재 기본값 | env var | 운영 기준 |
+| --- | --- | --- | --- |
+| issuer | `onmu-api` | `ONMU_AUTH_ISSUER` | 환경별로 바꿀 수 있지만 client/server smoke가 같은 issuer를 기대해야 한다. |
+| audience | `onmu-mobile` | `ONMU_AUTH_AUDIENCE` | Flutter/API smoke의 access token audience와 Spring 검증 값을 맞춘다. |
+| access token TTL | `30m` | `ONMU_ACCESS_TOKEN_TTL` | dev/staging/prod에서 너무 길게 늘리지 않는다. |
+| refresh token TTL | `30d` | `ONMU_REFRESH_TOKEN_TTL` | rotation/reuse detection과 함께 운영한다. |
+| signing secret | 없음, Key Vault 주입 필요 | `ONMU_ACCESS_TOKEN_SECRET` | Flutter bundle, dart-define, log에 넣지 않는다. |
+
+개발용 JWT는 dev/integration smoke와 Flutter API mode를 위한 우회 수단이다. 실제 OAuth login 완료 판정에는 provider flow와 Spring token exchange를 사용한다. dev test token, prod token, 실제 OAuth provider token은 서로 대체하지 않는다.
+
 ### Flutter Auth Flow
 
 Flutter는 `features/auth` 아래에서 provider별 로딩과 Spring exchange를 분리한다.
@@ -64,7 +76,7 @@ Flutter는 `features/auth` 아래에서 provider별 로딩과 Spring exchange를
 | `AuthTokenStore` | ONMU access JWT와 refresh token을 secure storage에 저장한다. |
 | `KakaoOAuthCredentialLoader` | Kakao 공개 client id/redirect URI를 읽고 browser authorization-code flow를 시작한다. |
 | `NaverOAuthCredentialLoader` | Naver 공개 client id/redirect URI를 읽고 browser authorization-code flow를 시작한다. |
-| `SocialAuthService` | Google client id/server client id를 읽고 idToken을 얻어 Spring으로 전달한다. |
+| `SocialAuthService` | Google public client id/server client id를 읽고 idToken을 얻어 Spring으로 전달한다. iOS는 generated xcconfig의 reversed client id URL scheme도 필요하다. |
 
 실제 OAuth smoke에는 JWT 우회 define을 섞지 않는다. 보호 API 화면 개발용 JWT define과 provider 로그인 smoke용 OAuth define은 목적이 다르다.
 
@@ -162,7 +174,9 @@ DB에는 `character_profiles`가 도입되어 있고, `users.pixel_character`는
 | `PATCH /api/v1/users/me/friends/{friendUserId}` | 친구 메모/즐겨찾기 수정 |
 | `DELETE /api/v1/users/me/friends/{friendUserId}` | 친구 삭제 |
 
-최신 `dev` 기준으로 `user_codes`는 seed와 lookup 계약에 존재하지만, 신규 OAuth 사용자 생성 시 숫자 10자리 친구 코드를 자동 보장하는 로직은 아직 `dev`에 머지되지 않았다. 해당 보강은 PR #154에서 진행 중이며, 이 문서에서는 Target/Delta 항목으로 분리한다.
+최신 `dev` 기준으로 `user_codes`는 seed와 lookup 계약뿐 아니라 신규 OAuth 사용자 생성 시 숫자 10자리 `NUMERIC_10` active 친구 코드를 자동 보장하는 로직까지 포함한다. `V19__numeric_user_codes.sql`은 기존 seed/dev data를 숫자 10자리 active code 기준으로 보정하고, 사용자별 active code unique index와 숫자 형식 check를 추가한다.
+
+남은 리스크는 구현 부재가 아니라 기존 dev/staging DB에 동일 사용자 다중 active code 또는 숫자 형식이 아닌 active code가 남아 있을 때 migration이 실패할 수 있는 데이터 보정 문제다. Terraform은 이 schema/data 보정을 소유하지 않으며, Flyway migration과 사전 data audit가 소유한다.
 
 ## Target Architecture
 
@@ -207,7 +221,7 @@ flowchart LR
 | Runtime secret | dev Key Vault와 로컬 env/script 혼합 | Managed Identity 기반 Key Vault reference | Terraform/Ops |
 | Access JWT | HS256 short-lived JWT | 환경별 signing secret, TTL, rotation policy 명문화 | Spring/Ops |
 | Refresh token | DB 저장/회전 구현 | device/session 관리, revoke visibility, audit 보강 | Spring |
-| User code | table/lookup 존재, 자동 생성은 PR #154 진행 중 | 신규 사용자마다 active 숫자 10자리 코드 1개 보장 | Spring/Flyway |
+| User code | table/lookup과 신규 사용자 숫자 10자리 active code 자동 생성 구현 | 기존 dev/staging DB의 중복 active code audit와 친구 코드 검색 rate limit 보강 | Spring/Flyway |
 | Character | `character_profiles`와 `users.pixel_character` 병존 | `character_profiles` source of truth 확정 | Spring/Flutter |
 | Region visibility | profile JSONB에 저장 | 약속 구성원 기준 제한 공유 read model 설계 | Profile/Meetup |
 | Observability | access log, tests 중심 | auth failure reason, token refresh, OAuth provider latency metric | Spring/Ops |
@@ -309,7 +323,7 @@ Public/idempotent logout route다. body에 refresh token이 있으면 해당 tok
 | Profile PATCH | `users` profile fields update | profile change event 후보. 현재 outbox 필수 아님 |
 | Character save | character/profile update | 캐릭터 source of truth 확정 후 event 필요 여부 결정 |
 | Friend add | friendships/settings write | notification/activity side effect는 별도 domain decision |
-| User code allocation | 현재 dev에는 자동 생성 없음, PR #154 진행 중 | signup transaction에서 active code 보장 |
+| User code allocation | signup transaction에서 active 숫자 10자리 code 보장 | 중복 active code audit, 재발급/rate limit 정책 보강 |
 
 Outbox를 무리하게 추가하지 않는다. 인증과 프로필 변경은 개인정보와 보안 이벤트이므로, event를 추가할 때는 payload 최소화와 PII 제거가 먼저 확정되어야 한다.
 
@@ -323,7 +337,7 @@ Outbox를 무리하게 추가하지 않는다. 인증과 프로필 변경은 개
 | `character_profiles` | 캐릭터 원장 후보 | 최종 source of truth로 승격 |
 | `auth_identities` | provider identity 연결 | provider별 subject unique, deleted identity 처리 유지 |
 | `refresh_tokens` | refresh token hash/rotation/family | device/session 관리 UI 후보 |
-| `user_codes` | 친구 검색용 코드 | PR #154 이후 `NUMERIC_10` active code 자동 보장 목표 |
+| `user_codes` | 친구 검색용 숫자 10자리 `NUMERIC_10` active code | 신규 OAuth 사용자 자동 생성 구현. 기존 DB 중복 active code 정리는 migration/audit gate |
 | `friendships` | canonical pair 친구 관계 | active/hidden/deleted 정책 유지 |
 | `friend_settings` | 사용자별 친구 메모/즐겨찾기/표시 설정 | 친구 공개 프로필과 개인 메모를 혼동하지 않음 |
 | `friend_requests` | 요청 방향 보존 후보 | MVP 즉시 친구 추가 이후 요청 승인형으로 확장 가능 |
@@ -401,10 +415,20 @@ Terraform이 하면 안 되는 일:
 | Kakao callback | `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | config 또는 secret reference 후보 | redirect URI만 가능 |
 | Naver OAuth client id | `NAVER_OAUTH_CLIENT_ID` | `dev-naver-oauth-client-id`, `int-naver-oauth-client-id` | 공개 client id로만 가능 |
 | Naver OAuth secret | `NAVER_OAUTH_CLIENT_SECRET` | `dev-naver-oauth-client-secret`, `int-naver-oauth-client-secret` | 금지 |
-| Google audience | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` | `dev-google-oauth-client-id`, `dev-google-server-client-id` | client id만 가능 |
+| Google Spring audience | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` | `dev-google-oauth-client-id`, `dev-google-server-client-id` | client id만 가능 |
+| Google Flutter public define | `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` | `dev-google-oauth-client-id`, `dev-google-server-client-id` | 예 |
+| Google iOS generated xcconfig | `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_SERVER_CLIENT_ID`, `GOOGLE_IOS_REVERSED_CLIENT_ID` | `GOOGLE_CLIENT_ID`와 `GOOGLE_SERVER_CLIENT_ID`에서 로컬 생성 | 예. generated file은 git ignored |
 | DB password | `SPRING_DATASOURCE_PASSWORD` | 환경별 DB password secret | 금지 |
 
 Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
+
+Google mobile 설정은 현재 repo 기준으로 다음 경계를 따른다.
+
+- Spring은 `GOOGLE_OAUTH_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`로 Google idToken `aud`를 검증한다.
+- Flutter dart-define은 `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` public key 이름을 사용한다.
+- iOS build는 `ios/Flutter/GoogleOAuth.generated.xcconfig`의 `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_SERVER_CLIENT_ID`, `GOOGLE_IOS_REVERSED_CLIENT_ID`를 참조한다.
+- `GOOGLE_ANDROID_CLIENT_ID`나 별도 `GOOGLE_IOS_CLIENT_ID` Key Vault secret은 현재 코드가 직접 읽는 이름이 아니므로, 도입하려면 Flutter/Spring 코드와 define 생성 스크립트를 함께 바꾼 뒤 문서화한다.
+- public client id와 reversed client id URL scheme은 Flutter bundle에 들어갈 수 있지만, Google client secret, JWT signing secret, DB password는 금지다.
 
 ## Observability and Smoke Test
 
@@ -429,9 +453,13 @@ Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
 2. token 없이 `GET /api/v1/users/me`가 401인지 확인한다.
 3. Key Vault signing secret으로 짧은 수명 dev JWT를 로컬에서 발급한다.
 4. `GET /api/v1/auth/session`이 authenticated session을 반환하는지 확인한다.
-5. `GET /api/v1/users/me`가 profile/onboarding 필드를 반환하는지 확인한다.
-6. `PATCH /api/v1/users/me`로 `preferenceProfile` 일부 저장 후 다시 조회한다.
-7. region visibility가 `PRIVATE`일 때 친구 상세나 공개 프로필에 노출되지 않는지 확인한다.
+5. `POST /api/v1/auth/refresh`는 refresh token rotation status만 확인하고 token 값은 출력하지 않는다.
+6. `DELETE /api/v1/auth/session`은 refresh token이 있거나 없어도 logout/idempotent behavior를 확인한다.
+7. `GET /api/v1/users/me`가 profile/onboarding/userCode 필드를 반환하는지 확인한다.
+8. `userCode`는 10자리 숫자 형식 presence만 확인한다.
+9. `PATCH /api/v1/users/me`로 `preferenceProfile` 일부 저장 후 다시 조회한다.
+10. region visibility가 `PRIVATE`일 때 친구 상세나 공개 프로필에 노출되지 않는지 확인한다.
+11. region visibility가 공개 또는 제한 공개인 경우에도 active friend 또는 허용된 viewer 기준으로만 노출되는지 확인한다.
 
 ### OAuth mobile smoke
 
@@ -441,18 +469,23 @@ Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
 4. Spring `POST /api/v1/auth/oauth/{provider}` exchange가 성공하는지 확인한다.
 5. Flutter secure storage에 ONMU access/refresh token이 저장되는지 확인한다.
 6. 앱 재실행 후 session 유지 또는 refresh가 정상인지 확인한다.
+7. Google Android는 provider 화면 진입, Spring exchange status, secure storage 저장을 status/path 중심으로 확인한다.
+8. Google iOS는 `GOOGLE_IOS_REVERSED_CLIENT_ID` URL scheme, 앱 복귀, Spring exchange status를 확인한다.
+9. Kakao/Naver는 provider callback path와 mobile deep link 앱 복귀를 분리해서 보고한다.
+
+보고에는 provider token, idToken, authorization code, state, raw response body, 사용자 이메일/이름을 포함하지 않는다. key name, length, presence, status, path, error type만 보고한다.
 
 ## Migration Risks
 
 - OAuth console redirect URI, Android package/SHA-1, iOS reversed client id가 Key Vault/runtime 값과 어긋나면 provider login은 열리지만 최종 ONMU token exchange가 실패한다.
-- Google `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`, Spring audience 검증 값이 서로 다르면 idToken은 받아도 backend에서 거절된다.
+- Google `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`, generated `GOOGLE_IOS_REVERSED_CLIENT_ID`, Spring audience 검증 값이 서로 다르면 idToken은 받아도 backend에서 거절되거나 iOS 앱 복귀가 실패한다.
 - Provider access token을 ONMU bearer token으로 착각하면 보호 API가 401 또는 잘못된 권한 상태가 된다.
 - Refresh token reuse detection을 약화하면 탈취된 refresh token을 회수하기 어려워진다.
 - `onboardingStatus=COMPLETED`에 지역 설정 완료 여부를 갑자기 포함하면 기존 사용자가 다시 온보딩 게이트에 걸릴 수 있다.
 - 지역 공개 범위를 친구/약속 구성원 기준으로 제한하지 않으면 거주지역 개인정보가 과노출될 수 있다.
 - Terraform이 DB table DDL을 직접 만들기 시작하면 Flyway migration history와 충돌한다.
 - Secret 값을 `.dart_tool`, `.env`, PR 본문, console log에 출력하면 보안 사고로 본다.
-- `user_codes` 숫자 자동 생성 PR이 머지된 뒤 기존 dev DB에 동일 사용자 다중 active code가 있으면 partial unique index 적용이 실패할 수 있다.
+- 기존 dev/staging DB에 동일 사용자 다중 active code가 있거나 숫자 10자리 형식이 아닌 active code가 남아 있으면 `user_codes` migration 또는 smoke가 실패할 수 있다.
 
 ## Decision Log
 
@@ -464,7 +497,7 @@ Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
 | Refresh token은 DB 저장/회전/reuse detection을 사용한다 | 결정됨 | `refresh_tokens` 구현 | device/session UI |
 | 지역 설정은 온보딩 필수가 아니라 마이페이지 프로필 필드다 | 결정됨 | #137 이후 팀 합의 | 약속 구성원 공유 read model |
 | 캐릭터 source of truth는 `character_profiles`로 이동한다 | 후보 | 데이터 사전과 Character API 방향 | `users.pixel_character` 제거/호환 전략 |
-| 친구 코드는 숫자 10자리 active code로 간다 | 진행 중 | PR #154 | dev DB 기존 코드 보정과 rate limit |
+| 친구 코드는 숫자 10자리 active code로 간다 | 결정됨/구현됨 | `V19__numeric_user_codes.sql`, `UserCodeService` | dev/staging DB 기존 코드 보정과 rate limit |
 | Auth/Profile observability metric을 App Insights에 올린다 | 후보 | Terraform/Azure 전환 목표 | metric naming 확정 |
 
 ## Roadmap
@@ -472,7 +505,7 @@ Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
 | Phase | 목표 | 산출물 |
 | --- | --- | --- |
 | Phase 2 | Auth/User/Profile API 연결 완결 | OAuth exchange, `/users/me`, 취향 저장, 캐릭터, 지역 설정, 친구 기본 API |
-| Phase 2.5 | 숫자 친구 코드 자동 생성 | PR #154 머지, 신규 사용자 `NUMERIC_10` active code 보장 |
+| Phase 2.5 | 숫자 친구 코드 자동 생성 | 완료. 신규 사용자 `NUMERIC_10` active code 보장, 기존 DB 중복 active code audit 필요 |
 | Phase 3 | 모바일 OAuth smoke | Android/iOS Kakao/Naver/Google 실제 login, secure storage, session 유지 검증 |
 | Phase 3 | dev/runtime 안정화 | Key Vault env mapping, Windows Spring runtime, access log, smoke checklist |
 | Phase 4 | 발표 freeze | demo 계정, seed profile, manual QA, OAuth fallback 운영 기준 |

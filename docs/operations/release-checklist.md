@@ -6,6 +6,9 @@
 - [ ] flavor별 API base URL 설정 완료
 - [ ] push 알림 토큰 등록 테스트 완료
 - [ ] 실제 기기에서 위치/사진/알림 권한 테스트 완료
+- [ ] 홈 화면이 서버 `HomeSummary` 또는 명시 fallback 기준으로 오늘/다가오는 약속과 진행 중 투표를 표시
+- [ ] 약속 생성, 참여자 추가, 단건 수정, 상세 재진입 smoke 완료
+- [ ] 투표 목록, 투표 상세 option count/progress, 후보별 결과 표시 smoke 완료
 - [ ] Firebase App Distribution 또는 TestFlight 빌드 배포 완료
 - [ ] crash reporting 활성화
 
@@ -14,6 +17,10 @@
 - [ ] `/healthz`와 `/readyz` 제공
 - [ ] 데이터베이스 migration Job 테스트 완료
 - [ ] API 계약 테스트 통과
+- [ ] `GET /api/v1/home/summary`, `GET /groups/{groupId}/summary`, `GET /plans`, `GET /plans/{planId}`, `GET /participants`, `GET /votes`, `GET /votes/{voteId}` smoke 통과
+- [ ] 약속 생성 시 `participantUserIds` 추가 참여자 count와 participant `preferenceProfile` presence 확인
+- [ ] 약속 수정 시 명시 상태 변경 없이 status가 draft로 회귀하지 않음
+- [ ] `plan.created`, `plan.updated`, `plan.participant_added`, `vote.created` outbox event count/status 확인
 - [ ] 실시간 reconnect/resync 테스트 완료
 - [ ] 워커 재시도가 idempotent하게 동작
 
@@ -26,6 +33,7 @@
 - [ ] 관리형 PostgreSQL/PostGIS 연결 확인
 - [ ] Redis 연결 확인
 - [ ] 오브젝트 스토리지 업로드와 signed URL 흐름 확인
+- [ ] Azure staging 홈/약속/투표 smoke checklist 통과
 - [ ] tile manifest/style/PMTiles Range/CORS smoke 통과
 - [ ] 관측성 대시보드 준비
 - [ ] 알림 규칙 준비

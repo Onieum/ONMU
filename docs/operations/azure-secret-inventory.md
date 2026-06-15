@@ -17,9 +17,17 @@
 | `DATABASE_URL` | `dev-database-url` | `staging-database-url` | `prod-database-url` | Spring/Flyway | 아니오 |
 | `POSTGRES_PASSWORD` | `dev-postgres-password` | `staging-postgres-password` | `prod-postgres-password` | Spring/Flyway | 아니오 |
 | `ONMU_ACCESS_TOKEN_SECRET` | `dev-access-token-secret` | `staging-access-token-secret` | `prod-access-token-secret` | Spring auth | 아니오 |
+| `ONMU_AUTH_ISSUER` | config 후보 | config 후보 | config 후보 | Spring auth | 아니오 |
+| `ONMU_AUTH_AUDIENCE` | config 후보 | config 후보 | config 후보 | Spring auth | 아니오 |
+| `ONMU_ACCESS_TOKEN_TTL` | config 후보 | config 후보 | config 후보 | Spring auth | 아니오 |
+| `ONMU_REFRESH_TOKEN_TTL` | config 후보 | config 후보 | config 후보 | Spring auth | 아니오 |
 | `REDIS_URL` | `dev-redis-url` | `staging-redis-url` | `prod-redis-url` | Spring/FastAPI | 아니오 |
 | `SPRING_DATA_REDIS_URL` | `dev-redis-url` 후보 | `staging-redis-url` | `prod-redis-url` | Spring cache | 아니오 |
 | `ONMU_CORS_ORIGINS` | `dev-cors-origins` | `staging-cors-origins` | `prod-cors-origins` | Spring | 아니오 |
+| `ONMU_DEV_CORS_ORIGINS` | `dev-cors-origins` fallback | 사용 안 함 후보 | 사용 안 함 후보 | Spring dev fallback | 아니오 |
+| `ONMU_ALLOWED_ORIGINS` | config 후보 | config 후보 | config 후보 | `AuthProperties` fallback | 아니오 |
+
+Spring CORS runtime의 1차 env는 현재 `ONMU_CORS_ORIGINS`다. `ONMU_DEV_CORS_ORIGINS`는 dev fallback이며, `ONMU_ALLOWED_ORIGINS`는 `AuthProperties` fallback으로만 남아 있어 혼동하지 않는다.
 
 ## 3. Object storage
 
@@ -46,8 +54,13 @@ Azure production에서는 connection string보다 managed identity/RBAC를 우�
 | `NAVER_OAUTH_MOBILE_CALLBACK_URI` | env/config | env/config | env/config | Spring/Flutter public define | 예 |
 | `GOOGLE_OAUTH_CLIENT_ID` | `dev-google-oauth-client-id` | `staging-google-oauth-client-id` | `prod-google-oauth-client-id` | Spring/Flutter public define | 예 |
 | `GOOGLE_SERVER_CLIENT_ID` | `dev-google-server-client-id` | `staging-google-server-client-id` | `prod-google-server-client-id` | Spring/Flutter public define | 예 |
+| `GOOGLE_CLIENT_ID` | `dev-google-oauth-client-id` | `staging-google-oauth-client-id` | `prod-google-oauth-client-id` | Flutter public define | 예 |
+| `GOOGLE_IOS_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | iOS generated xcconfig | 예 |
+| `GOOGLE_IOS_SERVER_CLIENT_ID` | generated from `GOOGLE_SERVER_CLIENT_ID` | generated from `GOOGLE_SERVER_CLIENT_ID` | generated from `GOOGLE_SERVER_CLIENT_ID` | iOS generated xcconfig | 예 |
+| `GOOGLE_IOS_REVERSED_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | generated from `GOOGLE_CLIENT_ID` | iOS URL scheme | 예 |
 
 Provider console의 redirect/callback 설정은 환경별 host와 모바일 URL scheme을 맞춘다. 실제 code/state/idToken 값은 smoke 보고에 포함하지 않는다.
+현재 public define 생성 스크립트는 별도 `GOOGLE_ANDROID_CLIENT_ID` Key Vault secret을 직접 읽지 않는다. 플랫폼별 client id secret을 분리하려면 Flutter/Spring 코드, define 생성 스크립트, Spring audience 검증 문서를 함께 갱신한다.
 
 ## 5. Place/Search/Route provider secrets
 
@@ -63,10 +76,13 @@ Kakao Local API 사용 여부는 provider 권한/심사 상태를 별도 runbook
 
 | Env var | Dev secret name 후보 | Staging secret name 후보 | Prod secret name 후보 | 대상 | Flutter 허용 |
 | --- | --- | --- | --- | --- | --- |
-| `FCM_SERVICE_ACCOUNT_JSON` | `dev-fcm-service-account-json` 후보 | `staging-fcm-service-account-json` | `prod-fcm-service-account-json` | Notification provider | 아니오 |
-| `APNS_KEY_ID` | `dev-apns-key-id` 후보 | `staging-apns-key-id` | `prod-apns-key-id` | Notification provider | 아니오 |
-| `APNS_TEAM_ID` | `dev-apns-team-id` 후보 | `staging-apns-team-id` | `prod-apns-team-id` | Notification provider | 아니오 |
-| `APNS_PRIVATE_KEY` | `dev-apns-private-key` 후보 | `staging-apns-private-key` | `prod-apns-private-key` | Notification provider | 아니오 |
+| `ONMU_FCM_SERVICE_ACCOUNT_JSON` | `dev-fcm-service-account-json` 후보 | `staging-fcm-service-account-json` | `prod-fcm-service-account-json` | Notification provider | 아니오 |
+| `ONMU_APNS_PRIVATE_KEY` | `dev-apns-private-key` 후보 | `staging-apns-private-key` | `prod-apns-private-key` | Notification provider | 아니오 |
+| `ONMU_APNS_KEY_ID` | `dev-apns-key-id` 후보 | `staging-apns-key-id` | `prod-apns-key-id` | Notification provider | 아니오 |
+| `ONMU_APNS_TEAM_ID` | `dev-apns-team-id` 후보 | `staging-apns-team-id` | `prod-apns-team-id` | Notification provider | 아니오 |
+| `ONMU_APNS_BUNDLE_ID` | config 후보 | `staging-apns-bundle-id` 후보 | `prod-apns-bundle-id` 후보 | Notification provider | 공개 식별자는 가능하나 Flutter push secret과 함께 전달 금지 |
+| `ONMU_PUSH_DELIVERY_ENABLED` | config 후보 | config 후보 | config 후보 | Notification provider flag | 아니오 |
+| `ONMU_PUSH_PROVIDER_MODE` | config 후보 | config 후보 | config 후보 | Notification provider mode | 아니오 |
 
 현재 dev-safe delivery는 실제 FCM/APNs 발송을 켜지 않는 기준으로 검증한다.
 

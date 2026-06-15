@@ -31,26 +31,56 @@ Key Vault 이름과 권한 모델은 Terraform skeleton 단계에서 확정한�
 
 ## 3. OAuth redirect/callback 기준
 
-| Provider | Windows dev | Azure staging 후보 | Production 후보 | 모바일 callback |
-| --- | --- | --- | --- | --- |
-| Kakao | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `io.onieum.onmu://oauth/kakao/callback` |
-| Naver | Spring API callback 사용 시 dev host 기준 | staging host 기준 | production host 기준 | `io.onieum.onmu://oauth/naver/callback` |
-| Google | 모바일은 idToken을 Spring에 전달 | staging client/server id 분리 후보 | production client/server id 분리 | platform client id 설정 |
+| Provider | Local | Windows dev | Azure staging 후보 | Production 후보 | 모바일 callback |
+| --- | --- | --- | --- | --- | --- |
+| Kakao | `http://localhost:8080/api/v1/auth/oauth/kakao/callback` 또는 provider console에 등록된 local callback | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | `io.onieum.onmu://oauth/kakao/callback` |
+| Naver | `http://localhost:8080/api/v1/auth/oauth/naver/callback` | `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback` | `https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/callback` | `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback` | `io.onieum.onmu://oauth/naver/callback` |
+| Google | local public client id + Spring `POST /api/v1/auth/oauth/google` | dev public client id/server client id | staging public client id/server client id 후보 | production public client id/server client id 후보 | Android package/SHA-1, iOS `GOOGLE_IOS_REVERSED_CLIENT_ID` URL scheme |
 
 Provider console 변경은 사용자 또는 권한 보유자가 직접 확인하고, 변경 전후에는 actual key/code/state/token 값을 출력하지 않는다.
 
+OAuth smoke는 provider callback과 mobile deep link를 분리해 판정한다. Kakao/Naver browser flow는 Spring callback에 `code`/`state`가 도달한 뒤 모바일 custom scheme으로 앱 복귀가 이어져야 로그인 완료다. Flutter web callback path와 모바일 custom scheme은 같은 성공 기준으로 보지 않는다.
+
 ## 4. CORS와 앱 base URL
 
-| 환경 | API base URL | CORS origin 기준 |
+| 환경 | API base URL | CORS origin 기준 | 비고 |
+| --- | --- | --- | --- |
+| Local Flutter web | local API 또는 dev API | `http://localhost:<port>`, `http://127.0.0.1:<port>`. 현재 Vite/Flutter web smoke 기준 `http://127.0.0.1:5173`, `http://localhost:5173` 포함 | local-only |
+| Windows dev web smoke | `https://dev-api.onmu.cloud` | dev Flutter web origin 후보 또는 local web origin | dev API host 자체를 browser origin으로 허용할지 여부는 별도 판단 |
+| Android/iOS dev build | `https://dev-api.onmu.cloud` | 모바일 앱은 CORS 대상이 아님 | deep link/URL scheme 별도 |
+| Azure staging web build | `https://staging-api.onmu.cloud` 후보 | staging web origin 후보 | Terraform 전 확정 필요 |
+| Production web build | `https://api.onmu.cloud` 후보 | production web origin 후보 | production approval 필요 |
+
+Flutter에는 공개 client id와 redirect URI, `ONMU_API_BASE_URL` 같은 공개 runtime define만 넣는다. OAuth client secret, DB password, JWT signing secret, object storage credential은 Flutter에 넣지 않는다.
+
+CORS 기본 정책 후보:
+
+- 허용 method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
+- 허용 header: `Authorization`, `Content-Type`, `Accept`, `X-Requested-With`, 필요한 client metadata header
+- credential 허용 여부: bearer token 기반 API는 기본적으로 cookie credential에 의존하지 않는다. cookie/session을 도입하기 전까지 `Access-Control-Allow-Credentials`는 최소화한다.
+- preflight cache: staging에서 짧게 시작하고 production에서 안정화 후 늘린다.
+- 보고 기준: origin/method/status/count만 기록하고 `Authorization` header와 body는 출력하지 않는다.
+
+Edge/API gateway 단계:
+
+| 단계 | 후보 | 판단 |
 | --- | --- | --- |
-| Local Flutter web | local API 또는 dev API | `localhost`/`127.0.0.1` 개발 포트 |
-| Android/iOS dev build | `https://dev-api.onmu.cloud` | 모바일 앱은 CORS 대상이 아님 |
-| Azure staging build | `https://staging-api.onmu.cloud` 후보 | staging web origin 후보 |
-| Production build | `https://api.onmu.cloud` 후보 | production web origin 후보 |
+| Azure staging 1차 | Container Apps ingress + Spring CORS + Key Vault secret reference | MVP 기본값 |
+| Production 후보 | Front Door/WAF 또는 API Management | rate limit, WAF, custom domain, OAuth callback 안정화 후 선택 |
+| 후속 hardening | Private Endpoint/VNet, APIM policy, WAF managed rules | 비용/운영 복잡도 승인 후 적용 |
 
-Flutter에는 공개 client id와 redirect URI만 넣는다. OAuth client secret, DB password, JWT signing secret은 Flutter에 넣지 않는다.
+## 5. Mobile build define 기준
 
-## 5. Smoke 기준 요약
+| 환경 | Flutter define 파일 후보 | 포함 가능 | 금지 |
+| --- | --- | --- | --- |
+| local/dev API mode | `.dart_tool/onmu-dev-api.defines.json` | `ONMU_API_BASE_URL`, 짧은 수명 dev JWT 후보 | JWT signing secret, OAuth client secret |
+| dev OAuth smoke | `.dart_tool/onmu-dev-oauth.defines.json` | provider public client id, redirect URI, Google public client ids | access token, refresh token, DB password |
+| Azure staging | `.dart_tool/onmu-staging-oauth.defines.json` 후보 | staging API base URL, staging public OAuth config | secret 값 |
+| production release | release pipeline managed define 후보 | production API base URL, production public OAuth config | secret 값, debug/dev token |
+
+iOS는 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공해야 Google 앱 복귀가 가능하다. Android는 manifest intent filter와 package/SHA-1 provider console 설정을 환경별로 확인한다.
+
+## 6. Smoke 기준 요약
 
 각 환경은 최소 다음 smoke를 통과해야 한다.
 

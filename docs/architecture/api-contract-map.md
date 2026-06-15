@@ -36,7 +36,7 @@ Auth / Session / OAuth와 User / Profile / Character / Friends의 상세 Current
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
 
-`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`를 포함할 수 있다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다.
+`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`, `userCode`를 포함할 수 있다. `userCode`는 현재 숫자 10자리 active code 형식을 기준으로 한다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다. 친구 상세 또는 공개 프로필은 `regionVisibility`와 viewer 권한에 맞춰 지역 field를 제한해야 한다.
 
 Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
@@ -70,6 +70,8 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 | 알림 설정 | `GET/PUT /api/v1/notification-preferences` | `NotificationPreferences` |
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
 
+목표 구조에서 Flutter 홈은 `GET /api/v1/home/summary`를 canonical read model로 소비한다. 현재 dev Flutter는 아직 groups/plans API 조합으로 오늘/다가오는 약속을 계산하는 fallback 구조이므로, Azure smoke에서는 서버 `HomeSummary` 응답과 앱 소비 경로를 분리해서 보고한다.
+
 알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다. Provider delivery로 이어질 `notification.requested` payload는 `notificationId`를 포함해야 한다. `notificationId`가 없거나 aggregate가 `notification`이 아니면 현재 delivery service는 dev-safe skip으로 처리할 수 있다. Push token 등록/비활성화는 `user_devices`에 연결되지만, 실제 provider delivery는 feature flag와 secret 검증 전까지 켜지 않는다.
 
 Provider delivery 대상 `notification.requested` payload는 실제 `notifications.id` UUID인 `notificationId`, `notificationType`, `channels`를 포함해야 한다. `groupId`, `planId`, `voteId`, `settlementId`, `recordId` 같은 public id는 화면 이동용 보조 payload로 둔다. `channel=activity`처럼 ChatActivity 공유나 inbox 생성만 의미하는 이벤트는 실제 push provider delivery 대상과 분리한다. Flutter 앱은 Service Bus/Event Hubs, Notification Worker internal endpoint, FCM/APNs provider API, Key Vault를 직접 호출하지 않는다.
@@ -102,6 +104,10 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 약속 생성 요청은 `participantUserIds`로 초기 참여자 public id 목록을 전달할 수 있다. 서버는 생성자를 항상 참여자로 포함하고, 추가 참여자는 해당 모임의 멤버인 경우에만 허용한다.
 
 약속 참여자 추가는 모임 멤버가 같은 모임 안의 다른 멤버를 약속에 추가하는 흐름을 지원한다. 요청 body는 `userId`를 사용한다. 약속 나가기 또는 내 참여 취소는 본인만 수행할 수 있으며, 타인의 참여 취소는 이 계약에 포함하지 않는다.
+
+약속 생성 화면에서 추가 멤버의 선호/비선호 시간을 추천과 저장 경고에 쓰려면 후보 멤버 API 응답과 Flutter mapper가 `preferenceProfile`을 전달해야 한다. 약속 참여자 목록 API는 participant `preferenceProfile`을 포함하는 방향이지만, 모임 멤버 candidate 경로는 별도 확인 대상이다.
+
+일반 약속 수정은 명시적인 상태 변경 action이 아닌 한 기존 status를 보존해야 한다. Flutter request body가 항상 `status=draft`를 보내면 예정/진행 중 약속이 수정 후 draft로 회귀할 수 있으므로, 상태 변경 UX와 일반 수정 UX를 분리한다.
 
 ## Place
 
@@ -171,6 +177,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 투표 read model의 `participantCount`와 `participantCountLabel`은 모임 멤버 수나 약속 참여자 수가 아니라 실제 투표에 응답한 distinct user 수를 의미한다. 따라서 투표 생성 직후 아직 응답자가 없다면 `participantCount=0`, `participantCountLabel="0명 참여"`가 정상이다.
 
+투표 상세 화면은 option별 `responseCount`, `progress`, voters projection을 실제 응답과 연결해야 한다. voters projection API가 아직 없거나 Flutter mapper가 빈 map을 반환하면 투표 결과 확인은 미완성으로 보고, Azure smoke에서 성공으로 판정하지 않는다.
+
 `POST /api/v1/groups/{groupId}/plans/{planId}/votes`는 canonical로 사용하지 않는다. 필요한 경우 기존 Flutter 화면 전환을 위한 alias 또는 compatibility route로만 검토한다.
 
 ## Settlement
@@ -229,9 +237,25 @@ Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 �
 
 하루 일과 기록은 `type=DAILY`, OOTD 기록은 `type=OOTD`를 사용한다. 사진은 먼저 `POST /api/v1/media/upload`로 업로드해 `publicUrl`을 받은 뒤, `imageUrls[]`에 담아 memory create/update 요청으로 저장한다.
 
+현재 `/api/v1/memories` 계약은 `imageUrls[]` 호환을 유지한다. Target 계약은 `record_media` source of truth를 명확히 하기 위해 `media[]` metadata를 정식화한다. 개별 media 추가/수정/삭제 API는 후보이며, 구현 전까지는 memory create/update가 media list 전체를 대체하는 것으로 본다.
+
+| Target 후보 | API | 비고 |
+| --- | --- | --- |
+| 기록 사진 추가 | `POST /api/v1/memories/{memoryId}/media` | upload 완료 후 storage key metadata 연결 |
+| 기록 사진 수정 | `PATCH /api/v1/memories/{memoryId}/media/{mediaId}` | comment/sortOrder/alt metadata 수정 |
+| 기록 사진 삭제 | `DELETE /api/v1/memories/{memoryId}/media/{mediaId}` | DB row soft delete + object cleanup outbox 후보 |
+
+`media[]` target field는 `id`, `objectKey` 또는 `storageKey`, `publicUrl`, `contentType`, `sizeBytes`, `width`, `height`, `sortOrder`, `comment`를 포함한다. DB에는 원본 이미지 bytes를 저장하지 않고, object storage key와 metadata만 저장한다. Flutter는 MinIO/Azure Blob을 직접 호출하지 않고 Spring Main API upload/download boundary만 사용한다.
+
 `publicUrl`은 API 서버 기준 상대 경로(`/api/v1/media/public?...`)로 내려올 수 있다. Flutter Web에서는 이 값을 그대로 렌더링하면 프론트 dev server를 호출하게 되므로, 클라이언트에서 `ONMU_API_BASE_URL` 기준 absolute URL로 정규화해 사용한다. Flutter Web 수정 저장은 dev CORS 허용 메서드와 맞추기 위해 `PATCH`를 우선 사용한다.
 
-Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `payload`를 받는다. `payload.timeline[]`은 사진별 코멘트와 image URL 매핑을 보존하고, `payload.brands`, `payload.mood`, `payload.weather`는 결과/수정 화면에서 다시 렌더링할 메타데이터를 보존한다.
+Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `payload`를 받는다. `payload.timeline[]`은 사진별 코멘트와 image URL 매핑을 보존하고, `payload.brands`, `payload.mood`, `payload.weather`는 결과/수정 화면에서 다시 렌더링할 메타데이터를 보존한다. Target payload는 `layoutType=DIARY|CLEAN`, `decorationSeed` 또는 selected asset key를 포함해 상세 재진입, 바텀시트, export 결과가 같은 화면을 재현하게 한다.
+
+기록 탭 표시 기준은 다음과 같다. 같은 날짜에 DAILY와 OOTD는 공존할 수 있다. OOTD가 없으면 캐릭터 썸네일을 표시하지 않고, DAILY만 있으면 diary/book icon을 표시한다. DAILY와 OOTD가 모두 있으면 월간 셀은 OOTD 캐릭터와 기록 상태 indicator를 보여주고, 바텀시트는 `하루 일과`와 `OOTD 기록` 탭을 분리한다.
+
+삭제 상태 갱신 기준은 `DELETE /api/v1/memories/{memoryId}` 성공 후 Flutter가 해당 record id를 local state에서 즉시 제거하고 records provider를 invalidate/refetch하는 것이다. 이미 삭제된 record의 `404 memory_not_found`는 사용자에게 치명 오류로 표시하지 않고 이미 삭제된 상태로 처리한다.
+
+업로드 정책은 최대 5장 후보, image MIME type만 허용, client compression 우선, Spring multipart limit 검증, 초과 시 `media_file_too_large` 또는 `media_count_exceeded` 계열 error code를 target으로 둔다. 현재 Spring `MediaService`는 image content type과 `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.heic`, `.heif` 확장자만 허용한다.
 
 ```json
 {
@@ -265,9 +289,26 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
         "description": "오늘의 소중한 순간을 기록했어요."
       }
     ]
+  },
+  "media": [
+    {
+      "id": "media_123",
+      "objectKey": "records/media/2026/06/13/daily-1.jpg",
+      "contentType": "image/jpeg",
+      "sizeBytes": 823421,
+      "sortOrder": 1,
+      "comment": "케이크가 맛있었어요."
+    }
+  ],
+  "payloadTarget": {
+    "schemaVersion": 2,
+    "layoutType": "DIARY",
+    "decorationSeed": 182937,
+    "selectedStickers": ["heart_1", "flower_3"]
   }
 }
 ```
+
 ## Activity / Notification
 
 | 이벤트 | 발생 조건 |

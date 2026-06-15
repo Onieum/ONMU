@@ -44,6 +44,26 @@ Terraform module은 다음 기준을 따른다.
 
 리소스 소유권은 [Terraform 리소스 소유권](../architecture/terraform-resource-ownership.md)을 따른다.
 
+Terraform skeleton 최소 범위:
+
+```text
+infra/terraform/
+  environments/
+    staging/
+    prod/
+  modules/
+    naming/
+    resource-group/
+    key-vault/
+    container-apps/
+    postgres/
+    redis/
+    storage/
+    observability/
+```
+
+첫 skeleton PR은 provider/backend 설정, environment variable shape, module interface, output만 포함하고 실제 production traffic cutover는 포함하지 않는다. state backend는 Azure Storage Account blob backend와 blob lease lock을 기본 후보로 두며, environment는 초기에는 workspace보다 폴더 분리를 우선한다.
+
 ## 5. API/runtime 전환 기준
 
 Azure runtime은 [Azure runtime contract](./azure-runtime-contract.md)를 따른다.
@@ -53,6 +73,7 @@ Azure runtime은 [Azure runtime contract](./azure-runtime-contract.md)를 따른
 - Realtime Gateway는 1차 Azure staging에서는 Spring SSE 유지가 가능하다.
 - Notification delivery는 dev-safe 기록과 provider adapter를 분리한다.
 - Place/Search/Route/Map은 provider secret, tile asset, cache TTL, fallback 정책을 분리 검증한다.
+- 지도 tile traffic 전환 전에는 hosting 최종안, manifest rollback, edge cache invalidation, Android MapLibre/PMTiles 회귀, Azure Pricing Calculator 산출물을 별도 gate로 닫는다.
 
 ## 6. 데이터 전환 기준
 
