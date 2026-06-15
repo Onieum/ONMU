@@ -19,13 +19,17 @@
 
 ## 인프라
 
+- [ ] Azure Terraform 전환 계획과 리소스 소유권 문서 검토 완료
+- [ ] `terraform fmt`, `terraform validate`, staging `plan` 검증 완료
 - [ ] ACR image build와 push 완료
-- [ ] AKS staging 배포 완료
+- [ ] Azure Container Apps 또는 AKS staging 배포 완료
 - [ ] 관리형 PostgreSQL/PostGIS 연결 확인
 - [ ] Redis 연결 확인
 - [ ] 오브젝트 스토리지 업로드와 signed URL 흐름 확인
+- [ ] tile manifest/style/PMTiles Range/CORS smoke 통과
 - [ ] 관측성 대시보드 준비
 - [ ] 알림 규칙 준비
+- [ ] cutover/rollback 담당자와 판단 기준 확정
 
 ## 프로젝트 관리
 
