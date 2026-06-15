@@ -10,6 +10,7 @@ class PreferenceProfile {
   final List<String> planStyles;
   final List<String> preferredWeekdays;
   final List<String> preferredTimes;
+  final List<String> unavailableDates;
 
   const PreferenceProfile({
     required this.favoriteFoodTags,
@@ -23,6 +24,7 @@ class PreferenceProfile {
     required this.planStyles,
     required this.preferredWeekdays,
     required this.preferredTimes,
+    this.unavailableDates = const [],
   });
 
   factory PreferenceProfile.empty() {
@@ -38,6 +40,28 @@ class PreferenceProfile {
       planStyles: [],
       preferredWeekdays: [],
       preferredTimes: [],
+      unavailableDates: [],
+    );
+  }
+
+  factory PreferenceProfile.fromJson(Map<String, dynamic>? json) {
+    if (json == null || json.isEmpty) {
+      return PreferenceProfile.empty();
+    }
+
+    return PreferenceProfile(
+      favoriteFoodTags: _readStringList(json['favoriteFoodTags']),
+      dislikedFoodTags: _readStringList(json['dislikedFoodTags']),
+      otherFavoriteFood: _readString(json['otherFavoriteFood']),
+      otherDislikedFood: _readString(json['otherDislikedFood']),
+      favoritePlaceTags: _readStringList(json['favoritePlaceTags']),
+      dislikedPlaceTags: _readStringList(json['dislikedPlaceTags']),
+      otherFavoritePlace: _readString(json['otherFavoritePlace']),
+      otherDislikedPlace: _readString(json['otherDislikedPlace']),
+      planStyles: _readStringList(json['planStyles']),
+      preferredWeekdays: _readStringList(json['preferredWeekdays']),
+      preferredTimes: _readStringList(json['preferredTimes']),
+      unavailableDates: _readStringList(json['unavailableDates']),
     );
   }
 
@@ -53,6 +77,7 @@ class PreferenceProfile {
     List<String>? planStyles,
     List<String>? preferredWeekdays,
     List<String>? preferredTimes,
+    List<String>? unavailableDates,
   }) {
     return PreferenceProfile(
       favoriteFoodTags: favoriteFoodTags ?? this.favoriteFoodTags,
@@ -66,6 +91,25 @@ class PreferenceProfile {
       planStyles: planStyles ?? this.planStyles,
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       preferredTimes: preferredTimes ?? this.preferredTimes,
+      unavailableDates: unavailableDates ?? this.unavailableDates,
     );
   }
+}
+
+List<String> _readStringList(Object? value) {
+  if (value is Iterable) {
+    return value
+        .whereType<Object>()
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+  return const [];
+}
+
+String _readString(Object? value) {
+  if (value == null) {
+    return '';
+  }
+  return value.toString().trim();
 }

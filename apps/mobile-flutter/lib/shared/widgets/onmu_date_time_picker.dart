@@ -214,6 +214,7 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
 
   late final FixedExtentScrollController _hourController;
   late final FixedExtentScrollController _minuteController;
+  bool _syncingWheelPosition = false;
 
   @override
   void initState() {
@@ -231,14 +232,14 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedDateTime.hour != oldWidget.selectedDateTime.hour &&
         _hourController.hasClients) {
-      _hourController.jumpToItem(widget.selectedDateTime.hour);
+      _jumpToItemAfterBuild(_hourController, widget.selectedDateTime.hour);
     }
 
     final nextMinuteIndex = _minuteIndex(widget.selectedDateTime.minute);
     final previousMinuteIndex = _minuteIndex(oldWidget.selectedDateTime.minute);
     if (nextMinuteIndex != previousMinuteIndex &&
         _minuteController.hasClients) {
-      _minuteController.jumpToItem(nextMinuteIndex);
+      _jumpToItemAfterBuild(_minuteController, nextMinuteIndex);
     }
   }
 
@@ -365,7 +366,27 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
     );
   }
 
+  void _jumpToItemAfterBuild(FixedExtentScrollController controller, int item) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !controller.hasClients ||
+          controller.selectedItem == item) {
+        return;
+      }
+      _syncingWheelPosition = true;
+      controller.jumpToItem(item);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _syncingWheelPosition = false;
+        }
+      });
+    });
+  }
+
   void _emit({int? hour, int? minute}) {
+    if (_syncingWheelPosition) {
+      return;
+    }
     final next = DateTime(
       widget.selectedDateTime.year,
       widget.selectedDateTime.month,

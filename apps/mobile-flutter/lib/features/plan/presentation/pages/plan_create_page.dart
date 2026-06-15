@@ -6,7 +6,11 @@ import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/plan_models.dart';
+import '../../../../shared/models/preference_profile.dart';
+import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -31,6 +35,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _memoController = TextEditingController();
+  final _dateTimeSectionKey = GlobalKey();
   late DateTime _startsAt;
   late DateTime _endsAt;
   int? _loadedPlanId;
@@ -65,16 +70,148 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 
   void _sync() => setState(() {});
 
-  void _loadPlanIntoForm(Plan plan) {
+  List<PlanMember> _defaultSelectedMembers(
+    AuthUser? currentUser,
+    PreferenceProfile? preferenceProfile,
+  ) {
+    final displayName = currentUser?.displayName.trim();
+    final name = displayName == null || displayName.isEmpty ? '나' : displayName;
+    return [
+      PlanMember(
+        name: name,
+        message: '기본 참여자',
+        badge: '참여 중',
+        selected: true,
+        profileImageUrl: currentUser?.profileImageUrl ?? '',
+        preferenceProfile: preferenceProfile,
+      ),
+    ];
+  }
+
+  Future<void> _handleDateTimeChanged(
+    OnmuDateTimeRange range,
+    List<PlanMember> selectedMembers,
+  ) async {
+    setState(() {
+      _startsAt = range.start;
+      _endsAt = range.end;
+    });
+    await _confirmDifficultMemberTimeIfNeeded(selectedMembers);
+  }
+
+  Future<bool> _confirmDifficultMemberTimeIfNeeded(
+    List<PlanMember> selectedMembers,
+  ) async {
+    if (!_hasDifficultMemberForSelectedTime(selectedMembers)) {
+      return true;
+    }
+
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.bgDefault,
+          content: const Text('해당 약속 시간에 참여가 힘든 멤버가 있어요. 그래도 진행할까요?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('아니오'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primaryPink,
+                foregroundColor: AppColors.textInverse,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('예'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) {
+      return false;
+    }
+    if (shouldProceed != true) {
+      _scrollToDateTimeSection();
+      return false;
+    }
+    return true;
+  }
+
+  void _scrollToDateTimeSection() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final dateTimeContext = _dateTimeSectionKey.currentContext;
+    if (dateTimeContext == null) {
+      return;
+    }
+    Scrollable.ensureVisible(
+      dateTimeContext,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      alignment: 0.1,
+    );
+  }
+
+  bool _hasDifficultMemberForSelectedTime(List<PlanMember> selectedMembers) {
+    return selectedMembers.any(
+      (member) =>
+          _memberLooksDifficult(member) ||
+          _memberUnavailableForSelectedTime(member, _startsAt),
+    );
+  }
+
+  bool _memberLooksDifficult(PlanMember member) {
+    final text = '${member.message} ${member.badge}'.trim();
+    return text.contains('힘') ||
+        text.contains('어려') ||
+        text.contains('불가') ||
+        text.contains('피하고');
+  }
+
+  bool _memberUnavailableForSelectedTime(PlanMember member, DateTime startsAt) {
+    final profile = member.preferenceProfile;
+    if (profile == null) {
+      return false;
+    }
+    final localStartsAt = startsAt.toLocal();
+    final selectedDate = DateTime(
+      localStartsAt.year,
+      localStartsAt.month,
+      localStartsAt.day,
+    );
+    return profile.unavailableDates.any((value) {
+      final parsed = DateTime.tryParse(value.trim())?.toLocal();
+      if (parsed == null) {
+        return false;
+      }
+      return parsed.year == selectedDate.year &&
+          parsed.month == selectedDate.month &&
+          parsed.day == selectedDate.day;
+    });
+  }
+
+  void _scheduleLoadPlanIntoForm(Plan plan) {
     if (_loadedPlanId == plan.id) {
       return;
     }
     _loadedPlanId = plan.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _loadPlanIntoForm(plan));
+    });
+  }
+
+  void _loadPlanIntoForm(Plan plan) {
     _titleController.text = plan.title;
-    final parsedStartsAt = _parsePlanDateTime(plan.dateTime);
+    final parsedStartsAt = plan.startsAt ?? _parsePlanDateTime(plan.dateTime);
     if (parsedStartsAt != null) {
-      _startsAt = parsedStartsAt;
-      _endsAt = parsedStartsAt.add(const Duration(hours: 2));
+      _startsAt = parsedStartsAt.toUtc();
+      _endsAt = (plan.endsAt ?? parsedStartsAt.add(const Duration(hours: 2)))
+          .toUtc();
     }
     _locationController.text = plan.location;
     _memoController.text = plan.memo;
@@ -83,24 +220,31 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   @override
   Widget build(BuildContext context) {
     if (widget.editingPlanId == null) {
+      final selectedMembers = _defaultSelectedMembers(
+        ref.watch(authUserProvider),
+        ref.watch(preferenceProfileProvider),
+      );
       return _PlanCreateContent(
         groupId: widget.groupId,
         editingPlanId: null,
+        dateTimeSectionKey: _dateTimeSectionKey,
         titleController: _titleController,
         startsAt: _startsAt,
         endsAt: _endsAt,
-        onDateTimeChanged: (range) {
-          setState(() {
-            _startsAt = range.start;
-            _endsAt = range.end;
-          });
-        },
+        onDateTimeChanged: (range) =>
+            _handleDateTimeChanged(range, selectedMembers),
         locationController: _locationController,
         memoController: _memoController,
-        selectedMembers: const [],
+        selectedMembers: selectedMembers,
         onSave: _titleController.text.trim().isEmpty
             ? null
             : () async {
+                final canProceed = await _confirmDifficultMemberTimeIfNeeded(
+                  selectedMembers,
+                );
+                if (!canProceed) {
+                  return;
+                }
                 final plan = await ref
                     .read(planRepositoryProvider)
                     .createPlan(
@@ -108,9 +252,10 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                         groupId: widget.groupId,
                         title: _titleController.text,
                         dateTime: _startsAt.toIso8601String(),
+                        endsAt: _endsAt.toIso8601String(),
                         location: _locationController.text,
                         memo: _memoController.text,
-                        members: const [],
+                        members: selectedMembers,
                       ),
                     );
                 ref.invalidate(groupPlanListViewModelProvider(widget.groupId));
@@ -131,26 +276,29 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 
     return state.when(
       data: (state) {
-        _loadPlanIntoForm(state.plan);
+        _scheduleLoadPlanIntoForm(state.plan);
 
         return _PlanCreateContent(
           groupId: widget.groupId,
           editingPlanId: widget.editingPlanId,
+          dateTimeSectionKey: _dateTimeSectionKey,
           titleController: _titleController,
           startsAt: _startsAt,
           endsAt: _endsAt,
-          onDateTimeChanged: (range) {
-            setState(() {
-              _startsAt = range.start;
-              _endsAt = range.end;
-            });
-          },
+          onDateTimeChanged: (range) =>
+              _handleDateTimeChanged(range, state.selectedMembers),
           locationController: _locationController,
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
           onSave: _titleController.text.trim().isEmpty
               ? null
               : () async {
+                  final canProceed = await _confirmDifficultMemberTimeIfNeeded(
+                    state.selectedMembers,
+                  );
+                  if (!canProceed) {
+                    return;
+                  }
                   await ref
                       .read(provider.notifier)
                       .savePlan(
@@ -159,9 +307,10 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                           groupId: widget.groupId,
                           title: _titleController.text,
                           dateTime: _startsAt.toIso8601String(),
+                          endsAt: _endsAt.toIso8601String(),
                           location: _locationController.text,
                           memo: _memoController.text,
-                          members: state.plan.members,
+                          members: state.selectedMembers,
                         ),
                       );
                   if (!context.mounted) {
@@ -191,6 +340,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({
     required this.groupId,
+    required this.dateTimeSectionKey,
     required this.titleController,
     required this.startsAt,
     required this.endsAt,
@@ -204,14 +354,15 @@ class _PlanCreateContent extends StatelessWidget {
 
   final String groupId;
   final String? editingPlanId;
+  final GlobalKey dateTimeSectionKey;
   final TextEditingController titleController;
   final DateTime startsAt;
   final DateTime endsAt;
-  final ValueChanged<OnmuDateTimeRange> onDateTimeChanged;
+  final Future<void> Function(OnmuDateTimeRange range) onDateTimeChanged;
   final TextEditingController locationController;
   final TextEditingController memoController;
   final List<PlanMember> selectedMembers;
-  final VoidCallback? onSave;
+  final Future<void> Function()? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -231,24 +382,35 @@ class _PlanCreateContent extends StatelessWidget {
         icon: editing ? Icons.check : Icons.add_task,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: onSave,
+        onPressed: onSave == null ? null : () => onSave!(),
       ),
       children: [
         _LabeledField(label: '약속 이름', controller: titleController),
         const SizedBox(height: AppSpacing.lg),
-        Text('날짜와 시간', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        _DateTimeRangeField(
-          startsAt: startsAt,
-          endsAt: endsAt,
-          onChanged: onDateTimeChanged,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _LocationField(controller: locationController),
-        const SizedBox(height: AppSpacing.lg),
         Text('참여 멤버', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         _MemberPickerRow(members: selectedMembers),
+        const SizedBox(height: AppSpacing.lg),
+        KeyedSubtree(
+          key: dateTimeSectionKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('날짜와 시간', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.sm),
+              _DateTimeRangeField(
+                startsAt: startsAt,
+                endsAt: endsAt,
+                participantPreferences: _participantPreferences(
+                  selectedMembers,
+                ),
+                onChanged: onDateTimeChanged,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _LocationField(controller: locationController),
         const SizedBox(height: AppSpacing.lg),
         _LabeledField(label: '메모', controller: memoController),
         const SizedBox(height: AppSpacing.xl),
@@ -298,12 +460,14 @@ class _DateTimeRangeField extends StatelessWidget {
   const _DateTimeRangeField({
     required this.startsAt,
     required this.endsAt,
+    required this.participantPreferences,
     required this.onChanged,
   });
 
   final DateTime startsAt;
   final DateTime endsAt;
-  final ValueChanged<OnmuDateTimeRange> onChanged;
+  final List<PreferenceProfile> participantPreferences;
+  final Future<void> Function(OnmuDateTimeRange range) onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -313,9 +477,10 @@ class _DateTimeRangeField extends StatelessWidget {
           context: context,
           initialStart: startsAt,
           initialEnd: endsAt,
+          participantPreferences: participantPreferences,
         );
         if (picked != null) {
-          onChanged(picked);
+          await onChanged(picked);
         }
       },
       backgroundColor: AppColors.bgDefault,
@@ -421,13 +586,13 @@ class _MemberPickerRow extends StatelessWidget {
 DateTime _defaultStartDateTime() {
   final now = DateTime.now();
   final tomorrow = now.add(const Duration(days: 1));
-  return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 14);
+  return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 14).toUtc();
 }
 
 DateTime? _parsePlanDateTime(String value) {
   final parsedIso = DateTime.tryParse(value.trim());
   if (parsedIso != null) {
-    return parsedIso.toLocal();
+    return parsedIso.toUtc();
   }
 
   final match = RegExp(
@@ -454,16 +619,33 @@ DateTime? _parsePlanDateTime(String value) {
     hour = 0;
   }
 
-  return DateTime(now.year, month, day, hour, minute);
+  return DateTime(now.year, month, day, hour, minute).toUtc();
 }
 
 String _formatPlanDate(DateTime date) {
-  final weekday = const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
-  return '${date.month}월 ${date.day}일 ($weekday)';
+  final localDate = date.toLocal();
+  final weekday = const [
+    '월',
+    '화',
+    '수',
+    '목',
+    '금',
+    '토',
+    '일',
+  ][localDate.weekday - 1];
+  return '${localDate.month}월 ${localDate.day}일 ($weekday)';
 }
 
 String _formatPlanTime(DateTime date) {
-  final hour = date.hour.toString().padLeft(2, '0');
-  final minute = date.minute.toString().padLeft(2, '0');
+  final localDate = date.toLocal();
+  final hour = localDate.hour.toString().padLeft(2, '0');
+  final minute = localDate.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+List<PreferenceProfile> _participantPreferences(List<PlanMember> members) {
+  return members
+      .map((member) => member.preferenceProfile)
+      .whereType<PreferenceProfile>()
+      .toList(growable: false);
 }
