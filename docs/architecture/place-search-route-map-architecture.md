@@ -190,6 +190,22 @@ PostgreSQL은 `external_places`, `place_candidates`, `place_candidate_hearts`, `
 - Android native에서 PMTiles protocol을 어떻게 안정적으로 지원할지, web bootstrap과 native plugin 경계를 어떻게 둘지.
 - candidate ranking/reason field를 API read model로 둘지 Worker 결과 projection으로 둘지.
 
+### Terraform 전 지도 리소스 결정 항목
+
+현재 문서 세트는 Azure 전환을 위한 기준선과 checklist로 충분하지만, Terraform으로 리소스를 실제 생성하기 전에는 아래 결정을 별도로 닫아야 한다. 이 표의 항목이 비어 있으면 `infra/terraform` skeleton은 후보 리소스와 variable/output만 만들고, production cutover나 tile traffic 전환은 진행하지 않는다.
+
+| 결정 항목 | 현재 기준 | Terraform 전 보완 | 소유 |
+| --- | --- | --- | --- |
+| Tile hosting 최종안 | Blob Storage + CDN/Front Door 후보, local/dev gateway fallback | Blob static hosting, Front Door, CDN/gateway 조합 중 하나를 선택하고 staging/prod별 endpoint, origin, cache TTL, purge 권한을 정한다. | Infra/Runtime |
+| Tile rollback/cache invalidation | manifest pointer로 PMTiles를 참조 | manifest/style/PMTiles를 versioned object path로 배포하고, 이전 manifest/style/PMTiles pointer를 보존한다. stale cache가 있으면 CDN/Front Door purge 기준을 runbook에 둔다. | Runtime |
+| Provider production readiness | Naver/Kakao/OpenRouteService는 Spring 뒤에서 호출 | Kakao Local 심사/권한, Naver/Kakao quota, route provider quota/약관, prod credential 준비 상태를 provider별로 분리 판정한다. | Backend/Ops |
+| Provider response retention | 선택된 최소 snapshot만 PostgreSQL에 보관 | raw provider body를 장기 저장하지 않는 원칙을 유지하고, 저장 가능 필드, TTL, 삭제 기준, 운영 로그 masking 기준을 provider별로 확정한다. | Backend/Data |
+| PostGIS schema/query | PostGIS 필요성은 확정, column/index는 미정 | `external_places`와 후보 좌표의 geometry/geography column, GiST/SP-GiST index, radius/nearby query, migration 순서를 Flyway 설계로 닫는다. | Backend/Flyway |
+| Android MapLibre/PMTiles 검증 | checklist에 수동 smoke가 있음 | emulator/device matrix, 담당자, screenshot/video artifact, blank/fallback/water-style 회귀 기준을 release gate로 만든다. | Mobile/QA |
+| 비용 산정 | rough planning range만 있음 | Azure Pricing Calculator 산출물로 staging/prod의 Blob egress, edge, PostgreSQL/PostGIS, Redis, provider 호출 비용을 별도 첨부한다. | PM/Infra |
+
+tile asset의 source of truth는 앱 bundle이 아니라 public manifest다. 따라서 rollback은 앱 재배포보다 manifest pointer 복구를 먼저 고려한다. PMTiles object를 덮어쓰기 방식으로 교체하면 edge cache와 rollback 판단이 어려워지므로, staging/prod 모두 versioned object path를 기본값으로 둔다.
+
 ## Current-to-Target Delta
 
 | 구분 | 내용 | 소유 |

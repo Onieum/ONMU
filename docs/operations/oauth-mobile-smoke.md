@@ -52,12 +52,14 @@ Naver 설정:
 
 Google 설정:
 
-- Flutter 공개 define: `ONMU_API_BASE_URL`, `GOOGLE_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`
+- Flutter 공개 define: `ONMU_API_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`
 - Spring 서버 env: `GOOGLE_OAUTH_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`
 - Key Vault secret name: `dev-google-oauth-client-id`
 - `GOOGLE_SERVER_CLIENT_ID` fallback secret name: `dev-google-server-client-id`
+- iOS generated xcconfig: `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_SERVER_CLIENT_ID`, `GOOGLE_IOS_REVERSED_CLIENT_ID`
 - Flutter는 Google idToken을 Spring `POST /api/v1/auth/oauth/google`의 `providerIdToken`으로 전달한다.
 - Spring은 Google tokeninfo 응답에서 issuer, audience, subject, expiration을 검증한 뒤 ONMU access/refresh token을 발급한다.
+- 현재 repo의 public define 생성 스크립트는 별도 `GOOGLE_ANDROID_CLIENT_ID` Key Vault secret을 직접 읽지 않는다. Android/iOS 플랫폼별 client id를 분리하려면 Flutter 코드, define 생성 스크립트, Spring audience 검증 값을 함께 갱신한다.
 
 ## Web/Chrome smoke
 
@@ -135,12 +137,13 @@ adb -s <serial> logcat -c
 
 검증 순서:
 
-1. 로그인 화면에서 `카카오로 시작하기` 또는 `네이버로 시작하기`를 누른다.
+1. 로그인 화면에서 `카카오로 시작하기`, `네이버로 시작하기`, 또는 `Google로 시작하기`를 누른다.
 2. Android가 Chrome 또는 provider 로그인 화면으로 이동하는지 확인한다.
 3. 계정/비밀번호/2FA/동의가 필요하면 사용자가 직접 조작하게 한다.
 4. 앱이 `io.onieum.onmu://oauth/<provider>/callback`으로 복귀하는지 확인한다.
-5. 온보딩 또는 홈 화면으로 이동하는지 확인한다.
-6. 앱을 강제 종료한 뒤 다시 실행해 로그인 화면이 아니라 온보딩/홈으로 돌아오는지 확인한다.
+5. Google은 idToken을 Spring `POST /api/v1/auth/oauth/google`로 교환하는 status/path를 확인한다.
+6. 온보딩 또는 홈 화면으로 이동하는지 확인한다.
+7. 앱을 강제 종료한 뒤 다시 실행해 로그인 화면이 아니라 온보딩/홈으로 돌아오는지 확인한다.
 
 증거 수집 예시:
 
