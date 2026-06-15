@@ -382,7 +382,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 모임 수정 시각 | Not Null |
 | `deleted_at` | 삭제 시각 | Timestamptz | 모임 삭제 시각 | Nullable |
 
-## `group_members` (다음 구현)
+## `group_members` (구현됨, 확장 필요)
 
 > 모임 참여자와 권한을 관리한다. 친구 관계와 독립적으로 존재한다. 초기 초대 생성은 친구 기반으로 제한하되, 모임 안에는 나와 직접 친구가 아닌 멤버도 존재할 수 있다.
 
@@ -438,7 +438,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 약속 수정 시각 | Not Null |
 | `canceled_at` | 취소 시각 | Timestamptz | 약속 취소 시각 | Nullable |
 
-## `plan_participants` (다음 구현)
+## `plan_participants` (구현됨, 확장 필요)
 
 > 약속 참여자를 관리한다. 모임 멤버 전체가 항상 약속 참여자인 것은 아니다.
 
@@ -748,7 +748,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 투표 수정 시각 | Not Null |
 | `closed_at` | 종료 시각 | Timestamptz | 투표 종료 시각 | Nullable |
 
-## `vote_options` (다음 구현)
+## `vote_options` (구현됨, 확장 필요)
 
 > 투표 선택지다. 현재 scaffold의 `payload.options`를 정규화한다.
 
@@ -762,7 +762,7 @@
 | `sort_order` | 정렬 순서 | Integer | 표시 순서 | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | 선택지 생성 시각 | Not Null |
 
-## `vote_responses` (다음 구현)
+## `vote_responses` (구현됨, 확장 필요)
 
 > 사용자별 투표 응답이다. 복수 선택 여부는 vote 설정 또는 payload에서 결정한다.
 
