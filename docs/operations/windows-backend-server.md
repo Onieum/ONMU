@@ -545,6 +545,15 @@ POST https://dev-api.onmu.cloud/api/v1/groups/1/plans/101/settlements/preview?cl
 
 smoke test가 실패하면 GitHub Actions job도 실패합니다. `readyz`는 PostgreSQL, Redis, MinIO 연결까지 확인하므로 Docker Desktop과 로컬 compose 의존성이 먼저 정상이어야 합니다.
 
+Notification / Push / Devices smoke는 dev-safe delivery와 실제 provider delivery를 분리해서 본다.
+
+| 단계 | 확인 대상 | 성공 기준 | 주의 |
+| --- | --- | --- | --- |
+| Dev-safe delivery smoke | `/api/v1/notifications`, `/api/v1/notification-preferences`, `/api/v1/devices/push-token`, `notification_deliveries` | API 계약이 동작하고 dev provider 결과가 `provider=dev`, `status=skipped_dev`로 남는다. | 실제 FCM/APNs 발송 성공이 아니다. |
+| Real provider smoke | 실제 Android/iOS build, OS push token source, FCM/APNs provider, provider credential | `notification_deliveries.status=sent` 또는 provider error taxonomy가 남고 기기에서 push 수신과 탭 routing을 확인한다. | Key Vault secret, Managed Identity, feature flag가 준비된 뒤 사람 승인으로만 실행한다. |
+
+Windows dev 서버의 기본 CD smoke에는 실제 FCM/APNs provider 호출을 넣지 않는다. provider secret 값은 GitHub Actions log, PowerShell transcript, `logs\api-access.log`, PR 본문에 출력하지 않는다. 실제 provider smoke를 추가할 때도 Flutter 앱에는 provider secret, JWT signing secret, OAuth secret을 넣지 않는다.
+
 로그 확인:
 
 ```powershell

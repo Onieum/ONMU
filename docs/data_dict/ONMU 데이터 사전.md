@@ -185,6 +185,7 @@
 ## `user_devices` (구현됨, 확장 필요)
 
 > 모바일 앱 설치/기기 단위 상태를 관리한다. refresh token, push token, 보안 이벤트를 기기 기준으로 묶기 위한 테이블이다.
+> 현재는 push token readiness도 이 테이블이 맡는다. `push_token`은 현재 text 컬럼에 저장되며, production provider delivery 전에는 암호문 저장 또는 별도 `push_tokens` 테이블 분리를 결정해야 한다. Terraform은 PostgreSQL 리소스 경계만 소유하고 이 table DDL은 Spring Flyway가 소유한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -1106,9 +1107,10 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | `created_at` | 생성 시각 | Timestamptz | activity 생성 시각 | Not Null |
 | `deleted_at` | 삭제 시각 | Timestamptz | 메시지 삭제 시각 | Nullable |
 
-## `notifications` (목표 설계)
+## `notifications` (구현됨, 확장 필요)
 
 > 사용자별 알림 inbox다. push notification은 후속 side effect로 분리한다.
+> 현재 Spring API와 Flutter 알림 화면이 사용하는 source of truth다. 실제 FCM/APNs provider delivery 성공 여부와 무관하게 사용자가 앱 안에서 보는 알림 원장으로 유지한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -1127,6 +1129,7 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 ## `notification_deliveries` (구현됨, 확장 필요)
 
 > 알림 발송 시도와 결과를 저장한다. 현재 dev slice는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`로 추적 row를 남긴다.
+> 이 table은 provider 발송 projection이며 inbox 원장이 아니다. 실제 provider delivery 대상 `notification.requested` 이벤트는 `notificationId`로 `notifications.id`에 연결되어야 한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -1157,9 +1160,10 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | `created_at` | 생성 시각 | Timestamptz | token 등록 시각 | Not Null |
 | `updated_at` | 수정 시각 | Timestamptz | 상태 수정 시각 | Not Null |
 
-## `notification_preferences` (목표 설계)
+## `notification_preferences` (구현됨, 확장 필요)
 
 > 사용자별 알림 수신 설정이다.
+> 현재 Spring service는 기본 type `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`와 channel `in_app`, `push`를 allowlist로 사용한다. email, kakao, sms, marketing channel은 target 확장이다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -1552,7 +1556,7 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | 데이터 | 저장 기준 |
 | --- | --- |
 | Refresh token | 원문 저장 금지. `token_hash`만 저장하고 rotation 이력 관리 |
-| Push token | 발송이 필요하면 암호문 저장, 로그 출력 금지 |
+| Push token | 현재 `user_devices.push_token`은 readiness 단계의 text 저장이다. 실제 provider 발송이 필요하면 암호문 저장 또는 `push_tokens` 분리, 로그 출력 금지 |
 | 전화번호 | 원문 저장 금지. 동기화는 정규화 후 hash 중심 |
 | 위치 | 장소 좌표는 장소 정보로 관리하되, 사용자 실시간 위치는 별도 동의와 짧은 TTL 기준 |
 | Provider profile | 필요한 최소 field만 저장. provider token 원문 저장 금지 |

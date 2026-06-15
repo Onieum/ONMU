@@ -17,6 +17,7 @@
 - 첫 OAuth provider는 Naver를 우선 구현한다.
 - 인증은 access token + refresh token 방식을 사용하고 Flutter는 secure storage에 보관한다.
 - Worker 작업은 queue/outbox로 연결한다.
+- Notification / Push / Devices의 상세 Current-to-Target 경계는 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
 
 ## Auth / User
 
@@ -31,7 +32,7 @@
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
 
-Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
+Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 dev-safe readiness 단계일 수 있으며, 실제 FCM/APNs provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
 ## Friends
 
@@ -60,6 +61,8 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
 
 알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다. Push token 등록/비활성화는 `user_devices`에 연결되지만, 실제 provider delivery는 feature flag와 secret 검증 전까지 켜지 않는다.
+
+Provider delivery 대상 `notification.requested` payload는 실제 `notifications.id` UUID인 `notificationId`, `notificationType`, `channels`를 포함해야 한다. `groupId`, `planId`, `voteId`, `settlementId`, `recordId` 같은 public id는 화면 이동용 보조 payload로 둔다. `channel=activity`처럼 ChatActivity 공유나 inbox 생성만 의미하는 이벤트는 실제 push provider delivery 대상과 분리한다. Flutter 앱은 Service Bus/Event Hubs, Notification Worker internal endpoint, FCM/APNs provider API, Key Vault를 직접 호출하지 않는다.
 
 ## Groups
 
@@ -251,4 +254,4 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `notification.requested` | 알림 발송 요청 |
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
-Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. `user_devices`는 push token 등록 readiness를 제공하지만 provider delivery secret과 production 발송은 아직 연결하지 않는다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
+Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. 실제 provider delivery로 이어지는 `notification.requested`는 `notificationId`로 `notifications` row에 연결되어야 한다. `user_devices`는 push token 등록 readiness를 제공하지만 provider delivery secret과 production 발송은 아직 연결하지 않는다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.

@@ -66,6 +66,8 @@ MCP는 AI에게 도구 사용 능력을 주는 것이므로 권한 관리가 중
 | secret은 Key Vault, GitHub Secrets, 로컬 `.env`에 둔다. | Jira, Notion, Markdown, PR 본문에 secret을 적지 않는다. |
 | MCP 로그에 개인정보를 남기지 않는다. | 실제 사용자 사진, 위치, 전화번호, 결제/정산 정보는 테스트 데이터로 대체한다. |
 
+Notification / Push / Devices처럼 Terraform 전환과 앱 런타임 변경이 함께 걸린 문서 작업에서는 소유 경계를 먼저 분리한다. Terraform/Azure 작업은 Key Vault, Managed Identity, Service Bus/Event Queue, Application Insights, runtime identity, provider secret reference 같은 클라우드 리소스 경계를 만든다. DB table, index, enum-like 체크 제약, seed/default preference 같은 schema와 데이터 계약은 Spring Flyway가 소유하며 Terraform으로 생성하지 않는다. AI Agent는 provider secret 값, JWT signing secret, OAuth secret을 출력하거나 Flutter bundle에 넣는 제안을 하지 않는다.
+
 ## 6. 추천 Skill 목록
 
 `SKILL.md`는 "AI에게 매번 설명하기 귀찮은 반복 절차"를 고정하는 문서다. 팀 공통으로 아래 skill을 준비하면 좋다.
