@@ -29,6 +29,7 @@ import com.onmu.api.domain.VoteOptionEntity;
 import com.onmu.api.domain.VoteOptionRepository;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
+import com.onmu.api.web.dto.AddPlanParticipantRequest;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
@@ -51,6 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -289,12 +291,31 @@ public class OnmuApiService {
       .orElseGet(() -> new PlanParticipantEntity(plan, creator, "joined", "accepted"));
     participant.update("joined", "accepted");
     planParticipantRepository.save(participant);
+    addInitialPlanParticipants(group, plan, creator, request.participantUserIds());
     outboxService.record("plan.created", "plan", plan.getId(), Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
       "title", plan.getTitle()
     ));
     return planCard(plan);
+  }
+
+  private void addInitialPlanParticipants(
+    GroupEntity group,
+    PlanEntity plan,
+    UserEntity creator,
+    List<String> participantUserIds
+  ) {
+    if (participantUserIds == null || participantUserIds.isEmpty()) {
+      return;
+    }
+    for (String participantUserId : participantUserIds) {
+      UserEntity targetUser = userOrThrow(participantUserId);
+      if (targetUser.getId().equals(creator.getId())) {
+        continue;
+      }
+      upsertPlanParticipant(group, plan, targetUser, "joined", "accepted");
+    }
   }
 
   @Transactional(readOnly = true)
@@ -387,10 +408,63 @@ public class OnmuApiService {
     return participantCard(saved);
   }
 
+  @Transactional
+  public Map<String, Object> addPlanParticipant(
+    String groupId,
+    String planId,
+    java.util.UUID actorUserId,
+    AddPlanParticipantRequest request
+  ) {
+    GroupEntity group = groupOrThrow(groupId);
+    PlanEntity plan = planOrThrow(group, planId);
+    UserEntity actor = userOrThrow(actorUserId);
+    if (actor.getId() == null || !groupRepository.isUserMember(group.getPublicId(), actor.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+    UserEntity targetUser = userOrThrow(request.userId());
+    PlanParticipantEntity saved = upsertPlanParticipant(group, plan, targetUser, "joined", "accepted");
+    return participantCard(saved);
+  }
+
+  private PlanParticipantEntity upsertPlanParticipant(
+    GroupEntity group,
+    PlanEntity plan,
+    UserEntity targetUser,
+    String status,
+    String response
+  ) {
+    if (targetUser.getId() == null || !groupRepository.isUserMember(group.getPublicId(), targetUser.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+    PlanParticipantEntity participant = planParticipantRepository.findByPlanAndUser(plan, targetUser)
+      .orElseGet(() -> new PlanParticipantEntity(plan, targetUser, status, response));
+    participant.update(status, response);
+    PlanParticipantEntity saved = planParticipantRepository.save(participant);
+    outboxService.record("plan.participant_added", "plan_participant", saved.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "planId", plan.getPublicId(),
+      "userId", targetUser.getId().toString(),
+      "status", saved.getStatus(),
+      "response", saved.getResponse()
+    ));
+    return saved;
+  }
+
   @Transactional(readOnly = true)
   public List<Map<String, Object>> votes(String groupId) {
+    return votes(groupId, null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> votes(String groupId, String targetType, String targetId) {
     GroupEntity group = groupOrThrow(groupId);
-    return voteRepository.findByGroupOrderByCreatedAtAsc(group).stream().map(this::voteCard).toList();
+    String normalizedTargetType = blankToNull(targetType);
+    String normalizedTargetId = blankToNull(targetId);
+    return voteRepository.findByGroupOrderByCreatedAtAsc(group).stream()
+      .filter(vote -> normalizedTargetType == null || normalizedTargetType.equalsIgnoreCase(vote.getTargetType()))
+      .filter(vote -> normalizedTargetId == null || normalizedTargetId.equals(vote.getTargetId()))
+      .map(this::voteCard)
+      .toList();
   }
 
   @Transactional
@@ -651,6 +725,14 @@ public class OnmuApiService {
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 
+  private UserEntity userOrThrow(String userId) {
+    try {
+      return userOrThrow(java.util.UUID.fromString(userId));
+    } catch (IllegalArgumentException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_user_id", exception);
+    }
+  }
+
   private GroupEntity groupOrThrow(String groupId) {
     return groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
@@ -720,6 +802,9 @@ public class OnmuApiService {
     value.put("targetId", vote.getTargetId());
     value.put("status", vote.getStatus());
     value.put("closed", !"open".equalsIgnoreCase(vote.getStatus()));
+    long participantCount = voteResponseRepository.countDistinctUsersByVote(vote);
+    value.put("participantCount", Math.toIntExact(participantCount));
+    value.put("participantCountLabel", participantCount + "명 참여");
     value.put("options", optionRows == null ? voteOptions(vote) : optionRows.stream().map(this::voteOptionCard).toList());
     return value;
   }
@@ -1003,6 +1088,7 @@ public class OnmuApiService {
     value.put("message", "");
     value.put("badge", "참여 중");
     value.put("selected", true);
+    value.put("userId", participant.get("userId"));
     value.put("profileImageUrl", participant.get("profileImageUrl"));
     value.put("preferenceProfile", participant.get("preferenceProfile"));
     return value;

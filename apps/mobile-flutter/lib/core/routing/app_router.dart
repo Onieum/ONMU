@@ -325,6 +325,13 @@ final appRouter = GoRouter(
                           ],
                         ),
                         GoRoute(
+                          path: 'votes',
+                          builder: (context, state) => GroupVoteListPage(
+                            groupId: state.pathParameters['groupId']!,
+                            planId: state.pathParameters['planId']!,
+                          ),
+                        ),
+                        GoRoute(
                           path: 'votes/new',
                           builder: (context, state) => PlaceVoteCreatePage(
                             groupId: state.pathParameters['groupId']!,
@@ -336,6 +343,7 @@ final appRouter = GoRouter(
                           builder: (context, state) => VoteDetailPage(
                             groupId: state.pathParameters['groupId']!,
                             voteId: state.pathParameters['voteId']!,
+                            planId: state.pathParameters['planId']!,
                           ),
                         ),
                         GoRoute(

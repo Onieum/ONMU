@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/preference_profile.dart';
 
@@ -25,6 +26,12 @@ abstract interface class PlanRepository {
   Future<PlanParticipantArrival> leaveAsCurrentUser({
     required Object groupId,
     required Object planId,
+  });
+
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
   });
 
   Future<Plan> createPlan(PlanCreateInput input);
@@ -66,6 +73,7 @@ class ApiPlanRepository implements PlanRepository {
         'endsAt': _startsAtOrNull(input.endsAt),
         'placeName': input.location.trim(),
         'memo': input.memo.trim(),
+        'participantUserIds': _participantUserIds(input.members),
       },
     );
     return _plan(plan);
@@ -134,6 +142,19 @@ class ApiPlanRepository implements PlanRepository {
     return _participantArrival(participant);
   }
 
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) async {
+    final participant = await _client.postObject(
+      '/api/v1/groups/$groupId/plans/$planId/participants',
+      body: {'userId': userId},
+    );
+    return _participantArrival(participant);
+  }
+
   Plan _plan(Map<String, dynamic> json) {
     final title = OnmuJson.readString(json, 'title', '약속');
     final location = OnmuJson.readString(json, 'placeName', '장소 미정');
@@ -195,6 +216,7 @@ class ApiPlanRepository implements PlanRepository {
               OnmuJson.readString(member, 'statusLabel', '참여 중'),
             ),
             selected: OnmuJson.readBool(member, 'selected', true),
+            userId: OnmuJson.readString(member, 'userId'),
             profileImageUrl: _profileImageUrl(member),
             preferenceProfile: _preferenceProfile(member),
           );
@@ -203,7 +225,7 @@ class ApiPlanRepository implements PlanRepository {
   }
 
   String _profileImageUrl(Map<String, dynamic> json) {
-    return OnmuJson.readString(
+    final url = OnmuJson.readString(
       json,
       'profileImageUrl',
       OnmuJson.readString(
@@ -212,6 +234,15 @@ class ApiPlanRepository implements PlanRepository {
         OnmuJson.readString(json, 'avatarUrl'),
       ),
     );
+    return resolveOnmuMediaUrl(url, baseUrl: _client.baseUrl);
+  }
+
+  List<String> _participantUserIds(List<PlanMember> members) {
+    return members
+        .map((member) => member.userId.trim())
+        .where((userId) => userId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
   }
 
   PreferenceProfile? _preferenceProfile(Map<String, dynamic> json) {

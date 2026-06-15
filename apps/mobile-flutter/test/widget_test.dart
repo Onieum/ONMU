@@ -901,7 +901,7 @@ void main() {
       find.byType(Scrollable).last,
       const Offset(0, -120),
     );
-    expect(find.byTooltip('참여 멤버 추가'), findsNothing);
+    expect(find.byTooltip('참여 멤버 추가'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, '수정 완료'));
     await tester.pumpAndSettle();
@@ -1626,7 +1626,7 @@ void main() {
     await tester.tap(find.text('투표 목록'));
     await tester.pumpAndSettle();
 
-    expect(find.text('대학 동기 여행단 · 채팅에서 만든 투표'), findsOneWidget);
+    expect(find.text('대학 동기 여행단 · 모임 투표'), findsOneWidget);
     expect(find.text('진행 중인 투표'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
   });
@@ -1672,7 +1672,11 @@ class _NoAuxGroupRepository extends TestGroupRepository {
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async => [];
 }
 
 class _EmptyPlaceRepository implements PlaceRepository {
@@ -1787,6 +1791,15 @@ class _CandidatePlanRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _SingleMemberGroupRepository implements GroupRepository {
@@ -1870,7 +1883,11 @@ class _SingleMemberGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async => const [];
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async => const [];
 
   @override
   Future<VoteSummary> createVote(VoteCreateInput input) {

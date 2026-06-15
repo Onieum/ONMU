@@ -66,6 +66,11 @@ class GroupApiServiceTests {
       .containsEntry("description", "ONMU 모임")
       .containsEntry("memberCount", 1);
     assertThat(detail.get("members")).isEqualTo(List.of("ONMU Dev User"));
+    assertThat(detail.get("memberProfiles")).asList().singleElement().satisfies(profile -> {
+      Map<?, ?> profileMap = (Map<?, ?>) profile;
+      assertThat(profileMap.get("name")).isEqualTo("ONMU Dev User");
+      assertThat(profileMap.get("statusLabel")).isEqualTo("참여 중");
+    });
   }
 
   @Test
@@ -105,6 +110,26 @@ class GroupApiServiceTests {
       .containsEntry("name", "ONMU Dev User")
       .containsEntry("statusLabel", "참여 중")
       .containsEntry("invited", false);
+  }
+
+  @Test
+  void membersExposeUserIdAndProfileImageForParticipantPicker() {
+    UserEntity user = new UserEntity(
+      UUID.fromString("00000000-0000-0000-0000-000000000001"),
+      "지민"
+    );
+    user.updateProfile(null, "dev/avatars/jimin.png", null, null, null);
+    GroupMemberEntity membership = new GroupMemberEntity(group, user, "member", "active");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(membership));
+
+    List<Map<String, Object>> members = service.members("1");
+
+    assertThat(members).singleElement()
+      .satisfies(member -> assertThat(member)
+        .containsEntry("userId", user.getId().toString())
+        .containsEntry("name", "지민")
+        .containsEntry("profileImageUrl", "dev/avatars/jimin.png"));
   }
 
   @Test

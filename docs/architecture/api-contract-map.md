@@ -99,6 +99,10 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 참여자 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
 
+약속 생성 요청은 `participantUserIds`로 초기 참여자 public id 목록을 전달할 수 있다. 서버는 생성자를 항상 참여자로 포함하고, 추가 참여자는 해당 모임의 멤버인 경우에만 허용한다.
+
+약속 참여자 추가는 모임 멤버가 같은 모임 안의 다른 멤버를 약속에 추가하는 흐름을 지원한다. 요청 body는 `userId`를 사용한다. 약속 나가기 또는 내 참여 취소는 본인만 수행할 수 있으며, 타인의 참여 취소는 이 계약에 포함하지 않는다.
+
 ## Place
 
 | 화면 | API |
@@ -134,6 +138,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 투표는 모임 전체 자체 생성 리소스로 둔다. 장소/일정/정산/준비물/일반 투표를 모두 `Vote`로 표현하고, 약속 관련 투표는 `targetType`, `targetId`, `voteType`으로 연결한다.
 
+약속별 투표 목록은 같은 endpoint에 query parameter를 추가해 조회한다. 예를 들어 `GET /api/v1/groups/{groupId}/votes?targetType=PLAN&targetId={planId}`는 특정 약속에 연결된 투표만 반환한다.
+
 ```json
 {
   "voteType": "PLACE",
@@ -162,6 +168,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
   "progress": 0
 }
 ```
+
+투표 read model의 `participantCount`와 `participantCountLabel`은 모임 멤버 수나 약속 참여자 수가 아니라 실제 투표에 응답한 distinct user 수를 의미한다. 따라서 투표 생성 직후 아직 응답자가 없다면 `participantCount=0`, `participantCountLabel="0명 참여"`가 정상이다.
 
 `POST /api/v1/groups/{groupId}/plans/{planId}/votes`는 canonical로 사용하지 않는다. 필요한 경우 기존 Flutter 화면 전환을 위한 alias 또는 compatibility route로만 검토한다.
 

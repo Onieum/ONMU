@@ -176,6 +176,97 @@ void main() {
   });
 
   test(
+    'createPlan sends selected participant user ids through Spring API',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 101,
+                  'title': '참여자 포함 약속',
+                  'dateLabel': '2026-06-12T10:00:00Z',
+                  'placeName': '성수동',
+                  'status': 'draft',
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiPlanRepository(OnmuApiClient(dio));
+
+      await repository.createPlan(
+        PlanCreateInput(
+          groupId: 1,
+          title: '참여자 포함 약속',
+          dateTime: '2026-06-12T10:00:00Z',
+          endsAt: '2026-06-12T12:00:00Z',
+          location: '성수동',
+          memo: '',
+          members: const [
+            PlanMember(name: '나', userId: 'user-me'),
+            PlanMember(name: '지민', userId: 'user-jimin'),
+            PlanMember(name: '이름만 있는 멤버'),
+          ],
+        ),
+      );
+
+      expect(requests.single.path, '/api/v1/groups/1/plans');
+      expect(requests.single.method, 'POST');
+      expect(requests.single.data['participantUserIds'], [
+        'user-me',
+        'user-jimin',
+      ]);
+    },
+  );
+
+  test('adds a group member to plan through participant endpoint', () async {
+    final requests = <RequestOptions>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requests.add(options);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 'participant-jimin',
+                'userId': 'user-jimin',
+                'displayName': '지민',
+                'status': 'joined',
+                'response': 'accepted',
+                'profileImageUrl': 'dev/avatars/jimin.png',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiPlanRepository(OnmuApiClient(dio));
+
+    final participant = await repository.addParticipant(
+      groupId: 1,
+      planId: 101,
+      userId: 'user-jimin',
+    );
+
+    expect(requests.single.path, '/api/v1/groups/1/plans/101/participants');
+    expect(requests.single.method, 'POST');
+    expect(requests.single.data, {'userId': 'user-jimin'});
+    expect(participant.userId, 'user-jimin');
+    expect(participant.displayName, '지민');
+    expect(participant.participantStatus, 'joined');
+    expect(participant.profileImageUrl, 'dev/avatars/jimin.png');
+  });
+
+  test(
     'maps plan start and end time for active arrival status window',
     () async {
       final dio = Dio();

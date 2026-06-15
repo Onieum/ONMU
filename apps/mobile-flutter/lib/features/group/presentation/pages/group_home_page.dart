@@ -127,7 +127,7 @@ class _GroupHomeHeader extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(child: _HeaderAvatarCluster(members: group.members)),
+            Expanded(child: _HeaderAvatarCluster(members: group.memberAvatars)),
             SizedBox(
               width: sideActionWidth,
               child: Row(
@@ -186,12 +186,12 @@ class _GroupHomeHeader extends StatelessWidget {
 class _HeaderAvatarCluster extends StatelessWidget {
   const _HeaderAvatarCluster({required this.members});
 
-  final List<String> members;
+  final List<GroupPlanMemberAvatar> members;
 
   @override
   Widget build(BuildContext context) {
     final displayMembers = members.isEmpty
-        ? const ['온']
+        ? const [GroupPlanMemberAvatar(name: '온')]
         : members.take(3).toList(growable: false);
 
     return Center(
@@ -205,7 +205,8 @@ class _HeaderAvatarCluster extends StatelessWidget {
               Positioned(
                 left: _avatarLeftOffset(index, displayMembers.length),
                 child: PixelAvatar(
-                  label: displayMembers[index],
+                  label: displayMembers[index].name,
+                  profileImageUrl: displayMembers[index].profileImageUrl,
                   size: index == 1 ? 46 : 42,
                 ),
               ),
@@ -375,8 +376,12 @@ class _UpcomingPlanCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
-                    for (final member in ['지민', '민수', '하린', '현우']) ...[
-                      PixelAvatar(label: member, size: 22),
+                    for (final member in plan.memberAvatars.take(4)) ...[
+                      PixelAvatar(
+                        label: member.name,
+                        profileImageUrl: member.profileImageUrl,
+                        size: 22,
+                      ),
                       const SizedBox(width: AppSpacing.xxs),
                     ],
                     const SizedBox(width: AppSpacing.xs),

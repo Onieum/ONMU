@@ -155,4 +155,13 @@ class _CandidatePlanRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
+  }
 }

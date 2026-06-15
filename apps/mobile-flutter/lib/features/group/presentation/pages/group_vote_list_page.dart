@@ -15,9 +15,10 @@ import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/vote_view_model.dart';
 
 class GroupVoteListPage extends StatefulWidget {
-  const GroupVoteListPage({required this.groupId, super.key});
+  const GroupVoteListPage({required this.groupId, super.key, this.planId});
 
   final String groupId;
+  final String? planId;
 
   @override
   State<GroupVoteListPage> createState() => _GroupVoteListPageState();
@@ -30,7 +31,12 @@ class _GroupVoteListPageState extends State<GroupVoteListPage> {
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        final state = ref.watch(voteListViewModelProvider(widget.groupId));
+        final state = ref.watch(
+          voteListViewModelProvider((
+            groupId: widget.groupId,
+            planId: widget.planId,
+          )),
+        );
 
         return state.when(
           data: (state) => _VoteListContent(
@@ -85,17 +91,23 @@ class _VoteListContent extends StatelessWidget {
     return OnmuScaffold(
       title: '투표 목록',
       showBackButton: true,
-      onBack: () => context.popOrGo(RoutePaths.groupChat(group.id)),
-      action: IconButton(
-        tooltip: '투표 만들기',
-        onPressed: () =>
-            context.push(RoutePaths.planVoteNew(group.id, state.planId)),
-        icon: const Icon(Icons.add_circle_outline),
+      onBack: () => context.popOrGo(
+        state.planId == 0
+            ? RoutePaths.groupChat(group.id)
+            : RoutePaths.planDetail(group.id, state.planId),
       ),
+      action: state.planId == 0
+          ? null
+          : IconButton(
+              tooltip: '투표 만들기',
+              onPressed: () =>
+                  context.push(RoutePaths.planVoteNew(group.id, state.planId)),
+              icon: const Icon(Icons.add_circle_outline),
+            ),
       useWarmBackground: false,
       children: [
         Text(
-          '${group.name} · 채팅에서 만든 투표',
+          state.planId == 0 ? '${group.name} · 모임 투표' : '${group.name} · 약속 투표',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
@@ -131,7 +143,7 @@ class _VoteListContent extends StatelessWidget {
             _VoteSummaryCard(
               vote: vote,
               onTap: () =>
-                  context.push(RoutePaths.groupVote(group.id, vote.id)),
+                  context.push(_votePath(group.id, state.planId, vote.id)),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -143,7 +155,7 @@ class _VoteListContent extends StatelessWidget {
             _ClosedVoteRow(
               vote: vote,
               onTap: () =>
-                  context.push(RoutePaths.groupVote(group.id, vote.id)),
+                  context.push(_votePath(group.id, state.planId, vote.id)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -156,6 +168,13 @@ class _VoteListContent extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _votePath(Object groupId, int planId, Object voteId) {
+    if (planId == 0) {
+      return RoutePaths.groupVote(groupId, voteId);
+    }
+    return RoutePaths.planVote(groupId, planId, voteId);
   }
 }
 

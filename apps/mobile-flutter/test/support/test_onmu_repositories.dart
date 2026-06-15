@@ -339,8 +339,16 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
-    return _store.fetchVotes(groupId);
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async {
+    return _store.fetchVotes(
+      groupId,
+      targetType: targetType,
+      targetId: targetId,
+    );
   }
 
   @override
@@ -431,6 +439,22 @@ class TestPlanRepository implements PlanRepository {
       id: 'current-user',
       displayName: '나',
       participantStatus: 'left',
+      arrivalStatus: PlanArrivalStatus.none,
+      isFallback: false,
+    );
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) async {
+    return PlanParticipantArrival(
+      id: userId,
+      userId: userId,
+      displayName: userId,
+      participantStatus: 'joined',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,
     );

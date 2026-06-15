@@ -5,6 +5,7 @@ import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import com.onmu.api.service.RouteRecommendationService;
 import com.onmu.api.service.SettlementApiService;
+import com.onmu.api.web.dto.AddPlanParticipantRequest;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.onmu.api.security.AuthenticatedUser;
 
@@ -163,6 +165,17 @@ public class ApiController {
     return onmuApiService.planParticipants(groupId, planId);
   }
 
+  @PostMapping("/groups/{groupId}/plans/{planId}/participants")
+  public ResponseEntity<Map<String, Object>> addPlanParticipant(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody AddPlanParticipantRequest request
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+      .body(onmuApiService.addPlanParticipant(groupId, planId, user.userId(), request));
+  }
+
   @PutMapping("/groups/{groupId}/plans/{planId}/participants/me")
   public Map<String, Object> putMyPlanParticipant(
     @PathVariable String groupId,
@@ -229,8 +242,12 @@ public class ApiController {
   }
 
   @GetMapping("/groups/{groupId}/votes")
-  public List<Map<String, Object>> votes(@PathVariable String groupId) {
-    return onmuApiService.votes(groupId);
+  public List<Map<String, Object>> votes(
+    @PathVariable String groupId,
+    @RequestParam(required = false) String targetType,
+    @RequestParam(required = false) String targetId
+  ) {
+    return onmuApiService.votes(groupId, targetType, targetId);
   }
 
   @PostMapping("/groups/{groupId}/votes")

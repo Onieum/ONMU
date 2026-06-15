@@ -324,7 +324,11 @@ void main() {
     addTearDown(container.dispose);
 
     final state = await container.read(
-      voteDetailViewModelProvider((groupId: '1', voteId: '501')).future,
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: null,
+      )).future,
     );
 
     expect(state.vote.title, '제주도 여행 장소 투표');
@@ -1000,7 +1004,11 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async {
     final completer = fetchVotesCompleter;
     if (completer != null) {
       return completer.future;
@@ -1123,7 +1131,11 @@ class _EmptyGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async => [];
 
   @override
   Future<VoteSummary> createVote(VoteCreateInput input) {
@@ -1308,6 +1320,15 @@ class _TodayPlansPlanRepository implements PlanRepository {
   Future<PlanParticipantArrival> leaveAsCurrentUser({
     required Object groupId,
     required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
   }) {
     throw UnimplementedError();
   }
@@ -1520,6 +1541,15 @@ class _UnusedPlanRepository implements PlanRepository {
   Future<PlanParticipantArrival> leaveAsCurrentUser({
     required Object groupId,
     required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
   }) {
     throw UnimplementedError();
   }
@@ -1754,6 +1784,15 @@ class _FakePlanRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _FallbackParticipantRepository implements PlanRepository {
@@ -1823,6 +1862,15 @@ class _FallbackParticipantRepository implements PlanRepository {
   Future<PlanParticipantArrival> leaveAsCurrentUser({
     required Object groupId,
     required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
   }) {
     throw UnimplementedError();
   }

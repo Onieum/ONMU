@@ -157,11 +157,12 @@ public class AuthService {
     response.put("ok", true);
     response.put("authenticated", true);
     response.put("tokens", tokens);
-    response.put("user", Map.of(
-      "id", user.getPublicId(),
-      "displayName", user.getDisplayName(),
-      "onboardingStatus", user.getOnboardingStatus()
-    ));
+    Map<String, Object> userPayload = new LinkedHashMap<>();
+    userPayload.put("id", user.getPublicId());
+    userPayload.put("displayName", user.getDisplayName());
+    userPayload.put("profileImageUrl", user.getProfileImageUrl());
+    userPayload.put("onboardingStatus", user.getOnboardingStatus());
+    response.put("user", userPayload);
     return response;
   }
 

@@ -7,10 +7,13 @@ class VoteSummary {
     required this.planLabel,
     required this.planMeta,
     required this.participants,
+    required this.participantCount,
     required this.options,
     required this.closed,
     required this.joinedByMe,
     required this.actionLabel,
+    this.targetType = '',
+    this.targetId = '',
   });
 
   final int id;
@@ -20,10 +23,15 @@ class VoteSummary {
   final String planLabel;
   final String planMeta;
   final List<String> participants;
+  final int participantCount;
   final List<VoteOptionSummary> options;
   final bool closed;
   final bool joinedByMe;
   final String actionLabel;
+  final String targetType;
+  final String targetId;
+
+  String get participantCountLabel => '$participantCount명 참여';
 }
 
 class VoteOptionSummary {
@@ -31,11 +39,21 @@ class VoteOptionSummary {
     required this.label,
     required this.countLabel,
     required this.progress,
+    this.id = '',
+    this.targetType = '',
+    this.targetId = '',
+    this.candidateId = '',
+    this.responseCount = 0,
   });
 
   final String label;
   final String countLabel;
   final double progress;
+  final String id;
+  final String targetType;
+  final String targetId;
+  final String candidateId;
+  final int responseCount;
 }
 
 class VoteCreateInput {
@@ -47,6 +65,7 @@ class VoteCreateInput {
     required this.deadlineDate,
     required this.deadlineTime,
     required this.candidateNames,
+    this.placeCandidateIds = const [],
   });
 
   final Object groupId;
@@ -56,4 +75,5 @@ class VoteCreateInput {
   final String deadlineDate;
   final String deadlineTime;
   final List<String> candidateNames;
+  final List<String> placeCandidateIds;
 }

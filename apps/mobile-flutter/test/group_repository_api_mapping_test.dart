@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 void main() {
   test(
@@ -111,6 +112,136 @@ void main() {
       expect(groups.single.members, isEmpty);
     },
   );
+
+  test('maps group member profiles into group summary avatars', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 1,
+                'name': '대학 동기 여행단',
+                'description': '여행 모임',
+                'members': ['지민'],
+                'memberProfiles': [
+                  {
+                    'userId': '00000000-0000-0000-0000-000000000001',
+                    'name': '지민',
+                    'profileImageUrl': 'dev/avatars/jiwoo.png',
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final group = await ApiGroupRepository(OnmuApiClient(dio)).fetchGroup(1);
+
+    expect(group.memberAvatars.single.name, '지민');
+    expect(
+      group.memberAvatars.single.profileImageUrl,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fjiwoo.png',
+    );
+  });
+
+  test(
+    'fetchVotes can request plan scoped votes and maps participant count',
+    () async {
+      final requestedPaths = <String>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedPaths.add(options.path);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'id': 501,
+                    'title': '제주도 여행 장소 투표',
+                    'targetType': 'PLAN',
+                    'targetId': '101',
+                    'participantCount': 4,
+                    'closed': false,
+                    'options': [
+                      {
+                        'id': 'vopt-501-1',
+                        'label': '카페 오션뷰',
+                        'countLabel': '3표',
+                        'progress': 0.75,
+                        'responseCount': 3,
+                      },
+                    ],
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      final votes = await ApiGroupRepository(
+        OnmuApiClient(dio),
+      ).fetchVotes(1, targetType: 'PLAN', targetId: 101);
+
+      expect(
+        requestedPaths.single,
+        '/api/v1/groups/1/votes?targetType=PLAN&targetId=101',
+      );
+      expect(votes.single.participantCountLabel, '4명 참여');
+      expect(votes.single.targetType, 'PLAN');
+      expect(votes.single.targetId, '101');
+      expect(votes.single.options.single.countLabel, '3표');
+      expect(votes.single.options.single.progress, 0.75);
+    },
+  );
+
+  test('createVote sends selected place candidate ids to Spring API', () async {
+    final requestedBodies = <Map<String, dynamic>>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 501,
+                'title': '제주도 여행 장소 투표',
+                'targetType': 'PLAN',
+                'targetId': '101',
+                'participantCount': 0,
+                'closed': false,
+                'options': [],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    await ApiGroupRepository(OnmuApiClient(dio)).createVote(
+      VoteCreateInput(
+        groupId: 1,
+        planId: 101,
+        title: '제주도 여행 장소 투표',
+        modeLabel: '단일 선택',
+        deadlineDate: '2026-06-20',
+        deadlineTime: '18:00',
+        candidateNames: const ['카페 오션뷰'],
+        placeCandidateIds: const ['201'],
+      ),
+    );
+
+    expect(requestedBodies.single['placeCandidateIds'], ['201']);
+  });
 
   test('maps plan member profile image urls for plan cards', () async {
     final dio = Dio();

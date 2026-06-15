@@ -3,13 +3,15 @@ import 'preference_profile.dart';
 class PlanMember {
   const PlanMember({
     required this.name,
-    required this.message,
-    required this.badge,
-    required this.selected,
+    this.message = '',
+    this.badge = '',
+    this.selected = true,
+    this.userId = '',
     this.profileImageUrl = '',
     this.preferenceProfile,
   });
 
+  final String userId;
   final String name;
   final String message;
   final String badge;

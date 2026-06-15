@@ -233,6 +233,10 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
         .where((candidate) => selectedCandidateIds.contains(candidate.id))
         .map((candidate) => candidate.name)
         .toList(growable: false);
+    final candidateIds = value.candidates
+        .where((candidate) => selectedCandidateIds.contains(candidate.id))
+        .map((candidate) => candidate.id.toString())
+        .toList(growable: false);
     final repository = ref.read(groupRepositoryProvider);
     final vote = await repository.createVote(
       VoteCreateInput(
@@ -243,9 +247,12 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
         deadlineDate: deadlineDate,
         deadlineTime: deadlineTime,
         candidateNames: candidateNames,
+        placeCandidateIds: candidateIds,
       ),
     );
-    ref.invalidate(voteListViewModelProvider(scope.groupId));
+    ref.invalidate(
+      voteListViewModelProvider((groupId: scope.groupId, planId: scope.planId)),
+    );
     return vote.id;
   }
 
