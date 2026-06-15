@@ -114,7 +114,7 @@ cd <ONMU repo>
   --vault-name "$AZURE_KEY_VAULT_NAME"
 ```
 
-생성되는 `.dart_tool/onmu-dev-oauth.defines.json`은 `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`를 포함한다. 실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
+생성되는 `.dart_tool/onmu-dev-oauth.defines.json`은 `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`를 포함한다. Google이 포함된 경우 iOS 빌드용 `ios/Flutter/GoogleOAuth.generated.xcconfig`도 생성되어 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공한다. 실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
 
 빌드와 설치:
 
@@ -191,6 +191,7 @@ cd <ONMU repo>
 필수 정적 확인:
 
 - `ios/Runner/Info.plist`에 `io.onieum.onmu` URL scheme이 있다.
+- `ios/Runner/Info.plist`에 `$(GOOGLE_IOS_REVERSED_CLIENT_ID)` URL scheme 참조가 있고, OAuth define 생성 후 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 존재한다.
 - iOS bundle id가 provider console 설정과 일치한다.
 - callback URL은 Spring public endpoint이고, 모바일 callback은 custom scheme이다.
 

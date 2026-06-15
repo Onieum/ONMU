@@ -58,7 +58,7 @@ cd <ONMU repo>
 ./scripts/macos/run-flutter-dev-api.sh
 ```
 
-Provider 로그인을 실제 Android/iPhone 기기에서 smoke할 때는 JWT 우회용 define이 아니라 OAuth 전용 공개 define 파일을 사용합니다. Mac에서는 Key Vault에서 Flutter에 필요한 공개 provider 값만 읽어 `.dart_tool/onmu-dev-oauth.defines.json`을 만들 수 있습니다. 이 파일에는 `KAKAO_REST_API_KEY`, `NAVER_OAUTH_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`와 redirect URI만 들어가며, `KAKAO_CLIENT_SECRET`, `NAVER_OAUTH_CLIENT_SECRET`, JWT signing secret, DB password는 들어가지 않습니다.
+Provider 로그인을 실제 Android/iPhone 기기에서 smoke할 때는 JWT 우회용 define이 아니라 OAuth 전용 공개 define 파일을 사용합니다. Mac에서는 Key Vault에서 Flutter에 필요한 공개 provider 값만 읽어 `.dart_tool/onmu-dev-oauth.defines.json`을 만들 수 있습니다. Google iOS 로그인을 위해 같은 명령이 `ios/Flutter/GoogleOAuth.generated.xcconfig`도 생성합니다. 이 파일들에는 `KAKAO_REST_API_KEY`, `NAVER_OAUTH_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`, Google iOS reversed client id와 redirect URI만 들어가며, `KAKAO_CLIENT_SECRET`, `NAVER_OAUTH_CLIENT_SECRET`, JWT signing secret, DB password는 들어가지 않습니다.
 
 Windows PowerShell:
 
@@ -85,6 +85,15 @@ cd <ONMU repo>
 cd apps/mobile-flutter
 flutter run -d <ios-device-or-simulator> \
   --dart-define-from-file=.dart_tool/onmu-dev-oauth.defines.json
+```
+
+Android emulator smoke도 같은 define 파일을 사용합니다.
+
+```powershell
+cd apps\mobile-flutter
+flutter build apk --debug --dart-define-from-file=.dart_tool\onmu-dev-oauth.defines.json
+adb -s <serial> install -r -d build\app\outputs\flutter-apk\app-debug.apk
+adb -s <serial> shell am start -n "io.onieum.onmu_mobile/.MainActivity"
 ```
 
 Kakao 인증 페이지에서 `Admin Settings Issue (KOE101)`이 보이면 앱 코드보다 Kakao Developers 앱 키 설정을 먼저 확인합니다.
