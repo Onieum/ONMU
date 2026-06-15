@@ -19,10 +19,12 @@ import 'package:onmu_mobile/features/my/my_page.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/plan/widgets/plan_member_avatar_row.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 import 'support/in_memory_onmu_store.dart';
@@ -201,6 +203,54 @@ void main() {
     expect(find.text('약속 이름'), findsOneWidget);
     expect(find.text('참여 멤버'), findsOneWidget);
     expect(find.text('참여자 선택'), findsNothing);
+  });
+
+  testWidgets('plan create starts with current user and warns before saving', (
+    tester,
+  ) async {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        preferenceProfile: PreferenceProfile.empty().copyWith(
+          unavailableDates: [
+            '${tomorrow.year.toString().padLeft(4, '0')}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}',
+          ],
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planNew(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(PlanMemberAvatar),
+        matching: find.text('나'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(find.text('참여 멤버')).dy,
+      lessThan(tester.getTopLeft(find.text('날짜와 시간')).dy),
+    );
+
+    await tester.enterText(find.byType(TextFormField).first, '새 약속');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '약속 만들기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('해당 약속 시간에 참여가 힘든 멤버가 있어요. 그래도 진행할까요?'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '아니오'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '예'), findsOneWidget);
   });
 
   testWidgets('home plan cards open plan detail when tapped', (tester) async {
@@ -812,20 +862,24 @@ void main() {
 
     expect(find.widgetWithText(TextFormField, '제주도 일대'), findsOneWidget);
     expect(find.byTooltip('지역 지우기'), findsOneWidget);
-    await tester.tap(find.byTooltip('지역 지우기'));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, '제주도 일대'), findsNothing);
-    expect(find.byTooltip('지역 지우기'), findsNothing);
 
+    await tester.ensureVisible(find.text('선택한 일정'));
     await tester.tap(find.text('선택한 일정'));
     await tester.pumpAndSettle();
     expect(find.text('날짜와 시간 선택'), findsOneWidget);
-    expect(find.text('추천 시간대'), findsWidgets);
+    expect(find.text('일반 추천'), findsWidgets);
     expect(find.text('직접 시간 지정'), findsNothing);
     expect(find.text('보통'), findsNothing);
     expect(find.text('저녁'), findsNothing);
     await tester.tap(find.text('선택 완료'));
     await tester.pumpAndSettle();
+    if (find
+        .text('해당 약속 시간에 참여가 힘든 멤버가 있어요. 그래도 진행할까요?')
+        .evaluate()
+        .isNotEmpty) {
+      await tester.tap(find.widgetWithText(FilledButton, '예'));
+      await tester.pumpAndSettle();
+    }
 
     await tester.enterText(
       find.byKey(const ValueKey('plan-location-field')),
@@ -833,6 +887,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byTooltip('지역 지우기'), findsOneWidget);
+    await tester.dragUntilVisible(
+      find.widgetWithText(TextFormField, '제주도 여행'),
+      find.byType(Scrollable).last,
+      const Offset(0, 120),
+    );
     await tester.enterText(
       find.widgetWithText(TextFormField, '제주도 여행'),
       '수정된 약속',
@@ -846,6 +905,13 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, '수정 완료'));
     await tester.pumpAndSettle();
+    if (find
+        .text('해당 약속 시간에 참여가 힘든 멤버가 있어요. 그래도 진행할까요?')
+        .evaluate()
+        .isNotEmpty) {
+      await tester.tap(find.widgetWithText(FilledButton, '예'));
+      await tester.pumpAndSettle();
+    }
 
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);

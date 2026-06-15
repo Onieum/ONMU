@@ -126,12 +126,12 @@ class ChatActivityServiceTests {
       .containsEntry("cursor", "2026-06-09T05:00:00Z")
       .containsEntry("isMine", false)
       .containsEntry("sendStatus", "sent")
-      .containsEntry("timeLabel", "14:00");
+      .containsEntry("timeLabel", "05:00");
     assertThat(messages.get(1))
       .containsEntry("senderUserId", currentUser.getPublicId())
       .containsEntry("message", "기대된다아 ㅎㅎ")
       .containsEntry("isMine", true)
-      .containsEntry("timeLabel", "14:01");
+      .containsEntry("timeLabel", "05:01");
   }
 
   @Test

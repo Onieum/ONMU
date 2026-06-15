@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
+import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_picker.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_range_picker.dart';
 
@@ -97,8 +98,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, hasLength(1));
-    expect(picked.single.start, DateTime(2026, 6, 16, 15));
-    expect(picked.single.end, DateTime(2026, 6, 20, 17));
+    expect(picked.single.start, DateTime(2026, 6, 16, 15).toUtc());
+    expect(picked.single.end, DateTime(2026, 6, 20, 17).toUtc());
   });
 
   testWidgets('종료 날짜 필드만 열면 캘린더와 종료 시간 선택만 함께 보여준다', (tester) async {
@@ -122,14 +123,75 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, hasLength(1));
-    expect(picked.single.start, DateTime(2026, 6, 15, 14));
-    expect(picked.single.end, DateTime(2026, 6, 21, 16));
+    expect(picked.single.start, DateTime(2026, 6, 15, 14).toUtc());
+    expect(picked.single.end, DateTime(2026, 6, 21, 16).toUtc());
+  });
+
+  testWidgets('직접 시간을 조정한 뒤 추천 시간대를 선택해도 build 중 setState 예외가 나지 않는다', (
+    tester,
+  ) async {
+    await _pumpRangePicker(tester);
+    await _openRangePicker(tester);
+
+    await tester.tap(find.text('시작 날짜'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const ValueKey('start-time-slider-hour')),
+      find.byType(Scrollable).last,
+      const Offset(0, -120),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('start-time-slider-hour')),
+      const Offset(0, -58),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('가장 많이 선택되는 시간대예요.'),
+      find.byType(Scrollable).last,
+      const Offset(0, -160),
+    );
+    await tester.tap(find.text('가장 많이 선택되는 시간대예요.'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('참여자 선호 시간이 겹치지 않으면 실제 데이터 기반 대안 상태와 선호/비선호 수를 보여준다', (
+    tester,
+  ) async {
+    await _pumpRangePicker(
+      tester,
+      participantPreferences: [
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['월요일'],
+          preferredTimes: ['점심'],
+        ),
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['월요일'],
+          preferredTimes: ['오후'],
+        ),
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['월요일'],
+          preferredTimes: ['점심'],
+          unavailableDates: ['2026-06-15'],
+        ),
+      ],
+    );
+    await _openRangePicker(tester);
+
+    expect(find.text('모두가 가능한 시간대가 없었음'), findsOneWidget);
+    expect(find.text('2명 선호, 1명 비선호'), findsWidgets);
+    expect(find.text('4명 추천'), findsNothing);
+    expect(find.byIcon(Icons.close_rounded), findsWidgets);
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
 }
 
 Future<void> _pumpRangePicker(
   WidgetTester tester, {
   ValueChanged<OnmuDateTimeRange>? onPicked,
+  List<PreferenceProfile> participantPreferences = const [],
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -144,6 +206,7 @@ Future<void> _pumpRangePicker(
                     context: context,
                     initialStart: DateTime(2026, 6, 15, 14),
                     initialEnd: DateTime(2026, 6, 20, 16),
+                    participantPreferences: participantPreferences,
                   );
                   if (picked != null) {
                     onPicked?.call(picked);

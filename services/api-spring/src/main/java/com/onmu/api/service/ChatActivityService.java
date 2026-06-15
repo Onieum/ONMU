@@ -21,7 +21,7 @@ import com.onmu.api.web.dto.UpdateChatReadStateRequest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,7 +45,7 @@ public class ChatActivityService {
   };
   private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter
     .ofPattern("HH:mm")
-    .withZone(ZoneId.of("Asia/Seoul"));
+    .withZone(ZoneOffset.UTC);
 
   private final ChatActivityEventRepository chatActivityEventRepository;
   private final ChatReadStateRepository chatReadStateRepository;

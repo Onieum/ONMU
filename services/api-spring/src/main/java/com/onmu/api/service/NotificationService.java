@@ -11,7 +11,7 @@ import com.onmu.api.web.dto.NotificationItemResponse;
 import com.onmu.api.web.dto.NotificationReadAllResponse;
 import com.onmu.api.web.dto.NotificationUnreadCountResponse;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +31,7 @@ public class NotificationService {
   };
   private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter
     .ofPattern("HH:mm")
-    .withZone(ZoneId.of("Asia/Seoul"));
+    .withZone(ZoneOffset.UTC);
 
   private final NotificationRepository notificationRepository;
   private final ObjectMapper objectMapper;

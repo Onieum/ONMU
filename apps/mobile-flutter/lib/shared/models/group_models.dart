@@ -53,6 +53,7 @@ class GroupPlanSummary {
     required this.extraMemberCount,
     required this.iconKind,
     required this.isPast,
+    this.memberAvatars = const [],
     this.startsAt,
     this.endsAt,
   });
@@ -69,6 +70,7 @@ class GroupPlanSummary {
   final int extraMemberCount;
   final String iconKind;
   final bool isPast;
+  final List<GroupPlanMemberAvatar> memberAvatars;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
@@ -214,6 +216,13 @@ enum GroupMessageSendStatus {
       _ => GroupMessageSendStatus.sent,
     };
   }
+}
+
+class GroupPlanMemberAvatar {
+  const GroupPlanMemberAvatar({required this.name, this.profileImageUrl = ''});
+
+  final String name;
+  final String profileImageUrl;
 }
 
 class GroupMessage {

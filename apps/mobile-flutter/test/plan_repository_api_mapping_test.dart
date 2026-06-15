@@ -153,6 +153,7 @@ void main() {
         groupId: 1,
         title: '수정된 약속',
         dateTime: '2026-06-12T10:00:00Z',
+        endsAt: '2026-06-12T12:00:00Z',
         location: '성수동',
         memo: '메모',
         members: const [],
@@ -164,6 +165,7 @@ void main() {
     expect(requests.single.data, {
       'title': '수정된 약속',
       'startsAt': '2026-06-12T10:00:00.000Z',
+      'endsAt': '2026-06-12T12:00:00.000Z',
       'placeName': '성수동',
       'memo': '메모',
       'status': 'draft',

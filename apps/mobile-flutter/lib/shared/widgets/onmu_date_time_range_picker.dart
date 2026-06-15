@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../models/preference_profile.dart';
 import 'onmu_button.dart';
 import 'onmu_card.dart';
 import 'onmu_date_time_picker.dart';
@@ -22,6 +23,7 @@ class OnmuDateTimeRangePicker {
     required DateTime initialStart,
     required DateTime initialEnd,
     String title = '날짜와 시간 선택',
+    List<PreferenceProfile> participantPreferences = const [],
   }) {
     return showModalBottomSheet<OnmuDateTimeRange>(
       context: context,
@@ -33,10 +35,11 @@ class OnmuDateTimeRangePicker {
       ),
       builder: (context) => _DateTimeRangePickerSheet(
         title: title,
-        initialStart: initialStart,
+        initialStart: initialStart.toLocal(),
         initialEnd: initialEnd.isAfter(initialStart)
-            ? initialEnd
-            : initialStart.add(const Duration(hours: 2)),
+            ? initialEnd.toLocal()
+            : initialStart.toLocal().add(const Duration(hours: 2)),
+        participantPreferences: participantPreferences,
       ),
     );
   }
@@ -47,11 +50,13 @@ class _DateTimeRangePickerSheet extends StatefulWidget {
     required this.title,
     required this.initialStart,
     required this.initialEnd,
+    required this.participantPreferences,
   });
 
   final String title;
   final DateTime initialStart;
   final DateTime initialEnd;
+  final List<PreferenceProfile> participantPreferences;
 
   @override
   State<_DateTimeRangePickerSheet> createState() =>
@@ -75,6 +80,10 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final recommendationResult = _timeRecommendationResult(
+      anchor: _start,
+      participantPreferences: widget.participantPreferences,
+    );
 
     return DraggableScrollableSheet(
       expand: false,
@@ -136,7 +145,8 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           selectedDate: _start,
                           minimumDate: _today(),
                           maximumDate: _today().add(const Duration(days: 365)),
-                          highlightedDates: _recommendedDatesAround(_start),
+                          highlightedDates:
+                              recommendationResult.highlightedDates,
                           onDateChanged: (date) => setState(() {
                             _updateStartDate(date);
                           }),
@@ -172,7 +182,8 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           selectedDate: _end,
                           minimumDate: _start,
                           maximumDate: _start.add(const Duration(days: 365)),
-                          highlightedDates: _recommendedDatesAround(_start),
+                          highlightedDates:
+                              recommendationResult.highlightedDates,
                           onDateChanged: (date) => setState(() {
                             _updateEndDate(date);
                           }),
@@ -198,25 +209,18 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    for (final recommendation in _timeRecommendations) ...[
+                    if (recommendationResult.notice != null) ...[
+                      _RecommendationNotice(text: recommendationResult.notice!),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    for (final recommendation
+                        in recommendationResult.recommendations) ...[
                       _TimeRecommendationTile(
                         recommendation: recommendation,
                         selected: recommendation.matches(_start),
                         onTap: () => setState(() {
-                          final date = DateTime(
-                            _start.year,
-                            _start.month,
-                            _start.day,
-                          );
-                          _start = date.add(
-                            Duration(
-                              hours: recommendation.hour,
-                              minutes: recommendation.minute,
-                            ),
-                          );
-                          _end = _start.add(
-                            Duration(hours: recommendation.durationHours),
-                          );
+                          _start = recommendation.start;
+                          _end = recommendation.end;
                         }),
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -237,9 +241,9 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                 icon: Icons.check,
                 color: AppColors.primaryPink,
                 foregroundColor: AppColors.textInverse,
-                onPressed: () => Navigator.of(
-                  context,
-                ).pop(OnmuDateTimeRange(start: _start, end: _end)),
+                onPressed: () => Navigator.of(context).pop(
+                  OnmuDateTimeRange(start: _start.toUtc(), end: _end.toUtc()),
+                ),
               ),
             ),
           ],
@@ -391,6 +395,38 @@ class _DateSummaryField extends StatelessWidget {
   }
 }
 
+class _RecommendationNotice extends StatelessWidget {
+  const _RecommendationNotice({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: AppColors.accentBrown),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecommendationStatusLabel extends StatelessWidget {
   const _RecommendationStatusLabel({
     required this.recommendation,
@@ -418,11 +454,7 @@ class _RecommendationStatusLabel extends StatelessWidget {
           vertical: AppSpacing.xxs,
         ),
         child: Text(
-          recommended
-              ? compact
-                    ? '추천 시간대'
-                    : '참여자 추천 시간대'
-              : '비추천 시간대',
+          recommendation.statusLabel(compact: compact),
           style: Theme.of(
             context,
           ).textTheme.labelMedium?.copyWith(color: color),
@@ -456,12 +488,12 @@ class _TimeRecommendationTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.star_rounded, color: recommendation.statusColor),
+          Icon(recommendation.statusIcon, color: recommendation.statusColor),
           const SizedBox(width: AppSpacing.sm),
           SizedBox(
-            width: 74,
+            width: 108,
             child: Text(
-              '${_formatClock(recommendation.hour, recommendation.minute)}\n~ ${_formatClock(recommendation.hour + recommendation.durationHours, recommendation.minute)}',
+              '${_formatDate(recommendation.start)}\n${_formatClock(recommendation.hour, recommendation.minute)} ~ ${_formatClock(recommendation.end.hour, recommendation.end.minute)}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
@@ -526,67 +558,68 @@ class _SectionHeader extends StatelessWidget {
 
 class _TimeRecommendation {
   const _TimeRecommendation({
-    required this.hour,
-    required this.minute,
-    required this.durationHours,
+    required this.start,
+    required this.duration,
     required this.label,
     required this.preferredCount,
     required this.unavailableCount,
+    required this.isRecommended,
+    this.generic = false,
   });
 
-  final int hour;
-  final int minute;
-  final int durationHours;
+  final DateTime start;
+  final Duration duration;
   final String label;
   final int preferredCount;
   final int unavailableCount;
+  final bool isRecommended;
+  final bool generic;
 
-  bool get isRecommended => preferredCount > unavailableCount;
+  int get hour => start.hour;
 
-  String get availability => '$preferredCount명 추천';
+  int get minute => start.minute;
+
+  DateTime get end => start.add(duration);
+
+  int get durationHours => duration.inHours;
+
+  String get availability =>
+      generic ? '일반 추천' : '$preferredCount명 선호, $unavailableCount명 비선호';
+
+  IconData get statusIcon =>
+      isRecommended ? Icons.star_rounded : Icons.close_rounded;
 
   Color get statusColor =>
       isRecommended ? AppColors.accentGreen : AppColors.accentRed;
 
+  String statusLabel({required bool compact}) {
+    if (isRecommended) {
+      if (generic) {
+        return '일반 추천';
+      }
+      return compact ? '추천 시간대' : '참여자 추천 시간대';
+    }
+    return '불가능 시간대';
+  }
+
   bool matches(DateTime dateTime) {
-    return dateTime.hour == hour && dateTime.minute == minute;
+    return _sameDate(dateTime, start) &&
+        dateTime.hour == hour &&
+        dateTime.minute == minute;
   }
 }
 
-const _timeRecommendations = [
-  _TimeRecommendation(
-    hour: 12,
-    minute: 0,
-    durationHours: 2,
-    label: '점심부터 여유롭게 시작할 수 있어요.',
-    preferredCount: 3,
-    unavailableCount: 0,
-  ),
-  _TimeRecommendation(
-    hour: 13,
-    minute: 0,
-    durationHours: 2,
-    label: '가장 많이 선택되는 시간대예요.',
-    preferredCount: 4,
-    unavailableCount: 1,
-  ),
-  _TimeRecommendation(
-    hour: 14,
-    minute: 0,
-    durationHours: 2,
-    label: '일부 멤버가 피하고 싶은 시간대예요.',
-    preferredCount: 1,
-    unavailableCount: 3,
-  ),
-  _TimeRecommendation(
-    hour: 19,
-    minute: 0,
-    durationHours: 2,
-    label: '퇴근 후 저녁 약속에 맞아요.',
-    preferredCount: 1,
-    unavailableCount: 2,
-  ),
-];
+class _TimeRecommendationResult {
+  const _TimeRecommendationResult({
+    required this.recommendations,
+    required this.highlightedDates,
+    this.notice,
+  });
+
+  final List<_TimeRecommendation> recommendations;
+  final List<DateTime> highlightedDates;
+  final String? notice;
+}
 
 DateTime _normalizedEnd(DateTime start, DateTime end) {
   final roundedEnd = _roundedToFiveMinutes(end);
@@ -620,13 +653,302 @@ DateTime _today() {
   return DateTime(now.year, now.month, now.day);
 }
 
-List<DateTime> _recommendedDatesAround(DateTime anchor) {
+_TimeRecommendationResult _timeRecommendationResult({
+  required DateTime anchor,
+  required List<PreferenceProfile> participantPreferences,
+}) {
+  final preferenceProfiles = participantPreferences
+      .where((profile) => _hasPreferredTimeData(profile))
+      .toList(growable: false);
+  if (preferenceProfiles.isEmpty) {
+    return _fallbackTimeRecommendationResult(anchor);
+  }
+
+  final slotStarts = _preferredSlotStarts(preferenceProfiles);
+  if (slotStarts.isEmpty) {
+    return _fallbackTimeRecommendationResult(anchor);
+  }
+
+  final anchorDate = DateTime(anchor.year, anchor.month, anchor.day);
+  final recommendations = <_TimeRecommendation>[];
+  for (var dayOffset = 0; dayOffset < 14; dayOffset += 1) {
+    final date = anchorDate.add(Duration(days: dayOffset));
+    for (final slotStart in slotStarts) {
+      final preferredCount = preferenceProfiles
+          .where((profile) => _profilePrefersSlot(profile, date, slotStart))
+          .length;
+      if (preferredCount == 0) {
+        continue;
+      }
+      final unavailableCount = participantPreferences
+          .where((profile) => _profileUnavailableOn(profile, date))
+          .length;
+      if (unavailableCount == participantPreferences.length) {
+        continue;
+      }
+      final everyonePreferred =
+          preferredCount == preferenceProfiles.length && unavailableCount == 0;
+      recommendations.add(
+        _TimeRecommendation(
+          start: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            slotStart.hour,
+            slotStart.minute,
+          ),
+          duration: const Duration(hours: 2),
+          label: everyonePreferred ? '모두가 선호한 시간대예요.' : '선호가 가장 많이 겹치는 시간대예요.',
+          preferredCount: preferredCount,
+          unavailableCount: unavailableCount,
+          isRecommended: everyonePreferred,
+        ),
+      );
+    }
+  }
+
+  if (recommendations.isEmpty) {
+    return _fallbackTimeRecommendationResult(anchor);
+  }
+
+  recommendations.sort((a, b) {
+    final recommendedCompare = (b.isRecommended ? 1 : 0).compareTo(
+      a.isRecommended ? 1 : 0,
+    );
+    if (recommendedCompare != 0) {
+      return recommendedCompare;
+    }
+    final preferredCompare = b.preferredCount.compareTo(a.preferredCount);
+    if (preferredCompare != 0) {
+      return preferredCompare;
+    }
+    final unavailableCompare = a.unavailableCount.compareTo(b.unavailableCount);
+    if (unavailableCompare != 0) {
+      return unavailableCompare;
+    }
+    return a.start.compareTo(b.start);
+  });
+
+  final selectedRecommendations = recommendations.take(4).toList();
+  final hasEveryonePreferred = recommendations.any(
+    (recommendation) => recommendation.isRecommended,
+  );
+  return _TimeRecommendationResult(
+    recommendations: selectedRecommendations,
+    highlightedDates: _uniqueDates(
+      selectedRecommendations.map((recommendation) => recommendation.start),
+    ),
+    notice: hasEveryonePreferred ? null : '모두가 가능한 시간대가 없었음',
+  );
+}
+
+_TimeRecommendationResult _fallbackTimeRecommendationResult(DateTime anchor) {
   final date = DateTime(anchor.year, anchor.month, anchor.day);
-  return [
-    date,
-    date.add(const Duration(days: 2)),
-    date.add(const Duration(days: 7)),
+  final recommendations = [
+    _fallbackTimeRecommendation(
+      date: date,
+      hour: 12,
+      label: '점심부터 여유롭게 시작할 수 있어요.',
+    ),
+    _fallbackTimeRecommendation(
+      date: date,
+      hour: 13,
+      label: '가장 많이 선택되는 시간대예요.',
+    ),
+    _fallbackTimeRecommendation(date: date, hour: 14, label: '오후 일정으로 잡기 좋아요.'),
+    _fallbackTimeRecommendation(
+      date: date,
+      hour: 19,
+      label: '퇴근 후 저녁 약속에 맞아요.',
+    ),
   ];
+  return _TimeRecommendationResult(
+    recommendations: recommendations,
+    highlightedDates: [
+      date,
+      date.add(const Duration(days: 2)),
+      date.add(const Duration(days: 7)),
+    ],
+  );
+}
+
+_TimeRecommendation _fallbackTimeRecommendation({
+  required DateTime date,
+  required int hour,
+  required String label,
+}) {
+  return _TimeRecommendation(
+    start: DateTime(date.year, date.month, date.day, hour),
+    duration: const Duration(hours: 2),
+    label: label,
+    preferredCount: 0,
+    unavailableCount: 0,
+    isRecommended: true,
+    generic: true,
+  );
+}
+
+bool _hasPreferredTimeData(PreferenceProfile profile) {
+  return profile.preferredTimes.any(
+    (value) => _slotStartsForPreference(value).isNotEmpty,
+  );
+}
+
+List<_SlotStart> _preferredSlotStarts(List<PreferenceProfile> profiles) {
+  final seen = <int>{};
+  final slots = <_SlotStart>[];
+  for (final profile in profiles) {
+    for (final value in profile.preferredTimes) {
+      for (final slot in _slotStartsForPreference(value)) {
+        final key = slot.hour * 60 + slot.minute;
+        if (seen.add(key)) {
+          slots.add(slot);
+        }
+      }
+    }
+  }
+  slots.sort(
+    (a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute),
+  );
+  return slots;
+}
+
+bool _profilePrefersSlot(
+  PreferenceProfile profile,
+  DateTime date,
+  _SlotStart slot,
+) {
+  if (!_profilePrefersWeekday(profile, date.weekday)) {
+    return false;
+  }
+  return profile.preferredTimes.any(
+    (value) => _slotStartsForPreference(value).contains(slot),
+  );
+}
+
+bool _profilePrefersWeekday(PreferenceProfile profile, int weekday) {
+  final weekdays = profile.preferredWeekdays
+      .map(_weekdayNumberFromPreference)
+      .whereType<int>()
+      .toSet();
+  if (weekdays.isEmpty) {
+    return true;
+  }
+  return weekdays.contains(weekday);
+}
+
+bool _profileUnavailableOn(PreferenceProfile profile, DateTime date) {
+  return profile.unavailableDates.any(
+    (value) => _sameUnavailableDate(value, date),
+  );
+}
+
+List<_SlotStart> _slotStartsForPreference(String value) {
+  final normalized = value.trim().toLowerCase();
+  if (normalized.isEmpty || normalized.contains('결정')) {
+    return const [];
+  }
+
+  final parsedTime = _parseClockPreference(normalized);
+  if (parsedTime != null) {
+    return [parsedTime];
+  }
+
+  if (normalized == 'morning' || normalized.contains('오전')) {
+    return const [_SlotStart(9, 0), _SlotStart(10, 0)];
+  }
+  if (normalized == 'lunch' || normalized.contains('점심')) {
+    return const [_SlotStart(12, 0), _SlotStart(13, 0)];
+  }
+  if (normalized == 'afternoon' || normalized.contains('오후')) {
+    return const [_SlotStart(14, 0), _SlotStart(16, 0)];
+  }
+  if (normalized == 'evening' ||
+      normalized.contains('저녁') ||
+      normalized.contains('night')) {
+    return const [_SlotStart(19, 0), _SlotStart(20, 0)];
+  }
+  return const [];
+}
+
+_SlotStart? _parseClockPreference(String value) {
+  final match = RegExp(r'(\d{1,2})(?::(\d{2}))?').firstMatch(value);
+  if (match == null) {
+    return null;
+  }
+  var hour = int.tryParse(match.group(1) ?? '');
+  final minute = int.tryParse(match.group(2) ?? '0') ?? 0;
+  if (hour == null || hour > 23 || minute > 59) {
+    return null;
+  }
+  if ((value.contains('오후') || value.contains('pm')) && hour < 12) {
+    hour += 12;
+  }
+  if ((value.contains('오전') || value.contains('am')) && hour == 12) {
+    hour = 0;
+  }
+  return _SlotStart(hour, minute);
+}
+
+int? _weekdayNumberFromPreference(String value) {
+  final normalized = value.trim().toLowerCase();
+  return switch (normalized) {
+    '월' || '월요일' || 'mon' || 'monday' => 1,
+    '화' || '화요일' || 'tue' || 'tuesday' => 2,
+    '수' || '수요일' || 'wed' || 'wednesday' => 3,
+    '목' || '목요일' || 'thu' || 'thursday' => 4,
+    '금' || '금요일' || 'fri' || 'friday' => 5,
+    '토' || '토요일' || 'sat' || 'saturday' => 6,
+    '일' || '일요일' || 'sun' || 'sunday' => 7,
+    _ => null,
+  };
+}
+
+bool _sameUnavailableDate(String value, DateTime date) {
+  final parsed = DateTime.tryParse(value.trim());
+  if (parsed != null) {
+    return _sameDate(parsed.toLocal(), date);
+  }
+
+  final match = RegExp(r'(\d{1,2})[/-](\d{1,2})').firstMatch(value);
+  if (match == null) {
+    return false;
+  }
+  final month = int.tryParse(match.group(1) ?? '');
+  final day = int.tryParse(match.group(2) ?? '');
+  return month == date.month && day == date.day;
+}
+
+List<DateTime> _uniqueDates(Iterable<DateTime> values) {
+  final seen = <String>{};
+  final dates = <DateTime>[];
+  for (final value in values) {
+    final date = DateTime(value.year, value.month, value.day);
+    final key = '${date.year}-${date.month}-${date.day}';
+    if (seen.add(key)) {
+      dates.add(date);
+    }
+  }
+  return dates;
+}
+
+bool _sameDate(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+class _SlotStart {
+  const _SlotStart(this.hour, this.minute);
+
+  final int hour;
+  final int minute;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _SlotStart && other.hour == hour && other.minute == minute;
+  }
+
+  @override
+  int get hashCode => Object.hash(hour, minute);
 }
 
 String _formatDate(DateTime date) {

@@ -23,125 +23,60 @@ class PixelAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trimmedLabel = label.trim();
-    final initial = trimmedLabel.isEmpty ? '?' : trimmedLabel.characters.first;
     final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
-    return SizedBox.square(
-      dimension: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.primaryPinkSoft,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: AppColors.lineSoft),
+    return Semantics(
+      label: trimmedLabel.isEmpty ? '프로필 이미지' : '$trimmedLabel 프로필 이미지',
+      image: true,
+      child: SizedBox.square(
+        dimension: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.bgGrid,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          child: imageUrl.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _PixelAvatarFallback(size: size, iconColor: bodyColor),
+                  ),
+                )
+              : _PixelAvatarFallback(size: size, iconColor: bodyColor),
         ),
-        child: imageUrl.isNotEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _PixelAvatarFallback(
-                        initial: initial,
-                        size: size,
-                        bodyColor: bodyColor,
-                        hairColor: hairColor,
-                      ),
-                ),
-              )
-            : _PixelAvatarFallback(
-                initial: initial,
-                size: size,
-                bodyColor: bodyColor,
-                hairColor: hairColor,
-              ),
       ),
     );
   }
 }
 
 class _PixelAvatarFallback extends StatelessWidget {
-  const _PixelAvatarFallback({
-    required this.initial,
-    required this.size,
-    required this.bodyColor,
-    required this.hairColor,
-  });
+  const _PixelAvatarFallback({required this.size, required this.iconColor});
 
-  final String initial;
   final double size;
-  final Color bodyColor;
-  final Color hairColor;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SizedBox(
-        width: size * 0.62,
-        height: size * 0.7,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              bottom: 0,
-              child: _PixelBlock(
-                width: size * 0.36,
-                height: size * 0.26,
-                color: bodyColor,
-              ),
-            ),
-            Positioned(
-              top: size * 0.12,
-              child: _PixelBlock(
-                width: size * 0.45,
-                height: size * 0.36,
-                color: AppColors.bgPaper,
-              ),
-            ),
-            Positioned(
-              top: size * 0.03,
-              child: _PixelBlock(
-                width: size * 0.52,
-                height: size * 0.22,
-                color: hairColor,
-              ),
-            ),
-            Positioned(
-              top: size * 0.25,
-              child: Text(
-                initial,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textMain),
-              ),
-            ),
-          ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.lineSoft),
+        ),
+        child: SizedBox.square(
+          dimension: size * 0.72,
+          child: Icon(
+            Icons.person_rounded,
+            size: size * 0.48,
+            color: iconColor.withOpacity(0.72),
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _PixelBlock extends StatelessWidget {
-  const _PixelBlock({
-    required this.width,
-    required this.height,
-    required this.color,
-  });
-
-  final double width;
-  final double height;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: AppColors.textMain),
-      ),
-      child: SizedBox(width: width, height: height),
     );
   }
 }

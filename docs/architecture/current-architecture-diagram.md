@@ -56,12 +56,14 @@ flowchart LR
         mainApi --> outbox["Outbox Events"]
         outbox --> bus["Azure Service Bus 또는 Event Hubs"]
         bus --> worker["FastAPI AI/Data Worker"]
+        bus --> notificationWorker["Notification Worker 또는 Spring Provider Adapter"]
     end
 
     subgraph data["데이터/상태 경계"]
         mainApi --> postgres["Azure Database for PostgreSQL Flexible Server + PostGIS"]
         mainApi --> redis["Azure Cache for Redis"]
         mainApi --> blob["Azure Blob Storage"]
+        mainApi --> devices["Device Registry / user_devices"]
         currentSse --> postgres
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
@@ -81,6 +83,7 @@ flowchart LR
     subgraph external["외부 API 경계"]
         mainApi --> naver["Naver Maps/Place API"]
         worker --> publicInfo["휴무/공지/리뷰 외부 정보"]
+        notificationWorker --> pushProvider["FCM/APNs"]
         mobile --> share["카카오톡/인스타그램 공유"]
     end
 
@@ -90,10 +93,12 @@ flowchart LR
         terraform["Terraform"] --> azureInfra["Azure 리소스"]
         keyvault["Azure Key Vault"] --> mainApi
         keyvault --> worker
+        keyvault --> notificationWorker
         monitor["Azure Monitor + Application Insights"] --> mainApi
         monitor --> worker
         monitor --> currentSse
         monitor --> realtime
+        monitor --> notificationWorker
     end
 ```
 
@@ -218,11 +223,11 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 캐시 | Redis | 장소 API 캐시, 실시간 presence, 짧은 TTL 상태에 적합하다. | Sprint 1 |
 | 파일 저장 | Azure Blob Storage, 로컬 MinIO | 사진/OOTD/공유 카드 같은 비정형 미디어를 DB에서 분리한다. | Sprint 1 |
 | 검색/RAG | 초기에는 PostgreSQL 검색, 확장 시 Azure AI Search | 처음부터 검색 엔진을 크게 가져가지 않고, 발표용 AI/RAG 확장성을 보여줄 수 있다. | Sprint 2 이후 |
-| 이벤트/큐 | Spring Boot Outbox, Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | Spring Boot와 FastAPI Worker 사이의 작업 요청을 queue/outbox로 관리한다. | Sprint 0부터 |
+| 이벤트/큐 | Spring Boot Outbox, Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | Spring Boot와 FastAPI Worker, Notification Worker 사이의 작업 요청을 queue/outbox로 관리한다. | Sprint 0부터 |
 | AI | Azure OpenAI | 추천 설명, 기록 문장 생성, OOTD 분석 결과 요약에 사용한다. 앱에서 직접 호출하지 않고 worker 뒤에 둔다. | Sprint 2 이후 |
 | 인증 | Naver OAuth 우선 + access/refresh token | Flutter에서 Naver 소셜 로그인을 시작하고 Spring Boot가 provider token 검증, access/refresh token 발급, refresh/로그아웃을 관리한다. | Sprint 0 |
 | DB Migration | Spring Boot Flyway + FastAPI Alembic | core domain은 Flyway, `worker_ai` schema는 Alembic이 관리한다. | Sprint 0부터 |
-| 비밀값 | Azure Key Vault, Managed Identity | 외부 API 키와 DB 비밀번호를 코드/GitHub/Jira에 남기지 않는다. | Staging |
+| 비밀값 | Azure Key Vault, Managed Identity | 외부 API 키, DB 비밀번호, push provider credential을 코드/GitHub/Jira에 남기지 않는다. | Staging |
 | 관측성 | Azure Monitor, Application Insights, OpenTelemetry | Spring/FastAPI/Realtime의 요청 흐름을 trace로 묶어 보여준다. | Sprint 1부터 |
 | IaC/CI | Terraform, GitHub Actions, Dependabot | 로컬에서 Azure로 옮기는 과정을 반복 가능하게 만들고, 공개 저장소 운영 기준을 세운다. | Sprint 0부터 |
 
@@ -280,7 +285,7 @@ Redis는 영구 데이터의 원본이 아니다. ONMU에서 원본은 PostgreSQ
 | 기술 | ONMU에서 쓰는 위치 | 처리하는 것 | 선택 이유 |
 | --- | --- | --- | --- |
 | Outbox Pattern | Spring Boot 내부 | 약속 생성, 장소 후보 추가, 기록 생성, 정산 생성, AI 작업 요청 후 이벤트 발행 예약 | DB 저장과 이벤트 발행 사이의 유실을 줄인다. |
-| Azure Service Bus | 기본 비동기 큐 | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 | Spring Boot와 FastAPI Worker를 느슨하게 연결하고 재시도/장애 격리를 쉽게 한다. |
+| Azure Service Bus | 기본 비동기 큐 | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 | Spring Boot와 FastAPI Worker/Notification Worker를 느슨하게 연결하고 재시도/장애 격리를 쉽게 한다. |
 | Kafka/Event Hubs | 확장 이벤트 스트림 | 실시간 행동 로그, 추천 학습용 이벤트, 대량 상태 이벤트 | Kafka 역량을 보여주거나 스트리밍 분석이 필요할 때 확장한다. |
 | GitHub Actions scheduled job | 가벼운 배치 | 문서 링크 점검, 의존성 점검, 간단한 health check | 별도 배치 플랫폼 없이 반복 검증을 자동화한다. |
 
@@ -335,6 +340,8 @@ Databricks 기반 주간/월간 리포트, 기업용 집계 데이터, 광고 �
 | OpenTelemetry | 서비스 간 trace | Flutter 요청에서 API, worker, DB까지 흐름 추적 | 장애 원인을 서비스 경계별로 찾기 쉽다. |
 
 보안 설명의 핵심은 `민감 데이터는 DB/Storage에 분리 저장하고, 접근은 인증/인가/API 정책/Key Vault로 통제한다`는 것이다.
+
+Notification / Push / Devices 영역에서는 `notifications`를 사용자별 inbox source of truth로 두고, 실제 provider 발송 시도와 결과는 `notification_deliveries` projection으로 분리한다. 현재 dev-safe provider는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`를 남긴다. Terraform은 Key Vault, Managed Identity, Service Bus, Application Insights 같은 리소스 경계를 만들 수 있지만 `notifications`, `notification_deliveries`, `notification_preferences`, `user_devices` table은 Spring Flyway가 소유한다. 세부 기준은 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
 
 ### 7.9 배포와 인프라
 
@@ -439,6 +446,7 @@ Terraform 전환 중 금지한다.
 | Privacy | 기록 공개 범위, 항목별 공개 여부, 외부 공유 정책 |
 | Share | 카카오톡 공유 카드, 인스타그램 저장 이미지, 공유 링크 |
 | Notification | 약속, 투표, 정산, 기록 이벤트의 사용자별 알림 |
+| Devices / Push | 로그인 사용자 기기 token readiness, provider 발송 시도/결과, 앱 밖 알림 |
 | AnalyticsEvent | 미래 리포팅을 위한 비식별 이벤트와 taxonomy 연결 |
 
 초기 구현 범위는 작게 잡는다.
@@ -487,6 +495,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | --- | --- |
 | [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
+| [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
 | [데이터/리포팅 로드맵](./data-analytics-reporting-roadmap.md) | Databricks, 기업용 리포트, 광고 세그먼트, OOTD/persona feature의 미래 확장 |
 | [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |

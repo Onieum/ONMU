@@ -18,6 +18,7 @@ class NotificationItem {
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     final payload = OnmuJson.asMap(json['payload']);
+    final createdAt = DateTime.tryParse(OnmuJson.readString(json, 'createdAt'));
     final notificationType = OnmuJson.readString(
       json,
       'notificationType',
@@ -30,8 +31,11 @@ class NotificationItem {
       body: OnmuJson.readString(json, 'body'),
       status: OnmuJson.readString(json, 'status', 'queued'),
       readAt: DateTime.tryParse(OnmuJson.readString(json, 'readAt')),
-      createdAt: DateTime.tryParse(OnmuJson.readString(json, 'createdAt')),
-      timeLabel: OnmuJson.readString(json, 'timeLabel'),
+      createdAt: createdAt,
+      timeLabel: _localTimeLabel(
+        createdAt,
+        OnmuJson.readString(json, 'timeLabel'),
+      ),
       groupId: _readOptionalString(json, payload, 'groupId'),
       planId: _readOptionalString(json, payload, 'planId'),
       payload: Map.unmodifiable(payload),
@@ -102,6 +106,15 @@ class NotificationItem {
     final fallback = payload[key]?.toString().trim() ?? '';
     return fallback.isEmpty ? null : fallback;
   }
+}
+
+String _localTimeLabel(DateTime? value, String fallback) {
+  if (value == null) {
+    return fallback;
+  }
+  final local = value.toLocal();
+  return '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }
 
 class NotificationPreferenceItem {

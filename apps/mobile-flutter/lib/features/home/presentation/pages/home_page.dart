@@ -453,6 +453,8 @@ class _TodayPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final avatarMembers = _avatarMembers(plan);
+
     return OnmuCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -495,10 +497,14 @@ class _TodayPlanCard extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              for (var index = 0; index < plan.memberCount.clamp(0, 4); index++)
+              for (final member in avatarMembers)
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: PixelAvatar(label: '${index + 1}', size: 28),
+                  child: PixelAvatar(
+                    label: member.name,
+                    size: 28,
+                    profileImageUrl: member.profileImageUrl,
+                  ),
                 ),
               if (plan.extraMemberCount > 0)
                 Text(
@@ -516,6 +522,19 @@ class _TodayPlanCard extends StatelessWidget {
 
   String _todayTimeLabel(GroupPlanSummary plan) {
     return plan.displayTimeRangeLabel;
+  }
+
+  List<GroupPlanMemberAvatar> _avatarMembers(GroupPlanSummary plan) {
+    final members = plan.memberAvatars.take(4).toList(growable: false);
+    if (members.isNotEmpty) {
+      return members;
+    }
+
+    return List.generate(
+      plan.memberCount.clamp(0, 4).toInt(),
+      (index) => GroupPlanMemberAvatar(name: '참여자 ${index + 1}'),
+      growable: false,
+    );
   }
 }
 

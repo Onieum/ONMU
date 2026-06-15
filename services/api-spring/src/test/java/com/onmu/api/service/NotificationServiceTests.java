@@ -71,7 +71,7 @@ class NotificationServiceTests {
       assertThat(notification.planId()).isEqualTo("101");
       assertThat(notification.payload()).containsEntry("voteId", "501");
       assertThat(notification.isRead()).isFalse();
-      assertThat(notification.timeLabel()).isEqualTo("14:11");
+      assertThat(notification.timeLabel()).isEqualTo("05:11");
     });
   }
 
