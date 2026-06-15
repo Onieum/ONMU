@@ -34,6 +34,7 @@ public class AuthService {
   private final AccessTokenIssuer accessTokenIssuer;
   private final AuthProperties authProperties;
   private final OAuthIdentityVerifier oAuthIdentityVerifier;
+  private final UserCodeService userCodeService;
 
   public AuthService(
     UserRepository userRepository,
@@ -41,7 +42,8 @@ public class AuthService {
     RefreshTokenRepository refreshTokenRepository,
     AccessTokenIssuer accessTokenIssuer,
     AuthProperties authProperties,
-    OAuthIdentityVerifier oAuthIdentityVerifier
+    OAuthIdentityVerifier oAuthIdentityVerifier,
+    UserCodeService userCodeService
   ) {
     this.userRepository = userRepository;
     this.authIdentityRepository = authIdentityRepository;
@@ -49,6 +51,7 @@ public class AuthService {
     this.accessTokenIssuer = accessTokenIssuer;
     this.authProperties = authProperties;
     this.oAuthIdentityVerifier = oAuthIdentityVerifier;
+    this.userCodeService = userCodeService;
   }
 
   @Transactional
@@ -66,6 +69,7 @@ public class AuthService {
       )
       .orElseGet(() -> createIdentity(verifiedIdentity));
     identity.recordLogin(verifiedIdentity.email());
+    userCodeService.ensureActiveCode(identity.getUser());
 
     return issueTokenResponse(identity.getUser(), clientIp, userAgent, null, UUID.randomUUID());
   }

@@ -25,6 +25,11 @@
 - 모든 외부 연동 결과는 provider 원본과 앱 표시용 read model을 분리한다.
 - 대량 이벤트성 테이블은 파티셔닝 또는 보존 정책을 전제로 설계한다.
 
+관련 세부 아키텍처 문서는 다음을 기준으로 함께 관리한다.
+
+- [User/Profile/Character/Friends 아키텍처](../architecture/user-profile-character-friends-architecture.md): `users`, `user_codes`, `character_profiles`, `friendships`, `friend_settings`의 Current-to-Target 기준
+- [Records/Memories/Media/OOTD 아키텍처](../architecture/records-memories-media-ootd-architecture.md): `records`, `record_media`, `record_tags`, `records.payload`의 Current-to-Target 기준
+
 ## 상태 구분
 
 | 상태 | 의미 |
@@ -173,19 +178,20 @@
 | --- | --- | --- | --- | --- |
 | `id` | 사용자 코드 ID | UUID | 코드 row 식별자 | PK |
 | `user_id` | 사용자 ID | UUID | 코드를 소유한 사용자 | FK, Not Null |
-| `code` | 사용자 코드 | Varchar(20) | 사람이 입력하기 쉬운 랜덤 코드 | Unique, Not Null |
-| `code_format` | 코드 형식 | Varchar(20) | `ALNUM_8`, `ALNUM_10` 등 | Not Null |
+| `code` | 사용자 코드 | Varchar(20) | 사람이 입력하기 쉬운 숫자 10자리 랜덤 코드. 예: `4839201746` | Unique, Not Null |
+| `code_format` | 코드 형식 | Varchar(20) | `NUMERIC_10` | Not Null |
 | `status` | 코드 상태 | Varchar(20) | `active`, `disabled` | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | 코드 생성 시각 | Not Null |
 | `disabled_at` | 비활성 시각 | Timestamptz | 악용/탈퇴 등으로 비활성화한 시각 | Nullable |
 
 > UNIQUE: `code`
-> 회의 결정: 기본 코드는 대문자/숫자 8-10자리, 혼동 문자인 `O`, `0`, `I`, `1`은 제외한다. 사용자 self-service 재발급은 제공하지 않고, 악용/탈퇴/운영 조치가 필요한 경우에만 비활성화한다. 코드 검색은 `rate_limit_counters.bucket_key=friend_code_lookup`으로 분당 5회, 일 30회 수준에서 시작한다.
+> 회의 결정: 기본 코드는 Steam friend code처럼 숫자만으로 된 고정 10자리 `NUMERIC_10` 형식으로 자동 생성한다. 사용자 self-service 재발급은 제공하지 않고, 악용/탈퇴/운영 조치가 필요한 경우에만 비활성화한다. 코드 검색은 `rate_limit_counters.bucket_key=friend_code_lookup`으로 분당 5회, 일 30회 수준에서 시작한다.
 
 ## `user_devices` (구현됨, 확장 필요)
 
 > 모바일 앱 설치/기기 단위 상태를 관리한다. refresh token, push token, 보안 이벤트를 기기 기준으로 묶기 위한 테이블이다.
 > 현재 구현은 push token readiness를 위해 `user_devices`에 provider, token, token hash, last4를 함께 저장한다. 실제 FCM/APNs provider delivery를 켜기 전에는 token 원문 암호화, 별도 `push_tokens` 분리, provider invalidation callback 처리 중 어떤 방식으로 production 보관 정책을 가져갈지 결정해야 한다. Terraform은 PostgreSQL 리소스 경계만 소유하고 이 table DDL은 Spring Flyway가 소유한다.
+> `push_token`은 현재 text 컬럼이며 응답과 로그에는 원문을 반환하지 않는다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -381,7 +387,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 모임 수정 시각 | Not Null |
 | `deleted_at` | 삭제 시각 | Timestamptz | 모임 삭제 시각 | Nullable |
 
-## `group_members` (다음 구현)
+## `group_members` (구현됨, 확장 필요)
 
 > 모임 참여자와 권한을 관리한다. 친구 관계와 독립적으로 존재한다. 초기 초대 생성은 친구 기반으로 제한하되, 모임 안에는 나와 직접 친구가 아닌 멤버도 존재할 수 있다.
 
@@ -437,7 +443,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 약속 수정 시각 | Not Null |
 | `canceled_at` | 취소 시각 | Timestamptz | 약속 취소 시각 | Nullable |
 
-## `plan_participants` (다음 구현)
+## `plan_participants` (구현됨, 확장 필요)
 
 > 약속 참여자를 관리한다. 모임 멤버 전체가 항상 약속 참여자인 것은 아니다.
 
@@ -747,7 +753,7 @@
 | `updated_at` | 수정 시각 | Timestamptz | 투표 수정 시각 | Not Null |
 | `closed_at` | 종료 시각 | Timestamptz | 투표 종료 시각 | Nullable |
 
-## `vote_options` (다음 구현)
+## `vote_options` (구현됨, 확장 필요)
 
 > 투표 선택지다. 현재 scaffold의 `payload.options`를 정규화한다.
 
@@ -761,7 +767,7 @@
 | `sort_order` | 정렬 순서 | Integer | 표시 순서 | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | 선택지 생성 시각 | Not Null |
 
-## `vote_responses` (다음 구현)
+## `vote_responses` (구현됨, 확장 필요)
 
 > 사용자별 투표 응답이다. 복수 선택 여부는 vote 설정 또는 payload에서 결정한다.
 
@@ -800,9 +806,9 @@
 
 > UNIQUE 후보: `(plan_id, status)`에서 active draft 1개를 application constraint로 관리한다.
 
-## `settlement_items` (다음 구현)
+## `settlement_items` (구현됨, 확장 필요)
 
-> 정산 결제 항목이다. 현재 `settlement_drafts.payload.items`를 정규화한다.
+> 정산 결제 항목이다. 현재 Spring API는 이 table을 draft/result read model의 우선 원장으로 사용하고, `settlement_drafts.payload.items`와 `settlements.payload.items`는 compact fallback과 Flutter mock 호환 snapshot으로 유지한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -810,7 +816,7 @@
 | `settlement_draft_id` | Draft ID | UUID | 편집 중인 draft | FK, Nullable |
 | `settlement_id` | 정산 ID | UUID | 최종 정산 연결 | FK, Nullable |
 | `title` | 항목명 | Text | 식사, 카페, 숙소 등 | Not Null |
-| `amount` | 결제 금액 | Numeric(12,2) | 항목 총액 | Not Null |
+| `amount_cents` | 결제 금액 | Bigint | 항목 총액. 현재 물리 컬럼명은 `amount_cents`지만 API 의미는 KRW 원 단위 integer | Not Null, 0 이상 |
 | `currency` | 통화 | Varchar(3) | `KRW` 등 | Not Null |
 | `split_type` | 분할 방식 | Varchar(20) | `equal`, `custom` | Not Null |
 | `paid_at` | 결제 시각 | Timestamptz | 실제 결제 시각 | Nullable |
@@ -830,7 +836,7 @@
 | `paid_amount` | 결제 금액 | Numeric(12,2) | 해당 사용자가 낸 금액 | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
 
-## `settlement_item_targets` (다음 구현)
+## `settlement_item_targets` (구현됨, 확장 필요)
 
 > 항목별 정산 대상자와 부담액을 저장한다.
 
@@ -839,8 +845,8 @@
 | `id` | 정산 대상 row ID | UUID | row 식별자 | PK |
 | `settlement_item_id` | 정산 항목 ID | UUID | 연결 항목 | FK, Not Null |
 | `user_id` | 대상자 ID | UUID | 비용을 부담하는 사용자 | FK, Not Null |
-| `target_amount` | 부담 금액 | Numeric(12,2) | 개별 금액 모드에서의 금액 | Nullable |
-| `included` | 대상 포함 여부 | Boolean | 대상자 선택 여부 | Not Null |
+| `amount_cents` | 부담 금액 | Bigint | 대상자별 부담 금액. 현재 API 의미는 KRW 원 단위 integer | Nullable |
+| `status` | 대상 상태 | Varchar(30) | 현재 기본값 `pending` | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
 
 ## `settlements` (구현됨, 확장 필요)
@@ -861,7 +867,7 @@
 | `created_at` | 생성 시각 | Timestamptz | 정산 생성 시각 | Not Null |
 | `completed_at` | 완료 시각 | Timestamptz | 정산 완료 처리 시각 | Nullable |
 
-## `settlement_transfers` (다음 구현)
+## `settlement_transfers` (구현됨, 확장 필요)
 
 > 최종 정산 결과의 송금 요약이다. 실제 결제/송금 연동은 별도 범위다.
 
@@ -871,7 +877,7 @@
 | `settlement_id` | 정산 ID | UUID | 연결 정산 | FK, Not Null |
 | `from_user_id` | 보내는 사용자 ID | UUID | 돈을 보내야 하는 사용자 | FK, Not Null |
 | `to_user_id` | 받는 사용자 ID | UUID | 돈을 받아야 하는 사용자 | FK, Not Null |
-| `amount` | 송금 금액 | Numeric(12,2) | 송금 요약 금액 | Not Null |
+| `amount_cents` | 송금 금액 | Bigint | 송금 요약 금액. 현재 API 의미는 KRW 원 단위 integer | Not Null, 0 이상 |
 | `status` | 송금 상태 | Varchar(20) | `pending`, `confirmed`, `waived` | Not Null |
 | `confirmed_at` | 확인 시각 | Timestamptz | 송금 완료 확인 시각 | Nullable |
 | `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
@@ -906,6 +912,14 @@
 | `created_at` | 생성 시각 | Timestamptz | 확인 이벤트 시각 | Not Null |
 
 > UNIQUE 후보: `(settlement_id, user_id, confirmation_type)`
+
+현재 Settlement API의 source of truth 규칙:
+
+- `settlement_drafts`, `settlements`는 draft/result envelope와 compact payload snapshot을 보관한다.
+- `settlement_items`, `settlement_item_targets`, `settlement_transfers`는 draft/result 조회와 계산의 우선 원장이다.
+- `payload` JSON은 `payerShares`, 과거 mock field, 표시 snapshot fallback을 위해 유지한다. 장기적으로 query와 권한 판단이 필요한 값은 structured table로 옮긴다.
+- `payerUserId`, `targetUserIds`가 canonical 계약이고 `payerName`, `targetNames`는 dev seed/호환 fallback이다. 이름 fallback에서 동명이인이 있으면 `ambiguous_settlement_member_name`으로 실패해야 한다.
+- API 금액 필드 `amountWon`과 현재 물리 컬럼 `amount_cents`는 모두 KRW 원 단위 integer로 해석한다. 컬럼명은 legacy mismatch이며 rename 여부는 별도 migration decision으로 남긴다.
 
 ---
 
@@ -1548,7 +1562,7 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 | 상태 조회 | `outbox_events(status, created_at)`, `ai_job_runs(status, created_at)` |
 | 친구 코드 | `user_codes(code)` unique, `friend_requests(target_user_id, status, created_at)` |
 | 친구 관계 | `friendships(user_low_id, user_high_id)` unique, `friend_settings(friendship_id, user_id)` unique, `friend_settings(user_id)`, `friend_settings(friend_user_id)` |
-| 정산 | `settlement_items(settlement_id)`, `settlement_transfers(settlement_id, from_user_id)` |
+| 정산 | `settlement_items(settlement_draft_id)`, `settlement_items(settlement_id)`, `settlement_item_targets(user_id)`, `settlement_transfers(settlement_id, from_user_id)` |
 | 장소 | `place_candidates(plan_id, created_at)`, `external_places(provider, provider_place_id)`, `external_place_links(external_place_id, status, display_order)`, `external_place_links(link_type, status)`, `external_place_links(provider, source_type)` |
 
 ## 파티셔닝 후보
@@ -1569,7 +1583,7 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 | 모임 생성 | `groups`, `group_members`, `chat_activity_events`, `outbox_events`를 같은 transaction에서 처리 |
 | 약속 생성 | `plans`, `plan_participants`, `chat_activity_events`, `outbox_events`를 같은 transaction에서 처리 |
 | 투표 생성 | `votes`, `vote_options`, `chat_activity_events`, `outbox_events`를 같은 transaction에서 처리 |
-| 정산 생성 | `settlements`, `settlement_items`, `settlement_transfers`, `chat_activity_events`, `notifications`, `outbox_events`를 같은 transaction에서 처리 |
+| 정산 생성 | 현재 구현은 `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`, `outbox_events`를 같은 transaction에서 처리한다. 목표 구조에서는 `chat_activity_events`, `notifications`도 같은 transaction에 포함한다. |
 | 기록 생성 | `records`, `record_media`, `record_tags`, `outbox_events`를 같은 transaction에서 처리하되 파일 업로드는 confirm 단계로 분리 |
 
 ## 보안/개인정보 저장 기준
@@ -1636,6 +1650,7 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 | `external_place_link_status` | `active`, `inactive`, `broken`, `hidden` |
 | `vote_type` | `PLACE`, `TIME`, `SETTLEMENT`, `GENERAL`, `CHECKLIST` |
 | `vote_status` | `open`, `closed`, `canceled` |
+| `settlement_draft_status` | 현재 `draft`, 목표 후보 `editing`, `previewed`, `submitted`, `discarded` |
 | `settlement_status` | `created`, `shared`, `completed`, `canceled` |
 | `settlement_split_type` | `equal`, `custom` |
 
@@ -1689,7 +1704,7 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 
 | 주제 | 결정 |
 | --- | --- |
-| 사용자 코드 | 8-10자리 랜덤 코드로 시작하고 self-service 재발급은 제공하지 않는다. 검색 rate limit은 분당 5회, 일 30회 수준으로 시작한다. |
+| 사용자 코드 | 숫자 10자리 `NUMERIC_10` 랜덤 코드로 시작하고 self-service 재발급은 제공하지 않는다. 검색 rate limit은 분당 5회, 일 30회 수준으로 시작한다. |
 | 친구 관계 | 양방향 row 대신 canonical pair `friendships`를 사용하고, 사용자별 메모/숨김은 `friend_settings`로 분리한다. |
 | 그룹 멤버 | 모임 멤버십은 친구 관계와 독립적으로 허용한다. 초기 초대 생성은 친구 기반으로 제한하고, 링크/카카오 초대는 미래 확장으로 둔다. |
 | 기록 공개 범위 | core visibility는 `private`, `participants`, `group`만 둔다. 초기 기본값은 `group`으로 두고, 약속 참여자 제한이 필요한 화면에서 `participants`를 사용한다. |

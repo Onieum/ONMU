@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,9 +143,42 @@ class OnmuApiClient {
     String path, {
     Map<String, Object?> body = const {},
   }) async {
-    final response = await _dio.delete<Object?>(
+    try {
+      final response = await _dio.delete<Object?>(
+        path,
+        data: body.isEmpty ? null : body,
+      );
+      return OnmuJson.asMap(response.data);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        return <String, dynamic>{};
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadMultipart(
+    String path,
+    Uint8List bytes,
+    String fileName,
+  ) async {
+    final lowerFileName = fileName.toLowerCase();
+    final contentType = lowerFileName.endsWith('.png')
+        ? DioMediaType.parse('image/png')
+        : lowerFileName.endsWith('.webp')
+        ? DioMediaType.parse('image/webp')
+        : DioMediaType.parse('image/jpeg');
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: fileName,
+        contentType: contentType,
+      ),
+    });
+    final response = await _dio.post<Object?>(
       path,
-      data: body.isEmpty ? null : body,
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
     );
     return OnmuJson.asMap(response.data);
   }

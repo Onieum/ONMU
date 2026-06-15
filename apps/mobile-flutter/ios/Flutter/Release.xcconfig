@@ -1,1 +1,3 @@
+GOOGLE_IOS_REVERSED_CLIENT_ID = io.onieum.onmu.google-unconfigured
 #include "Generated.xcconfig"
+#include? "GoogleOAuth.generated.xcconfig"

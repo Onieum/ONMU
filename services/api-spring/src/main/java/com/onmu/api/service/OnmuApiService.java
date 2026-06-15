@@ -77,6 +77,7 @@ public class OnmuApiService {
   private final VoteOptionRepository voteOptionRepository;
   private final VoteResponseRepository voteResponseRepository;
   private final OutboxService outboxService;
+  private final UserCodeService userCodeService;
   private final ObjectMapper objectMapper;
 
   public OnmuApiService(
@@ -95,6 +96,7 @@ public class OnmuApiService {
     VoteOptionRepository voteOptionRepository,
     VoteResponseRepository voteResponseRepository,
     OutboxService outboxService,
+    UserCodeService userCodeService,
     ObjectMapper objectMapper
   ) {
     this.userRepository = userRepository;
@@ -112,6 +114,7 @@ public class OnmuApiService {
     this.voteOptionRepository = voteOptionRepository;
     this.voteResponseRepository = voteResponseRepository;
     this.outboxService = outboxService;
+    this.userCodeService = userCodeService;
     this.objectMapper = objectMapper;
   }
 
@@ -150,6 +153,7 @@ public class OnmuApiService {
     value.put("databaseId", user.getId().toString());
     value.put("displayName", displayName(user));
     value.put("nickname", user.getNickname());
+    value.put("userCode", userCodeService.findActiveCode(user.getId()).orElse(null));
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));

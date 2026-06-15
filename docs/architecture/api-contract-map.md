@@ -21,6 +21,8 @@
 
 ## Auth / User
 
+Auth / Session / OAuth와 User / Profile / Character / Friends의 상세 Current-to-Target 경계는 [Auth / User / Profile 아키텍처](./auth-user-profile-architecture.md)를 따른다.
+
 | 화면 | API |
 | --- | --- |
 | 로그인 | `POST /api/v1/auth/oauth/{provider}` |
@@ -29,12 +31,18 @@
 | refresh | `POST /api/v1/auth/refresh` |
 | logout | `DELETE /api/v1/auth/session` |
 | 내 정보 | `GET /api/v1/users/me` |
+| 내 정보 수정 | `PATCH /api/v1/users/me` |
+| 내 캐릭터 조회/저장 | `GET/PUT /api/v1/users/me/character` |
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
+
+`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`를 포함할 수 있다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다.
 
 Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
 ## Friends
+
+세부 Current-to-Target 기준은 [User/Profile/Character/Friends 아키텍처](./user-profile-character-friends-architecture.md)를 따른다.
 
 | 화면 | API | Read model |
 | --- | --- | --- |
@@ -48,6 +56,8 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 친구 관계 원장은 `friendships(user_low_id, user_high_id)` canonical pair를 사용한다. 요청 방향은 `friend_requests`가 필요할 때 보존하고, MVP 친구 추가 API는 관계를 바로 `active`로 만든다. 사용자별 메모, 숨김, 즐겨찾기는 `friend_settings(friendship_id, user_id)` 기준으로 관리한다.
 친구 상세 프로필은 active friendship을 확인한 뒤 상대 사용자의 `users.preference_profile`, `users.pixel_character`, 기본 표시 정보를 반환한다. 이메일, 인증 provider, token contract 같은 내 계정 전용 필드는 포함하지 않는다. 친구 관계가 아니거나 숨김/삭제된 관계면 `404 friend_not_found`를 반환한다.
 ## Home
+
+홈/약속/투표의 Current-to-Target 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
 
 | 화면 | API | Read model |
 | --- | --- | --- |
@@ -76,6 +86,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 모임 나가기 | `DELETE /api/v1/groups/{groupId}/members/me` |
 
 ## Plans
+
+약속 참여자와 홈 read model의 목표 구조는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
 
 | 화면 | API |
 | --- | --- |
@@ -115,6 +127,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.
 
 ## Votes
+
+투표/결정의 Current-to-Target 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
 
 | 화면 | API |
 | --- | --- |
@@ -161,6 +175,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 ## Settlement
 
+세부 Current-to-Target 기준은 [Settlement 아키텍처](./settlement-architecture.md)를 따른다.
+
 | 화면 | API |
 | --- | --- |
 | 정산 draft | `GET/PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
@@ -175,6 +191,8 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 정산 create/preview/update 요청은 `payerUserId`, `targetUserIds` 같은 안정적인 사용자 public id를 우선 사용한다. `payerName`, `targetNames`는 dev seed와 기존 mock 호환용 fallback이며, 이름이 중복되면 API는 조용히 오배정하지 않고 `400 ambiguous_settlement_member_name`을 반환한다. 금액 필드는 `amountWon`을 권장하고, 과거 `amount`는 호환용으로 허용한다. 현재 DB 컬럼명은 `amount_cents`지만 ONMU 정산 API에서는 KRW 원 단위 integer를 저장한다.
 
 `GET /settlement-draft`는 저장되지 않은 synthetic draft를 만들 수 있으며 이때 `persisted=false`, `targetPatchAvailable=false`를 반환한다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item이 생긴 뒤에만 가능하다.
+
+현재 `POST /settlements`는 `settlement.created`, `notification.requested` outbox를 남기지만 runtime create 경로에서 `chat_activity_events` 정산 카드나 사용자별 `notifications` row를 직접 만들지는 않는다. 현재 `channel=activity` 성격의 이벤트는 provider push delivery와 분리해서 해석한다. 목표 구조에서는 정산 생성 transaction에서 ChatActivity 카드와 notification row를 함께 만들고, provider delivery 대상 `notification.requested` payload에는 실제 `notificationId`를 포함한다.
 
 ## Chat
 
@@ -197,6 +215,8 @@ Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 �
 
 
 ## Records / Memories
+
+세부 Current-to-Target 기준은 [Records/Memories/Media/OOTD 아키텍처](./records-memories-media-ootd-architecture.md)를 따른다.
 
 | 화면 | API | Read model |
 | --- | --- | --- |

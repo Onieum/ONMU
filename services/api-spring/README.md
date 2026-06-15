@@ -92,10 +92,10 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V5__core_seed_data_dictionary.sql`: 데이터사전 검증용 synthetic seed
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
-- `V8__screen_aligned_dev_seed.sql`: Flutter mock 화면과 맞춘 synthetic seed와 정산 item/target/transfer seed 보강
 - `V8__add_place_candidate_hearts.sql`: 장소 후보별 사용자 하트 저장소와 중복 방지 제약 추가
 - `V9__screen_aligned_dev_seed.sql`: Flutter 화면 정합 smoke용 synthetic seed 보강
 - `V10__auth_user_profile_infra.sql`: 인증/프로필 구현에 필요한 사용자 프로필, 인증 identity, refresh token 보강
+- `V19__numeric_user_codes.sql`: 신규 OAuth 사용자에게 부여할 숫자 10자리 `NUMERIC_10` 친구 코드 제약과 dev seed 보정
 
 `public_id`는 Flutter API 전환 검증 ID인 `groupId=1`, `planId=101`, `voteId=501`을 유지하기 위한 외부 contract ID입니다. 내부 PK는 UUID를 사용합니다.
 
@@ -166,6 +166,8 @@ Auth scaffold:
 - `GET /api/v1/auth/session`
 - `POST /api/v1/auth/refresh`
 - `DELETE /api/v1/auth/session`
+
+신규 OAuth 사용자 생성 시 Spring은 `user_codes`에 숫자 10자리 `NUMERIC_10` active 코드를 자동 생성합니다. `/api/v1/users/me` 응답은 현재 사용자의 `userCode`를 포함하며, 친구 검색/추가는 기존 `user_codes.code` lookup 경로를 사용합니다.
 
 `POST /api/v1/auth/oauth/kakao`는 Flutter가 전달한 Kakao `providerAccessToken` 또는 `authorizationCode`를 Spring에서 검증한 뒤 ONMU access JWT와 refresh token을 발급합니다. `authorizationCode` 경로는 Spring이 서버 환경변수의 `KAKAO_REST_API_KEY`, 선택적 `KAKAO_CLIENT_SECRET`, `KAKAO_OAUTH_REDIRECT_URI`로 Kakao token endpoint를 호출해 provider access token을 받은 뒤 Kakao user info API(`GET https://kapi.kakao.com/v2/user/me`)로 검증합니다. provider access token은 ONMU API의 `Authorization` bearer token으로 쓰지 않습니다.
 

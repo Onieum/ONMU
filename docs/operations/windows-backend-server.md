@@ -813,6 +813,17 @@ curl http://<windows-lan-ip>:8080/healthz
 
 Windows 노트북 서버는 dev 서버입니다. 다음 조건이 맞으면 Azure staging으로 옮깁니다.
 
+Azure/Terraform 전환 문서는 다음을 기준으로 함께 관리합니다.
+
+- [Azure Terraform 전환 운영 가이드](./azure-terraform-migration.md)
+- [Azure 환경 매트릭스](./azure-environment-matrix.md)
+- [Azure secret 인벤토리](./azure-secret-inventory.md)
+- [Azure CI/CD runbook](./azure-ci-cd-runbook.md)
+- [Azure smoke checklist](./azure-smoke-checklist.md)
+- [Azure cutover/rollback runbook](./azure-cutover-rollback.md)
+
+Windows dev runtime이 최신 `origin/dev`와 다르게 fallback serving 중인 경우에는 Azure staging 승격 기준으로 보지 않습니다. Maven build 성공, Spring process 기동, local/public `/healthz`와 `/readyz`, no-token `/users/me` 401, domain smoke가 모두 통과해야 다음 단계로 진행합니다.
+
 - API와 realtime gateway 또는 worker가 Docker image로 빌드됩니다.
 - `/healthz`, `/readyz`가 있습니다.
 - `/api/v1` Node contract stub이 Spring Boot Main API 구현으로 대체됩니다.

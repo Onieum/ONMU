@@ -77,6 +77,22 @@ Spring Flyway가 core schema를 소유한다.
 
 현재 `user_devices.push_token`은 text 컬럼이다. hash/last4도 저장하지만 token 원문도 저장한다. production 전에는 암호문 저장 또는 별도 `push_tokens` table 분리 여부를 결정해야 한다.
 
+### 구현 증거 파일
+
+| 경계 | 파일 | 확인한 내용 |
+| --- | --- | --- |
+| Spring public API | `services/api-spring/src/main/java/com/onmu/api/web/NotificationController.java` | inbox, unread count, read/read-all endpoint가 인증 사용자 기준으로 동작한다. |
+| Spring preference API | `services/api-spring/src/main/java/com/onmu/api/web/NotificationPreferenceController.java` | `/api/v1/notification-preferences` read/update 계약을 제공한다. |
+| Spring device API | `services/api-spring/src/main/java/com/onmu/api/web/DeviceController.java` | `/api/v1/devices/push-token` register/deactivate 계약을 제공한다. |
+| Push token readiness | `services/api-spring/src/main/java/com/onmu/api/service/PushTokenService.java` | `fcm`, `apns`, `dev` provider만 허용하고 token hash/last4를 계산한다. |
+| Dev-safe delivery | `services/api-spring/src/main/java/com/onmu/api/service/DevNotificationPushProvider.java` | 실제 provider 호출 없이 `dev_push_delivery_disabled` 성격의 skip 결과를 만든다. |
+| Delivery side effect | `services/api-spring/src/main/java/com/onmu/api/service/NotificationDeliveryService.java` | `notificationId` 또는 `aggregateType=notification`으로 원본 notification을 찾은 뒤 `notification_deliveries`를 저장한다. |
+| Flyway migration | `services/api-spring/src/main/resources/db/migration/V18__push_token_readiness.sql` | `user_devices`에 push token readiness 컬럼과 index를 추가한다. |
+| Flutter inbox API | `apps/mobile-flutter/lib/features/home/repository/notification_repository.dart` | notification list/count/read/preferences public API만 호출한다. |
+| Flutter inbox state | `apps/mobile-flutter/lib/features/home/view_model/home_notifications_view_model.dart` | optimistic read/read-all과 unread count invalidation을 처리한다. |
+| Flutter token API | `apps/mobile-flutter/lib/features/notifications/repository/device_push_token_repository.dart` | token을 query가 아니라 request body로 보내고, 기본 token source는 noop이다. |
+| Flutter tests | `apps/mobile-flutter/test/device_push_token_repository_test.dart` | register/deactivate body 전송과 noop source skip을 검증한다. |
+
 ## Event / Outbox / Side Effect Model
 
 `OutboxService.publishPendingEvents`는 5초마다 pending outbox를 조회한다. `notification.requested`는 외부 queue가 아니라 Spring runtime 안의 `NotificationDeliveryService`가 직접 처리한다.
@@ -223,7 +239,7 @@ Provider delivery 대상 event는 다음 최소 payload를 가져야 한다.
 - `channel=activity`처럼 inbox 생성 또는 ChatActivity 공유만 의미하는 이벤트는 push delivery 대상과 분리한다.
 - `notification_deliveries.notification_id`에 연결할 수 없는 이벤트는 실제 provider delivery를 시도하지 않는다.
 
-## Data Model
+## Data Model and Source of Truth
 
 | Table | Current | Target |
 | --- | --- | --- |
@@ -336,7 +352,7 @@ Managed Identity 기준:
 - `Secrets Officer` 권한은 secret 관리 담당자에게만 둔다.
 - AI agent가 secret 값을 쓰거나 조회해 출력하는 작업은 금지한다.
 
-## Observability / Smoke Test
+## Observability and Smoke Test
 
 ### 최소 지표
 

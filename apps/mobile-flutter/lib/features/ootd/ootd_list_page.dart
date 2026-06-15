@@ -1,4 +1,4 @@
-import 'package:flutter/gestures.dart';
+﻿import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/character_model.dart';
@@ -6,6 +6,7 @@ import '../../shared/models/ootd_model.dart';
 import '../../shared/widgets/grid_background.dart';
 import '../../shared/widgets/onmu_date_picker.dart';
 import '../../shared/widgets/pixel_character.dart';
+import 'presentation/pages/daily_record_screen.dart';
 
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
@@ -24,6 +25,8 @@ class OotdListPage extends StatefulWidget {
   final Function(DateTime, OotdRecord?) onAddOotd;
   final void Function(DateTime, OotdRecord?) onAddDailyRecord;
   final Function(OotdRecord) onViewOotdDetail;
+  final Future<Object?> Function(OotdRecord) onEditRecord;
+  final Future<void> Function(OotdRecord) onDeleteRecord;
   final VoidCallback onNavigateToProfile;
 
   const OotdListPage({
@@ -33,6 +36,8 @@ class OotdListPage extends StatefulWidget {
     required this.onAddOotd,
     required this.onAddDailyRecord,
     required this.onViewOotdDetail,
+    required this.onEditRecord,
+    required this.onDeleteRecord,
     required this.onNavigateToProfile,
   });
 
@@ -44,6 +49,7 @@ class _OotdListPageState extends State<OotdListPage> {
   late DateTime _currentMonth;
   late DateTime _selectedDay;
   final List<OotdRecord> _allRecords = [];
+  final Set<String> _locallyDeletedRecordIds = {};
 
   final List<Color> _bgColors = [
     AppColors.calendarDatePinkBg,
@@ -280,8 +286,11 @@ class _OotdListPageState extends State<OotdListPage> {
       _selectedDay = day;
     });
 
+    final dailyRecord = _getDailyRecordForDate(day);
+    final ootdRecord = _getOotdRecordForDate(day);
     final record =
-        _getRecordForDate(day) ??
+        dailyRecord ??
+        ootdRecord ??
         OotdRecord(
           date: day,
           character: widget.userCharacter,
@@ -308,6 +317,8 @@ class _OotdListPageState extends State<OotdListPage> {
       builder: (context) {
         return _TimelineBottomSheetContent(
           record: record,
+          dailyRecord: dailyRecord,
+          ootdRecord: ootdRecord,
           userCharacter: widget.userCharacter,
           onSaveRecord: (updatedRecord) {
             setState(() {
@@ -330,6 +341,32 @@ class _OotdListPageState extends State<OotdListPage> {
           onAddOotdRecord: (date, ootdRecord) {
             widget.onAddOotd(date, ootdRecord);
           },
+          onEditRecord: (editedRecord) async {
+            final result = await widget.onEditRecord(editedRecord);
+            if (!mounted) return result;
+            if (result == 'deleted') {
+              setState(() {
+                _removeRecordImmediately(editedRecord);
+              });
+            } else if (result is OotdRecord) {
+              setState(() {
+                final idx = _allRecords.indexWhere(
+                  (record) => record.id == result.id,
+                );
+                if (idx >= 0) {
+                  _allRecords[idx] = result;
+                }
+              });
+            }
+            return result;
+          },
+          onDeleteRecord: (deletedRecord) async {
+            await widget.onDeleteRecord(deletedRecord);
+            if (!mounted) return;
+            setState(() {
+              _removeRecordImmediately(deletedRecord);
+            });
+          },
           onViewDetail: () {
             widget.onViewOotdDetail(record);
           },
@@ -338,18 +375,6 @@ class _OotdListPageState extends State<OotdListPage> {
     );
   }
 
-  OotdRecord? _getRecordForDate(DateTime date) {
-    try {
-      return _allRecords.firstWhere(
-        (r) =>
-            r.date.year == date.year &&
-            r.date.month == date.month &&
-            r.date.day == date.day,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
 
   OotdRecord? _getOotdRecordForDate(DateTime date) {
     try {
@@ -363,6 +388,68 @@ class _OotdListPageState extends State<OotdListPage> {
     } catch (_) {
       return null;
     }
+  }
+
+  OotdRecord? _getDailyRecordForDate(DateTime date) {
+    try {
+      return _allRecords.firstWhere(
+        (r) =>
+            r.date.year == date.year &&
+            r.date.month == date.month &&
+            r.date.day == date.day &&
+            r.brands['recordType'] == 'daily',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  IconData _weatherIcon(String weather) {
+    final normalized = weather.toLowerCase();
+    if (normalized.contains('rain') || weather.contains('비')) {
+      return Icons.umbrella_outlined;
+    }
+    if (normalized.contains('snow') || weather.contains('눈')) {
+      return Icons.ac_unit;
+    }
+    if (normalized.contains('cloud') || weather.contains('흐')) {
+      return Icons.cloud_outlined;
+    }
+    return Icons.wb_sunny_outlined;
+  }
+
+  Color _weatherColor(String weather) {
+    final normalized = weather.toLowerCase();
+    if (normalized.contains('rain') || weather.contains('비')) {
+      return AppColors.accentBlue;
+    }
+    if (normalized.contains('snow') || weather.contains('눈')) {
+      return AppColors.primaryPurple;
+    }
+    if (normalized.contains('cloud') || weather.contains('흐')) {
+      return AppColors.textMuted;
+    }
+    return AppColors.accentOrange;
+  }
+
+
+  void _removeRecordImmediately(OotdRecord deletedRecord) {
+    final deletedId = deletedRecord.id;
+    if (deletedId != null && deletedId.isNotEmpty) {
+      _locallyDeletedRecordIds.add(deletedId);
+    }
+    _allRecords.removeWhere((record) {
+      final sameId = deletedId != null &&
+          deletedId.isNotEmpty &&
+          record.id != null &&
+          record.id!.isNotEmpty &&
+          record.id == deletedId;
+      final sameDay = record.date.year == deletedRecord.date.year &&
+          record.date.month == deletedRecord.date.month &&
+          record.date.day == deletedRecord.date.day;
+      final sameType = record.brands['recordType'] == deletedRecord.brands['recordType'];
+      return sameId || (sameDay && sameType);
+    });
   }
 
   String _getWeekdayName(DateTime date) {
@@ -385,10 +472,31 @@ class _OotdListPageState extends State<OotdListPage> {
   @override
   Widget build(BuildContext context) {
     // customRecords 병합 동기화
+    final visibleCustomRecords = widget.customRecords.where((record) {
+      final id = record.id;
+      return id == null || id.isEmpty || !_locallyDeletedRecordIds.contains(id);
+    }).toList(growable: false);
+    final remoteIds = visibleCustomRecords
+        .map((record) => record.id)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    _allRecords.removeWhere(
+      (record) =>
+          record.id != null &&
+          record.id!.isNotEmpty &&
+          !remoteIds.contains(record.id),
+    );
+
     final Set<String> existingDates = _allRecords.map(_recordKey).toSet();
-    for (final record in widget.customRecords) {
+    for (final record in visibleCustomRecords) {
       final dateKey = _recordKey(record);
-      if (!existingDates.contains(dateKey)) {
+      final existingIndex = _allRecords.indexWhere(
+        (item) => item.id != null && item.id!.isNotEmpty && item.id == record.id,
+      );
+      if (existingIndex >= 0) {
+        _allRecords[existingIndex] = record;
+      } else if (!existingDates.contains(dateKey)) {
         _allRecords.add(record);
         existingDates.add(dateKey);
       }
@@ -641,7 +749,7 @@ class _OotdListPageState extends State<OotdListPage> {
     final crossSpacing = isCompact ? 3.0 : 5.0;
     final availableCellWidth =
         (screenWidth - (horizontalPadding * 2) - (crossSpacing * 6)) / 7;
-    final cellHeight = availableCellWidth.clamp(58.0, 88.0).toDouble();
+    final cellHeight = availableCellWidth.clamp(68.0, 104.0).toDouble();
 
     return ClipRect(
       child: GridView.builder(
@@ -673,7 +781,14 @@ class _OotdListPageState extends State<OotdListPage> {
               cellDate.year == _selectedDay.year &&
               cellDate.month == _selectedDay.month &&
               cellDate.day == _selectedDay.day;
-          final record = _getRecordForDate(cellDate);
+          final dailyRecord = _getDailyRecordForDate(cellDate);
+          final ootdRecord = _getOotdRecordForDate(cellDate);
+          final record = ootdRecord ?? dailyRecord;
+          final weather = dailyRecord?.brands['weather'] ??
+              dailyRecord?.weather ??
+              ootdRecord?.brands['weather'] ??
+              ootdRecord?.weather ??
+              '';
           final borderColor = _pastelBorders[day % _pastelBorders.length];
 
           final int? bgColorIndex = record != null
@@ -722,31 +837,42 @@ class _OotdListPageState extends State<OotdListPage> {
                         ),
                       ),
                     ),
-                    if (record != null)
+                    if (weather.isNotEmpty)
                       Positioned(
                         top: 2,
                         right: 4,
                         child: Icon(
-                          record.weather == 'sunny'
-                              ? Icons.wb_sunny
-                              : Icons.cloud_outlined,
+                          _weatherIcon(weather),
                           size: 10,
-                          color: record.weather == 'sunny'
-                              ? AppColors.accentOrange
-                              : AppColors.accentBlue,
+                          color: _weatherColor(weather),
                         ),
                       ),
-                    if (record != null)
+                    if (ootdRecord != null)
                       Positioned(
                         bottom: 2,
                         left: 0,
                         right: 0,
                         child: Center(
                           child: PixelCharacterWidget(
-                            character: record.character,
+                            character: ootdRecord.character,
                             size: availableCellWidth
                                 .clamp(26.0, 38.0)
                                 .toDouble(),
+                          ),
+                        ),
+                      ),
+                    if (ootdRecord == null && dailyRecord != null)
+                      Positioned(
+                        bottom: 18,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Icon(
+                            Icons.menu_book_outlined,
+                            size: availableCellWidth
+                                .clamp(18.0, 24.0)
+                                .toDouble(),
+                            color: AppColors.primaryPink,
                           ),
                         ),
                       ),
@@ -766,18 +892,26 @@ class _OotdListPageState extends State<OotdListPage> {
 // -----------------------------------------------------------------------------
 class _TimelineBottomSheetContent extends StatefulWidget {
   final OotdRecord record;
+  final OotdRecord? dailyRecord;
+  final OotdRecord? ootdRecord;
   final CharacterDraft userCharacter;
   final Function(OotdRecord) onSaveRecord;
   final Function(DateTime, OotdRecord?) onAddDailyRecord;
   final Function(DateTime, OotdRecord?) onAddOotdRecord;
+  final Future<Object?> Function(OotdRecord) onEditRecord;
+  final Future<void> Function(OotdRecord) onDeleteRecord;
   final VoidCallback? onViewDetail;
 
   const _TimelineBottomSheetContent({
     required this.record,
+    this.dailyRecord,
+    this.ootdRecord,
     required this.userCharacter,
     required this.onSaveRecord,
     required this.onAddDailyRecord,
     required this.onAddOotdRecord,
+    required this.onEditRecord,
+    required this.onDeleteRecord,
     this.onViewDetail,
   });
 
@@ -804,6 +938,16 @@ class _TimelineBottomSheetContentState
   void initState() {
     super.initState();
     _localRecord = widget.record;
+  }
+
+  OotdRecord? get _dailyRecord {
+    if (widget.dailyRecord != null) return widget.dailyRecord;
+    return _localRecord.brands['recordType'] == 'daily' ? _localRecord : null;
+  }
+
+  OotdRecord? get _ootdRecord {
+    if (widget.ootdRecord != null) return widget.ootdRecord;
+    return _localRecord.brands['recordType'] == 'daily' ? null : _localRecord;
   }
 
   @override
@@ -947,6 +1091,10 @@ class _TimelineBottomSheetContentState
   }
 
   Widget _buildSheetScrollableBody() {
+    final hasActiveRecord = _tabIndex == 0
+        ? _dailyRecord != null && _dailyRecord!.timeline.isNotEmpty
+        : _ootdRecord != null && _ootdRecord!.timeline.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Column(
@@ -959,7 +1107,7 @@ class _TimelineBottomSheetContentState
           else
             _buildOotdDetailView(),
           SizedBox(height: 24),
-          if (_localRecord.timeline.isNotEmpty) ...[
+          if (hasActiveRecord) ...[
             _buildBottomButtonRow(),
             SizedBox(height: 30),
           ],
@@ -1214,369 +1362,28 @@ class _TimelineBottomSheetContentState
   // [탭 1: 하루 일과 상세 구현] - (Figma 서울 카페 투어 기준 고화질 다이어리 레이아웃)
   // ---------------------------------------------------------------------------
   Widget _buildDailyTimelineView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 메인 다이어리 제목 카드 (화이트 앤 소프트 브라운)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineBrown, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.textMain.withValues(alpha: 0.01),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Text(
-                '서울 카페 투어',
-                style: AppTextStyles.headlineSmall.copyWith(
-                  color: AppColors.textMain,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                '#카페 #한남동 #데이트',
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.textSub,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 16),
-
-        // PLACE 01 카드 & TODAY'S MEMORY
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // PLACE 01 (mRd Record)
-            Expanded(
-              flex: 5,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.bgDefault,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.lineSoft),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 105,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.photoFrameRoseBg,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.cake_outlined,
-                            color: AppColors.textSub,
-                            size: 28,
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'mRd Record',
-                            style: AppTextStyles.sticker.copyWith(
-                              color: AppColors.textSub,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'mRd Record',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '케이크가 진짜 맛있었고 매장 분위기도 굿! 사진도 찰칵',
-                      style: AppTextStyles.sticker.copyWith(
-                        color: AppColors.textSub,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(width: 12),
-
-            // TODAY'S MEMORY 체크리스트
-            Expanded(
-              flex: 5,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                height: 175,
-                decoration: BoxDecoration(
-                  color: AppColors.bgDefault,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.lineBrown, width: 1.2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.bookmark_outline_rounded,
-                          color: AppColors.accentBrown,
-                          size: 14,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          'TODAY\'S MEMORY',
-                          style: AppTextStyles.sticker.copyWith(
-                            color: AppColors.accentBrown,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildCheckRow(true, '한남동 산책'),
-                          _buildCheckRow(true, 'mRd Record'),
-                          _buildCheckRow(true, 'Archive 한남'),
-                          _buildCheckRow(true, 'Ofr. seoul'),
-                          _buildCheckRow(false, '저녁 맛집'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
-
-        // 커플 아바타 standing 스크랩 (나 & 지훈)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineBrown, width: 1.2),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(
-                    children: [
-                      PixelCharacterWidget(
-                        character: _localRecord.character,
-                        size: 72,
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        '나',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 26),
-                  const Icon(
-                    Icons.favorite_rounded,
-                    color: AppColors.accentRed,
-                    size: 28,
-                  ),
-                  SizedBox(width: 26),
-                  Column(
-                    children: [
-                      PixelCharacterWidget(
-                        character: const CharacterDraft(
-                          gender: 'male',
-                          nickname: '지훈',
-                          hairStyleIndex: 2,
-                          hairColorIndex: 1,
-                          skinToneIndex: 1,
-                          topStyleIndex: 1,
-                          bottomStyleIndex: 0,
-                        ),
-                        size: 72,
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        '지훈',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              Text(
-                '우리의 가을 시밀러 룩 데이트!',
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.primaryPink,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 16),
-
-        // PLACE 02 & PLACE 03 이미지 프레임 카드
-        Row(
-          children: [
-            Expanded(
-              child: _buildScrapPhotoCard(
-                'PLACE 02 - Archive Hannam',
-                '편집숍 시향 최고!',
-                AppColors.photoFrameGreenBg,
-                Icons.shopping_bag_outlined,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildScrapPhotoCard(
-                'PLACE 03 - Ofr. seoul',
-                '달달한 플랫화이트',
-                AppColors.photoFrameMintBg,
-                Icons.coffee_outlined,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
-
-        // EVENING (PLACE 04) 및 요약 정보
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineSoft),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.restaurant,
-                    color: AppColors.primaryPink,
-                    size: 14,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'EVENING - 성수 맛집',
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 6),
-              Text(
-                '저녁으로 예약해둔 파스타 맛집. 분위기 맛 다 최고였어!',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textSub,
-                  height: 1.3,
-                ),
-              ),
-              const Divider(color: AppColors.lineSoft, height: 24),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMetaCol('WITH', '나 / 지훈'),
-                  _buildMetaCol('MOOD', '😊 🥰 🎉'),
-                  _buildMetaCol('WEATHER', '맑음 20°C'),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
+    final dailyRecord = _dailyRecord ?? _localRecord;
+    final photoItems = dailyRecord.timeline
+        .where((item) => item.category == 'photo')
+        .toList(growable: false);
+    final isDiary = dailyRecord.brands['theme'] == 'diary';
+    final result = DailyRecordResultScreen(
+      record: dailyRecord,
+      userCharacter: widget.userCharacter,
+      includeCrew: _ootdRecord != null,
+      photoCount: photoItems.length,
+      onEdit: () {
+        Navigator.pop(context);
+        widget.onEditRecord(dailyRecord);
+      },
     );
-  }
 
-  Widget _buildCheckRow(bool checked, String text) {
-    return Row(
-      children: [
-        Icon(
-          checked ? Icons.check_box_outlined : Icons.check_box_outline_blank,
-          size: 15,
-          color: checked ? AppColors.primaryPink : AppColors.textMuted,
-        ),
-        SizedBox(width: 6),
-        Text(
-          text,
-          style: AppTextStyles.labelSmall.copyWith(
-            color: checked ? AppColors.textMain : AppColors.textMuted,
-            decoration: checked ? TextDecoration.lineThrough : null,
-          ),
-        ),
-      ],
-    );
-  }
+    if (!isDiary) return result;
 
-  Widget _buildScrapPhotoCard(
-    String title,
-    String desc,
-    Color color,
-    IconData icon,
-  ) {
     return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 90,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 24, color: AppColors.textSub),
-          ),
-          SizedBox(height: 6),
-          Text(
-            title,
-            style: AppTextStyles.sticker.copyWith(color: AppColors.textMuted),
-          ),
-          SizedBox(height: 2),
-          Text(
-            desc,
-            style: AppTextStyles.sticker.copyWith(color: AppColors.textSub),
-          ),
-        ],
-      ),
+      width: double.infinity,
+      color: AppColors.bgWarm,
+      child: GridBackground(child: result),
     );
   }
 
@@ -1600,12 +1407,30 @@ class _TimelineBottomSheetContentState
   // [탭 2: OOTD 기록 상세 구현] - (Figma OOTD 기록 예시 반영 및 화이트 테마)
   // ---------------------------------------------------------------------------
   Widget _buildOotdDetailView() {
-    const String lookMemoText =
-        '베이지 + 블랙 조합은\n언제나 실패가 없어!\n단정하면서도\n포인트는 가방으로 툭 ♥';
+    final ootdRecord = _ootdRecord;
+    if (ootdRecord == null) {
+      return _buildEmptyOotdView();
+    }
+
+    final ootdItems = ootdRecord.timeline
+        .where((item) => item.category == 'ootd')
+        .toList(growable: false);
+    final ootdMemo = ootdItems.isNotEmpty
+        ? ootdItems.first.description
+        : ootdRecord.brands['ootdMemo'] ??
+            ootdRecord.brands['outfitMemo'] ??
+            '오늘 코디를 기록했어요.';
+    final ootdTitle = ootdItems.isNotEmpty ? ootdItems.first.placeName : '오늘 코디 기록';
+    final tags = ootdRecord.moodTags.isEmpty
+        ? const ['#OOTD']
+        : ootdRecord.moodTags;
+    final mood = ootdRecord.brands['mood'] ?? ootdRecord.mood;
+    final weather = ootdRecord.brands['weather'] ?? ootdRecord.weather;
+    final style = ootdRecord.brands['style'] ?? ootdRecord.brands['outfit'] ?? '오늘의 코디';
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 메인 다이어리 영역
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1614,414 +1439,150 @@ class _TimelineBottomSheetContentState
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lineBrown, width: 1.2),
           ),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // - 왼쪽: Today's Look 메모지 & MOOD 라디오
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Today\'s\nLook',
-                              style: AppTextStyles.titleMedium.copyWith(
-                                color: AppColors.primaryPink,
-                                height: 1.2,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            // 손글씨 폰트 느낌의 바디 텍스트
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.bgDefault,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: AppColors.lineSoft.withOpacity(0.5),
-                                ),
-                              ),
-                              child: Text(
-                                lookMemoText,
-                                style: AppTextStyles.sticker.copyWith(
-                                  color: AppColors.textSub,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 12),
-
-                            // MOOD 라디오
-                            _buildOotdPaperSection('MOOD', [
-                              _buildOotdRadio(true, '😊 신나요!'),
-                              _buildOotdRadio(false, '😐 평범해요'),
-                              _buildOotdRadio(false, '😴 피곤해요'),
-                            ]),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 8),
-
-                      // 가운데: 캐릭터 크게 그리기
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          children: [
-                            SizedBox(height: 16),
-                            PixelCharacterWidget(
-                              character: _localRecord.character,
-                              size: 110,
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 8),
-
-                      // 오른쪽: HAIR 및 WEATHER 메모지
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          children: [
-                            _buildOotdPaperSection('HAIR', [
-                              Text(
-                                '오늘은 웨이브를\n살짝 넣어서\n분위기 있게 ♥',
-                                style: AppTextStyles.tiny.copyWith(
-                                  color: AppColors.textSub,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ]),
-                            SizedBox(height: 10),
-                            _buildOotdPaperSection('WEATHER', [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.wb_sunny_outlined,
-                                    size: 12,
-                                    color: AppColors.accentOrange,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text('20°C / 맑음', style: AppTextStyles.tiny),
-                                ],
-                              ),
-                            ]),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // POINT 버건디백 카드
-                      Expanded(
-                        flex: 6,
-                        child: _buildOotdPaperSection('POINT', [
-                          Text('가방으로 포인트 주기!', style: AppTextStyles.tiny),
-                          SizedBox(height: 6),
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.bgDefault,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.lineSoft),
-                              ),
-                              child: const Icon(
-                                Icons.shopping_bag_outlined,
-                                color: AppColors.accentRed,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                        ]),
-                      ),
-                      SizedBox(width: 12),
-
-                      // OUTFIT INFO
-                      Expanded(
-                        flex: 6,
-                        child: _buildOotdPaperSection('OUTFIT INFO', [
-                          _buildOutfitRow(Icons.checkroom, 'outer', '베이지 하프코트'),
-                          _buildOutfitRow(Icons.checkroom, 'top', '아이보리 니트'),
-                          _buildOutfitRow(
-                            Icons.checkroom,
-                            'bottom',
-                            '블랙 롱 스커트',
-                          ),
-                          _buildOutfitRow(
-                            Icons.shopping_bag_outlined,
-                            'bag',
-                            '버건디 숄더백',
-                          ),
-                          _buildOutfitRow(
-                            Icons.circle_outlined,
-                            'shoes',
-                            '화이트 삭스 + 로퍼',
-                          ),
-                        ]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              // 마스킹 테이프 장식 데코
-              Positioned(
-                right: -8,
-                top: -6,
-                child: Transform.rotate(
-                  angle: 0.15,
-                  child: Container(
-                    width: 48,
-                    height: 12,
-                    color: AppColors.accentOrange.withOpacity(0.35),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 16),
-
-        // TODAY'S TAG (파스텔 칩)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 6),
-            child: Text(
-              'TODAY\'S TAG',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _localRecord.moodTags.map((tag) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPinkSoft.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.linePink.withOpacity(0.4),
-                  ),
-                ),
-                child: Text(
-                  tag,
-                  style: AppTextStyles.sticker.copyWith(
-                    color: AppColors.primaryPink,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        SizedBox(height: 16),
-
-        // 평가 피드백 카드
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.lineSoft),
-          ),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '오늘 코디는 어땠나요?',
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                  Builder(
-                    builder: (context) {
-                      final double rating =
-                          double.tryParse(
-                            _localRecord.brands['rating'] ?? '5.0',
-                          ) ??
-                          5.0;
-                      final int fullStars = rating.floor();
-                      return Row(
-                        children: [
-                          ...List.generate(5, (index) {
-                            if (index < fullStars) {
-                              return const Icon(
-                                Icons.star,
-                                color: AppColors.accentOrange,
-                                size: 14,
-                              );
-                            } else {
-                              return const Icon(
-                                Icons.star_border,
-                                color: AppColors.accentOrange,
-                                size: 14,
-                              );
-                            }
-                          }),
-                          SizedBox(width: 4),
-                          Text(
-                            rating.toStringAsFixed(1),
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.textMain,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+              Text(
+                ootdTitle,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.headlineSmall.copyWith(
+                  color: AppColors.textMain,
+                  letterSpacing: -0.5,
+                ),
               ),
-              const Divider(color: AppColors.lineSoft, height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '다음에 입고 싶은 룩: ',
-                    style: AppTextStyles.sticker.copyWith(
-                      color: AppColors.textSub,
-                    ),
+              const SizedBox(height: 6),
+              Text(
+                tags.join(' '),
+                textAlign: TextAlign.center,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textSub,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 170,
+                child: Center(
+                  child: PixelCharacterWidget(
+                    character: ootdRecord.character,
+                    size: 130,
                   ),
-                  Expanded(
-                    child: Text(
-                      '니트에 청바지 조합도 좋을 것 같아! ♡',
-                      style: AppTextStyles.sticker.copyWith(
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.bgWarm,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.lineSoft),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      style,
+                      style: AppTextStyles.labelLarge.copyWith(
                         color: AppColors.textMain,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      ootdMemo,
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: AppColors.textSub,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _buildMetaCol('MOOD', mood),
+            _buildMetaCol('WEATHER', weather),
+            _buildMetaCol('STYLE', style),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildOotdPaperSection(String title, List<Widget> children) {
+  Widget _buildEmptyOotdView() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
       decoration: BoxDecoration(
         color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Icon(
+            Icons.checkroom_outlined,
+            size: 48,
+            color: AppColors.textMuted,
+          ),
+          SizedBox(height: 16),
           Text(
-            title,
-            style: AppTextStyles.micro.copyWith(color: AppColors.textMuted),
-          ),
-          SizedBox(height: 4),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOotdRadio(bool selected, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2.0),
-      child: Row(
-        children: [
-          Icon(
-            selected ? Icons.radio_button_checked : Icons.radio_button_off,
-            size: 11,
-            color: selected ? AppColors.primaryPink : AppColors.textMuted,
-          ),
-          SizedBox(width: 4),
-          Text(
-            text,
-            style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOutfitRow(IconData icon, String part, String brand) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 9, color: AppColors.textMuted),
-          SizedBox(width: 4),
-          Text(
-            '$part: ',
-            style: AppTextStyles.micro.copyWith(color: AppColors.textSub),
-          ),
-          Expanded(
-            child: Text(
-              brand,
-              style: AppTextStyles.micro.copyWith(color: AppColors.textMain),
+            '아직 OOTD 기록이 없어요',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: AppColors.textMain,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // [공통 하단 버튼바 및 기능]
-  // ---------------------------------------------------------------------------
-  Widget _buildBottomButtonRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
+          SizedBox(height: 6),
+          Text(
+            '오늘 입은 코디를 기록하면\n이 탭에서 캐릭터와 코디 내용을 볼 수 있어요.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textSub,
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 22),
+          OutlinedButton.icon(
             onPressed: () {
-              Navigator.pop(context); // Close bottom sheet
-              if (_localRecord.brands['recordType'] == 'daily') {
-                widget.onAddDailyRecord(_localRecord.date, _localRecord);
-              } else {
-                widget.onAddOotdRecord(_localRecord.date, _localRecord);
-              }
+              Navigator.pop(context);
+              widget.onAddOotdRecord(_localRecord.date, _dailyRecord);
             },
-            icon: const Icon(Icons.edit, size: 16),
-            label: Text('수정하기'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.bgDefault,
-              foregroundColor: AppColors.textMain,
-              side: const BorderSide(color: AppColors.lineSoft),
+            icon: const Icon(Icons.checkroom_outlined, size: 18),
+            label: Text('오늘 코디 기록하기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryPink,
+              side: const BorderSide(color: AppColors.primaryPink, width: 1.5),
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButtonRow() {
+    final activeRecord = _tabIndex == 0
+        ? (_dailyRecord ?? _localRecord)
+        : (_ootdRecord ?? _localRecord);
+
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              widget.onSaveRecord(_localRecord);
-              Navigator.pop(context);
+              widget.onSaveRecord(activeRecord);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('이미지가 핸드폰 갤러리에 저장되었습니다! 📸')),
+                const SnackBar(content: Text('이미지 저장 기능은 이후 연결 예정입니다.')),
               );
             },
             icon: const Icon(Icons.download, size: 16),
-            label: Text('저장하기'),
+            label: Text('이미지로 저장하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
@@ -2032,7 +1593,68 @@ class _TimelineBottomSheetContentState
             ),
           ),
         ),
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onEditRecord(activeRecord);
+                },
+                icon: const Icon(Icons.edit, size: 16),
+                label: Text('수정하기'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.bgDefault,
+                  foregroundColor: AppColors.textMain,
+                  side: const BorderSide(color: AppColors.lineSoft),
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    await widget.onDeleteRecord(activeRecord);
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('기록을 삭제했어요.')),
+                    );
+                  } catch (_) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('기록을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text('삭제하기'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.bgDefault,
+                  foregroundColor: AppColors.primaryPink,
+                  side: const BorderSide(color: AppColors.linePink),
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 }
+
+
+
+

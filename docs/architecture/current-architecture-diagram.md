@@ -18,6 +18,8 @@
 | Integration Architecture | API contract, repository, full social OAuth, Spring SSE realtime vertical slice, notification, file upload | 구현 중 |
 | Target Operation Architecture | Azure edge, API Management, Spring Boot Main API, FastAPI Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
 
+Azure/Terraform 전환 준비 문서는 [Current-to-target 아키텍처 인덱스](./current-to-target-index.md)에서 도메인별로 묶어 관리한다. Terraform이 소유하는 Azure 리소스와 Flyway/Alembic/앱 코드가 소유하는 영역은 [Terraform 리소스 소유권](./terraform-resource-ownership.md)을 기준으로 분리한다.
+
 Flutter는 확정 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker` 구조로 결정한다. Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션을 맡고, FastAPI Worker는 AI/추천/분석성 비동기 작업을 맡는다.
 
 현재 `dev`와 `integration-staging` Windows backend-host는 `services/api-spring` Spring Boot Main API를 기준으로 실행한다. `dev-api.onmu.cloud`와 `int-api.onmu.cloud`는 같은 Spring health/readiness/API 계약을 검증하는 공개 개발 엔드포인트다.
@@ -65,6 +67,7 @@ flowchart LR
         mainApi --> blob["Azure Blob Storage"]
         mainApi --> devices["Device Registry / user_devices"]
         currentSse --> postgres
+        mainApi --> devices["Device Registry / user_devices"]
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
         worker --> search["Azure AI Search 또는 PostgreSQL 검색"]
@@ -393,6 +396,8 @@ Agent가 Terraform 코드를 작성하기 전에 확인할 입력은 다음이�
 | --- | --- | --- |
 | API runtime env | `services/api-spring/README.md`, `docs/operations/spring-runtime-transition-workflow.md` | secret 값 출력 금지. env var 이름과 Key Vault secret name만 사용 |
 | API contract | `docs/architecture/api-contract-map.md` | Flutter가 직접 호출하는 표면은 Spring `/api/v1`만 |
+| Auth/user/profile boundary | `docs/architecture/auth-user-profile-architecture.md` | OAuth, ONMU token, `/users/me`, profile, character, friend code, Key Vault secret 경계를 분리 |
+| Place/search/route/map boundary | `docs/architecture/place-search-route-map-architecture.md` | provider 호출, Redis TTL cache, PostGIS, tile manifest, Flutter 지도 경계를 분리 |
 | Chat/realtime boundary | `docs/architecture/chat-activity-architecture.md` | 현재 Spring SSE와 목표 Realtime Gateway를 분리 |
 | Notification/push boundary | `docs/architecture/api-contract-map.md`, `docs/data_dict/ONMU 데이터 사전.md` | in-app inbox, dev-safe delivery, 실제 FCM/APNs provider delivery를 분리 |
 | Data ownership | `docs/data_dict/ONMU 데이터 사전.md` | Spring Flyway는 core schema, FastAPI Alembic은 `worker_ai` schema |
@@ -457,6 +462,8 @@ Terraform 전환 중 금지한다.
 4. 채팅과 알림에 정산 결과 카드 공유
 5. 기록 공개 범위 `나만 보기`, `참여자만 보기`, `외부 공유용 이미지`부터 지원
 
+Settlement의 current-to-target 경계는 [Settlement 아키텍처](./settlement-architecture.md)를 기준으로 관리한다. 현재 Spring 구현은 `settlement_items`, `settlement_item_targets`, `settlement_transfers` structured table을 우선 읽고 JSON `payload`는 compact fallback으로 유지한다. Terraform은 PostgreSQL 서버, 네트워크, queue, runtime, Key Vault, observability 리소스 경계를 만들 수 있지만, 정산 core table schema와 migration은 Spring Flyway가 계속 소유한다.
+
 ## 11. 발표용 한 장 요약 문구
 
 발표에서는 기술을 나열하기보다 아래 흐름으로 설명한다.
@@ -495,8 +502,13 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | --- | --- |
 | [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
+| [Auth / User / Profile 아키텍처](./auth-user-profile-architecture.md) | OAuth, session, `/users/me`, profile, character, friend code의 Current-to-Target 경계 |
+| [Place / Search / Route / Map 아키텍처](./place-search-route-map-architecture.md) | 장소 검색, 후보, 하트, 일정 장소, route recommendation, tile manifest의 Current-to-Target 경계 |
 | [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
+| [User/Profile/Character/Friends 아키텍처](./user-profile-character-friends-architecture.md) | 사용자 프로필, 픽셀 캐릭터, 친구 관계, 친구별 개인 설정의 Current-to-Target 기준 |
+| [Records/Memories/Media/OOTD 아키텍처](./records-memories-media-ootd-architecture.md) | 하루 일과, OOTD, 미디어 업로드, 기록 payload와 worker 확장 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
+| [Settlement 아키텍처](./settlement-architecture.md) | 정산 draft/item/target/preview/create/result와 Terraform migration 경계 |
 | [데이터/리포팅 로드맵](./data-analytics-reporting-roadmap.md) | Databricks, 기업용 리포트, 광고 세그먼트, OOTD/persona feature의 미래 확장 |
 | [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |
 | [장소 플로우](../product/place-flow.md) | 후보 리스트, 지도 검색, 일정 등록, 투표 생성 |
