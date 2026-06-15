@@ -186,6 +186,7 @@
 
 > 모바일 앱 설치/기기 단위 상태를 관리한다. refresh token, push token, 보안 이벤트를 기기 기준으로 묶기 위한 테이블이다.
 > 현재 구현은 push token readiness를 위해 `user_devices`에 provider, token, token hash, last4를 함께 저장한다. 실제 FCM/APNs provider delivery를 켜기 전에는 token 원문 암호화, 별도 `push_tokens` 분리, provider invalidation callback 처리 중 어떤 방식으로 production 보관 정책을 가져갈지 결정해야 한다. Terraform은 PostgreSQL 리소스 경계만 소유하고 이 table DDL은 Spring Flyway가 소유한다.
+> `push_token`은 현재 text 컬럼이며 응답과 로그에는 원문을 반환하지 않는다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |

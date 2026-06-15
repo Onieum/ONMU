@@ -65,6 +65,7 @@ flowchart LR
         mainApi --> blob["Azure Blob Storage"]
         mainApi --> devices["Device Registry / user_devices"]
         currentSse --> postgres
+        mainApi --> devices["Device Registry / user_devices"]
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
         worker --> search["Azure AI Search 또는 PostgreSQL 검색"]
