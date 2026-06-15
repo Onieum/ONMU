@@ -159,6 +159,8 @@ Jira MCP 또는 Browser로 작업 이슈 확인
 -> PR에 변경 요약과 검증 명령 작성
 ```
 
+Current-to-Target 아키텍처 세션은 현재 구현 증거, 목표 구조, Terraform/Azure migration delta를 문서화하는 작업이다. 이 세션에서는 문서 생성/수정은 허용하지만, 코드 구현, Terraform apply, Azure 리소스 생성/삭제, DNS 변경, Key Vault secret 값 쓰기, secret 값 출력은 수행하지 않는다.
+
 ### Jira 백로그 업데이트
 
 ```text

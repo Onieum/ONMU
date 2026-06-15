@@ -65,6 +65,7 @@ flowchart LR
         mainApi --> blob["Azure Blob Storage"]
         mainApi --> devices["Device Registry / user_devices"]
         currentSse --> postgres
+        mainApi --> devices["Device Registry / user_devices"]
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
         worker --> search["Azure AI Search 또는 PostgreSQL 검색"]
@@ -457,6 +458,8 @@ Terraform 전환 중 금지한다.
 4. 채팅과 알림에 정산 결과 카드 공유
 5. 기록 공개 범위 `나만 보기`, `참여자만 보기`, `외부 공유용 이미지`부터 지원
 
+Settlement의 current-to-target 경계는 [Settlement 아키텍처](./settlement-architecture.md)를 기준으로 관리한다. 현재 Spring 구현은 `settlement_items`, `settlement_item_targets`, `settlement_transfers` structured table을 우선 읽고 JSON `payload`는 compact fallback으로 유지한다. Terraform은 PostgreSQL 서버, 네트워크, queue, runtime, Key Vault, observability 리소스 경계를 만들 수 있지만, 정산 core table schema와 migration은 Spring Flyway가 계속 소유한다.
+
 ## 11. 발표용 한 장 요약 문구
 
 발표에서는 기술을 나열하기보다 아래 흐름으로 설명한다.
@@ -497,6 +500,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
 | [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
+| [Settlement 아키텍처](./settlement-architecture.md) | 정산 draft/item/target/preview/create/result와 Terraform migration 경계 |
 | [데이터/리포팅 로드맵](./data-analytics-reporting-roadmap.md) | Databricks, 기업용 리포트, 광고 세그먼트, OOTD/persona feature의 미래 확장 |
 | [온모임 제품 플로우](../product/onmoim-flow.md) | 온모임, 채팅, 투표, 기록, 약속 관계 |
 | [장소 플로우](../product/place-flow.md) | 후보 리스트, 지도 검색, 일정 등록, 투표 생성 |

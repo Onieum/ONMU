@@ -223,7 +223,7 @@ Provider delivery 대상 event는 다음 최소 payload를 가져야 한다.
 - `channel=activity`처럼 inbox 생성 또는 ChatActivity 공유만 의미하는 이벤트는 push delivery 대상과 분리한다.
 - `notification_deliveries.notification_id`에 연결할 수 없는 이벤트는 실제 provider delivery를 시도하지 않는다.
 
-## Data Model
+## Data Model and Source of Truth
 
 | Table | Current | Target |
 | --- | --- | --- |
@@ -336,7 +336,7 @@ Managed Identity 기준:
 - `Secrets Officer` 권한은 secret 관리 담당자에게만 둔다.
 - AI agent가 secret 값을 쓰거나 조회해 출력하는 작업은 금지한다.
 
-## Observability / Smoke Test
+## Observability and Smoke Test
 
 ### 최소 지표
 
