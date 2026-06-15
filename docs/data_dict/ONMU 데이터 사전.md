@@ -185,6 +185,7 @@
 ## `user_devices` (구현됨, 확장 필요)
 
 > 모바일 앱 설치/기기 단위 상태를 관리한다. refresh token, push token, 보안 이벤트를 기기 기준으로 묶기 위한 테이블이다.
+> 현재 구현은 push token readiness를 위해 `user_devices`에 provider, token, token hash, last4를 함께 저장한다. 실제 FCM/APNs provider delivery를 켜기 전에는 token 원문 암호화, 별도 `push_tokens` 분리, provider invalidation callback 처리 중 어떤 방식으로 production 보관 정책을 가져갈지 결정해야 한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -200,7 +201,7 @@
 | `trusted` | 신뢰 기기 여부 | Boolean | 이상 로그인 판단 보조 | 기본값 false |
 | `status` | 기기 상태 | Varchar(20) | `active`, `inactive`, `revoked`, `blocked` | Not Null |
 | `push_provider` | Push 제공자 | Varchar(30) | `fcm`, `apns`, `dev` | Nullable |
-| `push_token` | Push token | Text | provider 발송에 필요한 기기 token. 응답/로그에 원문 출력 금지 | Nullable |
+| `push_token` | Push token | Text | provider 발송에 필요한 기기 token. 현재 구현은 text 컬럼이며 응답/로그에 원문 출력 금지. Production 전 암호화 또는 별도 token table 분리 후보 | Nullable |
 | `push_token_hash` | Push token 해시 | Text | token 중복/이전 사용자 비활성화 판단용 SHA-256 hash | Nullable |
 | `push_token_last4` | Push token 마지막 4자리 | Varchar(8) | 운영 smoke와 응답 확인용 부분 식별자 | Nullable |
 | `push_token_updated_at` | Push token 갱신 시각 | Timestamptz | token 등록/갱신 시각 | Nullable |
@@ -1086,27 +1087,45 @@ OOTD 기록의 캐릭터 변경분은 `character_profiles`를 직접 덮어쓰�
 | `timeline[].imageUrl` | 해당 사진 카드에 표시할 `record_media.public_url` |
 
 OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭터/WITH 블록을 건너뛴다. OOTD가 있는 경우에만 다이어리 중간 캐릭터 블록 및 하단 WITH/MOOD/WEATHER 캐릭터 영역을 표시한다.
+
 # 9. Activity / Notification
 
-## `chat_activity_events` (목표 설계)
+## `chat_activity_events` (구현됨, 확장 필요)
 
 > 온모임 채팅 화면의 메시지, 시스템 카드, 투표 카드, 정산 카드, 약속 변경 알림을 하나의 activity stream으로 관리한다.
+> 현재 Spring 구현은 `event_type`과 `payload`를 기준으로 메시지와 카드 snapshot을 저장한다. `activity_type`, `body`, `target_type`, `target_id`, `deleted_at` 같은 분리 컬럼은 목표 설계 후보이며 아직 물리 schema에는 없다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | Activity ID | UUID | activity row 식별자 | PK |
-| `group_id` | 모임 ID | UUID | activity가 속한 모임 | FK, Not Null |
+| `group_id` | 모임 ID | UUID | activity가 속한 모임 | FK, Nullable, 구현상 메시지는 모임 기준으로 사용 |
 | `plan_id` | 약속 ID | UUID | 약속 관련 activity 연결 | FK, Nullable |
 | `actor_user_id` | 행위자 ID | UUID | 메시지/행동을 만든 사용자 | FK, Nullable |
-| `activity_type` | Activity 유형 | Varchar(40) | `message`, `plan_card`, `vote_card`, `settlement_card`, `system` | Not Null |
-| `body` | 메시지 본문 | Text | 일반 채팅/시스템 문구 | Nullable |
-| `target_type` | 대상 유형 | Varchar(30) | `PLAN`, `VOTE`, `SETTLEMENT`, `RECORD` | Nullable |
-| `target_id` | 대상 ID | UUID | 연결 대상 내부 ID | Nullable |
-| `payload` | 표시 payload | JSONB | 카드 표시용 snapshot | Not Null |
+| `event_type` | 이벤트 유형 | Varchar(60) | `chat.message`, `system.message`, `vote.created`, `settlement.created` 등 | Not Null |
+| `payload` | 표시 payload | JSONB | 메시지 본문, sender snapshot, attachment metadata, 카드 표시용 snapshot | Not Null, Default `{}` |
 | `created_at` | 생성 시각 | Timestamptz | activity 생성 시각 | Not Null |
-| `deleted_at` | 삭제 시각 | Timestamptz | 메시지 삭제 시각 | Nullable |
 
-## `notifications` (목표 설계)
+현재 `chat.message` payload는 `senderName`, `message`, `attachments`, `messageType`, `source`를 포함할 수 있다. 이미지 첨부는 media upload 이후 `type=image`, `storageKey`, `publicUrl`, `contentType`, `fileName`, `width`, `height` metadata로 연결한다. `chat_activity_events`는 채팅 화면의 시간축 원장이며, 약속/투표/정산 같은 도메인의 최종 source of truth는 각 도메인 테이블에 둔다.
+
+## `chat_read_states` (구현됨)
+
+> 사용자별 모임 채팅 읽음 상태 projection이다. unread count 계산은 마지막 읽은 activity 시각 이후의 다른 사용자 메시지를 기준으로 한다.
+
+| 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
+| --- | --- | --- | --- | --- |
+| `id` | 읽음 상태 ID | UUID | read state row 식별자 | PK |
+| `group_id` | 모임 ID | UUID | 읽음 상태가 속한 모임 | FK -> `groups.id`, Not Null, On Delete Cascade |
+| `user_id` | 사용자 ID | UUID | 읽음 상태 소유 사용자 | FK -> `users.id`, Not Null, On Delete Cascade |
+| `last_read_event_id` | 마지막 읽은 Activity ID | UUID | 마지막으로 읽은 `chat_activity_events.id` | FK -> `chat_activity_events.id`, Nullable, On Delete Set Null |
+| `last_read_at` | 마지막 읽은 Activity 시각 | Timestamptz | unread count 기준 시각. event가 없으면 mark-read 시각 | Not Null |
+| `updated_at` | 갱신 시각 | Timestamptz | read state row 갱신 시각 | Not Null |
+
+> UNIQUE: `(group_id, user_id)`
+> INDEX: `(user_id, group_id)`
+
+읽음 상태는 메시지별 상세 읽음 표시가 아니라 모임/사용자별 last read cursor를 관리한다. 메시지별 읽은 사람 목록 UI가 필요해지면 별도 projection 또는 event 기반 집계를 추가한다.
+
+## `notifications` (구현됨, 확장 필요)
 
 > 사용자별 알림 inbox다. push notification은 후속 side effect로 분리한다.
 
@@ -1116,17 +1135,21 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | `user_id` | 수신자 ID | UUID | 알림을 받는 사용자 | FK, Not Null |
 | `group_id` | 모임 ID | UUID | 관련 모임 | FK, Nullable |
 | `plan_id` | 약속 ID | UUID | 관련 약속 | FK, Nullable |
-| `notification_type` | 알림 유형 | Varchar(40) | `plan`, `vote`, `settlement`, `record`, `friend` | Not Null |
+| `notification_type` | 알림 유형 | Varchar(60) | `chat_message`, `plan`, `vote`, `settlement`, `record`, `friend` 등 | Not Null |
 | `title` | 알림 제목 | Text | 알림 카드 제목 | Not Null |
 | `body` | 알림 본문 | Text | 알림 카드 본문 | Nullable |
-| `target_type` | 이동 대상 유형 | Varchar(30) | 클릭 시 이동할 리소스 유형 | Nullable |
-| `target_id` | 이동 대상 ID | UUID | 클릭 시 이동할 리소스 ID | Nullable |
+| `payload` | 이동/표시 payload | JSONB | groupId, messageId, senderUserId, chatActivityEventId 같은 최소 metadata | Not Null, Default `{}` |
+| `status` | 알림 상태 | Varchar(30) | `queued`, `read` 등 | Not Null, Default `queued` |
 | `read_at` | 읽은 시각 | Timestamptz | 사용자가 읽은 시각 | Nullable |
 | `created_at` | 생성 시각 | Timestamptz | 알림 생성 시각 | Not Null |
+
+채팅 메시지 작성 시 작성자를 제외한 active/joined 모임 멤버와 owner를 대상으로 `chat_message` notification을 생성할 수 있다. 실제 FCM/APNs 발송은 아직 켜지지 않았고, `notification.requested` outbox와 dev-safe delivery abstraction으로 분리한다.
+Provider delivery로 이어질 `notification.requested` outbox payload는 `notificationId`를 포함해야 한다. 또는 `aggregate_type=notification`, `aggregate_id=<notifications.id>` 조합으로 원본 notification을 찾을 수 있어야 한다. `settlement` 같은 도메인 aggregate만 담긴 알림 요청은 현재 delivery service에서 원본 notification을 찾지 못해 dev-safe skip 처리될 수 있으므로, 실제 provider delivery 전 payload 규칙을 통일한다.
 
 ## `notification_deliveries` (구현됨, 확장 필요)
 
 > 알림 발송 시도와 결과를 저장한다. 현재 dev slice는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`로 추적 row를 남긴다.
+> `provider=dev`, `status=skipped_dev`는 발송 성공이 아니라 provider delivery 비활성 상태를 추적하는 dev-safe 결과다. 실제 FCM/APNs 발송 성공으로 해석하지 않는다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
@@ -1165,7 +1188,7 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | --- | --- | --- | --- | --- |
 | `id` | 알림 설정 ID | UUID | preference row 식별자 | PK |
 | `user_id` | 사용자 ID | UUID | 설정 사용자 | FK, Not Null |
-| `notification_type` | 알림 유형 | Varchar(40) | `plan`, `vote`, `settlement`, `record`, `friend`, `marketing` | Not Null |
+| `notification_type` | 알림 유형 | Varchar(60) | `chat_message`, `plan`, `vote`, `settlement`, `record`, `friend`, `marketing` | Not Null |
 | `channel` | 채널 | Varchar(30) | `in_app`, `push`, `email`, `kakao` | Not Null |
 | `enabled` | 수신 여부 | Boolean | 해당 알림 수신 여부 | Not Null |
 | `quiet_hours` | 방해금지 시간 | JSONB | 시작/종료 시간, 요일 | Nullable |
@@ -1620,8 +1643,8 @@ OOTD 기록이 없는 하루 일과는 크루 단계와 결과 화면의 캐릭�
 | --- | --- |
 | `record_type` | `daily`, `ootd`, `photo`, `memo` |
 | `visibility` | `private`, `participants`, `group` |
-| `activity_type` | `message`, `plan_card`, `vote_card`, `settlement_card`, `system` |
-| `notification_type` | `plan`, `vote`, `settlement`, `record`, `friend` |
+| `chat_event_type` | `chat.message`, `system.message`, `plan.created`, `vote.created`, `settlement.created`, `record.created` |
+| `notification_type` | `chat_message`, `plan`, `vote`, `settlement`, `record`, `friend` |
 | `outbox_status` | `pending`, `published`, `processing`, `completed`, `failed`, `no_consumer`, `skipped_dev` |
 | `worker_job_status` | `pending`, `processing`, `completed`, `failed`, `skipped` |
 

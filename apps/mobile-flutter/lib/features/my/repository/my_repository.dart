@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
@@ -25,6 +27,8 @@ abstract interface class MyRepository {
 
 class ApiMyRepository implements MyRepository {
   ApiMyRepository(this._client);
+
+  static const _defaultIntroText = '기록하고, 만나고, 추억해요  ♥';
 
   final OnmuApiClient _client;
 
@@ -62,53 +66,154 @@ class ApiMyRepository implements MyRepository {
   MyProfile _profileFromJson(Map<String, dynamic> json) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final displayName = OnmuJson.readString(json, 'displayName', '사용자');
-    final regionSelection = KoreaRegionSelection.fromJson(preference['region']);
+    final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
       realName: displayName,
-      introText: OnmuJson.readString(
-        preference,
-        'introText',
-        '기록하고, 만나고, 추억해요  ♥',
-      ),
+      introText: _readProfileText(preference, 'introText', _defaultIntroText),
       region: regionSelection.displayName,
       regionSelection: regionSelection,
       regionVisibility: RegionVisibility.fromJson(
         preference['regionVisibility'],
       ),
       visibility: ProfileVisibility.friends,
-      favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
-      dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
-      preferredTimes: OnmuJson.stringList(preference['preferredTimes']),
-      availableDays: OnmuJson.stringList(preference['availableDays']),
-      unavailableDates: OnmuJson.stringList(preference['unavailableDates']),
+      favoriteKeywords: _readProfileStringList(preference['favoriteKeywords']),
+      dislikedKeywords: _readProfileStringList(preference['dislikedKeywords']),
+      preferredTimes: _readProfileStringList(preference['preferredTimes']),
+      availableDays: _readProfileStringList(preference['availableDays']),
+      unavailableDates: _readProfileStringList(preference['unavailableDates']),
       favoritePlaces: const [],
       wantToGoPlaces: const [],
       dislikedPlaces: const [],
-      favoriteFoodTags: OnmuJson.stringList(preference['favoriteFoodTags']),
-      dislikedFoodTags: OnmuJson.stringList(preference['dislikedFoodTags']),
-      favoritePlaceTags: OnmuJson.stringList(preference['favoritePlaceTags']),
-      dislikedPlaceTags: OnmuJson.stringList(preference['dislikedPlaceTags']),
-      planStyles: OnmuJson.stringList(preference['planStyles']),
-      preferredWeekdays: OnmuJson.stringList(preference['preferredWeekdays']),
+      favoriteFoodTags: _readProfileStringList(preference['favoriteFoodTags']),
+      dislikedFoodTags: _readProfileStringList(preference['dislikedFoodTags']),
+      favoritePlaceTags: _readProfileStringList(
+        preference['favoritePlaceTags'],
+      ),
+      dislikedPlaceTags: _readProfileStringList(
+        preference['dislikedPlaceTags'],
+      ),
+      planStyles: _readProfileStringList(preference['planStyles']),
+      preferredWeekdays: _readProfileStringList(
+        preference['preferredWeekdays'],
+      ),
     );
   }
 
   Map<String, Object?> _preferenceProfileJson(MyProfile profile) {
+    final regionSelection = _safeRegionSelection(
+      profile.effectiveRegionSelection.toJson(),
+    );
     return {
-      'favoriteKeywords': profile.favoriteKeywords,
-      'introText': profile.introText,
-      'region': profile.effectiveRegionSelection.toJson(),
+      'favoriteKeywords': _safeProfileStringList(profile.favoriteKeywords),
+      'introText': _safeProfileText(profile.introText),
+      'region': regionSelection.toJson(),
       'regionVisibility': profile.regionVisibility.value,
-      'dislikedKeywords': profile.dislikedKeywords,
-      'preferredTimes': profile.preferredTimes,
-      'availableDays': profile.availableDays,
-      'unavailableDates': profile.unavailableDates,
-      'favoriteFoodTags': profile.favoriteFoodTags,
-      'dislikedFoodTags': profile.dislikedFoodTags,
-      'favoritePlaceTags': profile.favoritePlaceTags,
-      'dislikedPlaceTags': profile.dislikedPlaceTags,
-      'planStyles': profile.planStyles,
-      'preferredWeekdays': profile.preferredWeekdays,
+      'dislikedKeywords': _safeProfileStringList(profile.dislikedKeywords),
+      'preferredTimes': _safeProfileStringList(profile.preferredTimes),
+      'availableDays': _safeProfileStringList(profile.availableDays),
+      'unavailableDates': _safeProfileStringList(profile.unavailableDates),
+      'favoriteFoodTags': _safeProfileStringList(profile.favoriteFoodTags),
+      'dislikedFoodTags': _safeProfileStringList(profile.dislikedFoodTags),
+      'favoritePlaceTags': _safeProfileStringList(profile.favoritePlaceTags),
+      'dislikedPlaceTags': _safeProfileStringList(profile.dislikedPlaceTags),
+      'planStyles': _safeProfileStringList(profile.planStyles),
+      'preferredWeekdays': _safeProfileStringList(profile.preferredWeekdays),
     };
+  }
+
+  String _readProfileText(
+    Map<String, dynamic> json,
+    String key,
+    String fallback,
+  ) {
+    return _safeProfileText(OnmuJson.readString(json, key, fallback), fallback);
+  }
+
+  List<String> _readProfileStringList(Object? value) {
+    return _safeProfileStringList(OnmuJson.stringList(value));
+  }
+
+  List<String> _safeProfileStringList(List<String> values) {
+    return values.where(_isSafeProfileText).toList(growable: false);
+  }
+
+  String _safeProfileText(String value, [String fallback = '']) {
+    return _isSafeProfileText(value) ? value : fallback;
+  }
+
+  KoreaRegionSelection _safeRegionSelection(Object? value) {
+    final selection = KoreaRegionSelection.fromJson(value);
+    if (_isSafeProfileText(selection.sido) &&
+        _isSafeProfileText(selection.sigungu) &&
+        _isSafeProfileText(selection.displayName)) {
+      return selection;
+    }
+    return KoreaRegionSelection.fallback;
+  }
+
+  bool _isSafeProfileText(String value) {
+    final trimmed = value.trim();
+    return !_looksLikeMojibake(trimmed) &&
+        !_looksLikeStructuredJsonText(trimmed);
+  }
+
+  bool _looksLikeMojibake(String value) {
+    var hasUtf8LeadByteGlyph = false;
+    var hasUtf8ContinuationByteGlyph = false;
+    for (final codePoint in value.runes) {
+      if (codePoint == 0xFFFD || (codePoint >= 0x0080 && codePoint <= 0x009F)) {
+        return true;
+      }
+      if (codePoint == 0x00C2 ||
+          codePoint == 0x00C3 ||
+          codePoint == 0x00EA ||
+          codePoint == 0x00EB ||
+          codePoint == 0x00EC ||
+          codePoint == 0x00ED ||
+          codePoint == 0x00EE ||
+          codePoint == 0x00EF ||
+          codePoint == 0x00F0) {
+        hasUtf8LeadByteGlyph = true;
+      }
+      if ((codePoint >= 0x2018 && codePoint <= 0x201D) ||
+          codePoint == 0x201A ||
+          codePoint == 0x201E ||
+          codePoint == 0x2026 ||
+          codePoint == 0x2039 ||
+          codePoint == 0x203A ||
+          codePoint == 0x0152 ||
+          codePoint == 0x0153 ||
+          codePoint == 0x0160 ||
+          codePoint == 0x0161 ||
+          codePoint == 0x017D ||
+          codePoint == 0x017E ||
+          codePoint == 0x00A0 ||
+          codePoint == 0x00A4 ||
+          codePoint == 0x00A9 ||
+          codePoint == 0x00B0 ||
+          codePoint == 0x00B4 ||
+          codePoint == 0x00B5 ||
+          codePoint == 0x00B8) {
+        hasUtf8ContinuationByteGlyph = true;
+      }
+    }
+    return hasUtf8LeadByteGlyph && hasUtf8ContinuationByteGlyph;
+  }
+
+  bool _looksLikeStructuredJsonText(String value) {
+    if (value.length < 2) {
+      return false;
+    }
+    final objectLike = value.startsWith('{') && value.endsWith('}');
+    final arrayLike = value.startsWith('[') && value.endsWith(']');
+    if (!objectLike && !arrayLike) {
+      return false;
+    }
+    try {
+      final decoded = jsonDecode(value);
+      return decoded is Map || decoded is List;
+    } on FormatException {
+      return false;
+    }
   }
 }

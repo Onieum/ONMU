@@ -134,7 +134,7 @@ public class OnmuApiService {
     value.put("databaseId", user.getId().toString());
     value.put("displayName", user.getDisplayName());
     value.put("profileImageUrl", user.getProfileImageUrl());
-    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
+    value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));
     value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
     value.put("onboardingStatus", user.getOnboardingStatus());
     return value;
@@ -150,7 +150,7 @@ public class OnmuApiService {
     value.put("nickname", user.getNickname());
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
-    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
+    value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));
     value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
     value.put("onboardingStatus", user.getOnboardingStatus());
     value.put("authProvider", identity == null ? "NAVER" : identity.getProvider());
@@ -169,7 +169,7 @@ public class OnmuApiService {
     user.updateProfile(
       request.displayName(),
       request.profileImageUrl(),
-      request.preferenceProfile() == null ? null : toJson(request.preferenceProfile()),
+      request.preferenceProfile() == null ? null : toJson(sanitizeProfilePayload(request.preferenceProfile())),
       request.pixelCharacter() == null ? null : toJson(request.pixelCharacter()),
       request.onboardingStatus()
     );
@@ -1331,6 +1331,97 @@ public class OnmuApiService {
       return values;
     } catch (JsonProcessingException exception) {
       return Map.of();
+    }
+  }
+
+  private Map<String, Object> readPreferenceProfile(String payload) {
+    return sanitizeProfilePayload(readJsonObject(payload));
+  }
+
+  private Map<String, Object> sanitizeProfilePayload(Map<String, Object> payload) {
+    Map<String, Object> values = new LinkedHashMap<>();
+    payload.forEach((key, value) -> {
+      Object sanitized = sanitizeProfileValue(value);
+      if (sanitized != null) {
+        values.put(String.valueOf(key), sanitized);
+      }
+    });
+    return values;
+  }
+
+  private Object sanitizeProfileValue(Object value) {
+    if (value instanceof String string) {
+      String trimmed = string.trim();
+      return isSafeProfileText(trimmed) ? trimmed : null;
+    }
+    if (value instanceof Map<?, ?> map) {
+      Map<String, Object> values = new LinkedHashMap<>();
+      map.forEach((key, item) -> {
+        Object sanitized = sanitizeProfileValue(item);
+        if (sanitized != null) {
+          values.put(String.valueOf(key), sanitized);
+        }
+      });
+      return values;
+    }
+    if (value instanceof List<?> list) {
+      List<Object> values = new ArrayList<>();
+      list.forEach(item -> {
+        Object sanitized = sanitizeProfileValue(item);
+        if (sanitized != null) {
+          values.add(sanitized);
+        }
+      });
+      return values;
+    }
+    if (value instanceof Number || value instanceof Boolean) {
+      return value;
+    }
+    return null;
+  }
+
+  private boolean isSafeProfileText(String value) {
+    return !looksLikeMojibake(value) && !looksLikeStructuredJsonText(value);
+  }
+
+  private boolean looksLikeMojibake(String value) {
+    boolean hasUtf8LeadByteGlyph = false;
+    boolean hasUtf8ContinuationByteGlyph = false;
+    for (int index = 0; index < value.length(); index++) {
+      char ch = value.charAt(index);
+      if (ch == '\uFFFD' || (ch >= '\u0080' && ch <= '\u009F')) {
+        return true;
+      }
+      if (ch == '\u00C2' || ch == '\u00C3' || ch == '\u00EA' || ch == '\u00EB'
+        || ch == '\u00EC' || ch == '\u00ED' || ch == '\u00EE' || ch == '\u00EF'
+        || ch == '\u00F0') {
+        hasUtf8LeadByteGlyph = true;
+      }
+      if ((ch >= '\u2018' && ch <= '\u201D') || ch == '\u201A' || ch == '\u201E'
+        || ch == '\u2026' || ch == '\u2039' || ch == '\u203A' || ch == '\u0152'
+        || ch == '\u0153' || ch == '\u0160' || ch == '\u0161' || ch == '\u017D'
+        || ch == '\u017E' || ch == '\u00A0' || ch == '\u00A4' || ch == '\u00A9'
+        || ch == '\u00B0' || ch == '\u00B4' || ch == '\u00B5' || ch == '\u00B8') {
+        hasUtf8ContinuationByteGlyph = true;
+      }
+    }
+    return hasUtf8LeadByteGlyph && hasUtf8ContinuationByteGlyph;
+  }
+
+  private boolean looksLikeStructuredJsonText(String value) {
+    if (value.length() < 2) {
+      return false;
+    }
+    boolean objectLike = value.startsWith("{") && value.endsWith("}");
+    boolean arrayLike = value.startsWith("[") && value.endsWith("]");
+    if (!objectLike && !arrayLike) {
+      return false;
+    }
+    try {
+      objectMapper.readTree(value);
+      return true;
+    } catch (JsonProcessingException ignored) {
+      return false;
     }
   }
 
