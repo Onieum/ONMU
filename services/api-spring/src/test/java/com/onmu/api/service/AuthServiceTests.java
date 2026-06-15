@@ -3,7 +3,9 @@ package com.onmu.api.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +46,8 @@ class AuthServiceTests {
   private AccessTokenIssuer accessTokenIssuer;
   @Mock
   private OAuthIdentityVerifier oAuthIdentityVerifier;
+  @Mock
+  private UserCodeService userCodeService;
 
   private AuthService authService;
   private UserEntity user;
@@ -64,9 +68,11 @@ class AuthServiceTests {
         Duration.ZERO,
         List.of("http://localhost:*")
       ),
-      oAuthIdentityVerifier
+      oAuthIdentityVerifier,
+      userCodeService
     );
     user = new UserEntity("usr_test", "ONMU User", "user@example.test", null);
+    lenient().when(userCodeService.ensureActiveCode(any(UserEntity.class))).thenReturn("4839201746");
   }
 
   @Test
@@ -96,7 +102,31 @@ class AuthServiceTests {
     Map<String, Object> response = authService.oauthLogin("NAVER", request, "127.0.0.1", "test-agent");
 
     assertThat(response).containsEntry("authenticated", true);
+    verify(userCodeService).ensureActiveCode(user);
     verify(refreshTokenRepository).save(any(RefreshTokenEntity.class));
+  }
+
+  @Test
+  void newOAuthUserGetsNumericUserCode() {
+    OAuthLoginRequest request = new OAuthLoginRequest(null, null, "naver-new-subject", "New User", "new@example.test", null);
+    when(oAuthIdentityVerifier.verify("NAVER", request))
+      .thenReturn(new VerifiedOAuthIdentity("NAVER", "naver-new-subject", "New User", "new@example.test", null));
+    when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("NAVER", "naver-new-subject"))
+      .thenReturn(Optional.empty());
+    when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(authIdentityRepository.save(any(AuthIdentityEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userCodeService.ensureActiveCode(any(UserEntity.class))).thenReturn("4839201746");
+    when(accessTokenIssuer.issue(any(UserEntity.class)))
+      .thenReturn(new IssuedAccessToken("access-token", Instant.parse("2026-07-01T00:00:00Z")));
+    when(refreshTokenRepository.save(any(RefreshTokenEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = authService.oauthLogin("NAVER", request, "127.0.0.1", "test-agent");
+
+    assertThat(response).containsEntry("authenticated", true);
+    verify(userCodeService).ensureActiveCode(argThat(createdUser ->
+      createdUser != null
+        && "New User".equals(createdUser.getDisplayName())
+        && "4839201746".matches("\\d{10}")));
   }
 
   @Test
@@ -117,6 +147,7 @@ class AuthServiceTests {
     assertThat(response).extracting("tokens")
       .isInstanceOfSatisfying(Map.class, tokens ->
         assertThat(tokens).containsEntry("accessToken", "onmu-access-token"));
+    verify(userCodeService).ensureActiveCode(user);
     verify(refreshTokenRepository).save(any(RefreshTokenEntity.class));
   }
 

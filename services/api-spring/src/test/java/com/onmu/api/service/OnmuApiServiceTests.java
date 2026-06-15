@@ -90,6 +90,8 @@ class OnmuApiServiceTests {
   private VoteResponseRepository voteResponseRepository;
   @Mock
   private OutboxService outboxService;
+  @Mock
+  private UserCodeService userCodeService;
 
   private OnmuApiService service;
   private GroupEntity group;
@@ -114,8 +116,10 @@ class OnmuApiServiceTests {
       voteOptionRepository,
       voteResponseRepository,
       outboxService,
+      userCodeService,
       new ObjectMapper()
     );
+    org.mockito.Mockito.lenient().when(userCodeService.findActiveCode(any())).thenReturn(Optional.empty());
     group = new GroupEntity("1", "ONMU 개발 모임", null);
     plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "confirmed");
     vote = new VoteEntity("501", group, "PLAN", "101", "PLACE", "장소 후보 선호 투표", "{\"options\":[\"카페\",\"식당\"]}");
@@ -164,6 +168,18 @@ class OnmuApiServiceTests {
     assertThat(profile)
       .containsEntry("displayName", "나")
       .containsEntry("nickname", "나");
+  }
+
+  @Test
+  void userMeIncludesActiveUserCode() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "ONMU User");
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+    when(userCodeService.findActiveCode(viewer.getId())).thenReturn(Optional.of("4839201746"));
+
+    Map<String, Object> profile = service.userMe(viewer.getId());
+
+    assertThat(profile).containsEntry("userCode", "4839201746");
   }
 
   @Test
