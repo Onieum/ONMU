@@ -4,9 +4,11 @@
 
 ONMU의 채팅은 단순한 부가 기능이 아니라 약속을 잡는 핵심 작업 공간이다. 사용자가 일정 조율을 위해 카카오톡으로 이동하면 대화, 투표, 장소 후보, 정산, 기록이 다시 흩어지고 ONMU를 불편한 앱으로 느끼게 된다. 따라서 ONMU 채팅의 목표는 카카오톡 수준의 기본 메시징 경험을 제공하면서, 약속을 만들고 결정하고 기록하는 ONMU 고유의 action card를 같은 흐름 안에 묶는 것이다.
 
-현재 구현은 REST 기반 메시지 목록/작성 slice를 먼저 제공한다. Production 목표는 이 REST 계약 위에 실시간 수신, 낙관적 전송, 실패 재시도, 읽음/안읽음, push, 첨부, 대화 기반 action 전환을 단계적으로 얹는 구조다.
+현재 구현은 Spring Boot Main API 안에서 REST 메시지 목록/작성, cursor pagination, 읽음 상태, 이미지 첨부 metadata, in-process SSE fan-out을 제공한다. Flutter는 이 계약을 ViewModel/Repository 경계로 소비하며 낙관적 전송, 실패 재시도, SSE 재연결을 화면 상태로 관리한다.
 
 SCRUM-50에서는 Spring Boot Main API 안에 `GET /api/v1/groups/{groupId}/chat/events` SSE endpoint와 in-process group room broadcaster를 추가해 첫 실시간 fan-out vertical slice를 제공한다. 이 구현은 단일 dev/runtime에서 새 메시지를 자동 수신하기 위한 production-directed 중간 단계이며, Redis나 별도 Realtime Gateway를 source of truth로 보지 않는다.
+
+Production 목표는 현재 Spring vertical slice를 유지 가능한 계약으로 삼되, 운영 단계에서 Redis/Realtime Gateway, Notification Worker, FCM/APNs push, 더 넓은 첨부 타입, 대화 기반 action 전환을 단계적으로 분리하는 구조다.
 
 ## 제품 원칙
 
@@ -32,25 +34,35 @@ SCRUM-50에서는 Spring Boot Main API 안에 `GET /api/v1/groups/{groupId}/chat
 | 대화에서 실행으로 전환 | 외부 앱 또는 수동 정리 | 대화를 약속, 투표, 장소 후보, 정산, 기록으로 즉시 전환 |
 | Source of truth | 메시징 서버 | 메시지는 `chat_activity_events`, 약속/투표/정산은 각 도메인 테이블 |
 
-## 현재 MVP Slice
+## 현재 구현 Slice
 
-현재 Flutter 채팅 화면이 기대하는 최소 계약은 다음과 같다.
+현재 Flutter 채팅 화면과 Spring Boot Main API가 실제로 맞추는 계약은 다음과 같다.
 
 | 기능 | API | 설명 |
 | --- | --- | --- |
 | 메시지 목록 | `GET /api/v1/groups/{groupId}/chat/messages` | 모임 채팅 화면의 메시지 stream을 cursor 기반으로 조회한다. |
-| 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` | 텍스트 메시지를 append하고 작성된 메시지 객체를 반환한다. |
+| 메시지 작성 | `POST /api/v1/groups/{groupId}/chat/messages` | 텍스트 메시지 또는 이미지 첨부 metadata를 append하고 작성된 메시지 객체를 반환한다. |
 | 읽음 상태 갱신 | `PUT /api/v1/groups/{groupId}/chat/read-state` | 마지막으로 확인한 메시지를 저장하고 unread count를 반환한다. |
 | 실시간 수신 | `GET /api/v1/groups/{groupId}/chat/events` | SSE로 모임 room의 새 메시지를 수신한다. `afterCursor`는 기존 timestamp cursor를 사용한다. |
+| 사진 첨부 | `POST /api/v1/media/upload` 후 `POST /chat/messages` | 사진은 media upload로 먼저 저장하고, 채팅 메시지는 `type=image` attachment metadata만 연결한다. |
 
-MVP slice는 다음 범위를 의도적으로 제외한다.
+현재 구현의 핵심 경계는 다음과 같다.
+
+- `chat_activity_events`가 메시지 source of truth다.
+- SSE는 단일 Spring runtime 안의 delivery layer이며, Redis나 Realtime Gateway를 원장으로 보지 않는다.
+- `isMine` 같은 viewer-relative 필드는 SSE subscriber별로 다시 계산한다.
+- Flutter ViewModel은 REST 응답과 SSE 이벤트를 같은 `GroupMessage` stream으로 합성한다.
+- 읽음 상태는 `chat_read_states`에 모임/사용자별 last read event와 last read timestamp로 저장한다.
+- `notification.requested` outbox와 in-app notification row는 채팅 메시지 작성 transaction의 side effect로 기록한다.
+
+현재 slice는 다음 범위를 의도적으로 제외한다.
 
 - FCM/APNs push 전송
-- 사진/파일/위치 첨부
+- 파일/위치/지도 링크 첨부
 - 메시지별 읽음 표시
 - 대화 내용을 자동으로 약속/투표/정산으로 변환하는 AI/규칙 엔진
 
-이 제외 항목은 제품 목표에서 빠진 것이 아니라, 현재 REST 계약의 범위 밖이라는 뜻이다.
+이 제외 항목은 제품 목표에서 빠진 것이 아니라, 현재 Spring in-process SSE 계약의 범위 밖이라는 뜻이다.
 
 ## Target Architecture
 
@@ -79,7 +91,9 @@ flowchart LR
 
 Flutter는 View, ViewModel, Repository, API client 흐름을 유지한다. View는 입력과 렌더링만 담당하고, 메시지 조회/작성/재시도/구독 lifecycle은 ViewModel과 Repository가 관리한다.
 
-Spring Boot Main API는 group membership 권한을 확인한 뒤 `chat_activity_events`에 append한다. 같은 transaction 안에서 필요한 domain table과 outbox event를 기록하고, Realtime Gateway와 Notification Worker는 outbox를 통해 후속 처리를 수행한다.
+현재 Spring Boot Main API는 group membership 권한을 확인한 뒤 `chat_activity_events`에 append한다. 같은 transaction 안에서 필요한 notification row와 outbox event를 기록하고, in-process SSE publisher가 commit 이후 구독자에게 fan-out한다.
+
+목표 운영 구조에서는 Realtime Gateway와 Notification Worker가 outbox를 통해 후속 처리를 수행한다. 이때도 Flutter 앱이 Worker나 Redis를 직접 호출하지 않고, 메시지 원장은 계속 `chat_activity_events`에 둔다.
 
 ## Event Model
 
@@ -102,11 +116,11 @@ Spring Boot Main API는 group membership 권한을 확인한 뒤 `chat_activity_
 | --- | --- | --- |
 | 낙관적 전송 | 사용자는 전송 버튼을 누른 즉시 말풍선을 봐야 한다. | `sending`, `sent`, `failed` 상태를 ViewModel state에 둔다. |
 | 실패 재시도 | 네트워크 실패가 대화 유실로 느껴지면 안 된다. | 실패 메시지는 rollback보다 retry 가능한 failed bubble로 남긴다. |
-| 실시간 수신 | 새 메시지를 보기 위해 화면을 새로고침하면 안 된다. | group room 구독과 outbox 기반 fan-out을 붙인다. |
-| Cursor pagination | 오래된 대화를 안정적으로 불러와야 한다. | `beforeCursor`, `limit`, `nextCursor` 계약을 추가한다. |
-| 읽음/안읽음 | 사용자는 어떤 대화를 놓쳤는지 알아야 한다. | group member별 last read cursor와 unread count를 관리한다. |
+| 실시간 수신 | 새 메시지를 보기 위해 화면을 새로고침하면 안 된다. | 현재는 Spring SSE room 구독, 운영 목표는 outbox 기반 Realtime Gateway fan-out이다. |
+| Cursor pagination | 오래된 대화를 안정적으로 불러와야 한다. | `beforeCursor`, `limit`, `nextCursor` 계약을 유지한다. |
+| 읽음/안읽음 | 사용자는 어떤 대화를 놓쳤는지 알아야 한다. | group member별 last read cursor와 unread count를 관리한다. 현재는 `chat_read_states`를 사용한다. |
 | Push 알림 | 앱 밖에서도 약속 조율을 놓치지 않아야 한다. | notification worker가 메시지/중요 action을 FCM/APNs로 변환한다. |
-| 첨부와 공유 | 장소, 사진, 지도 링크가 대화 안에 있어야 한다. | message attachment table과 media storage를 분리한다. |
+| 첨부와 공유 | 장소, 사진, 지도 링크가 대화 안에 있어야 한다. | 현재는 이미지 attachment metadata를 지원한다. 파일/위치/지도 링크는 후속 attachment 모델에서 분리한다. |
 | 대화에서 action 생성 | "그럼 토요일 7시?"가 바로 약속/투표가 되어야 한다. | 수동 action button을 먼저 만들고, 이후 AI 보조를 붙인다. |
 
 ## Backend Production Requirements
@@ -136,9 +150,10 @@ Spring Boot Main API는 group membership 권한을 확인한 뒤 `chat_activity_
 | --- | --- | --- |
 | Phase 1 | REST 메시지 조회/작성 | `GET/POST /chat/messages`, Flutter Repository/ViewModel 연결 |
 | Phase 2 | 채팅 UX 기초 품질 | REST 기반 낙관적 전송, failed bubble, retry, cursor pagination, unread count, read-state 저장 |
-| Phase 3 | 실시간 fan-out | Realtime Gateway, group room 구독, outbox 기반 WebSocket/SSE 전달 |
-| Phase 4 | 알림과 첨부 | FCM/APNs, 사진/장소/지도 링크 첨부, media storage |
-| Phase 5 | ONMU action 전환 | 대화에서 약속/투표/정산/기록 생성, AI 보조 추천 |
+| Phase 3 | Spring SSE vertical slice | `GET /chat/events`, in-process room broadcaster, subscriber별 `isMine` 재계산 |
+| Phase 4 | 알림과 이미지 첨부 기초 | `chat_message` notification, `notification.requested` outbox, media upload 기반 image attachment metadata |
+| Phase 5 | 운영 Realtime/Push/첨부 확장 | Realtime Gateway, FCM/APNs, 파일/장소/지도 링크 첨부, push delivery 추적 |
+| Phase 6 | ONMU action 전환 | 대화에서 약속/투표/정산/기록 생성, AI 보조 추천 |
 
 ## Non-goals
 

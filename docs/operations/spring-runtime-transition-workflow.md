@@ -80,6 +80,8 @@ Kakao OAuth 로그인용 공개 client id는 `KAKAO_REST_API_KEY`를 사용한�
 
 Google OAuth 로그인용 서버 env는 `GOOGLE_OAUTH_CLIENT_ID` 또는 Flutter server client id와 같은 `GOOGLE_SERVER_CLIENT_ID`이다. Key Vault secret name은 기본으로 dev `dev-google-oauth-client-id`, integration `int-google-oauth-client-id`를 사용하고, runtime fallback용 `GOOGLE_SERVER_CLIENT_ID`는 dev `dev-google-server-client-id`, integration `int-google-server-client-id`에서 로드할 수 있다. 이 값은 Google idToken의 `aud` 검증에만 사용하며, Flutter 앱 bundle에는 backend signing secret이나 Google client secret을 넣지 않는다. Spring은 Google idToken을 Google tokeninfo endpoint로 확인한 뒤 issuer, audience, subject, expiration을 검증하고 ONMU access/refresh token을 발급한다.
 
+Push provider delivery는 현재 dev-safe abstraction까지만 공식 운영 범위다. 실제 FCM/APNs 발송을 켤 때는 provider credential env var와 Key Vault secret name을 별도 문서/PR에서 확정한 뒤 Spring 서버 환경변수 또는 Managed Identity/Key Vault reference로만 주입한다. Flutter dart-define, 앱 bundle, PR 본문, 로그에는 FCM/APNs credential, JWT signing secret, OAuth secret 값을 넣지 않는다. `notification.requested` outbox가 provider delivery로 이어지려면 payload에 `notificationId`를 포함하거나 aggregate가 `notification`을 직접 가리켜야 한다.
+
 Kakao browser OAuth device smoke 전 Kakao Developers 콘솔에서 다음 공개 설정을 확인한다.
 
 - 로그인 Redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
