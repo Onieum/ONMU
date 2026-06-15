@@ -18,6 +18,8 @@
 | Integration Architecture | API contract, repository, full social OAuth, Spring SSE realtime vertical slice, notification, file upload | 구현 중 |
 | Target Operation Architecture | Azure edge, API Management, Spring Boot Main API, FastAPI Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
 
+Azure/Terraform 전환 준비 문서는 [Current-to-target 아키텍처 인덱스](./current-to-target-index.md)에서 도메인별로 묶어 관리한다. Terraform이 소유하는 Azure 리소스와 Flyway/Alembic/앱 코드가 소유하는 영역은 [Terraform 리소스 소유권](./terraform-resource-ownership.md)을 기준으로 분리한다.
+
 Flutter는 확정 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker` 구조로 결정한다. Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션을 맡고, FastAPI Worker는 AI/추천/분석성 비동기 작업을 맡는다.
 
 현재 `dev`와 `integration-staging` Windows backend-host는 `services/api-spring` Spring Boot Main API를 기준으로 실행한다. `dev-api.onmu.cloud`와 `int-api.onmu.cloud`는 같은 Spring health/readiness/API 계약을 검증하는 공개 개발 엔드포인트다.
