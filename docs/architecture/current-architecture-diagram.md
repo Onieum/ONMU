@@ -394,6 +394,7 @@ Agent가 Terraform 코드를 작성하기 전에 확인할 입력은 다음이�
 | --- | --- | --- |
 | API runtime env | `services/api-spring/README.md`, `docs/operations/spring-runtime-transition-workflow.md` | secret 값 출력 금지. env var 이름과 Key Vault secret name만 사용 |
 | API contract | `docs/architecture/api-contract-map.md` | Flutter가 직접 호출하는 표면은 Spring `/api/v1`만 |
+| Auth/user/profile boundary | `docs/architecture/auth-user-profile-architecture.md` | OAuth, ONMU token, `/users/me`, profile, character, friend code, Key Vault secret 경계를 분리 |
 | Place/search/route/map boundary | `docs/architecture/place-search-route-map-architecture.md` | provider 호출, Redis TTL cache, PostGIS, tile manifest, Flutter 지도 경계를 분리 |
 | Chat/realtime boundary | `docs/architecture/chat-activity-architecture.md` | 현재 Spring SSE와 목표 Realtime Gateway를 분리 |
 | Notification/push boundary | `docs/architecture/api-contract-map.md`, `docs/data_dict/ONMU 데이터 사전.md` | in-app inbox, dev-safe delivery, 실제 FCM/APNs provider delivery를 분리 |
@@ -499,6 +500,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | --- | --- |
 | [Flutter 프론트 아키텍처](./frontend-architecture.md) | Flutter route, feature 구조, ViewModel/repository 기준 |
 | [API Contract Map](./api-contract-map.md) | 화면별 API와 read model |
+| [Auth / User / Profile 아키텍처](./auth-user-profile-architecture.md) | OAuth, session, `/users/me`, profile, character, friend code의 Current-to-Target 경계 |
 | [Place / Search / Route / Map 아키텍처](./place-search-route-map-architecture.md) | 장소 검색, 후보, 하트, 일정 장소, route recommendation, tile manifest의 Current-to-Target 경계 |
 | [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
