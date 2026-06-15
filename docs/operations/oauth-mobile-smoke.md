@@ -92,17 +92,29 @@ adb devices
 adb -s <serial> shell getprop sys.boot_completed
 ```
 
-OAuth 전용 define 파일을 만든다. 이 파일은 `.dart_tool` 아래에 두고 커밋하지 않는다.
+OAuth 전용 define 파일을 만든다. 이 파일은 `.dart_tool` 아래에 두고 커밋하지 않는다. Key Vault에서는 Flutter에 넣어도 되는 공개 provider 값만 읽고, provider client secret, JWT signing secret, DB password는 dart-define 파일에 쓰지 않는다.
 
-```json
-{
-  "ONMU_API_BASE_URL": "https://dev-api.onmu.cloud",
-  "KAKAO_REST_API_KEY": "<read-from-Key-Vault-or-local-env>",
-  "KAKAO_OAUTH_REDIRECT_URI": "https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback"
-}
+Windows PowerShell:
+
+```powershell
+cd C:\dev\ONMU
+python scripts\new-flutter-access-jwt.py `
+  --environment dev `
+  --vault-name $env:AZURE_KEY_VAULT_NAME `
+  --oauth-only `
+  --include-provider-oauth
 ```
 
-실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
+macOS:
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-oauth-defines.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+```
+
+생성되는 `.dart_tool/onmu-dev-oauth.defines.json`은 `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`를 포함한다. Google이 포함된 경우 iOS 빌드용 `ios/Flutter/GoogleOAuth.generated.xcconfig`도 생성되어 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공한다. 실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
 
 빌드와 설치:
 
@@ -159,9 +171,18 @@ adb -s <serial> logcat -d -v time | rg -i "onieum|onmu|kakao|naver|oauth|callbac
 
 iOS는 Mac 검증 세션에서 수행한다. Android와 같은 provider 공개 define을 사용하되, iOS 앱 bundle에 provider secret 또는 JWT signing secret을 넣지 않는다.
 
+Mac에서 OAuth 전용 define 파일을 먼저 생성한다.
+
+```bash
+cd <ONMU repo>
+./scripts/macos/new-flutter-oauth-defines.sh \
+  --environment dev \
+  --vault-name "$AZURE_KEY_VAULT_NAME"
+```
+
 검증 순서:
 
-1. `KAKAO_REST_API_KEY` 또는 `NAVER_OAUTH_CLIENT_ID`와 redirect URI를 dart-define으로 넣어 실행한다.
+1. `.dart_tool/onmu-dev-oauth.defines.json`을 `--dart-define-from-file`로 넣어 실행한다.
 2. provider 로그인 화면이 열린다.
 3. 계정/비밀번호/2FA/동의가 필요하면 사용자가 직접 조작한다.
 4. `io.onieum.onmu://oauth/<provider>/callback`을 iOS 앱이 받는지 확인한다.
@@ -170,6 +191,7 @@ iOS는 Mac 검증 세션에서 수행한다. Android와 같은 provider 공개 d
 필수 정적 확인:
 
 - `ios/Runner/Info.plist`에 `io.onieum.onmu` URL scheme이 있다.
+- `ios/Runner/Info.plist`에 `$(GOOGLE_IOS_REVERSED_CLIENT_ID)` URL scheme 참조가 있고, OAuth define 생성 후 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 존재한다.
 - iOS bundle id가 provider console 설정과 일치한다.
 - callback URL은 Spring public endpoint이고, 모바일 callback은 custom scheme이다.
 
