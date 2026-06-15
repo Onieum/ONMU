@@ -21,6 +21,8 @@
 
 ## Auth / User
 
+Auth / Session / OAuth와 User / Profile / Character / Friends의 상세 Current-to-Target 경계는 [Auth / User / Profile 아키텍처](./auth-user-profile-architecture.md)를 따른다.
+
 | 화면 | API |
 | --- | --- |
 | 로그인 | `POST /api/v1/auth/oauth/{provider}` |
@@ -29,8 +31,12 @@
 | refresh | `POST /api/v1/auth/refresh` |
 | logout | `DELETE /api/v1/auth/session` |
 | 내 정보 | `GET /api/v1/users/me` |
+| 내 정보 수정 | `PATCH /api/v1/users/me` |
+| 내 캐릭터 조회/저장 | `GET/PUT /api/v1/users/me/character` |
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
+
+`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`를 포함할 수 있다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다.
 
 Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
