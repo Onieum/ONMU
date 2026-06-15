@@ -49,6 +49,8 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 친구 상세 프로필은 active friendship을 확인한 뒤 상대 사용자의 `users.preference_profile`, `users.pixel_character`, 기본 표시 정보를 반환한다. 이메일, 인증 provider, token contract 같은 내 계정 전용 필드는 포함하지 않는다. 친구 관계가 아니거나 숨김/삭제된 관계면 `404 friend_not_found`를 반환한다.
 ## Home
 
+홈/약속/투표의 Current-to-Target 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
+
 | 화면 | API | Read model |
 | --- | --- | --- |
 | 홈 | `GET /api/v1/home/summary` | `HomeSummary` |
@@ -77,6 +79,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 ## Plans
 
+약속 참여자와 홈 read model의 목표 구조는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
+
 | 화면 | API |
 | --- | --- |
 | 약속 목록 | `GET /api/v1/groups/{groupId}/plans` |
@@ -84,6 +88,7 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 약속 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}` |
 | 약속 수정 | `PATCH /api/v1/groups/{groupId}/plans/{planId}` |
 | 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` |
+| 참여자 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
 
 ## Place
@@ -110,6 +115,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 일정 등록 장소 생성은 `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. 응답은 일정 등록 장소 id, 후보 id, 장소명, 시작/종료 시각, 메모를 포함한다.
 
 ## Votes
+
+투표/결정의 Current-to-Target 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md)를 따른다.
 
 | 화면 | API |
 | --- | --- |
