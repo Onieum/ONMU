@@ -58,32 +58,33 @@ cd <ONMU repo>
 ./scripts/macos/run-flutter-dev-api.sh
 ```
 
-Kakao 로그인을 실제 Android/iPhone 기기에서 smoke할 때는 JWT define 파일에 Kakao OAuth 공개 설정도 함께 넣습니다. `KAKAO_CLIENT_SECRET`은 여전히 Spring 서버에만 있어야 하며, 아래 옵션은 Kakao REST API key와 redirect URI만 로컬 git ignored define 파일에 추가합니다.
+Provider 로그인을 실제 Android/iPhone 기기에서 smoke할 때는 JWT 우회용 define이 아니라 OAuth 전용 공개 define 파일을 사용합니다. Mac에서는 Key Vault에서 Flutter에 필요한 공개 provider 값만 읽어 `.dart_tool/onmu-dev-oauth.defines.json`을 만들 수 있습니다. 이 파일에는 `KAKAO_REST_API_KEY`, `NAVER_OAUTH_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`와 redirect URI만 들어가며, `KAKAO_CLIENT_SECRET`, `NAVER_OAUTH_CLIENT_SECRET`, JWT signing secret, DB password는 들어가지 않습니다.
 
 Windows PowerShell:
 
 ```powershell
 cd C:\dev\ONMU
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
-  -Environment dev `
-  -VaultName $env:AZURE_KEY_VAULT_NAME `
-  -IncludeKakaoOAuth
+python scripts\new-flutter-access-jwt.py `
+  --environment dev `
+  --vault-name $env:AZURE_KEY_VAULT_NAME `
+  --oauth-only `
+  --include-provider-oauth
 
 cd apps\mobile-flutter
-flutter run --dart-define-from-file=.dart_tool\onmu-dev-api.defines.json
+flutter run --dart-define-from-file=.dart_tool\onmu-dev-oauth.defines.json
 ```
 
 macOS:
 
 ```bash
 cd <ONMU repo>
-./scripts/macos/new-flutter-access-jwt.sh \
+./scripts/macos/new-flutter-oauth-defines.sh \
   --environment dev \
-  --vault-name "$AZURE_KEY_VAULT_NAME" \
-  --include-kakao-oauth
+  --vault-name "$AZURE_KEY_VAULT_NAME"
 
 cd apps/mobile-flutter
-flutter run --dart-define-from-file=.dart_tool/onmu-dev-api.defines.json
+flutter run -d <ios-device-or-simulator> \
+  --dart-define-from-file=.dart_tool/onmu-dev-oauth.defines.json
 ```
 
 Kakao 인증 페이지에서 `Admin Settings Issue (KOE101)`이 보이면 앱 코드보다 Kakao Developers 앱 키 설정을 먼저 확인합니다.
