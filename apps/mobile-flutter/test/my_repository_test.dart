@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
@@ -245,4 +247,114 @@ void main() {
     });
     expect(profile.regionVisibility, RegionVisibility.public);
   });
+
+  test(
+    'filters mojibake and nested JSON profile values from API payload',
+    () async {
+      final brokenRegion = _mojibake('서울 성동구');
+      final nestedJsonText = jsonEncode({'region': '서울 성동구'});
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.method, 'GET');
+            expect(options.path, '/api/v1/users/me');
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'displayName': 'Shinseok',
+                  'preferenceProfile': {
+                    'introText': nestedJsonText,
+                    'region': brokenRegion,
+                    'favoriteFoodTags': [brokenRegion, 'pasta'],
+                    'preferredWeekdays': [nestedJsonText, 'friday'],
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiMyRepository(OnmuApiClient(dio));
+
+      final profile = await repository.fetchMyProfile();
+
+      expect(profile.introText, '기록하고, 만나고, 추억해요  ♥');
+      expect(profile.region, KoreaRegionSelection.fallback.displayName);
+      expect(profile.favoriteFoodTags, ['pasta']);
+      expect(profile.preferredWeekdays, ['friday']);
+    },
+  );
+
+  test(
+    'does not send mojibake and nested JSON values back on profile update',
+    () async {
+      final brokenRegion = _mojibake('서울 성동구');
+      final nestedJsonText = jsonEncode({'style': '조용한'});
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            expect(options.method, 'PATCH');
+            expect(options.path, '/api/v1/users/me');
+            final data = options.data as Map<String, Object?>;
+            final preference =
+                data['preferenceProfile'] as Map<String, Object?>;
+            expect(preference['introText'], '');
+            expect(preference['favoriteFoodTags'], ['pasta']);
+            expect(preference['planStyles'], isEmpty);
+            expect(
+              preference['region'],
+              KoreaRegionSelection.fallback.toJson(),
+            );
+
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'displayName': 'Shinseok',
+                  'preferenceProfile': {
+                    'introText': '',
+                    'region': KoreaRegionSelection.fallback.toJson(),
+                    'favoriteFoodTags': ['pasta'],
+                    'planStyles': <String>[],
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiMyRepository(OnmuApiClient(dio));
+
+      final updated = await repository.updateMyProfile(
+        MyProfile(
+          realName: 'Shinseok',
+          introText: nestedJsonText,
+          region: brokenRegion,
+          regionSelection: KoreaRegionSelection.fromDisplayName(brokenRegion),
+          visibility: ProfileVisibility.friends,
+          favoriteKeywords: const [],
+          dislikedKeywords: const [],
+          preferredTimes: const [],
+          availableDays: const [],
+          unavailableDates: const [],
+          favoritePlaces: const [],
+          wantToGoPlaces: const [],
+          dislikedPlaces: const [],
+          favoriteFoodTags: [brokenRegion, 'pasta'],
+          planStyles: [nestedJsonText],
+        ),
+      );
+
+      expect(updated.region, KoreaRegionSelection.fallback.displayName);
+      expect(updated.favoriteFoodTags, ['pasta']);
+      expect(updated.planStyles, isEmpty);
+    },
+  );
+}
+
+String _mojibake(String value) {
+  return latin1.decode(utf8.encode(value));
 }
