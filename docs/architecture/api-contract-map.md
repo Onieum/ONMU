@@ -42,6 +42,8 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 
 ## Friends
 
+세부 Current-to-Target 기준은 [User/Profile/Character/Friends 아키텍처](./user-profile-character-friends-architecture.md)를 따른다.
+
 | 화면 | API | Read model |
 | --- | --- | --- |
 | 마이페이지 친구 목록 | `GET /api/v1/users/me/friends` | `FriendResponse[]` |
@@ -205,6 +207,8 @@ Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 �
 
 
 ## Records / Memories
+
+세부 Current-to-Target 기준은 [Records/Memories/Media/OOTD 아키텍처](./records-memories-media-ootd-architecture.md)를 따른다.
 
 | 화면 | API | Read model |
 | --- | --- | --- |

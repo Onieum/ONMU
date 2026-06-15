@@ -503,6 +503,8 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | [Auth / User / Profile 아키텍처](./auth-user-profile-architecture.md) | OAuth, session, `/users/me`, profile, character, friend code의 Current-to-Target 경계 |
 | [Place / Search / Route / Map 아키텍처](./place-search-route-map-architecture.md) | 장소 검색, 후보, 하트, 일정 장소, route recommendation, tile manifest의 Current-to-Target 경계 |
 | [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md) | 알림 inbox, push delivery, device registry의 Current-to-Target 경계 |
+| [User/Profile/Character/Friends 아키텍처](./user-profile-character-friends-architecture.md) | 사용자 프로필, 픽셀 캐릭터, 친구 관계, 친구별 개인 설정의 Current-to-Target 기준 |
+| [Records/Memories/Media/OOTD 아키텍처](./records-memories-media-ootd-architecture.md) | 하루 일과, OOTD, 미디어 업로드, 기록 payload와 worker 확장 경계 |
 | [백엔드 결정 원본과 기술스택](./backend-stack-options.md) | Spring Boot Main API + FastAPI Worker 확정안, 선택지 비교, 세부 결정 |
 | [Settlement 아키텍처](./settlement-architecture.md) | 정산 draft/item/target/preview/create/result와 Terraform migration 경계 |
 | [데이터/리포팅 로드맵](./data-analytics-reporting-roadmap.md) | Databricks, 기업용 리포트, 광고 세그먼트, OOTD/persona feature의 미래 확장 |
