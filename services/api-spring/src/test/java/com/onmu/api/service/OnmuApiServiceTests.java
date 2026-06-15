@@ -35,6 +35,7 @@ import com.onmu.api.domain.VoteOptionEntity;
 import com.onmu.api.domain.VoteOptionRepository;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
+import com.onmu.api.web.dto.AddPlanParticipantRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
@@ -529,11 +530,14 @@ class OnmuApiServiceTests {
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(2L);
+    when(voteResponseRepository.countDistinctUsersByVote(vote)).thenReturn(3L);
     when(voteResponseRepository.countByVote(vote)).thenReturn(4L);
     when(voteResponseRepository.countByVoteOption(option)).thenReturn(3L);
 
     var detail = service.vote("1", "501");
 
+    assertThat(detail).containsEntry("participantCount", 3);
+    assertThat(detail).containsEntry("participantCountLabel", "3명 참여");
     assertThat(detail.get("options")).asList()
       .singleElement()
       .satisfies(rawOption -> {
@@ -578,6 +582,19 @@ class OnmuApiServiceTests {
           assertThat(optionMap.get("candidateId")).isEqualTo("201");
           assertThat(optionMap.get("candidateName")).isEqualTo("온무식당");
         }));
+  }
+
+  @Test
+  void voteListCanBeScopedByPlanTarget() {
+    VoteEntity otherVote = new VoteEntity("502", group, "PLAN", "102", "PLACE", "다른 약속 투표", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote, otherVote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of());
+
+    var votes = service.votes("1", "PLAN", "101");
+
+    assertThat(votes).singleElement()
+      .satisfies(scopedVote -> assertThat(scopedVote).containsEntry("id", "501"));
   }
 
   @Test
@@ -734,6 +751,33 @@ class OnmuApiServiceTests {
     var participants = service.planParticipants("1", "101");
 
     assertThat(participants).isEmpty();
+  }
+
+  @Test
+  void groupMemberCanAddAnotherGroupMemberToPlan() {
+    UserEntity actor = user("00000000-0000-0000-0000-000000000001", "지민");
+    UserEntity target = user("00000000-0000-0000-0000-000000000002", "민수");
+    PlanParticipantEntity saved = new PlanParticipantEntity(plan, target, "joined", "accepted");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findByIdAndDeletedAtIsNull(actor.getId())).thenReturn(Optional.of(actor));
+    when(userRepository.findByIdAndDeletedAtIsNull(target.getId())).thenReturn(Optional.of(target));
+    when(groupRepository.isUserMember(group.getPublicId(), actor.getId())).thenReturn(true);
+    when(groupRepository.isUserMember(group.getPublicId(), target.getId())).thenReturn(true);
+    when(planParticipantRepository.findByPlanAndUser(plan, target)).thenReturn(Optional.empty());
+    when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenReturn(saved);
+
+    var participant = service.addPlanParticipant(
+      "1",
+      "101",
+      actor.getId(),
+      new AddPlanParticipantRequest(target.getId().toString())
+    );
+
+    assertThat(participant)
+      .containsEntry("userId", target.getId().toString())
+      .containsEntry("displayName", "민수")
+      .containsEntry("status", "joined");
   }
 
   @Test

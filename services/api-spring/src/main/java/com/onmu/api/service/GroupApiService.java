@@ -8,6 +8,7 @@ import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,7 @@ public class GroupApiService {
       .map(member -> String.valueOf(member.get("name")))
       .toList();
 
-    return groupCard(group, memberProfiles.size(), memberNames);
+    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
   }
 
   @Transactional
@@ -72,7 +73,7 @@ public class GroupApiService {
     List<String> memberNames = memberProfiles.stream()
       .map(member -> String.valueOf(member.get("name")))
       .toList();
-    return groupCard(group, memberProfiles.size(), memberNames);
+    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
   }
 
   @Transactional(readOnly = true)
@@ -127,7 +128,7 @@ public class GroupApiService {
       )
     );
 
-    return groupCard(group, 1, List.of(displayName(user)));
+    return groupCard(group, 1, List.of(displayName(user)), List.of(userProfile(user, "owner", "active")));
   }
 
   private List<Map<String, Object>> membersFor(GroupEntity group, boolean fallbackToOwner) {
@@ -148,37 +149,47 @@ public class GroupApiService {
 
     UserEntity fallbackUser = userRepository.findFirstByOrderByCreatedAtAsc()
       .orElse(group.getOwnerUser());
-    return List.of(Map.of(
-      "name", displayName(fallbackUser),
-      "note", roleNote("owner"),
-      "statusLabel", "참여 중",
-      "invited", false
-    ));
+    return List.of(userProfile(fallbackUser, "owner", "active"));
   }
 
   private Map<String, Object> memberProfile(GroupMemberEntity member) {
-    String status = member.getStatus();
-    return Map.of(
-      "name", memberDisplayName(member),
-      "note", roleNote(member.getRole()),
-      "statusLabel", statusLabel(status),
-      "invited", isInvited(status)
-    );
+    return userProfile(member.getUser(), member.getRole(), member.getStatus(), memberDisplayName(member));
   }
 
-  private Map<String, Object> groupCard(GroupEntity group, int memberCount, List<String> members) {
-    return Map.of(
-      "id", group.getPublicId(),
-      "name", group.getName(),
-      "description", safeDescription(group),
-      "members", members,
-      "memberCount", memberCount,
-      "memberCountLabel", memberCount + "명",
-      "role", "모임장",
-      "lastMessage", "",
-      "unreadCount", 0,
-      "pinnedPlanTitle", ""
-    );
+  private Map<String, Object> userProfile(UserEntity user, String role, String status) {
+    return userProfile(user, role, status, displayName(user));
+  }
+
+  private Map<String, Object> userProfile(UserEntity user, String role, String status, String name) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("userId", user == null || user.getId() == null ? "" : user.getId().toString());
+    value.put("name", name);
+    value.put("note", roleNote(role));
+    value.put("statusLabel", statusLabel(status));
+    value.put("invited", isInvited(status));
+    value.put("profileImageUrl", user == null ? null : user.getProfileImageUrl());
+    return value;
+  }
+
+  private Map<String, Object> groupCard(
+    GroupEntity group,
+    int memberCount,
+    List<String> members,
+    List<Map<String, Object>> memberProfiles
+  ) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", group.getPublicId());
+    value.put("name", group.getName());
+    value.put("description", safeDescription(group));
+    value.put("members", members);
+    value.put("memberProfiles", memberProfiles);
+    value.put("memberCount", memberCount);
+    value.put("memberCountLabel", memberCount + "명");
+    value.put("role", "모임장");
+    value.put("lastMessage", "");
+    value.put("unreadCount", 0);
+    value.put("pinnedPlanTitle", "");
+    return value;
   }
 
   private GroupEntity group(String groupId) {
