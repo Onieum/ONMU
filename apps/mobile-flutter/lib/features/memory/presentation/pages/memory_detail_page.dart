@@ -10,6 +10,13 @@ import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../ootd/repository/record_repository.dart';
 
+final memoryRecordProvider = FutureProvider.family<OotdRecord, String>((
+  ref,
+  memoryId,
+) {
+  return ref.watch(recordRepositoryProvider).fetchRecord(memoryId);
+});
+
 class MemoryDetailPage extends ConsumerWidget {
   final String memoryId;
 
@@ -21,6 +28,7 @@ class MemoryDetailPage extends ConsumerWidget {
 
     try {
       return records.firstWhere((r) {
+        if (r.id == key) return true;
         final type = r.brands['recordType'] ?? 'ootd';
         final k = '${r.date.year}-${r.date.month}-${r.date.day}-$type';
         return k == key;
@@ -32,13 +40,18 @@ class MemoryDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final record = _findRecord(ref, memoryId);
+    final detail = ref.watch(memoryRecordProvider(memoryId));
+    final record = detail.value ?? _findRecord(ref, memoryId);
 
     if (record == null) {
       return Scaffold(
         backgroundColor: AppColors.bgWarm,
         appBar: AppBar(title: Text('기록을 찾을 수 없음')),
-        body: Center(child: Text('해당하는 다이어리 기록이 존재하지 않습니다.')),
+        body: Center(
+          child: detail.isLoading
+              ? const CircularProgressIndicator()
+              : Text('해당하는 다이어리 기록이 존재하지 않습니다.'),
+        ),
       );
     }
 
@@ -476,10 +489,10 @@ class MemoryDetailPage extends ConsumerWidget {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                context.push(RoutePaths.recordDiaryTemplate(memoryId));
+                context.push(RoutePaths.recordEdit(memoryId));
               },
-              icon: const Icon(Icons.palette_outlined, size: 16),
-              label: Text('다이어리 꾸미기'),
+              icon: const Icon(Icons.edit_note_outlined, size: 16),
+              label: Text('수정하기'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryPurple,
                 foregroundColor: Colors.white,

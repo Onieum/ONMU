@@ -105,6 +105,8 @@ class RoutePaths {
 
   static String recordDetail(String recordId) => '/records/$recordId';
 
+  static String recordEdit(String recordId) => '/records/edit/$recordId';
+
   static String recordDiaryTemplate(String recordId) =>
       '/records/$recordId/template-diary';
 }

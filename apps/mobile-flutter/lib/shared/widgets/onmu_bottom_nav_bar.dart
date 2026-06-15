@@ -21,7 +21,7 @@ class OnmuBottomNavBar extends StatelessWidget {
   final VoidCallback? onMyTabReselected;
 
   List<_BottomNavItem> _createItems() {
-    return [
+    return const [
       _BottomNavItem(
         icon: Icons.home_outlined,
         activeIcon: Icons.home,
@@ -94,24 +94,30 @@ class OnmuBottomNavBar extends StatelessWidget {
                   },
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        selected ? item.activeIcon : item.icon,
-                        size: 24,
-                        color: color,
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            selected ? item.activeIcon : item.icon,
+                            size: 24,
+                            color: color,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.label,
+                            style: AppTextStyles.labelSmall.copyWith(
+                              height: 1.2,
+                              color: color,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 2),
-                      Text(
-                        item.label,
-                        style: AppTextStyles.labelSmall.copyWith(
-                          height: 1.2,
-                          color: color,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
