@@ -82,6 +82,8 @@ Google OAuth 로그인용 서버 env는 `GOOGLE_OAUTH_CLIENT_ID` 또는 Flutter 
 
 Push provider delivery는 현재 dev-safe abstraction까지만 공식 운영 범위다. 실제 FCM/APNs 발송을 켤 때는 provider credential env var와 Key Vault secret name을 별도 문서/PR에서 확정한 뒤 Spring 서버 환경변수 또는 Managed Identity/Key Vault reference로만 주입한다. Flutter dart-define, 앱 bundle, PR 본문, 로그에는 FCM/APNs credential, JWT signing secret, OAuth secret 값을 넣지 않는다. `notification.requested` outbox가 provider delivery로 이어지려면 payload에 `notificationId`를 포함하거나 aggregate가 `notification`을 직접 가리켜야 한다.
 
+Settlement core에는 별도 provider secret이 없다. 정산 API는 Spring 공통 DB/JWT runtime env만 사용하며, `settlement_drafts`, `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers` schema는 Spring Flyway가 소유한다. Terraform/Azure migration에서는 PostgreSQL Flexible Server, private network, Service Bus, runtime, Key Vault, Application Insights 같은 리소스 경계를 만들 수 있지만 정산 core table DDL을 Terraform으로 만들지 않는다. 현재 `amount_cents` 물리 컬럼은 정산 API에서 KRW 원 단위 integer로 쓰는 legacy 이름이므로, 컬럼 rename 또는 compatibility 유지 여부는 별도 Flyway migration decision으로 다룬다.
+
 Kakao browser OAuth device smoke 전 Kakao Developers 콘솔에서 다음 공개 설정을 확인한다.
 
 - 로그인 Redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`

@@ -92,7 +92,6 @@ Spring Boot Flyway가 core schema를 소유합니다.
 - `V5__core_seed_data_dictionary.sql`: 데이터사전 검증용 synthetic seed
 - `V6__align_friend_settings_data_dictionary.sql`: canonical friendship와 사용자별 친구 설정 정합성 보정
 - `V7__add_external_place_links.sql`: 장소 외부 링크 canonical 원장과 `external_places.link_summary` 표시 캐시 추가
-- `V8__screen_aligned_dev_seed.sql`: Flutter mock 화면과 맞춘 synthetic seed와 정산 item/target/transfer seed 보강
 - `V8__add_place_candidate_hearts.sql`: 장소 후보별 사용자 하트 저장소와 중복 방지 제약 추가
 - `V9__screen_aligned_dev_seed.sql`: Flutter 화면 정합 smoke용 synthetic seed 보강
 - `V10__auth_user_profile_infra.sql`: 인증/프로필 구현에 필요한 사용자 프로필, 인증 identity, refresh token 보강

@@ -152,6 +152,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 ## Settlement
 
+세부 Current-to-Target 기준은 [Settlement 아키텍처](./settlement-architecture.md)를 따른다.
+
 | 화면 | API |
 | --- | --- |
 | 정산 draft | `GET/PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
@@ -166,6 +168,8 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 정산 create/preview/update 요청은 `payerUserId`, `targetUserIds` 같은 안정적인 사용자 public id를 우선 사용한다. `payerName`, `targetNames`는 dev seed와 기존 mock 호환용 fallback이며, 이름이 중복되면 API는 조용히 오배정하지 않고 `400 ambiguous_settlement_member_name`을 반환한다. 금액 필드는 `amountWon`을 권장하고, 과거 `amount`는 호환용으로 허용한다. 현재 DB 컬럼명은 `amount_cents`지만 ONMU 정산 API에서는 KRW 원 단위 integer를 저장한다.
 
 `GET /settlement-draft`는 저장되지 않은 synthetic draft를 만들 수 있으며 이때 `persisted=false`, `targetPatchAvailable=false`를 반환한다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item이 생긴 뒤에만 가능하다.
+
+현재 `POST /settlements`는 `settlement.created`, `notification.requested` outbox를 남기지만 runtime create 경로에서 `chat_activity_events` 정산 카드나 사용자별 `notifications` row를 직접 만들지는 않는다. 현재 `channel=activity` 성격의 이벤트는 provider push delivery와 분리해서 해석한다. 목표 구조에서는 정산 생성 transaction에서 ChatActivity 카드와 notification row를 함께 만들고, provider delivery 대상 `notification.requested` payload에는 실제 `notificationId`를 포함한다.
 
 ## Chat
 
