@@ -11,7 +11,7 @@ import '../widgets/record_flow_navigation.dart';
 
 class OotdRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
-  final Future<void> Function(OotdRecord) onSave;
+  final Future<OotdRecord> Function(OotdRecord) onSave;
   final DateTime? recordDate;
   final bool isDailyRecord;
   final OotdRecord? existingRecord;
@@ -187,12 +187,22 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       ],
     );
     setState(() => _isSaving = true);
+    OotdRecord saved = record;
     try {
-      await widget.onSave(record);
+      saved = await widget.onSave(record);
     } catch (_) {
-      // API ?? ?? ??? ??? ?? ??? ????.
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OOTD 저장에 실패했어요. 다시 시도해 주세요.')),
+      );
+      return;
     }
     if (!mounted) return;
+    if (widget.isDailyRecord) {
+      context.pop(saved);
+      return;
+    }
     context.go(RoutePaths.records);
   }
 

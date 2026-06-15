@@ -35,6 +35,7 @@ import '../../features/group/presentation/pages/vote_detail_page.dart';
 import '../../features/onboarding/onboarding_hub_page.dart';
 import '../../features/onboarding/onboarding_status.dart';
 import '../../features/ootd/ootd_list_page.dart';
+import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
 import '../../features/ootd/repository/record_repository.dart';
@@ -412,15 +413,50 @@ final appRouter = GoRouter(
                       );
                     },
                     onViewOotdDetail: (record) {
+                      final id = record.id;
                       final type = record.brands['recordType'] ?? 'ootd';
-                      final recordKey =
+                      final recordKey = id ??
                           '${record.date.year}-${record.date.month}-${record.date.day}-$type';
                       context.push(RoutePaths.recordDetail(recordKey));
+                    },
+                    onEditRecord: (record) async {
+                      final id = record.id;
+                      if (id == null || id.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('저장된 기록만 수정할 수 있어요.')),
+                        );
+                        return null;
+                      }
+                      final result = await context.push<Object?>(
+                        RoutePaths.recordEdit(id),
+                      );
+                      ref.invalidate(ootdRecordsProvider);
+                      return result;
+                    },
+                    onDeleteRecord: (record) async {
+                      final id = record.id;
+                      if (id == null || id.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('삭제할 수 없는 기록이에요.')),
+                        );
+                        return;
+                      }
+                      await ref.read(recordRepositoryProvider).deleteRecord(id);
+                      ref.invalidate(ootdRecordsProvider);
                     },
                     onNavigateToProfile: () => _showResetDialog(context, ref),
                   );
                 },
               ),
+              routes: [
+                GoRoute(
+                  path: 'edit/:recordId',
+                  builder: (context, state) {
+                    final recordId = state.pathParameters['recordId'] ?? '0';
+                    return DailyRecordEditScreen(memoryId: recordId);
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -451,8 +487,10 @@ final appRouter = GoRouter(
             recordDate: date,
             ootdRecord: ootdRecord,
             onSave: (record) => _saveRecord(ref, record),
+            onUploadMedia: (bytes, fileName) =>
+                ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName),
             onCreateOotd: () {
-              context.push(
+              return context.push<OotdRecord>(
                 '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}&daily=1',
               );
             },
@@ -524,9 +562,10 @@ DateTime _recordDateFromState(GoRouterState state) {
   return DateTime.parse(dateStr);
 }
 
-Future<void> _saveRecord(WidgetRef ref, OotdRecord newRecord) async {
-  await ref.read(recordRepositoryProvider).createRecord(newRecord);
+Future<OotdRecord> _saveRecord(WidgetRef ref, OotdRecord newRecord) async {
+  final saved = await ref.read(recordRepositoryProvider).createRecord(newRecord);
   ref.invalidate(ootdRecordsProvider);
+  return saved;
 }
 
 void _showResetDialog(BuildContext context, WidgetRef ref) {
