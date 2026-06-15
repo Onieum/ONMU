@@ -11,7 +11,7 @@
 | MinIO media | MinIO bucket | Azure Blob Storage container | object copy + checksum/sample smoke |
 | Record media metadata | `record_media` table | PostgreSQL `record_media` table | DB migration/dump와 함께 이전, object key 정합성 smoke |
 | Tile assets | MinIO/gateway | Blob/CDN/Front Door 후보 | manifest/style/PMTiles object copy |
-| Outbox/events | PostgreSQL table | PostgreSQL + Service Bus/Event Hubs | DB 원장 유지, consumer 전환 |
+| Outbox/events | PostgreSQL table | PostgreSQL + Event Hubs | DB 원장 유지, consumer group/checkpoint/replay 전환 |
 
 Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요한 경우 place-search cache, presence, rate-limit은 Azure 배포 후 자연 재생성한다.
 

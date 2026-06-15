@@ -17,7 +17,7 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 | 후보 리스트는 날짜 탭으로 쪼개지 않는다 | 후보 리스트는 약속 단위 공유 리스트이며, 날짜별 동선은 별도 itinerary/route 화면에서 다룬다. |
 | provider 출처는 제품 UI에 직접 노출하지 않는다 | `Naver`, `Kakao`, `Provider` 같은 출처명은 내부 진단/저장 경계에서만 쓰고 사용자-facing chip/text로 드러내지 않는다. |
 | 추천은 결정을 대신하지 않는다 | 현재 MVP는 점수 중심 비교, 후보 비교 전용 화면, 운영 리스크 문구를 만들지 않는다. 추천은 취향/거리/영업정보 기반 보조 설명으로 시작한다. |
-| Flutter는 Spring Boot Main API만 직접 호출한다 | Flutter 앱은 Naver/Kakao/OpenRouteService, Redis, DB, Key Vault, Service Bus, Worker를 직접 호출하지 않는다. |
+| Flutter는 Spring Boot Main API만 직접 호출한다 | Flutter 앱은 Naver/Kakao/OpenRouteService, Redis, DB, Key Vault, Event Hubs, Worker를 직접 호출하지 않는다. |
 | Redis는 source of truth가 아니다 | provider 검색 결과와 route 응답의 짧은 TTL cache에만 사용하고, 후보/일정 원장은 PostgreSQL에 둔다. |
 | 지도 타일은 manifest pointer로 전환한다 | Flutter는 PMTiles object URL을 하드코딩하지 않고 `ONMU_TILE_MANIFEST_URL` 또는 기본 manifest URL을 읽는다. |
 
@@ -357,7 +357,7 @@ Flutter가 하면 안 되는 일:
 
 - Naver/Kakao/OpenRouteService provider API 직접 호출.
 - provider secret, OAuth secret, JWT signing secret, DB password, Redis URL, Key Vault secret 값을 bundle/dart-define에 포함.
-- Redis, PostgreSQL, Service Bus/Event Hubs, Worker internal endpoint 직접 호출.
+- Redis, PostgreSQL, Event Hubs, Worker internal endpoint 직접 호출.
 - PMTiles storage credential 또는 private object URL을 내장.
 - provider명이나 운영 fallback 상태를 사용자-facing 추천/비교 요소로 노출.
 
@@ -395,7 +395,7 @@ Worker가 하지 않는다:
 | Database | Azure Database for PostgreSQL Flexible Server + PostGIS extension | 예: 서버/확장 enable, 아니오: table schema | table/index/check는 Flyway 소유 |
 | Cache | Azure Cache for Redis | 예 | `place-search`, `route-recommendation`, realtime/presence TTL cache |
 | Tile asset | Azure Blob Storage + CDN/Front Door 후보 | 예 | PMTiles/style/manifest object hosting, Range/CORS/ETag 필요 |
-| Queue/outbox bridge | Azure Service Bus 또는 Event Hubs | 예 | Spring outbox publisher와 Worker consumer 연결 |
+| Queue/outbox bridge | Azure Event Hubs | 예 | Spring outbox publisher와 Worker consumer 연결. consumer group/checkpoint/replay 정책은 후속 |
 | AI | Azure OpenAI | 예 | Worker 뒤에서만 호출 |
 | Search/RAG | Azure AI Search 후보 | 예 | 기록/취향/RAG 확장용, 장소 provider 검색 대체가 아님 |
 | Observability | Application Insights, Log Analytics, alert rules | 예 | provider latency/fallback/cache/route/tile smoke metric |
@@ -495,13 +495,13 @@ Target metric 후보:
 | Phase 3 | Provider 운영 안정화 | Naver/Kakao availability, fallback/cache metric, Kakao 권한 상태 분리 |
 | Phase 4 | 후보 추천 설명 MVP | provider 결과 + 사용자/모임 취향 + 거리/카테고리/영업정보 기반 rule-based reasons |
 | Phase 5 | PostGIS 고도화 | spatial column/index, nearby/radius query, route stop quality 보강 |
-| Phase 6 | Azure tile/route/provider 운영 전환 | Blob/CDN, Redis, Key Vault reference, App Insights, Service Bus 연결 |
+| Phase 6 | Azure tile/route/provider 운영 전환 | Blob/CDN, Redis, Key Vault reference, App Insights, Event Hubs 연결 |
 | Phase 7 | AI 보조 설명 | FastAPI Worker + Azure OpenAI로 설명 생성, Spring read model 합성 |
 
 ## Non-goals
 
 - 이 문서는 코드 구현, DB migration, Terraform apply, Azure 리소스 생성, DNS 변경, Key Vault secret 값 쓰기를 수행하지 않는다.
-- Flutter 앱이 provider API, Redis, DB, Worker, Service Bus, Key Vault를 직접 호출하지 않는다.
+- Flutter 앱이 provider API, Redis, DB, Worker, Event Hubs, Key Vault를 직접 호출하지 않는다.
 - MVP에서 점수 중심 추천, 후보 비교 전용 화면, 운영 리스크 문구를 만들지 않는다.
 - provider raw response body를 PostgreSQL에 장기 원장처럼 축적하지 않는다.
 - 지도 fallback을 최종 지도 품질로 간주하지 않는다. fallback은 blank 방지와 Android smoke 안정화를 위한 중간 장치다.

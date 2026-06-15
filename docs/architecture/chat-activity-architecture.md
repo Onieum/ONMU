@@ -148,7 +148,7 @@ Redis는 여러 runtime instance 사이의 event distribution을 돕는 fan-out 
 
 - Realtime Gateway transport는 WebSocket 우선, SSE fallback 가능.
 - Redis는 pub/sub 또는 stream 중 운영 요구에 맞춰 선택한다.
-- Service Bus는 outbox 기반 worker/notification fan-out에 우선 사용하고, realtime low-latency fan-out은 Redis와 분리할 수 있다.
+- Event Hubs는 outbox 기반 worker/notification fan-out에 우선 사용하고, realtime low-latency fan-out은 Redis와 분리할 수 있다.
 - attachment table은 메시지 payload JSON 유지와 별도 `chat_message_attachments` 분리 중 선택한다.
 
 ### 미결정
@@ -323,7 +323,7 @@ Flutter 책임:
 
 Flutter 금지:
 
-- Redis, Realtime Gateway internal endpoint, Service Bus/Event Hubs 직접 호출.
+- Redis, Realtime Gateway internal endpoint, Event Hubs 직접 호출.
 - FCM/APNs provider API 직접 호출.
 - JWT signing secret, provider secret, OAuth secret 저장.
 - DB password, Key Vault secret value, raw bearer token을 log/crash report에 남기기.
@@ -370,7 +370,7 @@ AI/Data Worker 책임 아님:
 | Chat source DB | PostgreSQL + Flyway table | PostgreSQL Flexible Server | PostgreSQL Flexible Server | 서버/네트워크만 | schema는 Flyway |
 | In-process SSE | Spring memory | Realtime Gateway fan-out | Container Apps/AKS service | 예 | Spring module vs separate service |
 | Multi-instance fan-out | 없음 | Redis pub/sub or stream | Azure Cache for Redis | 예 | pub/sub vs stream |
-| Async side effect | Spring outbox scheduled publisher | Queue/worker fan-out | Azure Service Bus | 예 | realtime과 queue 역할 분리 |
+| Async side effect | Spring outbox scheduled publisher | Event stream/worker fan-out | Azure Event Hubs | 예 | realtime과 event fan-out 역할 분리 |
 | Push delivery | notification outbox only | Notification Worker + FCM/APNs | Key Vault, Managed Identity | 예 | push slice 결정 |
 | Observability | app log/test 중심 | trace/metric/log | Application Insights, Monitor, Log Analytics | 예 | metric naming |
 | Media attachment | media upload + payload metadata | Blob/Storage lifecycle | Azure Blob Storage | 예 | attachment table 여부 |
@@ -475,7 +475,7 @@ Realtime / ChatActivity 자체에는 domain-specific secret이 없다. 현재 �
 
 ## Non-goals
 
-- Flutter 앱이 FastAPI Worker, Realtime Gateway internal endpoint, Redis, Service Bus를 직접 호출하지 않는다.
+- Flutter 앱이 FastAPI Worker, Realtime Gateway internal endpoint, Redis, Event Hubs를 직접 호출하지 않는다.
 - Realtime Gateway가 Spring Boot Main API의 domain transaction을 대신하지 않는다.
 - Redis를 메시지 source of truth로 사용하지 않는다.
 - secret, API key, token, DB password 값을 문서나 로그에 남기지 않는다.

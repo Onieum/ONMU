@@ -1,0 +1,10 @@
+tenant_id     = "00000000-0000-0000-0000-000000000000"
+location      = "koreacentral"
+region_code   = "krc"
+name_suffix   = "001"
+owner         = "onmu-team"
+cost_center   = "onmu-prod"
+spring_api_image = "ghcr.io/onieum/onmu-api-spring:prod-placeholder"
+
+# 실제 password 값은 git에 기록하지 않는다.
+# 로컬 plan 또는 protected CI에서 TF_VAR_postgres_administrator_password로만 전달한다.

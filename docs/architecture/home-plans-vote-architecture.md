@@ -15,7 +15,7 @@
 | 참여자는 모임 멤버와 분리한다 | 모임에 속한 모든 사람이 항상 모든 약속의 참여자는 아니다. |
 | 투표는 Decision 원장이다 | 장소, 시간, 일반 선택을 같은 `Vote` 계약으로 다루고, 실제 선택지와 응답은 정규화된 테이블로 관리한다. |
 | 화면 read model과 원장을 구분한다 | Flutter 카드 표시용 필드와 DB source of truth를 혼동하지 않는다. |
-| Flutter는 Spring Boot Main API만 직접 호출한다 | Flutter 앱은 PostgreSQL, Redis, Service Bus, Worker, Key Vault를 직접 호출하지 않는다. |
+| Flutter는 Spring Boot Main API만 직접 호출한다 | Flutter 앱은 PostgreSQL, Redis, Event Hubs, Worker, Key Vault를 직접 호출하지 않는다. |
 
 ## Current Implementation
 
@@ -92,7 +92,7 @@ Flutter는 Riverpod ViewModel과 Repository 경계를 사용한다.
 - 투표 종료, 최종 결정, 선택된 장소/시간을 약속에 반영하는 decision log
 - 약속 시간 후보와 가능 시간 응답
 - 참석자별 실시간 presence, 출발/도착 위치 공유
-- Notification Worker, Realtime Gateway, Service Bus consumer
+- Notification Worker, Realtime Gateway, Event Hubs consumer
 - 운영 Redis cache/projection
 
 ## Target Architecture
@@ -105,7 +105,7 @@ flowchart LR
     api["Spring Boot Main API"]
     db["PostgreSQL"]
     outbox["outbox_events"]
-    bus["Azure Service Bus"]
+    bus["Azure Event Hubs"]
     realtime["Realtime Gateway"]
     notification["Notification Worker"]
     worker["FastAPI AI/Data Worker"]
@@ -171,7 +171,7 @@ flowchart LR
 | 보강 | 투표 상세의 option별 count/progress/voter preview 연결 | Spring/Flutter |
 | 보강 | 투표 종료와 최종 결정 로그 추가 | Spring/Flyway |
 | 보강 | `plan.participant_added`, `vote.created`, `vote.closed`를 ChatActivity 카드와 notification row로 연결 | Spring/Notification |
-| 추가 | Service Bus publisher/consumer로 outbox 외부 전달 | Terraform/Spring |
+| 추가 | Event Hubs publisher/consumer로 outbox 외부 전달 | Terraform/Spring |
 | 추가 | 홈/약속/투표 지표와 smoke test | Observability |
 | 보류 | Redis projection cache, Realtime Gateway fan-out | Runtime/Terraform |
 
@@ -298,7 +298,7 @@ flowchart LR
 | `vote.closed` | 현재 미구현 | 결정 카드, 선택 결과 반영, 알림 |
 | `decision.recorded` | 현재 미구현 | 장소/시간 확정 이력과 감사 로그 |
 
-Outbox table은 Spring transaction 안에서만 기록한다. Terraform은 outbox table DDL을 만들지 않고, Azure Service Bus, Managed Identity, runtime env, monitor를 준비한다.
+Outbox table은 Spring transaction 안에서만 기록한다. Terraform은 outbox table DDL을 만들지 않고, Azure Event Hubs, Managed Identity, runtime env, monitor를 준비한다.
 
 ## Data Model and Source of Truth
 
@@ -321,7 +321,7 @@ Flutter는 View와 ViewModel을 분리한다. View는 route, snackbar, dialog, �
 - `HomeViewModel`은 서버 `HomeSummary`를 우선 소비하고, 임시 fallback만 group/plans 조합으로 둔다.
 - `PlanDetailViewModel`은 참여자 추가, 내 상태 변경, 약속 수정 후 관련 provider를 invalidate한다.
 - `VoteDetailViewModel`은 투표 응답 API가 생기면 vote option 선택, 응답 저장, 응답 결과 refresh를 담당한다.
-- Flutter에서 Service Bus, Worker, Redis, Key Vault를 직접 호출하지 않는다.
+- Flutter에서 Event Hubs, Worker, Redis, Key Vault를 직접 호출하지 않는다.
 
 ## Spring / Worker Boundary
 
@@ -346,7 +346,7 @@ FastAPI Worker는 다음으로 제한한다.
 | 리소스 후보 | 필요한 이유 | 소유 경계 |
 | --- | --- | --- |
 | Azure Database for PostgreSQL Flexible Server + PostGIS | groups/plans/votes 원장 저장 | Terraform은 서버/네트워크, Flyway는 schema |
-| Azure Service Bus | `outbox_events`를 notification/worker/realtime로 전달 | Terraform |
+| Azure Event Hubs | `outbox_events`를 notification/worker/realtime로 전달 | Terraform |
 | Azure Cache for Redis | 홈/약속 projection cache, realtime fan-out 후보 | Terraform, 애플리케이션 cache 정책은 Spring |
 | Azure Blob Storage | 약속/모임 커버 이미지, 기록 미디어 | Terraform, object key 정책은 Spring |
 | Azure Key Vault | DB/JWT/OAuth/provider secret reference | Terraform/Managed Identity |
@@ -403,7 +403,7 @@ Smoke 후보:
 | 투표 응답 API 부재 | 투표 생성 후 실제 참여 UX가 완성되지 않음 | `responses/me` 계약 우선 구현 |
 | 투표 상세 voter projection 부재 | 후보별 결과가 빈 상태로 보일 수 있음 | option별 count/voter preview 계약 추가 |
 | vote option payload fallback 장기화 | 집계와 후보 연결이 불안정해짐 | `vote_options` row 우선, payload는 legacy fallback |
-| outbox external publisher 부재 | ChatActivity/notification side effect가 runtime 밖으로 나가지 않음 | Service Bus publisher slice 추가 |
+| outbox external publisher 부재 | ChatActivity/notification side effect가 runtime 밖으로 나가지 않음 | Event Hubs publisher slice 추가 |
 | 권한 모델 단순화 | active member 누구나 참여자 추가 가능 | owner/admin/member 권한 정책 결정 |
 
 ## Decision Log
@@ -424,7 +424,7 @@ Smoke 후보:
 | 4 | Flutter 홈을 `GET /home/summary` 소비 구조로 전환 |
 | 5 | 투표 상세 count/voter projection과 응답 저장 UX 구현 |
 | 6 | 투표 종료와 decision/action card 구현 |
-| 7 | outbox -> Service Bus -> Notification/Realtime/Worker 연결 |
+| 7 | outbox -> Event Hubs -> Notification/Realtime/Worker 연결 |
 | 8 | 홈/약속/투표 Application Insights metric과 smoke 대시보드 구성 |
 
 ## Non-goals
