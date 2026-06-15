@@ -15,7 +15,7 @@
 | 계층 | 설명 | 현재 상태 |
 | --- | --- | --- |
 | Frontend-first Prototype | Flutter route, mock data, 화면 흐름, 디자인 시스템 | 구현 중 |
-| Integration Architecture | API contract, repository, full social OAuth, realtime event, notification, file upload | 다음 설계/구현 대상 |
+| Integration Architecture | API contract, repository, full social OAuth, Spring SSE realtime vertical slice, notification, file upload | 구현 중 |
 | Target Operation Architecture | Azure edge, API Management, Spring Boot Main API, FastAPI Worker, DB, Redis, Blob, Event/Queue, Monitor | 목표 운영 구조 |
 
 Flutter는 확정 스택이다. 백엔드는 `Spring Boot Main API + FastAPI Worker` 구조로 결정한다. Spring Boot는 모바일 앱이 직접 호출하는 공식 API, 인증/인가, 권한, 트랜잭션을 맡고, FastAPI Worker는 AI/추천/분석성 비동기 작업을 맡는다.
@@ -50,7 +50,9 @@ flowchart LR
 
     subgraph app["애플리케이션 서비스 경계"]
         ingress --> mainApi["Spring Boot Main API"]
-        ingress --> realtime["Realtime Gateway"]
+        mainApi --> currentSse["현재 Spring SSE\nin-process fan-out"]
+        ingress --> realtime["목표 Realtime Gateway"]
+        mainApi --> notificationApi["Notification\nin-app/dev-safe delivery"]
         mainApi --> outbox["Outbox Events"]
         outbox --> bus["Azure Service Bus 또는 Event Hubs"]
         bus --> worker["FastAPI AI/Data Worker"]
@@ -62,6 +64,7 @@ flowchart LR
         mainApi --> redis["Azure Cache for Redis"]
         mainApi --> blob["Azure Blob Storage"]
         mainApi --> devices["Device Registry / user_devices"]
+        currentSse --> postgres
         realtime --> redis
         worker --> workerSchema["worker_ai schema"]
         worker --> search["Azure AI Search 또는 PostgreSQL 검색"]
@@ -93,6 +96,7 @@ flowchart LR
         keyvault --> notificationWorker
         monitor["Azure Monitor + Application Insights"] --> mainApi
         monitor --> worker
+        monitor --> currentSse
         monitor --> realtime
         monitor --> notificationWorker
     end
@@ -104,8 +108,10 @@ flowchart LR
 | --- | --- |
 | 클라이언트 경계 | 사용자가 직접 만나는 영역이다. 핵심 제품은 Flutter 앱이고, 웹은 브랜드/프로젝트 소개만 담당한다. |
 | Azure 보안/진입 경계 | 외부 요청이 처음 들어오는 곳이다. WAF, API 정책, 인증 검증, rate limit을 이 계층에서 설명한다. |
-| 애플리케이션 서비스 경계 | Spring Boot Main API는 트랜잭션과 도메인 계약, FastAPI Worker는 추천/분석/AI 작업, Realtime Gateway는 실시간 상태를 맡는다. |
+| 애플리케이션 서비스 경계 | Spring Boot Main API는 트랜잭션과 도메인 계약을 맡고, 현재 채팅 실시간 slice는 Spring SSE in-process fan-out으로 검증한다. FastAPI Worker는 추천/분석/AI 작업, Realtime Gateway는 운영 목표의 실시간 fan-out 경계를 맡는다. |
 | 외부 API 경계 | 네이버 지도/장소, 공유 채널, 외부 공지 정보는 내부 데이터가 아니므로 호출, 캐시, 장애 대응 정책을 따로 둔다. |
+
+현재 채팅의 source of truth는 `chat_activity_events`이며, SSE는 단일 Spring runtime 안의 delivery layer다. 운영 단계에서 Realtime Gateway를 분리하더라도 Redis나 Gateway가 메시지 원장을 대신하지 않는다. 채팅 메시지 작성은 `notification.requested` outbox와 in-app notification row를 만들 수 있지만, 실제 FCM/APNs provider push는 별도 보안/인프라 검증 뒤 연결한다.
 
 ## 4. 제품 데이터 흐름
 
@@ -349,6 +355,59 @@ Notification / Push / Devices 영역에서는 `notifications`를 사용자별 in
 | Dependabot | 의존성 관리 | GitHub Actions, npm, Flutter pub, Gradle/Maven 업데이트 | public 저장소에서 보안 업데이트를 놓치지 않는다. |
 
 개발 순서는 `Docker Compose로 로컬 통합 -> Windows 개발 서버로 팀 테스트 -> Container Apps staging -> AKS 목표 구조`가 가장 현실적이다.
+
+### 7.9.1 Terraform 전환 Agent Notes
+
+이 섹션은 나중에 AI Agent가 Windows dev backend와 Docker Compose 기준을 Azure/Terraform staging으로 옮길 때 먼저 읽는 작업 기준이다. 실제 Azure 리소스 생성, 비용 발생, DNS 변경, secret 쓰기, `terraform apply`는 사람 승인 후에만 실행한다.
+
+Terraform 전환의 목표는 "현재 dev에서 검증된 Spring Main API 계약을 Azure staging에 반복 가능하게 배치"하는 것이다. 앱 기능이나 DB schema를 Terraform 전환 중에 선제 변경하지 않는다.
+
+| 구분 | 현재 기준 | Terraform 전환 기준 |
+| --- | --- | --- |
+| Main API | `services/api-spring` Spring Boot, Windows dev backend-host | Azure Container Apps staging 또는 AKS service로 배포 |
+| Worker | `services/workers/ai-data-worker`, queue/outbox 소비 목표 | Container Apps job/service 또는 AKS deployment로 분리 |
+| DB | Docker PostgreSQL/Flyway, dev PostgreSQL | Azure Database for PostgreSQL Flexible Server + Flyway migration |
+| Object storage | MinIO, `/api/v1/media/upload` contract | Azure Blob Storage. Flutter는 API 응답 URL contract만 본다 |
+| Cache/realtime 보조 | Redis dev dependency, 현재 채팅은 Spring SSE in-process | Azure Cache for Redis. 운영 Realtime Gateway를 붙일 때만 fan-out 계층에 연결 |
+| Event/queue | `outbox_events`, 외부 broker 없음 또는 dev-safe 처리 | Azure Service Bus를 1차 선택. Kafka 호환성이 필요하면 Event Hubs 검토 |
+| Notification/push | `notifications` inbox, `user_devices` push token readiness, `provider=dev` skipped delivery | Key Vault provider secret reference, Managed Identity, Service Bus 기반 delivery fan-out, Application Insights push metric |
+| Secrets | 로컬 env, GitHub Secrets, Key Vault secret name 문서화 | Azure Key Vault + Managed Identity. Terraform에는 secret 값이 아니라 secret name/reference만 둔다 |
+| Observability | access log, GitHub Actions, Windows logs | Azure Monitor/Application Insights/OpenTelemetry |
+| Edge | Cloudflare Tunnel 기반 dev endpoint | Azure Front Door 또는 Application Gateway WAF + API Management + Container ingress |
+
+Terraform 작업 단위는 아래 순서로 쪼갠다.
+
+1. `infra/terraform` skeleton만 만든다: provider, backend, environment folder, naming locals, common tags.
+2. 네트워크/리소스 그룹/Log Analytics/Key Vault를 먼저 만든다. secret 값은 넣지 않고 secret 이름과 access policy/RBAC만 정의한다.
+3. PostgreSQL Flexible Server, Redis, Storage, Container Registry를 만든다. DB schema 변경은 Flyway가 맡고 Terraform은 schema DDL을 만들지 않는다.
+4. Spring Main API container 배포를 만든다. `/healthz`, `/readyz`, `/api/v1/**` 인증/CORS env를 먼저 검증한다.
+5. FastAPI Worker와 Service Bus 연결을 붙인다. Flutter 앱은 Worker를 직접 호출하지 않는다.
+6. Notification provider delivery는 dev-safe `provider=dev` 결과와 실제 FCM/APNs 발송을 분리해 붙인다. Provider secret 값은 Key Vault에만 두고, Terraform은 secret name/reference와 Managed Identity 권한만 관리한다.
+7. Realtime Gateway는 현재 Spring SSE slice가 안정된 뒤 별도 module로 추가한다. Redis나 Gateway를 `chat_activity_events`의 source of truth로 만들지 않는다.
+8. API Management/WAF/DNS를 붙인다. `dev-api.onmu.cloud`, `int-api.onmu.cloud`, future `api.onmu.cloud`의 역할을 문서에 함께 갱신한다.
+9. GitHub Actions는 `terraform fmt`, `terraform validate`, `terraform plan`을 PR check로 먼저 붙이고, `apply`는 protected environment approval 뒤에만 허용한다.
+
+Agent가 Terraform 코드를 작성하기 전에 확인할 입력은 다음이다.
+
+| 입력 | 확인 위치 | 주의 |
+| --- | --- | --- |
+| API runtime env | `services/api-spring/README.md`, `docs/operations/spring-runtime-transition-workflow.md` | secret 값 출력 금지. env var 이름과 Key Vault secret name만 사용 |
+| API contract | `docs/architecture/api-contract-map.md` | Flutter가 직접 호출하는 표면은 Spring `/api/v1`만 |
+| Chat/realtime boundary | `docs/architecture/chat-activity-architecture.md` | 현재 Spring SSE와 목표 Realtime Gateway를 분리 |
+| Notification/push boundary | `docs/architecture/api-contract-map.md`, `docs/data_dict/ONMU 데이터 사전.md` | in-app inbox, dev-safe delivery, 실제 FCM/APNs provider delivery를 분리 |
+| Data ownership | `docs/data_dict/ONMU 데이터 사전.md` | Spring Flyway는 core schema, FastAPI Alembic은 `worker_ai` schema |
+| Windows dev baseline | `docs/operations/windows-backend-server.md`, `docs/operations/spring-runtime-transition-workflow.md` | Azure 전환 전 dev endpoint와 runtime이 Spring인지 확인 |
+| AI 도구 권한 | `docs/development/team-ai-tooling.md` | Terraform `apply`, 리소스 삭제, DNS 변경은 사람 승인 후 실행 |
+
+Terraform 전환 중 금지한다.
+
+- Terraform state, `.tfvars`, plan output에 secret 값을 남기지 않는다.
+- Flutter bundle, dart-define, 문서, PR 본문에 JWT signing secret, OAuth client secret, DB password를 넣지 않는다.
+- Terraform으로 core DB table을 직접 만들거나 수정하지 않는다. schema는 Spring Flyway와 Worker Alembic이 소유한다.
+- dev/main에 직접 push하지 않는다.
+- 비용 발생 리소스, public endpoint, DNS, WAF/APIM 정책을 승인 없이 apply하지 않는다.
+- 현재 Spring SSE slice를 Realtime Gateway 구현으로 착각해 Redis/Gateway에 메시지 원장을 만들지 않는다.
+- dev-safe `skipped_dev` notification delivery를 실제 FCM/APNs 발송 성공으로 해석하지 않는다.
 
 ## 8. Frontend-first Prototype 반영
 

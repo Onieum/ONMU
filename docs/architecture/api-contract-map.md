@@ -32,7 +32,7 @@
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
 
-Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 dev-safe readiness 단계일 수 있으며, 실제 FCM/APNs provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
+Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
 ## Friends
 
@@ -60,7 +60,7 @@ Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. �
 | 알림 설정 | `GET/PUT /api/v1/notification-preferences` | `NotificationPreferences` |
 | 최근 기록 | `GET /api/v1/users/me/records/recent` | `RecordCard` |
 
-알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다. Push token 등록/비활성화는 `user_devices`에 연결되지만, 실제 provider delivery는 feature flag와 secret 검증 전까지 켜지 않는다.
+알림은 현재 사용자 inbox만 반환하며, 단건/전체 읽음 처리는 `notifications.read_at`과 `status=read`를 갱신한다. 다른 사용자의 알림 id를 읽음 처리하려고 하면 `404 notification_not_found`로 응답한다. 알림 설정은 `(notificationType, channel)` 단위로 저장하며 기본 타입은 `chat_message`, `plan_reminder`, `vote_created`, `settlement_requested`, `record_created`, 기본 채널은 `in_app`, `push`다. `notification.requested` outbox 이벤트는 dev-safe push abstraction으로 소비하고, 실제 FCM/APNs push delivery는 별도 보안/인프라 slice로 분리한다. Provider delivery로 이어질 `notification.requested` payload는 `notificationId`를 포함해야 한다. `notificationId`가 없거나 aggregate가 `notification`이 아니면 현재 delivery service는 dev-safe skip으로 처리할 수 있다. Push token 등록/비활성화는 `user_devices`에 연결되지만, 실제 provider delivery는 feature flag와 secret 검증 전까지 켜지 않는다.
 
 Provider delivery 대상 `notification.requested` payload는 실제 `notifications.id` UUID인 `notificationId`, `notificationType`, `channels`를 포함해야 한다. `groupId`, `planId`, `voteId`, `settlementId`, `recordId` 같은 public id는 화면 이동용 보조 payload로 둔다. `channel=activity`처럼 ChatActivity 공유나 inbox 생성만 의미하는 이벤트는 실제 push provider delivery 대상과 분리한다. Flutter 앱은 Service Bus/Event Hubs, Notification Worker internal endpoint, FCM/APNs provider API, Key Vault를 직접 호출하지 않는다.
 
@@ -169,7 +169,7 @@ Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `sett
 
 ## Chat
 
-채팅의 제품/운영 목표는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md)를 따른다. 현재 `GET/POST /chat/messages`와 `PUT /chat/read-state` 계약은 REST 기반의 Phase 2 slice이며, production 목표는 카카오톡 수준의 기본 메시징 UX 위에 ONMU의 약속, 투표, 장소 후보, 정산, 기록 action card를 얹는 것이다.
+채팅의 제품/운영 목표는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md)를 따른다. 현재 계약은 `GET/POST /chat/messages`, `PUT /chat/read-state`, `GET /chat/events`, image attachment metadata를 포함하는 Spring in-process vertical slice다. production 목표는 카카오톡 수준의 기본 메시징 UX 위에 ONMU의 약속, 투표, 장소 후보, 정산, 기록 action card를 얹는 것이다.
 
 | 화면 | API |
 | --- | --- |
@@ -182,9 +182,9 @@ Spring Boot Main API는 `chat_activity_events`를 모임별 메시지/activity s
 
 `GET`은 선택 query로 `beforeCursor`, `limit`을 받는다. 응답은 `{ "messages": [...], "nextCursor": "...", "hasMore": true, "unreadCount": 0 }` 형태이며, 각 메시지는 `id`, `cursor`, `senderUserId`, `senderName`, `message`, `attachments`, `messageType`, `cardType`, `createdAt`, `timeLabel`, `isMine`, `sendStatus`를 가능한 범위에서 포함한다. `POST` 요청 body는 `{ "message": "...", "attachments": [...] }`이다. 첨부가 없을 때 빈 메시지는 `400 blank_chat_message`로 거부하고, 이미지 첨부가 있으면 `message`는 빈 문자열을 허용한다. 이번 slice의 첨부 `type`은 `image`만 허용하며 최대 4개까지 받는다. `PUT /chat/read-state` 요청 body는 `{ "lastReadMessageId": "..." }`이고, 생략하면 최신 메시지를 기준으로 읽음 상태를 갱신한다. 모임 멤버가 아닌 사용자는 `403 group_member_required`로 거부한다.
 
-`GET /chat/events`는 SCRUM-50의 첫 실시간 fan-out slice다. `text/event-stream`으로 `data: { ...message... }` SSE 이벤트를 보내며, 선택 query `afterCursor`는 기존 메시지 `cursor`와 같은 ISO timestamp 문자열만 사용한다. 현재 구현은 Spring Boot 단일 runtime 안의 in-process room broadcaster이며, 메시지 source of truth는 계속 `chat_activity_events`다. 멤버가 아닌 사용자는 stream 구독도 `403 group_member_required`로 거부한다.
+`GET /chat/events`는 SCRUM-50의 첫 실시간 fan-out slice다. `text/event-stream`으로 `chat.message` SSE 이벤트를 보내며, payload는 `data: { ...message... }` 형태다. 선택 query `afterCursor`는 기존 메시지 `cursor`와 같은 ISO timestamp 문자열만 사용하고, 구독 시 누락 메시지를 replay할 수 있다. 현재 구현은 Spring Boot 단일 runtime 안의 in-process room broadcaster이며, 메시지 source of truth는 계속 `chat_activity_events`다. `isMine`은 발신자 응답을 그대로 공유하지 않고 subscriber별 viewer 기준으로 다시 계산한다. 멤버가 아닌 사용자는 stream 구독도 `403 group_member_required`로 거부한다.
 
-Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 계약의 현재 범위가 아니다. 사진 첨부는 `POST /api/v1/media/upload`로 먼저 업로드한 뒤 `POST /chat/messages`의 image attachment metadata로 연결한다. 다만 production 아키텍처에서는 outbox event, Realtime Gateway, Notification Worker로 확장한다.
+Redis/별도 Realtime Gateway, FCM/APNs push, 파일/위치 첨부, 멤버별 상세 읽음 표시 UI는 이 계약의 현재 범위가 아니다. 사진 첨부는 `POST /api/v1/media/upload`로 먼저 업로드한 뒤 `POST /chat/messages`의 image attachment metadata로 연결한다. 채팅 메시지 작성은 작성자를 제외한 active/joined 멤버와 owner에게 `chat_message` in-app notification row와 `notification.requested` outbox event를 만들 수 있다. 다만 실제 provider push 발송은 production 아키텍처에서 Realtime Gateway, Notification Worker, FCM/APNs delivery 추적으로 확장한다.
 
 
 ## Records / Memories
@@ -254,4 +254,4 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `notification.requested` | 알림 발송 요청 |
 | `media.thumbnail.requested` | 미디어 후처리 요청 |
 
-Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. 실제 provider delivery로 이어지는 `notification.requested`는 `notificationId`로 `notifications` row에 연결되어야 한다. `user_devices`는 push token 등록 readiness를 제공하지만 provider delivery secret과 production 발송은 아직 연결하지 않는다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
+Spring Boot는 domain transaction과 함께 `outbox_events`에 이벤트를 기록한다. `ai.summary.requested`는 `services/workers/ai-data-worker`가 소비한다. `notification.requested`는 Spring runtime의 dev-safe notification delivery abstraction이 소비하며, 실제 FCM/APNs 발송 없이 `notification_deliveries`에 `provider=dev`, `status=skipped_dev` row를 남긴다. 실제 provider delivery 대상 이벤트는 `payload.notificationId` 또는 `aggregateType=notification` + `aggregateId=<notifications.id>`로 원본 notification을 찾을 수 있어야 한다. `user_devices`는 push token 등록 readiness를 제공하지만 provider delivery secret과 production 발송은 아직 연결하지 않는다. 아직 구현하지 않은 media worker 이벤트는 `no_consumer` 또는 `skipped_dev` 상태로 남길 수 있다.
