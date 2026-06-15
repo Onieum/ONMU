@@ -173,14 +173,14 @@
 | --- | --- | --- | --- | --- |
 | `id` | 사용자 코드 ID | UUID | 코드 row 식별자 | PK |
 | `user_id` | 사용자 ID | UUID | 코드를 소유한 사용자 | FK, Not Null |
-| `code` | 사용자 코드 | Varchar(20) | 사람이 입력하기 쉬운 랜덤 코드 | Unique, Not Null |
-| `code_format` | 코드 형식 | Varchar(20) | `ALNUM_8`, `ALNUM_10` 등 | Not Null |
+| `code` | 사용자 코드 | Varchar(20) | 사람이 입력하기 쉬운 숫자 10자리 랜덤 코드. 예: `4839201746` | Unique, Not Null |
+| `code_format` | 코드 형식 | Varchar(20) | `NUMERIC_10` | Not Null |
 | `status` | 코드 상태 | Varchar(20) | `active`, `disabled` | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | 코드 생성 시각 | Not Null |
 | `disabled_at` | 비활성 시각 | Timestamptz | 악용/탈퇴 등으로 비활성화한 시각 | Nullable |
 
 > UNIQUE: `code`
-> 회의 결정: 기본 코드는 대문자/숫자 8-10자리, 혼동 문자인 `O`, `0`, `I`, `1`은 제외한다. 사용자 self-service 재발급은 제공하지 않고, 악용/탈퇴/운영 조치가 필요한 경우에만 비활성화한다. 코드 검색은 `rate_limit_counters.bucket_key=friend_code_lookup`으로 분당 5회, 일 30회 수준에서 시작한다.
+> 회의 결정: 기본 코드는 Steam friend code처럼 숫자만으로 된 고정 10자리 `NUMERIC_10` 형식으로 자동 생성한다. 사용자 self-service 재발급은 제공하지 않고, 악용/탈퇴/운영 조치가 필요한 경우에만 비활성화한다. 코드 검색은 `rate_limit_counters.bucket_key=friend_code_lookup`으로 분당 5회, 일 30회 수준에서 시작한다.
 
 ## `user_devices` (구현됨, 확장 필요)
 
@@ -1699,7 +1699,7 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 
 | 주제 | 결정 |
 | --- | --- |
-| 사용자 코드 | 8-10자리 랜덤 코드로 시작하고 self-service 재발급은 제공하지 않는다. 검색 rate limit은 분당 5회, 일 30회 수준으로 시작한다. |
+| 사용자 코드 | 숫자 10자리 `NUMERIC_10` 랜덤 코드로 시작하고 self-service 재발급은 제공하지 않는다. 검색 rate limit은 분당 5회, 일 30회 수준으로 시작한다. |
 | 친구 관계 | 양방향 row 대신 canonical pair `friendships`를 사용하고, 사용자별 메모/숨김은 `friend_settings`로 분리한다. |
 | 그룹 멤버 | 모임 멤버십은 친구 관계와 독립적으로 허용한다. 초기 초대 생성은 친구 기반으로 제한하고, 링크/카카오 초대는 미래 확장으로 둔다. |
 | 기록 공개 범위 | core visibility는 `private`, `participants`, `group`만 둔다. 초기 기본값은 `group`으로 두고, 약속 참여자 제한이 필요한 화면에서 `participants`를 사용한다. |
