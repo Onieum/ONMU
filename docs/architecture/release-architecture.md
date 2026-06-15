@@ -6,6 +6,8 @@ ONMU는 처음부터 실제 서비스 릴리스를 전제로 설계합니다. �
 
 발표용 다이어그램과 기술 스택 기준은 [현재 아키텍처 다이어그램과 기술 스택 결정안](./current-architecture-diagram.md)을 기준으로 함께 관리합니다. Flutter 구조는 [Flutter 프론트 아키텍처](./frontend-architecture.md), API 계약은 [API Contract Map](./api-contract-map.md), Auth/User/Profile 경계는 [ONMU Auth/User/Profile 아키텍처](./auth-user-profile-architecture.md), 홈/약속/투표 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md), 채팅/ChatActivity 목표 구조는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md), Place/Search/Route/Map 경계는 [ONMU Place / Search / Route / Map 아키텍처](./place-search-route-map-architecture.md), 백엔드 확정안은 [백엔드 결정 원본과 기술스택](./backend-stack-options.md)을 함께 봅니다.
 
+Azure/Terraform 전환을 준비할 때는 [Current-to-target 아키텍처 인덱스](./current-to-target-index.md)에서 도메인별 목표 구조를 먼저 확인하고, 운영 절차는 [Azure Terraform 전환 운영 가이드](../operations/azure-terraform-migration.md), secret 경계는 [Azure secret 인벤토리](../operations/azure-secret-inventory.md), 배포 검증은 [Azure smoke checklist](../operations/azure-smoke-checklist.md)를 기준으로 봅니다.
+
 ## 제품 표면
 
 | 표면 | 역할 |
