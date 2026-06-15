@@ -17,19 +17,26 @@ class VoteDetailPage extends ConsumerWidget {
     required this.groupId,
     required this.voteId,
     super.key,
+    this.planId,
   });
 
   final String groupId;
   final String voteId;
+  final String? planId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(
-      voteDetailViewModelProvider((groupId: groupId, voteId: voteId)),
+      voteDetailViewModelProvider((
+        groupId: groupId,
+        voteId: voteId,
+        planId: planId,
+      )),
     );
 
     return state.when(
-      data: (state) => _VoteDetailContent(groupId: groupId, state: state),
+      data: (state) =>
+          _VoteDetailContent(groupId: groupId, planId: planId, state: state),
       loading: () => const OnmuScaffold(
         title: '투표 보기',
         children: [Center(child: CircularProgressIndicator())],
@@ -48,9 +55,14 @@ class VoteDetailPage extends ConsumerWidget {
 }
 
 class _VoteDetailContent extends StatelessWidget {
-  const _VoteDetailContent({required this.groupId, required this.state});
+  const _VoteDetailContent({
+    required this.groupId,
+    required this.state,
+    this.planId,
+  });
 
   final String groupId;
+  final String? planId;
   final VoteDetailState state;
 
   @override
@@ -58,7 +70,11 @@ class _VoteDetailContent extends StatelessWidget {
     return OnmuScaffold(
       title: '투표 보기',
       showBackButton: true,
-      onBack: () => context.popOrGo(RoutePaths.groupChat(groupId)),
+      onBack: () => context.popOrGo(
+        planId == null
+            ? RoutePaths.groupChat(groupId)
+            : RoutePaths.planVotes(groupId, planId!),
+      ),
       children: [
         OnmuCard(
           backgroundColor: AppColors.bgDefault,
@@ -71,7 +87,7 @@ class _VoteDetailContent extends StatelessWidget {
                   OnmuChip(label: state.vote.statusLabel, selected: true),
                   const Spacer(),
                   Text(
-                    '3명 참여',
+                    state.vote.participantCountLabel,
                     style: Theme.of(
                       context,
                     ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),

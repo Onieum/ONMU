@@ -16,6 +16,7 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../group/view_model/group_plan_list_view_model.dart';
+import '../../../group/repository/group_repository.dart';
 import '../../../home/view_model/home_view_model.dart';
 import '../../repository/plan_repository.dart';
 import '../../view_model/plan_detail_view_model.dart';
@@ -39,6 +40,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   late DateTime _startsAt;
   late DateTime _endsAt;
   int? _loadedPlanId;
+  List<PlanMember>? _createSelectedMembers;
 
   @override
   void initState() {
@@ -78,6 +80,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     final name = displayName == null || displayName.isEmpty ? '나' : displayName;
     return [
       PlanMember(
+        userId: currentUser?.id ?? '',
         name: name,
         message: '기본 참여자',
         badge: '참여 중',
@@ -86,6 +89,35 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         preferenceProfile: preferenceProfile,
       ),
     ];
+  }
+
+  List<PlanMember> _selectedMembersForCreate(
+    AuthUser? currentUser,
+    PreferenceProfile? preferenceProfile,
+  ) {
+    return _createSelectedMembers ??= _defaultSelectedMembers(
+      currentUser,
+      preferenceProfile,
+    );
+  }
+
+  void _addCreateMember(PlanMember member) {
+    final current = _createSelectedMembers ?? const <PlanMember>[];
+    final memberKey = member.userId.trim().isNotEmpty
+        ? member.userId.trim()
+        : member.name.trim();
+    final alreadySelected = current.any((selected) {
+      final selectedKey = selected.userId.trim().isNotEmpty
+          ? selected.userId.trim()
+          : selected.name.trim();
+      return selectedKey == memberKey;
+    });
+    if (alreadySelected) {
+      return;
+    }
+    setState(() {
+      _createSelectedMembers = List.unmodifiable([...current, member]);
+    });
   }
 
   Future<void> _handleDateTimeChanged(
@@ -220,9 +252,12 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   @override
   Widget build(BuildContext context) {
     if (widget.editingPlanId == null) {
-      final selectedMembers = _defaultSelectedMembers(
+      final selectedMembers = _selectedMembersForCreate(
         ref.watch(authUserProvider),
         ref.watch(preferenceProfileProvider),
+      );
+      final groupMembers = ref.watch(
+        _groupPlanMemberOptionsProvider(widget.groupId),
       );
       return _PlanCreateContent(
         groupId: widget.groupId,
@@ -236,6 +271,8 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         locationController: _locationController,
         memoController: _memoController,
         selectedMembers: selectedMembers,
+        candidateMembers: groupMembers,
+        onMemberAdded: (member) async => _addCreateMember(member),
         onSave: _titleController.text.trim().isEmpty
             ? null
             : () async {
@@ -290,6 +327,11 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           locationController: _locationController,
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
+          candidateMembers: ref.watch(
+            _groupPlanMemberOptionsProvider(widget.groupId),
+          ),
+          onMemberAdded: (member) async =>
+              ref.read(provider.notifier).addParticipant(member.userId),
           onSave: _titleController.text.trim().isEmpty
               ? null
               : () async {
@@ -337,6 +379,26 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   }
 }
 
+final _groupPlanMemberOptionsProvider =
+    FutureProvider.family<List<PlanMember>, String>((ref, groupId) async {
+      final members = await ref
+          .watch(groupRepositoryProvider)
+          .fetchMembers(groupId);
+      return members
+          .where((member) => !member.invited && member.userId.trim().isNotEmpty)
+          .map(
+            (member) => PlanMember(
+              userId: member.userId,
+              name: member.name,
+              message: member.note,
+              badge: member.statusLabel,
+              selected: true,
+              profileImageUrl: member.profileImageUrl,
+            ),
+          )
+          .toList(growable: false);
+    });
+
 class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({
     required this.groupId,
@@ -348,6 +410,8 @@ class _PlanCreateContent extends StatelessWidget {
     required this.locationController,
     required this.memoController,
     required this.selectedMembers,
+    required this.candidateMembers,
+    required this.onMemberAdded,
     required this.onSave,
     this.editingPlanId,
   });
@@ -362,6 +426,8 @@ class _PlanCreateContent extends StatelessWidget {
   final TextEditingController locationController;
   final TextEditingController memoController;
   final List<PlanMember> selectedMembers;
+  final AsyncValue<List<PlanMember>> candidateMembers;
+  final Future<void> Function(PlanMember member)? onMemberAdded;
   final Future<void> Function()? onSave;
 
   @override
@@ -389,7 +455,11 @@ class _PlanCreateContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Text('참여 멤버', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
-        _MemberPickerRow(members: selectedMembers),
+        _MemberPickerRow(
+          members: selectedMembers,
+          candidateMembers: candidateMembers,
+          onMemberAdded: onMemberAdded,
+        ),
         const SizedBox(height: AppSpacing.lg),
         KeyedSubtree(
           key: dateTimeSectionKey,
@@ -573,13 +643,102 @@ class _LocationFieldState extends State<_LocationField> {
 }
 
 class _MemberPickerRow extends StatelessWidget {
-  const _MemberPickerRow({required this.members});
+  const _MemberPickerRow({
+    required this.members,
+    required this.candidateMembers,
+    required this.onMemberAdded,
+  });
 
   final List<PlanMember> members;
+  final AsyncValue<List<PlanMember>> candidateMembers;
+  final Future<void> Function(PlanMember member)? onMemberAdded;
 
   @override
   Widget build(BuildContext context) {
-    return PlanMemberAvatarRow(members: members);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: PlanMemberAvatarRow(members: members)),
+        const SizedBox(width: AppSpacing.sm),
+        if (onMemberAdded != null)
+          IconButton.outlined(
+            tooltip: '참여 멤버 추가',
+            onPressed: () => _showMemberAddSheet(context),
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showMemberAddSheet(BuildContext context) async {
+    final candidates = candidateMembers.asData?.value ?? const <PlanMember>[];
+    final selectedKeys = {
+      for (final member in members)
+        if (member.userId.trim().isNotEmpty)
+          member.userId.trim()
+        else
+          member.name.trim(),
+    };
+    final available = candidates
+        .where((member) {
+          final key = member.userId.trim().isNotEmpty
+              ? member.userId.trim()
+              : member.name.trim();
+          return !selectedKeys.contains(key);
+        })
+        .toList(growable: false);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.bgDefault,
+      builder: (context) {
+        if (candidateMembers.isLoading) {
+          return const Padding(
+            padding: EdgeInsets.all(AppSpacing.xl),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (available.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Text(
+              '추가할 수 있는 모임 멤버가 없어요.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          );
+        }
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '참여 멤버 추가',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                for (final member in available)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(member.name),
+                    subtitle: Text(member.badge),
+                    trailing: const Icon(Icons.add_circle_outline),
+                    onTap: () async {
+                      await onMemberAdded?.call(member);
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.of(context).pop();
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

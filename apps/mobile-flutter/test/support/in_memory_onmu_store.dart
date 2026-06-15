@@ -447,8 +447,27 @@ class InMemoryOnmuStore {
         );
   }
 
-  List<VoteSummary> fetchVotes(Object groupId) {
-    return List.unmodifiable(_votesByGroupId[_parseId(groupId)] ?? []);
+  List<VoteSummary> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) {
+    final votes = _votesByGroupId[_parseId(groupId)] ?? [];
+    final normalizedTargetType = targetType?.trim().toUpperCase();
+    final normalizedTargetId = targetId?.toString().trim();
+    return List.unmodifiable(
+      votes.where((vote) {
+        final matchesType =
+            normalizedTargetType == null ||
+            normalizedTargetType.isEmpty ||
+            vote.targetType.toUpperCase() == normalizedTargetType;
+        final matchesId =
+            normalizedTargetId == null ||
+            normalizedTargetId.isEmpty ||
+            vote.targetId == normalizedTargetId;
+        return matchesType && matchesId;
+      }),
+    );
   }
 
   VoteSummary createVote(VoteCreateInput input) {
@@ -458,10 +477,11 @@ class InMemoryOnmuStore {
       id: _nextVoteId++,
       title: input.title.trim(),
       statusLabel: '진행 중',
-      description: '${input.candidateNames.join(', ')} · ${input.modeLabel}',
+      description: '${input.candidateNames.length}개 후보 · ${input.modeLabel}',
       planLabel: plan.title,
       planMeta: '${plan.dateTime} · ${plan.location}',
-      participants: fetchGroup(groupId).members.take(4).toList(growable: false),
+      participants: const [],
+      participantCount: 0,
       options: [
         for (final name in input.candidateNames)
           VoteOptionSummary(label: name, countLabel: '0표', progress: 0),
@@ -1068,6 +1088,7 @@ class InMemoryOnmuStore {
         planLabel: '제주도 여행',
         planMeta: '6.7 - 6.9 · 제주도 일대',
         participants: ['지민', '민수', '하린', '현우'],
+        participantCount: 4,
         options: [
           VoteOptionSummary(label: '카페 오션뷰', countLabel: '3표', progress: 0.78),
           VoteOptionSummary(
@@ -1080,15 +1101,18 @@ class InMemoryOnmuStore {
         closed: false,
         joinedByMe: true,
         actionLabel: '투표 확인하기',
+        targetType: 'PLAN',
+        targetId: '105',
       ),
       VoteSummary(
         id: 502,
         title: '성수 카페 투어 시간 정하기',
         statusLabel: '오늘 마감',
-        description: '오후 2시 / 4시 / 6시 · 5명 참여',
+        description: '오후 2시 / 4시 / 6시 · 3명 참여',
         planLabel: '성수 카페 투어',
         planMeta: '6.5 오후 2:00 · 성수동 일대',
         participants: ['지연', '민수', '하린'],
+        participantCount: 3,
         options: [
           VoteOptionSummary(label: '오후 2시', countLabel: '3표', progress: 0.64),
           VoteOptionSummary(label: '오후 4시', countLabel: '2표', progress: 0.46),
@@ -1096,6 +1120,8 @@ class InMemoryOnmuStore {
         closed: false,
         joinedByMe: false,
         actionLabel: '결과 보기',
+        targetType: 'PLAN',
+        targetId: '106',
       ),
       VoteSummary(
         id: 503,
@@ -1105,6 +1131,7 @@ class InMemoryOnmuStore {
         planLabel: '한강 피크닉',
         planMeta: '5.10 오후 1:00 · 여의도 한강공원',
         participants: ['지민', '하린', '현우'],
+        participantCount: 3,
         options: [
           VoteOptionSummary(label: '김밥', countLabel: '4표', progress: 0.86),
           VoteOptionSummary(label: '샌드위치', countLabel: '3표', progress: 0.68),
@@ -1112,6 +1139,8 @@ class InMemoryOnmuStore {
         closed: true,
         joinedByMe: true,
         actionLabel: '결과 보기',
+        targetType: 'PLAN',
+        targetId: '1',
       ),
       VoteSummary(
         id: 504,
@@ -1121,6 +1150,7 @@ class InMemoryOnmuStore {
         planLabel: '보드게임 모임',
         planMeta: '5.5 오후 6:00 · 홍대 일대',
         participants: ['민서', '지훈'],
+        participantCount: 2,
         options: [
           VoteOptionSummary(
             label: '홍대 보드게임카페',
@@ -1132,6 +1162,8 @@ class InMemoryOnmuStore {
         closed: true,
         joinedByMe: false,
         actionLabel: '결과 보기',
+        targetType: 'PLAN',
+        targetId: '3',
       ),
     ];
     _votesByGroupId[2] = [];
@@ -1142,12 +1174,18 @@ class InMemoryOnmuStore {
       summary: '카페 오션뷰, 흑돼지 맛집 돈사돈, 협재 해수욕장 후보를 비교 중이에요.',
       statusLabel: '수동 투표 · 진행 중',
       actionLabel: '투표 보기',
+      participantCount: 4,
+      targetType: 'PLAN',
+      targetId: '105',
     );
     _voteCardsByVoteId[502] = VoteCard(
       title: '성수 카페 투어 시간 정하기',
       summary: '오후 2시 / 4시 / 6시 중 가능한 시간을 고르고 있어요.',
       statusLabel: '진행 중',
       actionLabel: '투표 보기',
+      participantCount: 3,
+      targetType: 'PLAN',
+      targetId: '106',
     );
     _voteCardsByVoteId[503] = VoteCard(
       title: '한강 피크닉 메뉴',

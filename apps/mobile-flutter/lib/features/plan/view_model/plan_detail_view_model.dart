@@ -106,6 +106,7 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       selectedNames.add(name);
       selectedMembers.add(
         PlanMember(
+          userId: participant.userId,
           name: name,
           message: '',
           badge: '참여 중',
@@ -146,6 +147,21 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
     await repository.leaveAsCurrentUser(
       groupId: scope.groupId,
       planId: scope.planId,
+    );
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<void> addParticipant(String userId) async {
+    final normalizedUserId = userId.trim();
+    if (normalizedUserId.isEmpty) {
+      return;
+    }
+    final repository = ref.read(planRepositoryProvider);
+    await repository.addParticipant(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      userId: normalizedUserId,
     );
     ref.invalidateSelf();
     await future;

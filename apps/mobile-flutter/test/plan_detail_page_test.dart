@@ -201,6 +201,23 @@ class _PlanDetailTestRepository implements PlanRepository {
   }
 
   @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) async {
+    _currentParticipant = PlanParticipantArrival(
+      id: userId,
+      userId: userId,
+      displayName: userId,
+      participantStatus: 'joined',
+      arrivalStatus: PlanArrivalStatus.none,
+      isFallback: false,
+    );
+    return _currentParticipant!;
+  }
+
+  @override
   Future<Plan> createPlan(PlanCreateInput input) {
     throw UnimplementedError();
   }
@@ -319,7 +336,11 @@ class _PlanDetailGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) {
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) {
     throw UnimplementedError();
   }
 

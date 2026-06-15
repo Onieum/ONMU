@@ -7,12 +7,14 @@ class GroupSummary {
     required this.lastMessage,
     required this.unreadCount,
     required this.pinnedPlanTitle,
+    this.memberAvatars = const [],
   });
 
   final int id;
   final String name;
   final String description;
   final List<String> members;
+  final List<GroupPlanMemberAvatar> memberAvatars;
   final String lastMessage;
   final int unreadCount;
   final String pinnedPlanTitle;
@@ -357,16 +359,25 @@ class VoteCard {
     required this.summary,
     required this.statusLabel,
     required this.actionLabel,
+    this.participantCount = 0,
+    this.targetType = '',
+    this.targetId = '',
   });
 
   final String title;
   final String summary;
   final String statusLabel;
   final String actionLabel;
+  final int participantCount;
+  final String targetType;
+  final String targetId;
+
+  String get participantCountLabel => '$participantCount명 참여';
 }
 
 class GroupMemberProfile {
   const GroupMemberProfile({
+    this.userId = '',
     required this.name,
     required this.note,
     required this.statusLabel,
@@ -374,6 +385,7 @@ class GroupMemberProfile {
     this.profileImageUrl = '',
   });
 
+  final String userId;
   final String name;
   final String note;
   final String statusLabel;
