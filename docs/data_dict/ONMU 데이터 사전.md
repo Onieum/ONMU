@@ -25,6 +25,11 @@
 - 모든 외부 연동 결과는 provider 원본과 앱 표시용 read model을 분리한다.
 - 대량 이벤트성 테이블은 파티셔닝 또는 보존 정책을 전제로 설계한다.
 
+관련 세부 아키텍처 문서는 다음을 기준으로 함께 관리한다.
+
+- [User/Profile/Character/Friends 아키텍처](../architecture/user-profile-character-friends-architecture.md): `users`, `user_codes`, `character_profiles`, `friendships`, `friend_settings`의 Current-to-Target 기준
+- [Records/Memories/Media/OOTD 아키텍처](../architecture/records-memories-media-ootd-architecture.md): `records`, `record_media`, `record_tags`, `records.payload`의 Current-to-Target 기준
+
 ## 상태 구분
 
 | 상태 | 의미 |
