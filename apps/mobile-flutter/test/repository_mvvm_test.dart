@@ -365,6 +365,90 @@ void main() {
     expect(updated.sendErrorMessage, isNull);
   });
 
+  test('채팅 ViewModel은 보조 카드 API가 늦어도 메시지를 먼저 반환한다', () async {
+    final pinnedPlanCompleter = Completer<GroupPinnedPlan?>();
+    final plansCompleter = Completer<List<GroupPlanSummary>>();
+    final votesCompleter = Completer<List<VoteSummary>>();
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'message-fast',
+          sender: '민서',
+          message: '먼저 보여야 하는 메시지',
+          timeLabel: '10:00',
+          isMine: false,
+        ),
+      ],
+      fetchPinnedPlanCompleter: pinnedPlanCompleter,
+      fetchPlansCompleter: plansCompleter,
+      fetchVotesCompleter: votesCompleter,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container
+        .read(groupChatViewModelProvider('1').future)
+        .timeout(const Duration(seconds: 1));
+
+    expect(state.messages.single.message, '먼저 보여야 하는 메시지');
+    expect(state.vote, isNull);
+    expect(state.settlement, isNull);
+    expect(repository.watchedAfterCursors, [null]);
+
+    pinnedPlanCompleter.complete(null);
+    plansCompleter.complete(const []);
+    votesCompleter.complete(const []);
+    await pumpEventQueue();
+  });
+
+  test('채팅 ViewModel은 서버 응답 전에도 pending 말풍선을 즉시 추가한다', () async {
+    final sendCompleter = Completer<GroupMessage>();
+    final repository = _FakeGroupRepository(
+      sendMessageCompleter: sendCompleter,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final sendFuture = container.read(provider.notifier).sendMessage('느린 전송');
+    await pumpEventQueue();
+
+    final pending = container.read(provider).requireValue.messages.single;
+    expect(pending.message, '느린 전송');
+    expect(pending.sendStatus, GroupMessageSendStatus.sending);
+    expect(repository.sentMessages, ['느린 전송']);
+
+    sendCompleter.complete(
+      const GroupMessage(
+        id: 'server-message-delayed',
+        sender: '나',
+        message: '느린 전송',
+        timeLabel: '방금',
+        isMine: true,
+      ),
+    );
+    expect(await sendFuture, isTrue);
+
+    final sent = container.read(provider).requireValue.messages.single;
+    expect(sent.id, 'server-message-delayed');
+    expect(sent.sendStatus, GroupMessageSendStatus.sent);
+  });
+
   test('채팅 ViewModel은 사진 업로드 후 첨부 메시지를 전송한다', () async {
     final repository = _FakeGroupRepository();
     final mediaRepository = _FakeMediaRepository(
@@ -750,6 +834,10 @@ class _FakeGroupRepository implements GroupRepository {
     this.throwOnFetchMessages = false,
     this.initialMessages = const [],
     this.initialUnreadCount = 0,
+    this.fetchPinnedPlanCompleter,
+    this.fetchPlansCompleter,
+    this.fetchVotesCompleter,
+    this.sendMessageCompleter,
     Stream<GroupMessage>? realtimeMessages,
   }) : realtimeMessages =
            realtimeMessages ?? Stream<GroupMessage>.multi((_) {}),
@@ -762,6 +850,10 @@ class _FakeGroupRepository implements GroupRepository {
   final bool throwOnFetchMessages;
   final List<GroupMessage> initialMessages;
   final int initialUnreadCount;
+  final Completer<GroupPinnedPlan?>? fetchPinnedPlanCompleter;
+  final Completer<List<GroupPlanSummary>>? fetchPlansCompleter;
+  final Completer<List<VoteSummary>>? fetchVotesCompleter;
+  final Completer<GroupMessage>? sendMessageCompleter;
   final Stream<GroupMessage> realtimeMessages;
   final sentMessages = <String>[];
   final sentAttachments = <List<GroupMessageAttachment>>[];
@@ -807,7 +899,13 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupSummary>> fetchGroups() async => [_group];
 
   @override
-  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    final completer = fetchPlansCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
+    return [];
+  }
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
@@ -854,6 +952,10 @@ class _FakeGroupRepository implements GroupRepository {
       }
       throw StateError('send failed');
     }
+    final completer = sendMessageCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
     return sentMessage ??
         GroupMessage(
           id: 'server-message-${sentMessages.length}',
@@ -881,7 +983,13 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
+    final completer = fetchPinnedPlanCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
+    return null;
+  }
 
   @override
   Future<GroupMemoryRecord> fetchMemory({
@@ -892,7 +1000,13 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async {
+    final completer = fetchVotesCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
+    return [];
+  }
 
   @override
   Future<VoteSummary> createVote(VoteCreateInput input) {
@@ -1063,8 +1177,8 @@ class _TodayPlansGroupRepository extends _EmptyGroupRepository {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final alreadyEnded = today.add(const Duration(hours: 1));
-    final inProgress = now.subtract(const Duration(minutes: 10));
-    final laterToday = today.add(const Duration(hours: 23, minutes: 59));
+    final remainingToday = today.add(const Duration(minutes: 1));
+    final anotherRemainingToday = today.add(const Duration(hours: 2));
     final tomorrow = today.add(const Duration(days: 1, hours: 9));
 
     return [
@@ -1084,10 +1198,10 @@ class _TodayPlansGroupRepository extends _EmptyGroupRepository {
       ),
       GroupPlanSummary(
         id: 72,
-        title: '진행 중 약속',
-        dateLabel: '오늘 진행 중',
-        startsAt: inProgress,
-        endsAt: now.add(const Duration(minutes: 50)),
+        title: '오늘 남은 약속',
+        dateLabel: '오늘 하루 중',
+        startsAt: remainingToday,
+        endsAt: today.add(const Duration(days: 1)),
         placeName: '한남',
         statusLabel: '예정',
         statusType: '예정',
@@ -1098,10 +1212,10 @@ class _TodayPlansGroupRepository extends _EmptyGroupRepository {
       ),
       GroupPlanSummary(
         id: 74,
-        title: '오늘 늦은 약속',
-        dateLabel: '오늘 오후 11:59',
-        startsAt: laterToday,
-        endsAt: today.add(const Duration(days: 1, hours: 1)),
+        title: '오늘 두 번째 약속',
+        dateLabel: '오늘 낮',
+        startsAt: anotherRemainingToday,
+        endsAt: today.add(const Duration(days: 1)),
         placeName: '성수',
         statusLabel: '예정',
         statusType: '예정',

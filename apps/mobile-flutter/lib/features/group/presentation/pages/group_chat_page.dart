@@ -49,9 +49,11 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
 
     _messageController.clear();
-    final sent = await ref
+    final sendFuture = ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendMessage(text);
+    _scheduleScrollToBottom();
+    final sent = await sendFuture;
     if (!mounted) {
       return;
     }
@@ -62,18 +64,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
       ).showSnackBar(const SnackBar(content: Text('메시지를 보내지 못했어요.')));
       return;
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) {
-        return;
-      }
-
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOut,
-      );
-    });
   }
 
   Future<void> _sendImageMessage(WidgetRef ref) async {
@@ -88,7 +78,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
     final text = _messageController.text.trim();
     _messageController.clear();
-    final sent = await ref
+    final sendFuture = ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendImageMessage(
           PickedChatImage(
@@ -98,6 +88,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
           ),
           text: text,
         );
+    _scheduleScrollToBottom();
+    final sent = await sendFuture;
     if (!mounted) {
       return;
     }
@@ -108,7 +100,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
       ).showSnackBar(const SnackBar(content: Text('사진을 보내지 못했어요.')));
       return;
     }
+  }
 
+  void _scheduleScrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) {
         return;
@@ -216,7 +210,11 @@ class _ThreadContent extends StatelessWidget {
                 case _ChatMenuAction.votes:
                   context.push(RoutePaths.groupVotes(group.id));
                 case _ChatMenuAction.plan:
-                  context.push(RoutePaths.planDetail(group.id, state.planId));
+                  context.push(
+                    state.planId > 0
+                        ? RoutePaths.planDetail(group.id, state.planId)
+                        : RoutePaths.planNew(group.id),
+                  );
                 case _ChatMenuAction.settings:
                   context.push(RoutePaths.groupSettings(group.id));
               }
@@ -254,27 +252,34 @@ class _ThreadContent extends StatelessWidget {
         if (state.pinnedPlan != null)
           _PlanChatAnchor(
             plan: state.pinnedPlan!,
-            onTap: () =>
-                context.push(RoutePaths.planDetail(group.id, state.planId)),
-          ),
-        const SizedBox(height: AppSpacing.md),
-        _VoteNoticeCard(
-          vote: state.vote,
-          onTap: () =>
-              context.push(RoutePaths.groupVote(group.id, state.voteId)),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        _SettlementNoticeCard(
-          settlement: state.settlement,
-          onTap: () => context.push(
-            RoutePaths.planSettlementDetail(
-              group.id,
-              state.planId,
-              state.settlement.id,
+            onTap: () => context.push(
+              state.planId > 0
+                  ? RoutePaths.planDetail(group.id, state.planId)
+                  : RoutePaths.planNew(group.id),
             ),
           ),
-        ),
         const SizedBox(height: AppSpacing.md),
+        if (state.vote != null && state.voteId > 0) ...[
+          _VoteNoticeCard(
+            vote: state.vote!,
+            onTap: () =>
+                context.push(RoutePaths.groupVote(group.id, state.voteId)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (state.settlement != null && state.planId > 0) ...[
+          _SettlementNoticeCard(
+            settlement: state.settlement!,
+            onTap: () => context.push(
+              RoutePaths.planSettlementDetail(
+                group.id,
+                state.planId,
+                state.settlement!.id,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         const _DateDivider(label: '2024년 6월 2일'),
         const SizedBox(height: AppSpacing.md),
         if (state.hasMoreOlderMessages) ...[

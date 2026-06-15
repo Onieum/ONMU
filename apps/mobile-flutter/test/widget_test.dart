@@ -12,17 +12,20 @@ import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/home/home_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_home_page.dart';
+import 'package:onmu_mobile/features/group/presentation/pages/group_chat_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_memory_detail_page.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/my/my_page.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 
+import 'support/in_memory_onmu_store.dart';
 import 'support/test_onmu_repositories.dart';
 
 const _groupId = 1;
@@ -428,7 +431,9 @@ void main() {
   testWidgets('upcoming week selector shows past plans when selected', (
     tester,
   ) async {
-    final pastDate = DateTime.now().subtract(const Duration(days: 3));
+    final today = DateTime.now();
+    final pastDate = today.subtract(const Duration(days: 3));
+    final currentWeekStart = today.subtract(Duration(days: today.weekday - 1));
     final pastDayKey = ValueKey(
       'upcoming-week-day-${pastDate.year}-${pastDate.month}-${pastDate.day}',
     );
@@ -441,6 +446,10 @@ void main() {
 
     expect(find.text('한남 카페 투어'), findsNothing);
 
+    if (pastDate.isBefore(currentWeekStart)) {
+      await tester.tap(find.byTooltip('이전 주'));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(pastDayKey));
     await tester.pumpAndSettle();
 
@@ -1350,6 +1359,35 @@ void main() {
     expect(find.text('확인 메시지'), findsOneWidget);
   });
 
+  testWidgets('group chat renders input without vote or settlement cards', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _NoAuxGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('메시지를 입력해보세요'), findsOneWidget);
+    expect(find.text('투표 보기'), findsNothing);
+    expect(find.text('정산 확인하기'), findsNothing);
+  });
+
   testWidgets('group chat action launcher shows core actions', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
@@ -1556,6 +1594,19 @@ void main() {
     expect(find.text('보드게임 모임 장소'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsNothing);
   });
+}
+
+class _NoAuxGroupRepository extends TestGroupRepository {
+  _NoAuxGroupRepository(super.store);
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async => null;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => [];
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(Object groupId) async => [];
 }
 
 class _EmptyPlaceRepository implements PlaceRepository {

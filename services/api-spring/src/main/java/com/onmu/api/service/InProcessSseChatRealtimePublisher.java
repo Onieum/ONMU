@@ -6,12 +6,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Component
 public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher {
   private static final long EMITTER_TIMEOUT_MILLIS = 30L * 60L * 1000L;
+  private static final long HEARTBEAT_INTERVAL_MILLIS = 15L * 1000L;
 
   private final Map<String, Set<Subscriber>> subscribersByGroupId = new ConcurrentHashMap<>();
 
@@ -53,6 +55,21 @@ public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher 
     }
   }
 
+  @Scheduled(fixedDelay = HEARTBEAT_INTERVAL_MILLIS)
+  void sendHeartbeat() {
+    for (Map.Entry<String, Set<Subscriber>> entry : subscribersByGroupId.entrySet()) {
+      String groupId = entry.getKey();
+      for (Subscriber subscriber : entry.getValue()) {
+        try {
+          sendHeartbeat(subscriber.emitter());
+        } catch (IOException exception) {
+          remove(groupId, subscriber);
+          subscriber.emitter().completeWithError(exception);
+        }
+      }
+    }
+  }
+
   Map<String, Object> messageForViewer(Map<String, Object> message, String viewerUserPublicId) {
     Map<String, Object> viewerMessage = new LinkedHashMap<>(message);
     Object senderUserId = viewerMessage.get("senderUserId");
@@ -61,6 +78,10 @@ public class InProcessSseChatRealtimePublisher implements ChatRealtimePublisher 
       senderUserId != null && senderUserId.toString().equals(viewerUserPublicId)
     );
     return viewerMessage;
+  }
+
+  void sendHeartbeat(SseEmitter emitter) throws IOException {
+    emitter.send(SseEmitter.event().comment("heartbeat"));
   }
 
   private void sendMessage(SseEmitter emitter, Map<String, Object> message) throws IOException {
