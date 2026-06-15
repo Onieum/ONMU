@@ -43,7 +43,7 @@ import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -58,8 +58,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OnmuApiService {
-  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-  private static final DateTimeFormatter DATE_LABEL = DateTimeFormatter.ofPattern("M월 d일").withZone(KST);
+  private static final DateTimeFormatter DATE_LABEL = DateTimeFormatter.ofPattern("M월 d일").withZone(ZoneOffset.UTC);
 
   private final UserRepository userRepository;
   private final AuthIdentityRepository authIdentityRepository;
@@ -973,6 +972,7 @@ public class OnmuApiService {
     value.put("userId", user.getId().toString());
     value.put("displayName", displayName(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     value.put("status", participant.getStatus());
     value.put("response", participant.getResponse());
     value.put("joinedAt", participant.getJoinedAt() == null ? null : participant.getJoinedAt().toString());
@@ -1000,6 +1000,7 @@ public class OnmuApiService {
     value.put("badge", "참여 중");
     value.put("selected", true);
     value.put("profileImageUrl", participant.get("profileImageUrl"));
+    value.put("preferenceProfile", participant.get("preferenceProfile"));
     return value;
   }
 
