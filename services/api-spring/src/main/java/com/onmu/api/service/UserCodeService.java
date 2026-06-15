@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ public class UserCodeService {
   private final JdbcTemplate jdbcTemplate;
   private final Supplier<String> codeSupplier;
 
+  @Autowired
   public UserCodeService(JdbcTemplate jdbcTemplate) {
     this(jdbcTemplate, UserCodeService::randomNumericCode);
   }
