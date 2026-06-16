@@ -131,7 +131,9 @@ Apply 전 read-only preflight:
 .\scripts\windows\test-tfstate-backend-preflight.ps1
 ```
 
-이 스크립트는 active subscription 이름, resource group 존재/location, `onmutfstatekrc001`부터 시작하는 storage account 후보 availability 또는 기존 계정의 public access/shared key/TLS 설정만 확인한다. `terraform apply`는 수행하지 않는다.
+이 스크립트는 active Azure account 상태, resource group 존재/location, `onmutfstatekrc001`부터 시작하는 storage account 후보 availability 또는 기존 계정의 public access/shared key/TLS 설정만 확인한다. `terraform apply`는 수행하지 않는다.
+
+한글 subscription 표시명은 Windows shell/CLI stdout 인코딩에 따라 깨져 비교될 수 있으므로 기본 preflight의 필수 gate로 두지 않는다. 표시명 일치까지 엄격히 확인해야 하는 환경에서는 Azure CLI stdout UTF-8 처리가 정상인 shell에서 `-RequireSubscriptionNameMatch`를 명시해 실행한다.
 
 ## 6.1 비용 gate
 

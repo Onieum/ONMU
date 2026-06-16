@@ -27,10 +27,12 @@ git log -1 --oneline origin/dev
 
 확인 결과는 다음 정보만 공유한다.
 
-- active subscription name 일치 여부
+- active Azure account load와 enabled 상태
 - resource group 존재와 region 일치 여부
 - Storage Account 후보 availability 또는 기존 안전 설정 여부
 - apply 미수행 확인
+
+한글 subscription 표시명은 Windows shell/CLI stdout 인코딩에 따라 깨져 비교될 수 있으므로 기본 preflight의 필수 gate로 두지 않는다. 표시명 일치까지 엄격히 확인해야 하는 환경에서는 Azure CLI stdout UTF-8 처리가 정상인 shell에서 `-RequireSubscriptionNameMatch`를 명시해 실행한다.
 
 ## 3. Budget gate
 
