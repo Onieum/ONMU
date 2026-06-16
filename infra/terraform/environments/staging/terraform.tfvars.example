@@ -10,15 +10,17 @@ create_resource_group        = false
 existing_resource_group_name = "3dt-final-team1"
 
 enabled_modules = {
-  observability      = true
-  container_registry = true
-  key_vault          = false
-  postgres           = false
-  redis              = false
-  storage            = false
-  cdn                = false
-  eventhubs          = false
-  container_apps     = false
+  observability              = true
+  container_registry         = true
+  key_vault                  = false
+  postgres                   = false
+  redis                      = false
+  storage                    = false
+  cdn                        = false
+  eventhubs                  = false
+  container_apps_environment = false
+  container_apps             = false
+  diagnostics                = false
 }
 
 # 실제 password 값은 git에 기록하지 않는다.

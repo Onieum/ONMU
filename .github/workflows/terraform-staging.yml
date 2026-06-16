@@ -32,6 +32,8 @@ on:
         options:
           - none
           - acr_observability
+          - core_foundation
+          - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."
         required: true
@@ -124,7 +126,7 @@ jobs:
 
   staging-wave-plan:
     name: Staging wave plan summary
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave == 'acr_observability' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave != 'none' }}
     runs-on: ubuntu-latest
     environment: azure-staging-apply
     permissions:
@@ -162,6 +164,111 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Write selected staging wave variables
+        id: wave_vars
+        shell: bash
+        env:
+          STAGING_POSTGRES_ADMINISTRATOR_PASSWORD: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
+          STAGING_SPRING_API_IMAGE: ${{ vars.STAGING_SPRING_API_IMAGE || secrets.STAGING_SPRING_API_IMAGE }}
+          STAGING_WORKER_IMAGE: ${{ vars.STAGING_WORKER_IMAGE || secrets.STAGING_WORKER_IMAGE }}
+        run: |
+          set -euo pipefail
+          WAVE_FILE="$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfvars"
+          cat > "$WAVE_FILE" <<'EOF'
+          location      = "koreacentral"
+          region_code   = "krc"
+          name_suffix   = "001"
+          owner         = "onmu-team"
+          cost_center   = "onmu-staging"
+
+          create_resource_group        = false
+          existing_resource_group_name = "3dt-final-team1"
+          EOF
+
+          case "${{ inputs.wave }}" in
+            acr_observability)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = false
+            postgres                   = false
+            redis                      = false
+            storage                    = false
+            cdn                        = false
+            eventhubs                  = false
+            container_apps_environment = false
+            container_apps             = false
+            diagnostics                = false
+          }
+          EOF
+              ;;
+            core_foundation)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
+          }
+          EOF
+              ;;
+            db_and_app_ready)
+              if [ -z "${STAGING_POSTGRES_ADMINISTRATOR_PASSWORD:-}" ]; then
+                echo "::error title=Missing protected PostgreSQL secret::STAGING_POSTGRES_ADMINISTRATOR_PASSWORD must be configured before db_and_app_ready plan/apply."
+                exit 1
+              fi
+              if [ -z "${STAGING_SPRING_API_IMAGE:-}" ] || [ -z "${STAGING_WORKER_IMAGE:-}" ]; then
+                echo "::error title=Missing staging image variable::STAGING_SPRING_API_IMAGE and STAGING_WORKER_IMAGE must be configured before db_and_app_ready plan/apply."
+                exit 1
+              fi
+              {
+                echo ""
+                printf 'spring_api_image = "%s"\n' "$STAGING_SPRING_API_IMAGE"
+                printf 'worker_image     = "%s"\n' "$STAGING_WORKER_IMAGE"
+                echo "worker_enabled   = true"
+              } >> "$WAVE_FILE"
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = true
+            redis                      = true
+            storage                    = true
+            cdn                        = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = true
+            diagnostics                = true
+          }
+          EOF
+              ;;
+            *)
+              echo "::error title=Unsupported staging wave::Unknown wave input."
+              exit 1
+              ;;
+          esac
+
+          echo "path=$WAVE_FILE" >> "$GITHUB_OUTPUT"
+          echo "Selected staging wave variable file was generated in RUNNER_TEMP."
+
       - name: Init staging remote backend
         working-directory: infra/terraform/environments/staging
         run: |
@@ -172,22 +279,23 @@ jobs:
             -backend-config="key=onmu/staging/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
 
-      - name: Plan Wave 1 without raw plan output
+      - name: Plan selected staging wave without raw plan output
         id: plan
         working-directory: infra/terraform/environments/staging
         shell: bash
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          TF_VAR_postgres_administrator_password: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
         run: |
           set +e
           terraform plan \
             -input=false \
             -no-color \
             -detailed-exitcode \
-            -out "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
-            -var-file=terraform.tfvars.example \
-            > "$RUNNER_TEMP/onmu-staging-wave1-plan.log"
+            -out "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" \
+            -var-file="${{ steps.wave_vars.outputs.path }}" \
+            > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
           status=$?
           set -e
           if [ "$status" -eq 1 ]; then
@@ -195,8 +303,8 @@ jobs:
             exit 1
           fi
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          terraform show -json "$RUNNER_TEMP/onmu-staging-wave1.tfplan" > "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
-          echo "Wave 1 resource/action summary:"
+          terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          echo "Staging wave resource/action summary:"
           jq -r '
             [.resource_changes[]? | {type: .type, actions: (.change.actions | join(","))}]
             | group_by(.type + "|" + .actions)
@@ -204,16 +312,16 @@ jobs:
             | sort_by(.type, .actions)
             | .[]
             | "- " + .actions + " " + .type + ": " + (.count | tostring)
-          ' "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
-          rm -f "$RUNNER_TEMP/onmu-staging-wave1-plan.log" "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          ' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
 
       - name: Confirm no apply occurred
         run: |
-          echo "Wave 1 plan completed. terraform apply was not executed in this job."
+          echo "Staging wave plan completed. terraform apply was not executed in this job."
 
   staging-wave-apply:
     name: Staging wave apply
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave == 'acr_observability' && inputs.apply_wave == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave != 'none' && inputs.apply_wave == true }}
     needs: staging-wave-plan
     runs-on: ubuntu-latest
     environment: azure-staging-apply
@@ -252,6 +360,111 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Write selected staging wave variables
+        id: wave_vars
+        shell: bash
+        env:
+          STAGING_POSTGRES_ADMINISTRATOR_PASSWORD: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
+          STAGING_SPRING_API_IMAGE: ${{ vars.STAGING_SPRING_API_IMAGE || secrets.STAGING_SPRING_API_IMAGE }}
+          STAGING_WORKER_IMAGE: ${{ vars.STAGING_WORKER_IMAGE || secrets.STAGING_WORKER_IMAGE }}
+        run: |
+          set -euo pipefail
+          WAVE_FILE="$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfvars"
+          cat > "$WAVE_FILE" <<'EOF'
+          location      = "koreacentral"
+          region_code   = "krc"
+          name_suffix   = "001"
+          owner         = "onmu-team"
+          cost_center   = "onmu-staging"
+
+          create_resource_group        = false
+          existing_resource_group_name = "3dt-final-team1"
+          EOF
+
+          case "${{ inputs.wave }}" in
+            acr_observability)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = false
+            postgres                   = false
+            redis                      = false
+            storage                    = false
+            cdn                        = false
+            eventhubs                  = false
+            container_apps_environment = false
+            container_apps             = false
+            diagnostics                = false
+          }
+          EOF
+              ;;
+            core_foundation)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
+          }
+          EOF
+              ;;
+            db_and_app_ready)
+              if [ -z "${STAGING_POSTGRES_ADMINISTRATOR_PASSWORD:-}" ]; then
+                echo "::error title=Missing protected PostgreSQL secret::STAGING_POSTGRES_ADMINISTRATOR_PASSWORD must be configured before db_and_app_ready plan/apply."
+                exit 1
+              fi
+              if [ -z "${STAGING_SPRING_API_IMAGE:-}" ] || [ -z "${STAGING_WORKER_IMAGE:-}" ]; then
+                echo "::error title=Missing staging image variable::STAGING_SPRING_API_IMAGE and STAGING_WORKER_IMAGE must be configured before db_and_app_ready plan/apply."
+                exit 1
+              fi
+              {
+                echo ""
+                printf 'spring_api_image = "%s"\n' "$STAGING_SPRING_API_IMAGE"
+                printf 'worker_image     = "%s"\n' "$STAGING_WORKER_IMAGE"
+                echo "worker_enabled   = true"
+              } >> "$WAVE_FILE"
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = true
+            redis                      = true
+            storage                    = true
+            cdn                        = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = true
+            diagnostics                = true
+          }
+          EOF
+              ;;
+            *)
+              echo "::error title=Unsupported staging wave::Unknown wave input."
+              exit 1
+              ;;
+          esac
+
+          echo "path=$WAVE_FILE" >> "$GITHUB_OUTPUT"
+          echo "Selected staging wave variable file was generated in RUNNER_TEMP."
+
       - name: Init staging remote backend
         working-directory: infra/terraform/environments/staging
         run: |
@@ -262,26 +475,39 @@ jobs:
             -backend-config="key=onmu/staging/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
 
-      - name: Apply Wave 1 after protected approval
+      - name: Apply selected staging wave after protected approval
         working-directory: infra/terraform/environments/staging
         shell: bash
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          TF_VAR_postgres_administrator_password: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
         run: |
+          set +e
           terraform plan \
             -input=false \
             -no-color \
-            -out "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
-            -var-file=terraform.tfvars.example \
-            > "$RUNNER_TEMP/onmu-staging-wave1-plan.log"
+            -out "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" \
+            -var-file="${{ steps.wave_vars.outputs.path }}" \
+            > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
+          plan_status=$?
+          if [ "$plan_status" -ne 0 ]; then
+            echo "::error title=Terraform plan failed before apply::Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            exit 1
+          fi
           terraform apply \
             -input=false \
             -auto-approve \
-            "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
-            > "$RUNNER_TEMP/onmu-staging-wave1-apply.log"
-          terraform show -json "$RUNNER_TEMP/onmu-staging-wave1.tfplan" > "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
-          echo "Wave 1 applied resource/action summary:"
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" \
+            > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" 2>&1
+          apply_status=$?
+          set -e
+          if [ "$apply_status" -ne 0 ]; then
+            echo "::error title=Terraform apply failed::Review Azure RBAC, quota, or resource conflict. Raw apply output was not printed."
+            exit 1
+          fi
+          terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          echo "Staging wave applied resource/action summary:"
           jq -r '
             [.resource_changes[]? | {type: .type, actions: (.change.actions | join(","))}]
             | group_by(.type + "|" + .actions)
@@ -289,6 +515,6 @@ jobs:
             | sort_by(.type, .actions)
             | .[]
             | "- " + .actions + " " + .type + ": " + (.count | tostring)
-          ' "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
-          rm -f "$RUNNER_TEMP/onmu-staging-wave1-plan.log" "$RUNNER_TEMP/onmu-staging-wave1-apply.log" "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
-          echo "Wave 1 apply completed. Review Azure resource/status/count smoke before starting the next wave."
+          ' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          echo "Staging wave apply completed. Review Azure resource/status/count smoke before starting the next wave."
