@@ -64,6 +64,7 @@ variable "enabled_modules" {
     redis                      = bool
     storage                    = bool
     cdn                        = bool
+    front_door                 = bool
     eventhubs                  = bool
     container_apps_environment = bool
     container_apps             = bool
@@ -77,6 +78,7 @@ variable "enabled_modules" {
     redis                      = false
     storage                    = false
     cdn                        = false
+    front_door                 = false
     eventhubs                  = false
     container_apps_environment = false
     container_apps             = false
@@ -86,6 +88,11 @@ variable "enabled_modules" {
   validation {
     condition     = !var.enabled_modules.cdn || var.enabled_modules.storage
     error_message = "enabled_modules.cdn requires enabled_modules.storage."
+  }
+
+  validation {
+    condition     = !var.enabled_modules.front_door || var.enabled_modules.storage
+    error_message = "enabled_modules.front_door requires enabled_modules.storage."
   }
 
   validation {

@@ -52,6 +52,8 @@ locals {
     storage                    = try(module.storage[0].storage_account_id, null)
     cdn_profile                = try(module.cdn[0].profile_id, null)
     cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
+    frontdoor_profile          = try(module.front_door[0].profile_id, null)
+    frontdoor_endpoint         = try(module.front_door[0].endpoint_id, null)
     eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
     container_apps_environment = try(module.container_apps[0].environment_id, null)
   }
@@ -179,6 +181,22 @@ module "cdn" {
   tags                          = local.tags
 }
 
+module "front_door" {
+  count = var.enabled_modules.front_door ? 1 : 0
+
+  source              = "../../modules/front-door"
+  resource_group_name = local.resource_group_name
+  profile_name        = module.naming.frontdoor_profile_name
+  endpoint_name       = module.naming.frontdoor_endpoint_name
+  origin_group_name   = module.naming.frontdoor_origin_group_name
+  origin_name         = module.naming.frontdoor_origin_name
+  route_name          = module.naming.frontdoor_route_name
+  origin_host_name    = module.storage[0].primary_blob_host
+  patterns_to_match   = ["/*"]
+  health_probe_path   = "/"
+  tags                = local.tags
+}
+
 module "eventhubs" {
   count = var.enabled_modules.eventhubs ? 1 : 0
 
@@ -267,6 +285,7 @@ module "diagnostic_settings" {
     module.redis,
     module.storage,
     module.cdn,
+    module.front_door,
     module.eventhubs,
     module.container_apps
   ]

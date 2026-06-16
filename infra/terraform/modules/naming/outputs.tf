@@ -68,6 +68,26 @@ output "cdn_endpoint_name" {
   value = substr("cdn-${local.compact}", 0, 46)
 }
 
+output "frontdoor_profile_name" {
+  value = "afd-${local.base}"
+}
+
+output "frontdoor_endpoint_name" {
+  value = substr("fde-${local.compact}", 0, 46)
+}
+
+output "frontdoor_origin_group_name" {
+  value = "og-blob-tiles-static"
+}
+
+output "frontdoor_origin_name" {
+  value = "origin-blob-tiles-static"
+}
+
+output "frontdoor_route_name" {
+  value = "route-tiles-static"
+}
+
 output "log_analytics_workspace_name" {
   value = "log-${local.base}"
 }

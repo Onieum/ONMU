@@ -47,7 +47,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 - Redis Basic C0 존재와 provisioning status 확인
 - Blob containers count와 public tile/static, private media access boundary 확인
-- CDN/edge resource가 Terraform으로 생성되지 않았는지 확인. Azure CDN classic 직접 생성 가능성 또는 Front Door Standard 전환은 후속 PR에서 결정하고, 그 뒤 origin, Range/CORS, cache, rollback smoke를 수행한다.
+- CDN/edge resource가 `core_foundation`으로 생성되지 않았는지 확인한다. `frontdoor_tile_edge` wave 이후에는 Azure Front Door Standard profile/endpoint/origin group/origin/route 존재와 diagnostic setting 연결을 확인한다.
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
 - Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
 - user-assigned managed identity 존재와 Key Vault Secrets User role assignment status 확인
@@ -68,6 +68,8 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 | Rollback | purge/invalidation 또는 versioned path + manifest pointer rollback 경로 확인 |
 
 Private user media는 public CDN cache 대상으로 smoke하지 않는다. 공개 가능한 asset과 private media는 container/path/cache policy를 분리해서 검증한다.
+
+Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를 먼저 smoke한다. PMTiles는 Range `206`, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`를 확인한다. Custom domain/TLS와 DNS 변경은 별도 승인 전까지 수행하지 않는다.
 
 ## 5. Tile smoke
 

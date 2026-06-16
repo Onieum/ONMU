@@ -9,7 +9,7 @@
 | Azure region | `koreacentral` |
 | Runtime platform | Azure Container Apps |
 | Terraform state backend | Azure Storage blob backend |
-| Tile/static public delivery | Blob Storage origin 우선, CDN/edge는 후속 PR에서 Azure Front Door Standard 또는 직접 생성 가능성 검증 후 결정 |
+| Tile/static public delivery | Blob Storage origin + Azure Front Door Standard 후보. 적용은 비용 승인 후 별도 `frontdoor_tile_edge` wave |
 | Event/analytics fan-out | Event Hubs Standard |
 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
 | Redis | Basic C0 |
@@ -33,7 +33,7 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 | PostgreSQL | Flexible Server `B_Standard_B1ms`, database, PostGIS 전제 | server/database/extension allow path. schema DDL은 제외 |
 | Redis | Basic C0 | cache instance와 secret reference |
 | Blob Storage | public tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC |
-| Edge/CDN | 후속 결정 리소스 | Terraform foundation apply에서 제외. Portal/CLI 직접 생성도 Azure 정책상 막힐 수 있으므로 성공 전까지 전제하지 않음 |
+| Edge/CDN | Azure Front Door Standard 후보 | Terraform `frontdoor_tile_edge` wave에서 disabled-by-default로 준비. custom domain/TLS는 별도 단계 |
 | Event Hubs | Standard namespace, event hubs, consumer groups | namespace, hub, consumer group, RBAC |
 | Observability | Log Analytics, Application Insights, diagnostic settings | workspace, app insights, diagnostics, retention 후보 |
 | Cost guard | budget/cost alert 후보 | 후속 승인 전까지 문서 후보 |
@@ -83,7 +83,8 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 | `postgres` | disabled | disabled | enabled | protected secret과 clean DB/Flyway 승인 전 apply 금지 |
 | `redis` | disabled | enabled | enabled | Basic C0, source of truth 아님 |
 | `storage` | disabled | enabled | enabled | public tiles/static, private media container 분리 |
-| `cdn` | disabled | disabled | deferred | Azure CDN classic 직접 생성 가능성 또는 Front Door Standard를 후속 PR에서 결정 |
+| `cdn` | disabled | disabled | disabled | Azure CDN classic 신규 생성 경로는 사용하지 않음 |
+| `front_door` | disabled | disabled | optional wave | Azure Front Door Standard. 기본료 발생으로 apply 전 별도 승인 필요 |
 | `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
 | `container_apps_environment` | disabled | enabled | enabled | ACA Environment까지만 foundation에서 생성 |
 | `container_apps` | disabled | disabled | enabled | Spring API/worker app은 image/secret/Flyway 준비 후 별도 승인 |
@@ -96,7 +97,8 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 ## 4. Blob + CDN 운영 경계
 
 - Blob Storage는 tile/static/media object의 origin이자 source of truth다.
-- Edge/CDN은 public tile/static delivery 계층이지만, 이번 Terraform foundation에서는 만들지 않는다. Azure CDN Standard Microsoft classic 신규 생성은 Portal/CLI 직접 생성도 막힐 수 있으므로, 생성 성공 전까지 전제로 두지 않는다. 후속 PR에서 Azure Front Door Standard 또는 직접 생성 성공 리소스 import/연동 여부를 결정한다.
+- Edge/CDN은 public tile/static delivery 계층이지만 `core_foundation`에서는 만들지 않는다. `frontdoor_tile_edge` wave에서 Azure Front Door Standard profile, endpoint, Blob origin group/origin/route를 준비한다. Front Door Standard는 기본료가 발생하므로 apply 전 별도 비용 승인 gate를 둔다.
+- Custom domain/TLS는 이번 Front Door skeleton에서 즉시 연결하지 않고 후속 단계로 둔다.
 - Tile manifest, style JSON, PMTiles는 후속 edge 계층이 확정되면 public edge delivery 대상으로 둘 수 있다.
 - PMTiles는 versioned object path와 manifest pointer rollback을 우선한다.
 - Manifest/style은 rollback을 해치지 않는 짧은 cache policy를 둔다.
