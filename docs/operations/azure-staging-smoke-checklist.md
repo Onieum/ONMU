@@ -103,7 +103,10 @@ Chat UI smoke와 notification E2E는 분리해서 판정한다. Android/iOS에�
 - `notification.requested` outbox 처리
 - `notification_deliveries` dev-safe 기록
 - unread badge, read, read-all, preferences 저장/복원
+- push token readiness POST/DELETE와 raw token 미노출 확인
 - 실제 FCM/APNs provider 발송은 별도 승인 전까지 범위 밖
+
+Dev-safe 알림 E2E에서는 `provider=dev`, `status=skipped_dev` delivery 기록을 staging pre-push smoke 통과 기준으로 인정한다. `read-all`은 기존 dev/staging 사용자 알림을 함께 읽음 처리할 수 있으므로, 전용 테스트 사용자 또는 synthetic notification fixture가 준비된 경우에만 자동 실행한다.
 
 ## 8. Mobile flow smoke
 
@@ -114,6 +117,7 @@ Staging API가 ACA에서 기동된 뒤 최소 1회 Android emulator 기준으로
 | Auth/OAuth | provider 버튼 표시, provider 화면 진입, 앱 복귀, `/api/v1/users/me` 200 |
 | My/Profile | 마이페이지 진입, 깨진 JSON/mojibake 없음, 지역/공개범위 표시, 저장 전후 field presence |
 | Groups/Plans/Votes | 그룹 목록, 상세, plan, vote read 화면 렌더링 |
+| Record/Memory | 기록/추억 목록 화면 렌더링, recent records/memories count 확인, 에러 toast/snackbar 없음 |
 | Place/Search/Map | 지도 blank/fallback/water-style 회귀 없음, place-search result/count 확인 |
 | Chat | 메시지 목록/입력창 표시, pending -> sent 정착, crash 없음 |
 
