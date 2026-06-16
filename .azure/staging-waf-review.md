@@ -10,7 +10,7 @@
 - Public tile/static delivery: Blob Storage + Azure CDN Standard Microsoft
 - Event/analytics fan-out: Azure Event Hubs Standard
 - PostgreSQL Flexible Server: Burstable `B_Standard_B1ms`
-- Redis: Basic C0
+- Redis: Azure Managed Redis 후보로 재검토
 - Domain target: `staging-api.onmu.cloud`
 - Spring Main API: 인증, 권한, 트랜잭션, Flyway 원장
 - DB schema: Terraform이 아니라 Flyway 소유
@@ -31,14 +31,14 @@
 
 - Container Apps는 managed identity와 Key Vault reference를 우선하며 secret value를 직접 코드에 넣지 않는다.
 - Key Vault는 RBAC, soft delete, purge protection 기준을 plan에 포함한다.
-- Blob은 public tile/static container와 private user media container를 분리한다.
+- Blob은 private tile/static container와 private user media container를 분리한다. Public tile/static delivery는 Front Door route/cache policy에서 처리한다.
 - Private user media는 public CDN cache 대상이 아니다.
 - Event Hubs producer/consumer 권한은 분리하고 connection string 원문은 Key Vault reference로만 다룬다.
 - Terraform state와 plan에는 secret name, Key Vault URI/reference, role assignment presence만 남긴다.
 
 ### Cost Optimization
 
-- Staging은 Container Apps consumption, PostgreSQL burstable SKU, Redis Basic C0으로 시작한다.
+- Staging은 Container Apps consumption, PostgreSQL burstable SKU로 시작한다. Redis는 Azure Cache for Redis 신규 생성 차단에 따라 Azure Managed Redis 후보를 별도 gate에서 재검토한다.
 - PostgreSQL HA, Redis Standard, private networking, WAF/APIM은 production hardening 후보로 분리한다.
 - CDN egress/request, Blob transaction, Log Analytics ingestion/retention, Event Hubs throughput/retention이 주요 비용 변수다.
 - Event Hubs auto-inflate는 staging 기본값에서 끄고 비용 산출 후 조정한다.
@@ -69,8 +69,8 @@
 - Optional Worker Container App
 - Azure Container Registry 또는 기존 registry 연동
 - PostgreSQL Flexible Server, database, PostGIS extension allow-list
-- Azure Cache for Redis
-- Blob Storage account와 public tile/static container, private media container
+- Azure Managed Redis 후보
+- Blob Storage account와 private tile/static container, private media container
 - Azure CDN profile/endpoint for Blob origin
 - Event Hubs namespace와 `notification-requested`, `worker-jobs` event hub
 - Log Analytics workspace
@@ -87,7 +87,7 @@ Staging 실행 계획은 `.azure/staging-plan.md`, `docs/operations/azure-stagin
 - CDN 제품은 staging 1차에서 Azure CDN Standard Microsoft로 확정한다. Front Door는 production hardening 후보로 둔다.
 - Staging network는 public endpoint + Key Vault reference로 시작한다. Private endpoint/VNet은 비용 산출 후 결정한다.
 - Region은 `koreacentral`로 확정한다. quota/SKU 문제가 있으면 별도 승인으로 `eastasia` fallback을 검토한다.
-- PostgreSQL은 `B_Standard_B1ms`, Redis는 Basic C0으로 시작한다.
+- PostgreSQL은 `B_Standard_B1ms`로 시작한다. Redis는 Azure Managed Redis 후보를 별도 gate에서 결정한다.
 - Event Hubs는 Standard, partition 2, retention 1일로 시작한다.
 - Terraform state backend는 Azure Storage Blob backend로 확정하지만 bootstrap 생성은 별도 승인 후 진행한다.
 - Staging domain 목표는 `staging-api.onmu.cloud`로 확정하지만 DNS/provider console 변경은 별도 승인 후 수행한다.

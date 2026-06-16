@@ -22,6 +22,7 @@ enabled_modules = {
   container_apps_environment = false
   container_apps             = false
   diagnostics                = false
+  rbac_assignments           = false
 }
 
 # 실제 password 값은 git에 기록하지 않는다.

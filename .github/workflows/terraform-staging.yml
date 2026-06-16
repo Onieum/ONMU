@@ -33,6 +33,7 @@ on:
           - none
           - acr_observability
           - core_foundation
+          - key_vault_rbac
           - core_diagnostics
           - frontdoor_tile_edge
           - frontdoor_diagnostics
@@ -208,6 +209,7 @@ jobs:
             container_apps_environment = false
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -222,7 +224,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -230,6 +232,30 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
+          }
+          EOF
+              ;;
+            key_vault_rbac)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = false
+            container_registry         = false
+            key_vault                  = true
+            postgres                   = false
+            redis                      = false
+            storage                    = false
+            cdn                        = false
+            front_door                 = false
+            eventhubs                  = false
+            container_apps_environment = false
+            container_apps             = false
+            diagnostics                = false
+            rbac_assignments           = true
           }
           EOF
               ;;
@@ -244,7 +270,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -252,6 +278,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -266,7 +293,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = true
@@ -274,6 +301,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -288,7 +316,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = true
@@ -296,6 +324,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -321,7 +350,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = true
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -329,6 +358,7 @@ jobs:
             container_apps_environment = true
             container_apps             = true
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -385,6 +415,13 @@ jobs:
             | .[]
             | "- " + .actions + " " + .type + ": " + (.count | tostring)
           ' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          if [ "${{ inputs.wave }}" = "core_foundation" ]; then
+            storage_container_creates=$(jq '[.resource_changes[]? | select(.type == "azurerm_storage_container" and (.change.actions | index("create")))] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$storage_container_creates" -gt 0 ]; then
+              echo "::error title=Import existing storage container first::core_foundation still plans azurerm_storage_container create. Import the existing tiles container into staging state before retrying apply."
+              exit 1
+            fi
+          fi
           rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
 
       - name: Confirm no apply occurred
@@ -473,6 +510,7 @@ jobs:
             container_apps_environment = false
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -487,7 +525,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -495,6 +533,30 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
+          }
+          EOF
+              ;;
+            key_vault_rbac)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = false
+            container_registry         = false
+            key_vault                  = true
+            postgres                   = false
+            redis                      = false
+            storage                    = false
+            cdn                        = false
+            front_door                 = false
+            eventhubs                  = false
+            container_apps_environment = false
+            container_apps             = false
+            diagnostics                = false
+            rbac_assignments           = true
           }
           EOF
               ;;
@@ -509,7 +571,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -517,6 +579,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -531,7 +594,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = true
@@ -539,6 +602,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -553,7 +617,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = false
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = true
@@ -561,6 +625,7 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -586,7 +651,7 @@ jobs:
             container_registry         = true
             key_vault                  = true
             postgres                   = true
-            redis                      = true
+            redis                      = false
             storage                    = true
             cdn                        = false
             front_door                 = false
@@ -594,6 +659,7 @@ jobs:
             container_apps_environment = true
             container_apps             = true
             diagnostics                = false
+            rbac_assignments           = false
           }
           EOF
               ;;
@@ -635,6 +701,14 @@ jobs:
           if [ "$plan_status" -ne 0 ]; then
             echo "::error title=Terraform plan failed before apply::Review provider auth, RBAC, or module validation. Raw plan output was not printed."
             exit 1
+          fi
+          terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          if [ "${{ inputs.wave }}" = "core_foundation" ]; then
+            storage_container_creates=$(jq '[.resource_changes[]? | select(.type == "azurerm_storage_container" and (.change.actions | index("create")))] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$storage_container_creates" -gt 0 ]; then
+              echo "::error title=Import existing storage container first::core_foundation still plans azurerm_storage_container create. Import the existing tiles container into staging state before retrying apply."
+              exit 1
+            fi
           fi
           terraform apply \
             -input=false \

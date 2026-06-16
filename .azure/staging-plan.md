@@ -12,7 +12,7 @@
 | Tile/static public delivery | Blob Storage origin + Azure Front Door Standard 후보. 적용은 비용 승인 후 별도 `frontdoor_tile_edge` wave |
 | Event/analytics fan-out | Event Hubs Standard |
 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
-| Redis | Basic C0 |
+| Redis | Azure Managed Redis 후보로 재검토 |
 | Container Apps scale | Spring API min 1, worker min 0 |
 | Networking | Public ingress + Key Vault reference |
 | Secret management | Key Vault RBAC + managed identity |
@@ -31,8 +31,8 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 | Runtime | Container Apps Environment, Spring API Container App, optional worker | app, revision, ingress, scale, env var name, secret reference |
 | Registry | Azure Container Registry Basic 신규 생성 | registry와 pull 권한 |
 | PostgreSQL | Flexible Server `B_Standard_B1ms`, database, PostGIS 전제 | server/database/extension allow path. schema DDL은 제외 |
-| Redis | Basic C0 | cache instance와 secret reference |
-| Blob Storage | public tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC |
+| Redis | deferred | Azure Managed Redis 후보와 secret reference |
+| Blob Storage | private tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC. Public delivery는 Front Door route에서 처리 |
 | Edge/CDN | Azure Front Door Standard 후보 | Terraform `frontdoor_tile_edge` wave에서 disabled-by-default로 준비. custom domain/TLS는 별도 단계 |
 | Event Hubs | Standard namespace, event hubs, consumer groups | namespace, hub, consumer group, RBAC |
 | Observability | Log Analytics, Application Insights, diagnostic settings | workspace, app insights, diagnostics, retention 후보 |
@@ -81,16 +81,19 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 | `container_registry` | enabled | enabled | enabled | ACR Basic, admin user disabled |
 | `key_vault` | disabled | enabled | enabled | Vault/RBAC/reference만 Terraform 소유, secret value 작성 제외 |
 | `postgres` | disabled | disabled | enabled | protected secret과 clean DB/Flyway 승인 전 apply 금지 |
-| `redis` | disabled | enabled | enabled | Basic C0, source of truth 아님 |
-| `storage` | disabled | enabled | enabled | public tiles/static, private media container 분리 |
+| `redis` | disabled | disabled | disabled | Azure Cache for Redis 신규 생성 차단으로 분리. Azure Managed Redis 재설계 전 apply 금지 |
+| `storage` | disabled | enabled | enabled | private tiles/static, private media container 분리 |
 | `cdn` | disabled | disabled | disabled | Azure CDN classic 신규 생성 경로는 사용하지 않음 |
 | `front_door` | disabled | disabled | optional wave | Azure Front Door Standard. 기본료 발생으로 apply 전 별도 승인 필요 |
 | `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
 | `container_apps_environment` | disabled | enabled | enabled | ACA Environment까지만 foundation에서 생성 |
 | `container_apps` | disabled | disabled | enabled | Spring API/worker app은 image/secret/Flyway 준비 후 별도 승인 |
 | `diagnostics` | disabled | disabled | disabled | 리소스 생성 wave와 분리. `core_diagnostics`, `frontdoor_diagnostics`에서 별도 연결 |
+| `rbac_assignments` | disabled | disabled | disabled | Key Vault runtime role assignment는 `key_vault_rbac`에서 별도 승인 |
 
-`core_foundation`은 Redis, Blob Storage origin, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server, CDN/edge 리소스, diagnostic setting은 생성하지 않는다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 `core_diagnostics` wave에서 별도 plan/apply한다.
+`core_foundation`은 Blob Storage origin, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server, Redis, CDN/edge 리소스, Key Vault role assignment, diagnostic setting은 생성하지 않는다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 `core_diagnostics` wave에서 별도 plan/apply한다. Key Vault runtime secret read 권한은 `key_vault_rbac` wave에서 `User Access Administrator` 또는 `Role Based Access Control Administrator` 권한 승인 후 연결한다.
+
+Azure Cache for Redis는 신규 생성이 차단될 수 있으므로 staging Redis는 Azure Managed Redis 지원 리소스와 Terraform provider 지원을 별도 PR에서 재검토한다.
 
 `db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다. DB/App diagnostic setting도 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
@@ -174,7 +177,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
 | 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시, optional delete lock, read-only preflight, RBAC 전파 지연 시 2-phase fallback | 앱 리소스 |
-| 3 | Staging core foundation | Redis, Blob Storage origin, Event Hubs, Key Vault, managed identity, ACA Environment | PostgreSQL, ACA app, CDN/edge, diagnostics, secret value |
+| 3 | Staging core foundation | Blob Storage origin, Event Hubs, Key Vault, managed identity, ACA Environment | Redis, PostgreSQL, ACA app, CDN/edge, diagnostics, RBAC role assignment, secret value |
 | 4 | DB/App readiness | PostgreSQL skeleton, Spring API/worker app wiring, image/secret gate | DB migration 실행, DNS/custom domain |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |
 | 6 | Data rehearsal | clean DB Flyway, Blob copy rehearsal, tile CDN smoke | dev snapshot restore 무승인 실행 |
