@@ -23,6 +23,7 @@
 | [Azure staging cost and permission review](../../docs/operations/azure-cost-permission-review.md) | 비용 산출 항목과 권한 경계 |
 | [Azure Terraform state backend bootstrap](../../docs/operations/azure-terraform-state-backend.md) | `대한상공회의소 Data School` subscription과 `3dt-final-team1` resource group 기준 storage account, blob container, RBAC, optional delete lock, 2-phase fallback 기준 |
 | [Azure tfstate bootstrap apply runbook](../../docs/operations/azure-tfstate-bootstrap-apply-runbook.md) | apply 전 read-only 확인, budget gate, phase 1/2, Workload Identity 후속 계획 |
+| [Azure tfstate bootstrap state migration runbook](../../docs/operations/azure-tfstate-bootstrap-state-migration.md) | bootstrap local state를 `onmu/bootstrap/tfstate-backend.tfstate` remote key로 이전하는 승인 운영 절차 |
 
 ## 금지
 
@@ -53,10 +54,12 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 - `environments/staging/backend.tf`, `environments/prod/backend.tf`는 `azurerm` backend만 선언한다.
 - 실제 backend config 값은 `terraform init -backend-config=...` 또는 CI secret으로 주입한다.
 - 확정 state key 형식:
+  - bootstrap: `onmu/bootstrap/tfstate-backend.tfstate`
   - staging: `onmu/staging/terraform.tfstate`
   - prod: `onmu/prod/terraform.tfstate`
 - backend용 Storage Account, container, RBAC bootstrap은 `bootstrap/state-backend` root module로 앱 리소스와 분리하며, 기본 target resource group은 `3dt-final-team1`이다.
 - 첫 backend bootstrap은 remote backend가 없으므로 local state와 `terraform init -backend=false`로 plan한다.
+- bootstrap local state migration은 별도 승인 후 git ignored `backend.migration.local.tf`를 사용해 `onmu/bootstrap/tfstate-backend.tfstate`로 이전한다.
 - Azure AD/RBAC 전파 지연이 있으면 `create_state_container=false`로 Storage Account와 RBAC를 먼저 적용하고, 권한 전파 확인 후 container를 생성한다.
 - backend 리소스 생성은 별도 사용자 승인 전까지 보류한다.
 
@@ -66,9 +69,10 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
 3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
 4. Workload Identity + GitHub Environment `azure-staging-apply` 후속 CI PR
-5. ACR 신규 생성과 Azure Pricing Calculator 기준 staging 비용 산출
-6. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
-7. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-8. provider console redirect/package/SHA-1 확인
-9. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-10. Windows dev backend smoke를 rollback 기준으로 유지
+5. ACR/observability 신규 생성과 Azure Pricing Calculator 기준 staging 비용 산출
+6. Key Vault reference와 managed identity 경계 확정
+7. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
+8. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+9. provider console redirect/package/SHA-1 확인
+10. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+11. Windows dev backend smoke를 rollback 기준으로 유지

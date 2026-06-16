@@ -10,7 +10,7 @@
 | Resource group | 기존 `3dt-final-team1` 사용 |
 | Storage Account 후보 | `onmutfstatekrc001`, `onmutfstatekrc002`, `onmutfstatekrc003` 순서 |
 | Container | `tfstate` |
-| State key | `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` |
+| State key | `onmu/bootstrap/tfstate-backend.tfstate`, `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` |
 | Backend auth | Azure AD auth, storage account key 미사용 |
 | Budget gate | 2026-06-26까지 총 1,000,000원 상한 |
 
@@ -72,6 +72,8 @@ Phase 2:
 
 RBAC propagation 지연으로 container 생성이 `403`이면 phase 사이에 권한 전파를 기다리고 data-plane 권한을 재확인한다.
 
+Phase 2와 staging/prod backend init smoke가 끝나면 bootstrap local state도 remote key `onmu/bootstrap/tfstate-backend.tfstate`로 이전한다. 이 절차는 [Azure tfstate bootstrap state migration runbook](./azure-tfstate-bootstrap-state-migration.md)을 따르며, 실제 `terraform init -migrate-state` 실행은 별도 승인 후 수행한다.
+
 ## 6. Workload Identity 후속 계획
 
 Workload Identity 연동은 후속 CI PR로 분리한다.
@@ -85,11 +87,14 @@ Workload Identity 연동은 후속 CI PR로 분리한다.
 ## 7. 다음 staging 연결 순서
 
 1. tfstate backend bootstrap phase 1/2 완료
-2. ACR 신규 생성 plan과 budget impact 확인
-3. ACA/PostgreSQL/Redis/Blob/CDN/Event Hubs/observability skeleton 확장
-4. clean DB + Flyway full migration
-5. 실제 OAuth 로그인 기반 `/healthz`, `/readyz`, `/api/v1/users/me` smoke
-6. Blob/CDN 기본 endpoint smoke
-7. custom domain/TLS 연결 후 manifest/style/PMTiles Range/CORS smoke 반복
+2. bootstrap local state remote migration runbook 승인 및 `onmu/bootstrap/tfstate-backend.tfstate` 이전
+3. GitHub Actions Workload Identity + protected environment `azure-staging-apply` 연결
+4. ACR/observability 신규 생성 plan과 budget impact 확인
+5. Key Vault reference와 managed identity 경계 확정
+6. ACA/PostgreSQL/Redis/Blob/CDN/Event Hubs skeleton 확장
+7. clean DB + Flyway full migration
+8. 실제 OAuth 로그인 기반 `/healthz`, `/readyz`, `/api/v1/users/me` smoke
+9. Blob/CDN 기본 endpoint smoke
+10. custom domain/TLS 연결 후 manifest/style/PMTiles Range/CORS smoke 반복
 
 Dev snapshot dump/restore는 지금 수행하지 않는다. Clean staging smoke 통과 후 별도 승인으로 sanitized/minimal dump rehearsal만 검토한다.

@@ -35,6 +35,7 @@
 | Blob container | `tfstate` |
 | Region | `koreacentral` |
 | Replication | `LRS` |
+| Bootstrap state key | `onmu/bootstrap/tfstate-backend.tfstate` |
 | Staging state key | `onmu/staging/terraform.tfstate` |
 | Prod state key | `onmu/prod/terraform.tfstate` |
 
@@ -76,6 +77,16 @@ GitHub Actions OIDC federated credential 자체 생성은 별도 identity/CI PR�
 실제 apply 승인 전에는 `operator_principal_object_ids` 또는 `github_actions_principal_object_ids` 중 최소 하나 이상이 승인된 값으로 채워져 있어야 한다. 빈 principal list로 plan하면 RBAC role assignment가 생성되지 않아 backend 접근 검증이 무의미해질 수 있다. 또한 `shared_access_key_enabled = false`와 `storage_use_azuread = true`를 사용하므로 Terraform 실행 주체가 기존 resource group, subscription 또는 storage scope에서 `Storage Blob Data Contributor`와 동등한 data-plane 권한을 이미 갖고 있는지 확인한다.
 
 ## 5. Backend config 예시
+
+Bootstrap:
+
+```hcl
+resource_group_name  = "3dt-final-team1"
+storage_account_name = "onmutfstatekrc001"
+container_name       = "tfstate"
+key                  = "onmu/bootstrap/tfstate-backend.tfstate"
+use_azuread_auth     = true
+```
 
 Staging:
 
@@ -124,6 +135,8 @@ terraform init `
 - 첫 bootstrap plan은 local ignored path에만 저장하고, 공유는 resource/action 요약으로 제한
 - backend bootstrap apply window 승인
 - rollback 또는 삭제 금지 기준 확인
+
+Bootstrap phase 1/2 이후 local state를 remote key로 옮기는 절차는 [Azure tfstate bootstrap state migration runbook](./azure-tfstate-bootstrap-state-migration.md)을 따른다.
 
 Apply 전 read-only preflight:
 
