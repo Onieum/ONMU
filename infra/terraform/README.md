@@ -22,6 +22,7 @@
 | [Azure staging data rehearsal plan](../../docs/operations/azure-staging-data-rehearsal.md) | PostgreSQL, Redis, Blob/CDN 이전 rehearsal 기준 |
 | [Azure staging cost and permission review](../../docs/operations/azure-cost-permission-review.md) | 비용 산출 항목과 권한 경계 |
 | [Azure Terraform state backend bootstrap](../../docs/operations/azure-terraform-state-backend.md) | `대한상공회의소 Data School` subscription과 `3dt-final-team1` resource group 기준 storage account, blob container, RBAC, optional delete lock, 2-phase fallback 기준 |
+| [Azure tfstate bootstrap apply runbook](../../docs/operations/azure-tfstate-bootstrap-apply-runbook.md) | apply 전 read-only 확인, budget gate, phase 1/2, Workload Identity 후속 계획 |
 
 ## 금지
 
@@ -61,11 +62,13 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 
 ## 다음 gate
 
-1. Azure subscription과 resource naming suffix 확정
-2. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` apply window 승인
-3. Azure Pricing Calculator 기준 staging 비용 산출
-4. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
-5. Event Hubs consumer group, checkpoint storage, replay smoke 기준 확정
-6. provider console redirect/package/SHA-1 확인
-7. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-8. Windows dev backend smoke를 rollback 기준으로 유지
+1. Azure subscription/account name 확인과 `onmutfstatekrc001`부터 storage name availability 확인
+2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
+3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
+4. Workload Identity + GitHub Environment `azure-staging-apply` 후속 CI PR
+5. ACR 신규 생성과 Azure Pricing Calculator 기준 staging 비용 산출
+6. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
+7. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+8. provider console redirect/package/SHA-1 확인
+9. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+10. Windows dev backend smoke를 rollback 기준으로 유지

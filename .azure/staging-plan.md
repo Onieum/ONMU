@@ -29,7 +29,7 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 | Identity | user-assigned managed identity | Container Apps, Key Vault, Storage, Event Hubs 접근 role assignment |
 | Key Vault | RBAC 기반 vault | vault, RBAC, secret reference name. secret value는 제외 |
 | Runtime | Container Apps Environment, Spring API Container App, optional worker | app, revision, ingress, scale, env var name, secret reference |
-| Registry | Azure Container Registry Basic 또는 기존 registry 연동 | ACR를 만들 경우 registry와 pull 권한 |
+| Registry | Azure Container Registry Basic 신규 생성 | registry와 pull 권한 |
 | PostgreSQL | Flexible Server `B_Standard_B1ms`, database, PostGIS 전제 | server/database/extension allow path. schema DDL은 제외 |
 | Redis | Basic C0 | cache instance와 secret reference |
 | Blob Storage | public tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC |
@@ -90,16 +90,22 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 - Spring/PostgreSQL outbox는 transactional source of truth로 유지한다.
 - Event Hubs producer/consumer 구현과 payload contract는 별도 PR에서 다룬다.
 - Staging skeleton은 namespace, event hub, consumer group, RBAC interface까지만 연다.
+- 초기 consumer group은 `worker`, `analytics` 2개로 분리한다.
+- replay/ops 전용 consumer group은 운영 도구와 replay smoke가 생긴 뒤 추가 검토한다.
 - Connection string 원문은 Terraform code/state/plan/PR/log에 기록하지 않는다.
 
 ## 6. 비용/권한 리뷰 gate
 
-비용과 권한은 [Azure staging cost and permission review](../docs/operations/azure-cost-permission-review.md)를 기준으로 별도 승인한다.
+비용과 권한은 [Azure staging cost and permission review](../docs/operations/azure-cost-permission-review.md)를 기준으로 별도 승인한다. 예산 기준은 월별 목표가 아니라 `3dt-final-team1` 기준 2026-06-26까지 총 1,000,000원 상한이다.
 
 - Azure Pricing Calculator 산출물은 apply 전 승인 자료로 남긴다.
+- apply 전 비용 보고 형식은 현재 누적 / 예상 증가분 / 상한 대비 잔여율로 고정한다.
+- Budget alert는 50%, 75%, 90%, 100%를 권장하되, Budget 리소스 생성은 별도 승인 전까지 수행하지 않는다.
 - Container Apps, PostgreSQL, Redis, Blob, CDN, Event Hubs, Key Vault, Log Analytics, Application Insights 비용 항목을 모두 포함한다.
 - Key Vault, Container Apps, PostgreSQL, Redis, Blob, CDN, Event Hubs, Log Analytics 권한 경계를 리소스별로 분리한다.
 - 무료 크레딧으로 방어 가능한 구간과 상시 비용/egress/ingestion 위험 구간을 분리한다.
+- ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 skeleton/plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다.
+- WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
 
 ## 7. CI/CD plan-only gate
 
@@ -155,11 +161,12 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 
 - Azure subscription과 resource naming suffix
 - Terraform backend bootstrap 리소스 이름, 승인된 RBAC 주체, 실행 주체 data-plane 권한
-- ACR 신규 생성 또는 기존 registry 연동
+- `onmutfstatekrc001`부터 시작하는 Storage Account 후보 availability
+- ACR 신규 생성 세부 SKU와 image retention
 - Container Apps CPU/memory 초기값
 - PostgreSQL storage/backup retention
 - Blob lifecycle/versioning policy
 - CDN custom domain과 TLS 적용 window
-- Event Hubs event name, payload version, consumer group 수
-- Log Analytics retention과 App Insights sampling
+- Event Hubs event name, payload version, `worker`/`analytics` consumer group checkpoint storage
+- Log Analytics 30일 retention, App Insights sampling, daily cap 값
 - Pricing Calculator 산출 담당자와 승인 기준

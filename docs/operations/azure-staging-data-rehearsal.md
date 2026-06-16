@@ -14,7 +14,7 @@
 | Schema ownership | table/index/column은 Flyway 소유, Terraform 소유 아님 |
 | Domain smoke | `/readyz`, `/users/me`, 주요 read endpoint status/count |
 
-Dev snapshot dump/restore rehearsal은 별도 승인, 백업, PII 보호 기준, 접근 권한 확인 이후에만 수행한다. Snapshot 공유본이나 로그에는 사용자 실제 값과 raw row를 출력하지 않는다.
+Dev snapshot dump/restore rehearsal은 지금 수행하지 않는다. Clean staging smoke 통과 후 별도 승인, 백업, PII 보호 기준, 접근 권한 확인을 거친 sanitized/minimal dump rehearsal만 검토한다. Snapshot 공유본이나 로그에는 사용자 실제 값과 raw row를 출력하지 않는다.
 
 ## 2. Redis rehearsal
 

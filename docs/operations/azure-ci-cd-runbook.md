@@ -9,6 +9,7 @@
 - `terraform apply`, DB migration, production deploy는 protected environment approval 이후에만 수행한다.
 - secret 값은 GitHub logs, PR body, artifact에 남기지 않는다.
 - Windows deploy/runtime 문제와 Azure deploy 문제를 같은 원인으로 단정하지 않는다.
+- Azure apply는 GitHub Actions OIDC/Workload Identity와 protected environment gate를 묶어 제어한다.
 
 ## 2. Workflow 후보
 
@@ -22,6 +23,8 @@
 | `rollback.yml` | manual + approval | previous revision/image/DNS rollback |
 
 production은 자동 apply하지 않는다. `terraform plan -> approval -> apply -> infra readiness -> migration dry-run/check -> approval -> migration -> deploy -> smoke -> monitoring window` 순서를 기본 gate로 둔다.
+
+Staging apply job은 GitHub Environment `azure-staging-apply`를 사용한다. Required reviewers와 branch 제한을 적용하고, plan identity와 apply identity/권한은 가능하면 분리한다. Workload Identity principal 실제 값은 GitHub protected variable 또는 environment secret으로만 관리하고 문서/로그/PR에는 출력하지 않는다.
 
 ## 3. PR 단계
 
