@@ -9,7 +9,7 @@
 | Azure region | `koreacentral` |
 | Runtime platform | Azure Container Apps |
 | Terraform state backend | Azure Storage blob backend |
-| Tile/static public delivery | Blob Storage origin + Azure Front Door Standard 후보. 적용은 비용 승인 후 별도 `frontdoor_tile_edge` wave |
+| Tile/static public delivery | Blob Storage origin + Azure Front Door Standard. `tiles`는 public blob origin, `media`는 private 유지 |
 | Event/analytics fan-out | Event Hubs Standard |
 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
 | Redis | Azure Managed Redis 후보로 재검토 |
@@ -32,7 +32,7 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 | Registry | Azure Container Registry Basic 신규 생성 | registry와 pull 권한 |
 | PostgreSQL | Flexible Server `B_Standard_B1ms`, database, PostGIS 전제 | server/database/extension allow path. schema DDL은 제외 |
 | Redis | deferred | Azure Managed Redis 후보와 secret reference |
-| Blob Storage | private tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC. Public delivery는 Front Door route에서 처리 |
+| Blob Storage | public `tiles` container, private `media` container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC. Front Door가 `tiles` origin을 읽고 private media는 계속 비공개 유지 |
 | Edge/CDN | Azure Front Door Standard 후보 | Terraform `frontdoor_tile_edge` wave에서 disabled-by-default로 준비. custom domain/TLS는 별도 단계 |
 | Event Hubs | Standard namespace, event hubs, consumer groups | namespace, hub, consumer group, RBAC |
 | Observability | Log Analytics, Application Insights, diagnostic settings | workspace, app insights, diagnostics, retention 후보 |
@@ -82,7 +82,7 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 | `key_vault` | disabled | enabled | enabled | Vault/RBAC/reference만 Terraform 소유, secret value 작성 제외 |
 | `postgres` | disabled | disabled | enabled | protected secret과 clean DB/Flyway 승인 전 apply 금지 |
 | `redis` | disabled | disabled | disabled | Azure Cache for Redis 신규 생성 차단으로 분리. Azure Managed Redis 재설계 전 apply 금지 |
-| `storage` | disabled | enabled | enabled | private tiles/static, private media container 분리 |
+| `storage` | disabled | enabled | enabled | public `tiles`, private `media` container 분리 |
 | `cdn` | disabled | disabled | disabled | Azure CDN classic 신규 생성 경로는 사용하지 않음 |
 | `front_door` | disabled | disabled | optional wave | Azure Front Door Standard. 기본료 발생으로 apply 전 별도 승인 필요 |
 | `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
@@ -97,10 +97,12 @@ Azure Cache for Redis는 신규 생성이 차단될 수 있으므로 staging Red
 
 `db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다. DB/App diagnostic setting도 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
-## 4. Blob + CDN 운영 경계
+## 4. Blob + Front Door 운영 경계
 
 - Blob Storage는 tile/static/media object의 origin이자 source of truth다.
+- `core_foundation`은 storage account를 만들고 `tiles` container에 public blob access를 허용한다. `media` container는 private로 유지한다.
 - Edge/CDN은 public tile/static delivery 계층이지만 `core_foundation`에서는 만들지 않는다. `frontdoor_tile_edge` wave에서 Azure Front Door Standard profile, endpoint, Blob origin group/origin/route를 준비한다. Front Door Standard는 기본료가 발생하므로 apply 전 별도 비용 승인 gate를 둔다. `frontdoor_diagnostics`는 이후 지원되는 Front Door scope만 대상으로 하며 현재 staging 기준으로는 profile scope만 diagnostic setting을 붙인다.
+- 기존 staging state가 private `tiles`로 남아 있으면 `frontdoor_origin_access` patch wave로 storage account와 `tiles` access boundary만 보정한다.
 - Custom domain/TLS는 이번 Front Door skeleton에서 즉시 연결하지 않고 후속 단계로 둔다.
 - Tile manifest, style JSON, PMTiles는 후속 edge 계층이 확정되면 public edge delivery 대상으로 둘 수 있다.
 - PMTiles는 versioned object path와 manifest pointer rollback을 우선한다.

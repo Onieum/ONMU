@@ -70,7 +70,7 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 
 - `observability`, `container_registry`: Wave 1 리소스를 유지하며 recreate하지 않는다.
 - `key_vault`: Key Vault, user-assigned managed identity. Key Vault Secrets User role assignment은 `key_vault_rbac` wave로 분리한다.
-- `storage`: Blob Storage account, private tile/static container, private media container.
+- `storage`: Blob Storage account, public tiles/static container, private media container.
 - `eventhubs`: Event Hubs Standard namespace, `notification-requested`, `worker-jobs`, consumer groups `worker`, `analytics`.
 - `container_apps_environment`: ACA Environment만 생성.
 
@@ -87,7 +87,7 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 - DNS/custom domain 변경
 - DB migration 실행
 
-Plan summary가 Storage, Event Hubs, Key Vault, managed identity, ACA Environment 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. `tiles` container는 Storage Account public blob access 차단과 맞추기 위해 private로 유지한다. Tile/static public delivery는 container public access가 아니라 Front Door route, cache policy, Range/CORS smoke로 검증한다.
+Plan summary가 Storage, Event Hubs, Key Vault, managed identity, ACA Environment 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Storage account는 nested public item 허용을 켜되, 공개는 `tiles` container에만 제한하고 `media` container는 계속 private로 유지한다. Tile/static public delivery는 Front Door route, cache policy, Range/CORS smoke로 검증한다.
 
 부분 apply 실패 뒤 Azure에는 `tiles` container가 존재하지만 remote state에는 없을 수 있다. 이 경우 재-apply 전에 raw state를 출력하지 않고 아래 address만 import한다.
 
@@ -147,9 +147,20 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
 
+### Staging Front Door Origin Access
+
+`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다.
+
+기대 변경은 다음 두 개뿐이다.
+
+- `azurerm_storage_account` update 1: nested public item 허용
+- `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
+
+기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
+
 ### Staging Front Door Diagnostics
 
-`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공한 뒤에만 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다.
+`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공하고, 필요 시 `frontdoor_origin_access` patch까지 끝난 뒤에 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다.
 
 `microsoft.cdn/profiles/afdendpoints`는 diagnostic settings를 지원하지 않으므로 endpoint를 target에 포함하지 않는다. `frontdoor_diagnostics` plan summary에는 `azurerm_monitor_diagnostic_setting` create와 기존 resource no-op만 허용한다. Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
 

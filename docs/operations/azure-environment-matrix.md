@@ -12,7 +12,7 @@
 | DB | Docker Postgres/PostGIS | Docker Postgres/PostGIS | 분리 DB 또는 schema | Azure Database for PostgreSQL Flexible Server | Azure Database for PostgreSQL Flexible Server |
 | Redis | Docker Redis | Docker Redis | 분리 Redis DB 또는 instance | Azure Cache for Redis | Azure Cache for Redis |
 | Object storage | MinIO | MinIO | 분리 MinIO bucket | Azure Blob Storage | Azure Blob Storage + CDN/Front Door |
-| Tile | local/MinIO/gateway | `https://tiles.onmu.cloud` | 별도 manifest 후보 | Blob Storage + Azure CDN Standard Microsoft | Blob/CDN/Front Door |
+| Tile | local/MinIO/gateway | `https://tiles.onmu.cloud` | 별도 manifest 후보 | Blob Storage + Azure Front Door Standard | Blob + Front Door |
 | Secret source | local env | Azure Key Vault import | Azure Key Vault import | Key Vault + Managed Identity | Key Vault + Managed Identity |
 | Runtime env | shell/process env | PowerShell process env | PowerShell process env | container app env/secret ref | workload identity/secret ref |
 | CI/CD | 수동 | GitHub Actions + Windows runner | GitHub Actions + Windows runner | GitHub Actions protected env | GitHub Actions protected env |

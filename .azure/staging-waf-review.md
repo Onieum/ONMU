@@ -7,7 +7,7 @@
 - Azure region: `koreacentral`
 - Runtime platform: Azure Container Apps
 - Object/tile/media origin: Azure Blob Storage
-- Public tile/static delivery: Blob Storage + Azure CDN Standard Microsoft
+- Public tile/static delivery: Blob Storage + Azure Front Door Standard
 - Event/analytics fan-out: Azure Event Hubs Standard
 - PostgreSQL Flexible Server: Burstable `B_Standard_B1ms`
 - Redis: Azure Managed Redis 후보로 재검토
@@ -24,14 +24,14 @@
 - PostgreSQL Flexible Server는 backup/restore, PostGIS extension, migration order를 별도 smoke gate에 포함한다.
 - Redis는 source of truth가 아니며 place-search/route/provider response TTL cache로만 사용한다.
 - PMTiles는 versioned object path와 manifest pointer rollback을 기본으로 둔다.
-- CDN 경유 Range 206, CORS, Expose-Headers가 깨지면 Android MapLibre blank/fallback 문제가 재발할 수 있으므로 edge smoke를 필수로 둔다.
+- Front Door 경유 Range 206, CORS, Expose-Headers가 깨지면 Android MapLibre blank/fallback 문제가 재발할 수 있으므로 edge smoke를 필수로 둔다.
 - Event Hubs는 analytics/event stream fan-out 용도이며 command queue나 transactional outbox 원장과 혼동하지 않는다.
 
 ### Security
 
 - Container Apps는 managed identity와 Key Vault reference를 우선하며 secret value를 직접 코드에 넣지 않는다.
 - Key Vault는 RBAC, soft delete, purge protection 기준을 plan에 포함한다.
-- Blob은 private tile/static container와 private user media container를 분리한다. Public tile/static delivery는 Front Door route/cache policy에서 처리한다.
+- Blob은 public `tiles` container와 private user media container를 분리한다. Public tile/static delivery는 Front Door route/cache policy에서 처리하고 private media는 계속 비공개로 유지한다.
 - Private user media는 public CDN cache 대상이 아니다.
 - Event Hubs producer/consumer 권한은 분리하고 connection string 원문은 Key Vault reference로만 다룬다.
 - Terraform state와 plan에는 secret name, Key Vault URI/reference, role assignment presence만 남긴다.
@@ -40,7 +40,7 @@
 
 - Staging은 Container Apps consumption, PostgreSQL burstable SKU로 시작한다. Redis는 Azure Cache for Redis 신규 생성 차단에 따라 Azure Managed Redis 후보를 별도 gate에서 재검토한다.
 - PostgreSQL HA, Redis Standard, private networking, WAF/APIM은 production hardening 후보로 분리한다.
-- CDN egress/request, Blob transaction, Log Analytics ingestion/retention, Event Hubs throughput/retention이 주요 비용 변수다.
+- Front Door Standard egress/request, Blob transaction, Log Analytics ingestion/retention, Event Hubs throughput/retention이 주요 비용 변수다.
 - Event Hubs auto-inflate는 staging 기본값에서 끄고 비용 산출 후 조정한다.
 
 ### Operational Excellence
@@ -70,8 +70,8 @@
 - Azure Container Registry 또는 기존 registry 연동
 - PostgreSQL Flexible Server, database, PostGIS extension allow-list
 - Azure Managed Redis 후보
-- Blob Storage account와 private tile/static container, private media container
-- Azure CDN profile/endpoint for Blob origin
+- Blob Storage account와 public `tiles` container, private media container
+- Azure Front Door Standard profile/endpoint for Blob origin
 - Event Hubs namespace와 `notification-requested`, `worker-jobs` event hub
 - Log Analytics workspace
 - Application Insights
@@ -84,7 +84,7 @@
 
 Staging 실행 계획은 `.azure/staging-plan.md`, `docs/operations/azure-staging-smoke-checklist.md`, `docs/operations/azure-staging-data-rehearsal.md`, `docs/operations/azure-cost-permission-review.md`에 분리해 기록한다. 이 문서들은 plan-only 산출물이며 실제 Azure 리소스 생성이나 `terraform apply`를 수행하지 않는다.
 
-- CDN 제품은 staging 1차에서 Azure CDN Standard Microsoft로 확정한다. Front Door는 production hardening 후보로 둔다.
+- Front Door Standard를 staging edge 기본 후보로 둔다. custom domain/TLS는 별도 승인 단계에서 연결한다.
 - Staging network는 public endpoint + Key Vault reference로 시작한다. Private endpoint/VNet은 비용 산출 후 결정한다.
 - Region은 `koreacentral`로 확정한다. quota/SKU 문제가 있으면 별도 승인으로 `eastasia` fallback을 검토한다.
 - PostgreSQL은 `B_Standard_B1ms`로 시작한다. Redis는 Azure Managed Redis 후보를 별도 gate에서 결정한다.
