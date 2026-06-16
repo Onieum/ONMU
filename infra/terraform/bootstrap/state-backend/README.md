@@ -14,6 +14,8 @@
 
 첫 bootstrap은 remote backend가 아직 없으므로 local state와 `terraform init -backend=false` 기준으로 plan한다. Plan 파일이 필요하면 로컬 ignored path에만 만들고, PR/채팅에는 resource/action 요약만 공유한다.
 
+Phase 1/2와 backend smoke가 끝난 뒤에는 [Azure tfstate bootstrap state migration runbook](../../../../docs/operations/azure-tfstate-bootstrap-state-migration.md)에 따라 local state를 `onmu/bootstrap/tfstate-backend.tfstate` remote key로 이전한다. 실제 `terraform init -migrate-state` 실행은 별도 승인 후 수행한다.
+
 Azure AD data-plane RBAC 전파 지연이 의심되면 `create_state_container = false`로 Storage Account와 RBAC를 먼저 준비한 뒤, 권한 전파 확인 후 `create_state_container = true`로 private container를 만드는 2-phase fallback을 사용한다.
 
 Storage Account 삭제 방지 lock은 `enable_storage_account_delete_lock = true`로 켤 수 있지만, 최초 bootstrap apply 전 별도 승인이 필요하다.
@@ -24,6 +26,7 @@ Terraform `azurerm` backend는 Azure Blob lease를 사용해 state lock을 잡�
 
 | 환경 | State key |
 | --- | --- |
+| bootstrap | `onmu/bootstrap/tfstate-backend.tfstate` |
 | staging | `onmu/staging/terraform.tfstate` |
 | prod | `onmu/prod/terraform.tfstate` |
 
@@ -47,6 +50,16 @@ Apply 전 read-only preflight:
 preflight는 `onmutfstatekrc001`, `onmutfstatekrc002`, `onmutfstatekrc003` 순서로 availability를 확인한다.
 
 ## Backend config 예시
+
+Bootstrap:
+
+```hcl
+resource_group_name  = "3dt-final-team1"
+storage_account_name = "onmutfstatekrc001"
+container_name       = "tfstate"
+key                  = "onmu/bootstrap/tfstate-backend.tfstate"
+use_azuread_auth     = true
+```
 
 Staging:
 

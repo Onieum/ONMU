@@ -68,6 +68,12 @@ variable "enable_storage_account_delete_lock" {
   default     = false
 }
 
+variable "bootstrap_state_key" {
+  description = "Terraform state key for the state-backend bootstrap root module."
+  type        = string
+  default     = "onmu/bootstrap/tfstate-backend.tfstate"
+}
+
 variable "staging_state_key" {
   description = "Terraform state key for staging."
   type        = string
