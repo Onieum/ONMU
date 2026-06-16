@@ -51,3 +51,17 @@
 - route smoke는 widget test로 먼저 확인한다.
 - 시각 깨짐은 browser screenshot smoke 또는 golden test로 보강한다.
 - UI QA에서 반복 발견된 깨짐은 재현 route와 viewport를 문서에 남긴다.
+
+## Android smoke 환경 기준
+
+Windows Android emulator에서 Flutter debug APK를 빌드할 때는 Android Studio JBR 21을 우선 사용한다. JDK 25가 먼저 잡히면 Gradle/Flutter build 중 `can't find system classes` 또는 `Unable to find package java.lang in platform classes` 계열 오류가 날 수 있다.
+
+권장 PowerShell 설정 예시:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version
+```
+
+채팅이나 검색 입력 자동화를 수행할 때는 emulator 입력기를 영문 입력 상태로 맞춘다. 한글 입력기가 활성화되어 있으면 ASCII 자동 입력이 한글 자모처럼 변환되어, 메시지 내용 검증과 screenshot 판독이 흔들릴 수 있다. 메시지 내용 자체보다 전송 흐름을 검증할 때도 입력기 상태를 보고서에 남긴다.
