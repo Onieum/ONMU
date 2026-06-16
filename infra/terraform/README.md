@@ -68,7 +68,7 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 1. Azure account enabled 상태, `3dt-final-team1` resource group, `onmutfstatekrc001`부터 storage name availability 확인
 2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
 3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
-4. Workload Identity + GitHub Environment `azure-staging-apply` 후속 CI PR
+4. Workload Identity + GitHub Environment `azure-staging-apply`로 staging backend init smoke 연결
 5. ACR/observability 신규 생성과 Azure Pricing Calculator 기준 staging 비용 산출
 6. Key Vault reference와 managed identity 경계 확정
 7. Blob CDN Range/CORS/purge/rollback smoke 기준 확정

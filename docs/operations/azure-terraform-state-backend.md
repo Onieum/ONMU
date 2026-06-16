@@ -119,6 +119,18 @@ terraform init `
   -backend-config="use_azuread_auth=true"
 ```
 
+## 5.1 GitHub Actions staging backend smoke
+
+`.github/workflows/terraform-staging.yml`은 GitHub Actions OIDC와 protected environment `azure-staging-apply`를 사용해 staging remote backend init smoke를 수행한다. 이 smoke는 backend 접근과 Azure AD auth 경로만 확인하며 `terraform plan`, `terraform apply`, `terraform state list`는 실행하지 않는다.
+
+필수 GitHub environment variable 또는 secret 이름:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+값은 GitHub protected environment에서만 관리하고 문서, PR, workflow log에 출력하지 않는다. Workload Identity principal에는 storage account scope의 `Storage Blob Data Contributor`와 `3dt-final-team1` resource group scope의 `Reader`가 필요하다.
+
 ## 6. Apply 전 승인 gate
 
 다음을 확인하기 전까지 `terraform apply`를 수행하지 않는다.

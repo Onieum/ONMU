@@ -17,6 +17,7 @@
 | --- | --- | --- |
 | `pr-check.yml` | PR | docs/secret scan, Spring/Flutter test, Docker build 후보 |
 | `terraform-plan.yml` | PR 또는 manual | fmt/validate/plan, artifact 저장 |
+| `terraform-staging.yml` | PR/push + manual | Terraform fmt/validate, protected staging backend init smoke |
 | `deploy-staging.yml` | manual + approval | staging image build/push, apply, migration, smoke |
 | `deploy-prod.yml` | manual + approval | staging 검증 image digest 승격, production migration/cutover smoke |
 | `smoke-staging.yml` | manual 또는 deploy 후 | smoke checklist 실행 |
@@ -25,6 +26,16 @@
 production은 자동 apply하지 않는다. `terraform plan -> approval -> apply -> infra readiness -> migration dry-run/check -> approval -> migration -> deploy -> smoke -> monitoring window` 순서를 기본 gate로 둔다.
 
 Staging apply job은 GitHub Environment `azure-staging-apply`를 사용한다. Required reviewers와 branch 제한을 적용하고, plan identity와 apply identity/권한은 가능하면 분리한다. Workload Identity principal 실제 값은 GitHub protected variable 또는 environment secret으로만 관리하고 문서/로그/PR에는 출력하지 않는다.
+
+현재 1차 연결은 `.github/workflows/terraform-staging.yml`이다. 이 workflow는 PR/push에서 `terraform fmt`, `terraform init -backend=false`, `terraform validate`만 수행한다. Azure OIDC login은 `workflow_dispatch`와 `backend_smoke=true`일 때만 실행하며, `azure-staging-apply` environment approval 뒤에 staging backend init smoke만 수행한다. 이 smoke는 `terraform plan`, `terraform apply`, `terraform state list`를 실행하지 않는다.
+
+`azure-staging-apply` environment에는 아래 이름의 protected variable 또는 secret을 설정한다. 값은 문서, PR, workflow log에 출력하지 않는다.
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+staging backend smoke는 Azure AD auth로 `3dt-final-team1` / `onmutfstatekrc001` / `tfstate` / `onmu/staging/terraform.tfstate`를 초기화한다. GitHub Actions workload identity에는 tfstate storage account scope의 `Storage Blob Data Contributor`와 resource group scope의 `Reader`가 필요하다.
 
 ## 3. PR 단계
 

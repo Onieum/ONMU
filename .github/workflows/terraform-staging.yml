@@ -1,0 +1,110 @@
+name: Terraform Staging
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - ".github/workflows/terraform-staging.yml"
+      - ".azure/**"
+      - "docs/architecture/**"
+      - "docs/operations/azure-*.md"
+      - "infra/terraform/**"
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/terraform-staging.yml"
+      - ".azure/**"
+      - "docs/architecture/**"
+      - "docs/operations/azure-*.md"
+      - "infra/terraform/**"
+  workflow_dispatch:
+    inputs:
+      backend_smoke:
+        description: "Run Azure OIDC staging backend init smoke. No plan or apply is executed."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  terraform-validate:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        run: terraform -chdir=infra/terraform fmt -recursive -check
+
+      - name: Terraform validate root modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          for module in \
+            infra/terraform/bootstrap/state-backend \
+            infra/terraform/environments/staging \
+            infra/terraform/environments/prod
+          do
+            terraform -chdir="$module" init -backend=false
+            terraform -chdir="$module" validate
+          done
+
+  staging-backend-smoke:
+    name: Staging backend init smoke
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.backend_smoke == true }}
+    runs-on: ubuntu-latest
+    environment: azure-staging-apply
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Validate Azure workflow variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing Azure workflow variable::$name must be configured on the azure-staging-apply environment."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Required Azure workflow variable names are configured."
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Init staging remote backend
+        working-directory: infra/terraform/environments/staging
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=3dt-final-team1" \
+            -backend-config="storage_account_name=onmutfstatekrc001" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=onmu/staging/terraform.tfstate" \
+            -backend-config="use_azuread_auth=true"
+          echo "Staging backend init completed. terraform plan/apply/state list were not executed."
