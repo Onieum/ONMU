@@ -461,6 +461,14 @@ jobs:
               exit 1
             fi
           fi
+          if [ "${{ inputs.wave }}" = "frontdoor_diagnostics" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected frontdoor_diagnostics plan summary::Only supported Front Door diagnostic setting create and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
           rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
 
       - name: Confirm no apply occurred
@@ -769,6 +777,30 @@ jobs:
             storage_container_creates=$(jq '[.resource_changes[]? | select(.type == "azurerm_storage_container" and (.change.actions | index("create")))] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
             if [ "$storage_container_creates" -gt 0 ]; then
               echo "::error title=Import existing storage container first::core_foundation still plans azurerm_storage_container create. Import the existing tiles container into staging state before retrying apply."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "core_diagnostics" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected core_diagnostics apply precheck::Only azurerm_monitor_diagnostic_setting create and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "frontdoor_tile_edge" ]; then
+            unexpected_delete_or_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "delete" or (.change.actions | join(",")) == "update" or (.change.actions | join(",")) == "create,delete" or (.change.actions | join(",")) == "delete,create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected frontdoor_tile_edge apply precheck::Only Front Door create actions and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "frontdoor_diagnostics" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected frontdoor_diagnostics apply precheck::Only supported Front Door diagnostic setting create and existing resource no-op are allowed."
               exit 1
             fi
           fi

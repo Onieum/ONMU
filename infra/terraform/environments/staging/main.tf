@@ -57,8 +57,9 @@ locals {
   }
 
   frontdoor_diagnostic_target_candidates = {
-    frontdoor_profile  = try(module.front_door[0].profile_id, null)
-    frontdoor_endpoint = try(module.front_door[0].endpoint_id, null)
+    # Azure Front Door diagnostics currently attach at the profile scope.
+    # afdEndpoints do not support diagnostic settings in this subscription/runtime path.
+    frontdoor_profile = try(module.front_door[0].profile_id, null)
   }
 
   foundation_diagnostic_targets = {
