@@ -187,11 +187,6 @@ jobs:
 
           create_resource_group        = false
           existing_resource_group_name = "3dt-final-team1"
-
-          enabled_diagnostic_targets = {
-            foundation = false
-            front_door = false
-          }
           EOF
 
           case "${{ inputs.wave }}" in
@@ -532,11 +527,6 @@ jobs:
 
           create_resource_group        = false
           existing_resource_group_name = "3dt-final-team1"
-
-          enabled_diagnostic_targets = {
-            foundation = false
-            front_door = false
-          }
           EOF
 
           case "${{ inputs.wave }}" in
