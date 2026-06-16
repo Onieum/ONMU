@@ -421,7 +421,15 @@ jobs:
           status=$?
           set -e
           if [ "$status" -eq 1 ]; then
-            echo "::error title=Terraform plan failed::Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            safe_hint=$(sed -E \
+              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations')
+            if [ -z "${safe_hint:-}" ]; then
+              safe_hint="Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            fi
+            echo "::error title=Terraform plan failed::$safe_hint"
             exit 1
           fi
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
@@ -755,7 +763,15 @@ jobs:
             > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
           plan_status=$?
           if [ "$plan_status" -ne 0 ]; then
-            echo "::error title=Terraform plan failed before apply::Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            safe_hint=$(sed -E \
+              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations')
+            if [ -z "${safe_hint:-}" ]; then
+              safe_hint="Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            fi
+            echo "::error title=Terraform plan failed before apply::$safe_hint"
             exit 1
           fi
           terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
@@ -774,7 +790,15 @@ jobs:
           apply_status=$?
           set -e
           if [ "$apply_status" -ne 0 ]; then
-            echo "::error title=Terraform apply failed::Review Azure RBAC, quota, or resource conflict. Raw apply output was not printed."
+            safe_hint=$(sed -E \
+              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" \
+              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations|PublicAccessNotPermitted|retiring')
+            if [ -z "${safe_hint:-}" ]; then
+              safe_hint="Review Azure RBAC, quota, or resource conflict. Raw apply output was not printed."
+            fi
+            echo "::error title=Terraform apply failed::$safe_hint"
             exit 1
           fi
           terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
