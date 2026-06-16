@@ -31,7 +31,7 @@
 | apply 전 비용 보고 | 현재 누적 / 예상 증가분 / 상한 대비 잔여율 |
 | Budget 리소스 생성 | 별도 승인 전까지 제외 |
 
-- ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 skeleton/plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다.
+- ACR, ACA, PostgreSQL, Azure Managed Redis 후보, CDN/Front Door, Event Hubs는 skeleton/plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다.
 - WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
 - 비용 산출은 resource/action summary 중심으로 공유하고 subscription id, principal id, raw plan output은 공유하지 않는다.
 - Wave 1은 ACR Basic, Log Analytics, Application Insights만 대상으로 한다. Cost Management 조회 권한이 아직 없으면 apply 전 보고는 `현재 누적 확인 불가 / 예상 증가분 low-medium / 사용자 승인 필요` 형식으로 제한한다.
@@ -42,7 +42,7 @@
 | --- | --- |
 | Container Apps | region, replica 수, vCPU, memory, 요청량, active/idle 시간 |
 | PostgreSQL Flexible Server | region, SKU `B_Standard_B1ms`, storage, backup retention, public/private network |
-| Azure Cache for Redis | region, Basic C0, 운영 시간 |
+| Azure Managed Redis 후보 | region, SKU/tier, 운영 시간 |
 | Blob Storage | redundancy, capacity, read/write/list transaction, lifecycle policy |
 | Azure CDN | profile SKU, egress GB, request count, purge 빈도 |
 | Key Vault | operation count, private endpoint 여부 |
@@ -59,7 +59,7 @@
 | 작은 Blob capacity와 낮은 transaction | 높음 | tile rehearsal object가 작고 egress가 낮으면 비용 변동이 작다 |
 | Key Vault operation | 높음 | staging smoke 수준의 secret reference 호출은 일반적으로 작다 |
 | PostgreSQL Flexible Server | 중간 | DB는 상시 기동 리소스라 크레딧 소모가 지속된다 |
-| Redis Basic C0 | 중간 | cache는 상시 기동 리소스라 idle 비용이 남는다 |
+| Azure Managed Redis 후보 | 중간 | cache는 상시 기동 리소스라 idle 비용이 남는다. Azure Cache for Redis classic 신규 생성 차단으로 별도 비용 산출 필요 |
 | Event Hubs Standard | 중간-낮음 | throughput/capacity 단위가 시간 기준으로 비용을 만든다 |
 | CDN tile egress/request | 낮음-중간 | Android 지도 smoke와 PMTiles egress가 늘면 빠르게 비용 변수가 된다 |
 | Log Analytics/App Insights | 낮음-중간 | raw body 없이도 ingestion volume이 커질 수 있다 |
@@ -73,7 +73,7 @@
 | 비용 risk | 포함 항목 | 대응 |
 | --- | --- | --- |
 | Low | Key Vault operation, 작은 Blob, 낮은 ACA request | 기본값 유지 |
-| Medium | PostgreSQL B1ms, Redis Basic C0, ACR Basic | 운영 시간과 SKU 재검토 |
+| Medium | PostgreSQL B1ms, Azure Managed Redis 후보, ACR Basic | 운영 시간과 SKU 재검토 |
 | Medium-High | Event Hubs Standard, CDN egress, Log Analytics ingestion | retention, sampling, TU/capacity, tile egress 제한 |
 | High | private endpoint/VNet, WAF/APIM/Front Door Premium, AKS, production HA | production hardening PR로 분리 |
 

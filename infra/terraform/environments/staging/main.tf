@@ -102,13 +102,14 @@ module "observability" {
 module "key_vault" {
   count = var.enabled_modules.key_vault ? 1 : 0
 
-  source                      = "../../modules/key-vault"
-  resource_group_name         = local.resource_group_name
-  location                    = local.resource_group_location
-  tenant_id                   = var.tenant_id
-  key_vault_name              = module.naming.key_vault_name
-  user_assigned_identity_name = module.naming.user_assigned_identity_name
-  tags                        = local.tags
+  source                                      = "../../modules/key-vault"
+  resource_group_name                         = local.resource_group_name
+  location                                    = local.resource_group_location
+  tenant_id                                   = var.tenant_id
+  key_vault_name                              = module.naming.key_vault_name
+  user_assigned_identity_name                 = module.naming.user_assigned_identity_name
+  create_runtime_secrets_user_role_assignment = var.enabled_modules.rbac_assignments
+  tags                                        = local.tags
 }
 
 module "container_registry" {

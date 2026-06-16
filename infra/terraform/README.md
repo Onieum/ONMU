@@ -54,13 +54,14 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 후속 GitHub Actions wave는 다음 입력으로 선택한다.
 
 - `acr_observability`: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights.
-- `core_foundation`: Redis Basic C0, Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment.
+- `core_foundation`: Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment.
+- `key_vault_rbac`: runtime managed identity에 Key Vault Secrets User role assignment 연결. RBAC assignment 권한 승인 후 실행.
 - `core_diagnostics`: `core_foundation` apply 후 foundation 리소스 diagnostic setting을 Log Analytics로 연결.
 - `frontdoor_tile_edge`: Azure Front Door Standard profile/endpoint/origin group/origin/route. 기본료 발생으로 apply 전 별도 비용 승인 필요.
 - `frontdoor_diagnostics`: `frontdoor_tile_edge` apply 후 Front Door diagnostic setting을 Log Analytics로 연결.
 - `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
 
-`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다.
+`core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Tile/static container는 private로 유지하고 public delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Redis는 Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.
 
 ## state/backend 기준
 
@@ -79,17 +80,20 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 ## 다음 gate
 
 1. `core_foundation` plan-only에서 예상 resource/action summary 확인
-2. `core_foundation` apply 승인과 적용 후 Redis/Blob/Event Hubs/Key Vault/ACA Environment smoke
-3. `core_diagnostics` plan/apply 승인과 diagnostic setting smoke
-4. Front Door Standard 기본료와 egress/request 비용 승인 후 `frontdoor_tile_edge` plan/apply 여부 결정
-5. `frontdoor_diagnostics` plan/apply 승인과 diagnostic setting smoke
-6. Cost Management 조회 권한 또는 비용 확인 담당자 확정
-7. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
-8. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정
-9. Clean DB + Flyway full migration smoke 기준 확정
-10. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
-11. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
-12. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-13. provider console redirect/package/SHA-1 확인
-14. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-15. Windows dev backend smoke를 rollback 기준으로 유지
+2. `tiles` container가 partial apply로 이미 존재하지만 state에 없으면 remote state import 후 plan 재확인
+3. `core_foundation` apply 승인과 적용 후 Blob/Event Hubs/Key Vault/ACA Environment smoke
+4. `key_vault_rbac` 전 RBAC assignment 권한 승인 또는 운영자 수동 role assignment 결정
+5. `core_diagnostics` plan/apply 승인과 diagnostic setting smoke
+6. Front Door Standard 기본료와 egress/request 비용 승인 후 `frontdoor_tile_edge` plan/apply 여부 결정
+7. `frontdoor_diagnostics` plan/apply 승인과 diagnostic setting smoke
+8. Azure Managed Redis 전환 리소스와 provider 지원 여부 결정
+9. Cost Management 조회 권한 또는 비용 확인 담당자 확정
+10. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
+11. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정
+12. Clean DB + Flyway full migration smoke 기준 확정
+13. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
+14. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
+15. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+16. provider console redirect/package/SHA-1 확인
+17. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+18. Windows dev backend smoke를 rollback 기준으로 유지

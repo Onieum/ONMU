@@ -19,5 +19,5 @@ resource "azurerm_storage_container" "media" {
 resource "azurerm_storage_container" "tiles" {
   name                  = var.tile_container_name
   storage_account_id    = azurerm_storage_account.this.id
-  container_access_type = "blob"
+  container_access_type = "private"
 }

@@ -67,30 +67,45 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 `core_foundation`에서 켜는 Terraform module은 다음이다.
 
 - `observability`, `container_registry`: Wave 1 리소스를 유지하며 recreate하지 않는다.
-- `key_vault`: Key Vault, user-assigned managed identity, Key Vault Secrets User role assignment.
-- `redis`: Azure Cache for Redis Basic C0.
-- `storage`: Blob Storage account, public tile/static container, private media container.
+- `key_vault`: Key Vault, user-assigned managed identity. Key Vault Secrets User role assignment은 `key_vault_rbac` wave로 분리한다.
+- `storage`: Blob Storage account, private tile/static container, private media container.
 - `eventhubs`: Event Hubs Standard namespace, `notification-requested`, `worker-jobs`, consumer groups `worker`, `analytics`.
 - `container_apps_environment`: ACA Environment만 생성.
 
 `core_foundation`에서 명시적으로 제외한다.
 
 - PostgreSQL Flexible Server
+- Redis. Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.
 - Spring API Container App
 - Worker Container App
 - CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다.
+- Key Vault role assignment. Workload Identity에 RBAC assignment 권한이 없으면 실패하므로 `key_vault_rbac`에서 별도 승인 후 실행한다.
 - Diagnostic settings. 신규 resource id는 plan 시점에 unknown이므로 리소스 생성 wave와 분리한다.
 - Key Vault secret value 작성
 - DNS/custom domain 변경
 - DB migration 실행
 
-Plan summary가 Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
+Plan summary가 Storage, Event Hubs, Key Vault, managed identity, ACA Environment 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. `tiles` container는 Storage Account public blob access 차단과 맞추기 위해 private로 유지한다. Tile/static public delivery는 container public access가 아니라 Front Door route, cache policy, Range/CORS smoke로 검증한다.
+
+부분 apply 실패 뒤 Azure에는 `tiles` container가 존재하지만 remote state에는 없을 수 있다. 이 경우 재-apply 전에 raw state를 출력하지 않고 아래 address만 import한다.
+
+```text
+module.storage[0].azurerm_storage_container.tiles
+```
+
+Import 후 plan summary가 `azurerm_container_app_environment` create와 기존 리소스 no-op 중심인지 확인한다. `azurerm_storage_container` create가 계속 보이면 apply하지 않는다. `Terraform Staging` workflow도 `core_foundation`에서 `azurerm_storage_container` create를 감지하면 import gate 오류로 중단한다.
+
+### Staging Key Vault RBAC
+
+`wave=key_vault_rbac`는 runtime managed identity에 Key Vault Secrets User 역할을 연결하는 전용 wave다. 이 wave는 Workload Identity 또는 운영자가 resource group/Key Vault scope에서 role assignment를 만들 권한을 갖는지 확인한 뒤 실행한다.
+
+Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 runtime managed identity가 secret reference를 읽으려면 Key Vault scope의 `Key Vault Secrets User` role assignment가 필요하다. Contributor 권한만으로 role assignment 생성이 막히면 apply를 반복하지 않는다. 속도 우선 기본값은 운영자가 기존 Key Vault scope에서 runtime managed identity에 `Key Vault Secrets User`를 수동 부여하는 것이다. IaC 일관성을 우선할 때만 Key Vault scope 한정 `Key Vault Data Access Administrator`, `User Access Administrator`, 또는 `Role Based Access Control Administrator` 부여를 별도 승인한다.
 
 ### Staging Core Diagnostics
 
 `wave=core_diagnostics`는 `core_foundation` apply가 성공하고 remote state에 resource id가 기록된 뒤에만 실행한다. 이 wave는 foundation 리소스의 diagnostic setting을 Log Analytics로 연결한다.
 
-`core_diagnostics`에서 기대하는 변경은 diagnostic setting create 중심이다. Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment 자체가 create로 다시 잡히면 core foundation이 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않고 중단한다.
+`core_diagnostics`에서 기대하는 변경은 diagnostic setting create 중심이다. Storage, Event Hubs, Key Vault, managed identity, ACA Environment 자체가 create로 다시 잡히면 core foundation이 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않고 중단한다.
 
 ### Staging DB/App Ready
 

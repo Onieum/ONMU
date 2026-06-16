@@ -45,12 +45,12 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 `core_foundation` wave 직후에는 앱 배포 성공이 아니라 기반 리소스 준비만 판정한다. Diagnostic setting은 이 wave에서 만들지 않고 `core_diagnostics`로 분리한다. 최소 확인은 다음이다.
 
-- Redis Basic C0 존재와 provisioning status 확인
-- Blob containers count와 public tile/static, private media access boundary 확인
+- Redis는 Azure Managed Redis 재설계 전까지 core foundation smoke 대상에서 제외한다.
+- Blob containers count와 private tile/static, private media access boundary 확인
 - CDN/edge resource가 `core_foundation`으로 생성되지 않았는지 확인한다. `core_diagnostics` wave 이후에는 foundation 리소스 diagnostic setting 연결을 확인한다. `frontdoor_tile_edge` wave 이후에는 Azure Front Door Standard profile/endpoint/origin group/origin/route 존재를 확인한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 `frontdoor_diagnostics` wave에서 연결한다.
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
 - Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
-- user-assigned managed identity 존재와 Key Vault Secrets User role assignment status 확인
+- user-assigned managed identity 존재 확인. Key Vault Secrets User role assignment는 `key_vault_rbac` wave 이후 별도 확인
 - ACA Environment 존재, Spring API/worker Container App 미생성 확인
 - diagnostic settings가 Log Analytics workspace로 연결됐는지 count/status 확인
 

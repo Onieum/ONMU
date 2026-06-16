@@ -19,6 +19,8 @@ resource "azurerm_user_assigned_identity" "runtime" {
 }
 
 resource "azurerm_role_assignment" "runtime_key_vault_secrets_user" {
+  count = var.create_runtime_secrets_user_role_assignment ? 1 : 0
+
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.runtime.principal_id

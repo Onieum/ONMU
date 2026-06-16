@@ -69,6 +69,7 @@ variable "enabled_modules" {
     container_apps_environment = bool
     container_apps             = bool
     diagnostics                = bool
+    rbac_assignments           = bool
   })
   default = {
     observability              = true
@@ -83,6 +84,7 @@ variable "enabled_modules" {
     container_apps_environment = false
     container_apps             = false
     diagnostics                = false
+    rbac_assignments           = false
   }
 
   validation {
@@ -108,6 +110,11 @@ variable "enabled_modules" {
   validation {
     condition     = !var.enabled_modules.diagnostics || var.enabled_modules.observability
     error_message = "enabled_modules.diagnostics requires enabled_modules.observability."
+  }
+
+  validation {
+    condition     = !var.enabled_modules.rbac_assignments || var.enabled_modules.key_vault
+    error_message = "enabled_modules.rbac_assignments requires enabled_modules.key_vault."
   }
 
 }
