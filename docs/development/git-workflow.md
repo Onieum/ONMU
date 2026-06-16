@@ -189,13 +189,15 @@ Windows PowerShell에서 `gh pr create --body-file -`처럼 stdin pipe로 한글
 권장 방식:
 
 ```powershell
+. .\scripts\windows\lib\utf8.ps1
+Set-OnmuUtf8Console
+
 $bodyPath = Join-Path $env:TEMP "onmu-pr-body.md"
 $body = @'
 ## 요약
 - 한글 본문을 여기에 작성합니다.
 '@
-$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-[System.IO.File]::WriteAllText($bodyPath, $body, $utf8NoBom)
+Write-Utf8NoBom -Path $bodyPath -Content $body
 gh pr create --base dev --head <branch> --title "<title>" --body-file $bodyPath
 Remove-Item -LiteralPath $bodyPath -Force
 ```
@@ -208,6 +210,36 @@ gh issue view <number> --json body
 ```
 
 본문에 `??`, `�`, 맨 앞 BOM 문자가 보이면 즉시 UTF-8 no BOM 파일 방식으로 `gh pr edit --body-file <path>` 또는 `gh issue edit --body-file <path>`를 실행합니다.
+
+### Windows PowerShell 스크립트 UTF-8 기준
+
+새 Windows `.ps1` 스크립트에서 한글 Markdown, GitHub 본문, Azure CLI stdout, JSON 파일을 다루면 공통 helper를 먼저 사용합니다.
+
+```powershell
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib\utf8.ps1")
+Set-OnmuUtf8Console
+```
+
+스크립트 위치가 `scripts/windows` 하위가 아니면 helper 경로만 현재 파일 기준으로 조정합니다. 한글이 포함된 파일을 만들거나 읽을 때는 `Set-Content -Encoding UTF8`, 기본 `Get-Content`에 의존하지 않고 `Write-Utf8NoBom`, `Read-Utf8`를 사용합니다.
+
+Azure CLI 결과에서 한글 subscription display name, PR body, Markdown 문자열을 비교할 때는 Windows PowerShell 5.x와 PowerShell 7의 인코딩 차이로 깨질 수 있습니다. 필수 gate는 한글 display name strict compare보다 resource group name, storage account name, location, status, HTTP status처럼 안정적인 필드를 우선 사용합니다. display name 비교가 꼭 필요하면 옵션성 검증으로 두고, 실패 시 식별자 실제 값은 출력하지 않습니다.
+
+### macOS shell과 한글 자동화 기준
+
+macOS는 기본 shell과 Git 도구가 대체로 UTF-8을 사용하지만, 자동화에서는 locale, inline body, Unicode 정규화 차이로 한글이 깨지거나 경로 비교가 흔들릴 수 있습니다. 한글 PR/Issue 본문, Markdown, Azure/GitHub CLI 출력, Flutter dart-define 파일을 다루는 macOS 스크립트는 UTF-8 locale을 명시하고 파일 기반 전달을 우선합니다.
+
+권장 기본값:
+
+```bash
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export PYTHONUTF8=1
+```
+
+한글 본문은 Windows와 동일하게 inline 인자보다 UTF-8 파일과 `gh ... --body-file <path>`를 우선합니다. 생성 후에는 `gh pr view <number> --json body` 또는 `gh issue view <number> --json body`로 readback을 확인합니다.
+
+macOS에서도 한글 Azure subscription display name이나 사용자 표시명을 필수 gate로 직접 비교하지 않습니다. 자동화 gate는 resource group name, storage account name, location, status, HTTP status, count처럼 OS와 locale 영향을 덜 받는 필드를 사용합니다. 한글 파일명은 사람이 읽는 문서에는 사용할 수 있지만, 스크립트 경로와 CI 산출물 파일명은 ASCII를 우선합니다.
 
 ## GitHub 라벨과 마일스톤
 
