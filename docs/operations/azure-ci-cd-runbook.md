@@ -109,6 +109,8 @@ Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 ru
 
 ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` workload profile이 기록될 수 있다. Terraform module도 같은 기본 profile을 명시적으로 유지해 `core_diagnostics`에서 environment update drift가 섞이지 않게 한다.
 
+`frontdoor_tile_edge`처럼 diagnostics를 새로 만들지 않는 wave에서도, 이미 적용된 foundation diagnostic setting은 Terraform target 집합에 계속 포함해야 한다. 그렇지 않으면 Front Door plan이 기존 diagnostic setting delete를 같이 잡는다.
+
 ### Staging DB/App Ready
 
 `wave=db_and_app_ready`는 PostgreSQL Flexible Server와 Spring API/worker Container App을 만들 수 있는 선택지지만, 기본 실행 대상이 아니다. 아래 protected 값이 준비되고 사용자가 별도 승인할 때만 plan/apply한다.
@@ -141,7 +143,7 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 - DNS 변경
 - production 적용
 
-Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
+Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
 
 ### Staging Front Door Diagnostics
 

@@ -46,23 +46,37 @@ locals {
     env_name => lower(replace(env_name, "_", "-"))
   }
 
-  diagnostic_target_candidates = {
+  foundation_diagnostic_target_candidates = {
     key_vault                  = try(module.key_vault[0].key_vault_id, null)
     redis                      = try(module.redis[0].id, null)
     storage                    = try(module.storage[0].storage_account_id, null)
     cdn_profile                = try(module.cdn[0].profile_id, null)
     cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
-    frontdoor_profile          = try(module.front_door[0].profile_id, null)
-    frontdoor_endpoint         = try(module.front_door[0].endpoint_id, null)
     eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
     container_apps_environment = try(module.container_apps[0].environment_id, null)
   }
 
-  diagnostic_targets = {
-    for name, id in local.diagnostic_target_candidates :
+  frontdoor_diagnostic_target_candidates = {
+    frontdoor_profile  = try(module.front_door[0].profile_id, null)
+    frontdoor_endpoint = try(module.front_door[0].endpoint_id, null)
+  }
+
+  foundation_diagnostic_targets = {
+    for name, id in local.foundation_diagnostic_target_candidates :
     name => id
     if id != null && id != ""
   }
+
+  frontdoor_diagnostic_targets = {
+    for name, id in local.frontdoor_diagnostic_target_candidates :
+    name => id
+    if id != null && id != ""
+  }
+
+  diagnostic_targets = merge(
+    var.enabled_diagnostic_targets.foundation ? local.foundation_diagnostic_targets : {},
+    var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {}
+  )
 }
 
 module "naming" {

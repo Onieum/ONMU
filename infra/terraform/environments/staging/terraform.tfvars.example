@@ -25,6 +25,11 @@ enabled_modules = {
   rbac_assignments           = false
 }
 
+enabled_diagnostic_targets = {
+  foundation = false
+  front_door = false
+}
+
 # 실제 password 값은 git에 기록하지 않는다.
 # PostgreSQL wave에서 enabled_modules.postgres=true일 때만
 # TF_VAR_postgres_administrator_password 또는 protected CI secret으로 전달한다.
