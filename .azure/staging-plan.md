@@ -9,7 +9,7 @@
 | Azure region | `koreacentral` |
 | Runtime platform | Azure Container Apps |
 | Terraform state backend | Azure Storage blob backend |
-| Tile/static public delivery | Blob Storage + Azure CDN Standard Microsoft |
+| Tile/static public delivery | Blob Storage origin 우선, CDN/edge는 사용자 직접 생성 후 별도 smoke/연동 |
 | Event/analytics fan-out | Event Hubs Standard |
 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
 | Redis | Basic C0 |
@@ -33,7 +33,7 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 | PostgreSQL | Flexible Server `B_Standard_B1ms`, database, PostGIS 전제 | server/database/extension allow path. schema DDL은 제외 |
 | Redis | Basic C0 | cache instance와 secret reference |
 | Blob Storage | public tile/static container, private media container, checkpoint container | account, container, lifecycle/versioning 후보, RBAC |
-| CDN | Azure CDN Standard Microsoft profile/endpoint | profile, endpoint, origin, cache rule 후보 |
+| Edge/CDN | 사용자 직접 생성 리소스 | Terraform foundation apply에서 제외하고, 생성 후 origin/headers/smoke 기준만 문서화 |
 | Event Hubs | Standard namespace, event hubs, consumer groups | namespace, hub, consumer group, RBAC |
 | Observability | Log Analytics, Application Insights, diagnostic settings | workspace, app insights, diagnostics, retention 후보 |
 | Cost guard | budget/cost alert 후보 | 후속 승인 전까지 문서 후보 |
@@ -83,21 +83,21 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 | `postgres` | disabled | disabled | enabled | protected secret과 clean DB/Flyway 승인 전 apply 금지 |
 | `redis` | disabled | enabled | enabled | Basic C0, source of truth 아님 |
 | `storage` | disabled | enabled | enabled | public tiles/static, private media container 분리 |
-| `cdn` | disabled | enabled | enabled | Azure CDN Standard Microsoft, Blob origin |
+| `cdn` | disabled | disabled | external | 사용자 직접 생성. Terraform은 foundation에서 생성하지 않음 |
 | `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
 | `container_apps_environment` | disabled | enabled | enabled | ACA Environment까지만 foundation에서 생성 |
 | `container_apps` | disabled | disabled | enabled | Spring API/worker app은 image/secret/Flyway 준비 후 별도 승인 |
 | `diagnostics` | disabled | enabled | enabled | 생성 리소스 diagnostic setting을 Log Analytics로 연결 |
 
-`core_foundation`은 Redis, Blob/CDN, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server는 생성하지 않는다.
+`core_foundation`은 Redis, Blob Storage origin, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server, CDN/edge 리소스는 생성하지 않는다.
 
 `db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다.
 
 ## 4. Blob + CDN 운영 경계
 
 - Blob Storage는 tile/static/media object의 origin이자 source of truth다.
-- Azure CDN은 public tile/static edge delivery 계층이다.
-- Tile manifest, style JSON, PMTiles는 public CDN 대상으로 둘 수 있다.
+- Edge/CDN은 public tile/static delivery 계층이지만, 이번 Terraform foundation에서는 만들지 않는다. 사용자가 직접 CDN/edge를 만든 뒤 origin, Range/CORS, cache, rollback smoke를 별도로 수행한다.
+- Tile manifest, style JSON, PMTiles는 후속 edge 계층이 확정되면 public edge delivery 대상으로 둘 수 있다.
 - PMTiles는 versioned object path와 manifest pointer rollback을 우선한다.
 - Manifest/style은 rollback을 해치지 않는 짧은 cache policy를 둔다.
 - Private user media는 public CDN cache 대상이 아니다.
@@ -172,7 +172,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
 | 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시, optional delete lock, read-only preflight, RBAC 전파 지연 시 2-phase fallback | 앱 리소스 |
-| 3 | Staging core foundation | Redis, Blob/CDN, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostics | PostgreSQL, ACA app, secret value |
+| 3 | Staging core foundation | Redis, Blob Storage origin, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostics | PostgreSQL, ACA app, CDN/edge, secret value |
 | 4 | DB/App readiness | PostgreSQL skeleton, Spring API/worker app wiring, image/secret gate | DB migration 실행, DNS/custom domain |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |
 | 6 | Data rehearsal | clean DB Flyway, Blob copy rehearsal, tile CDN smoke | dev snapshot restore 무승인 실행 |

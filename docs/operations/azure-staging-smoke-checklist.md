@@ -47,7 +47,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 - Redis Basic C0 존재와 provisioning status 확인
 - Blob containers count와 public tile/static, private media access boundary 확인
-- Azure CDN Standard Microsoft profile/endpoint 존재 확인
+- CDN/edge resource가 Terraform으로 생성되지 않았는지 확인. 사용자가 직접 생성한 뒤 origin, Range/CORS, cache, rollback smoke를 별도로 수행한다.
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
 - Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
 - user-assigned managed identity 존재와 Key Vault Secrets User role assignment status 확인

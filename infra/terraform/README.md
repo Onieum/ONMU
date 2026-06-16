@@ -54,10 +54,10 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 후속 GitHub Actions wave는 다음 입력으로 선택한다.
 
 - `acr_observability`: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights.
-- `core_foundation`: Redis Basic C0, Blob Storage, Azure CDN Standard Microsoft, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings.
+- `core_foundation`: Redis Basic C0, Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings.
 - `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
 
-`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다.
+`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. CDN/edge는 사용자가 직접 생성하고, Terraform은 Blob origin과 이후 smoke 기준만 유지한다.
 
 ## state/backend 기준
 
@@ -76,7 +76,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 ## 다음 gate
 
 1. `core_foundation` plan-only에서 예상 resource/action summary 확인
-2. `core_foundation` apply 승인과 적용 후 Redis/Blob/CDN/Event Hubs/Key Vault/ACA Environment/diagnostics smoke
+2. `core_foundation` apply 승인과 적용 후 Redis/Blob/Event Hubs/Key Vault/ACA Environment/diagnostics smoke
 3. Cost Management 조회 권한 또는 비용 확인 담당자 확정
 4. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
 5. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정

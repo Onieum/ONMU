@@ -70,7 +70,6 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 - `key_vault`: Key Vault, user-assigned managed identity, Key Vault Secrets User role assignment.
 - `redis`: Azure Cache for Redis Basic C0.
 - `storage`: Blob Storage account, public tile/static container, private media container.
-- `cdn`: Azure CDN Standard Microsoft profile/endpoint with Blob origin.
 - `eventhubs`: Event Hubs Standard namespace, `notification-requested`, `worker-jobs`, consumer groups `worker`, `analytics`.
 - `container_apps_environment`: ACA Environment만 생성.
 - `diagnostics`: foundation 리소스 diagnostic setting을 Log Analytics로 연결.
@@ -80,11 +79,12 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 - PostgreSQL Flexible Server
 - Spring API Container App
 - Worker Container App
+- CDN/edge resource. 사용자가 직접 생성하고, Terraform foundation은 Blob origin까지만 만든다.
 - Key Vault secret value 작성
 - DNS/custom domain 변경
 - DB migration 실행
 
-Plan summary가 Redis, Storage, CDN, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostic settings 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
+Plan summary가 Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostic settings 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
 
 ### Staging DB/App Ready
 
@@ -96,7 +96,7 @@ Plan summary가 Redis, Storage, CDN, Event Hubs, Key Vault, managed identity, AC
 
 PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수 있다. 이 방식을 채택하기 전 사용자는 state 보관 리스크와 secret rotation 절차를 명시적으로 승인해야 한다. Spring API/worker app은 Key Vault reference만 사용하며 secret value는 Terraform code, plan 공유본, PR, workflow log에 출력하지 않는다.
 
-`db_and_app_ready` 이후에도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob/CDN/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
+`db_and_app_ready` 이후에도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 
 ## 3. PR 단계
 

@@ -220,7 +220,7 @@ jobs:
             postgres                   = false
             redis                      = true
             storage                    = true
-            cdn                        = true
+            cdn                        = false
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
