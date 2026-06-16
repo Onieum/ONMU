@@ -1,11 +1,14 @@
 subscription_display_name = "대한상공회의소 Data School"
 
-location              = "koreacentral"
-create_resource_group = false
-resource_group_name   = "3dt-final-team1"
-storage_account_name  = "stonmutfstatekrc001"
-container_name        = "tfstate"
-replication_type      = "LRS"
+location               = "koreacentral"
+create_resource_group  = false
+resource_group_name    = "3dt-final-team1"
+storage_account_name   = "stonmutfstatekrc001"
+container_name         = "tfstate"
+create_state_container = true
+replication_type       = "LRS"
+
+enable_storage_account_delete_lock = false
 
 staging_state_key = "onmu/staging/terraform.tfstate"
 prod_state_key    = "onmu/prod/terraform.tfstate"

@@ -37,9 +37,18 @@ resource "azurerm_storage_account" "tfstate" {
 }
 
 resource "azurerm_storage_container" "tfstate" {
+  count                 = var.create_state_container ? 1 : 0
   name                  = var.container_name
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"
+}
+
+resource "azurerm_management_lock" "tfstate_storage_account" {
+  count      = var.enable_storage_account_delete_lock ? 1 : 0
+  name       = "lock-${azurerm_storage_account.tfstate.name}-cannot-delete"
+  scope      = azurerm_storage_account.tfstate.id
+  lock_level = "CanNotDelete"
+  notes      = "Protect ONMU Terraform state backend storage from accidental deletion."
 }
 
 resource "azurerm_role_assignment" "tfstate_blob_data_contributor" {

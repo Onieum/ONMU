@@ -70,7 +70,7 @@ State backend는 Azure Storage blob backend로 고정하되, backend bootstrap �
 | staging | `onmu/staging/terraform.tfstate` |
 | prod | `onmu/prod/terraform.tfstate` |
 
-Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../docs/operations/azure-terraform-state-backend.md)과 `infra/terraform/bootstrap/state-backend` root module을 따른다.
+Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../docs/operations/azure-terraform-state-backend.md)과 `infra/terraform/bootstrap/state-backend` root module을 따른다. 첫 bootstrap은 remote backend가 없으므로 local state와 `terraform init -backend=false`로 진행하며, 실제 apply 승인 전에는 승인된 운영자 또는 GitHub Actions principal object id와 실행 주체의 storage data-plane 권한을 확인한다.
 
 ## 4. Blob + CDN 운영 경계
 
@@ -144,7 +144,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | 순서 | PR 범위 | 포함 | 제외 |
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
-| 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시 | 앱 리소스 |
+| 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시, optional delete lock, read-only preflight, RBAC 전파 지연 시 2-phase fallback | 앱 리소스 |
 | 3 | Staging resource skeleton 확장 | ACA/Postgres/Redis/Blob/CDN/Event Hubs/observability module 보완 | secret value |
 | 4 | Staging apply gate | GitHub protected environment, manual approval, plan artifact | 자동 production apply |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |
@@ -154,7 +154,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 ## 10. 남은 결정사항
 
 - Azure subscription과 resource naming suffix
-- Terraform backend bootstrap 리소스 이름과 RBAC 주체
+- Terraform backend bootstrap 리소스 이름, 승인된 RBAC 주체, 실행 주체 data-plane 권한
 - ACR 신규 생성 또는 기존 registry 연동
 - Container Apps CPU/memory 초기값
 - PostgreSQL storage/backup retention

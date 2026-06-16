@@ -45,6 +45,12 @@ variable "container_name" {
   default     = "tfstate"
 }
 
+variable "create_state_container" {
+  description = "Create the private tfstate container. Set false for phase-1 storage/RBAC bootstrap when Azure AD data-plane RBAC propagation needs a separate phase."
+  type        = bool
+  default     = true
+}
+
 variable "replication_type" {
   description = "Storage account replication type for the bootstrap backend."
   type        = string
@@ -54,6 +60,12 @@ variable "replication_type" {
     condition     = contains(["LRS", "ZRS", "GRS", "RAGRS", "GZRS", "RAGZRS"], var.replication_type)
     error_message = "replication_type must be one of LRS, ZRS, GRS, RAGRS, GZRS, RAGZRS."
   }
+}
+
+variable "enable_storage_account_delete_lock" {
+  description = "Create a CanNotDelete management lock on the Terraform state Storage Account after bootstrap approval."
+  type        = bool
+  default     = false
 }
 
 variable "staging_state_key" {
