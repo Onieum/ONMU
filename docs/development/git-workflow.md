@@ -225,6 +225,22 @@ Set-OnmuUtf8Console
 
 Azure CLI 결과에서 한글 subscription display name, PR body, Markdown 문자열을 비교할 때는 Windows PowerShell 5.x와 PowerShell 7의 인코딩 차이로 깨질 수 있습니다. 필수 gate는 한글 display name strict compare보다 resource group name, storage account name, location, status, HTTP status처럼 안정적인 필드를 우선 사용합니다. display name 비교가 꼭 필요하면 옵션성 검증으로 두고, 실패 시 식별자 실제 값은 출력하지 않습니다.
 
+### macOS shell과 한글 자동화 기준
+
+macOS는 기본 shell과 Git 도구가 대체로 UTF-8을 사용하지만, 자동화에서는 locale, inline body, Unicode 정규화 차이로 한글이 깨지거나 경로 비교가 흔들릴 수 있습니다. 한글 PR/Issue 본문, Markdown, Azure/GitHub CLI 출력, Flutter dart-define 파일을 다루는 macOS 스크립트는 UTF-8 locale을 명시하고 파일 기반 전달을 우선합니다.
+
+권장 기본값:
+
+```bash
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export PYTHONUTF8=1
+```
+
+한글 본문은 Windows와 동일하게 inline 인자보다 UTF-8 파일과 `gh ... --body-file <path>`를 우선합니다. 생성 후에는 `gh pr view <number> --json body` 또는 `gh issue view <number> --json body`로 readback을 확인합니다.
+
+macOS에서도 한글 Azure subscription display name이나 사용자 표시명을 필수 gate로 직접 비교하지 않습니다. 자동화 gate는 resource group name, storage account name, location, status, HTTP status, count처럼 OS와 locale 영향을 덜 받는 필드를 사용합니다. 한글 파일명은 사람이 읽는 문서에는 사용할 수 있지만, 스크립트 경로와 CI 산출물 파일명은 ASCII를 우선합니다.
+
 ## GitHub 라벨과 마일스톤
 
 라벨은 리뷰 범위를 빠르게 알려주기 위한 보조 정보입니다.
