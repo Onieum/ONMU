@@ -176,6 +176,9 @@ jobs:
         id: plan
         working-directory: infra/terraform/environments/staging
         shell: bash
+        env:
+          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
         run: |
           set +e
           terraform plan \
@@ -262,6 +265,9 @@ jobs:
       - name: Apply Wave 1 after protected approval
         working-directory: infra/terraform/environments/staging
         shell: bash
+        env:
+          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
         run: |
           terraform plan \
             -input=false \
