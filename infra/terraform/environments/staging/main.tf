@@ -149,12 +149,12 @@ module "eventhubs" {
     notification-requested = {
       partition_count   = 2
       message_retention = 1
-      consumer_groups   = ["spring-api", "notification-worker"]
+      consumer_groups   = ["worker", "analytics"]
     }
     worker-jobs = {
       partition_count   = 2
       message_retention = 1
-      consumer_groups   = ["worker"]
+      consumer_groups   = ["worker", "analytics"]
     }
   }
   tags = local.tags
