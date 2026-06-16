@@ -4,6 +4,13 @@ resource "azurerm_container_app_environment" "this" {
   resource_group_name        = var.resource_group_name
   log_analytics_workspace_id = var.log_analytics_workspace_id
   tags                       = var.tags
+
+  workload_profile {
+    name                  = var.environment_workload_profile.name
+    workload_profile_type = var.environment_workload_profile.workload_profile_type
+    minimum_count         = var.environment_workload_profile.minimum_count
+    maximum_count         = var.environment_workload_profile.maximum_count
+  }
 }
 
 resource "azurerm_container_app" "spring_api" {
