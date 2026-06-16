@@ -244,7 +244,7 @@ flowchart LR
   API --> PG["PostgreSQL records / record_media / record_tags"]
   API --> Blob["Azure Blob Storage target"]
   API --> Outbox["outbox_events"]
-  Outbox --> Bus["Azure Service Bus"]
+  Outbox --> Bus["Azure Event Hubs"]
   Bus --> Worker["FastAPI AI/Media Worker"]
   API --> Monitor["Application Insights / Log Analytics"]
 ```
@@ -279,7 +279,7 @@ Terraform이 소유해야 할 리소스 후보:
 - Azure Database for PostgreSQL Flexible Server, diagnostic settings
 - Azure Key Vault, Managed Identity, app settings Key Vault reference
 - Azure API Management 또는 ingress CORS policy for `GET,POST,PUT,PATCH,DELETE,OPTIONS`
-- Azure Service Bus queue/topic for media/AI job events
+- Azure Event Hubs event hub for media/AI job events
 - Azure Monitor Application Insights, Log Analytics, alerts for 4xx/5xx/upload failure
 - Container Apps ingress/body size와 Spring multipart limit에 맞춘 runtime setting 후보
 

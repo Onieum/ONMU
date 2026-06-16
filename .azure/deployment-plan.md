@@ -37,8 +37,8 @@
 | Worker | FastAPI Worker container, 필요 시 비활성 배포 | FastAPI Worker + async queue |
 | DB | Azure Database for PostgreSQL Flexible Server + PostGIS | 동일, HA/backup 강화 |
 | Cache | Azure Cache for Redis | 동일, SKU/zone 강화 |
-| Object storage | Azure Blob Storage | Azure Blob Storage + CDN/Front Door |
-| Event/queue | Service Bus 우선, Event Hubs는 분석 fan-out 후보 | Service Bus/Event Hubs 분리 |
+| Object storage | Azure Blob Storage + Azure CDN | Azure Blob Storage + CDN, WAF/Front Door 후보 |
+| Event/queue | Event Hubs 우선 | Event Hubs consumer group/checkpoint/replay 정책 강화 |
 | Secret | Azure Key Vault + Managed Identity | 동일, RBAC/rotation 강화 |
 | Observability | Log Analytics + Application Insights | SLO/alert/dashboard 강화 |
 

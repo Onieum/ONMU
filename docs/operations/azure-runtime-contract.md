@@ -108,7 +108,7 @@ Side effect 계약:
 | participant add | `plan.participant_added` count/status, target user field presence |
 | vote create | `vote.created` count/status, `voteId`, `targetType`, `targetId` field presence |
 
-이 이벤트들은 Azure Service Bus/Notification/Realtime으로 확장될 수 있지만, DB schema는 Spring Flyway가 소유하고 Terraform은 queue, managed identity, monitor, runtime env만 소유한다.
+이 이벤트들은 Azure Event Hubs/Notification/Realtime으로 확장될 수 있지만, DB schema는 Spring Flyway가 소유하고 Terraform은 event hub, consumer group, managed identity, monitor, runtime env만 소유한다.
 
 ## 7. FastAPI Worker contract
 
@@ -126,7 +126,7 @@ Worker 운영 결정 항목:
 | 항목 | 1차 기준 | 후속 결정 |
 | --- | --- | --- |
 | 접근 경계 | 외부 공개 금지, Spring 또는 queue consumer만 접근 | private network, Container Apps internal ingress, APIM internal route 중 선택 |
-| 호출 방식 | MVP는 Spring 내부 HTTP 또는 no-consumer/dev-safe 상태 허용 | Service Bus queue 기반 비동기 처리로 전환 |
+| 호출 방식 | MVP는 Spring 내부 HTTP 또는 no-consumer/dev-safe 상태 허용 | Event Hubs 기반 비동기 fan-out으로 전환 |
 | 결과 저장 | worker 전용 schema 또는 metadata table 후보 | Main API read model에 반영될 때는 Spring API contract를 거침 |
 | retry | idempotency key와 attempt count 필요 | dead-letter queue와 replay runbook |
 | timeout | Spring request path를 막지 않는 짧은 timeout | 장기 AI 작업은 queue/job으로 분리 |
@@ -144,7 +144,7 @@ Azure staging 1차에서는 Spring SSE 유지가 가능하지만, scale-out 전�
 
 - Container Apps revision/instance가 2개 이상이 될 때 SSE broadcaster가 instance-local인지 확인한다.
 - 사용자가 instance 1에 SSE로 연결되고 event 생성이 instance 2에서 발생해도 delivery가 가능한지 검증한다.
-- 불가능하면 Redis pub/sub, Service Bus fan-out, 별도 Realtime Gateway 중 하나를 선택한다.
+- 불가능하면 Redis pub/sub, Event Hubs fan-out, 별도 Realtime Gateway 중 하나를 선택한다.
 - long-lived connection timeout, idle timeout, reconnect/backoff, heartbeat 기준을 smoke에 포함한다.
 - push token은 `user_devices` 원장이며 FCM/APNs secret은 Key Vault/runtime에만 둔다.
 - notification provider 실패 retry는 `notification_deliveries` status/count와 dead-letter 또는 retry policy로 추적한다.

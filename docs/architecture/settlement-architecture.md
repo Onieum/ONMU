@@ -95,7 +95,7 @@ flowchart LR
     activity["chat_activity_events"]
     inbox["notifications"]
     deliveries["notification_deliveries"]
-    queue["Azure Service Bus"]
+    queue["Azure Event Hubs"]
     notification["Notification Worker or Spring adapter"]
     realtime["Realtime Gateway"]
     monitor["Application Insights / Azure Monitor"]
@@ -134,7 +134,7 @@ Realtime Gateway와 Notification Worker는 outbox/queue의 소비자다. 이들�
 | ChatActivity card | runtime create 경로에서 card append 없음 | `settlement.created` 카드 snapshot을 `chat_activity_events`에 append | Spring |
 | Notification row | runtime create 경로에서 사용자별 `notifications` row 없음 | 참여자별 inbox row 생성 후 `notification.requested` payload에 `notificationId` 포함 | Spring |
 | Outbox delivery | `notification.requested` aggregate가 `settlement`라 provider 대상 탐색 불가 | provider delivery 대상 event는 aggregate `notification` 또는 payload `notificationId` 사용 | Spring/Worker |
-| Queue | Spring scheduled outbox가 일부 event 직접 처리 | Service Bus 기반 publisher/consumer, retry/dead-letter/idempotency | Spring/Terraform |
+| Event stream | Spring scheduled outbox가 일부 event 직접 처리 | Event Hubs 기반 publisher/consumer, checkpoint/replay/idempotency | Spring/Terraform |
 | Amount naming | DB 컬럼이 `amount_cents`지만 원 단위 저장 | 컬럼 rename 또는 문서화된 legacy name 유지 결정 | Spring/Flyway |
 | Observability | dev smoke와 단위 테스트 중심 | create latency, outbox 상태, notification/card 생성 drift 지표 | Observability |
 
@@ -227,7 +227,7 @@ Flutter 책임:
 
 Flutter 금지:
 
-- PostgreSQL, Service Bus, Redis, Key Vault, Worker internal endpoint 직접 호출.
+- PostgreSQL, Event Hubs, Redis, Key Vault, Worker internal endpoint 직접 호출.
 - 정산 계산의 최종 source of truth를 local state로 확정.
 - JWT signing secret, DB password, provider credential, payment secret 저장.
 - 실제 정산/송금 데이터를 로그나 analytics custom field에 원문으로 남기기.
@@ -269,9 +269,9 @@ Worker 금지:
 | --- | --- | --- | --- | --- |
 | Public API runtime | Windows Spring dev runtime | ACA staging 또는 AKS production | Container Apps, AKS, ACR | 예 |
 | Core DB | Local/dev PostgreSQL + Flyway | PostgreSQL Flexible Server private access | Azure Database for PostgreSQL Flexible Server, VNet/private endpoint | 서버/네트워크만 |
-| Async side effect | Spring scheduled outbox | Queue 기반 fan-out | Azure Service Bus | 예 |
+| Async side effect | Spring scheduled outbox | Event stream 기반 fan-out | Azure Event Hubs | 예 |
 | Realtime card delivery | Spring chat SSE vertical slice | Realtime Gateway + Redis | Azure Cache for Redis, ingress | 예 |
-| Notification delivery | dev-safe provider abstraction | Notification worker/provider adapter | Service Bus, Container Apps/AKS service | 예 |
+| Notification delivery | dev-safe provider abstraction | Notification worker/provider adapter | Event Hubs, Container Apps/AKS service | 예 |
 | Observability | tests/log 중심 | trace/metric/log | Application Insights, Log Analytics, Azure Monitor | 예 |
 | Secret boundary | local env/Key Vault 문서화 | Managed Identity + Key Vault references | Azure Key Vault, Managed Identity | 예 |
 
@@ -292,13 +292,13 @@ Terraform이 소유하지 않는 것:
 | --- | --- | --- | --- |
 | Spring DB 접속 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_PASSWORD` | 환경별 DB password secret | 금지 |
 | ONMU access JWT 검증 | `ONMU_ACCESS_TOKEN_SECRET` | `dev-access-token-secret`, `int-access-token-secret`, `prod-access-token-secret` | 금지 |
-| Queue publish/consume | `ONMU_SERVICE_BUS_CONNECTION` 또는 Managed Identity 기반 설정 | 환경별 Service Bus connection secret 후보 | 금지 |
+| Event stream publish/consume | Event Hubs connection 또는 Managed Identity 기반 설정 | 환경별 Event Hubs secret/reference 후보 | 금지 |
 | Worker URL fallback | `ONMU_WORKER_URL` | secret보다 config/env 후보 | 금지 |
 | Observability | `APPLICATIONINSIGHTS_CONNECTION_STRING` | 환경별 App Insights connection secret 후보 | 금지 |
 
 Managed Identity 기준:
 
-- Azure runtime이 Key Vault와 Service Bus에 접근한다.
+- Azure runtime이 Key Vault와 Event Hubs에 접근한다.
 - 일반 팀원 smoke는 secret 값을 출력하지 않고, 필요한 경우 로컬 프로세스 env 또는 git ignored dart-define 파일만 사용한다.
 - Terraform plan은 가능하지만 apply, Azure 리소스 생성/삭제, Key Vault secret 값 쓰기는 사람 승인 전 수행하지 않는다.
 
@@ -363,7 +363,7 @@ Managed Identity 기준:
 | Phase 1 | Flutter mutation 연결 | draft save, target patch, preview/create ViewModel action과 widget/repository tests |
 | Phase 2 | Auth viewer 정합성 | `currentUser()` dev fallback 제거, 인증 사용자 기준 `isMe`/summary 계산 |
 | Phase 3 | Runtime side effect hardening | ChatActivity card append, notification row 생성, `notificationId` payload 통일 |
-| Phase 4 | Outbox/Queue 전환 | Service Bus publisher/consumer, idempotency, retry/dead-letter |
+| Phase 4 | Outbox/Event Hubs 전환 | Event Hubs publisher/consumer, idempotency, checkpoint/replay |
 | Phase 5 | Data model cleanup | payer table 결정, `amount_cents` rename 또는 compatibility 문서화, payload 축소 |
 | Phase 6 | Observability | metrics/log/trace, settlement smoke dashboard |
 | Phase 7 | Confirmation flow | 송금 완료/이의 제기/확인 상태와 retention 정책 |
@@ -371,7 +371,7 @@ Managed Identity 기준:
 ## Non-goals
 
 - 이 문서는 실제 결제, 자동 송금, PG 계약, 금융 규제 대응을 구현 범위로 삼지 않는다.
-- Flutter 앱이 Worker, Service Bus, Redis, Key Vault, PostgreSQL을 직접 호출하지 않는다.
+- Flutter 앱이 Worker, Event Hubs, Redis, Key Vault, PostgreSQL을 직접 호출하지 않는다.
 - Terraform이 Spring core settlement table을 만들거나 수정하지 않는다.
 - 이 문서는 Terraform apply, Azure 리소스 생성/삭제, DNS 변경, Key Vault secret 값 쓰기를 수행하지 않는다.
 - secret, token, DB password, 실제 사용자 정산 데이터 값을 문서에 남기지 않는다.

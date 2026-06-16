@@ -68,7 +68,7 @@ MCP는 AI에게 도구 사용 능력을 주는 것이므로 권한 관리가 중
 
 Terraform 전환 작업에서 AI Agent의 기본 범위는 코드 작성, 문서 갱신, `terraform fmt`, `terraform validate`, `terraform plan`까지다. 실제 `apply`, public endpoint/DNS 변경, Key Vault secret 값 쓰기, Azure 리소스 삭제는 사람 승인과 protected environment gate 뒤에만 실행한다.
 
-Notification / Push / Devices처럼 Terraform 전환과 앱 런타임 변경이 함께 걸린 문서 작업에서는 소유 경계를 먼저 분리한다. Terraform/Azure 작업은 Key Vault, Managed Identity, Service Bus/Event Queue, Application Insights, runtime identity, provider secret reference 같은 클라우드 리소스 경계를 만든다. DB table, index, enum-like 체크 제약, seed/default preference 같은 schema와 데이터 계약은 Spring Flyway가 소유하며 Terraform으로 생성하지 않는다. AI Agent는 provider secret 값, JWT signing secret, OAuth secret을 출력하거나 Flutter bundle에 넣는 제안을 하지 않는다.
+Notification / Push / Devices처럼 Terraform 전환과 앱 런타임 변경이 함께 걸린 문서 작업에서는 소유 경계를 먼저 분리한다. Terraform/Azure 작업은 Key Vault, Managed Identity, Event Hubs, Application Insights, runtime identity, provider secret reference 같은 클라우드 리소스 경계를 만든다. DB table, index, enum-like 체크 제약, seed/default preference 같은 schema와 데이터 계약은 Spring Flyway가 소유하며 Terraform으로 생성하지 않는다. AI Agent는 provider secret 값, JWT signing secret, OAuth secret을 출력하거나 Flutter bundle에 넣는 제안을 하지 않는다.
 
 ## 6. 추천 Skill 목록
 

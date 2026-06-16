@@ -34,8 +34,8 @@
 | Phase 1: Azure staging MVP | Spring Main API, DB, Redis, object storage, secret, logs | Container Apps, PostgreSQL Flexible Server + PostGIS, Azure Cache for Redis, Blob Storage, Key Vault, Log Analytics/App Insights | 적합 | AKS보다 ACA가 초기 운영 부담이 낮음 |
 | Phase 1: tile 안정화 | manifest/style/PMTiles Range/CORS | Blob Storage + CDN/Front Door 후보 | 적합 | public tile gateway를 Blob/CDN으로 이전 가능. 단, 최종 hosting, cache invalidation, rollback 방식은 Terraform 적용 전 결정 |
 | Phase 1: place/route provider | Naver/Kakao/OpenRouteService secret, short TTL cache | Key Vault, Managed Identity, Azure Cache for Redis | 적합 | Flutter가 provider API 직접 호출하지 않음 |
-| Phase 2: chat/notification 안정화 | SSE, outbox, delivery record, push token | Spring SSE 유지 + Service Bus 후보 + App Insights | 적합 | Realtime Gateway는 후속 |
-| Phase 2: worker 분리 | AI/Data Worker, notification worker, async jobs | Container Apps Worker 또는 Container Apps Jobs, Service Bus | 적합 | worker schema는 Alembic 후보 |
+| Phase 2: chat/notification 안정화 | SSE, outbox, delivery record, push token | Spring SSE 유지 + Event Hubs + App Insights | 적합 | Realtime Gateway는 후속. consumer group/checkpoint/replay 정책 필요 |
+| Phase 2: worker 분리 | AI/Data Worker, notification worker, async jobs | Container Apps Worker 또는 Container Apps Jobs, Event Hubs | 적합 | worker schema는 Alembic 후보 |
 | Phase 3: 추천/AI | Azure OpenAI, RAG/search, explanation worker | Azure OpenAI, Azure AI Search 후보 | 적합 | MVP는 rule-based explanation 먼저 |
 | Phase 3: analytics/reporting | outbox/event fan-out, lakehouse | Event Hubs, Databricks/Lakehouse 후보 | 후속 | MVP 필수 리소스 아님 |
 | Phase 4: production hardening | WAF, APIM, private network, HA, alerts | Front Door/App Gateway WAF, API Management, Private Endpoint/VNet, Azure Monitor alerts | 후속 | staging에서 비용을 보고 단계 도입 |
@@ -100,7 +100,7 @@ MVP staging은 Container Apps ingress를 기본값으로 둔다. Front Door/WAF/
 | WAF/edge security | Front Door WAF 또는 Application Gateway WAF | Cloud Armor | AWS WAF + CloudFront/ALB | production 단계 |
 | API gateway/policy | Azure API Management | API Gateway 또는 Apigee | Amazon API Gateway | staging에서는 optional |
 | Secret management | Key Vault + Managed Identity | Secret Manager + Cloud KMS + Service Account | Secrets Manager/Parameter Store + KMS + IAM Role | 필수 |
-| Queue/outbox bridge | Service Bus | Pub/Sub | SQS/SNS/EventBridge | notification/worker 단계 |
+| Outbox/event bridge | Event Hubs | Pub/Sub | EventBridge 또는 Kinesis | notification/worker 단계 |
 | Event streaming/analytics | Event Hubs | Pub/Sub 또는 Dataflow | Kinesis | analytics 후속 |
 | App logs/metrics/tracing | Application Insights + Log Analytics | Cloud Logging/Monitoring/Trace | CloudWatch + X-Ray | 필수 |
 | AI LLM | Azure OpenAI | Vertex AI/Gemini | Amazon Bedrock | 후속 |

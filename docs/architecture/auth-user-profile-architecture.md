@@ -359,7 +359,7 @@ Flutter가 하지 말아야 하는 일:
 
 - provider client secret 저장
 - JWT signing secret 저장
-- DB/Key Vault/Service Bus/Redis 직접 접근
+- DB/Key Vault/Event Hubs/Redis 직접 접근
 - provider access token을 ONMU API bearer token으로 사용
 - 다른 사용자의 계정 전용 필드 조회
 - region visibility가 private인 친구의 거주지역 표시
@@ -395,7 +395,7 @@ Worker가 현재 소유하지 않는 일:
 | API edge | API Management, WAF, Front Door/Application Gateway | 예 | OAuth callback, CORS, rate limit 경계 |
 | Observability | Application Insights, Log Analytics | 예 | auth/session/profile smoke metric |
 | Redis/rate limit | Azure Cache for Redis 후보 | 예 | 친구 코드 검색 abuse 방지에 사용 가능 |
-| Queue/outbox | Service Bus 후보 | 제한적 | Auth/Profile에는 아직 필수 아님 |
+| Event/outbox | Event Hubs 후보 | 제한적 | Auth/Profile에는 아직 필수 아님 |
 
 Terraform이 하면 안 되는 일:
 
@@ -514,7 +514,7 @@ Google mobile 설정은 현재 repo 기준으로 다음 경계를 따른다.
 
 ## Non-goals
 
-- Flutter가 DB, Key Vault, Redis, Service Bus, provider secret을 직접 다루지 않는다.
+- Flutter가 DB, Key Vault, Redis, Event Hubs, provider secret을 직접 다루지 않는다.
 - Terraform이 core DB schema를 만들거나 Flyway migration을 대체하지 않는다.
 - OAuth provider token/code/idToken 원문을 로그나 문서에 남기지 않는다.
 - 지역 설정을 현재 sprint에서 온보딩 필수 단계로 올리지 않는다.

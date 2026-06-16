@@ -128,7 +128,7 @@ flowchart LR
     prefs["notification_preferences"]
     devices["user_devices / future push_tokens"]
     outbox["outbox_events"]
-    queue["Azure Service Bus"]
+    queue["Azure Event Hubs"]
     worker["Notification Worker or Provider Adapter"]
     provider["FCM / APNs"]
     deliveries["notification_deliveries"]
@@ -163,8 +163,8 @@ flowchart LR
 
 - 실제 provider 연결 위치는 두 가지다.
   - Spring 내부 `NotificationPushProvider` adapter로 시작한다.
-  - 별도 `notification-worker`가 Service Bus message를 소비해 FCM/APNs를 호출한다.
-- Azure queue는 Service Bus를 1차 후보로 두고, 대량 stream/analytics 요구가 생기면 Event Hubs를 검토한다.
+  - 별도 `notification-worker`가 Event Hubs event를 소비해 FCM/APNs를 호출한다.
+- Azure broker는 Event Hubs를 1차 후보로 둔다. 재시도/멱등/실패 원장은 Spring outbox와 `notification_deliveries`가 맡는다.
 - Staging runtime은 Azure Container Apps, production 목표는 AKS다.
 - token 저장은 `user_devices` 암호문 컬럼 보강 또는 별도 `push_tokens` table 분리 중 선택한다.
 
@@ -184,7 +184,7 @@ flowchart LR
 | 유지 | `DevNotificationPushProvider`의 local/dev 안전장치 | Spring |
 | 대체 | dev provider를 실제 FCM/APNs provider adapter 또는 worker consumer로 대체 | Spring/Worker |
 | 추가 | OS push token source, permission prompt, foreground/background notification 정책 | Flutter |
-| 추가 | Service Bus publisher/consumer, idempotency key, retry/dead-letter 기준 | Spring/Worker/Terraform |
+| 추가 | Event Hubs publisher/consumer, idempotency key, retry/replay 기준 | Spring/Worker/Terraform |
 | 추가 | provider credential Key Vault reference, Managed Identity | Terraform/Runtime |
 | 추가 | push latency, provider error, invalid token, skipped_dev 지표 | Observability |
 | 보강 | `notification.requested` payload에 `notificationId`를 포함하는 규칙 | Spring/API contract |
@@ -210,7 +210,7 @@ flowchart LR
 
 Flutter가 직접 호출하면 안 되는 대상:
 
-- Azure Service Bus / Event Hubs
+- Azure Event Hubs
 - FCM HTTP v1 API
 - APNs provider API
 - Notification Worker internal endpoint
@@ -315,7 +315,7 @@ AI/Data Worker 책임 아님:
 | --- | --- | --- | --- | --- | --- |
 | Public API runtime | Windows Spring dev server | ACA staging 또는 AKS production | Container Apps, AKS, ACR | 예 | 첫 Azure staging 선택 |
 | Inbox DB | Local/dev PostgreSQL | PostgreSQL Flexible Server | PostgreSQL Flexible Server | 서버/네트워크만 | schema는 Flyway |
-| Async push request | Spring scheduled outbox | Queue 기반 fan-out | Azure Service Bus | 예 | Event Hubs 필요성 |
+| Async push request | Spring scheduled outbox | Event stream 기반 fan-out | Azure Event Hubs | 예 | consumer group/replay 기준 |
 | Provider secret | 로컬 env/Key Vault 문서화 | Managed Identity + Key Vault reference | Azure Key Vault | 예 | secret name 확정 |
 | Worker identity | 없음 | passwordless secret/resource access | Managed Identity | 예 | worker 분리 여부 |
 | Observability | access log 중심 | trace/metric/log | Application Insights, Monitor, Log Analytics | 예 | metric naming |
@@ -401,7 +401,7 @@ Managed Identity 기준:
 - Terraform이 DB table을 만들기 시작하면 Spring Flyway와 ownership 충돌이 난다.
 - Flutter bundle에 provider secret, JWT signing secret, OAuth secret이 들어가면 즉시 보안 사고로 봐야 한다.
 - Provider invalid token을 반영하지 않으면 실패 재시도와 비용이 누적된다.
-- Service Bus, Worker, App Insights를 한 번에 도입하면 비용과 운영 복잡도가 급격히 올라간다.
+- Event Hubs, Worker, App Insights를 한 번에 도입하면 비용과 운영 복잡도가 급격히 올라간다.
 - dev API smoke와 실제 모바일 provider smoke를 섞으면 OAuth/JWT 우회와 push 검증 결과가 오염된다.
 - push notification만 성공하고 inbox row가 없으면 사용자는 앱 안에서 알림 이력을 확인할 수 없다.
 
@@ -416,7 +416,7 @@ Managed Identity 기준:
 | `notification_deliveries`에 delivery 결과 저장 | 구현됨 | JPA entity/service | provider taxonomy 확장 |
 | dev provider는 실제 FCM/APNs가 아님 | 결정됨 | `DevNotificationPushProvider` | 없음 |
 | 실제 provider 연결 위치 | 후보 | Spring adapter vs 별도 worker 모두 가능 | 팀 결정 필요 |
-| Azure queue | 후보 | 현재 아키텍처 문서의 Service Bus 우선 방향 | 적용 시점 |
+| Azure event stream | 후보 | 현재 Terraform 전환 결정은 Event Hubs 우선 | 적용 시점 |
 
 ## Roadmap
 
@@ -427,7 +427,7 @@ Managed Identity 기준:
 | Phase 2 | Device token source 연결 | Flutter FCM/APNs token source, permission UX, repository tests |
 | Phase 3 | Dev-safe delivery observability | `skipped_dev` metric/log, outbox status dashboard |
 | Phase 4 | Real provider adapter 또는 worker | FCM/APNs provider adapter, Key Vault reference, feature flag |
-| Phase 5 | Queue 기반 production delivery | Service Bus, retry/dead-letter, idempotency |
+| Phase 5 | Event Hubs 기반 production delivery | Event Hubs, replay/checkpoint, idempotency |
 | Phase 6 | Token lifecycle hardening | encrypted token storage or `push_tokens`, invalid callback, retention |
 | Phase 7 | Full mobile smoke | iOS/Android background/foreground/tap routing, provider delivery validation |
 

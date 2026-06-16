@@ -56,7 +56,7 @@ flowchart LR
         ingress --> realtime["목표 Realtime Gateway"]
         mainApi --> notificationApi["Notification\nin-app/dev-safe delivery"]
         mainApi --> outbox["Outbox Events"]
-        outbox --> bus["Azure Service Bus 또는 Event Hubs"]
+        outbox --> bus["Azure Event Hubs"]
         bus --> worker["FastAPI AI/Data Worker"]
         bus --> notificationWorker["Notification Worker 또는 Spring Provider Adapter"]
     end
@@ -135,7 +135,7 @@ flowchart TD
     naver --> cache["장소 후보 캐시"]
     cache --> db
 
-    event --> bus["Service Bus 또는 Event Hubs"]
+    event --> bus["Azure Event Hubs"]
     bus --> worker["FastAPI Worker"]
 
     worker --> recommend["참여자 취향 병합/장소 후보 설명"]
@@ -226,7 +226,7 @@ ONMU는 포트폴리오 관점에서 AKS를 목표 아키텍처에 남겨두되,
 | 캐시 | Redis | 장소 API 캐시, 실시간 presence, 짧은 TTL 상태에 적합하다. | Sprint 1 |
 | 파일 저장 | Azure Blob Storage, 로컬 MinIO | 사진/OOTD/공유 카드 같은 비정형 미디어를 DB에서 분리한다. | Sprint 1 |
 | 검색/RAG | 초기에는 PostgreSQL 검색, 확장 시 Azure AI Search | 처음부터 검색 엔진을 크게 가져가지 않고, 발표용 AI/RAG 확장성을 보여줄 수 있다. | Sprint 2 이후 |
-| 이벤트/큐 | Spring Boot Outbox, Azure Service Bus, 필요 시 Event Hubs Kafka endpoint | Spring Boot와 FastAPI Worker, Notification Worker 사이의 작업 요청을 queue/outbox로 관리한다. | Sprint 0부터 |
+| 이벤트 스트림 | Spring Boot Outbox, Azure Event Hubs | Spring Boot의 `outbox_events`를 원장으로 두고 Worker/Notification fan-out은 Event Hubs stream으로 확장한다. | Sprint 0부터 |
 | AI | Azure OpenAI | 추천 설명, 기록 문장 생성, OOTD 분석 결과 요약에 사용한다. 앱에서 직접 호출하지 않고 worker 뒤에 둔다. | Sprint 2 이후 |
 | 인증 | Naver OAuth 우선 + access/refresh token | Flutter에서 Naver 소셜 로그인을 시작하고 Spring Boot가 provider token 검증, access/refresh token 발급, refresh/로그아웃을 관리한다. | Sprint 0 |
 | DB Migration | Spring Boot Flyway + FastAPI Alembic | core domain은 Flyway, `worker_ai` schema는 Alembic이 관리한다. | Sprint 0부터 |
@@ -288,11 +288,11 @@ Redis는 영구 데이터의 원본이 아니다. ONMU에서 원본은 PostgreSQ
 | 기술 | ONMU에서 쓰는 위치 | 처리하는 것 | 선택 이유 |
 | --- | --- | --- | --- |
 | Outbox Pattern | Spring Boot 내부 | 약속 생성, 장소 후보 추가, 기록 생성, 정산 생성, AI 작업 요청 후 이벤트 발행 예약 | DB 저장과 이벤트 발행 사이의 유실을 줄인다. |
-| Azure Service Bus | 기본 비동기 큐 | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 | Spring Boot와 FastAPI Worker/Notification Worker를 느슨하게 연결하고 재시도/장애 격리를 쉽게 한다. |
-| Kafka/Event Hubs | 확장 이벤트 스트림 | 실시간 행동 로그, 추천 학습용 이벤트, 대량 상태 이벤트 | Kafka 역량을 보여주거나 스트리밍 분석이 필요할 때 확장한다. |
+| Azure Event Hubs | 이벤트 fan-out stream | 추천 작업 요청, 알림 요청, 이미지 분석 요청, 정산 완료 후 기록 갱신 이벤트 | Spring Boot의 outbox 원장을 바탕으로 Worker/Notification consumer group을 분리한다. |
+| PostgreSQL Outbox | 트랜잭션 원장 | domain write와 side effect 예약을 같은 transaction 안에 기록 | Event Hubs가 queue 원장을 대체하지 않도록 한다. |
 | GitHub Actions scheduled job | 가벼운 배치 | 문서 링크 점검, 의존성 점검, 간단한 health check | 별도 배치 플랫폼 없이 반복 검증을 자동화한다. |
 
-초기에는 Kafka를 바로 운영하지 않는다. 발표에서는 `Service Bus로 업무 이벤트를 안정적으로 처리하고, 대량 이벤트/스트리밍 분석이 필요해지면 Event Hubs의 Kafka 호환 endpoint로 확장한다`고 설명한다.
+초기에는 Kafka를 바로 운영하지 않는다. 발표에서는 `PostgreSQL outbox를 원장으로 두고 Azure Event Hubs로 Worker/Notification fan-out을 분리한다`고 설명한다.
 
 ### 7.5 실시간 협업
 
@@ -344,7 +344,7 @@ Databricks 기반 주간/월간 리포트, 기업용 집계 데이터, 광고 �
 
 보안 설명의 핵심은 `민감 데이터는 DB/Storage에 분리 저장하고, 접근은 인증/인가/API 정책/Key Vault로 통제한다`는 것이다.
 
-Notification / Push / Devices 영역에서는 `notifications`를 사용자별 inbox source of truth로 두고, 실제 provider 발송 시도와 결과는 `notification_deliveries` projection으로 분리한다. 현재 dev-safe provider는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`를 남긴다. Terraform은 Key Vault, Managed Identity, Service Bus, Application Insights 같은 리소스 경계를 만들 수 있지만 `notifications`, `notification_deliveries`, `notification_preferences`, `user_devices` table은 Spring Flyway가 소유한다. 세부 기준은 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
+Notification / Push / Devices 영역에서는 `notifications`를 사용자별 inbox source of truth로 두고, 실제 provider 발송 시도와 결과는 `notification_deliveries` projection으로 분리한다. 현재 dev-safe provider는 실제 FCM/APNs 발송 없이 `provider=dev`, `status=skipped_dev`를 남긴다. Terraform은 Key Vault, Managed Identity, Event Hubs, Application Insights 같은 리소스 경계를 만들 수 있지만 `notifications`, `notification_deliveries`, `notification_preferences`, `user_devices` table은 Spring Flyway가 소유한다. 세부 기준은 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
 
 ### 7.9 배포와 인프라
 
@@ -372,8 +372,8 @@ Terraform 전환의 목표는 "현재 dev에서 검증된 Spring Main API 계약
 | DB | Docker PostgreSQL/Flyway, dev PostgreSQL | Azure Database for PostgreSQL Flexible Server + Flyway migration |
 | Object storage | MinIO, `/api/v1/media/upload` contract | Azure Blob Storage. Flutter는 API 응답 URL contract만 본다 |
 | Cache/realtime 보조 | Redis dev dependency, 현재 채팅은 Spring SSE in-process | Azure Cache for Redis. 운영 Realtime Gateway를 붙일 때만 fan-out 계층에 연결 |
-| Event/queue | `outbox_events`, 외부 broker 없음 또는 dev-safe 처리 | Azure Service Bus를 1차 선택. Kafka 호환성이 필요하면 Event Hubs 검토 |
-| Notification/push | `notifications` inbox, `user_devices` push token readiness, `provider=dev` skipped delivery | Key Vault provider secret reference, Managed Identity, Service Bus 기반 delivery fan-out, Application Insights push metric |
+| Event stream | `outbox_events`, 외부 broker 없음 또는 dev-safe 처리 | Azure Event Hubs를 1차 선택. Queue 원장은 PostgreSQL outbox가 맡는다 |
+| Notification/push | `notifications` inbox, `user_devices` push token readiness, `provider=dev` skipped delivery | Key Vault provider secret reference, Managed Identity, Event Hubs 기반 delivery fan-out, Application Insights push metric |
 | Secrets | 로컬 env, GitHub Secrets, Key Vault secret name 문서화 | Azure Key Vault + Managed Identity. Terraform에는 secret 값이 아니라 secret name/reference만 둔다 |
 | Observability | access log, GitHub Actions, Windows logs | Azure Monitor/Application Insights/OpenTelemetry |
 | Edge | Cloudflare Tunnel 기반 dev endpoint | Azure Front Door 또는 Application Gateway WAF + API Management + Container ingress |
@@ -384,7 +384,7 @@ Terraform 작업 단위는 아래 순서로 쪼갠다.
 2. 네트워크/리소스 그룹/Log Analytics/Key Vault를 먼저 만든다. secret 값은 넣지 않고 secret 이름과 access policy/RBAC만 정의한다.
 3. PostgreSQL Flexible Server, Redis, Storage, Container Registry를 만든다. DB schema 변경은 Flyway가 맡고 Terraform은 schema DDL을 만들지 않는다.
 4. Spring Main API container 배포를 만든다. `/healthz`, `/readyz`, `/api/v1/**` 인증/CORS env를 먼저 검증한다.
-5. FastAPI Worker와 Service Bus 연결을 붙인다. Flutter 앱은 Worker를 직접 호출하지 않는다.
+5. FastAPI Worker와 Event Hubs consumer 연결을 붙인다. Flutter 앱은 Worker를 직접 호출하지 않는다.
 6. Notification provider delivery는 dev-safe `provider=dev` 결과와 실제 FCM/APNs 발송을 분리해 붙인다. Provider secret 값은 Key Vault에만 두고, Terraform은 secret name/reference와 Managed Identity 권한만 관리한다.
 7. Realtime Gateway는 현재 Spring SSE slice가 안정된 뒤 별도 module로 추가한다. Redis나 Gateway를 `chat_activity_events`의 source of truth로 만들지 않는다.
 8. API Management/WAF/DNS를 붙인다. `dev-api.onmu.cloud`, `int-api.onmu.cloud`, future `api.onmu.cloud`의 역할을 문서에 함께 갱신한다.
@@ -493,7 +493,7 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 | 장소 검색 | `POST /api/v1/place-search` | GET은 단순 dev 호환용으로만 검토 |
 | DB Migration | Spring Boot Flyway + FastAPI Alembic | worker schema가 커지면 별도 worker DB 검토 |
 | 검색 엔진 | PostgreSQL 검색으로 시작 | Azure AI Search, OpenSearch |
-| 이벤트 브로커 | Service Bus로 시작 | Kafka 호환성이 필요하면 Event Hubs |
+| 이벤트 브로커 | Event Hubs로 시작 | command queue semantics가 필요하면 PostgreSQL outbox 처리 정책을 먼저 보강 |
 | 정산 범위 | 약속 단위 정산 상태 관리 | 실제 결제/송금 연동은 Toss Payments/PortOne 등 별도 검토 |
 
 ## 13. 함께 관리하는 세부 문서
@@ -524,7 +524,6 @@ Naver Place API와 공유 채널은 외부 API 경계로 분리한다.
 - [Azure API Management authentication and authorization](https://learn.microsoft.com/en-us/azure/api-management/authentication-authorization-overview)
 - [Azure Database for PostgreSQL Flexible Server](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/how-to-deploy-on-azure-free-account)
 - [Azure Event Hubs](https://learn.microsoft.com/en-ca/azure/event-hubs/event-hubs-about)
-- [Azure Service Bus](https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview)
 - [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/)
 - [Azure Monitor Application Insights with OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry)
 - [Azure AI Search vector search](https://learn.microsoft.com/en-us/azure/search/vector-search-overview)

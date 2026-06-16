@@ -24,7 +24,7 @@
 | Database | PostgreSQL Flexible Server, database, extension 설정 | 테이블 schema는 Flyway |
 | Cache | Azure Cache for Redis | persistence 원장 아님 |
 | Storage | Blob account/container, lifecycle policy | media/tile asset 저장 |
-| Messaging | Service Bus namespace/queue/topic, Event Hubs 후보 | outbox consumer 대상 |
+| Messaging | Event Hubs namespace/event hubs/consumer groups | outbox consumer와 worker fan-out 대상 |
 | Secret | Key Vault, access policy/RBAC, managed identity, Container Apps secret reference | secret 값은 별도 주입 |
 | Observability | Log Analytics, Application Insights, diagnostic settings | alert는 단계적 추가 |
 
@@ -52,7 +52,7 @@
 | API Management route 추가 | 필요 | endpoint가 없다면 필요 | smoke |
 | records media upload provider 전환 | storage/identity/env가 없으면 필요 | MediaService/provider binding 필요 | upload/read/delete smoke, orphan cleanup |
 | PMTiles object 교체 | container/edge가 없으면 필요 | 불필요 | versioned object upload, manifest pointer 전환, cache invalidation/rollback |
-| Service Bus queue 추가 | 필요 | consumer/publisher 필요 | dead-letter/monitoring smoke |
+| Event Hubs event hub 추가 | 필요 | producer/consumer/checkpoint 필요 | consumer group, replay, monitoring smoke |
 
 ## 5. Terraform module 후보
 
@@ -72,7 +72,7 @@ infra/terraform/
     postgres/
     redis/
     storage/
-    messaging/
+    eventhubs/
     observability/
     edge/
 ```
@@ -88,7 +88,7 @@ Terraform skeleton을 실제 `plan/apply` 대상으로 만들기 전에 state/ba
 | state backend | Azure Storage Account blob backend | Azure 기준으로 고정. local state는 개인 실험 외 금지 |
 | state lock | Azure Blob lease | GitHub Actions와 로컬 apply가 동시에 실행되지 않도록 사용 |
 | 환경 분리 | `infra/terraform/environments/staging`, `infra/terraform/environments/prod` 폴더 분리 | 초기에는 Terraform workspace보다 폴더 분리를 우선 |
-| state key | environment별 고정 key | 예: `onmu-staging.tfstate`, `onmu-prod.tfstate` 후보 |
+| state key | environment별 고정 key | 예: `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` |
 | backend 리소스 소유 | bootstrap runbook 또는 별도 승인된 bootstrap PR | 앱 리소스 PR과 섞지 않음 |
 | naming convention | app/env/region/component suffix | skeleton PR에서 확정 |
 | required tags | `app`, `env`, `owner`, `cost_center`, `managed_by`, `data_classification` 후보 | cost 추적과 삭제 방지 기준 |

@@ -97,7 +97,7 @@ flowchart LR
   API --> Redis["Azure Cache for Redis 후보"]
   API --> KV["Azure Key Vault via Managed Identity"]
   API --> Outbox["outbox_events 후보"]
-  Outbox --> Bus["Azure Service Bus 후보"]
+  Outbox --> Bus["Azure Event Hubs 후보"]
   Bus --> Worker["FastAPI AI/Data Worker"]
 ```
 
@@ -175,7 +175,7 @@ Terraform이 소유해야 할 리소스 후보:
 - Azure API Management 또는 ingress CORS/rate limit policy
 - Azure Cache for Redis, 친구 검색/user code lookup rate limit 후보
 - Azure Monitor Application Insights, Log Analytics workspace, alerts
-- Azure Service Bus topic/queue 후보: `notification.requested`, `profile.updated`, `friend.created`
+- Azure Event Hubs event hub 후보: `notification.requested`, `profile.updated`, `friend.created`
 
 Terraform이 소유하지 않는 것:
 
