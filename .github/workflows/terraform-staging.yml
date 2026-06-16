@@ -33,6 +33,7 @@ on:
           - none
           - acr_observability
           - core_foundation
+          - frontdoor_tile_edge
           - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."
@@ -200,6 +201,7 @@ jobs:
             redis                      = false
             storage                    = false
             cdn                        = false
+            front_door                 = false
             eventhubs                  = false
             container_apps_environment = false
             container_apps             = false
@@ -221,10 +223,33 @@ jobs:
             redis                      = true
             storage                    = true
             cdn                        = false
+            front_door                 = false
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+          }
+          EOF
+              ;;
+            frontdoor_tile_edge)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = false
           }
           EOF
               ;;
@@ -252,7 +277,8 @@ jobs:
             postgres                   = true
             redis                      = true
             storage                    = true
-            cdn                        = true
+            cdn                        = false
+            front_door                 = false
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = true
@@ -396,6 +422,7 @@ jobs:
             redis                      = false
             storage                    = false
             cdn                        = false
+            front_door                 = false
             eventhubs                  = false
             container_apps_environment = false
             container_apps             = false
@@ -416,11 +443,34 @@ jobs:
             postgres                   = false
             redis                      = true
             storage                    = true
-            cdn                        = true
+            cdn                        = false
+            front_door                 = false
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
             diagnostics                = true
+          }
+          EOF
+              ;;
+            frontdoor_tile_edge)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = false
           }
           EOF
               ;;
@@ -448,7 +498,8 @@ jobs:
             postgres                   = true
             redis                      = true
             storage                    = true
-            cdn                        = true
+            cdn                        = false
+            front_door                 = false
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = true

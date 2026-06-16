@@ -38,6 +38,10 @@ output "cdn_endpoint_host_name" {
   value = try(module.cdn[0].endpoint_host_name, null)
 }
 
+output "frontdoor_endpoint_host_name" {
+  value = try(module.front_door[0].endpoint_host_name, null)
+}
+
 output "eventhub_names" {
   value = try(module.eventhubs[0].eventhub_names, [])
 }

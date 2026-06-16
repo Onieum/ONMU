@@ -17,6 +17,7 @@ enabled_modules = {
   redis                      = false
   storage                    = false
   cdn                        = false
+  front_door                 = false
   eventhubs                  = false
   container_apps_environment = false
   container_apps             = false

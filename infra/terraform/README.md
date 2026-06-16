@@ -7,7 +7,7 @@
 - `environments/staging`, `environments/prod` 폴더 분리
 - Azure Storage blob backend 기준 선언
 - module interface와 output 정의
-- Spring Main API, optional Worker, PostgreSQL/PostGIS, Redis, Blob + CDN, Event Hubs, Key Vault, observability 리소스 경계 표현
+- Spring Main API, optional Worker, PostgreSQL/PostGIS, Redis, Blob, Front Door tile/static edge 후보, Event Hubs, Key Vault, observability 리소스 경계 표현
 - secret 값이 아니라 env var name, Key Vault secret name, secret URI reference만 사용
 - WAF 검토와 승인 게이트는 `.azure/staging-waf-review.md`, `.azure/infrastructure-plan.json`에 기록
 
@@ -55,9 +55,10 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 
 - `acr_observability`: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights.
 - `core_foundation`: Redis Basic C0, Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings.
+- `frontdoor_tile_edge`: Azure Front Door Standard profile/endpoint/origin group/origin/route. 기본료 발생으로 apply 전 별도 비용 승인 필요.
 - `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
 
-`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만들고, Azure CDN classic 직접 생성 가능성 또는 Front Door Standard 전환은 후속 PR에서 결정한다.
+`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다.
 
 ## state/backend 기준
 
@@ -77,13 +78,14 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 
 1. `core_foundation` plan-only에서 예상 resource/action summary 확인
 2. `core_foundation` apply 승인과 적용 후 Redis/Blob/Event Hubs/Key Vault/ACA Environment/diagnostics smoke
-3. Cost Management 조회 권한 또는 비용 확인 담당자 확정
-4. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
-5. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정
-6. Clean DB + Flyway full migration smoke 기준 확정
-7. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
-8. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
-9. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-10. provider console redirect/package/SHA-1 확인
-11. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-12. Windows dev backend smoke를 rollback 기준으로 유지
+3. Front Door Standard 기본료와 egress/request 비용 승인 후 `frontdoor_tile_edge` plan/apply 여부 결정
+4. Cost Management 조회 권한 또는 비용 확인 담당자 확정
+5. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
+6. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정
+7. Clean DB + Flyway full migration smoke 기준 확정
+8. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
+9. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
+10. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+11. provider console redirect/package/SHA-1 확인
+12. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+13. Windows dev backend smoke를 rollback 기준으로 유지
