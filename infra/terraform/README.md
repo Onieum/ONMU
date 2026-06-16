@@ -21,7 +21,7 @@
 | [Azure staging smoke checklist](../../docs/operations/azure-staging-smoke-checklist.md) | staging 성공 판정 smoke gate |
 | [Azure staging data rehearsal plan](../../docs/operations/azure-staging-data-rehearsal.md) | PostgreSQL, Redis, Blob/CDN 이전 rehearsal 기준 |
 | [Azure staging cost and permission review](../../docs/operations/azure-cost-permission-review.md) | 비용 산출 항목과 권한 경계 |
-| [Azure Terraform state backend bootstrap](../../docs/operations/azure-terraform-state-backend.md) | `대한상공회의소 Data School` subscription과 `3dt-final-team1` resource group 기준 storage account, blob container, RBAC 기준 |
+| [Azure Terraform state backend bootstrap](../../docs/operations/azure-terraform-state-backend.md) | `대한상공회의소 Data School` subscription과 `3dt-final-team1` resource group 기준 storage account, blob container, RBAC, optional delete lock, 2-phase fallback 기준 |
 
 ## 금지
 
@@ -55,12 +55,14 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
   - staging: `onmu/staging/terraform.tfstate`
   - prod: `onmu/prod/terraform.tfstate`
 - backend용 Storage Account, container, RBAC bootstrap은 `bootstrap/state-backend` root module로 앱 리소스와 분리하며, 기본 target resource group은 `3dt-final-team1`이다.
+- 첫 backend bootstrap은 remote backend가 없으므로 local state와 `terraform init -backend=false`로 plan한다.
+- Azure AD/RBAC 전파 지연이 있으면 `create_state_container=false`로 Storage Account와 RBAC를 먼저 적용하고, 권한 전파 확인 후 container를 생성한다.
 - backend 리소스 생성은 별도 사용자 승인 전까지 보류한다.
 
 ## 다음 gate
 
 1. Azure subscription과 resource naming suffix 확정
-2. Terraform state backend bootstrap 승인과 `bootstrap/state-backend` apply window 승인
+2. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` apply window 승인
 3. Azure Pricing Calculator 기준 staging 비용 산출
 4. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
 5. Event Hubs consumer group, checkpoint storage, replay smoke 기준 확정
