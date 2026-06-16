@@ -24,6 +24,19 @@ on:
         required: true
         type: boolean
         default: false
+      wave:
+        description: "Optional staging infra wave. Wave jobs require azure-staging-apply approval."
+        required: true
+        type: choice
+        default: none
+        options:
+          - none
+          - acr_observability
+      apply_wave:
+        description: "Apply the selected wave after protected environment approval. Leave false for plan only."
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -108,3 +121,168 @@ jobs:
             -backend-config="key=onmu/staging/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
           echo "Staging backend init completed. terraform plan/apply/state list were not executed."
+
+  staging-wave-plan:
+    name: Staging wave plan summary
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave == 'acr_observability' }}
+    runs-on: ubuntu-latest
+    environment: azure-staging-apply
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Validate Azure workflow variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing Azure workflow variable::$name must be configured on the azure-staging-apply environment."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Required Azure workflow variable names are configured."
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Init staging remote backend
+        working-directory: infra/terraform/environments/staging
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=3dt-final-team1" \
+            -backend-config="storage_account_name=onmutfstatekrc001" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=onmu/staging/terraform.tfstate" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Plan Wave 1 without raw plan output
+        id: plan
+        working-directory: infra/terraform/environments/staging
+        shell: bash
+        run: |
+          set +e
+          terraform plan \
+            -input=false \
+            -no-color \
+            -detailed-exitcode \
+            -out "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
+            -var-file=terraform.tfvars.example \
+            > "$RUNNER_TEMP/onmu-staging-wave1-plan.log"
+          status=$?
+          set -e
+          if [ "$status" -eq 1 ]; then
+            echo "::error title=Terraform plan failed::Review provider auth, RBAC, or module validation. Raw plan output was not printed."
+            exit 1
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          terraform show -json "$RUNNER_TEMP/onmu-staging-wave1.tfplan" > "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          echo "Wave 1 resource/action summary:"
+          jq -r '
+            [.resource_changes[]? | {type: .type, actions: (.change.actions | join(","))}]
+            | group_by(.type + "|" + .actions)
+            | map({type: .[0].type, actions: .[0].actions, count: length})
+            | sort_by(.type, .actions)
+            | .[]
+            | "- " + .actions + " " + .type + ": " + (.count | tostring)
+          ' "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          rm -f "$RUNNER_TEMP/onmu-staging-wave1-plan.log" "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+
+      - name: Confirm no apply occurred
+        run: |
+          echo "Wave 1 plan completed. terraform apply was not executed in this job."
+
+  staging-wave-apply:
+    name: Staging wave apply
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.wave == 'acr_observability' && inputs.apply_wave == true }}
+    needs: staging-wave-plan
+    runs-on: ubuntu-latest
+    environment: azure-staging-apply
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Validate Azure workflow variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing Azure workflow variable::$name must be configured on the azure-staging-apply environment."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Required Azure workflow variable names are configured."
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Init staging remote backend
+        working-directory: infra/terraform/environments/staging
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=3dt-final-team1" \
+            -backend-config="storage_account_name=onmutfstatekrc001" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=onmu/staging/terraform.tfstate" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Apply Wave 1 after protected approval
+        working-directory: infra/terraform/environments/staging
+        shell: bash
+        run: |
+          terraform plan \
+            -input=false \
+            -no-color \
+            -out "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
+            -var-file=terraform.tfvars.example \
+            > "$RUNNER_TEMP/onmu-staging-wave1-plan.log"
+          terraform apply \
+            -input=false \
+            -auto-approve \
+            "$RUNNER_TEMP/onmu-staging-wave1.tfplan" \
+            > "$RUNNER_TEMP/onmu-staging-wave1-apply.log"
+          terraform show -json "$RUNNER_TEMP/onmu-staging-wave1.tfplan" > "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          echo "Wave 1 applied resource/action summary:"
+          jq -r '
+            [.resource_changes[]? | {type: .type, actions: (.change.actions | join(","))}]
+            | group_by(.type + "|" + .actions)
+            | map({type: .[0].type, actions: .[0].actions, count: length})
+            | sort_by(.type, .actions)
+            | .[]
+            | "- " + .actions + " " + .type + ": " + (.count | tostring)
+          ' "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          rm -f "$RUNNER_TEMP/onmu-staging-wave1-plan.log" "$RUNNER_TEMP/onmu-staging-wave1-apply.log" "$RUNNER_TEMP/onmu-staging-wave1.tfplan.json"
+          echo "Wave 1 apply completed. Review Azure resource/status/count smoke before starting the next wave."

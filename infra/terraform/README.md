@@ -49,6 +49,8 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 
 `terraform plan`은 Azure provider 인증과 실제 subscription 권한이 필요할 수 있다. plan 결과를 공유할 때도 secret value, provider token, connection string, 사용자 데이터는 출력하지 않는다. `TF_VAR_postgres_administrator_password` 값은 로컬 shell 또는 protected CI secret으로만 주입하고 파일에 기록하지 않는다.
 
+Staging Wave 1 plan은 `environments/staging/terraform.tfvars.example`의 기본 feature flag를 사용한다. 기본값은 기존 resource group `3dt-final-team1`을 재사용하고 `observability`, `container_registry`만 켠다. PostgreSQL, Redis, Storage, CDN, Event Hubs, Container Apps, Key Vault는 별도 wave 승인 전까지 disabled 상태다.
+
 ## state/backend 기준
 
 - `environments/staging/backend.tf`, `environments/prod/backend.tf`는 `azurerm` backend만 선언한다.
@@ -69,10 +71,12 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
 3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
 4. Workload Identity + GitHub Environment `azure-staging-apply`로 staging backend init smoke 연결
-5. ACR/observability 신규 생성과 Azure Pricing Calculator 기준 staging 비용 산출
+5. Staging Wave 1: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights plan/apply 승인
 6. Key Vault reference와 managed identity 경계 확정
-7. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
-8. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-9. provider console redirect/package/SHA-1 확인
-10. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-11. Windows dev backend smoke를 rollback 기준으로 유지
+7. PostgreSQL/Redis wave: clean DB + Flyway full migration smoke 기준 확정
+8. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
+9. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+10. ACA Spring API/worker wave: Key Vault reference와 managed identity를 연결하고 실제 OAuth smoke를 승격 기준으로 사용
+11. provider console redirect/package/SHA-1 확인
+12. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+13. Windows dev backend smoke를 rollback 기준으로 유지

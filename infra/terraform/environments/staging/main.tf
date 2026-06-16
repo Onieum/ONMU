@@ -11,6 +11,10 @@ locals {
     data_classification = var.data_classification
   }
 
+  resource_group_name     = var.create_resource_group ? module.resource_group[0].name : data.azurerm_resource_group.existing[0].name
+  resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
+  key_vault_uri           = try(module.key_vault[0].key_vault_uri, "")
+
   spring_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
     POSTGRES_PASSWORD                     = "${local.secret_prefix}-postgres-password"
@@ -34,7 +38,7 @@ locals {
 
   spring_secret_refs = {
     for env_name, secret_name in local.spring_secret_names :
-    lower(replace(env_name, "_", "-")) => "${module.key_vault.key_vault_uri}secrets/${secret_name}"
+    lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
   }
 
   spring_secret_env = {
@@ -51,7 +55,14 @@ module "naming" {
   suffix      = var.name_suffix
 }
 
+data "azurerm_resource_group" "existing" {
+  count = var.create_resource_group ? 0 : 1
+  name  = var.existing_resource_group_name
+}
+
 module "resource_group" {
+  count = var.create_resource_group ? 1 : 0
+
   source   = "../../modules/resource-group"
   name     = module.naming.resource_group_name
   location = var.location
@@ -59,9 +70,11 @@ module "resource_group" {
 }
 
 module "observability" {
+  count = var.enabled_modules.observability ? 1 : 0
+
   source                       = "../../modules/observability"
-  resource_group_name          = module.resource_group.name
-  location                     = module.resource_group.location
+  resource_group_name          = local.resource_group_name
+  location                     = local.resource_group_location
   log_analytics_workspace_name = module.naming.log_analytics_workspace_name
   application_insights_name    = module.naming.application_insights_name
   log_retention_days           = 30
@@ -69,9 +82,11 @@ module "observability" {
 }
 
 module "key_vault" {
+  count = var.enabled_modules.key_vault ? 1 : 0
+
   source                      = "../../modules/key-vault"
-  resource_group_name         = module.resource_group.name
-  location                    = module.resource_group.location
+  resource_group_name         = local.resource_group_name
+  location                    = local.resource_group_location
   tenant_id                   = var.tenant_id
   key_vault_name              = module.naming.key_vault_name
   user_assigned_identity_name = module.naming.user_assigned_identity_name
@@ -79,18 +94,22 @@ module "key_vault" {
 }
 
 module "container_registry" {
+  count = var.enabled_modules.container_registry ? 1 : 0
+
   source              = "../../modules/container-registry"
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
+  resource_group_name = local.resource_group_name
+  location            = local.resource_group_location
   name                = module.naming.container_registry_name
   sku                 = "Basic"
   tags                = local.tags
 }
 
 module "postgres" {
+  count = var.enabled_modules.postgres ? 1 : 0
+
   source                        = "../../modules/postgres"
-  resource_group_name           = module.resource_group.name
-  location                      = module.resource_group.location
+  resource_group_name           = local.resource_group_name
+  location                      = local.resource_group_location
   server_name                   = module.naming.postgres_server_name
   database_name                 = module.naming.postgres_database_name
   administrator_login           = var.postgres_administrator_login
@@ -105,9 +124,11 @@ module "postgres" {
 }
 
 module "redis" {
+  count = var.enabled_modules.redis ? 1 : 0
+
   source              = "../../modules/redis"
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
+  resource_group_name = local.resource_group_name
+  location            = local.resource_group_location
   name                = module.naming.redis_name
   capacity            = 0
   family              = "C"
@@ -117,9 +138,11 @@ module "redis" {
 }
 
 module "storage" {
+  count = var.enabled_modules.storage ? 1 : 0
+
   source               = "../../modules/storage"
-  resource_group_name  = module.resource_group.name
-  location             = module.resource_group.location
+  resource_group_name  = local.resource_group_name
+  location             = local.resource_group_location
   account_name         = module.naming.storage_account_name
   replication_type     = "LRS"
   media_container_name = module.naming.media_container_name
@@ -128,20 +151,24 @@ module "storage" {
 }
 
 module "cdn" {
+  count = var.enabled_modules.cdn ? 1 : 0
+
   source                        = "../../modules/cdn"
-  resource_group_name           = module.resource_group.name
+  resource_group_name           = local.resource_group_name
   profile_name                  = module.naming.cdn_profile_name
   endpoint_name                 = module.naming.cdn_endpoint_name
   sku                           = "Standard_Microsoft"
-  origin_host_name              = module.storage.primary_blob_host
+  origin_host_name              = module.storage[0].primary_blob_host
   querystring_caching_behaviour = "IgnoreQueryString"
   tags                          = local.tags
 }
 
 module "eventhubs" {
+  count = var.enabled_modules.eventhubs ? 1 : 0
+
   source              = "../../modules/eventhubs"
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
+  resource_group_name = local.resource_group_name
+  location            = local.resource_group_location
   namespace_name      = module.naming.eventhubs_namespace_name
   sku                 = "Standard"
   capacity            = 1
@@ -161,12 +188,14 @@ module "eventhubs" {
 }
 
 module "container_apps" {
+  count = var.enabled_modules.container_apps ? 1 : 0
+
   source                     = "../../modules/container-apps"
-  resource_group_name        = module.resource_group.name
-  location                   = module.resource_group.location
+  resource_group_name        = local.resource_group_name
+  location                   = local.resource_group_location
   environment_name           = module.naming.container_app_environment_name
-  log_analytics_workspace_id = module.observability.log_analytics_workspace_id
-  runtime_identity_id        = module.key_vault.runtime_identity_id
+  log_analytics_workspace_id = module.observability[0].log_analytics_workspace_id
+  runtime_identity_id        = module.key_vault[0].runtime_identity_id
   tags                       = local.tags
 
   spring_api = {

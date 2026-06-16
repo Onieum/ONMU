@@ -42,6 +42,54 @@ variable "data_classification" {
   default     = "internal"
 }
 
+variable "create_resource_group" {
+  description = "Create a dedicated staging resource group. Keep false while using the shared 3dt-final-team1 resource group."
+  type        = bool
+  default     = false
+}
+
+variable "existing_resource_group_name" {
+  description = "Existing resource group to reuse when create_resource_group is false."
+  type        = string
+  default     = "3dt-final-team1"
+}
+
+variable "enabled_modules" {
+  description = "Feature flags for staging infra waves. Wave 1 enables only ACR and observability."
+  type = object({
+    observability      = bool
+    container_registry = bool
+    key_vault          = bool
+    postgres           = bool
+    redis              = bool
+    storage            = bool
+    cdn                = bool
+    eventhubs          = bool
+    container_apps     = bool
+  })
+  default = {
+    observability      = true
+    container_registry = true
+    key_vault          = false
+    postgres           = false
+    redis              = false
+    storage            = false
+    cdn                = false
+    eventhubs          = false
+    container_apps     = false
+  }
+
+  validation {
+    condition     = !var.enabled_modules.cdn || var.enabled_modules.storage
+    error_message = "enabled_modules.cdn requires enabled_modules.storage."
+  }
+
+  validation {
+    condition     = !var.enabled_modules.container_apps || (var.enabled_modules.key_vault && var.enabled_modules.observability)
+    error_message = "enabled_modules.container_apps requires enabled_modules.key_vault and enabled_modules.observability."
+  }
+}
+
 variable "postgres_administrator_login" {
   description = "PostgreSQL administrator login."
   type        = string
@@ -49,9 +97,11 @@ variable "postgres_administrator_login" {
 }
 
 variable "postgres_administrator_password" {
-  description = "PostgreSQL administrator password. Supply outside git only."
+  description = "PostgreSQL administrator password. Required only when enabled_modules.postgres is true. Supply outside git only."
   type        = string
   sensitive   = true
+  default     = null
+  nullable    = true
 }
 
 variable "spring_api_image" {

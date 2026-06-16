@@ -34,6 +34,7 @@
 - ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 skeleton/plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다.
 - WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
 - 비용 산출은 resource/action summary 중심으로 공유하고 subscription id, principal id, raw plan output은 공유하지 않는다.
+- Wave 1은 ACR Basic, Log Analytics, Application Insights만 대상으로 한다. Cost Management 조회 권한이 아직 없으면 apply 전 보고는 `현재 누적 확인 불가 / 예상 증가분 low-medium / 사용자 승인 필요` 형식으로 제한한다.
 
 ## 3. Pricing Calculator 입력 항목
 
