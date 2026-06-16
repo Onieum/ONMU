@@ -6,5 +6,21 @@ owner         = "onmu-team"
 cost_center   = "onmu-staging"
 spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
 
+create_resource_group        = false
+existing_resource_group_name = "3dt-final-team1"
+
+enabled_modules = {
+  observability      = true
+  container_registry = true
+  key_vault          = false
+  postgres           = false
+  redis              = false
+  storage            = false
+  cdn                = false
+  eventhubs          = false
+  container_apps     = false
+}
+
 # 실제 password 값은 git에 기록하지 않는다.
-# 로컬 plan 또는 protected CI에서 TF_VAR_postgres_administrator_password로만 전달한다.
+# PostgreSQL wave에서 enabled_modules.postgres=true일 때만
+# TF_VAR_postgres_administrator_password 또는 protected CI secret으로 전달한다.

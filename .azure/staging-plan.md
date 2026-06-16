@@ -25,7 +25,7 @@ Spring Main API는 인증, 권한, 트랜잭션, Flyway 원장 역할을 유지�
 
 | 영역 | Staging 후보 | Terraform 소유 경계 |
 | --- | --- | --- |
-| Resource group | `onmu-stg-*` resource group | resource group, tag |
+| Resource group | 기존 `3dt-final-team1` resource group | Terraform은 기본적으로 생성하지 않고 기존 RG를 참조한다. 전용 RG는 구독 정책이 허용될 때 후속 후보 |
 | Identity | user-assigned managed identity | Container Apps, Key Vault, Storage, Event Hubs 접근 role assignment |
 | Key Vault | RBAC 기반 vault | vault, RBAC, secret reference name. secret value는 제외 |
 | Runtime | Container Apps Environment, Spring API Container App, optional worker | app, revision, ingress, scale, env var name, secret reference |
@@ -71,6 +71,20 @@ State backend는 Azure Storage blob backend로 고정하되, backend bootstrap �
 | prod | `onmu/prod/terraform.tfstate` |
 
 Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../docs/operations/azure-terraform-state-backend.md)과 `infra/terraform/bootstrap/state-backend` root module을 따른다. 첫 bootstrap은 remote backend가 없으므로 local state와 `terraform init -backend=false`로 진행하며, 실제 apply 승인 전에는 승인된 운영자 또는 GitHub Actions principal object id와 실행 주체의 storage data-plane 권한을 확인한다.
+
+`environments/staging`은 feature flag로 wave별 리소스를 켠다. 현재 Wave 1 기본값은 다음이다.
+
+| Module | Wave 1 기본값 | 비고 |
+| --- | --- | --- |
+| `observability` | enabled | Log Analytics 30일 retention, workspace-based Application Insights |
+| `container_registry` | enabled | ACR Basic, admin user disabled |
+| `key_vault` | disabled | secret value 작성은 별도 승인 이후 |
+| `postgres` | disabled | clean DB + Flyway full migration wave에서 처리 |
+| `redis` | disabled | DB/Redis wave에서 처리 |
+| `storage` | disabled | Blob/CDN wave에서 처리 |
+| `cdn` | disabled | Blob/CDN wave에서 처리 |
+| `eventhubs` | disabled | Event Hubs wave에서 처리 |
+| `container_apps` | disabled | ACA Spring API/worker wave에서 처리 |
 
 ## 4. Blob + CDN 운영 경계
 

@@ -37,6 +37,29 @@ Staging apply job은 GitHub Environment `azure-staging-apply`를 사용한다. R
 
 staging backend smoke는 Azure AD auth로 `3dt-final-team1` / `onmutfstatekrc001` / `tfstate` / `onmu/staging/terraform.tfstate`를 초기화한다. GitHub Actions workload identity에는 tfstate storage account scope의 `Storage Blob Data Contributor`와 resource group scope의 `Reader`가 필요하다.
 
+Terraform staging provider는 `subscription_id` variable을 사용하므로, protected Wave plan/apply job은 `AZURE_SUBSCRIPTION_ID`와 `AZURE_TENANT_ID`를 값 출력 없이 `TF_VAR_subscription_id`, `TF_VAR_tenant_id`로 전달한다. `AZURE_*` 실제 값은 workflow log, PR, 문서에 출력하지 않는다.
+
+### Staging Wave 1: ACR + Observability
+
+Wave 1은 앱 리소스 배포가 아니라 staging에서 이미 승인된 resource group `3dt-final-team1`에 최소 기반 리소스만 준비하는 단계다. `workflow_dispatch`에서 `wave=acr_observability`를 선택하면 protected environment 승인 뒤 plan summary를 확인한다. `apply_wave=true`를 함께 선택한 경우에만 별도 approval 이후 apply job이 실행된다.
+
+Wave 1에서 켜는 Terraform module은 다음 두 개뿐이다.
+
+- `container_registry`: Azure Container Registry Basic, admin user disabled
+- `observability`: Log Analytics 30일 retention, workspace-based Application Insights
+
+Wave 1에서 명시적으로 제외한다.
+
+- PostgreSQL / Redis
+- Blob Storage / CDN app assets
+- Event Hubs
+- Container Apps
+- Key Vault secret value 작성
+- DNS 변경
+- DB migration
+
+Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지 않는다. 공유 가능한 결과는 resource type, action, count 중심의 summary다. Wave 1 성공 기준은 ACR, Log Analytics workspace, Application Insights가 생성되고 staging backend state에 기록되는 것이며, Spring app 배포 성공으로 보지 않는다.
+
 ## 3. PR 단계
 
 PR에서 수행한다.

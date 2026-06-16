@@ -21,6 +21,18 @@
 
 Staging smoke는 mock login 또는 `user-me` 우회 대신 실제 OAuth 로그인으로 보호 API를 확인한다. OAuth code/state/idToken, Authorization header, raw response body는 출력하지 않는다.
 
+Auth/OAuth fresh 검증은 항상 최신 `origin/dev` 또는 staging 배포 commit 기준으로 수행한다. 이전 commit에서 생성된 보고서는 참고 자료로만 사용하고 최종 판정으로 승격하지 않는다.
+
+OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke 시작 전 다음 public define의 존재 여부만 확인하고 실제 값은 출력하지 않는다.
+
+- `ONMU_API_BASE_URL`
+- `KAKAO_REST_API_KEY`
+- `KAKAO_OAUTH_REDIRECT_URI`
+- `NAVER_OAUTH_CLIENT_ID`
+- `NAVER_OAUTH_REDIRECT_URI`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_SERVER_CLIENT_ID`
+
 ## 3. Dependency smoke
 
 | 항목 | 기준 |
@@ -65,11 +77,13 @@ Android 검증은 emulator 또는 실기기에서 수행한다. Web smoke는 보
 | 항목 | 보고 기준 |
 | --- | --- |
 | place-search | status, result_count, provider_counts, source_counts, coordinate_count |
-| route provider | status, route_count, distance presence, duration presence |
+| route provider | status, route_count, distance presence, duration presence, provider가 `dev-mock`이 아님 |
 | provider fallback | fallback 여부와 provider별 availability count |
 | cache | cache key count, TTL policy, cleanup 여부 |
 
 Provider raw body, query 원문, token, Authorization header는 출력하지 않는다.
+
+Route smoke에서 status와 distance/duration이 있어도 provider가 `dev-mock`이면 live provider 성공으로 판정하지 않는다. 이 경우 `OPENROUTESERVICE_API_KEY` 또는 route provider feature flag/runtime 주입 상태를 secret-safe 방식으로 분리 확인한 뒤 재검증한다.
 
 ## 7. Notification/Event smoke
 
@@ -83,7 +97,33 @@ Event Hubs는 analytics/event stream fan-out 계층이다. Transactional outbox 
 | replay/checkpoint | checkpoint storage presence, offset/count 중심 확인 |
 | delivery record | dev-safe provider/status/count 중심 확인 |
 
-## 8. Observability smoke
+Chat UI smoke와 notification E2E는 분리해서 판정한다. Android/iOS에서 채팅 화면 로딩, 입력창 표시, pending bubble, sent 정착이 통과해도 다음 항목은 별도 알림 E2E smoke로 남긴다.
+
+- 채팅 메시지 생성 후 상대 사용자 notification row 생성
+- `notification.requested` outbox 처리
+- `notification_deliveries` dev-safe 기록
+- unread badge, read, read-all, preferences 저장/복원
+- push token readiness POST/DELETE와 raw token 미노출 확인
+- 실제 FCM/APNs provider 발송은 별도 승인 전까지 범위 밖
+
+Dev-safe 알림 E2E에서는 `provider=dev`, `status=skipped_dev` delivery 기록을 staging pre-push smoke 통과 기준으로 인정한다. `read-all`은 기존 dev/staging 사용자 알림을 함께 읽음 처리할 수 있으므로, 전용 테스트 사용자 또는 synthetic notification fixture가 준비된 경우에만 자동 실행한다.
+
+## 8. Mobile flow smoke
+
+Staging API가 ACA에서 기동된 뒤 최소 1회 Android emulator 기준으로 다음 흐름을 묶어서 확인한다. 시간 제약이 있으면 다른 팀원 PC 검증은 생략할 수 있지만, 이 경우 보고서에 단일 emulator 기준임을 명시한다.
+
+| 흐름 | 최소 기준 |
+| --- | --- |
+| Auth/OAuth | provider 버튼 표시, provider 화면 진입, 앱 복귀, `/api/v1/users/me` 200 |
+| My/Profile | 마이페이지 진입, 깨진 JSON/mojibake 없음, 지역/공개범위 표시, 저장 전후 field presence |
+| Groups/Plans/Votes | 그룹 목록, 상세, plan, vote read 화면 렌더링 |
+| Record/Memory | 기록/추억 목록 화면 렌더링, recent records/memories count 확인, 에러 toast/snackbar 없음 |
+| Place/Search/Map | 지도 blank/fallback/water-style 회귀 없음, place-search result/count 확인 |
+| Chat | 메시지 목록/입력창 표시, pending -> sent 정착, crash 없음 |
+
+My/Profile smoke는 실제 display name, region/address 값을 출력하지 않는다. 보고에는 `preferenceProfile`, `region`, `regionVisibility` presence와 field/key count만 포함한다.
+
+## 9. Observability smoke
 
 | 항목 | 기준 |
 | --- | --- |
@@ -96,7 +136,7 @@ Event Hubs는 analytics/event stream fan-out 계층이다. Transactional outbox 
 
 Staging 기본값은 Log Analytics retention 30일, Application Insights sampling on, daily cap 설정이다. 구체 cap 값은 budget gate 승인 시 확정한다.
 
-## 9. 최종 판정
+## 10. 최종 판정
 
 Staging 성공 판정은 다음을 모두 만족해야 한다.
 
