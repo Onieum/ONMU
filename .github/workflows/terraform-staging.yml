@@ -249,7 +249,7 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
-            diagnostics                = true
+            diagnostics                = false
           }
           EOF
               ;;
@@ -470,7 +470,7 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
-            diagnostics                = true
+            diagnostics                = false
           }
           EOF
               ;;

@@ -106,17 +106,17 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 - `front_door`: Azure Front Door Standard profile, endpoint, Blob origin group/origin/route.
 - `storage`: Blob origin을 참조한다. `core_foundation` apply 후에는 기존 state를 유지해야 하며 recreate하면 안 된다.
-- `diagnostics`: Front Door profile/endpoint diagnostic setting을 Log Analytics로 연결한다.
 
 `frontdoor_tile_edge`에서 명시적으로 제외한다.
 
 - Azure CDN Standard Microsoft classic 신규 생성
 - Custom domain 연결
 - TLS certificate/custom domain validation
+- Front Door diagnostic settings
 - DNS 변경
 - production 적용
 
-Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route와 diagnostics 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
+Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
 
 ## 3. PR 단계
 

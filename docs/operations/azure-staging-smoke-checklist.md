@@ -47,7 +47,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 - Redis Basic C0 존재와 provisioning status 확인
 - Blob containers count와 public tile/static, private media access boundary 확인
-- CDN/edge resource가 `core_foundation`으로 생성되지 않았는지 확인한다. `frontdoor_tile_edge` wave 이후에는 Azure Front Door Standard profile/endpoint/origin group/origin/route 존재와 diagnostic setting 연결을 확인한다.
+- CDN/edge resource가 `core_foundation`으로 생성되지 않았는지 확인한다. `frontdoor_tile_edge` wave 이후에는 Azure Front Door Standard profile/endpoint/origin group/origin/route 존재를 확인한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 연결한다.
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
 - Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
 - user-assigned managed identity 존재와 Key Vault Secrets User role assignment status 확인
