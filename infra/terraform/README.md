@@ -57,7 +57,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `core_foundation`: Redis Basic C0, Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings.
 - `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
 
-`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. CDN/edge는 사용자가 직접 생성하고, Terraform은 Blob origin과 이후 smoke 기준만 유지한다.
+`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, CDN/edge, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만들고, Azure CDN classic 직접 생성 가능성 또는 Front Door Standard 전환은 후속 PR에서 결정한다.
 
 ## state/backend 기준
 

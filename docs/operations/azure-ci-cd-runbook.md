@@ -79,7 +79,7 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 - PostgreSQL Flexible Server
 - Spring API Container App
 - Worker Container App
-- CDN/edge resource. 사용자가 직접 생성하고, Terraform foundation은 Blob origin까지만 만든다.
+- CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다. Azure CDN classic 직접 생성 가능성 또는 Front Door Standard 전환은 후속 PR에서 결정한다.
 - Key Vault secret value 작성
 - DNS/custom domain 변경
 - DB migration 실행
