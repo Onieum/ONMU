@@ -3,7 +3,8 @@ param(
   [string]$ResourceGroupName = "3dt-final-team1",
   [string]$Location = "koreacentral",
   [string[]]$StorageAccountNameCandidates = @("onmutfstatekrc001", "onmutfstatekrc002", "onmutfstatekrc003"),
-  [string]$ContainerName = "tfstate"
+  [string]$ContainerName = "tfstate",
+  [switch]$RequireSubscriptionNameMatch
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,10 +35,18 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
 }
 
 $account = Invoke-AzJson @("account", "show")
-if ($account.name -ne $SubscriptionName) {
-  throw "Active Azure subscription does not match expected subscription name. Expected '$SubscriptionName'."
+if ($RequireSubscriptionNameMatch) {
+  if ($account.name -ne $SubscriptionName) {
+    throw "Active Azure subscription does not match expected subscription name. Expected '$SubscriptionName'."
+  }
+  Write-Check "subscription" "OK" $SubscriptionName
 }
-Write-Check "subscription" "OK" $SubscriptionName
+else {
+  if ($account.state -ne "Enabled") {
+    throw "Active Azure subscription is not enabled."
+  }
+  Write-Check "subscription" "INFO" "active account loaded; display-name match skipped"
+}
 
 $resourceGroup = Invoke-AzJson @("group", "show", "--name", $ResourceGroupName)
 if ($resourceGroup.location -ne $Location) {

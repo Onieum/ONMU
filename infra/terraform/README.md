@@ -62,7 +62,7 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 
 ## 다음 gate
 
-1. Azure subscription/account name 확인과 `onmutfstatekrc001`부터 storage name availability 확인
+1. Azure account enabled 상태, `3dt-final-team1` resource group, `onmutfstatekrc001`부터 storage name availability 확인
 2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
 3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
 4. Workload Identity + GitHub Environment `azure-staging-apply` 후속 CI PR
