@@ -49,6 +49,8 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 
 `terraform plan`은 Azure provider 인증과 실제 subscription 권한이 필요할 수 있다. plan 결과를 공유할 때도 secret value, provider token, connection string, 사용자 데이터는 출력하지 않는다. `TF_VAR_postgres_administrator_password` 값은 로컬 shell 또는 protected CI secret으로만 주입하고 파일에 기록하지 않는다.
 
+staging/prod provider는 `resource_provider_registrations = "none"`으로 고정한다. ONMU staging GitHub OIDC identity는 resource group 범위 최소 권한을 유지하므로, subscription scope Resource Provider auto-registration을 Terraform에 맡기지 않는다. 필요한 Azure namespace는 운영자 또는 상위 권한 계정이 사전에 등록해 둔다.
+
 Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/terraform.tfvars.example`의 기본 feature flag는 기존 resource group `3dt-final-team1`을 재사용하고 `observability`, `container_registry`만 켠다.
 
 후속 GitHub Actions wave는 다음 입력으로 선택한다.

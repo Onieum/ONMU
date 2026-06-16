@@ -39,6 +39,8 @@ staging backend smoke는 Azure AD auth로 `3dt-final-team1` / `onmutfstatekrc001
 
 Terraform staging provider는 `subscription_id` variable을 사용하므로, protected Wave plan/apply job은 `AZURE_SUBSCRIPTION_ID`와 `AZURE_TENANT_ID`를 값 출력 없이 `TF_VAR_subscription_id`, `TF_VAR_tenant_id`로 전달한다. `AZURE_*` 실제 값은 workflow log, PR, 문서에 출력하지 않는다.
 
+staging/prod provider는 `resource_provider_registrations = "none"`을 사용한다. 현재 GitHub OIDC Workload Identity는 `3dt-final-team1` resource group 중심의 최소 권한으로 운영하므로, Terraform이 subscription scope에서 Azure Resource Provider auto-registration을 시도하면 plan/apply가 초기에 실패할 수 있다. 필요한 namespace는 운영자 또는 상위 권한 계정이 미리 등록해 둔 상태를 전제로 한다.
+
 ### Staging Wave 1: ACR + Observability
 
 Wave 1은 앱 리소스 배포가 아니라 staging에서 이미 승인된 resource group `3dt-final-team1`에 최소 기반 리소스만 준비하는 단계다. `workflow_dispatch`에서 `wave=acr_observability`를 선택하면 protected environment 승인 뒤 plan summary를 확인한다. `apply_wave=true`를 함께 선택한 경우에만 별도 approval 이후 apply job이 실행된다.
