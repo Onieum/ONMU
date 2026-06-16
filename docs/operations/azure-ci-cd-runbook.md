@@ -72,19 +72,25 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 - `storage`: Blob Storage account, public tile/static container, private media container.
 - `eventhubs`: Event Hubs Standard namespace, `notification-requested`, `worker-jobs`, consumer groups `worker`, `analytics`.
 - `container_apps_environment`: ACA Environment만 생성.
-- `diagnostics`: foundation 리소스 diagnostic setting을 Log Analytics로 연결.
 
 `core_foundation`에서 명시적으로 제외한다.
 
 - PostgreSQL Flexible Server
 - Spring API Container App
 - Worker Container App
-- CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다. Azure CDN classic 직접 생성 가능성 또는 Front Door Standard 전환은 후속 PR에서 결정한다.
+- CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다.
+- Diagnostic settings. 신규 resource id는 plan 시점에 unknown이므로 리소스 생성 wave와 분리한다.
 - Key Vault secret value 작성
 - DNS/custom domain 변경
 - DB migration 실행
 
-Plan summary가 Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostic settings 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
+Plan summary가 Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
+
+### Staging Core Diagnostics
+
+`wave=core_diagnostics`는 `core_foundation` apply가 성공하고 remote state에 resource id가 기록된 뒤에만 실행한다. 이 wave는 foundation 리소스의 diagnostic setting을 Log Analytics로 연결한다.
+
+`core_diagnostics`에서 기대하는 변경은 diagnostic setting create 중심이다. Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Environment 자체가 create로 다시 잡히면 core foundation이 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않고 중단한다.
 
 ### Staging DB/App Ready
 
@@ -95,6 +101,8 @@ Plan summary가 Redis, Storage, Event Hubs, Key Vault, managed identity, ACA Env
 - `STAGING_WORKER_IMAGE`
 
 PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수 있다. 이 방식을 채택하기 전 사용자는 state 보관 리스크와 secret rotation 절차를 명시적으로 승인해야 한다. Spring API/worker app은 Key Vault reference만 사용하며 secret value는 Terraform code, plan 공유본, PR, workflow log에 출력하지 않는다.
+
+`db_and_app_ready`도 신규 PostgreSQL/Container App resource id가 plan 시점에 unknown이므로 diagnostic setting을 동시에 만들지 않는다. App/DB diagnostic setting은 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
 `db_and_app_ready` 이후에도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 
@@ -117,6 +125,12 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 - production 적용
 
 Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
+
+### Staging Front Door Diagnostics
+
+`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공한 뒤에만 실행한다. 이 wave는 Front Door diagnostic setting을 Log Analytics로 연결한다.
+
+`frontdoor_diagnostics` plan summary에 Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
 
 ## 3. PR 단계
 

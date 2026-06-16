@@ -33,7 +33,9 @@ on:
           - none
           - acr_observability
           - core_foundation
+          - core_diagnostics
           - frontdoor_tile_edge
+          - frontdoor_diagnostics
           - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."
@@ -227,6 +229,28 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
+            diagnostics                = false
+          }
+          EOF
+              ;;
+            core_diagnostics)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = false
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
             diagnostics                = true
           }
           EOF
@@ -250,6 +274,28 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+          }
+          EOF
+              ;;
+            frontdoor_diagnostics)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
           }
           EOF
               ;;
@@ -282,7 +328,7 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = true
-            diagnostics                = true
+            diagnostics                = false
           }
           EOF
               ;;
@@ -448,6 +494,28 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
+            diagnostics                = false
+          }
+          EOF
+              ;;
+            core_diagnostics)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = false
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
             diagnostics                = true
           }
           EOF
@@ -471,6 +539,28 @@ jobs:
             container_apps_environment = true
             container_apps             = false
             diagnostics                = false
+          }
+          EOF
+              ;;
+            frontdoor_diagnostics)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = true
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
           }
           EOF
               ;;
@@ -503,7 +593,7 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = true
-            diagnostics                = true
+            diagnostics                = false
           }
           EOF
               ;;

@@ -88,11 +88,11 @@ Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../
 | `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
 | `container_apps_environment` | disabled | enabled | enabled | ACA Environment까지만 foundation에서 생성 |
 | `container_apps` | disabled | disabled | enabled | Spring API/worker app은 image/secret/Flyway 준비 후 별도 승인 |
-| `diagnostics` | disabled | enabled | enabled | 생성 리소스 diagnostic setting을 Log Analytics로 연결 |
+| `diagnostics` | disabled | disabled | disabled | 리소스 생성 wave와 분리. `core_diagnostics`, `frontdoor_diagnostics`에서 별도 연결 |
 
-`core_foundation`은 Redis, Blob Storage origin, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server, CDN/edge 리소스는 생성하지 않는다.
+`core_foundation`은 Redis, Blob Storage origin, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server, CDN/edge 리소스, diagnostic setting은 생성하지 않는다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 `core_diagnostics` wave에서 별도 plan/apply한다.
 
-`db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다.
+`db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다. DB/App diagnostic setting도 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
 ## 4. Blob + CDN 운영 경계
 
@@ -174,7 +174,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
 | 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시, optional delete lock, read-only preflight, RBAC 전파 지연 시 2-phase fallback | 앱 리소스 |
-| 3 | Staging core foundation | Redis, Blob Storage origin, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostics | PostgreSQL, ACA app, CDN/edge, secret value |
+| 3 | Staging core foundation | Redis, Blob Storage origin, Event Hubs, Key Vault, managed identity, ACA Environment | PostgreSQL, ACA app, CDN/edge, diagnostics, secret value |
 | 4 | DB/App readiness | PostgreSQL skeleton, Spring API/worker app wiring, image/secret gate | DB migration 실행, DNS/custom domain |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |
 | 6 | Data rehearsal | clean DB Flyway, Blob copy rehearsal, tile CDN smoke | dev snapshot restore 무승인 실행 |
