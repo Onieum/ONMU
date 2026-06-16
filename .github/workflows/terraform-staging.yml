@@ -187,6 +187,11 @@ jobs:
 
           create_resource_group        = false
           existing_resource_group_name = "3dt-final-team1"
+
+          enabled_diagnostic_targets = {
+            foundation = false
+            front_door = false
+          }
           EOF
 
           case "${{ inputs.wave }}" in
@@ -280,6 +285,11 @@ jobs:
             diagnostics                = true
             rbac_assignments           = false
           }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = false
+          }
           EOF
               ;;
             frontdoor_tile_edge)
@@ -300,8 +310,13 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
-            diagnostics                = false
+            diagnostics                = true
             rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = false
           }
           EOF
               ;;
@@ -325,6 +340,11 @@ jobs:
             container_apps             = false
             diagnostics                = true
             rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = true
           }
           EOF
               ;;
@@ -422,6 +442,22 @@ jobs:
               exit 1
             fi
           fi
+          if [ "${{ inputs.wave }}" = "core_diagnostics" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected core_diagnostics plan summary::Only azurerm_monitor_diagnostic_setting create and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "frontdoor_tile_edge" ]; then
+            unexpected_delete_or_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "delete" or (.change.actions | join(",")) == "update" or (.change.actions | join(",")) == "create,delete" or (.change.actions | join(",")) == "delete,create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+              echo "::error title=Unexpected frontdoor_tile_edge plan summary::Only Front Door create actions and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
           rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
 
       - name: Confirm no apply occurred
@@ -488,6 +524,11 @@ jobs:
 
           create_resource_group        = false
           existing_resource_group_name = "3dt-final-team1"
+
+          enabled_diagnostic_targets = {
+            foundation = false
+            front_door = false
+          }
           EOF
 
           case "${{ inputs.wave }}" in
@@ -581,6 +622,11 @@ jobs:
             diagnostics                = true
             rbac_assignments           = false
           }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = false
+          }
           EOF
               ;;
             frontdoor_tile_edge)
@@ -601,8 +647,13 @@ jobs:
             eventhubs                  = true
             container_apps_environment = true
             container_apps             = false
-            diagnostics                = false
+            diagnostics                = true
             rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = false
           }
           EOF
               ;;
@@ -626,6 +677,11 @@ jobs:
             container_apps             = false
             diagnostics                = true
             rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = true
           }
           EOF
               ;;
