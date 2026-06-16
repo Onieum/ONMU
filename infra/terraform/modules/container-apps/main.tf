@@ -7,6 +7,7 @@ resource "azurerm_container_app_environment" "this" {
 }
 
 resource "azurerm_container_app" "spring_api" {
+  count                        = var.create_spring_api_app ? 1 : 0
   name                         = var.spring_api.name
   container_app_environment_id = azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name
@@ -71,7 +72,7 @@ resource "azurerm_container_app" "spring_api" {
 }
 
 resource "azurerm_container_app" "worker" {
-  count                        = var.worker.enabled ? 1 : 0
+  count                        = var.worker.enabled && var.create_spring_api_app ? 1 : 0
   name                         = var.worker.name
   container_app_environment_id = azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name

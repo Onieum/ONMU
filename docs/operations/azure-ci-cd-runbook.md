@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | `pr-check.yml` | PR | docs/secret scan, Spring/Flutter test, Docker build 후보 |
 | `terraform-plan.yml` | PR 또는 manual | fmt/validate/plan, artifact 저장 |
-| `terraform-staging.yml` | PR/push + manual | Terraform fmt/validate, protected staging backend init smoke |
+| `terraform-staging.yml` | PR/push + manual | Terraform fmt/validate, protected staging backend init smoke, approved staging wave plan/apply |
 | `deploy-staging.yml` | manual + approval | staging image build/push, apply, migration, smoke |
 | `deploy-prod.yml` | manual + approval | staging 검증 image digest 승격, production migration/cutover smoke |
 | `smoke-staging.yml` | manual 또는 deploy 후 | smoke checklist 실행 |
@@ -27,7 +27,7 @@ production은 자동 apply하지 않는다. `terraform plan -> approval -> apply
 
 Staging apply job은 GitHub Environment `azure-staging-apply`를 사용한다. Required reviewers와 branch 제한을 적용하고, plan identity와 apply identity/권한은 가능하면 분리한다. Workload Identity principal 실제 값은 GitHub protected variable 또는 environment secret으로만 관리하고 문서/로그/PR에는 출력하지 않는다.
 
-현재 1차 연결은 `.github/workflows/terraform-staging.yml`이다. 이 workflow는 PR/push에서 `terraform fmt`, `terraform init -backend=false`, `terraform validate`만 수행한다. Azure OIDC login은 `workflow_dispatch`와 `backend_smoke=true`일 때만 실행하며, `azure-staging-apply` environment approval 뒤에 staging backend init smoke만 수행한다. 이 smoke는 `terraform plan`, `terraform apply`, `terraform state list`를 실행하지 않는다.
+현재 1차 연결은 `.github/workflows/terraform-staging.yml`이다. 이 workflow는 PR/push에서 `terraform fmt`, `terraform init -backend=false`, `terraform validate`만 수행한다. Azure OIDC login은 `workflow_dispatch`에서만 실행하며, `backend_smoke=true`일 때는 `azure-staging-apply` environment approval 뒤 staging backend init smoke만 수행한다. `wave` 입력을 선택하면 같은 protected environment approval 뒤 plan summary를 확인하고, `apply_wave=true`일 때만 별도 apply job을 실행한다. Raw plan/state/log 값은 출력하지 않고 resource type/action/count summary만 공유한다.
 
 `azure-staging-apply` environment에는 아래 이름의 protected variable 또는 secret을 설정한다. 값은 문서, PR, workflow log에 출력하지 않는다.
 
@@ -59,6 +59,44 @@ Wave 1에서 명시적으로 제외한다.
 - DB migration
 
 Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지 않는다. 공유 가능한 결과는 resource type, action, count 중심의 summary다. Wave 1 성공 기준은 ACR, Log Analytics workspace, Application Insights가 생성되고 staging backend state에 기록되는 것이며, Spring app 배포 성공으로 보지 않는다.
+
+### Staging Core Foundation
+
+`workflow_dispatch`에서 `wave=core_foundation`을 선택하면 Wave 2~5 중 앱 secret/image 없이 안전하게 만들 수 있는 기반 리소스만 plan/apply한다. 기준은 기존 resource group `3dt-final-team1`, region `koreacentral`, 2026-06-26까지 총 1,000,000원 상한이다.
+
+`core_foundation`에서 켜는 Terraform module은 다음이다.
+
+- `observability`, `container_registry`: Wave 1 리소스를 유지하며 recreate하지 않는다.
+- `key_vault`: Key Vault, user-assigned managed identity, Key Vault Secrets User role assignment.
+- `redis`: Azure Cache for Redis Basic C0.
+- `storage`: Blob Storage account, public tile/static container, private media container.
+- `cdn`: Azure CDN Standard Microsoft profile/endpoint with Blob origin.
+- `eventhubs`: Event Hubs Standard namespace, `notification-requested`, `worker-jobs`, consumer groups `worker`, `analytics`.
+- `container_apps_environment`: ACA Environment만 생성.
+- `diagnostics`: foundation 리소스 diagnostic setting을 Log Analytics로 연결.
+
+`core_foundation`에서 명시적으로 제외한다.
+
+- PostgreSQL Flexible Server
+- Spring API Container App
+- Worker Container App
+- Key Vault secret value 작성
+- DNS/custom domain 변경
+- DB migration 실행
+
+Plan summary가 Redis, Storage, CDN, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostic settings 외의 create/update/delete를 포함하면 apply하지 않고 중단한다. Key Vault role assignment 생성 중 RBAC 권한이 부족하면 `User Access Administrator` 또는 `Role Based Access Control Administrator` 부여 여부를 별도 승인으로 분리한다.
+
+### Staging DB/App Ready
+
+`wave=db_and_app_ready`는 PostgreSQL Flexible Server와 Spring API/worker Container App을 만들 수 있는 선택지지만, 기본 실행 대상이 아니다. 아래 protected 값이 준비되고 사용자가 별도 승인할 때만 plan/apply한다.
+
+- `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`
+- `STAGING_SPRING_API_IMAGE`
+- `STAGING_WORKER_IMAGE`
+
+PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수 있다. 이 방식을 채택하기 전 사용자는 state 보관 리스크와 secret rotation 절차를 명시적으로 승인해야 한다. Spring API/worker app은 Key Vault reference만 사용하며 secret value는 Terraform code, plan 공유본, PR, workflow log에 출력하지 않는다.
+
+`db_and_app_ready` 이후에도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob/CDN/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 
 ## 3. PR 단계
 

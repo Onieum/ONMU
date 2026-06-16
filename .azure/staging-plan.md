@@ -59,6 +59,7 @@ infra/terraform/
     cdn/
     eventhubs/
     container-apps/
+    diagnostic-settings/
     network/
     edge/
 ```
@@ -72,19 +73,25 @@ State backend는 Azure Storage blob backend로 고정하되, backend bootstrap �
 
 Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../docs/operations/azure-terraform-state-backend.md)과 `infra/terraform/bootstrap/state-backend` root module을 따른다. 첫 bootstrap은 remote backend가 없으므로 local state와 `terraform init -backend=false`로 진행하며, 실제 apply 승인 전에는 승인된 운영자 또는 GitHub Actions principal object id와 실행 주체의 storage data-plane 권한을 확인한다.
 
-`environments/staging`은 feature flag로 wave별 리소스를 켠다. 현재 Wave 1 기본값은 다음이다.
+`environments/staging`은 feature flag로 wave별 리소스를 켠다. 현재 Wave 1 apply는 완료됐고, 다음 PR은 `core_foundation`과 `db_and_app_ready` wave를 한 workflow에서 선택할 수 있게 한다. 기준은 기존 resource group `3dt-final-team1`, region `koreacentral`, 2026-06-26까지 총 1,000,000원 상한이다.
 
-| Module | Wave 1 기본값 | 비고 |
-| --- | --- | --- |
-| `observability` | enabled | Log Analytics 30일 retention, workspace-based Application Insights |
-| `container_registry` | enabled | ACR Basic, admin user disabled |
-| `key_vault` | disabled | secret value 작성은 별도 승인 이후 |
-| `postgres` | disabled | clean DB + Flyway full migration wave에서 처리 |
-| `redis` | disabled | DB/Redis wave에서 처리 |
-| `storage` | disabled | Blob/CDN wave에서 처리 |
-| `cdn` | disabled | Blob/CDN wave에서 처리 |
-| `eventhubs` | disabled | Event Hubs wave에서 처리 |
-| `container_apps` | disabled | ACA Spring API/worker wave에서 처리 |
+| Module | Wave 1 `acr_observability` | `core_foundation` | `db_and_app_ready` | 비고 |
+| --- | --- | --- | --- | --- |
+| `observability` | enabled | enabled | enabled | Log Analytics 30일 retention, workspace-based Application Insights |
+| `container_registry` | enabled | enabled | enabled | ACR Basic, admin user disabled |
+| `key_vault` | disabled | enabled | enabled | Vault/RBAC/reference만 Terraform 소유, secret value 작성 제외 |
+| `postgres` | disabled | disabled | enabled | protected secret과 clean DB/Flyway 승인 전 apply 금지 |
+| `redis` | disabled | enabled | enabled | Basic C0, source of truth 아님 |
+| `storage` | disabled | enabled | enabled | public tiles/static, private media container 분리 |
+| `cdn` | disabled | enabled | enabled | Azure CDN Standard Microsoft, Blob origin |
+| `eventhubs` | disabled | enabled | enabled | Standard, `worker`/`analytics` consumer group |
+| `container_apps_environment` | disabled | enabled | enabled | ACA Environment까지만 foundation에서 생성 |
+| `container_apps` | disabled | disabled | enabled | Spring API/worker app은 image/secret/Flyway 준비 후 별도 승인 |
+| `diagnostics` | disabled | enabled | enabled | 생성 리소스 diagnostic setting을 Log Analytics로 연결 |
+
+`core_foundation`은 Redis, Blob/CDN, Event Hubs, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings까지만 만든다. Spring API Container App, worker Container App, PostgreSQL Flexible Server는 생성하지 않는다.
+
+`db_and_app_ready`는 PostgreSQL과 ACA app을 만들 수 있는 선택지지만, protected `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`, `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`가 준비되고 별도 승인되기 전에는 실행하지 않는다. PostgreSQL admin password는 Terraform state에 sensitive value로 남을 수 있으므로, 이 방식을 채택하려면 사용자가 명시 승인해야 한다.
 
 ## 4. Blob + CDN 운영 경계
 
@@ -165,8 +172,8 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
 | 2 | State backend bootstrap | `대한상공회의소 Data School` subscription의 `3dt-final-team1` resource group 기준 storage/container/RBAC plan, backend config 예시, optional delete lock, read-only preflight, RBAC 전파 지연 시 2-phase fallback | 앱 리소스 |
-| 3 | Staging resource skeleton 확장 | ACA/Postgres/Redis/Blob/CDN/Event Hubs/observability module 보완 | secret value |
-| 4 | Staging apply gate | GitHub protected environment, manual approval, plan artifact | 자동 production apply |
+| 3 | Staging core foundation | Redis, Blob/CDN, Event Hubs, Key Vault, managed identity, ACA Environment, diagnostics | PostgreSQL, ACA app, secret value |
+| 4 | DB/App readiness | PostgreSQL skeleton, Spring API/worker app wiring, image/secret gate | DB migration 실행, DNS/custom domain |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |
 | 6 | Data rehearsal | clean DB Flyway, Blob copy rehearsal, tile CDN smoke | dev snapshot restore 무승인 실행 |
 | 7 | Event Hubs integration | producer/consumer contract, checkpoint, replay smoke | command queue 대체 |

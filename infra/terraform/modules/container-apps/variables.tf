@@ -23,6 +23,12 @@ variable "runtime_identity_id" {
   type        = string
 }
 
+variable "create_spring_api_app" {
+  description = "Create the Spring API Container App. Keep false for environment-only foundation waves."
+  type        = bool
+  default     = true
+}
+
 variable "spring_api" {
   description = "Spring Main API container app settings."
   type = object({

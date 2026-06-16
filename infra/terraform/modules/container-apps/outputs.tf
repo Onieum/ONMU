@@ -3,11 +3,11 @@ output "environment_id" {
 }
 
 output "spring_api_id" {
-  value = azurerm_container_app.spring_api.id
+  value = var.create_spring_api_app ? azurerm_container_app.spring_api[0].id : null
 }
 
 output "spring_api_latest_revision_fqdn" {
-  value = azurerm_container_app.spring_api.latest_revision_fqdn
+  value = var.create_spring_api_app ? azurerm_container_app.spring_api[0].latest_revision_fqdn : null
 }
 
 output "worker_id" {

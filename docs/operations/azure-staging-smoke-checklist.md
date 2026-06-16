@@ -43,6 +43,19 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 | Key Vault reference | required secret reference resolved count, missing count 0 |
 | Managed identity | required role assignment presence count |
 
+`core_foundation` wave 직후에는 앱 배포 성공이 아니라 기반 리소스 준비만 판정한다. 최소 확인은 다음이다.
+
+- Redis Basic C0 존재와 provisioning status 확인
+- Blob containers count와 public tile/static, private media access boundary 확인
+- Azure CDN Standard Microsoft profile/endpoint 존재 확인
+- Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
+- Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
+- user-assigned managed identity 존재와 Key Vault Secrets User role assignment status 확인
+- ACA Environment 존재, Spring API/worker Container App 미생성 확인
+- diagnostic settings가 Log Analytics workspace로 연결됐는지 count/status 확인
+
+`db_and_app_ready` wave는 protected Postgres password, Spring image, worker image, Flyway 실행 계획, Key Vault secret value 준비가 끝난 뒤 별도 승인으로만 실행한다.
+
 ## 4. Blob/CDN smoke
 
 | 항목 | 기준 |

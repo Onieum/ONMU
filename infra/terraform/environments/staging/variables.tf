@@ -55,28 +55,32 @@ variable "existing_resource_group_name" {
 }
 
 variable "enabled_modules" {
-  description = "Feature flags for staging infra waves. Wave 1 enables only ACR and observability."
+  description = "Feature flags for staging infra waves. Wave 1 enables ACR and observability. Core foundation enables shared dependencies without app containers."
   type = object({
-    observability      = bool
-    container_registry = bool
-    key_vault          = bool
-    postgres           = bool
-    redis              = bool
-    storage            = bool
-    cdn                = bool
-    eventhubs          = bool
-    container_apps     = bool
+    observability              = bool
+    container_registry         = bool
+    key_vault                  = bool
+    postgres                   = bool
+    redis                      = bool
+    storage                    = bool
+    cdn                        = bool
+    eventhubs                  = bool
+    container_apps_environment = bool
+    container_apps             = bool
+    diagnostics                = bool
   })
   default = {
-    observability      = true
-    container_registry = true
-    key_vault          = false
-    postgres           = false
-    redis              = false
-    storage            = false
-    cdn                = false
-    eventhubs          = false
-    container_apps     = false
+    observability              = true
+    container_registry         = true
+    key_vault                  = false
+    postgres                   = false
+    redis                      = false
+    storage                    = false
+    cdn                        = false
+    eventhubs                  = false
+    container_apps_environment = false
+    container_apps             = false
+    diagnostics                = false
   }
 
   validation {
@@ -85,9 +89,20 @@ variable "enabled_modules" {
   }
 
   validation {
-    condition     = !var.enabled_modules.container_apps || (var.enabled_modules.key_vault && var.enabled_modules.observability)
-    error_message = "enabled_modules.container_apps requires enabled_modules.key_vault and enabled_modules.observability."
+    condition     = !var.enabled_modules.container_apps_environment || (var.enabled_modules.key_vault && var.enabled_modules.observability)
+    error_message = "enabled_modules.container_apps_environment requires enabled_modules.key_vault and enabled_modules.observability."
   }
+
+  validation {
+    condition     = !var.enabled_modules.container_apps || var.enabled_modules.container_apps_environment
+    error_message = "enabled_modules.container_apps requires enabled_modules.container_apps_environment."
+  }
+
+  validation {
+    condition     = !var.enabled_modules.diagnostics || var.enabled_modules.observability
+    error_message = "enabled_modules.diagnostics requires enabled_modules.observability."
+  }
+
 }
 
 variable "postgres_administrator_login" {
@@ -107,6 +122,7 @@ variable "postgres_administrator_password" {
 variable "spring_api_image" {
   description = "Spring API container image digest or tag."
   type        = string
+  default     = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
 }
 
 variable "worker_image" {

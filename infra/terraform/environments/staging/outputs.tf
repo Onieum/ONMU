@@ -18,6 +18,10 @@ output "spring_api_latest_revision_fqdn" {
   value = try(module.container_apps[0].spring_api_latest_revision_fqdn, null)
 }
 
+output "container_app_environment_id" {
+  value = try(module.container_apps[0].environment_id, null)
+}
+
 output "postgres_fqdn" {
   value = try(module.postgres[0].fqdn, null)
 }
@@ -40,4 +44,8 @@ output "eventhub_names" {
 
 output "worker_enabled" {
   value = try(module.container_apps[0].worker_enabled, false)
+}
+
+output "diagnostic_setting_count" {
+  value = try(length(module.diagnostic_settings[0].diagnostic_setting_ids), 0)
 }

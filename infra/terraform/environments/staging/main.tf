@@ -45,6 +45,22 @@ locals {
     for env_name, secret_name in local.spring_secret_names :
     env_name => lower(replace(env_name, "_", "-"))
   }
+
+  diagnostic_target_candidates = {
+    key_vault                  = try(module.key_vault[0].key_vault_id, null)
+    redis                      = try(module.redis[0].id, null)
+    storage                    = try(module.storage[0].storage_account_id, null)
+    cdn_profile                = try(module.cdn[0].profile_id, null)
+    cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
+    eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
+    container_apps_environment = try(module.container_apps[0].environment_id, null)
+  }
+
+  diagnostic_targets = {
+    for name, id in local.diagnostic_target_candidates :
+    name => id
+    if id != null && id != ""
+  }
 }
 
 module "naming" {
@@ -188,7 +204,7 @@ module "eventhubs" {
 }
 
 module "container_apps" {
-  count = var.enabled_modules.container_apps ? 1 : 0
+  count = (var.enabled_modules.container_apps_environment || var.enabled_modules.container_apps) ? 1 : 0
 
   source                     = "../../modules/container-apps"
   resource_group_name        = local.resource_group_name
@@ -196,6 +212,7 @@ module "container_apps" {
   environment_name           = module.naming.container_app_environment_name
   log_analytics_workspace_id = module.observability[0].log_analytics_workspace_id
   runtime_identity_id        = module.key_vault[0].runtime_identity_id
+  create_spring_api_app      = var.enabled_modules.container_apps
   tags                       = local.tags
 
   spring_api = {
@@ -216,7 +233,7 @@ module "container_apps" {
   }
 
   worker = {
-    enabled      = var.worker_enabled
+    enabled      = var.enabled_modules.container_apps && var.worker_enabled
     name         = module.naming.worker_container_app_name
     image        = var.worker_image
     target_port  = 8000
@@ -233,6 +250,25 @@ module "container_apps" {
 
   depends_on = [
     module.key_vault
+  ]
+}
+
+module "diagnostic_settings" {
+  count = var.enabled_modules.diagnostics ? 1 : 0
+
+  source                     = "../../modules/diagnostic-settings"
+  log_analytics_workspace_id = module.observability[0].log_analytics_workspace_id
+  targets                    = local.diagnostic_targets
+  name_prefix                = "diag-onmu-staging"
+
+  depends_on = [
+    module.observability,
+    module.key_vault,
+    module.redis,
+    module.storage,
+    module.cdn,
+    module.eventhubs,
+    module.container_apps
   ]
 }
 

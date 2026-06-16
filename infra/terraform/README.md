@@ -49,7 +49,15 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 
 `terraform plan`은 Azure provider 인증과 실제 subscription 권한이 필요할 수 있다. plan 결과를 공유할 때도 secret value, provider token, connection string, 사용자 데이터는 출력하지 않는다. `TF_VAR_postgres_administrator_password` 값은 로컬 shell 또는 protected CI secret으로만 주입하고 파일에 기록하지 않는다.
 
-Staging Wave 1 plan은 `environments/staging/terraform.tfvars.example`의 기본 feature flag를 사용한다. 기본값은 기존 resource group `3dt-final-team1`을 재사용하고 `observability`, `container_registry`만 켠다. PostgreSQL, Redis, Storage, CDN, Event Hubs, Container Apps, Key Vault는 별도 wave 승인 전까지 disabled 상태다.
+Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/terraform.tfvars.example`의 기본 feature flag는 기존 resource group `3dt-final-team1`을 재사용하고 `observability`, `container_registry`만 켠다.
+
+후속 GitHub Actions wave는 다음 입력으로 선택한다.
+
+- `acr_observability`: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights.
+- `core_foundation`: Redis Basic C0, Blob Storage, Azure CDN Standard Microsoft, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment, diagnostic settings.
+- `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
+
+`core_foundation`은 PostgreSQL, Spring API Container App, worker Container App, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다.
 
 ## state/backend 기준
 
@@ -67,16 +75,15 @@ Staging Wave 1 plan은 `environments/staging/terraform.tfvars.example`의 기본
 
 ## 다음 gate
 
-1. Azure account enabled 상태, `3dt-final-team1` resource group, `onmutfstatekrc001`부터 storage name availability 확인
-2. 2026-06-26까지 총 1,000,000원 상한 기준 budget impact 확인
-3. Terraform state backend bootstrap 승인, read-only preflight, 승인된 principal object id, 실행 주체 data-plane 권한, `bootstrap/state-backend` phase 1/2 apply window 승인
-4. Workload Identity + GitHub Environment `azure-staging-apply`로 staging backend init smoke 연결
-5. Staging Wave 1: ACR Basic, Log Analytics 30일 retention, workspace-based Application Insights plan/apply 승인
-6. Key Vault reference와 managed identity 경계 확정
-7. PostgreSQL/Redis wave: clean DB + Flyway full migration smoke 기준 확정
+1. `core_foundation` plan-only에서 예상 resource/action summary 확인
+2. `core_foundation` apply 승인과 적용 후 Redis/Blob/CDN/Event Hubs/Key Vault/ACA Environment/diagnostics smoke
+3. Cost Management 조회 권한 또는 비용 확인 담당자 확정
+4. `db_and_app_ready` 전 protected Postgres password, Spring image, worker image, Key Vault secret value 준비 방식 승인
+5. PostgreSQL sensitive state 보관 허용 여부와 rotation 절차 결정
+6. Clean DB + Flyway full migration smoke 기준 확정
+7. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
 8. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
 9. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-10. ACA Spring API/worker wave: Key Vault reference와 managed identity를 연결하고 실제 OAuth smoke를 승격 기준으로 사용
-11. provider console redirect/package/SHA-1 확인
-12. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-13. Windows dev backend smoke를 rollback 기준으로 유지
+10. provider console redirect/package/SHA-1 확인
+11. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+12. Windows dev backend smoke를 rollback 기준으로 유지
