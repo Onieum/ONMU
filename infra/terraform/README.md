@@ -60,7 +60,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `key_vault_rbac`: runtime managed identity에 Key Vault Secrets User role assignment 연결. RBAC assignment 권한 승인 후 실행.
 - `core_diagnostics`: `core_foundation` apply 후 foundation 리소스 diagnostic setting을 Log Analytics로 연결.
 - `frontdoor_tile_edge`: Azure Front Door Standard profile/endpoint/origin group/origin/route. 기본료 발생으로 apply 전 별도 비용 승인 필요.
-- `frontdoor_diagnostics`: `frontdoor_tile_edge` apply 후 Front Door diagnostic setting을 Log Analytics로 연결.
+- `frontdoor_diagnostics`: `frontdoor_tile_edge` apply 후 지원되는 Front Door scope의 diagnostic setting을 Log Analytics로 연결. 현재 staging 기준으로는 profile scope만 대상이다.
 - `db_and_app_ready`: PostgreSQL Flexible Server와 Spring API/worker Container App. protected Postgres password와 image 값, Flyway/secret 준비 승인 전까지 실행하지 않는다.
 
 `core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Tile/static container는 private로 유지하고 public delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Front Door wave에서도 이미 적용된 foundation diagnostic target은 no-op로 유지해야 하며 delete되면 안 된다. Redis는 Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.

@@ -149,9 +149,9 @@ Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route �
 
 ### Staging Front Door Diagnostics
 
-`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공한 뒤에만 실행한다. 이 wave는 Front Door diagnostic setting을 Log Analytics로 연결한다.
+`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공한 뒤에만 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다.
 
-`frontdoor_diagnostics` plan summary에 Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
+`microsoft.cdn/profiles/afdendpoints`는 diagnostic settings를 지원하지 않으므로 endpoint를 target에 포함하지 않는다. `frontdoor_diagnostics` plan summary에는 `azurerm_monitor_diagnostic_setting` create와 기존 resource no-op만 허용한다. Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
 
 ## 3. PR 단계
 

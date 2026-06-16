@@ -100,7 +100,7 @@ Azure Cache for Redis는 신규 생성이 차단될 수 있으므로 staging Red
 ## 4. Blob + CDN 운영 경계
 
 - Blob Storage는 tile/static/media object의 origin이자 source of truth다.
-- Edge/CDN은 public tile/static delivery 계층이지만 `core_foundation`에서는 만들지 않는다. `frontdoor_tile_edge` wave에서 Azure Front Door Standard profile, endpoint, Blob origin group/origin/route를 준비한다. Front Door Standard는 기본료가 발생하므로 apply 전 별도 비용 승인 gate를 둔다.
+- Edge/CDN은 public tile/static delivery 계층이지만 `core_foundation`에서는 만들지 않는다. `frontdoor_tile_edge` wave에서 Azure Front Door Standard profile, endpoint, Blob origin group/origin/route를 준비한다. Front Door Standard는 기본료가 발생하므로 apply 전 별도 비용 승인 gate를 둔다. `frontdoor_diagnostics`는 이후 지원되는 Front Door scope만 대상으로 하며 현재 staging 기준으로는 profile scope만 diagnostic setting을 붙인다.
 - Custom domain/TLS는 이번 Front Door skeleton에서 즉시 연결하지 않고 후속 단계로 둔다.
 - Tile manifest, style JSON, PMTiles는 후속 edge 계층이 확정되면 public edge delivery 대상으로 둘 수 있다.
 - PMTiles는 versioned object path와 manifest pointer rollback을 우선한다.
