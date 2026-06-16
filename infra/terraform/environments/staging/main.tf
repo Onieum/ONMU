@@ -248,6 +248,10 @@ module "container_apps" {
   runtime_identity_id        = module.key_vault[0].runtime_identity_id
   create_spring_api_app      = var.enabled_modules.container_apps
   tags                       = local.tags
+  registry = var.enabled_modules.container_apps ? {
+    server   = module.container_registry[0].login_server
+    identity = module.key_vault[0].runtime_identity_id
+  } : null
 
   spring_api = {
     name         = module.naming.spring_container_app_name
@@ -264,6 +268,32 @@ module "container_apps" {
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs
+    startup_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/healthz"
+      interval_seconds        = 5
+      timeout                 = 3
+      failure_count_threshold = 20
+    }
+    liveness_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/healthz"
+      initial_delay           = 30
+      interval_seconds        = 30
+      timeout                 = 5
+      failure_count_threshold = 3
+    }
+    readiness_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/readyz"
+      interval_seconds        = 10
+      timeout                 = 5
+      failure_count_threshold = 3
+      success_count_threshold = 1
+    }
   }
 
   worker = {
@@ -280,6 +310,32 @@ module "container_apps" {
     }
     secret_env  = {}
     secret_refs = {}
+    startup_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      interval_seconds        = 5
+      timeout                 = 3
+      failure_count_threshold = 12
+    }
+    liveness_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      initial_delay           = 10
+      interval_seconds        = 30
+      timeout                 = 5
+      failure_count_threshold = 3
+    }
+    readiness_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      interval_seconds        = 10
+      timeout                 = 5
+      failure_count_threshold = 3
+      success_count_threshold = 1
+    }
   }
 
   depends_on = [
@@ -319,9 +375,9 @@ module "network" {
 module "edge_decision" {
   source           = "../../modules/edge"
   enabled          = true
-  selected_pattern = "blob-storage-plus-azure-cdn"
+  selected_pattern = "blob-storage-plus-front-door"
   notes = [
-    "Tile/static serving은 Blob Storage + Azure CDN으로 진행한다.",
-    "Front Door/WAF는 production hardening 후보로 남긴다."
+    "Tile/static serving은 Blob Storage + Azure Front Door Standard로 진행한다.",
+    "Custom domain/TLS와 WAF 정책은 별도 승인 단계에서 붙인다."
   ]
 }

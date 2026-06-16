@@ -18,7 +18,8 @@
 | `pr-check.yml` | PR | docs/secret scan, Spring/Flutter test, Docker build 후보 |
 | `terraform-plan.yml` | PR 또는 manual | fmt/validate/plan, artifact 저장 |
 | `terraform-staging.yml` | PR/push + manual | Terraform fmt/validate, protected staging backend init smoke, approved staging wave plan/apply |
-| `deploy-staging.yml` | manual + approval | staging image build/push, apply, migration, smoke |
+| `build-staging-images.yml` | PR + manual | Spring API/worker Docker build, optional staging ACR push |
+| `deploy-staging.yml` | future candidate | image build/push와 app phase orchestration을 하나로 묶는 후속 workflow 후보 |
 | `deploy-prod.yml` | manual + approval | staging 검증 image digest 승격, production migration/cutover smoke |
 | `smoke-staging.yml` | manual 또는 deploy 후 | smoke checklist 실행 |
 | `rollback.yml` | manual + approval | previous revision/image/DNS rollback |
@@ -34,6 +35,9 @@ Staging apply job은 GitHub Environment `azure-staging-apply`를 사용한다. R
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+- `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`
+- `STAGING_SPRING_API_IMAGE`
+- `STAGING_WORKER_IMAGE`
 
 staging backend smoke는 Azure AD auth로 `3dt-final-team1` / `onmutfstatekrc001` / `tfstate` / `onmu/staging/terraform.tfstate`를 초기화한다. GitHub Actions workload identity에는 tfstate storage account scope의 `Storage Blob Data Contributor`와 resource group scope의 `Reader`가 필요하다.
 
@@ -113,9 +117,26 @@ ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` w
 
 `frontdoor_tile_edge`처럼 diagnostics를 새로 만들지 않는 wave에서도, 이미 적용된 foundation diagnostic setting은 Terraform target 집합에 계속 포함해야 한다. 그렇지 않으면 Front Door plan이 기존 diagnostic setting delete를 같이 잡는다.
 
+App phase 전 사전 조건과 현재 병목은 [Azure ACA 앱 배포 사전 점검](./azure-aca-app-preflight.md)에 따로 정리한다. Terraform wave 설계와 Docker image 준비는 이 문서와 함께 본다.
+
+### Staging App Phase Prework
+
+`Build Staging Images` workflow는 두 용도로 사용한다.
+
+- PR 단계: Spring API/worker Dockerfile이 실제로 빌드되는지 확인
+- manual 단계: 승인 후 staging ACR에 image를 push하고, 결과 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신할 준비
+
+현재 app rollout은 별도 orchestration workflow보다 `terraform-staging.yml`의 split wave를 우선 사용한다.
+
+- `postgres_ready`
+- `api_app_ready`
+- `worker_app_ready`
+
+이 순서를 쓰는 이유는 PostgreSQL, Spring API, worker를 각각 독립 approval과 smoke로 끊기 위해서다. `db_and_app_ready`는 호환용 alias로만 유지한다.
+
 ### Staging DB/App Ready
 
-`wave=db_and_app_ready`는 PostgreSQL Flexible Server와 Spring API/worker Container App을 만들 수 있는 선택지지만, 기본 실행 대상이 아니다. 아래 protected 값이 준비되고 사용자가 별도 승인할 때만 plan/apply한다.
+`wave=postgres_ready`, `wave=api_app_ready`, `wave=worker_app_ready`는 PostgreSQL Flexible Server와 Spring API/worker Container App을 순차적으로 만들기 위한 split wave다. 아래 protected 값이 준비되고 사용자가 별도 승인할 때만 plan/apply한다.
 
 - `STAGING_POSTGRES_ADMINISTRATOR_PASSWORD`
 - `STAGING_SPRING_API_IMAGE`
@@ -123,9 +144,16 @@ ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` w
 
 PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수 있다. 이 방식을 채택하기 전 사용자는 state 보관 리스크와 secret rotation 절차를 명시적으로 승인해야 한다. Spring API/worker app은 Key Vault reference만 사용하며 secret value는 Terraform code, plan 공유본, PR, workflow log에 출력하지 않는다.
 
-`db_and_app_ready`도 신규 PostgreSQL/Container App resource id가 plan 시점에 unknown이므로 diagnostic setting을 동시에 만들지 않는다. App/DB diagnostic setting은 app resource 생성 이후 별도 diagnostics wave로 분리한다.
+`postgres_ready`, `api_app_ready`, `worker_app_ready`도 신규 PostgreSQL/Container App resource id가 plan 시점에 unknown이므로 diagnostic setting을 동시에 만들지 않는다. App/DB diagnostic setting은 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
-`db_and_app_ready` 이후에도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
+현재 app phase의 운영 gate는 다음을 추가로 요구한다.
+
+- runtime managed identity에 staging ACR scope `AcrPull`
+- runtime managed identity에 재사용 Key Vault scope `Key Vault Secrets User`
+- Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제가 staging target과 맞는지 확인
+- Redis 방향이 확정되기 전에는 `/readyz` 최종 200을 승격 조건으로 다시 확인
+
+`db_and_app_ready`는 기존 호환용 alias로 유지하지만, 실제 운영 기준은 split wave다. 어느 경로를 쓰더라도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 
 ### Staging Front Door Tile Edge
 

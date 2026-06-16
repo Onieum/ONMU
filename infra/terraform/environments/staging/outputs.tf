@@ -14,6 +14,22 @@ output "container_registry_login_server" {
   value = try(module.container_registry[0].login_server, null)
 }
 
+output "container_registry_id" {
+  value = try(module.container_registry[0].id, null)
+}
+
+output "key_vault_id" {
+  value = try(module.key_vault[0].key_vault_id, null)
+}
+
+output "runtime_identity_id" {
+  value = try(module.key_vault[0].runtime_identity_id, null)
+}
+
+output "runtime_identity_principal_id" {
+  value = try(module.key_vault[0].runtime_identity_principal_id, null)
+}
+
 output "spring_api_latest_revision_fqdn" {
   value = try(module.container_apps[0].spring_api_latest_revision_fqdn, null)
 }

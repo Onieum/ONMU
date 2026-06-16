@@ -9,6 +9,7 @@ on:
       - "docs/architecture/**"
       - "docs/operations/azure-*.md"
       - "infra/terraform/**"
+      - "scripts/ci/**"
   push:
     branches: [dev]
     paths:
@@ -17,6 +18,7 @@ on:
       - "docs/architecture/**"
       - "docs/operations/azure-*.md"
       - "infra/terraform/**"
+      - "scripts/ci/**"
   workflow_dispatch:
     inputs:
       backend_smoke:
@@ -38,6 +40,9 @@ on:
           - frontdoor_tile_edge
           - frontdoor_origin_access
           - frontdoor_diagnostics
+          - postgres_ready
+          - api_app_ready
+          - worker_app_ready
           - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."
@@ -66,7 +71,6 @@ jobs:
         run: terraform -chdir=infra/terraform fmt -recursive -check
 
       - name: Terraform validate root modules
-        shell: bash
         run: |
           set -euo pipefail
           for module in \
@@ -74,7 +78,7 @@ jobs:
             infra/terraform/environments/staging \
             infra/terraform/environments/prod
           do
-            terraform -chdir="$module" init -backend=false
+            terraform -chdir="$module" init -backend=false -input=false
             terraform -chdir="$module" validate
           done
 
@@ -92,7 +96,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - name: Validate Azure workflow variables
-        shell: bash
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
@@ -143,7 +146,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - name: Validate Azure workflow variables
-        shell: bash
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
@@ -171,7 +173,6 @@ jobs:
 
       - name: Write selected staging wave variables
         id: wave_vars
-        shell: bash
         env:
           STAGING_POSTGRES_ADMINISTRATOR_PASSWORD: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
           STAGING_SPRING_API_IMAGE: ${{ vars.STAGING_SPRING_API_IMAGE || secrets.STAGING_SPRING_API_IMAGE }}
@@ -179,239 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           WAVE_FILE="$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfvars"
-          cat > "$WAVE_FILE" <<'EOF'
-          location      = "koreacentral"
-          region_code   = "krc"
-          name_suffix   = "001"
-          owner         = "onmu-team"
-          cost_center   = "onmu-staging"
-
-          create_resource_group        = false
-          existing_resource_group_name = "3dt-final-team1"
-          EOF
-
-          case "${{ inputs.wave }}" in
-            acr_observability)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = false
-            postgres                   = false
-            redis                      = false
-            storage                    = false
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = false
-            container_apps_environment = false
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            core_foundation)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            key_vault_rbac)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = false
-            container_registry         = false
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = false
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = false
-            container_apps_environment = false
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = true
-          }
-          EOF
-              ;;
-            core_diagnostics)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = false
-          }
-          EOF
-              ;;
-            frontdoor_tile_edge)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = false
-          }
-          EOF
-              ;;
-            frontdoor_origin_access)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = true
-          }
-          EOF
-              ;;
-            frontdoor_diagnostics)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = true
-          }
-          EOF
-              ;;
-            db_and_app_ready)
-              if [ -z "${STAGING_POSTGRES_ADMINISTRATOR_PASSWORD:-}" ]; then
-                echo "::error title=Missing protected PostgreSQL secret::STAGING_POSTGRES_ADMINISTRATOR_PASSWORD must be configured before db_and_app_ready plan/apply."
-                exit 1
-              fi
-              if [ -z "${STAGING_SPRING_API_IMAGE:-}" ] || [ -z "${STAGING_WORKER_IMAGE:-}" ]; then
-                echo "::error title=Missing staging image variable::STAGING_SPRING_API_IMAGE and STAGING_WORKER_IMAGE must be configured before db_and_app_ready plan/apply."
-                exit 1
-              fi
-              {
-                echo ""
-                printf 'spring_api_image = "%s"\n' "$STAGING_SPRING_API_IMAGE"
-                printf 'worker_image     = "%s"\n' "$STAGING_WORKER_IMAGE"
-                echo "worker_enabled   = true"
-              } >> "$WAVE_FILE"
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = true
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = true
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            *)
-              echo "::error title=Unsupported staging wave::Unknown wave input."
-              exit 1
-              ;;
-          esac
-
+          bash scripts/ci/write-staging-wave-vars.sh "${{ inputs.wave }}" "$WAVE_FILE"
           echo "path=$WAVE_FILE" >> "$GITHUB_OUTPUT"
           echo "Selected staging wave variable file was generated in RUNNER_TEMP."
 
@@ -428,7 +197,6 @@ jobs:
       - name: Plan selected staging wave without raw plan output
         id: plan
         working-directory: infra/terraform/environments/staging
-        shell: bash
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
@@ -445,11 +213,13 @@ jobs:
           status=$?
           set -e
           if [ "$status" -eq 1 ]; then
-            safe_hint=$(sed -E \
-              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
-              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
-              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
-              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations')
+            safe_hint=$(
+              sed -E \
+                -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+                -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+                "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+                | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations|PublicAccessNotPermitted|retiring' || true
+            )
             if [ -z "${safe_hint:-}" ]; then
               safe_hint="Review provider auth, RBAC, or module validation. Raw plan output was not printed."
             fi
@@ -467,52 +237,10 @@ jobs:
             | .[]
             | "- " + .actions + " " + .type + ": " + (.count | tostring)
           ' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
-          if [ "${{ inputs.wave }}" = "core_foundation" ]; then
-            storage_container_creates=$(jq '[.resource_changes[]? | select(.type == "azurerm_storage_container" and (.change.actions | index("create")))] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$storage_container_creates" -gt 0 ]; then
-              echo "::error title=Import existing storage container first::core_foundation still plans azurerm_storage_container create. Import the existing tiles container into staging state before retrying apply."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "core_diagnostics" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected core_diagnostics plan summary::Only azurerm_monitor_diagnostic_setting create and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_tile_edge" ]; then
-            unexpected_delete_or_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "delete" or (.change.actions | join(",")) == "update" or (.change.actions | join(",")) == "create,delete" or (.change.actions | join(",")) == "delete,create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected frontdoor_tile_edge plan summary::Only Front Door create actions and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_origin_access" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            storage_account_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_account")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            storage_container_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_container")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
-              echo "::error title=Unexpected frontdoor_origin_access plan summary::Only one azurerm_storage_account update and one azurerm_storage_container update are allowed. Existing Front Door and diagnostics must stay no-op, and diagnostic category reads are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_diagnostics" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected frontdoor_diagnostics plan summary::Only supported Front Door diagnostic setting create and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
-          rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
-
-      - name: Confirm no apply occurred
-        run: |
-          echo "Staging wave plan completed. terraform apply was not executed in this job."
+          bash "$GITHUB_WORKSPACE/scripts/ci/guard-staging-wave-summary.sh" "${{ inputs.wave }}" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          rm -f \
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
 
   staging-wave-apply:
     name: Staging wave apply
@@ -529,7 +257,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - name: Validate Azure workflow variables
-        shell: bash
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
@@ -557,7 +284,6 @@ jobs:
 
       - name: Write selected staging wave variables
         id: wave_vars
-        shell: bash
         env:
           STAGING_POSTGRES_ADMINISTRATOR_PASSWORD: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
           STAGING_SPRING_API_IMAGE: ${{ vars.STAGING_SPRING_API_IMAGE || secrets.STAGING_SPRING_API_IMAGE }}
@@ -565,239 +291,7 @@ jobs:
         run: |
           set -euo pipefail
           WAVE_FILE="$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfvars"
-          cat > "$WAVE_FILE" <<'EOF'
-          location      = "koreacentral"
-          region_code   = "krc"
-          name_suffix   = "001"
-          owner         = "onmu-team"
-          cost_center   = "onmu-staging"
-
-          create_resource_group        = false
-          existing_resource_group_name = "3dt-final-team1"
-          EOF
-
-          case "${{ inputs.wave }}" in
-            acr_observability)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = false
-            postgres                   = false
-            redis                      = false
-            storage                    = false
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = false
-            container_apps_environment = false
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            core_foundation)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            key_vault_rbac)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = false
-            container_registry         = false
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = false
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = false
-            container_apps_environment = false
-            container_apps             = false
-            diagnostics                = false
-            rbac_assignments           = true
-          }
-          EOF
-              ;;
-            core_diagnostics)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = false
-          }
-          EOF
-              ;;
-            frontdoor_tile_edge)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = false
-          }
-          EOF
-              ;;
-            frontdoor_origin_access)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = true
-          }
-          EOF
-              ;;
-            frontdoor_diagnostics)
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
-          worker_enabled   = false
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = false
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = true
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = false
-            diagnostics                = true
-            rbac_assignments           = false
-          }
-
-          enabled_diagnostic_targets = {
-            foundation = true
-            front_door = true
-          }
-          EOF
-              ;;
-            db_and_app_ready)
-              if [ -z "${STAGING_POSTGRES_ADMINISTRATOR_PASSWORD:-}" ]; then
-                echo "::error title=Missing protected PostgreSQL secret::STAGING_POSTGRES_ADMINISTRATOR_PASSWORD must be configured before db_and_app_ready plan/apply."
-                exit 1
-              fi
-              if [ -z "${STAGING_SPRING_API_IMAGE:-}" ] || [ -z "${STAGING_WORKER_IMAGE:-}" ]; then
-                echo "::error title=Missing staging image variable::STAGING_SPRING_API_IMAGE and STAGING_WORKER_IMAGE must be configured before db_and_app_ready plan/apply."
-                exit 1
-              fi
-              {
-                echo ""
-                printf 'spring_api_image = "%s"\n' "$STAGING_SPRING_API_IMAGE"
-                printf 'worker_image     = "%s"\n' "$STAGING_WORKER_IMAGE"
-                echo "worker_enabled   = true"
-              } >> "$WAVE_FILE"
-              cat >> "$WAVE_FILE" <<'EOF'
-
-          enabled_modules = {
-            observability              = true
-            container_registry         = true
-            key_vault                  = true
-            postgres                   = true
-            redis                      = false
-            storage                    = true
-            cdn                        = false
-            front_door                 = false
-            eventhubs                  = true
-            container_apps_environment = true
-            container_apps             = true
-            diagnostics                = false
-            rbac_assignments           = false
-          }
-          EOF
-              ;;
-            *)
-              echo "::error title=Unsupported staging wave::Unknown wave input."
-              exit 1
-              ;;
-          esac
-
+          bash scripts/ci/write-staging-wave-vars.sh "${{ inputs.wave }}" "$WAVE_FILE"
           echo "path=$WAVE_FILE" >> "$GITHUB_OUTPUT"
           echo "Selected staging wave variable file was generated in RUNNER_TEMP."
 
@@ -813,7 +307,6 @@ jobs:
 
       - name: Apply selected staging wave after protected approval
         working-directory: infra/terraform/environments/staging
-        shell: bash
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
@@ -827,12 +320,15 @@ jobs:
             -var-file="${{ steps.wave_vars.outputs.path }}" \
             > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
           plan_status=$?
+          set -e
           if [ "$plan_status" -ne 0 ]; then
-            safe_hint=$(sed -E \
-              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
-              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
-              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
-              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations')
+            safe_hint=$(
+              sed -E \
+                -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+                -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+                "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+                | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations|PublicAccessNotPermitted|retiring' || true
+            )
             if [ -z "${safe_hint:-}" ]; then
               safe_hint="Review provider auth, RBAC, or module validation. Raw plan output was not printed."
             fi
@@ -840,47 +336,8 @@ jobs:
             exit 1
           fi
           terraform show -json "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
-          if [ "${{ inputs.wave }}" = "core_foundation" ]; then
-            storage_container_creates=$(jq '[.resource_changes[]? | select(.type == "azurerm_storage_container" and (.change.actions | index("create")))] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$storage_container_creates" -gt 0 ]; then
-              echo "::error title=Import existing storage container first::core_foundation still plans azurerm_storage_container create. Import the existing tiles container into staging state before retrying apply."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "core_diagnostics" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected core_diagnostics apply precheck::Only azurerm_monitor_diagnostic_setting create and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_tile_edge" ]; then
-            unexpected_delete_or_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "delete" or (.change.actions | join(",")) == "update" or (.change.actions | join(",")) == "create,delete" or (.change.actions | join(",")) == "delete,create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected frontdoor_tile_edge apply precheck::Only Front Door create actions and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_origin_access" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            storage_account_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_account")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            storage_container_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_container")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
-              echo "::error title=Unexpected frontdoor_origin_access apply precheck::Only one azurerm_storage_account update and one azurerm_storage_container update are allowed. Existing Front Door and diagnostics must stay no-op, and diagnostic category reads are allowed."
-              exit 1
-            fi
-          fi
-          if [ "${{ inputs.wave }}" = "frontdoor_diagnostics" ]; then
-            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
-            if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-              echo "::error title=Unexpected frontdoor_diagnostics apply precheck::Only supported Front Door diagnostic setting create and existing resource no-op are allowed."
-              exit 1
-            fi
-          fi
+          bash "$GITHUB_WORKSPACE/scripts/ci/guard-staging-wave-summary.sh" "${{ inputs.wave }}" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          set +e
           terraform apply \
             -input=false \
             -auto-approve \
@@ -889,11 +346,13 @@ jobs:
           apply_status=$?
           set -e
           if [ "$apply_status" -ne 0 ]; then
-            safe_hint=$(sed -E \
-              -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
-              -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
-              "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" \
-              | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations|PublicAccessNotPermitted|retiring')
+            safe_hint=$(
+              sed -E \
+                -e 's/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/<redacted-guid>/g' \
+                -e 's#/subscriptions/[^/[:space:]]+#/subscriptions/<redacted-subscription>#g' \
+                "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" \
+                | grep -E -m 1 'Error:|StatusCode=|Code=|Message=|authorization|permission|Forbidden|BadRequest|Conflict|Provider Registration|not registered|resource_provider_registrations|PublicAccessNotPermitted|retiring' || true
+            )
             if [ -z "${safe_hint:-}" ]; then
               safe_hint="Review Azure RBAC, quota, or resource conflict. Raw apply output was not printed."
             fi
@@ -910,5 +369,8 @@ jobs:
             | .[]
             | "- " + .actions + " " + .type + ": " + (.count | tostring)
           ' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
-          rm -f "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
+          rm -f \
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" \
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-apply.log" \
+            "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json"
           echo "Staging wave apply completed. Review Azure resource/status/count smoke before starting the next wave."
