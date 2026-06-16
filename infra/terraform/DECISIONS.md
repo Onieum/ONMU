@@ -9,7 +9,7 @@
 | 1 | Azure region | `koreacentral` |
 | 2 | Runtime platform | Azure Container Apps |
 | 3 | Terraform state backend | Azure Storage blob backend |
-| 4 | Blob + edge tile/static serving | Private Blob Storage origin + Azure Front Door Standard 후보 |
+| 4 | Blob + edge tile/static serving | Public `tiles` Blob origin + private `media` + Azure Front Door Standard |
 | 5 | Event Hubs topology | Event Hubs Standard |
 | 6 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
 | 7 | Redis | Azure Managed Redis 후보로 재설계. core foundation에서는 제외 |
@@ -53,15 +53,15 @@
 
 확정: Terraform state는 Azure Storage blob backend를 목표로 한다. 기존 resource group `3dt-final-team1` 안에 `onmutfstatekrc001`부터 suffix 순서로 storage account 후보를 확인하고, 앱 리소스 skeleton PR과 섞지 않는다. state key는 `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` 형식으로 분리한다.
 
-## 4. Blob + CDN tile/static serving
+## 4. Blob + edge tile/static serving
 
 | 선택지 | 장점 | 단점 | 추천 |
 | --- | --- | --- | --- |
-| Blob Storage + Azure CDN Standard Microsoft | 구조가 단순하고 사용자 결정인 Blob+CDN과 일치한다 | WAF/API 정책은 별도다 | staging 1차 |
-| Blob Storage + Front Door | WAF, global routing, custom domain 정책이 강하다 | 비용과 설정 복잡도가 증가한다 | production 후보 |
+| Public `tiles` Blob origin + Azure Front Door Standard | 현재 Azure API 정책에서 지원되는 edge 경로이며 PMTiles Range/CORS를 Front Door에서 검증할 수 있다 | Front Door 기본료와 request/egress 비용이 생긴다 | staging 1차 |
 | Blob direct serving | 가장 단순하다 | edge cache, custom domain, purge 전략이 약하다 | 임시 smoke만 |
+| Azure CDN Standard Microsoft classic | 과거 비용은 낮았지만 신규 생성이 막힐 수 있다 | 현재 staging 신규 생성 경로로 부적합하다 | 제외 |
 
-확정: staging skeleton은 Blob + Azure CDN Standard Microsoft로 둔다. manifest는 짧은 TTL, PMTiles는 versioned path + 긴 TTL을 기본으로 잡고 rollback은 manifest pointer 복구를 우선한다.
+확정: staging skeleton은 Blob origin + Azure Front Door Standard로 둔다. Storage account는 nested public item 허용을 켜고 `tiles` container만 public blob access를 허용하며 `media` container는 private로 유지한다. manifest는 짧은 TTL, PMTiles는 versioned path + 긴 TTL을 기본으로 잡고 rollback은 manifest pointer 복구를 우선한다.
 
 ## 5. Event Hubs topology
 

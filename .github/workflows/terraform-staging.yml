@@ -36,6 +36,7 @@ on:
           - key_vault_rbac
           - core_diagnostics
           - frontdoor_tile_edge
+          - frontdoor_origin_access
           - frontdoor_diagnostics
           - db_and_app_ready
       apply_wave:
@@ -315,6 +316,34 @@ jobs:
           }
           EOF
               ;;
+            frontdoor_origin_access)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = false
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
+            rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = true
+          }
+          EOF
+              ;;
             frontdoor_diagnostics)
               cat >> "$WAVE_FILE" <<'EOF'
 
@@ -458,6 +487,16 @@ jobs:
             unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
             if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
               echo "::error title=Unexpected frontdoor_tile_edge plan summary::Only Front Door create actions and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "frontdoor_origin_access" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "update") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            storage_account_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_account")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            storage_container_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_container")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
+              echo "::error title=Unexpected frontdoor_origin_access plan summary::Only one azurerm_storage_account update and one azurerm_storage_container update are allowed. Existing Front Door and diagnostics must stay no-op."
               exit 1
             fi
           fi
@@ -663,6 +702,34 @@ jobs:
           }
           EOF
               ;;
+            frontdoor_origin_access)
+              cat >> "$WAVE_FILE" <<'EOF'
+
+          spring_api_image = "ghcr.io/onieum/onmu-api-spring:staging-placeholder"
+          worker_enabled   = false
+
+          enabled_modules = {
+            observability              = true
+            container_registry         = true
+            key_vault                  = true
+            postgres                   = false
+            redis                      = false
+            storage                    = true
+            cdn                        = false
+            front_door                 = true
+            eventhubs                  = true
+            container_apps_environment = true
+            container_apps             = false
+            diagnostics                = true
+            rbac_assignments           = false
+          }
+
+          enabled_diagnostic_targets = {
+            foundation = true
+            front_door = true
+          }
+          EOF
+              ;;
             frontdoor_diagnostics)
               cat >> "$WAVE_FILE" <<'EOF'
 
@@ -793,6 +860,16 @@ jobs:
             unexpected_create=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
             if [ "$unexpected_delete_or_update" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
               echo "::error title=Unexpected frontdoor_tile_edge apply precheck::Only Front Door create actions and existing resource no-op are allowed."
+              exit 1
+            fi
+          fi
+          if [ "${{ inputs.wave }}" = "frontdoor_origin_access" ]; then
+            unexpected=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "update") | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            unexpected_update=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            storage_account_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_account")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            storage_container_updates=$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type == "azurerm_storage_container")] | length' "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan.json")
+            if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
+              echo "::error title=Unexpected frontdoor_origin_access apply precheck::Only one azurerm_storage_account update and one azurerm_storage_container update are allowed. Existing Front Door and diagnostics must stay no-op."
               exit 1
             fi
           fi
