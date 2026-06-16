@@ -15,8 +15,11 @@
 | `GET /healthz` | 200 |
 | `GET /readyz` | 200 |
 | no-token `GET /api/v1/users/me` | 401 |
+| authenticated `GET /api/v1/users/me` | 실제 OAuth 로그인 기반 200 |
 | Spring startup | container revision ready, startup failure count 0 |
 | Domain smoke | `staging-api.onmu.cloud` 연결 후 동일한 200/200/401 |
+
+Staging smoke는 mock login 또는 `user-me` 우회 대신 실제 OAuth 로그인으로 보호 API를 확인한다. OAuth code/state/idToken, Authorization header, raw response body는 출력하지 않는다.
 
 ## 3. Dependency smoke
 
@@ -91,14 +94,17 @@ Event Hubs는 analytics/event stream fan-out 계층이다. Transactional outbox 
 | Telemetry hygiene | secret/token/raw body/user PII 미수집 확인 |
 | Diagnostic settings | Container Apps, PostgreSQL, Redis, Storage, CDN, Event Hubs 로그 route 확인 |
 
+Staging 기본값은 Log Analytics retention 30일, Application Insights sampling on, daily cap 설정이다. 구체 cap 값은 budget gate 승인 시 확정한다.
+
 ## 9. 최종 판정
 
 Staging 성공 판정은 다음을 모두 만족해야 한다.
 
 1. Spring startup/readiness/domain smoke 통과
-2. DB/Redis/Key Vault reference smoke 통과
-3. Blob/CDN/tile smoke 통과
-4. Place/Search/Route smoke 통과
-5. Observability smoke 통과
-6. secret 미출력/미수집 확인
-7. rollback 또는 versioned path 복구 기준 확인
+2. 실제 OAuth 로그인 기반 authenticated smoke 통과
+3. DB/Redis/Key Vault reference smoke 통과
+4. Blob/CDN/tile smoke 통과
+5. Place/Search/Route smoke 통과
+6. Observability smoke 통과
+7. secret 미출력/미수집 확인
+8. rollback 또는 versioned path 복구 기준 확인

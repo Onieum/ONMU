@@ -2,7 +2,7 @@ param(
   [string]$SubscriptionName = "대한상공회의소 Data School",
   [string]$ResourceGroupName = "3dt-final-team1",
   [string]$Location = "koreacentral",
-  [string]$StorageAccountName = "stonmutfstatekrc001",
+  [string[]]$StorageAccountNameCandidates = @("onmutfstatekrc001", "onmutfstatekrc002", "onmutfstatekrc003"),
   [string]$ContainerName = "tfstate"
 )
 
@@ -45,24 +45,30 @@ if ($resourceGroup.location -ne $Location) {
 }
 Write-Check "resource_group" "OK" ("{0} / {1}" -f $ResourceGroupName, $Location)
 
-$nameCheck = Invoke-AzJson @("storage", "account", "check-name", "--name", $StorageAccountName)
-if ($nameCheck.nameAvailable -eq $true) {
-  Write-Check "storage_account_name" "OK" ("available: {0}" -f $StorageAccountName)
-}
-else {
+$selectedStorageAccountName = $null
+foreach ($candidate in $StorageAccountNameCandidates) {
+  $nameCheck = Invoke-AzJson @("storage", "account", "check-name", "--name", $candidate)
+  if ($nameCheck.nameAvailable -eq $true) {
+    $selectedStorageAccountName = $candidate
+    Write-Check "storage_account_name" "OK" ("available candidate: {0}" -f $candidate)
+    break
+  }
+
   try {
     $storageAccount = Invoke-AzJson @(
       "storage", "account", "show",
       "--resource-group", $ResourceGroupName,
-      "--name", $StorageAccountName
+      "--name", $candidate
     )
   }
   catch {
-    throw "Storage account name is unavailable and was not readable in the expected resource group."
+    Write-Check "storage_account_name" "SKIP" ("unavailable outside target resource group or unreadable: {0}" -f $candidate)
+    continue
   }
 
   if ($storageAccount.resourceGroup -ne $ResourceGroupName) {
-    throw "Storage account exists outside the expected resource group."
+    Write-Check "storage_account_name" "SKIP" ("exists outside expected resource group: {0}" -f $candidate)
+    continue
   }
   if ($storageAccount.allowBlobPublicAccess -ne $false) {
     throw "Existing storage account allows public blob access."
@@ -73,9 +79,16 @@ else {
   if ($storageAccount.minimumTlsVersion -ne "TLS1_2") {
     throw "Existing storage account minimum TLS version is not TLS1_2."
   }
-  Write-Check "storage_account_name" "OK" ("existing in target resource group: {0}" -f $StorageAccountName)
+  $selectedStorageAccountName = $candidate
+  Write-Check "storage_account_name" "OK" ("existing safe candidate in target resource group: {0}" -f $candidate)
+  break
 }
 
+if ([string]::IsNullOrWhiteSpace($selectedStorageAccountName)) {
+  throw "No approved storage account name candidate is available or readable in the expected resource group."
+}
+
+Write-Check "selected_storage_account_name" "INFO" $selectedStorageAccountName
 Write-Check "container_name" "INFO" ("expected private container: {0}" -f $ContainerName)
 Write-Check "data_plane_rbac" "INFO" "verify the Terraform execution principal has Storage Blob Data Contributor or equivalent before apply"
 Write-Check "principal_inputs" "INFO" "actual apply plan must include approved operator or GitHub Actions principal object ids"

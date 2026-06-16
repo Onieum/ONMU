@@ -9,6 +9,8 @@
 - Container Apps consumption은 월별 무료 할당량이 있으나, API min replica를 1로 두면 idle 사용량이 계속 발생한다.
 - Event Hubs Standard는 throughput/capacity 단위와 retention/consumer group 설계가 비용에 영향을 준다.
 - 최종 비용은 Azure Pricing Calculator 산출물로 승인한다.
+- ONMU staging/bootstrap 비용 gate는 월별 목표가 아니라 `3dt-final-team1` 기준 2026-06-26까지 총 1,000,000원 상한이다.
+- Azure Budget 리소스 생성은 이번 문서/PR 범위가 아니며 별도 승인 전까지 Terraform으로 만들지 않는다.
 
 참고:
 
@@ -19,7 +21,21 @@
 - [Azure Event Hubs scalability](https://learn.microsoft.com/azure/event-hubs/event-hubs-scalability)
 - [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/)
 
-## 2. Pricing Calculator 입력 항목
+## 2. 2026-06-26 budget gate
+
+| 항목 | 기준 |
+| --- | --- |
+| Scope | `3dt-final-team1` resource group |
+| 비용 상한 | 2026-06-26까지 총 1,000,000원 |
+| 권장 alert | 50%, 75%, 90%, 100% |
+| apply 전 비용 보고 | 현재 누적 / 예상 증가분 / 상한 대비 잔여율 |
+| Budget 리소스 생성 | 별도 승인 전까지 제외 |
+
+- ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 skeleton/plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다.
+- WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
+- 비용 산출은 resource/action summary 중심으로 공유하고 subscription id, principal id, raw plan output은 공유하지 않는다.
+
+## 3. Pricing Calculator 입력 항목
 
 | 리소스 | 필요한 입력 |
 | --- | --- |
@@ -34,7 +50,7 @@
 | Event Hubs | Standard capacity/throughput, partition count, retention, consumer group 수 |
 | ACR | 신규 생성 여부, SKU, storage/pull 빈도 |
 
-## 3. 무료 크레딧 방어 가능성
+## 4. 무료 크레딧 방어 가능성
 
 | 구간 | 방어 가능성 | 이유 |
 | --- | --- | --- |
@@ -49,7 +65,7 @@
 
 무료 크레딧은 staging rehearsal를 지연시키는 예산 완충재일 뿐, production 운영비 대체 기준이 아니다.
 
-## 4. Rough range 판단
+## 5. Rough range 판단
 
 정확한 금액 대신 다음 risk range로 선검토한다.
 
@@ -58,9 +74,9 @@
 | Low | Key Vault operation, 작은 Blob, 낮은 ACA request | 기본값 유지 |
 | Medium | PostgreSQL B1ms, Redis Basic C0, ACR Basic | 운영 시간과 SKU 재검토 |
 | Medium-High | Event Hubs Standard, CDN egress, Log Analytics ingestion | retention, sampling, TU/capacity, tile egress 제한 |
-| High | private endpoint/VNet, WAF/APIM/Front Door Premium, production HA | production hardening PR로 분리 |
+| High | private endpoint/VNet, WAF/APIM/Front Door Premium, AKS, production HA | production hardening PR로 분리 |
 
-## 5. 권한 경계 checklist
+## 6. 권한 경계 checklist
 
 | 대상 | 권한 기준 |
 | --- | --- |
@@ -75,7 +91,7 @@
 | Terraform backend | state storage account/container/RBAC를 앱 리소스와 분리 |
 | GitHub Actions | `plan`과 `apply`를 protected environment와 manual approval로 분리 |
 
-## 6. 승인 전 금지
+## 7. 승인 전 금지
 
 - Azure 리소스 실제 생성
 - Terraform state backend bootstrap

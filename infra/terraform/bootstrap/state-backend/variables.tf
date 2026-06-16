@@ -23,7 +23,7 @@ variable "create_resource_group" {
 }
 
 variable "resource_group_name" {
-  description = "Dedicated resource group name for Terraform state backend resources."
+  description = "Target resource group name for Terraform state backend resources."
   type        = string
   default     = "3dt-final-team1"
 }
@@ -31,7 +31,7 @@ variable "resource_group_name" {
 variable "storage_account_name" {
   description = "Globally unique Storage Account name for Terraform state. Adjust suffix if unavailable."
   type        = string
-  default     = "stonmutfstatekrc001"
+  default     = "onmutfstatekrc001"
 
   validation {
     condition     = can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))

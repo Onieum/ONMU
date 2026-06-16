@@ -44,13 +44,15 @@ Apply 전 read-only preflight:
 .\scripts\windows\test-tfstate-backend-preflight.ps1
 ```
 
+preflight는 `onmutfstatekrc001`, `onmutfstatekrc002`, `onmutfstatekrc003` 순서로 availability를 확인한다.
+
 ## Backend config 예시
 
 Staging:
 
 ```hcl
 resource_group_name  = "3dt-final-team1"
-storage_account_name = "stonmutfstatekrc001"
+storage_account_name = "onmutfstatekrc001"
 container_name       = "tfstate"
 key                  = "onmu/staging/terraform.tfstate"
 use_azuread_auth     = true
@@ -60,7 +62,7 @@ Production:
 
 ```hcl
 resource_group_name  = "3dt-final-team1"
-storage_account_name = "stonmutfstatekrc001"
+storage_account_name = "onmutfstatekrc001"
 container_name       = "tfstate"
 key                  = "onmu/prod/terraform.tfstate"
 use_azuread_auth     = true
@@ -71,7 +73,7 @@ use_azuread_auth     = true
 ```powershell
 terraform init `
   -backend-config="resource_group_name=3dt-final-team1" `
-  -backend-config="storage_account_name=stonmutfstatekrc001" `
+  -backend-config="storage_account_name=onmutfstatekrc001" `
   -backend-config="container_name=tfstate" `
   -backend-config="key=onmu/staging/terraform.tfstate" `
   -backend-config="use_azuread_auth=true"

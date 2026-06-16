@@ -18,6 +18,10 @@
 | 10 | Secret management | Key Vault RBAC + managed identity |
 | 11 | DB migration strategy | Clean DB full Flyway migration |
 | 12 | Domain and DNS | `staging-api.onmu.cloud` |
+| 13 | Terraform backend resource group | 기존 `3dt-final-team1` 재사용 |
+| 14 | Terraform backend Storage Account 후보 | `onmutfstatekrc001`부터 suffix 증가 |
+| 15 | ACR | 신규 ACR 생성 |
+| 16 | Staging budget gate | 2026-06-26까지 총 1,000,000원 상한 |
 
 ## 1. Azure region
 
@@ -47,7 +51,7 @@
 | Terraform Cloud | locking과 collaboration이 편하다 | 외부 SaaS 운영 경계가 추가된다 | 팀 합의 시 후보 |
 | local state | 빠르다 | 팀 작업과 CI/CD에 부적합하다 | 개인 실험 외 금지 |
 
-확정: Terraform state는 Azure Storage blob backend를 목표로 한다. 별도 bootstrap 승인으로 `tfstate` 전용 resource group, storage account, container를 만들며 앱 리소스 skeleton PR과 섞지 않는다. state key는 `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` 형식으로 분리한다.
+확정: Terraform state는 Azure Storage blob backend를 목표로 한다. 기존 resource group `3dt-final-team1` 안에 `onmutfstatekrc001`부터 suffix 순서로 storage account 후보를 확인하고, 앱 리소스 skeleton PR과 섞지 않는다. state key는 `onmu/staging/terraform.tfstate`, `onmu/prod/terraform.tfstate` 형식으로 분리한다.
 
 ## 4. Blob + CDN tile/static serving
 
@@ -67,7 +71,7 @@
 | Event Hubs Basic | 저렴하다 | consumer/replay 확장 검증이 제한적이다 | 비용 극단 절감 시 |
 | Service Bus | command queue와 retry/dead-letter에 단순하다 | 사용자 결정인 Event Hubs 기준과 다르다 | 이번 skeleton 제외 |
 
-확정: Event Hubs Standard, partition `2`, retention `1`일로 시작한다. `notification-requested`, `worker-jobs`를 분리하고, checkpoint는 Blob container를 사용한다.
+확정: Event Hubs Standard, partition `2`, retention `1`일로 시작한다. 초기 consumer group은 `worker`, `analytics`를 분리하고, checkpoint는 Blob container를 사용한다. replay/ops consumer group은 운영 도구가 생긴 뒤 추가 검토한다.
 
 ## 6. PostgreSQL Flexible Server
 
@@ -138,3 +142,41 @@
 | `api.onmu.cloud` | production 최종 경로다 | cutover 리스크가 크다 | production gate |
 
 확정: staging domain 목표는 `staging-api.onmu.cloud`다. 단, DNS/provider console 변경과 custom domain 연결은 별도 승인 window에서 수행한다.
+
+## 13. Terraform backend resource group
+
+| 선택지 | 장점 | 단점 | 추천 |
+| --- | --- | --- | --- |
+| 기존 `3dt-final-team1` 재사용 | 구독 RG 생성 제한을 피하고 즉시 bootstrap 준비가 가능하다 | tfstate 전용 lifecycle 격리는 약하다 | 확정 |
+| tfstate 전용 RG 생성 | 삭제 방지와 RBAC 경계가 가장 명확하다 | 현재 구독 정책과 충돌할 수 있다 | 이번 범위 제외 |
+
+확정: Terraform state backend는 기존 `3dt-final-team1` resource group을 사용한다. tfstate 전용 RG는 만들지 않는다.
+
+## 14. Terraform backend Storage Account 후보
+
+| 선택지 | 장점 | 단점 | 추천 |
+| --- | --- | --- | --- |
+| `onmutfstatekrc001` | ONMU prefix와 region 약어를 포함한다 | 전역 유일성 확인이 필요하다 | 1순위 |
+| `onmutfstatekrc002` / `003` | suffix 증가로 충돌을 피한다 | 실제 이름이 후보별로 달라질 수 있다 | fallback |
+
+확정: apply 전 read-only preflight로 `onmutfstatekrc001`, `onmutfstatekrc002`, `onmutfstatekrc003` 순서로 availability를 확인한다.
+
+## 15. ACR
+
+| 선택지 | 장점 | 단점 | 추천 |
+| --- | --- | --- | --- |
+| 신규 ACR Basic | staging image push/pull 경계가 Azure 안에 닫힌다 | ACR 비용과 image retention 관리가 필요하다 | 확정 |
+| 기존 registry 연동 | 빠르게 시작할 수 있다 | 현재 기존 ACR이 없고 권한 경계가 애매하다 | 제외 |
+
+확정: 기존 ACR이 없으므로 staging skeleton은 신규 ACR 생성을 기준으로 한다. 실제 생성은 별도 apply 승인 전 budget impact를 확인한다.
+
+## 16. Staging budget gate
+
+| 항목 | 확정 기준 |
+| --- | --- |
+| Scope | `3dt-final-team1` resource group |
+| 상한 | 2026-06-26까지 총 1,000,000원 |
+| Alert | 50%, 75%, 90%, 100% |
+| apply 전 보고 | 현재 누적 / 예상 증가분 / 상한 대비 잔여율 |
+
+확정: Budget 리소스 생성은 이번 Terraform PR 범위가 아니다. ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다. WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
