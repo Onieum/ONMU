@@ -9,6 +9,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$utf8HelperPath = Join-Path $PSScriptRoot "lib\utf8.ps1"
+if (Test-Path -LiteralPath $utf8HelperPath) {
+  . $utf8HelperPath
+  Set-OnmuUtf8Console
+}
+
 function Write-Check {
   param(
     [string]$Name,

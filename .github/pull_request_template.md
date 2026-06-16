@@ -23,3 +23,6 @@
 - [ ] 커밋 메시지가 Conventional Commits 형식을 따름
 - [ ] secret, 실제 사용자 데이터, 생성된 credential을 커밋하지 않음
 - [ ] 동작이나 설정이 바뀐 경우 문서를 갱신함
+- [ ] Windows `.ps1`, Terraform/Azure 운영 문서, 한글 PR/Issue 본문을 바꾼 경우 PowerShell 5.x / PowerShell 7 UTF-8 한글 입출력을 확인함
+- [ ] macOS shell script 또는 한글 GitHub/Azure CLI 자동화를 바꾼 경우 UTF-8 locale과 한글 출력 readback을 확인함
+- [ ] 한글 포함 생성 파일은 UTF-8 no BOM 방식으로 생성함
