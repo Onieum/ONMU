@@ -1,0 +1,22 @@
+location             = "koreacentral"
+resource_group_name  = "rg-onmu-tfstate-krc-001"
+storage_account_name = "stonmutfstatekrc001"
+container_name       = "tfstate"
+replication_type     = "LRS"
+
+staging_state_key = "onmu/staging/terraform.tfstate"
+prod_state_key    = "onmu/prod/terraform.tfstate"
+
+# 실제 Microsoft Entra object id는 git에 기록하지 않는다.
+# 운영자와 GitHub Actions workload identity principal object id는 승인된 로컬 tfvars 또는 protected CI 변수로만 전달한다.
+operator_principal_object_ids       = []
+github_actions_principal_object_ids = []
+
+tags = {
+  app                 = "onmu"
+  env                 = "shared"
+  owner               = "onmu-team"
+  cost_center         = "onmu-infra"
+  managed_by          = "terraform-bootstrap"
+  data_classification = "internal"
+}

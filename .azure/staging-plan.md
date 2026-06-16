@@ -70,6 +70,8 @@ State backend는 Azure Storage blob backend로 고정하되, backend bootstrap �
 | staging | `onmu/staging/terraform.tfstate` |
 | prod | `onmu/prod/terraform.tfstate` |
 
+Backend bootstrap 세부 기준은 [Azure Terraform state backend bootstrap](../docs/operations/azure-terraform-state-backend.md)과 `infra/terraform/bootstrap/state-backend` root module을 따른다.
+
 ## 4. Blob + CDN 운영 경계
 
 - Blob Storage는 tile/static/media object의 origin이자 source of truth다.
@@ -142,7 +144,7 @@ Staging은 Terraform apply 성공만으로 성공 처리하지 않는다. 최소
 | 순서 | PR 범위 | 포함 | 제외 |
 | --- | --- | --- | --- |
 | 1 | Staging plan 구체화 | plan 문서, smoke checklist, data rehearsal, cost/permission checklist | Azure apply |
-| 2 | State backend bootstrap | tfstate resource group/storage/container/RBAC plan | 앱 리소스 |
+| 2 | State backend bootstrap | tfstate resource group/storage/container/RBAC plan, backend config 예시 | 앱 리소스 |
 | 3 | Staging resource skeleton 확장 | ACA/Postgres/Redis/Blob/CDN/Event Hubs/observability module 보완 | secret value |
 | 4 | Staging apply gate | GitHub protected environment, manual approval, plan artifact | 자동 production apply |
 | 5 | Runtime config | Key Vault reference, app setting name, startup/readiness smoke | secret 값 출력 |

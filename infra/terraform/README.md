@@ -21,6 +21,7 @@
 | [Azure staging smoke checklist](../../docs/operations/azure-staging-smoke-checklist.md) | staging 성공 판정 smoke gate |
 | [Azure staging data rehearsal plan](../../docs/operations/azure-staging-data-rehearsal.md) | PostgreSQL, Redis, Blob/CDN 이전 rehearsal 기준 |
 | [Azure staging cost and permission review](../../docs/operations/azure-cost-permission-review.md) | 비용 산출 항목과 권한 경계 |
+| [Azure Terraform state backend bootstrap](../../docs/operations/azure-terraform-state-backend.md) | tfstate 전용 resource group, storage account, blob container, RBAC 기준 |
 
 ## 금지
 
@@ -53,13 +54,13 @@ terraform plan -refresh=false -var-file=terraform.tfvars.example
 - 확정 state key 형식:
   - staging: `onmu/staging/terraform.tfstate`
   - prod: `onmu/prod/terraform.tfstate`
-- backend용 Storage Account, container, RBAC, Managed Identity bootstrap은 앱 리소스 skeleton PR과 분리한다.
+- backend용 Storage Account, container, RBAC bootstrap은 `bootstrap/state-backend` root module로 앱 리소스와 분리한다.
 - backend 리소스 생성은 별도 사용자 승인 전까지 보류한다.
 
 ## 다음 gate
 
 1. Azure subscription과 resource naming suffix 확정
-2. Terraform state backend bootstrap 승인
+2. Terraform state backend bootstrap 승인과 `bootstrap/state-backend` apply window 승인
 3. Azure Pricing Calculator 기준 staging 비용 산출
 4. Blob CDN Range/CORS/purge/rollback smoke 기준 확정
 5. Event Hubs consumer group, checkpoint storage, replay smoke 기준 확정
