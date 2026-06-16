@@ -13,6 +13,22 @@ variable "environment_name" {
   type        = string
 }
 
+variable "environment_workload_profile" {
+  description = "Container Apps Environment workload profile. Keep the default Consumption profile pinned so later diagnostics waves stay no-op for the environment resource."
+  type = object({
+    name                  = string
+    workload_profile_type = string
+    minimum_count         = number
+    maximum_count         = number
+  })
+  default = {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+    minimum_count         = 0
+    maximum_count         = 0
+  }
+}
+
 variable "log_analytics_workspace_id" {
   description = "Log Analytics workspace id."
   type        = string

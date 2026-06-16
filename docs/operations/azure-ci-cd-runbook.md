@@ -107,6 +107,8 @@ Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 ru
 
 `core_diagnostics`에서 기대하는 변경은 diagnostic setting create 중심이다. Storage, Event Hubs, Key Vault, managed identity, ACA Environment 자체가 create로 다시 잡히면 core foundation이 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않고 중단한다.
 
+ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` workload profile이 기록될 수 있다. Terraform module도 같은 기본 profile을 명시적으로 유지해 `core_diagnostics`에서 environment update drift가 섞이지 않게 한다.
+
 ### Staging DB/App Ready
 
 `wave=db_and_app_ready`는 PostgreSQL Flexible Server와 Spring API/worker Container App을 만들 수 있는 선택지지만, 기본 실행 대상이 아니다. 아래 protected 값이 준비되고 사용자가 별도 승인할 때만 plan/apply한다.

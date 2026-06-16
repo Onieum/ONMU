@@ -97,3 +97,5 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 16. provider console redirect/package/SHA-1 확인
 17. `staging-api.onmu.cloud` DNS/provider console 연결 승인
 18. Windows dev backend smoke를 rollback 기준으로 유지
+
+`core_diagnostics`가 foundation 리소스 create/update를 다시 만들지 않게 하려면, ACA Environment의 기본 `Consumption` workload profile이 Terraform module에도 명시되어 있어야 한다. 그렇지 않으면 diagnostics wave에서 environment update drift가 섞일 수 있다.
