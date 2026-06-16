@@ -82,6 +82,8 @@
 
 세부 선택지는 `infra/terraform/DECISIONS.md`를 기준으로 한다.
 
+Staging 실행 계획은 `.azure/staging-plan.md`, `docs/operations/azure-staging-smoke-checklist.md`, `docs/operations/azure-staging-data-rehearsal.md`, `docs/operations/azure-cost-permission-review.md`에 분리해 기록한다. 이 문서들은 plan-only 산출물이며 실제 Azure 리소스 생성이나 `terraform apply`를 수행하지 않는다.
+
 - CDN 제품은 staging 1차에서 Azure CDN Standard Microsoft로 확정한다. Front Door는 production hardening 후보로 둔다.
 - Staging network는 public endpoint + Key Vault reference로 시작한다. Private endpoint/VNet은 비용 산출 후 결정한다.
 - Region은 `koreacentral`로 확정한다. quota/SKU 문제가 있으면 별도 승인으로 `eastasia` fallback을 검토한다.
