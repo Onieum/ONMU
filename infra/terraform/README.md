@@ -13,6 +13,15 @@
 
 이번 확정 결정은 `environments/staging` 기준이다. `environments/prod`는 production hardening 후보를 표현하는 placeholder이며, 별도 production approval, 비용 산출, private networking/DNS/cutover gate 전에는 apply하지 않는다.
 
+## 관련 계획 문서
+
+| 문서 | 역할 |
+| --- | --- |
+| [Azure staging plan](../../.azure/staging-plan.md) | staging 리소스 후보와 Terraform module/environment 구조 |
+| [Azure staging smoke checklist](../../docs/operations/azure-staging-smoke-checklist.md) | staging 성공 판정 smoke gate |
+| [Azure staging data rehearsal plan](../../docs/operations/azure-staging-data-rehearsal.md) | PostgreSQL, Redis, Blob/CDN 이전 rehearsal 기준 |
+| [Azure staging cost and permission review](../../docs/operations/azure-cost-permission-review.md) | 비용 산출 항목과 권한 경계 |
+
 ## 금지
 
 - `terraform apply`

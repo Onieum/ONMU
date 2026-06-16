@@ -32,6 +32,17 @@
 
 세부 값은 [Azure 환경 매트릭스](./azure-environment-matrix.md)를 기준으로 한다.
 
+## 3.1 Staging plan 산출물
+
+Azure staging 전환은 다음 plan-only 문서를 기준으로 구체화한다. 이 문서들은 실제 Azure 리소스 생성, `terraform apply`, DNS 변경, DB migration, Key Vault secret value 작성을 포함하지 않는다.
+
+| 문서 | 역할 |
+| --- | --- |
+| [Azure staging plan](../../.azure/staging-plan.md) | 확정 결정, 리소스 후보, Terraform 구조, Blob/CDN와 Event Hubs 경계 |
+| [Azure staging smoke checklist](./azure-staging-smoke-checklist.md) | API, dependency, Blob/CDN, tile, provider, observability smoke 기준 |
+| [Azure staging data rehearsal plan](./azure-staging-data-rehearsal.md) | clean DB Flyway, Redis 비이전, Blob/CDN 이전 rehearsal 기준 |
+| [Azure staging cost and permission review](./azure-cost-permission-review.md) | Azure Pricing Calculator 입력 항목, 무료 크레딧 방어 가능성, 권한 경계 |
+
 ## 4. Terraform 작성 전제
 
 Terraform module은 다음 기준을 따른다.
