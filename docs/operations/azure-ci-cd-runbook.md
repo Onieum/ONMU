@@ -156,6 +156,10 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 `postgres_ready`, `api_app_ready`, `worker_app_ready`도 신규 PostgreSQL/Container App resource id가 plan 시점에 unknown이므로 diagnostic setting을 동시에 만들지 않는다. App/DB diagnostic setting은 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
+staging에서 PostgreSQL public access를 유지하는 동안 `postgres_ready`는 ACA environment static IP용 firewall rule create를 함께 포함할 수 있다. 이 rule이 없으면 이후 `api_app_ready`에서 Spring/Flyway가 DB connection timeout으로 기동 실패할 수 있다.
+
+만약 `api_app_ready`가 먼저 부분 적용되어 Spring API Container App resource가 state에 생긴 뒤라면 `postgres_firewall_ready`를 별도로 사용한다. 이 remediation wave는 현재 Spring image ref를 유지한 채 PostgreSQL firewall rule만 추가하는 용도다.
+
 현재 app phase의 운영 gate는 다음을 추가로 요구한다.
 
 - runtime managed identity에 staging ACR scope `AcrPull`

@@ -94,9 +94,17 @@ case "$wave" in
     ;;
   postgres_ready)
     unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
-    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.address != "module.postgres[0].azurerm_postgresql_flexible_server.this" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_configuration.extensions[0]" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_database.this")) | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_postgresql_flexible_server" and .type != "azurerm_postgresql_flexible_server_configuration" and .type != "azurerm_postgresql_flexible_server_database" and .type != "azurerm_postgresql_flexible_server_firewall_rule")) | .address] | length' "$plan_json")"
     if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-      echo "Only PostgreSQL server, extension configuration, and database create plus existing resource no-op/read are allowed for postgres_ready." >&2
+      echo "Only PostgreSQL server, extension configuration, database, and firewall rule create plus existing resource no-op/read are allowed for postgres_ready." >&2
+      exit 1
+    fi
+    ;;
+  postgres_firewall_ready)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_postgresql_flexible_server_firewall_rule") | .address] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+      echo "Only PostgreSQL firewall rule create plus existing resource no-op/read are allowed for postgres_firewall_ready." >&2
       exit 1
     fi
     ;;

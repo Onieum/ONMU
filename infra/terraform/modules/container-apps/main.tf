@@ -19,6 +19,7 @@ resource "azurerm_container_app" "spring_api" {
   container_app_environment_id = azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name
   revision_mode                = "Single"
+  workload_profile_name        = var.environment_workload_profile.name
   tags                         = var.tags
 
   identity {
@@ -131,6 +132,7 @@ resource "azurerm_container_app" "worker" {
   container_app_environment_id = azurerm_container_app_environment.this.id
   resource_group_name          = var.resource_group_name
   revision_mode                = "Single"
+  workload_profile_name        = var.environment_workload_profile.name
   tags                         = var.tags
 
   identity {

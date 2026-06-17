@@ -97,8 +97,12 @@ Terraform은 Blob secret value를 쓰지 않는다. secret value와 RBAC는 운�
 ### 5.1 PostgreSQL
 
 - `Terraform Staging`에서 `wave=postgres_ready`, `apply_wave=false`로 plan 확인
-- create가 PostgreSQL server/database/extension만인지 확인
+- create가 PostgreSQL server/database/extension과 ACA environment static IP용 firewall rule 범위만인지 확인
 - 승인 후 apply
+
+staging은 PostgreSQL public access를 쓰는 동안 ACA environment static IP를 firewall rule로 허용해야 한다. firewall rule이 없으면 `api_app_ready` apply가 성공해도 Spring/Flyway가 DB connection timeout으로 startup 실패할 수 있다.
+
+이미 `api_app_ready`가 부분 적용되어 Spring API Container App resource가 state에 들어간 뒤라면 `postgres_ready` 대신 `postgres_firewall_ready`를 사용한다. 이 wave는 현재 `STAGING_SPRING_API_IMAGE`를 유지한 채 firewall rule만 추가하도록 설계한다.
 
 ### 5.2 Spring API
 

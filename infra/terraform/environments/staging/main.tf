@@ -113,6 +113,13 @@ data "azurerm_key_vault" "runtime" {
   resource_group_name = local.resource_group_name
 }
 
+data "azurerm_container_app_environment" "existing" {
+  count = var.enabled_modules.postgres && var.enabled_modules.container_apps_environment ? 1 : 0
+
+  name                = module.naming.container_app_environment_name
+  resource_group_name = local.resource_group_name
+}
+
 module "resource_group" {
   count = var.create_resource_group ? 1 : 0
 
@@ -174,7 +181,13 @@ module "postgres" {
   backup_retention_days         = 7
   public_network_access_enabled = true
   enabled_extensions            = ["POSTGIS"]
-  tags                          = local.tags
+  firewall_rules = try(data.azurerm_container_app_environment.existing[0].static_ip_address, null) == null ? {} : {
+    "aca-environment-static-ip" = {
+      start_ip_address = data.azurerm_container_app_environment.existing[0].static_ip_address
+      end_ip_address   = data.azurerm_container_app_environment.existing[0].static_ip_address
+    }
+  }
+  tags = local.tags
 }
 
 module "redis" {
