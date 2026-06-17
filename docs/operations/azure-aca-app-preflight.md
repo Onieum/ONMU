@@ -67,38 +67,49 @@ image ref 자체는 secret은 아니지만, 로그/채팅에는 필요 이상으
 
 ### 4.1 Redis
 
-Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terraform은 Azure Cache for Redis classic 신규 생성을 더 이상 전제로 둘 수 없으므로, Azure Managed Redis 설계가 닫히기 전에는 Spring app revision readiness가 실패할 수 있다.
+Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terraform은 Azure Managed Redis 전용 wave로 Redis를 분리한다.
 
-즉, `api_app_ready`는 Container App resource를 만들 준비 단계로는 유효하지만, 최종 `/readyz=200` 승격 기준은 Redis 방향이 확정된 뒤에 다시 확인해야 한다.
+사전 조건은 다음과 같다.
 
-### 4.2 object storage adapter
+- tile/static edge를 사용하는 staging이면 `frontdoor_origin_access`와 `frontdoor_diagnostics`까지 먼저 정리
+- `managed_redis_ready` apply 완료
+- 필요 시 `managed_redis_diagnostics` apply 완료
+- 운영자가 Azure Managed Redis access 정보로 재사용 runtime Key Vault의 기존 `staging-redis-url` 값을 수동 갱신
+- `REDIS_URL`, `SPRING_DATA_REDIS_URL`는 계속 같은 secret name을 참조
 
-현재 Spring `MediaService`와 `/readyz` object storage check는 MinIO-compatible endpoint를 기준으로 구현되어 있다.
+즉, `api_app_ready`는 Container App resource를 만들 준비 단계로는 유효하지만, 최종 `/readyz=200` 승격 기준은 Managed Redis와 재사용 Key Vault secret 동기화가 끝난 뒤에 다시 확인해야 한다. 기존 staging 전용 Key Vault cleanup은 별도 승인 작업으로 남긴다.
 
-- `MediaService`는 MinIO client와 access key/secret path를 사용한다.
-- `ReadinessProbeService`는 `{endpoint}/minio/health/live`를 호출한다.
+### 4.2 object storage
 
-따라서 true Azure Blob runtime으로 바로 전환하면 media upload/read와 `/readyz`가 그대로 통과하지 않을 수 있다. app phase 전에는 아래 둘 중 하나를 명시적으로 선택해야 한다.
+Spring은 object storage provider abstraction을 사용한다. local/dev 기본값은 `OBJECT_STORAGE_PROVIDER=minio`이고, staging/prod는 `OBJECT_STORAGE_PROVIDER=azure_blob`로 Blob Storage SDK와 runtime managed identity를 사용한다.
 
-1. Spring object storage adapter를 Azure Blob 기준으로 전환
-2. staging에서만 MinIO-compatible 경로를 유지하고 ACA app rollout smoke를 먼저 통과
+App phase 전에는 아래 운영 gate를 확인한다.
 
-이 결정 없이 `api_app_ready`를 apply하면 app resource는 생겨도 runtime readiness는 막힐 수 있다.
+- `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_BUCKET` secret reference가 재사용 runtime Key Vault에 존재
+- Spring API Container App plain env에 `OBJECT_STORAGE_PROVIDER=azure_blob`
+- runtime managed identity에 Blob storage account scope `Storage Blob Data Contributor`
+- `/api/v1/uploads/presigned-url` 유지 기준으로 runtime managed identity에 `Storage Blob Delegator`
+
+Terraform은 Blob secret value를 쓰지 않는다. secret value와 RBAC는 운영자가 승인된 경로로 수동 반영하고, 보고에는 secret name과 role/status만 남긴다.
 
 ## 5. 권장 실행 순서
 
 ### 5.1 PostgreSQL
 
 - `Terraform Staging`에서 `wave=postgres_ready`, `apply_wave=false`로 plan 확인
-- create가 PostgreSQL server/database/extension만인지 확인
+- create가 PostgreSQL server/database/extension과 ACA environment static IP용 firewall rule 범위만인지 확인
 - 승인 후 apply
+
+staging은 PostgreSQL public access를 쓰는 동안 ACA environment static IP를 firewall rule로 허용해야 한다. firewall rule이 없으면 `api_app_ready` apply가 성공해도 Spring/Flyway가 DB connection timeout으로 startup 실패할 수 있다.
+
+이미 `api_app_ready`가 부분 적용되어 Spring API Container App resource가 state에 들어간 뒤라면 `postgres_ready` 대신 `postgres_firewall_ready`를 사용한다. 이 wave는 현재 `STAGING_SPRING_API_IMAGE`를 유지한 채 firewall rule만 추가하도록 설계한다.
 
 ### 5.2 Spring API
 
 - `Build Staging Images`로 Spring image build, 필요 시 push
 - `STAGING_SPRING_API_IMAGE` 갱신
 - runtime identity의 `AcrPull`, `Key Vault Secrets User` 확인
-- object storage/Redis 병목 상태를 확인한 뒤 `wave=api_app_ready`
+- Blob object storage RBAC와 Redis secret sync까지 끝낸 뒤 `wave=api_app_ready`
 
 ### 5.3 worker
 

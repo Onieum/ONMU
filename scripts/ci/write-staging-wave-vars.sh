@@ -39,12 +39,49 @@ worker_enabled   = false
 EOF
 }
 
+append_foundation_frontdoor_keepalive_targets() {
+  cat >> "$output_path" <<'EOF'
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
+  front_door = true
+}
+EOF
+}
+
 append_frontdoor_keepalive_targets() {
   cat >> "$output_path" <<'EOF'
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = true
   front_door = true
+}
+EOF
+}
+
+append_live_app_keepalive_modules() {
+  cat >> "$output_path" <<EOF
+
+spring_api_image = "${STAGING_SPRING_API_IMAGE}"
+worker_image     = "${STAGING_WORKER_IMAGE}"
+worker_enabled   = true
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = true
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = true
+  diagnostics                = true
+  rbac_assignments           = false
 }
 EOF
 }
@@ -137,87 +174,80 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = false
   front_door = false
+}
+EOF
+    ;;
+  managed_redis_ready)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+EOF
+    append_foundation_frontdoor_keepalive_targets
+    ;;
+  managed_redis_diagnostics)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = true
+  front_door = true
 }
 EOF
     ;;
   frontdoor_tile_edge)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = false
-  storage                    = true
-  cdn                        = false
-  front_door                 = true
-  eventhubs                  = true
-  container_apps_environment = true
-  container_apps             = false
-  diagnostics                = true
-  rbac_assignments           = false
-}
-
-enabled_diagnostic_targets = {
-  foundation = true
-  front_door = false
-}
-EOF
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    append_live_app_keepalive_modules
+    append_frontdoor_keepalive_targets
     ;;
   frontdoor_origin_access)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = false
-  storage                    = true
-  cdn                        = false
-  front_door                 = true
-  eventhubs                  = true
-  container_apps_environment = true
-  container_apps             = false
-  diagnostics                = true
-  rbac_assignments           = false
-}
-
-enabled_diagnostic_targets = {
-  foundation = true
-  front_door = true
-}
-EOF
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    append_live_app_keepalive_modules
+    append_frontdoor_keepalive_targets
     ;;
   frontdoor_diagnostics)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = false
-  storage                    = true
-  cdn                        = false
-  front_door                 = true
-  eventhubs                  = true
-  container_apps_environment = true
-  container_apps             = false
-  diagnostics                = true
-  rbac_assignments           = false
-}
-
-enabled_diagnostic_targets = {
-  foundation = true
-  front_door = true
-}
-EOF
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    append_live_app_keepalive_modules
+    append_frontdoor_keepalive_targets
     ;;
   postgres_ready)
     require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
@@ -229,13 +259,39 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+EOF
+    append_frontdoor_keepalive_targets
+    ;;
+  postgres_firewall_ready)
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    cat >> "$output_path" <<EOF
+
+spring_api_image = "${STAGING_SPRING_API_IMAGE}"
+worker_enabled   = false
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = true
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = true
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -255,7 +311,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -283,7 +339,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -311,7 +367,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true

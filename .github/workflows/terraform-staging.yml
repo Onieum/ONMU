@@ -37,10 +37,13 @@ on:
           - core_foundation
           - key_vault_rbac
           - core_diagnostics
+          - managed_redis_ready
+          - managed_redis_diagnostics
           - frontdoor_tile_edge
           - frontdoor_origin_access
           - frontdoor_diagnostics
           - postgres_ready
+          - postgres_firewall_ready
           - api_app_ready
           - worker_app_ready
           - db_and_app_ready

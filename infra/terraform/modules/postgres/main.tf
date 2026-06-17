@@ -11,6 +11,12 @@ resource "azurerm_postgresql_flexible_server" "this" {
   zone                          = var.zone
   public_network_access_enabled = var.public_network_access_enabled
   tags                          = var.tags
+
+  lifecycle {
+    # Azure may normalize or assign the zone after create; later app waves should
+    # not try to mutate the database just because the reported zone drifted.
+    ignore_changes = [zone]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_configuration" "extensions" {
@@ -18,6 +24,15 @@ resource "azurerm_postgresql_flexible_server_configuration" "extensions" {
   name      = "azure.extensions"
   server_id = azurerm_postgresql_flexible_server.this.id
   value     = join(",", var.enabled_extensions)
+}
+
+resource "azurerm_postgresql_flexible_server_firewall_rule" "this" {
+  for_each = var.firewall_rules
+
+  name             = each.key
+  server_id        = azurerm_postgresql_flexible_server.this.id
+  start_ip_address = each.value.start_ip_address
+  end_ip_address   = each.value.end_ip_address
 }
 
 resource "azurerm_postgresql_flexible_server_database" "this" {

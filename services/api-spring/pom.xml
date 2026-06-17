@@ -64,6 +64,16 @@
       <artifactId>minio</artifactId>
       <version>8.5.12</version>
     </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-storage-blob</artifactId>
+      <version>12.33.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-identity</artifactId>
+      <version>1.18.1</version>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>

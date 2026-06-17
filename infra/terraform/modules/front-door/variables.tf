@@ -33,6 +33,12 @@ variable "origin_host_name" {
   type        = string
 }
 
+variable "origin_path" {
+  description = "Blob container path prefix that Front Door should prepend before forwarding."
+  type        = string
+  default     = "/"
+}
+
 variable "patterns_to_match" {
   description = "Route path patterns."
   type        = list(string)

@@ -17,6 +17,8 @@ locals {
   spring_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
     POSTGRES_PASSWORD                     = "${local.secret_prefix}-postgres-password"
+    SPRING_DATASOURCE_URL                 = "${local.secret_prefix}-database-url"
+    SPRING_DATASOURCE_PASSWORD            = "${local.secret_prefix}-postgres-password"
     ONMU_ACCESS_TOKEN_SECRET              = "${local.secret_prefix}-access-token-secret"
     REDIS_URL                             = "${local.secret_prefix}-redis-url"
     SPRING_DATA_REDIS_URL                 = "${local.secret_prefix}-redis-url"
@@ -103,20 +105,25 @@ module "postgres" {
   storage_mb                    = 65536
   backup_retention_days         = 14
   public_network_access_enabled = false
-  enabled_extensions            = ["POSTGIS"]
+  enabled_extensions            = ["POSTGIS", "PGCRYPTO"]
   tags                          = local.tags
 }
 
 module "redis" {
-  source              = "../../modules/redis"
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
-  name                = module.naming.redis_name
-  capacity            = 0
-  family              = "C"
-  sku_name            = "Standard"
-  minimum_tls_version = "1.2"
-  tags                = local.tags
+  source                    = "../../modules/redis"
+  resource_group_name       = module.resource_group.name
+  location                  = module.resource_group.location
+  name                      = module.naming.redis_name
+  sku_name                  = "Balanced_B3"
+  public_network_access     = "Enabled"
+  high_availability_enabled = true
+  default_database = {
+    access_keys_authentication_enabled = true
+    client_protocol                    = "Encrypted"
+    clustering_policy                  = "NoCluster"
+    eviction_policy                    = "AllKeysLRU"
+  }
+  tags = local.tags
 }
 
 module "storage" {
@@ -185,9 +192,12 @@ module "container_apps" {
     cpu          = 1
     memory       = "2Gi"
     plain_env = {
-      ONMU_ENV       = local.environment
-      SERVER_ADDRESS = "0.0.0.0"
-      SERVER_PORT    = "8080"
+      AZURE_CLIENT_ID            = module.key_vault.runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER    = "azure_blob"
+      ONMU_ENV                   = local.environment
+      SERVER_ADDRESS             = "0.0.0.0"
+      SERVER_PORT                = "8080"
+      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs

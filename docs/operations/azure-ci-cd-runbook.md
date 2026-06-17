@@ -81,7 +81,7 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 `core_foundation`에서 명시적으로 제외한다.
 
 - PostgreSQL Flexible Server
-- Redis. Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.
+- Redis. `managed_redis_ready`와 `managed_redis_diagnostics` 전용 wave로 분리한다. Spring/Flutter 계약은 `REDIS_URL`, `SPRING_DATA_REDIS_URL`, 기존 Key Vault secret naming을 유지한다.
 - Spring API Container App
 - Worker Container App
 - CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다.
@@ -105,7 +105,7 @@ Import 후 plan summary가 `azurerm_container_app_environment` create와 기존 
 
 `wave=key_vault_rbac`는 runtime managed identity에 Key Vault Secrets User 역할을 연결하는 전용 wave다. 이 wave는 Workload Identity 또는 운영자가 resource group/Key Vault scope에서 role assignment를 만들 권한을 갖는지 확인한 뒤 실행한다.
 
-Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 runtime managed identity가 secret reference를 읽으려면 Key Vault scope의 `Key Vault Secrets User` role assignment가 필요하다. Contributor 권한만으로 role assignment 생성이 막히면 apply를 반복하지 않는다. 속도 우선 기본값은 운영자가 기존 Key Vault scope에서 runtime managed identity에 `Key Vault Secrets User`를 수동 부여하는 것이다. IaC 일관성을 우선할 때만 Key Vault scope 한정 `Key Vault Data Access Administrator`, `User Access Administrator`, 또는 `Role Based Access Control Administrator` 부여를 별도 승인한다.
+Key Vault는 기존/재활용 vault를 사용할 수 있다. 현재 staging runtime secret source는 재사용 Key Vault를 기준으로 맞추고, Terraform이 기존에 만든 staging 전용 vault는 cleanup 승인 전까지 그대로 둔다. 이 경우에도 runtime managed identity가 secret reference를 읽으려면 재사용 Key Vault scope의 `Key Vault Secrets User` role assignment가 필요하다. Contributor 권한만으로 role assignment 생성이 막히면 apply를 반복하지 않는다. 속도 우선 기본값은 운영자가 기존 Key Vault scope에서 runtime managed identity에 `Key Vault Secrets User`를 수동 부여하는 것이다. IaC 일관성을 우선할 때만 Key Vault scope 한정 `Key Vault Data Access Administrator`, `User Access Administrator`, 또는 `Role Based Access Control Administrator` 부여를 별도 승인한다.
 
 ### Staging Core Diagnostics
 
@@ -116,6 +116,16 @@ Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 ru
 ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` workload profile이 기록될 수 있다. Terraform module도 같은 기본 profile을 명시적으로 유지해 `core_diagnostics`에서 environment update drift가 섞이지 않게 한다.
 
 `frontdoor_tile_edge`처럼 diagnostics를 새로 만들지 않는 wave에서도, 이미 적용된 foundation diagnostic setting은 Terraform target 집합에 계속 포함해야 한다. 그렇지 않으면 Front Door plan이 기존 diagnostic setting delete를 같이 잡는다.
+
+### Staging Managed Redis
+
+`wave=managed_redis_ready`는 `core_foundation`, `core_diagnostics`, 그리고 Front Door를 쓰는 경우 `frontdoor_tile_edge`, `frontdoor_origin_access`, `frontdoor_diagnostics` 이후에 Azure Managed Redis만 별도로 생성한다. 이 wave는 기존 foundation, Front Door, diagnostic setting을 no-op/read로 유지한 채 `azurerm_managed_redis` create 1건만 허용한다.
+
+`wave=managed_redis_diagnostics`는 Managed Redis resource id가 remote state에 기록된 뒤 diagnostic setting만 별도로 붙인다. 이 wave도 기존 foundation, Front Door, diagnostic setting은 no-op/read만 허용한다.
+
+Managed Redis는 access key 인증을 켜서 현재 Spring의 `REDIS_URL`, `SPRING_DATA_REDIS_URL` 계약을 그대로 유지한다. 다만 Terraform이 Key Vault secret value를 직접 쓰지는 않는다. 운영자는 Managed Redis apply 후 Azure Portal 또는 승인된 운영 경로에서 access key를 확인하고, 재사용 runtime Key Vault의 기존 `staging-redis-url` secret value를 수동 갱신해야 한다.
+
+AzureRM provider는 access key 인증을 켠 Managed Redis의 계산된 access key를 remote state에 보관할 수 있다. 따라서 이 wave는 state 접근 통제와 key rotation 절차를 별도 운영 gate로 둔다. PR 본문, workflow log, 문서에는 access key 실제 값을 기록하지 않는다.
 
 App phase 전 사전 조건과 현재 병목은 [Azure ACA 앱 배포 사전 점검](./azure-aca-app-preflight.md)에 따로 정리한다. Terraform wave 설계와 Docker image 준비는 이 문서와 함께 본다.
 
@@ -146,18 +156,25 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 `postgres_ready`, `api_app_ready`, `worker_app_ready`도 신규 PostgreSQL/Container App resource id가 plan 시점에 unknown이므로 diagnostic setting을 동시에 만들지 않는다. App/DB diagnostic setting은 app resource 생성 이후 별도 diagnostics wave로 분리한다.
 
+staging에서 PostgreSQL public access를 유지하는 동안 `postgres_ready`는 ACA environment static IP용 firewall rule create를 함께 포함할 수 있다. 이 rule이 없으면 이후 `api_app_ready`에서 Spring/Flyway가 DB connection timeout으로 기동 실패할 수 있다.
+
+만약 `api_app_ready`가 먼저 부분 적용되어 Spring API Container App resource가 state에 생긴 뒤라면 `postgres_firewall_ready`를 별도로 사용한다. 이 remediation wave는 현재 Spring image ref를 유지한 채 PostgreSQL firewall rule만 추가하는 용도다.
+
 현재 app phase의 운영 gate는 다음을 추가로 요구한다.
 
 - runtime managed identity에 staging ACR scope `AcrPull`
 - runtime managed identity에 재사용 Key Vault scope `Key Vault Secrets User`
-- Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제가 staging target과 맞는지 확인
-- Redis 방향이 확정되기 전에는 `/readyz` 최종 200을 승격 조건으로 다시 확인
+- runtime managed identity에 Blob storage account scope `Storage Blob Data Contributor`
+- presigned URL 유지를 위해 Blob storage account scope `Storage Blob Delegator`
+- Spring API plain env `OBJECT_STORAGE_PROVIDER=azure_blob`와 Blob endpoint/container secret reference 확인
+- `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신이 끝났는지 확인
+- Managed Redis 전환 후 `/readyz` 최종 200을 다시 확인
 
 `db_and_app_ready`는 기존 호환용 alias로 유지하지만, 실제 운영 기준은 split wave다. 어느 경로를 쓰더라도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 
 ### Staging Front Door Tile Edge
 
-`wave=frontdoor_tile_edge`는 Blob origin 이후 tile/static edge delivery를 Azure Front Door Standard로 구성하는 선택지다. 기본료가 발생하므로 `apply_wave=true` 실행 전 별도 비용 승인을 받아야 한다.
+`wave=frontdoor_tile_edge`는 Blob origin 이후 tile/static edge delivery를 Azure Front Door Standard로 구성하는 선택지다. 기본료가 발생하므로 `apply_wave=true` 실행 전 별도 비용 승인을 받아야 한다. 이 wave는 Managed Redis 이전 단계로 두고, Redis resource나 Redis diagnostic target을 함께 켜지 않는다.
 
 `frontdoor_tile_edge`에서 켜는 Terraform module은 다음이다.
 
@@ -173,22 +190,22 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 - DNS 변경
 - production 적용
 
-Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
+Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. staging 기준 Front Door route는 Blob account root가 아니라 `tiles` container를 `cdn_frontdoor_origin_path=/tiles`로 prefix해야 한다. Front Door가 아직 없는 환경이면 profile/endpoint/origin group/origin/route create만 허용하고, 이미 적용된 staging라면 `azurerm_cdn_frontdoor_route` update 1건만 허용한다. 현재 staging처럼 postgres, managed redis, Spring API, worker가 이미 state에 들어간 뒤에는 `frontdoor_tile_edge`, `frontdoor_origin_access`, `frontdoor_diagnostics` wave도 이 리소스들을 keepalive 입력으로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 `tiles` container 안에 `manifest.json`, `styles/onmu-light.json`, `pmtiles/korea-dev.pmtiles`가 실제로 업로드되어 있는지 먼저 확인하고, 그 다음 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
 
 ### Staging Front Door Origin Access
 
-`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다.
+`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근하고 browser tile smoke까지 통과할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다. Managed Redis가 아직 없는 단계에서도 plan/apply가 성립하도록 Redis resource와 Redis diagnostic target은 함께 켜지 않는다.
 
-기대 변경은 다음 두 개뿐이다.
+기대 변경은 다음 중 필요한 범위로 제한한다.
 
-- `azurerm_storage_account` update 1: nested public item 허용
-- `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
+- `azurerm_storage_account` update 1: nested public item 허용 또는 tile/static CORS rule 보정
+- 선택적 `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
 
-기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
+기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. Public tile/static은 credential 없이 읽는 자산이므로 Blob origin CORS는 `Access-Control-Allow-Origin: *`를 기본값으로 유지한다. 이유는 Front Door가 Blob origin의 CORS 응답 헤더를 object 단위로 캐시할 수 있어 origin allow-list를 그대로 쓰면 다른 caller origin에 잘못된 ACAO가 재사용될 수 있기 때문이다. smoke는 local Flutter web origin(`localhost`/`127.0.0.1` 5173~5175), `dev-api.onmu.cloud`, `int-api.onmu.cloud`, `staging-api.onmu.cloud` 요청에 대해 wildcard ACAO 또는 동등한 허용 응답이 나오는지 확인하고, exposed headers에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
 
 ### Staging Front Door Diagnostics
 
-`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공하고, 필요 시 `frontdoor_origin_access` patch까지 끝난 뒤에 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다.
+`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공하고, 필요 시 `frontdoor_origin_access` patch까지 끝난 뒤에 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다. 이 시점에도 Redis가 아직 없으면 Redis diagnostic target은 포함하지 않는다.
 
 `microsoft.cdn/profiles/afdendpoints`는 diagnostic settings를 지원하지 않으므로 endpoint를 target에 포함하지 않는다. `frontdoor_diagnostics` plan summary에는 `azurerm_monitor_diagnostic_setting` create와 기존 resource no-op만 허용한다. Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
 

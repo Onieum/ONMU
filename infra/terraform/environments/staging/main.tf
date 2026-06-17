@@ -1,6 +1,8 @@
 locals {
   environment   = "staging"
   secret_prefix = "staging"
+  # Runtime secret source는 기존 dev Key Vault를 재사용하고, staging 전용 vault cleanup은 별도 작업으로 분리한다.
+  runtime_key_vault_name = "onmu-dev-kv-27db5e"
 
   tags = {
     app                 = "onmu"
@@ -11,13 +13,21 @@ locals {
     data_classification = var.data_classification
   }
 
+  # Front Door caches Blob CORS response headers per object. Public tile/static
+  # assets do not use credentials, so staging keeps ACAO wildcard to avoid
+  # serving one caller origin's header value to another caller from edge cache.
+  tile_cors_allowed_origins = ["*"]
+
   resource_group_name     = var.create_resource_group ? module.resource_group[0].name : data.azurerm_resource_group.existing[0].name
   resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
-  key_vault_uri           = try(module.key_vault[0].key_vault_uri, "")
+  runtime_key_vault_id    = data.azurerm_key_vault.runtime.id
+  key_vault_uri           = data.azurerm_key_vault.runtime.vault_uri
 
   spring_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
     POSTGRES_PASSWORD                     = "${local.secret_prefix}-postgres-password"
+    SPRING_DATASOURCE_URL                 = "${local.secret_prefix}-database-url"
+    SPRING_DATASOURCE_PASSWORD            = "${local.secret_prefix}-postgres-password"
     ONMU_ACCESS_TOKEN_SECRET              = "${local.secret_prefix}-access-token-secret"
     REDIS_URL                             = "${local.secret_prefix}-redis-url"
     SPRING_DATA_REDIS_URL                 = "${local.secret_prefix}-redis-url"
@@ -48,12 +58,15 @@ locals {
 
   foundation_diagnostic_target_candidates = {
     key_vault                  = try(module.key_vault[0].key_vault_id, null)
-    redis                      = try(module.redis[0].id, null)
     storage                    = try(module.storage[0].storage_account_id, null)
     cdn_profile                = try(module.cdn[0].profile_id, null)
     cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
     eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
     container_apps_environment = try(module.container_apps[0].environment_id, null)
+  }
+
+  redis_diagnostic_target_candidates = {
+    redis = try(module.redis[0].id, null)
   }
 
   frontdoor_diagnostic_target_candidates = {
@@ -68,6 +81,12 @@ locals {
     if id != null && id != ""
   }
 
+  redis_diagnostic_targets = {
+    for name, id in local.redis_diagnostic_target_candidates :
+    name => id
+    if id != null && id != ""
+  }
+
   frontdoor_diagnostic_targets = {
     for name, id in local.frontdoor_diagnostic_target_candidates :
     name => id
@@ -76,6 +95,7 @@ locals {
 
   diagnostic_targets = merge(
     var.enabled_diagnostic_targets.foundation ? local.foundation_diagnostic_targets : {},
+    var.enabled_diagnostic_targets.redis ? local.redis_diagnostic_targets : {},
     var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {}
   )
 }
@@ -91,6 +111,18 @@ module "naming" {
 data "azurerm_resource_group" "existing" {
   count = var.create_resource_group ? 0 : 1
   name  = var.existing_resource_group_name
+}
+
+data "azurerm_key_vault" "runtime" {
+  name                = local.runtime_key_vault_name
+  resource_group_name = local.resource_group_name
+}
+
+data "azurerm_container_app_environment" "existing" {
+  count = var.enabled_modules.postgres && var.enabled_modules.container_apps_environment ? 1 : 0
+
+  name                = module.naming.container_app_environment_name
+  resource_group_name = local.resource_group_name
 }
 
 module "resource_group" {
@@ -153,35 +185,47 @@ module "postgres" {
   storage_mb                    = 32768
   backup_retention_days         = 7
   public_network_access_enabled = true
-  enabled_extensions            = ["POSTGIS"]
-  tags                          = local.tags
+  enabled_extensions            = ["POSTGIS", "PGCRYPTO"]
+  firewall_rules = try(data.azurerm_container_app_environment.existing[0].static_ip_address, null) == null ? {} : {
+    "aca-environment-static-ip" = {
+      start_ip_address = data.azurerm_container_app_environment.existing[0].static_ip_address
+      end_ip_address   = data.azurerm_container_app_environment.existing[0].static_ip_address
+    }
+  }
+  tags = local.tags
 }
 
 module "redis" {
   count = var.enabled_modules.redis ? 1 : 0
 
-  source              = "../../modules/redis"
-  resource_group_name = local.resource_group_name
-  location            = local.resource_group_location
-  name                = module.naming.redis_name
-  capacity            = 0
-  family              = "C"
-  sku_name            = "Basic"
-  minimum_tls_version = "1.2"
-  tags                = local.tags
+  source                    = "../../modules/redis"
+  resource_group_name       = local.resource_group_name
+  location                  = local.resource_group_location
+  name                      = module.naming.redis_name
+  sku_name                  = "Balanced_B0"
+  public_network_access     = "Enabled"
+  high_availability_enabled = false
+  default_database = {
+    access_keys_authentication_enabled = true
+    client_protocol                    = "Encrypted"
+    clustering_policy                  = "NoCluster"
+    eviction_policy                    = "AllKeysLRU"
+  }
+  tags = local.tags
 }
 
 module "storage" {
   count = var.enabled_modules.storage ? 1 : 0
 
-  source               = "../../modules/storage"
-  resource_group_name  = local.resource_group_name
-  location             = local.resource_group_location
-  account_name         = module.naming.storage_account_name
-  replication_type     = "LRS"
-  media_container_name = module.naming.media_container_name
-  tile_container_name  = module.naming.tile_container_name
-  tags                 = local.tags
+  source                    = "../../modules/storage"
+  resource_group_name       = local.resource_group_name
+  location                  = local.resource_group_location
+  account_name              = module.naming.storage_account_name
+  replication_type          = "LRS"
+  media_container_name      = module.naming.media_container_name
+  tile_container_name       = module.naming.tile_container_name
+  tile_cors_allowed_origins = local.tile_cors_allowed_origins
+  tags                      = local.tags
 }
 
 module "cdn" {
@@ -208,6 +252,7 @@ module "front_door" {
   origin_name         = module.naming.frontdoor_origin_name
   route_name          = module.naming.frontdoor_route_name
   origin_host_name    = module.storage[0].primary_blob_host
+  origin_path         = "/tiles"
   patterns_to_match   = ["/*"]
   health_probe_path   = "/"
   tags                = local.tags
@@ -262,9 +307,12 @@ module "container_apps" {
     cpu          = 0.5
     memory       = "1Gi"
     plain_env = {
-      ONMU_ENV       = local.environment
-      SERVER_ADDRESS = "0.0.0.0"
-      SERVER_PORT    = "8080"
+      AZURE_CLIENT_ID            = module.key_vault[0].runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER    = "azure_blob"
+      ONMU_ENV                   = local.environment
+      SERVER_ADDRESS             = "0.0.0.0"
+      SERVER_PORT                = "8080"
+      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs

@@ -19,6 +19,10 @@ output "container_registry_id" {
 }
 
 output "key_vault_id" {
+  value = local.runtime_key_vault_id
+}
+
+output "managed_key_vault_id" {
   value = try(module.key_vault[0].key_vault_id, null)
 }
 
@@ -44,6 +48,10 @@ output "postgres_fqdn" {
 
 output "redis_hostname" {
   value = try(module.redis[0].hostname, null)
+}
+
+output "redis_port" {
+  value = try(module.redis[0].port, null)
 }
 
 output "blob_endpoint" {

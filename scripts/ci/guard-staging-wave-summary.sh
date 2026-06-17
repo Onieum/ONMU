@@ -49,11 +49,29 @@ case "$wave" in
       exit 1
     fi
     ;;
-  frontdoor_tile_edge)
+  managed_redis_ready)
     unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_managed_redis") | .type] | length' "$plan_json")"
+    managed_redis_creates="$(count_types_by_action create azurerm_managed_redis)"
+    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$managed_redis_creates" -ne 1 ]; then
+      echo "Only one azurerm_managed_redis create and existing resource no-op/read are allowed for managed_redis_ready." >&2
+      exit 1
+    fi
+    ;;
+  managed_redis_diagnostics)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+      echo "Only azurerm_monitor_diagnostic_setting create and existing resource no-op/read are allowed for managed_redis_diagnostics." >&2
+      exit 1
+    fi
+    ;;
+  frontdoor_tile_edge)
+    unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$plan_json")"
-    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-      echo "Only Front Door create actions and existing resource no-op/read are allowed for frontdoor_tile_edge." >&2
+    unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type != "azurerm_cdn_frontdoor_route") | .type] | length' "$plan_json")"
+    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$unexpected_update" -gt 0 ]; then
+      echo "Only Front Door create actions or a single azurerm_cdn_frontdoor_route update, plus existing resource no-op/read, are allowed for frontdoor_tile_edge." >&2
       exit 1
     fi
     ;;
@@ -62,8 +80,8 @@ case "$wave" in
     unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$plan_json")"
     storage_account_updates="$(count_types_by_action update azurerm_storage_account)"
     storage_container_updates="$(count_types_by_action update azurerm_storage_container)"
-    if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
-      echo "Only one azurerm_storage_account update and one azurerm_storage_container update are allowed for frontdoor_origin_access. Existing Front Door and diagnostics must stay no-op/read." >&2
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -gt 1 ]; then
+      echo "Only one azurerm_storage_account update and zero or one azurerm_storage_container update are allowed for frontdoor_origin_access. Existing Front Door and diagnostics must stay no-op/read." >&2
       exit 1
     fi
     ;;
@@ -77,9 +95,17 @@ case "$wave" in
     ;;
   postgres_ready)
     unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
-    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.address != "module.postgres[0].azurerm_postgresql_flexible_server.this" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_configuration.extensions[0]" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_database.this")) | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_postgresql_flexible_server" and .type != "azurerm_postgresql_flexible_server_configuration" and .type != "azurerm_postgresql_flexible_server_database" and .type != "azurerm_postgresql_flexible_server_firewall_rule")) | .address] | length' "$plan_json")"
     if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-      echo "Only PostgreSQL server, extension configuration, and database create plus existing resource no-op/read are allowed for postgres_ready." >&2
+      echo "Only PostgreSQL server, extension configuration, database, and firewall rule create plus existing resource no-op/read are allowed for postgres_ready." >&2
+      exit 1
+    fi
+    ;;
+  postgres_firewall_ready)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_postgresql_flexible_server_firewall_rule") | .address] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+      echo "Only PostgreSQL firewall rule create plus existing resource no-op/read are allowed for postgres_firewall_ready." >&2
       exit 1
     fi
     ;;

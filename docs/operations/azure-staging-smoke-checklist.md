@@ -45,7 +45,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 `core_foundation` wave 직후에는 앱 배포 성공이 아니라 기반 리소스 준비만 판정한다. Diagnostic setting은 이 wave에서 만들지 않고 `core_diagnostics`로 분리한다. 최소 확인은 다음이다.
 
-- Redis는 Azure Managed Redis 재설계 전까지 core foundation smoke 대상에서 제외한다.
+- Redis는 `managed_redis_ready` apply 전까지 core foundation smoke 대상에서 제외한다.
 - Blob containers count와 public `tiles`, private `media` access boundary 확인
 - CDN/edge resource가 `core_foundation`으로 생성되지 않았는지 확인한다. `core_diagnostics` wave 이후에는 foundation 리소스 diagnostic setting 연결을 확인한다. `frontdoor_tile_edge` wave 이후에는 Azure Front Door Standard profile/endpoint/origin group/origin/route 존재를 확인한다. 기존 staging state가 private `tiles`로 남아 있으면 `frontdoor_origin_access` wave 이후 storage account public nested item 허용과 `tiles` blob access 전환까지 확인한다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 `frontdoor_diagnostics` wave에서 연결한다.
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
@@ -59,8 +59,8 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 현재 app phase smoke는 두 가지 전제 리스크를 함께 본다.
 
-- Redis는 Azure Managed Redis 방향이 확정되기 전까지 `/readyz` 최종 통과를 바로 보장하지 않는다.
-- Spring object storage adapter와 `/readyz` object storage check는 아직 MinIO-compatible endpoint를 가정하므로, true Azure Blob runtime 전환 전에는 별도 전환 또는 호환 경로 결정이 필요하다.
+- Redis는 `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신 전까지 `/readyz` 최종 통과를 바로 보장하지 않는다.
+- Spring object storage는 staging에서 `OBJECT_STORAGE_PROVIDER=azure_blob`를 사용한다. `/readyz`의 `objectStorage` dependency는 Blob container 접근을 확인하며, media smoke 전 runtime managed identity의 Blob data-plane RBAC를 확인해야 한다.
 
 ## 4. Blob/CDN smoke
 
@@ -75,7 +75,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 Private user media는 public CDN cache 대상으로 smoke하지 않는다. 공개 가능한 asset과 private media는 container/path/cache policy를 분리해서 검증한다. `tiles`는 public blob origin이지만 실제 사용자 media는 계속 private boundary에 남아야 한다.
 
-Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를 먼저 smoke한다. PMTiles는 Range `206`, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`를 확인한다. Custom domain/TLS와 DNS 변경은 별도 승인 전까지 수행하지 않는다.
+Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를 먼저 smoke한다. PMTiles는 Range `206`, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`를 확인한다. public tile/static은 credential 없는 읽기만 허용하므로 `Access-Control-Allow-Origin: *`가 기본 정상값이다. Custom domain/TLS와 DNS 변경은 별도 승인 전까지 수행하지 않는다.
 
 ## 5. Tile smoke
 
@@ -87,7 +87,7 @@ Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를
 | PMTiles Range | 206 |
 | `Accept-Ranges` | present |
 | `Content-Range` | present |
-| `Access-Control-Allow-Origin` | present |
+| `Access-Control-Allow-Origin` | `*` 또는 호출 origin과 동등한 허용값 |
 | `Access-Control-Expose-Headers` | `Accept-Ranges`, `Content-Length`, `Content-Range` 포함 |
 | Android MapLibre | blank/fallback grid/water-style 회귀 없음 |
 
