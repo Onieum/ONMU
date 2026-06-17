@@ -63,7 +63,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `managed_redis_ready`: Azure Managed Redis만 별도 생성한다.
 - `managed_redis_diagnostics`: Managed Redis diagnostic setting만 별도 생성한다.
 - `frontdoor_tile_edge`: Azure Front Door Standard profile/endpoint/origin group/origin/route. 기본료 발생으로 apply 전 별도 비용 승인 필요. staging 기준 route는 Blob `tiles` container를 `origin_path=/tiles`로 prefix한다. 이미 Front Door가 적용된 staging에서는 이 wave가 `azurerm_cdn_frontdoor_route` update 1건으로 수렴할 수 있다.
-- `frontdoor_origin_access`: 기존 staging Blob origin의 `tiles` public access와 tile/static browser CORS boundary를 보정하는 patch wave. 현재 state에 따라 storage account update 1건만 나올 수도 있고, `tiles` container access correction이 필요하면 container update 1건이 함께 나올 수 있다.
+- `frontdoor_origin_access`: 기존 staging Blob origin의 `tiles` public access와 tile/static browser CORS boundary를 보정하는 patch wave. 현재 state에 따라 storage account update 1건만 나올 수도 있고, `tiles` container access correction이 필요하면 container update 1건이 함께 나올 수 있다. public tile/static은 Front Door cache와 충돌하지 않게 wildcard CORS(`Access-Control-Allow-Origin: *`)를 기본값으로 둔다.
 - `frontdoor_diagnostics`: `frontdoor_tile_edge` apply 후 지원되는 Front Door scope의 diagnostic setting을 Log Analytics로 연결. 현재 staging 기준으로는 profile scope만 대상이다.
 - `postgres_ready`: PostgreSQL Flexible Server와 database/extension만 먼저 적용한다.
 - `api_app_ready`: Spring API Container App만 적용한다.

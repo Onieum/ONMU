@@ -13,17 +13,10 @@ locals {
     data_classification = var.data_classification
   }
 
-  tile_cors_allowed_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5175",
-    "http://127.0.0.1:5175",
-    "https://dev-api.onmu.cloud",
-    "https://int-api.onmu.cloud",
-    "https://staging-api.onmu.cloud",
-  ]
+  # Front Door caches Blob CORS response headers per object. Public tile/static
+  # assets do not use credentials, so staging keeps ACAO wildcard to avoid
+  # serving one caller origin's header value to another caller from edge cache.
+  tile_cors_allowed_origins = ["*"]
 
   resource_group_name     = var.create_resource_group ? module.resource_group[0].name : data.azurerm_resource_group.existing[0].name
   resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
