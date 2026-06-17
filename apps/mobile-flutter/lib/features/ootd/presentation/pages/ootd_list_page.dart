@@ -800,12 +800,7 @@ class _OotdListPageState extends State<OotdListPage> {
               '';
           final borderColor = _pastelBorders[day % _pastelBorders.length];
 
-          final int? bgColorIndex = record != null
-              ? int.tryParse(record.brands['bgColorIndex'] ?? '')
-              : null;
-          final Color cellBgColor = bgColorIndex != null
-              ? _bgColors[bgColorIndex].withOpacity(0.4)
-              : AppColors.bgDefault;
+          final cellBgColor = _calendarCellBackgroundColor(record);
 
           return MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -893,6 +888,17 @@ class _OotdListPageState extends State<OotdListPage> {
         },
       ),
     );
+  }
+
+  Color _calendarCellBackgroundColor(OotdRecord? record) {
+    final rawIndex = record?.brands['bgColorIndex'];
+    final bgColorIndex = int.tryParse(rawIndex ?? '');
+    if (bgColorIndex == null ||
+        bgColorIndex < 0 ||
+        bgColorIndex >= _bgColors.length) {
+      return AppColors.bgDefault;
+    }
+    return _bgColors[bgColorIndex].withOpacity(0.4);
   }
 }
 

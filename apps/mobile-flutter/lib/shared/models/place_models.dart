@@ -56,6 +56,26 @@ class PlaceCandidate {
   final DateTime? fetchedAt;
 
   bool get hasCoordinate => latitude != null && longitude != null;
+
+  String get categoryDistanceLabel {
+    final distance = distanceLabel.trim();
+    final categoryLabel = category.trim().isEmpty ? '장소' : category.trim();
+    return distance.isEmpty ? categoryLabel : '$categoryLabel · $distance';
+  }
+
+  String get categoryTravelLabel {
+    final travelTime = travelTimeLabel.trim();
+    final categoryLabel = category.trim().isEmpty ? '장소' : category.trim();
+    return travelTime.isEmpty ? categoryLabel : '$categoryLabel · $travelTime';
+  }
+
+  String get displayAddress {
+    final directAddress = address.trim();
+    if (directAddress.isNotEmpty) {
+      return directAddress;
+    }
+    return roadAddress.trim();
+  }
 }
 
 class MemberFit {

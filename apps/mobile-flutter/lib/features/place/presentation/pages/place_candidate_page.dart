@@ -405,7 +405,7 @@ class _CandidateListCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${candidate.category} · ${candidate.tags.take(2).join(' · ')}',
+                  _candidateMetaLabel(candidate),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -428,4 +428,12 @@ class _CandidateListCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _candidateMetaLabel(PlaceCandidate candidate) {
+  final tags = candidate.tags.take(2).toList(growable: false);
+  if (tags.isEmpty) {
+    return candidate.category;
+  }
+  return '${candidate.category} · ${tags.join(' · ')}';
 }

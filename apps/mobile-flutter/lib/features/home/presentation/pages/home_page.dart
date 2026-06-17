@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/group_models.dart';
+import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
@@ -17,6 +18,7 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/home_view_model.dart';
 import '../../view_model/home_notifications_view_model.dart';
+import '../widgets/home_recent_record_cards.dart';
 import '../../../preferences/preference_summary_page.dart';
 
 String _resolveDisplayName(AuthUser? user) {
@@ -126,6 +128,9 @@ class _HomeContent extends ConsumerWidget {
     final unreadCount = ref
         .watch(notificationUnreadCountProvider)
         .maybeWhen(data: (count) => count, orElse: () => 0);
+    final recentRecords = showOnlyPlans
+        ? null
+        : ref.watch(homeRecentRecordsProvider);
     return OnmuScaffold(
       children: [
         if (!showOnlyPlans) ...[
@@ -173,7 +178,7 @@ class _HomeContent extends ConsumerWidget {
             onTap: () => context.push(RoutePaths.homeRecentRecords),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const _EmptyRecentRecordCard(),
+          _RecentRecordsPreview(records: recentRecords),
         ],
       ],
     );
@@ -216,6 +221,48 @@ class _EmptyUpcomingPlanCard extends StatelessWidget {
           context,
         ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
       ),
+    );
+  }
+}
+
+class _RecentRecordsPreview extends StatelessWidget {
+  const _RecentRecordsPreview({required this.records});
+
+  final AsyncValue<List<OotdRecord>>? records;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = records;
+    if (value == null) {
+      return const SizedBox.shrink();
+    }
+
+    return value.when(
+      data: (records) {
+        if (records.isEmpty) {
+          return const HomeRecentRecordsEmptyCard();
+        }
+        return Column(
+          children: [
+            for (final record in records.take(2)) ...[
+              HomeRecentRecordCard(
+                record: record,
+                onTap: record.id == null
+                    ? null
+                    : () => context.push(RoutePaths.recordDetail(record.id!)),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ],
+        );
+      },
+      loading: () => const OnmuCard(
+        backgroundColor: AppColors.bgDefault,
+        borderColor: AppColors.lineSoft,
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stackTrace) => const HomeRecentRecordsEmptyCard(),
     );
   }
 }
@@ -534,25 +581,6 @@ class _TodayPlanCard extends StatelessWidget {
       plan.memberCount.clamp(0, 4).toInt(),
       (index) => GroupPlanMemberAvatar(name: '참여자 ${index + 1}'),
       growable: false,
-    );
-  }
-}
-
-class _EmptyRecentRecordCard extends StatelessWidget {
-  const _EmptyRecentRecordCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Text(
-        '최근 기록이 없어요.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-      ),
     );
   }
 }

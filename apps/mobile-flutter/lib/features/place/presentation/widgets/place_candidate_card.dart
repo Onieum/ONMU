@@ -34,20 +34,26 @@ class PlaceCandidateCard extends StatelessWidget {
           Text(candidate.name, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            '${candidate.category} · ${candidate.distanceLabel}',
+            candidate.categoryDistanceLabel,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(candidate.summary, style: Theme.of(context).textTheme.bodySmall),
+          if (candidate.summary.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              candidate.summary,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              OnmuChip(
-                label: candidate.travelTimeLabel,
-                icon: Icons.directions_walk,
-              ),
+              if (candidate.travelTimeLabel.trim().isNotEmpty)
+                OnmuChip(
+                  label: candidate.travelTimeLabel,
+                  icon: Icons.directions_walk,
+                ),
               for (final tag in candidate.tags.take(compact ? 2 : 3))
                 OnmuChip(label: tag),
             ],

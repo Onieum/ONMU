@@ -440,7 +440,7 @@ class _VoteCandidateTile extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${candidate.category} · ${candidate.travelTimeLabel}',
+                  candidate.categoryTravelLabel,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

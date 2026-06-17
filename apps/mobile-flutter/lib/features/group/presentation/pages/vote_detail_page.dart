@@ -84,7 +84,10 @@ class _VoteDetailContent extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  OnmuChip(label: state.vote.statusLabel, selected: true),
+                  OnmuChip(
+                    label: state.vote.displayStatusLabel,
+                    selected: true,
+                  ),
                   const Spacer(),
                   Text(
                     state.vote.participantCountLabel,
@@ -115,6 +118,7 @@ class _VoteDetailContent extends StatelessWidget {
             candidate: state.candidates[index],
             rank: index + 1,
             voters: state.votersFor(state.candidates[index].id),
+            voteCount: state.voteCountFor(state.candidates[index].id),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -128,15 +132,17 @@ class _VoteCandidateResult extends StatelessWidget {
     required this.candidate,
     required this.rank,
     required this.voters,
+    required this.voteCount,
   });
 
   final PlaceCandidate candidate;
   final int rank;
   final List<String> voters;
+  final int voteCount;
 
   @override
   Widget build(BuildContext context) {
-    final selected = voters.isNotEmpty;
+    final selected = voteCount > 0 || voters.isNotEmpty;
 
     return OnmuCard(
       backgroundColor: selected
@@ -174,7 +180,7 @@ class _VoteCandidateResult extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${candidate.category} · ${candidate.travelTimeLabel}',
+                  candidate.categoryTravelLabel,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -182,8 +188,10 @@ class _VoteCandidateResult extends StatelessWidget {
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    if (voters.isEmpty)
+                    if (voters.isEmpty && voteCount == 0)
                       const OnmuChip(label: '아직 선택한 사람이 없어요')
+                    else if (voters.isEmpty)
+                      OnmuChip(label: '$voteCount명 선택', selected: true)
                     else
                       for (final voter in voters)
                         OnmuChip(label: '$voter님 선택', selected: true),
@@ -194,7 +202,7 @@ class _VoteCandidateResult extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            '${voters.length}표',
+            '$voteCount표',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: selected ? AppColors.primaryPink : AppColors.textSub,
             ),

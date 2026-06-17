@@ -41,14 +41,24 @@ class VoteDetailState {
     required this.vote,
     required this.candidates,
     required this.votersByCandidateId,
+    required this.optionCountsByCandidateId,
   });
 
   final VoteCard vote;
   final List<PlaceCandidate> candidates;
   final Map<int, List<String>> votersByCandidateId;
+  final Map<int, int> optionCountsByCandidateId;
 
   List<String> votersFor(int candidateId) {
     return votersByCandidateId[candidateId] ?? const [];
+  }
+
+  int voteCountFor(int candidateId) {
+    final voters = votersFor(candidateId);
+    if (voters.isNotEmpty) {
+      return voters.length;
+    }
+    return optionCountsByCandidateId[candidateId] ?? 0;
   }
 }
 
@@ -136,6 +146,30 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
         groupId: scope.groupId,
         voteId: scope.voteId,
       ),
+      optionCountsByCandidateId: _optionCountsByCandidateId(vote.options),
     );
+  }
+
+  Map<int, int> _optionCountsByCandidateId(List<VoteOptionSummary> options) {
+    final counts = <int, int>{};
+    for (final option in options) {
+      final candidateId = _candidateIdForOption(option);
+      if (candidateId == 0 || option.responseCount <= 0) {
+        continue;
+      }
+      counts[candidateId] = option.responseCount;
+    }
+    return Map.unmodifiable(counts);
+  }
+
+  int _candidateIdForOption(VoteOptionSummary option) {
+    final candidateId = int.tryParse(option.candidateId.trim());
+    if (candidateId != null && candidateId != 0) {
+      return candidateId;
+    }
+    if (option.targetType.toUpperCase() == 'PLACE_CANDIDATE') {
+      return int.tryParse(option.targetId.trim()) ?? 0;
+    }
+    return 0;
   }
 }

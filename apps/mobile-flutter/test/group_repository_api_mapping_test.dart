@@ -202,6 +202,91 @@ void main() {
     },
   );
 
+  test('fetchVoteCard maps raw status to a display label', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 501,
+                'title': '제주도 여행 장소 투표',
+                'status': 'open',
+                'participantCount': 4,
+                'targetType': 'PLAN',
+                'targetId': '101',
+                'options': [
+                  {
+                    'id': 'vopt-501-1',
+                    'label': '온무식당',
+                    'candidateId': '201',
+                    'responseCount': 3,
+                    'countLabel': '3표',
+                    'progress': 0.75,
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final vote = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).fetchVoteCard(groupId: 1, voteId: 501);
+
+    expect(requestedPaths.single, '/api/v1/groups/1/votes/501');
+    expect(vote.statusLabel, 'open');
+    expect(vote.displayStatusLabel, '진행 중');
+    expect(vote.options.single.candidateId, '201');
+    expect(vote.options.single.responseCount, 3);
+  });
+
+  test(
+    'fetchVoteVoters maps option voter projections by candidate id',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 501,
+                  'title': '제주도 여행 장소 투표',
+                  'status': 'open',
+                  'options': [
+                    {
+                      'id': 'vopt-501-1',
+                      'label': '온무식당',
+                      'candidateId': '201',
+                      'voters': [
+                        {'displayName': '민서'},
+                        {'name': '하린'},
+                      ],
+                    },
+                  ],
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final voters = await ApiGroupRepository(
+        OnmuApiClient(dio),
+      ).fetchVoteVoters(groupId: 1, voteId: 501);
+
+      expect(voters[201], ['민서', '하린']);
+    },
+  );
+
   test('createVote sends selected place candidate ids to Spring API', () async {
     final requestedBodies = <Map<String, dynamic>>[];
     final dio = Dio();

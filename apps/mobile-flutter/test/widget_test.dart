@@ -68,6 +68,30 @@ void main() {
     expect(find.text('카카오로 시작하기'), findsNothing);
   });
 
+  testWidgets('completed user direct onboarding route returns home', (
+    tester,
+  ) async {
+    appRouter.go(RoutePaths.onboarding);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('캐릭터 만들기'), findsNothing);
+    expect(find.text('취향 선택'), findsNothing);
+  });
+
   testWidgets('starts with splash and opens login', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
 
@@ -203,6 +227,23 @@ void main() {
     expect(find.text('약속 이름'), findsOneWidget);
     expect(find.text('참여 멤버'), findsOneWidget);
     expect(find.text('참여자 선택'), findsNothing);
+  });
+
+  testWidgets('group plan schedule routes focus date time creation intent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planNewSchedule(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('날짜와 시간을 먼저 정해요'), findsOneWidget);
+
+    appRouter.go(RoutePaths.planNewCalendar(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('캘린더에서 날짜와 시간을 고르세요'), findsOneWidget);
   });
 
   testWidgets('plan create starts with current user and warns before saving', (
@@ -583,7 +624,7 @@ void main() {
     expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsNothing);
   });
 
-  testWidgets('home recent records see all opens empty record state', (
+  testWidgets('home recent records see all opens API record list', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -595,17 +636,27 @@ void main() {
     await tester.scrollUntilVisible(find.text('최근 기록'), 320);
     await tester.pumpAndSettle();
 
+    expect(find.text('한강 피크닉 기록'), findsOneWidget);
+
     await tester.tap(find.text('전체 보기').last);
     await tester.pumpAndSettle();
 
     expect(find.text('최근 기록'), findsOneWidget);
-    expect(find.text('최근 기록이 없어요.'), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('기록 카드 만들기'),
-      320,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('기록 카드 만들기'), findsOneWidget);
+    expect(find.text('한강 피크닉 기록'), findsOneWidget);
+    expect(find.text('성수 디저트룩'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsNothing);
+  });
+
+  testWidgets('records calendar ignores invalid bgColorIndex values', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.records);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('group home uses create plan fab only', (tester) async {
@@ -916,6 +967,20 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+  });
+
+  testWidgets('canonical plan edit route opens the edit screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planEdit(_groupId, 103));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+    expect(find.text('수정 완료'), findsOneWidget);
+    expect(find.text('Page Not Found'), findsNothing);
   });
 
   testWidgets('canonical group and plan routes open operating screens', (

@@ -87,36 +87,41 @@ final appRouter = GoRouter(
           final profile =
               ref.watch(preferenceProfileProvider) ?? PreferenceProfile.empty();
 
-          return PreferenceIntroPage(profile: profile);
+          return _OnboardingAccessGate(
+            child: PreferenceIntroPage(profile: profile),
+          );
         },
       ),
     ),
     GoRoute(
       path: RoutePaths.onboarding,
-      builder: (context, state) => const OnboardingHubPage(),
+      builder: (context, state) =>
+          const _OnboardingAccessGate(child: OnboardingHubPage()),
     ),
     GoRoute(
       path: RoutePaths.onboardingCharacter,
       builder: (context, state) => Consumer(
-        builder: (context, ref, child) => CharacterStartPage(
-          onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
-          onCompleted: (draft) async {
-            final router = GoRouter.of(context);
-            try {
-              await ref
-                  .read(onboardingCharacterControllerProvider)
-                  .saveCharacter(draft);
-              router.go(RoutePaths.onboarding);
-            } catch (_) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
-                  ),
-                );
+        builder: (context, ref, child) => _OnboardingAccessGate(
+          child: CharacterStartPage(
+            onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
+            onCompleted: (draft) async {
+              final router = GoRouter.of(context);
+              try {
+                await ref
+                    .read(onboardingCharacterControllerProvider)
+                    .saveCharacter(draft);
+                router.go(RoutePaths.onboarding);
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
+                    ),
+                  );
+                }
               }
-            }
-          },
+            },
+          ),
         ),
       ),
     ),
@@ -229,143 +234,158 @@ final appRouter = GoRouter(
                       ],
                     ),
                     GoRoute(
-                      path: 'plans/new',
-                      builder: (context, state) => PlanCreatePage(
-                        groupId: state.pathParameters['groupId']!,
-                        editingPlanId: state.uri.queryParameters['edit'],
-                      ),
-                    ),
-                    GoRoute(
                       path: 'plans',
                       builder: (context, state) => GroupPlanListPage(
                         groupId: state.pathParameters['groupId']!,
                       ),
-                    ),
-                    GoRoute(
-                      path: 'plans/new/schedule',
-                      builder: (context, state) => PlanCreatePage(
-                        groupId: state.pathParameters['groupId']!,
-                        editingPlanId: state.uri.queryParameters['edit'],
-                      ),
                       routes: [
                         GoRoute(
-                          path: 'calendar',
+                          path: 'new',
                           builder: (context, state) => PlanCreatePage(
                             groupId: state.pathParameters['groupId']!,
-                            editingPlanId: state.uri.queryParameters['edit'],
                           ),
-                        ),
-                      ],
-                    ),
-                    GoRoute(
-                      path: 'plans/:planId',
-                      builder: (context, state) => PlanDetailPage(
-                        groupId: state.pathParameters['groupId']!,
-                        planId: state.pathParameters['planId']!,
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: 'board',
-                          builder: (context, state) => GroupPlanBoardPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'place-candidates',
-                          builder: (context, state) {
-                            return PlaceCandidatePage(
-                              groupId: state.pathParameters['groupId']!,
-                              planId: state.pathParameters['planId']!,
-                            );
-                          },
                           routes: [
                             GoRoute(
-                              path: ':candidateId',
-                              builder: (context, state) => PlaceDetailPage(
+                              path: 'schedule',
+                              builder: (context, state) => PlanCreatePage(
                                 groupId: state.pathParameters['groupId']!,
-                                planId: state.pathParameters['planId']!,
-                                placeId: state.pathParameters['candidateId']!,
+                                entryIntent: PlanCreateEntryIntent.schedule,
                               ),
+                              routes: [
+                                GoRoute(
+                                  path: 'calendar',
+                                  builder: (context, state) => PlanCreatePage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    entryIntent: PlanCreateEntryIntent.calendar,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                         GoRoute(
-                          path: 'place-search',
-                          builder: (context, state) => PlaceMapPage(
+                          path: ':planId',
+                          builder: (context, state) => PlanDetailPage(
                             groupId: state.pathParameters['groupId']!,
                             planId: state.pathParameters['planId']!,
                           ),
                           routes: [
                             GoRoute(
-                              path: 'results',
+                              path: 'edit',
+                              builder: (context, state) => PlanCreatePage(
+                                groupId: state.pathParameters['groupId']!,
+                                editingPlanId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'board',
+                              builder: (context, state) => GroupPlanBoardPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'place-candidates',
+                              builder: (context, state) {
+                                return PlaceCandidatePage(
+                                  groupId: state.pathParameters['groupId']!,
+                                  planId: state.pathParameters['planId']!,
+                                );
+                              },
+                              routes: [
+                                GoRoute(
+                                  path: ':candidateId',
+                                  builder: (context, state) => PlaceDetailPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    placeId:
+                                        state.pathParameters['candidateId']!,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            GoRoute(
+                              path: 'place-search',
+                              builder: (context, state) => PlaceMapPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                              routes: [
+                                GoRoute(
+                                  path: 'results',
+                                  builder: (context, state) =>
+                                      PlaceSearchFilterPage(
+                                        groupId:
+                                            state.pathParameters['groupId']!,
+                                        planId: state.pathParameters['planId']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            GoRoute(
+                              path: 'votes',
+                              builder: (context, state) => GroupVoteListPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'votes/new',
+                              builder: (context, state) => PlaceVoteCreatePage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'votes/:voteId',
+                              builder: (context, state) => VoteDetailPage(
+                                groupId: state.pathParameters['groupId']!,
+                                voteId: state.pathParameters['voteId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'itinerary',
+                              builder: (context, state) => PlanItineraryPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new',
                               builder: (context, state) =>
-                                  PlaceSearchFilterPage(
+                                  PlanSettlementCreatePage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/items/:itemId/targets',
+                              builder: (context, state) =>
+                                  PlanSettlementTargetSelectionPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    itemId: state.pathParameters['itemId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/preview',
+                              builder: (context, state) =>
+                                  PlanSettlementDetailPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    preview: true,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/:settlementId',
+                              builder: (context, state) =>
+                                  PlanSettlementDetailPage(
                                     groupId: state.pathParameters['groupId']!,
                                     planId: state.pathParameters['planId']!,
                                   ),
                             ),
                           ],
-                        ),
-                        GoRoute(
-                          path: 'votes',
-                          builder: (context, state) => GroupVoteListPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'votes/new',
-                          builder: (context, state) => PlaceVoteCreatePage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'votes/:voteId',
-                          builder: (context, state) => VoteDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            voteId: state.pathParameters['voteId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'itinerary',
-                          builder: (context, state) => PlanItineraryPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new',
-                          builder: (context, state) => PlanSettlementCreatePage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new/items/:itemId/targets',
-                          builder: (context, state) =>
-                              PlanSettlementTargetSelectionPage(
-                                groupId: state.pathParameters['groupId']!,
-                                planId: state.pathParameters['planId']!,
-                                itemId: state.pathParameters['itemId']!,
-                              ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new/preview',
-                          builder: (context, state) => PlanSettlementDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                            preview: true,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/:settlementId',
-                          builder: (context, state) => PlanSettlementDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
                         ),
                       ],
                     ),
@@ -538,6 +558,32 @@ Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
     return RoutePaths.home;
   }
   return RoutePaths.onboarding;
+}
+
+class _OnboardingAccessGate extends ConsumerWidget {
+  const _OnboardingAccessGate({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bootstrap = ref.watch(authBootstrapProvider);
+    final user = bootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+    if (user?.hasCompletedOnboarding == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.go(RoutePaths.home);
+        }
+      });
+      return const SizedBox.shrink();
+    }
+
+    if (bootstrap.isLoading && user == null) {
+      return const SizedBox.shrink();
+    }
+
+    return child;
+  }
 }
 
 DateTime _recordDateFromState(GoRouterState state) {

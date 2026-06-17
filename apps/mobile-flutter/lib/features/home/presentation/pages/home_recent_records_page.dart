@@ -1,48 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../view_model/home_view_model.dart';
+import '../widgets/home_recent_record_cards.dart';
 
-class HomeRecentRecordsPage extends StatelessWidget {
+class HomeRecentRecordsPage extends ConsumerWidget {
   const HomeRecentRecordsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final records = ref.watch(homeRecentRecordsProvider);
+
     return OnmuScaffold(
       title: '최근 기록',
       showBackButton: true,
       onBack: () => context.popOrGo(RoutePaths.home),
       children: [
-        OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.lineSoft,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.photo_library_outlined,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                '최근 기록이 없어요.',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '서버에서 기록 데이터를 받으면 이곳에 표시돼요.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-              ),
-            ],
-          ),
+        records.when(
+          data: (records) {
+            if (records.isEmpty) {
+              return const HomeRecentRecordsEmptyCard();
+            }
+            return Column(
+              children: [
+                for (final record in records) ...[
+                  HomeRecentRecordCard(
+                    record: record,
+                    onTap: record.id == null
+                        ? null
+                        : () =>
+                              context.push(RoutePaths.recordDetail(record.id!)),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const HomeRecentRecordsEmptyCard(),
         ),
         const SizedBox(height: AppSpacing.xl),
         FilledButton.icon(

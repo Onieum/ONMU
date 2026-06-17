@@ -1,3 +1,5 @@
+import 'vote_models.dart';
+
 class GroupSummary {
   const GroupSummary({
     required this.id,
@@ -18,6 +20,28 @@ class GroupSummary {
   final String lastMessage;
   final int unreadCount;
   final String pinnedPlanTitle;
+
+  GroupSummary copyWith({
+    int? id,
+    String? name,
+    String? description,
+    List<String>? members,
+    List<GroupPlanMemberAvatar>? memberAvatars,
+    String? lastMessage,
+    int? unreadCount,
+    String? pinnedPlanTitle,
+  }) {
+    return GroupSummary(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      members: members ?? this.members,
+      memberAvatars: memberAvatars ?? this.memberAvatars,
+      lastMessage: lastMessage ?? this.lastMessage,
+      unreadCount: unreadCount ?? this.unreadCount,
+      pinnedPlanTitle: pinnedPlanTitle ?? this.pinnedPlanTitle,
+    );
+  }
 }
 
 class GroupPinnedPlan {
@@ -362,6 +386,7 @@ class VoteCard {
     this.participantCount = 0,
     this.targetType = '',
     this.targetId = '',
+    this.options = const [],
   });
 
   final String title;
@@ -371,8 +396,19 @@ class VoteCard {
   final int participantCount;
   final String targetType;
   final String targetId;
+  final List<VoteOptionSummary> options;
 
   String get participantCountLabel => '$participantCount명 참여';
+
+  String get displayStatusLabel {
+    final trimmed = statusLabel.trim();
+    final normalized = trimmed.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+    return switch (normalized) {
+      'open' || 'opened' || 'ongoing' || 'active' || 'inprogress' => '진행 중',
+      'closed' || 'close' || 'completed' || 'complete' || 'done' => '마감',
+      _ => trimmed.isEmpty ? '확인 필요' : trimmed,
+    };
+  }
 }
 
 class GroupMemberProfile {

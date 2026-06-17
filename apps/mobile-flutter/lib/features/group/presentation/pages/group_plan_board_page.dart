@@ -218,7 +218,7 @@ class _VoteCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${candidate.category} · ${candidate.distanceLabel}',
+                  candidate.categoryDistanceLabel,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.sm),

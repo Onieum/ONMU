@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,11 +15,13 @@ import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/repository/my_repository.dart';
+import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/notification_models.dart';
+import 'package:onmu_mobile/shared/models/ootd_model.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
@@ -45,6 +48,7 @@ ProviderContainer createOnmuTestContainer() {
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
       ),
+      recordRepositoryProvider.overrideWithValue(TestRecordRepository()),
       myRepositoryProvider.overrideWithValue(TestMyRepository()),
       characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
     ],
@@ -55,6 +59,7 @@ ProviderScope onmuTestProviderScope({
   required Widget child,
   AuthUser? user,
   MyRepository? myRepository,
+  RecordRepository? recordRepository,
   PreferenceProfile? preferenceProfile,
 }) {
   final store = InMemoryOnmuStore.seeded();
@@ -71,6 +76,9 @@ ProviderScope onmuTestProviderScope({
       ),
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
+      ),
+      recordRepositoryProvider.overrideWithValue(
+        recordRepository ?? TestRecordRepository(),
       ),
       myRepositoryProvider.overrideWithValue(
         myRepository ?? TestMyRepository(),
@@ -146,6 +154,101 @@ class TestCharacterRepository implements CharacterRepository {
   Future<CharacterDraft> saveMyCharacter(CharacterDraft draft) async {
     _draft = draft;
     return draft;
+  }
+}
+
+class TestRecordRepository implements RecordRepository {
+  TestRecordRepository({List<OotdRecord>? records})
+    : _records = List.of(records ?? defaultRecords);
+
+  static final defaultRecords = [
+    OotdRecord(
+      id: 'record-hangang-picnic',
+      date: DateTime(2026, 6, 10, 10),
+      character: const CharacterDraft(),
+      moodTags: const ['피크닉', '한강'],
+      brands: const {
+        'recordType': 'daily',
+        'title': '한강 피크닉 기록',
+        'weather': 'sunny',
+        'bgColorIndex': '99',
+      },
+      weather: 'sunny',
+      mood: 'calm',
+      timeline: const [
+        TimelineItem(
+          time: '10:00',
+          placeName: '여의도 한강공원',
+          category: 'daily',
+          description: '돗자리 펴고 같이 남긴 기록',
+        ),
+      ],
+    ),
+    OotdRecord(
+      id: 'record-seongsu-dessert',
+      date: DateTime(2026, 6, 8, 15),
+      character: const CharacterDraft(topStyleIndex: 1),
+      moodTags: const ['디저트', '성수'],
+      brands: const {
+        'recordType': 'ootd',
+        'title': '성수 디저트룩',
+        'weather': 'cloudy',
+        'bgColorIndex': '2',
+      },
+      weather: 'cloudy',
+      mood: 'happy',
+      timeline: const [
+        TimelineItem(
+          time: '15:00',
+          placeName: '성수동',
+          category: 'ootd',
+          description: '디저트 모임 착장',
+        ),
+      ],
+    ),
+  ];
+
+  final List<OotdRecord> _records;
+
+  @override
+  Future<List<OotdRecord>> fetchMyRecords() async {
+    return List.unmodifiable(_records);
+  }
+
+  @override
+  Future<OotdRecord> createRecord(OotdRecord record) async {
+    final saved = record.id == null || record.id!.isEmpty
+        ? record.copyWith(id: 'record-${_records.length + 1}')
+        : record;
+    _records.insert(0, saved);
+    return saved;
+  }
+
+  @override
+  Future<OotdRecord> fetchRecord(String id) async {
+    return _records.firstWhere((record) => record.id == id);
+  }
+
+  @override
+  Future<OotdRecord> updateRecord(String id, OotdRecord record) async {
+    final index = _records.indexWhere((item) => item.id == id);
+    final updated = record.copyWith(id: id);
+    if (index < 0) {
+      _records.insert(0, updated);
+      return updated;
+    }
+    _records[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<void> deleteRecord(String id) async {
+    _records.removeWhere((record) => record.id == id);
+  }
+
+  @override
+  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
+    return 'https://cdn.onmu.test/$fileName';
   }
 }
 

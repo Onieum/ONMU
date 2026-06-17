@@ -121,9 +121,8 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
       onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         canLeavePlan: canLeavePlan,
-        onEditPressed: () => context.push(
-          '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',
-        ),
+        onEditPressed: () =>
+            context.push(RoutePaths.planEdit(widget.groupId, widget.planId)),
         onLeavePressed: () => _leavePlan(context, widget.onRemoveCurrentUser),
       ),
       bottom: _DraftPlaceActions(
@@ -288,9 +287,8 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
       onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         canLeavePlan: canLeavePlan,
-        onEditPressed: () => context.push(
-          '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',
-        ),
+        onEditPressed: () =>
+            context.push(RoutePaths.planEdit(widget.groupId, widget.planId)),
         onLeavePressed: () => _leavePlan(context, widget.onRemoveCurrentUser),
       ),
       bottom: OnmuPrimaryButton(

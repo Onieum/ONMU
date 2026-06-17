@@ -293,15 +293,21 @@ class ApiGroupRepository implements GroupRepository {
     final vote = await _client.getObject(
       '/api/v1/groups/$groupId/votes/$voteId',
     );
-    final options = _optionLabels(vote);
+    final optionSummaries = _voteOptionSummaries(vote);
+    final options = optionSummaries.map((option) => option.label).toList();
     return VoteCard(
       title: OnmuJson.readString(vote, 'title', '투표'),
       summary: options.isEmpty ? '투표 후보를 불러왔어요.' : options.join(', '),
-      statusLabel: OnmuJson.readString(vote, 'status', 'open'),
+      statusLabel: OnmuJson.readString(
+        vote,
+        'status',
+        OnmuJson.readBool(vote, 'closed') ? 'closed' : 'open',
+      ),
       actionLabel: '투표 보기',
       participantCount: OnmuJson.readInt(vote, 'participantCount'),
       targetType: OnmuJson.readString(vote, 'targetType'),
       targetId: OnmuJson.readString(vote, 'targetId'),
+      options: optionSummaries,
     );
   }
 
@@ -310,7 +316,10 @@ class ApiGroupRepository implements GroupRepository {
     required Object groupId,
     required Object voteId,
   }) async {
-    return const {};
+    final vote = await _client.getObject(
+      '/api/v1/groups/$groupId/votes/$voteId',
+    );
+    return _voteVotersByCandidateId(vote);
   }
 
   GroupSummary _groupSummary(Map<String, dynamic> json) {
@@ -681,22 +690,89 @@ class ApiGroupRepository implements GroupRepository {
         0;
   }
 
-  List<String> _optionLabels(Map<String, dynamic> json) {
-    final rawOptions = json['options'];
-    if (rawOptions is List) {
-      return rawOptions
-          .map((option) {
-            if (option is Map) {
-              return option['label']?.toString() ??
-                  option['name']?.toString() ??
-                  '';
-            }
-            return option.toString();
-          })
-          .where((label) => label.isNotEmpty)
-          .toList(growable: false);
+  Map<int, List<String>> _voteVotersByCandidateId(Map<String, dynamic> json) {
+    final fromProjection = _votersByCandidateMap(json['votersByCandidateId']);
+    if (fromProjection.isNotEmpty) {
+      return fromProjection;
     }
-    return const [];
+
+    final voters = <int, List<String>>{};
+    for (final option in OnmuJson.asMapList(json['options'])) {
+      final candidateId = _candidateIdFromVoteOption(option);
+      if (candidateId == 0) {
+        continue;
+      }
+      final names = _voterNames(option['voters'])
+          .ifEmpty(() => _voterNames(option['voterNames']))
+          .ifEmpty(() => _voterNames(option['respondents']));
+      if (names.isNotEmpty) {
+        voters[candidateId] = names;
+      }
+    }
+    return Map.unmodifiable(voters);
+  }
+
+  Map<int, List<String>> _votersByCandidateMap(Object? raw) {
+    if (raw is! Map) {
+      return const {};
+    }
+    final result = <int, List<String>>{};
+    for (final entry in raw.entries) {
+      final candidateId = int.tryParse(entry.key.toString()) ?? 0;
+      if (candidateId == 0) {
+        continue;
+      }
+      final names = _voterNames(entry.value);
+      if (names.isNotEmpty) {
+        result[candidateId] = names;
+      }
+    }
+    return Map.unmodifiable(result);
+  }
+
+  List<String> _voterNames(Object? raw) {
+    if (raw is! List) {
+      return const [];
+    }
+    return raw
+        .map((voter) {
+          if (voter is Map) {
+            final map = Map<String, dynamic>.from(voter);
+            return OnmuJson.readString(
+              map,
+              'displayName',
+              OnmuJson.readString(
+                map,
+                'name',
+                OnmuJson.readString(map, 'nickname'),
+              ),
+            );
+          }
+          return voter.toString();
+        })
+        .where((name) => name.trim().isNotEmpty)
+        .map((name) => name.trim())
+        .toList(growable: false);
+  }
+
+  int _candidateIdFromVoteOption(Map<String, dynamic> option) {
+    final candidateId = int.tryParse(
+      OnmuJson.readString(option, 'candidateId'),
+    );
+    if (candidateId != null && candidateId != 0) {
+      return candidateId;
+    }
+    if (OnmuJson.readString(option, 'targetType').toUpperCase() ==
+        'PLACE_CANDIDATE') {
+      return int.tryParse(OnmuJson.readString(option, 'targetId')) ?? 0;
+    }
+    return 0;
+  }
+}
+
+extension _ListFallback<T> on List<T> {
+  List<T> ifEmpty(List<T> Function() fallback) {
+    return isEmpty ? fallback() : this;
   }
 }
 

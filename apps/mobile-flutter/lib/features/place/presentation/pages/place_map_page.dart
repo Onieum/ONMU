@@ -928,20 +928,23 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${candidate.category} · ${candidate.distanceLabel}',
+                candidate.categoryDistanceLabel,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              Text(
-                candidate.address,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (candidate.displayAddress.isNotEmpty)
+                Text(
+                  candidate.displayAddress,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               const SizedBox(height: AppSpacing.sm),
-              _InfoBlock(
-                title: candidate.openingLabel,
-                body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
-                trailing: candidate.isOpen ? '영업중' : '확인 필요',
-              ),
-              const Divider(height: AppSpacing.xl),
+              if (candidate.openingLabel.trim().isNotEmpty) ...[
+                _InfoBlock(
+                  title: candidate.openingLabel,
+                  body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
+                  trailing: candidate.isOpen ? '영업중' : '확인 필요',
+                ),
+                const Divider(height: AppSpacing.xl),
+              ],
               Text('리뷰 키워드', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
@@ -1057,9 +1060,9 @@ class _RecommendationTile extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      candidate.address.isEmpty
+                      candidate.displayAddress.isEmpty
                           ? candidate.summary
-                          : candidate.address,
+                          : candidate.displayAddress,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(
@@ -1071,19 +1074,21 @@ class _RecommendationTile extends StatelessWidget {
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
                       children: [
-                        _MetricChip(
-                          icon: Icons.directions_walk,
-                          label: candidate.travelTimeLabel,
-                        ),
-                        _MetricChip(
-                          icon: candidate.isOpen
-                              ? Icons.circle
-                              : Icons.error_outline,
-                          label: candidate.isOpen ? '영업 중' : '확인 필요',
-                          color: candidate.isOpen
-                              ? AppColors.accentRed
-                              : AppColors.textMuted,
-                        ),
+                        if (candidate.travelTimeLabel.trim().isNotEmpty)
+                          _MetricChip(
+                            icon: Icons.directions_walk,
+                            label: candidate.travelTimeLabel,
+                          ),
+                        if (candidate.openingLabel.trim().isNotEmpty)
+                          _MetricChip(
+                            icon: candidate.isOpen
+                                ? Icons.circle
+                                : Icons.error_outline,
+                            label: candidate.isOpen ? '영업 중' : '확인 필요',
+                            color: candidate.isOpen
+                                ? AppColors.accentRed
+                                : AppColors.textMuted,
+                          ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),

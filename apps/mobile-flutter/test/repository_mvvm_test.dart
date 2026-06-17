@@ -45,6 +45,22 @@ void main() {
     expect(state.groupCount, 1);
   });
 
+  test('온모임 목록 ViewModel은 비어 있는 요약을 멤버와 약속 API로 보강한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_SparseGroupListRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+    final group = state.groups.single;
+
+    expect(group.members, ['지우', '민수']);
+    expect(group.memberAvatars.map((member) => member.name), ['지우', '민수']);
+    expect(group.pinnedPlanTitle, '서버 보강 약속');
+  });
+
   test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -390,6 +406,29 @@ void main() {
     expect(state.vote.title, '제주도 여행 장소 투표');
     expect(state.candidates.first.name, '온무식당');
     expect(state.votersFor(201), contains('민서'));
+  });
+
+  test('투표 상세 ViewModel은 voters projection이 없어도 option count를 유지한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _VoteCountOnlyGroupRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: '101',
+      )).future,
+    );
+
+    expect(state.votersFor(9901), isEmpty);
+    expect(state.voteCountFor(9901), 3);
   });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
@@ -1241,6 +1280,59 @@ class _EmptyGroupRepository implements GroupRepository {
   }
 }
 
+class _SparseGroupListRepository extends _EmptyGroupRepository {
+  static const _group = GroupSummary(
+    id: 77,
+    name: '요약 부족 모임',
+    description: '목록 응답이 일부 필드를 생략한 상태',
+    members: [],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '약속 준비 중',
+  );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return const [
+      GroupMemberProfile(
+        userId: 'user-jiwoo',
+        name: '지우',
+        note: '참여 중',
+        statusLabel: '참여 중',
+        profileImageUrl: 'https://cdn.onmu.test/jiwoo.png',
+      ),
+      GroupMemberProfile(
+        userId: 'user-minsu',
+        name: '민수',
+        note: '참여 중',
+        statusLabel: '참여 중',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 7701,
+        title: '서버 보강 약속',
+        dateLabel: '6월 18일 10:00',
+        startsAt: DateTime.utc(2026, 6, 18, 1),
+        placeName: '성수동',
+        statusLabel: '예정',
+        statusType: 'scheduled',
+        memberCount: 2,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+    ];
+  }
+}
+
 class _TodayPlansGroupRepository extends _EmptyGroupRepository {
   static const _group = GroupSummary(
     id: 7,
@@ -1777,6 +1869,41 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
   }) async => _summary;
+}
+
+class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return VoteCard(
+      title: '응답 수만 있는 투표',
+      summary: '목업 카페',
+      statusLabel: 'open',
+      actionLabel: '투표 보기',
+      participantCount: 3,
+      targetType: 'PLAN',
+      targetId: '101',
+      options: [
+        VoteOptionSummary(
+          label: '목업 카페',
+          countLabel: '3표',
+          progress: 1,
+          candidateId: '9901',
+          responseCount: 3,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return const {};
+  }
 }
 
 class _FakePlaceRepository implements PlaceRepository {

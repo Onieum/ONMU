@@ -6,6 +6,7 @@ import 'package:onmu_mobile/core/routing/route_paths.dart';
 void main() {
   test('RoutePaths builds operating plan and record routes', () {
     expect(RoutePaths.planDetail(1, 101), '/groups/1/plans/101');
+    expect(RoutePaths.planEdit(1, 103), '/groups/1/plans/103/edit');
     expect(RoutePaths.planItinerary(1, 101), '/groups/1/plans/101/itinerary');
     expect(RoutePaths.records, '/records');
   });
