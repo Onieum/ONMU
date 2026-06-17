@@ -34,4 +34,13 @@ void main() {
       expect(source, isNot(contains(forbidden)));
     }
   });
+
+  test('place search route disables platform slide transition', () {
+    final source = File('lib/core/routing/app_router.dart').readAsStringSync();
+    final placeSearchRoute = RegExp(
+      r"path: 'place-search',[\s\S]*?NoTransitionPage<void>",
+    );
+
+    expect(source, contains(placeSearchRoute));
+  });
 }

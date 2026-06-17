@@ -309,10 +309,14 @@ final appRouter = GoRouter(
                             ),
                             GoRoute(
                               path: 'place-search',
-                              builder: (context, state) => PlaceMapPage(
-                                groupId: state.pathParameters['groupId']!,
-                                planId: state.pathParameters['planId']!,
-                              ),
+                              pageBuilder: (context, state) =>
+                                  NoTransitionPage<void>(
+                                    key: state.pageKey,
+                                    child: PlaceMapPage(
+                                      groupId: state.pathParameters['groupId']!,
+                                      planId: state.pathParameters['planId']!,
+                                    ),
+                                  ),
                               routes: [
                                 GoRoute(
                                   path: 'results',
