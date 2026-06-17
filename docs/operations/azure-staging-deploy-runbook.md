@@ -36,6 +36,12 @@
 | 최종 acceptance 판정 | [Azure staging smoke checklist](./azure-staging-smoke-checklist.md) |
 | legacy Windows dev backend 확인 | [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md) |
 
+추가로 같이 볼 문서:
+
+- app phase 직전 조건을 다시 확인할 때: [Azure ACA 앱 배포 사전 점검](./azure-aca-app-preflight.md)
+- 환경별 callback, define, host 차이를 비교할 때: [Azure 환경 매트릭스](./azure-environment-matrix.md)
+- cutover/rollback 판단이 필요한 경우: [Azure cutover/rollback runbook](./azure-cutover-rollback.md)
+
 ## 3. 배포 전에 확인할 것
 
 ### 3.1 GitHub 기준
@@ -173,6 +179,22 @@ secret refresh 뒤에는 최소한 아래 순서로 다시 본다.
 | provider console 변경 | 아니오 | 아니오 | 예 |
 | DNS/custom domain 변경 | 아니오 | 아니오 | 예 |
 | RBAC role assignment | 경우에 따라 Terraform 가능하지만 현재는 수동 gate 우선 | 예 | 예 |
+
+## 5.1 운영자가 직접 만지는 대표 항목
+
+| 항목 | 표준 대상 | 기본 원칙 |
+| --- | --- | --- |
+| GitHub image ref | `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE` | image build 결과만 반영하고 app wave 전에 값만 갱신 |
+| runtime secret value | 재사용 Key Vault `onmu-dev-kv-27db5e` | secret value는 Key Vault에만 쓰고 문서/PR/log에는 secret name만 남김 |
+| OAuth/provider console | Kakao, Naver, Google, 외부 provider console | callback host와 공개 client 설정만 확인하고 secret 값은 출력하지 않음 |
+| custom domain/DNS | `staging-api.onmu.cloud`, `tiles.onmu.cloud` | smoke 전후 host 분리, 승인 없는 즉시 변경 금지 |
+| tile object | `stonmustagingkrc001` `tiles` container | `manifest.json`, style, PMTiles 같은 서비스 필수 object만 운영 반영 |
+
+주의:
+
+- mock data, demo-only seed, 불필요한 sample media는 운영 기본선에 넣지 않는다.
+- 필수 asset이 아니라면 앱 동작에 필요한 최소 object만 유지한다.
+- 수동 운영 조치 뒤에는 해당 기능 smoke만 최소 범위로 다시 돌린다.
 
 ## 6. retry / restart / rollback 기준
 

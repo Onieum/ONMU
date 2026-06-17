@@ -26,6 +26,12 @@
 4. [OAuth 모바일 smoke 검증 워크플로](./oauth-mobile-smoke.md)
 5. [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md) - dev/rollback이 필요할 때만
 
+추가 참고:
+
+- app phase 직전 세부 gate: [Azure ACA 앱 배포 사전 점검](./azure-aca-app-preflight.md)
+- environment별 host/callback/define 비교: [Azure 환경 매트릭스](./azure-environment-matrix.md)
+- cutover/rollback 단계: [Azure cutover/rollback runbook](./azure-cutover-rollback.md)
+
 ## 4. 누가 무엇을 직접 해도 되는가
 
 | 작업 | 일반 구현자 | 리뷰어/승인자 | 운영자 |
