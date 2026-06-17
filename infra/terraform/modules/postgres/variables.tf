@@ -65,6 +65,15 @@ variable "enabled_extensions" {
   type        = list(string)
 }
 
+variable "firewall_rules" {
+  description = "Optional public firewall rules for clients that must reach the PostgreSQL server before private networking is introduced."
+  type = map(object({
+    start_ip_address = string
+    end_ip_address   = string
+  }))
+  default = {}
+}
+
 variable "tags" {
   description = "Required common tags."
   type        = map(string)
