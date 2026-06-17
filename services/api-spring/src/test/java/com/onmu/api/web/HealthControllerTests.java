@@ -19,7 +19,7 @@ class HealthControllerTests {
     when(readinessProbeService.check()).thenReturn(new ReadinessReport(true, Map.of(
       "postgres", Map.of("ok", true, "required", true, "detail", "connection_valid"),
       "redis", Map.of("ok", true, "required", true, "detail", "tcp_connect_ok"),
-      "minio", Map.of("ok", true, "required", true, "detail", "http_200")
+      "objectStorage", Map.of("ok", true, "required", true, "provider", "azure_blob", "detail", "azure_blob_container_exists")
     )));
     MockMvc mvc = MockMvcBuilders.standaloneSetup(new HealthController(readinessProbeService, "test")).build();
 
@@ -28,7 +28,7 @@ class HealthControllerTests {
       .andExpect(jsonPath("$.ok").value(true))
       .andExpect(jsonPath("$.dependencies.postgres.required").value(true))
       .andExpect(jsonPath("$.dependencies.redis.detail").value("tcp_connect_ok"))
-      .andExpect(jsonPath("$.dependencies.minio.detail").value("http_200"));
+      .andExpect(jsonPath("$.dependencies.objectStorage.provider").value("azure_blob"));
   }
 
   @Test
@@ -37,7 +37,7 @@ class HealthControllerTests {
     when(readinessProbeService.check()).thenReturn(new ReadinessReport(false, Map.of(
       "postgres", Map.of("ok", true, "required", true, "detail", "connection_valid"),
       "redis", Map.of("ok", false, "required", true, "error", "ConnectException"),
-      "minio", Map.of("ok", true, "required", true, "detail", "http_200")
+      "objectStorage", Map.of("ok", true, "required", true, "provider", "minio", "detail", "minio_http_200")
     )));
     MockMvc mvc = MockMvcBuilders.standaloneSetup(new HealthController(readinessProbeService, "test")).build();
 

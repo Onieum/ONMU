@@ -3,9 +3,9 @@ package com.onmu.api.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import java.net.URI;
+import com.onmu.api.storage.ObjectStorageClient;
+import com.onmu.api.storage.ObjectStorageProvider;
 import java.sql.Connection;
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
@@ -26,7 +26,7 @@ class ReadinessProbeServiceTests {
         host.set(targetHost);
         port.set(targetPort);
       },
-      (uri, timeout) -> 200
+      readyStorage(ObjectStorageProvider.MINIO, "minio_http_200")
     );
 
     var report = service.check();
@@ -49,7 +49,7 @@ class ReadinessProbeServiceTests {
         host.set(targetHost);
         port.set(targetPort);
       },
-      (uri, timeout) -> 200
+      readyStorage(ObjectStorageProvider.MINIO, "minio_http_200")
     );
 
     var report = service.check();
@@ -69,7 +69,7 @@ class ReadinessProbeServiceTests {
       (targetHost, targetPort, timeoutMillis) -> {
         throw new AssertionError("Redis connector should not be called for invalid config");
       },
-      (uri, timeout) -> 200
+      readyStorage(ObjectStorageProvider.MINIO, "minio_http_200")
     );
 
     var report = service.check();
@@ -79,41 +79,37 @@ class ReadinessProbeServiceTests {
   }
 
   @Test
-  void appendsMinioHealthPath() throws Exception {
-    AtomicReference<URI> calledUri = new AtomicReference<>();
+  void reportsObjectStorageProviderWhenReady() throws Exception {
     ReadinessProbeService service = service(
       new MockEnvironment()
-        .withProperty("REDIS_URL", "redis://localhost:6379/0")
-        .withProperty("MINIO_ENDPOINT", "http://localhost:9000"),
+        .withProperty("REDIS_URL", "redis://localhost:6379/0"),
       (targetHost, targetPort, timeoutMillis) -> {
       },
-      (uri, timeout) -> {
-        calledUri.set(uri);
-        return 200;
-      }
+      readyStorage(ObjectStorageProvider.AZURE_BLOB, "azure_blob_container_exists")
     );
 
     var report = service.check();
 
     assertThat(report.ok()).isTrue();
-    assertThat(calledUri.get()).isEqualTo(URI.create("http://localhost:9000/minio/health/live"));
+    assertThat(report.dependencies().get("objectStorage").toString())
+      .contains("azure_blob")
+      .contains("azure_blob_container_exists");
   }
 
   @Test
-  void schemeLessMinioEndpointMarksMinioAsDownWithoutEchoingEndpoint() throws Exception {
+  void failedObjectStorageReadinessDoesNotEchoEndpoint() throws Exception {
     ReadinessProbeService service = service(
       new MockEnvironment()
-        .withProperty("REDIS_URL", "redis://localhost:6379/0")
-        .withProperty("MINIO_ENDPOINT", "localhost:9000"),
+        .withProperty("REDIS_URL", "redis://localhost:6379/0"),
       (targetHost, targetPort, timeoutMillis) -> {
       },
-      (uri, timeout) -> 200
+      downStorage(ObjectStorageProvider.MINIO, "invalid_minio_config")
     );
 
     var report = service.check();
 
     assertThat(report.ok()).isFalse();
-    assertThat(report.dependencies().get("minio").toString())
+    assertThat(report.dependencies().get("objectStorage").toString())
       .contains("invalid_minio_config")
       .doesNotContain("localhost:9000");
   }
@@ -121,12 +117,26 @@ class ReadinessProbeServiceTests {
   private ReadinessProbeService service(
     MockEnvironment environment,
     ReadinessProbeService.TcpConnector tcpConnector,
-    ReadinessProbeService.HttpStatusReader httpStatusReader
+    ObjectStorageClient objectStorageClient
   ) throws Exception {
     DataSource dataSource = Mockito.mock(DataSource.class);
     Connection connection = Mockito.mock(Connection.class);
     when(dataSource.getConnection()).thenReturn(connection);
     when(connection.isValid(2)).thenReturn(true);
-    return new ReadinessProbeService(dataSource, environment, tcpConnector, httpStatusReader);
+    return new ReadinessProbeService(dataSource, environment, objectStorageClient, tcpConnector);
+  }
+
+  private ObjectStorageClient readyStorage(ObjectStorageProvider provider, String detail) {
+    ObjectStorageClient client = Mockito.mock(ObjectStorageClient.class);
+    when(client.provider()).thenReturn(provider);
+    when(client.checkReadiness()).thenReturn(ObjectStorageClient.ReadinessResult.ok(detail));
+    return client;
+  }
+
+  private ObjectStorageClient downStorage(ObjectStorageProvider provider, String error) {
+    ObjectStorageClient client = Mockito.mock(ObjectStorageClient.class);
+    when(client.provider()).thenReturn(provider);
+    when(client.checkReadiness()).thenReturn(ObjectStorageClient.ReadinessResult.down(error));
+    return client;
   }
 }

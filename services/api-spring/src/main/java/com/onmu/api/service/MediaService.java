@@ -1,26 +1,18 @@
 package com.onmu.api.service;
 
+import com.onmu.api.storage.ObjectStorageClient;
+import com.onmu.api.storage.ObjectStorageException;
+import com.onmu.api.storage.ObjectStorageNotFoundException;
+import com.onmu.api.storage.ObjectStorageObject;
 import com.onmu.api.web.dto.UploadMediaResponse;
 import com.onmu.api.web.dto.PresignedUrlResponse;
-import io.minio.BucketExistsArgs;
-import io.minio.GetObjectArgs;
-import io.minio.GetObjectResponse;
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.errors.ErrorResponseException;
-import java.io.IOException;
+import java.time.Duration;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,68 +33,24 @@ public class MediaService {
     ".heif"
   );
 
-  private final String endpoint;
-  private final String bucket;
-  private final MinioClient minioClient;
+  private static final Duration PRESIGNED_URL_TTL = Duration.ofHours(1);
 
-  @Autowired
-  public MediaService(
-      @Value("${OBJECT_STORAGE_ENDPOINT:http://localhost:9000}") String endpoint,
-      @Value("${OBJECT_STORAGE_BUCKET:onmu-local}") String bucket,
-      @Value("${MINIO_ROOT_USER:onmu}") String accessKey,
-      @Value("${MINIO_ROOT_PASSWORD:onmu-local-only}") String secretKey
-  ) {
-    this.endpoint = endpoint;
-    this.bucket = bucket;
-    this.minioClient = MinioClient.builder()
-        .endpoint(endpoint)
-        .credentials(accessKey, secretKey)
-        .build();
-    ensureBucketExists();
-  }
+  private final ObjectStorageClient objectStorageClient;
 
-  MediaService(String endpoint, String bucket, MinioClient minioClient) {
-    this.endpoint = endpoint;
-    this.bucket = bucket;
-    this.minioClient = minioClient;
-  }
-
-  private void ensureBucketExists() {
-    try {
-      boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
-      if (!exists) {
-        minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
-      }
-    } catch (Exception e) {
-      // Log error but do not prevent application startup
-      System.err.println("Warning: Failed to ensure MinIO bucket existence: " + e.getMessage());
-    }
+  public MediaService(ObjectStorageClient objectStorageClient) {
+    this.objectStorageClient = objectStorageClient;
   }
 
   public PublicMediaObject readPublicSeedMedia(String objectKey) {
     validatePublicSeedMediaKey(objectKey);
 
-    try (GetObjectResponse response = minioClient.getObject(
-        GetObjectArgs.builder()
-            .bucket(bucket)
-            .object(objectKey)
-            .build())) {
-      String contentType = response.headers().get("Content-Type");
-      if (!StringUtils.hasText(contentType)) {
-        contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
-      }
-      return new PublicMediaObject(response.readAllBytes(), contentType);
-    } catch (ErrorResponseException e) {
-      String code = e.errorResponse() != null ? e.errorResponse().code() : "";
-      int statusCode = e.response() != null ? e.response().code() : 0;
-      if ("NoSuchKey".equals(code) || "NoSuchObject".equals(code) || statusCode == 404) {
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "media_not_found", e);
-      }
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
-    } catch (IOException e) {
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
-    } catch (Exception e) {
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", e);
+    try {
+      ObjectStorageObject object = objectStorageClient.read(objectKey);
+      return new PublicMediaObject(object.content(), object.contentType());
+    } catch (ObjectStorageNotFoundException exception) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "media_not_found", exception);
+    } catch (ObjectStorageException exception) {
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_read_media", exception);
     }
   }
 
@@ -141,20 +89,13 @@ public class MediaService {
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
     try {
-      String uploadUrl = minioClient.getPresignedObjectUrl(
-          GetPresignedObjectUrlArgs.builder()
-              .method(io.minio.http.Method.PUT)
-              .bucket(bucket)
-              .object(storageKey)
-              .expiry(60 * 60) // 1 hour
-              .extraQueryParams(Map.of("Content-Type", imageContentType))
-              .build());
+      String uploadUrl = objectStorageClient.createUploadUrl(storageKey, imageContentType, PRESIGNED_URL_TTL);
 
       String publicUrl = publicMediaUrl(storageKey);
 
       return new PresignedUrlResponse(uploadUrl, storageKey, publicUrl);
-    } catch (Exception e) {
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_generate_presigned_url", e);
+    } catch (ObjectStorageException exception) {
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "failed_to_generate_presigned_url", exception);
     }
   }
 
@@ -175,18 +116,11 @@ public class MediaService {
     String storageKey = "records/media/" + UUID.randomUUID().toString() + extension;
 
     try {
-      minioClient.putObject(
-          PutObjectArgs.builder()
-              .bucket(bucket)
-              .object(storageKey)
-              .stream(file.getInputStream(), file.getSize(), -1)
-              .contentType(contentType)
-              .build());
-
+      objectStorageClient.upload(storageKey, file.getInputStream(), file.getSize(), contentType);
       String publicUrl = publicMediaUrl(storageKey);
       return new UploadMediaResponse(storageKey, publicUrl);
-    } catch (Exception e) {
-      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", e);
+    } catch (Exception exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", exception);
     }
   }
 

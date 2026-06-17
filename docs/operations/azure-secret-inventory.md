@@ -33,13 +33,15 @@ Spring CORS runtime의 1차 env는 현재 `ONMU_CORS_ORIGINS`다. `ONMU_DEV_CORS
 
 | Env var | Dev secret name | Staging secret name 후보 | Prod secret name 후보 | 대상 | Flutter 허용 |
 | --- | --- | --- | --- | --- | --- |
+| `OBJECT_STORAGE_PROVIDER` | config `minio` | config `azure_blob` | config `azure_blob` | Spring plain env | 아니오 |
 | `MINIO_ROOT_USER` | `dev-minio-root-user` | 사용 안 함 후보 | 사용 안 함 후보 | Windows dev MinIO | 아니오 |
 | `MINIO_ROOT_PASSWORD` | `dev-minio-root-password` | 사용 안 함 후보 | 사용 안 함 후보 | Windows dev MinIO | 아니오 |
 | `OBJECT_STORAGE_ENDPOINT` | `dev-object-storage-endpoint` 후보 | `staging-blob-endpoint` 후보 | `prod-blob-endpoint` 후보 | Spring | 아니오 |
 | `OBJECT_STORAGE_BUCKET` | `dev-object-storage-bucket` 후보 | `staging-blob-container` 후보 | `prod-blob-container` 후보 | Spring | 아니오 |
+| `AZURE_CLIENT_ID` 또는 `OBJECT_STORAGE_MANAGED_IDENTITY_CLIENT_ID` | 사용 안 함 후보 | managed identity client id config | managed identity client id config | Spring Azure Blob provider | 아니오 |
 | `AZURE_STORAGE_CONNECTION_STRING` | 사용 안 함 후보 | `staging-storage-connection-string` 후보 | `prod-storage-connection-string` 후보 | migration/tooling | 아니오 |
 
-Azure production에서는 connection string보다 managed identity/RBAC를 우선 검토한다.
+Azure staging/prod runtime에서는 connection string보다 managed identity/RBAC를 우선한다. `AZURE_CLIENT_ID`는 secret 값이 아니라 user-assigned managed identity 선택용 식별자지만, 보고에는 값 자체를 출력하지 않는다.
 
 ## 4. OAuth secrets and public defines
 

@@ -285,9 +285,11 @@ module "container_apps" {
     cpu          = 0.5
     memory       = "1Gi"
     plain_env = {
-      ONMU_ENV       = local.environment
-      SERVER_ADDRESS = "0.0.0.0"
-      SERVER_PORT    = "8080"
+      AZURE_CLIENT_ID         = module.key_vault[0].runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER = "azure_blob"
+      ONMU_ENV                = local.environment
+      SERVER_ADDRESS          = "0.0.0.0"
+      SERVER_PORT             = "8080"
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs

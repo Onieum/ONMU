@@ -65,12 +65,7 @@ docker run --rm `
 
 ACA staging 기준 probe는 `/healthz`, `/readyz`를 사용한다.
 
-현재 컨테이너 자산은 ACA 선행 준비용이다. 다만 staging target을 true Azure Blob으로 둘 때는 아래 두 전제를 같이 다시 봐야 한다.
-
-- `MediaService`는 아직 MinIO client와 access key/secret 기반 object storage 경로를 사용한다.
-- `/readyz`는 현재 `{OBJECT_STORAGE_ENDPOINT}/minio/health/live` 형태의 MinIO-compatible health check를 사용한다.
-
-즉, 컨테이너 이미지와 ACA resource를 먼저 준비하는 것은 가능하지만, Blob adapter 전환 또는 staging 전용 호환 경로 결정 없이 바로 `/readyz=200`을 기대하면 안 된다.
+Object storage는 provider abstraction을 사용한다. local/dev 기본값은 `minio`이고, Azure staging/prod는 `OBJECT_STORAGE_PROVIDER=azure_blob`로 Blob Storage SDK와 managed identity를 사용한다. API 계약은 provider와 무관하게 `POST /api/v1/media/upload`, `GET /api/v1/media/public?key=...`, `POST /api/v1/uploads/presigned-url`를 유지한다.
 
 ## 환경 변수
 
@@ -87,8 +82,12 @@ ACA staging 기준 probe는 `/healthz`, `/readyz`를 사용한다.
 | `REDIS_URL` | 없음 | Redis readiness와 Spring Data Redis cache가 함께 사용하는 우선 연결 문자열. DB 번호까지 포함한 URL을 권장 |
 | `SPRING_DATA_REDIS_URL` | 없음 | Spring Data Redis cache 전용 override. 설정되면 `REDIS_URL`보다 우선 |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | `REDIS_URL`이 없을 때 Redis TCP check와 Spring Data Redis cache의 fallback 대상 |
-| `OBJECT_STORAGE_ENDPOINT` | 없음 | MinIO readiness 우선 endpoint |
-| `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 MinIO health check endpoint |
+| `OBJECT_STORAGE_PROVIDER` | `minio` | `minio` 또는 `azure_blob`. staging/prod는 `azure_blob` 사용 |
+| `OBJECT_STORAGE_ENDPOINT` | 없음 | MinIO endpoint 또는 Azure Blob account endpoint |
+| `OBJECT_STORAGE_BUCKET` | `onmu-local` | MinIO bucket 또는 Azure Blob container name |
+| `OBJECT_STORAGE_MANAGED_IDENTITY_CLIENT_ID` / `AZURE_CLIENT_ID` | 없음 | Azure Blob provider가 user-assigned managed identity를 선택할 때 사용 |
+| `MINIO_ENDPOINT` | `http://localhost:9000` | `OBJECT_STORAGE_ENDPOINT`가 없을 때 local/dev MinIO fallback endpoint |
+| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | local dev 기본값 | `minio` provider에서만 사용. staging/prod `azure_blob` provider에서는 runtime 필수값이 아님 |
 | `ONMU_ENV` | `local` | health 응답 환경 표시 |
 | `ONMU_ACCESS_LOG_PATH` | `logs/api-access.log` | Spring request-level access log JSONL 파일 경로 |
 | `ONMU_ACCESS_TOKEN_SECRET` | 로컬 dev 기본값 | HS256 access JWT 서명 secret. 공유 dev/integration은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret`에서 주입 |
@@ -139,7 +138,7 @@ Health:
 - `GET /healthz`
 - `GET /readyz`
 
-`/readyz`는 PostgreSQL, Redis, MinIO를 모두 필수 의존성으로 확인합니다. Redis는 TCP socket으로, MinIO는 `{endpoint}/minio/health/live` HTTP 요청으로 검사합니다. 하나라도 실패하면 HTTP 503을 반환하고, 응답에는 dependency별 `ok`, `required`, `detail` 또는 `error`만 포함합니다.
+`/readyz`는 PostgreSQL, Redis, object storage를 모두 필수 의존성으로 확인합니다. Redis는 TCP socket으로 검사합니다. Object storage는 `minio` provider에서 `{endpoint}/minio/health/live` HTTP 요청을 사용하고, `azure_blob` provider에서 Blob container 접근을 확인합니다. 하나라도 실패하면 HTTP 503을 반환하고, 응답에는 dependency별 `ok`, `required`, `provider`, `detail` 또는 `error`만 포함합니다.
 
 Core API:
 

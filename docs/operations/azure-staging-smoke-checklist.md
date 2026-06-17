@@ -60,7 +60,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 현재 app phase smoke는 두 가지 전제 리스크를 함께 본다.
 
 - Redis는 `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신 전까지 `/readyz` 최종 통과를 바로 보장하지 않는다.
-- Spring object storage adapter와 `/readyz` object storage check는 아직 MinIO-compatible endpoint를 가정하므로, true Azure Blob runtime 전환 전에는 별도 전환 또는 호환 경로 결정이 필요하다.
+- Spring object storage는 staging에서 `OBJECT_STORAGE_PROVIDER=azure_blob`를 사용한다. `/readyz`의 `objectStorage` dependency는 Blob container 접근을 확인하며, media smoke 전 runtime managed identity의 Blob data-plane RBAC를 확인해야 한다.
 
 ## 4. Blob/CDN smoke
 
