@@ -71,6 +71,7 @@ Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terra
 
 사전 조건은 다음과 같다.
 
+- tile/static edge를 사용하는 staging이면 `frontdoor_origin_access`와 `frontdoor_diagnostics`까지 먼저 정리
 - `managed_redis_ready` apply 완료
 - 필요 시 `managed_redis_diagnostics` apply 완료
 - 운영자가 Azure Managed Redis access 정보로 Key Vault의 기존 `staging-redis-url` 값을 수동 갱신
