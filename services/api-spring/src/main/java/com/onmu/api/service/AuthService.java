@@ -109,7 +109,7 @@ public class AuthService {
   }
 
   private AuthIdentityEntity createIdentity(VerifiedOAuthIdentity verifiedIdentity) {
-    UserEntity user = userRepository.save(new UserEntity(
+    UserEntity user = userRepository.saveAndFlush(new UserEntity(
       nextPublicId("usr"),
       displayNameOrDefault(verifiedIdentity.displayName()),
       blankToNull(verifiedIdentity.email()),

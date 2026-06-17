@@ -51,7 +51,7 @@ public class OpenRouteServiceProvider implements RouteProvider {
       uri,
       Map.of(
         "Authorization", apiKey,
-        "Accept", "application/json",
+        "Accept", "application/geo+json",
         "Content-Type", "application/json"
       ),
       body

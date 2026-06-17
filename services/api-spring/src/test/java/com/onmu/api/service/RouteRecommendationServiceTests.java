@@ -79,6 +79,7 @@ class RouteRecommendationServiceTests {
       .containsEntry("distanceMeters", 1500L)
       .containsEntry("durationSeconds", 600L);
     assertThat(httpClient.lastUri.toString()).contains("/v2/directions/foot-walking/geojson");
+    assertThat(httpClient.lastHeaders).containsEntry("Accept", "application/geo+json");
     assertThat(httpClient.lastBody.toString()).contains("126.978");
   }
 
@@ -123,11 +124,13 @@ class RouteRecommendationServiceTests {
 
   private static final class FakeRouteHttpClient implements RouteHttpClient {
     private URI lastUri;
+    private Map<String, String> lastHeaders;
     private Map<String, Object> lastBody;
 
     @Override
     public String post(URI uri, Map<String, String> headers, Map<String, Object> body) {
       this.lastUri = uri;
+      this.lastHeaders = headers;
       this.lastBody = body;
       return """
         {
