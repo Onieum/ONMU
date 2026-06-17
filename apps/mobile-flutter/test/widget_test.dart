@@ -92,33 +92,34 @@ void main() {
     expect(find.text('취향 선택'), findsNothing);
   });
 
-  testWidgets('completed user direct onboarding child routes do not reparent shell', (
-    tester,
-  ) async {
-    const user = AuthUser(
-      id: '00000000-0000-0000-0000-000000000001',
-      publicId: 'user-me',
-      provider: 'NAVER',
-      displayName: '나',
-      onboardingStatus: 'COMPLETED',
-    );
-
-    for (final route in [
-      RoutePaths.onboardingPreferences,
-      RoutePaths.onboardingCharacter,
-    ]) {
-      appRouter.go(route);
-      await tester.pumpWidget(
-        onmuTestProviderScope(user: user, child: const app.OnmuMaterialApp()),
+  testWidgets(
+    'completed user direct onboarding child routes do not reparent shell',
+    (tester) async {
+      const user = AuthUser(
+        id: '00000000-0000-0000-0000-000000000001',
+        publicId: 'user-me',
+        provider: 'NAVER',
+        displayName: '나',
+        onboardingStatus: 'COMPLETED',
       );
-      await tester.pumpAndSettle();
 
-      expect(find.text('안녕하세요, 나님'), findsOneWidget);
-      expect(find.text('취향 선택'), findsNothing);
-      expect(find.text('캐릭터 만들기'), findsNothing);
-      expect(tester.takeException(), isNull);
-    }
-  });
+      for (final route in [
+        RoutePaths.onboardingPreferences,
+        RoutePaths.onboardingCharacter,
+      ]) {
+        appRouter.go(route);
+        await tester.pumpWidget(
+          onmuTestProviderScope(user: user, child: const app.OnmuMaterialApp()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('안녕하세요, 나님'), findsOneWidget);
+        expect(find.text('취향 선택'), findsNothing);
+        expect(find.text('캐릭터 만들기'), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets('starts with splash and opens login', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -1470,19 +1471,28 @@ void main() {
     expect(find.text('후보에 추가하기'), findsWidgets);
   });
 
-  testWidgets('route review date tabs can be selected', (tester) async {
+  testWidgets('route review date tabs can be selected from plan dates', (
+    tester,
+  ) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('6/8 일'));
+    final dateTabs = find.byWidgetPredicate((widget) {
+      return widget is Text &&
+          RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
+    });
+    expect(dateTabs, findsNWidgets(3));
+
+    await tester.tap(dateTabs.at(1));
     await tester.pumpAndSettle();
 
-    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+    final secondTabText = tester.widget<Text>(dateTabs.at(1));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
+    expect(find.text('6/8 일'), findsNothing);
   });
 
   testWidgets('group memory detail screen renders', (tester) async {

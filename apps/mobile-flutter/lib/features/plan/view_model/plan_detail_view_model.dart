@@ -19,6 +19,7 @@ class PlanDetailState {
     required this.plan,
     required this.selectedMembers,
     required this.visitPlansByDate,
+    required this.dateTabs,
     required this.participantArrivals,
     this.currentTime,
   });
@@ -26,6 +27,7 @@ class PlanDetailState {
   final Plan plan;
   final List<PlanMember> selectedMembers;
   final List<List<VisitPlan>> visitPlansByDate;
+  final List<PlanDateTab> dateTabs;
   final List<PlanParticipantArrival> participantArrivals;
   final DateTime? currentTime;
 
@@ -35,6 +37,16 @@ class PlanDetailState {
     }
 
     return visitPlansByDate[index];
+  }
+
+  PlanDateTab dateTabForDate(int index) {
+    if (dateTabs.isEmpty) {
+      return const PlanDateTab(tabLabel: '일정', headingLabel: '일정 동선');
+    }
+    if (index < 0 || index >= dateTabs.length) {
+      return dateTabs.first;
+    }
+    return dateTabs[index];
   }
 
   bool get canShareArrivalStatus =>
@@ -73,6 +85,9 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       ),
       visitPlansByDate: List.unmodifiable(
         displayVisitPlansByDate.map(List<VisitPlan>.unmodifiable),
+      ),
+      dateTabs: List.unmodifiable(
+        buildPlanDateTabs(plan: plan, dayCount: displayVisitPlansByDate.length),
       ),
       participantArrivals: List.unmodifiable(participantArrivals),
       currentTime: DateTime.now(),
@@ -181,4 +196,41 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
     ref.invalidateSelf();
     return plan;
   }
+}
+
+class PlanDateTab {
+  const PlanDateTab({required this.tabLabel, required this.headingLabel});
+
+  final String tabLabel;
+  final String headingLabel;
+}
+
+List<PlanDateTab> buildPlanDateTabs({
+  required Plan plan,
+  required int dayCount,
+}) {
+  final count = dayCount <= 0 ? 1 : dayCount;
+  final start =
+      plan.startsAt?.toLocal() ?? DateTime.tryParse(plan.dateTime)?.toLocal();
+  if (start == null) {
+    final fallback = plan.dateTime.trim().isEmpty ? '일정' : plan.dateTime.trim();
+    return [
+      for (var index = 0; index < count; index += 1)
+        PlanDateTab(
+          tabLabel: count == 1 ? fallback : 'Day ${index + 1}',
+          headingLabel: count == 1 ? '$fallback 동선' : 'Day ${index + 1} 동선',
+        ),
+    ];
+  }
+
+  return [
+    for (var index = 0; index < count; index += 1)
+      _dateTabFor(start.add(Duration(days: index))),
+  ];
+}
+
+PlanDateTab _dateTabFor(DateTime date) {
+  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  final label = '${date.month}/${date.day} ${weekdays[date.weekday - 1]}';
+  return PlanDateTab(tabLabel: label, headingLabel: '$label 동선');
 }

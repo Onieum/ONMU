@@ -16,6 +16,7 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
 import '../../view_model/plan_detail_view_model.dart';
+import '../../widgets/plan_date_tabs.dart';
 
 class PlanItineraryPage extends ConsumerStatefulWidget {
   const PlanItineraryPage({
@@ -106,14 +107,15 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                         setState(() => _travelMode = mode),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  _DateTabs(
+                  PlanDateTabs(
+                    tabs: state.dateTabs,
                     selectedIndex: _selectedDateIndex,
                     onChanged: (index) =>
                         setState(() => _selectedDateIndex = index),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    '6/7 토 동선',
+                    state.dateTabForDate(_selectedDateIndex).headingLabel,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -429,53 +431,6 @@ class RoutePoint extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxs),
         OnmuChip(label: label),
-      ],
-    );
-  }
-}
-
-class _DateTabs extends StatelessWidget {
-  const _DateTabs({required this.selectedIndex, required this.onChanged});
-
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final tabs = ['6/7 토', '6/8 일', '6/9 월'];
-
-    return Row(
-      children: [
-        for (var index = 0; index < tabs.length; index += 1)
-          Expanded(
-            child: InkWell(
-              onTap: () => onChanged(index),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    tabs[index],
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.textSub,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
