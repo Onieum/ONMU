@@ -105,7 +105,7 @@ Import 후 plan summary가 `azurerm_container_app_environment` create와 기존 
 
 `wave=key_vault_rbac`는 runtime managed identity에 Key Vault Secrets User 역할을 연결하는 전용 wave다. 이 wave는 Workload Identity 또는 운영자가 resource group/Key Vault scope에서 role assignment를 만들 권한을 갖는지 확인한 뒤 실행한다.
 
-Key Vault는 기존/재활용 vault를 사용할 수 있다. 이 경우에도 runtime managed identity가 secret reference를 읽으려면 Key Vault scope의 `Key Vault Secrets User` role assignment가 필요하다. Contributor 권한만으로 role assignment 생성이 막히면 apply를 반복하지 않는다. 속도 우선 기본값은 운영자가 기존 Key Vault scope에서 runtime managed identity에 `Key Vault Secrets User`를 수동 부여하는 것이다. IaC 일관성을 우선할 때만 Key Vault scope 한정 `Key Vault Data Access Administrator`, `User Access Administrator`, 또는 `Role Based Access Control Administrator` 부여를 별도 승인한다.
+Key Vault는 기존/재활용 vault를 사용할 수 있다. 현재 staging runtime secret source는 재사용 Key Vault를 기준으로 맞추고, Terraform이 기존에 만든 staging 전용 vault는 cleanup 승인 전까지 그대로 둔다. 이 경우에도 runtime managed identity가 secret reference를 읽으려면 재사용 Key Vault scope의 `Key Vault Secrets User` role assignment가 필요하다. Contributor 권한만으로 role assignment 생성이 막히면 apply를 반복하지 않는다. 속도 우선 기본값은 운영자가 기존 Key Vault scope에서 runtime managed identity에 `Key Vault Secrets User`를 수동 부여하는 것이다. IaC 일관성을 우선할 때만 Key Vault scope 한정 `Key Vault Data Access Administrator`, `User Access Administrator`, 또는 `Role Based Access Control Administrator` 부여를 별도 승인한다.
 
 ### Staging Core Diagnostics
 
@@ -123,7 +123,7 @@ ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` w
 
 `wave=managed_redis_diagnostics`는 Managed Redis resource id가 remote state에 기록된 뒤 diagnostic setting만 별도로 붙인다. 이 wave도 기존 foundation, Front Door, diagnostic setting은 no-op/read만 허용한다.
 
-Managed Redis는 access key 인증을 켜서 현재 Spring의 `REDIS_URL`, `SPRING_DATA_REDIS_URL` 계약을 그대로 유지한다. 다만 Terraform이 Key Vault secret value를 직접 쓰지는 않는다. 운영자는 Managed Redis apply 후 Azure Portal 또는 승인된 운영 경로에서 access key를 확인하고, 기존 `staging-redis-url` secret value를 수동 갱신해야 한다.
+Managed Redis는 access key 인증을 켜서 현재 Spring의 `REDIS_URL`, `SPRING_DATA_REDIS_URL` 계약을 그대로 유지한다. 다만 Terraform이 Key Vault secret value를 직접 쓰지는 않는다. 운영자는 Managed Redis apply 후 Azure Portal 또는 승인된 운영 경로에서 access key를 확인하고, 재사용 runtime Key Vault의 기존 `staging-redis-url` secret value를 수동 갱신해야 한다.
 
 AzureRM provider는 access key 인증을 켠 Managed Redis의 계산된 access key를 remote state에 보관할 수 있다. 따라서 이 wave는 state 접근 통제와 key rotation 절차를 별도 운영 gate로 둔다. PR 본문, workflow log, 문서에는 access key 실제 값을 기록하지 않는다.
 

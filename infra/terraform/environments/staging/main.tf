@@ -1,6 +1,8 @@
 locals {
   environment   = "staging"
   secret_prefix = "staging"
+  # Runtime secret source는 기존 dev Key Vault를 재사용하고, staging 전용 vault cleanup은 별도 작업으로 분리한다.
+  runtime_key_vault_name = "onmu-dev-kv-27db5e"
 
   tags = {
     app                 = "onmu"
@@ -13,7 +15,8 @@ locals {
 
   resource_group_name     = var.create_resource_group ? module.resource_group[0].name : data.azurerm_resource_group.existing[0].name
   resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
-  key_vault_uri           = try(module.key_vault[0].key_vault_uri, "")
+  runtime_key_vault_id    = data.azurerm_key_vault.runtime.id
+  key_vault_uri           = data.azurerm_key_vault.runtime.vault_uri
 
   spring_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
@@ -101,6 +104,11 @@ module "naming" {
 data "azurerm_resource_group" "existing" {
   count = var.create_resource_group ? 0 : 1
   name  = var.existing_resource_group_name
+}
+
+data "azurerm_key_vault" "runtime" {
+  name                = local.runtime_key_vault_name
+  resource_group_name = local.resource_group_name
 }
 
 module "resource_group" {
