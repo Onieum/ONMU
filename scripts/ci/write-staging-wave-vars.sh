@@ -39,6 +39,17 @@ worker_enabled   = false
 EOF
 }
 
+append_foundation_frontdoor_keepalive_targets() {
+  cat >> "$output_path" <<'EOF'
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
+  front_door = true
+}
+EOF
+}
+
 append_frontdoor_keepalive_targets() {
   cat >> "$output_path" <<'EOF'
 
@@ -155,54 +166,6 @@ enabled_modules = {
   redis                      = true
   storage                    = true
   cdn                        = false
-  front_door                 = false
-  eventhubs                  = true
-  container_apps_environment = true
-  container_apps             = false
-  diagnostics                = false
-  rbac_assignments           = false
-}
-EOF
-    ;;
-  managed_redis_diagnostics)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = true
-  storage                    = true
-  cdn                        = false
-  front_door                 = false
-  eventhubs                  = true
-  container_apps_environment = true
-  container_apps             = false
-  diagnostics                = true
-  rbac_assignments           = false
-}
-
-enabled_diagnostic_targets = {
-  foundation = true
-  redis      = true
-  front_door = false
-}
-EOF
-    ;;
-  frontdoor_tile_edge)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = true
-  storage                    = true
-  cdn                        = false
   front_door                 = true
   eventhubs                  = true
   container_apps_environment = true
@@ -210,15 +173,10 @@ enabled_modules = {
   diagnostics                = true
   rbac_assignments           = false
 }
-
-enabled_diagnostic_targets = {
-  foundation = true
-  redis      = true
-  front_door = false
-}
 EOF
+    append_foundation_frontdoor_keepalive_targets
     ;;
-  frontdoor_origin_access)
+  managed_redis_diagnostics)
     append_placeholder_images
     cat >> "$output_path" <<'EOF'
 
@@ -245,7 +203,7 @@ enabled_diagnostic_targets = {
 }
 EOF
     ;;
-  frontdoor_diagnostics)
+  frontdoor_tile_edge)
     append_placeholder_images
     cat >> "$output_path" <<'EOF'
 
@@ -254,7 +212,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = false
-  redis                      = true
+  redis                      = false
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -267,7 +225,61 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
-  redis      = true
+  redis      = false
+  front_door = false
+}
+EOF
+    ;;
+  frontdoor_origin_access)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = false
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
+  front_door = true
+}
+EOF
+    ;;
+  frontdoor_diagnostics)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = false
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
   front_door = true
 }
 EOF

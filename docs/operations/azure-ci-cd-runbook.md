@@ -119,9 +119,9 @@ ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` w
 
 ### Staging Managed Redis
 
-`wave=managed_redis_ready`는 `core_foundation`과 `core_diagnostics` 이후에 Azure Managed Redis만 별도로 생성한다. 이 wave는 기존 foundation 리소스를 recreate하지 않고 `azurerm_managed_redis` create 1건만 허용한다.
+`wave=managed_redis_ready`는 `core_foundation`, `core_diagnostics`, 그리고 Front Door를 쓰는 경우 `frontdoor_tile_edge`, `frontdoor_origin_access`, `frontdoor_diagnostics` 이후에 Azure Managed Redis만 별도로 생성한다. 이 wave는 기존 foundation, Front Door, diagnostic setting을 no-op/read로 유지한 채 `azurerm_managed_redis` create 1건만 허용한다.
 
-`wave=managed_redis_diagnostics`는 Managed Redis resource id가 remote state에 기록된 뒤 diagnostic setting만 별도로 붙인다. 이 wave도 기존 foundation 리소스는 no-op/read만 허용한다.
+`wave=managed_redis_diagnostics`는 Managed Redis resource id가 remote state에 기록된 뒤 diagnostic setting만 별도로 붙인다. 이 wave도 기존 foundation, Front Door, diagnostic setting은 no-op/read만 허용한다.
 
 Managed Redis는 access key 인증을 켜서 현재 Spring의 `REDIS_URL`, `SPRING_DATA_REDIS_URL` 계약을 그대로 유지한다. 다만 Terraform이 Key Vault secret value를 직접 쓰지는 않는다. 운영자는 Managed Redis apply 후 Azure Portal 또는 승인된 운영 경로에서 access key를 확인하고, 기존 `staging-redis-url` secret value를 수동 갱신해야 한다.
 
@@ -168,7 +168,7 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 ### Staging Front Door Tile Edge
 
-`wave=frontdoor_tile_edge`는 Blob origin 이후 tile/static edge delivery를 Azure Front Door Standard로 구성하는 선택지다. 기본료가 발생하므로 `apply_wave=true` 실행 전 별도 비용 승인을 받아야 한다.
+`wave=frontdoor_tile_edge`는 Blob origin 이후 tile/static edge delivery를 Azure Front Door Standard로 구성하는 선택지다. 기본료가 발생하므로 `apply_wave=true` 실행 전 별도 비용 승인을 받아야 한다. 이 wave는 Managed Redis 이전 단계로 두고, Redis resource나 Redis diagnostic target을 함께 켜지 않는다.
 
 `frontdoor_tile_edge`에서 켜는 Terraform module은 다음이다.
 
@@ -188,7 +188,7 @@ Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route �
 
 ### Staging Front Door Origin Access
 
-`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다.
+`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다. Managed Redis가 아직 없는 단계에서도 plan/apply가 성립하도록 Redis resource와 Redis diagnostic target은 함께 켜지 않는다.
 
 기대 변경은 다음 두 개뿐이다.
 
@@ -199,7 +199,7 @@ Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route �
 
 ### Staging Front Door Diagnostics
 
-`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공하고, 필요 시 `frontdoor_origin_access` patch까지 끝난 뒤에 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다.
+`wave=frontdoor_diagnostics`는 `frontdoor_tile_edge` apply가 성공하고, 필요 시 `frontdoor_origin_access` patch까지 끝난 뒤에 실행한다. 이 wave는 지원되는 Front Door scope의 diagnostic setting만 Log Analytics로 연결한다. 현재 staging 기준으로는 Front Door profile scope만 대상이다. 이 시점에도 Redis가 아직 없으면 Redis diagnostic target은 포함하지 않는다.
 
 `microsoft.cdn/profiles/afdendpoints`는 diagnostic settings를 지원하지 않으므로 endpoint를 target에 포함하지 않는다. `frontdoor_diagnostics` plan summary에는 `azurerm_monitor_diagnostic_setting` create와 기존 resource no-op만 허용한다. Front Door profile/endpoint/origin group/origin/route create가 다시 잡히면 Front Door edge가 아직 적용되지 않았거나 state가 맞지 않는 상태이므로 apply하지 않는다.
 
