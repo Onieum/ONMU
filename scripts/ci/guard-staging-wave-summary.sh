@@ -67,10 +67,11 @@ case "$wave" in
     fi
     ;;
   frontdoor_tile_edge)
-    unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$plan_json")"
-    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
-      echo "Only Front Door create actions and existing resource no-op/read are allowed for frontdoor_tile_edge." >&2
+    unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .type != "azurerm_cdn_frontdoor_route") | .type] | length' "$plan_json")"
+    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$unexpected_update" -gt 0 ]; then
+      echo "Only Front Door create actions or a single azurerm_cdn_frontdoor_route update, plus existing resource no-op/read, are allowed for frontdoor_tile_edge." >&2
       exit 1
     fi
     ;;

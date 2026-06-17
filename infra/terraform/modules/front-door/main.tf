@@ -50,11 +50,12 @@ resource "azurerm_cdn_frontdoor_route" "tiles_static" {
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.blob.id]
   enabled                       = true
 
-  supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = var.patterns_to_match
-  forwarding_protocol    = "HttpsOnly"
-  https_redirect_enabled = true
-  link_to_default_domain = true
+  supported_protocols       = ["Http", "Https"]
+  patterns_to_match         = var.patterns_to_match
+  cdn_frontdoor_origin_path = var.origin_path
+  forwarding_protocol       = "HttpsOnly"
+  https_redirect_enabled    = true
+  link_to_default_domain    = true
 
   cache {
     query_string_caching_behavior = "IgnoreQueryString"
