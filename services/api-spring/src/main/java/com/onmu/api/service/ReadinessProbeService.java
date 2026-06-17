@@ -1,13 +1,10 @@
 package com.onmu.api.service;
 
+import com.onmu.api.storage.ObjectStorageClient;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.sql.Connection;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -18,36 +15,39 @@ import org.springframework.stereotype.Service;
 @Service
 public class ReadinessProbeService {
   private static final int TCP_TIMEOUT_MILLIS = 1500;
-  private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(2);
 
   private final DataSource dataSource;
   private final Environment environment;
+  private final ObjectStorageClient objectStorageClient;
   private final TcpConnector tcpConnector;
-  private final HttpStatusReader httpStatusReader;
 
   @Autowired
-  public ReadinessProbeService(DataSource dataSource, Environment environment) {
-    this(dataSource, environment, defaultTcpConnector(), defaultHttpStatusReader());
+  public ReadinessProbeService(
+    DataSource dataSource,
+    Environment environment,
+    ObjectStorageClient objectStorageClient
+  ) {
+    this(dataSource, environment, objectStorageClient, defaultTcpConnector());
   }
 
   ReadinessProbeService(
     DataSource dataSource,
     Environment environment,
-    TcpConnector tcpConnector,
-    HttpStatusReader httpStatusReader
+    ObjectStorageClient objectStorageClient,
+    TcpConnector tcpConnector
   ) {
     this.dataSource = dataSource;
     this.environment = environment;
+    this.objectStorageClient = objectStorageClient;
     this.tcpConnector = tcpConnector;
-    this.httpStatusReader = httpStatusReader;
   }
 
   public ReadinessReport check() {
     Map<String, Object> dependencies = new LinkedHashMap<>();
     boolean postgresOk = checkPostgres(dependencies);
     boolean redisOk = checkRedis(dependencies);
-    boolean minioOk = checkMinio(dependencies);
-    return new ReadinessReport(postgresOk && redisOk && minioOk, dependencies);
+    boolean objectStorageOk = checkObjectStorage(dependencies);
+    return new ReadinessReport(postgresOk && redisOk && objectStorageOk, dependencies);
   }
 
   private boolean checkPostgres(Map<String, Object> dependencies) {
@@ -100,36 +100,25 @@ public class ReadinessProbeService {
     }
   }
 
-  private boolean checkMinio(Map<String, Object> dependencies) {
-    URI healthUri;
-    try {
-      healthUri = minioHealthUri();
-    } catch (RuntimeException exception) {
-      dependencies.put("minio", Map.of(
-        "ok", false,
+  private boolean checkObjectStorage(Map<String, Object> dependencies) {
+    ObjectStorageClient.ReadinessResult result = objectStorageClient.checkReadiness();
+    if (result.ok()) {
+      dependencies.put(objectStorageClient.provider().dependencyName(), Map.of(
+        "ok", true,
         "required", true,
-        "error", "invalid_minio_config"
+        "provider", objectStorageClient.provider().detailName(),
+        "detail", result.detail()
       ));
-      return false;
+      return true;
     }
 
-    try {
-      int status = httpStatusReader.status(healthUri, HTTP_TIMEOUT);
-      boolean ok = status >= 200 && status < 400;
-      dependencies.put("minio", Map.of(
-        "ok", ok,
-        "required", true,
-        "detail", "http_" + status
-      ));
-      return ok;
-    } catch (Exception exception) {
-      dependencies.put("minio", Map.of(
-        "ok", false,
-        "required", true,
-        "error", exception.getClass().getSimpleName()
-      ));
-      return false;
-    }
+    dependencies.put(objectStorageClient.provider().dependencyName(), Map.of(
+      "ok", false,
+      "required", true,
+      "provider", objectStorageClient.provider().detailName(),
+      "error", result.error()
+    ));
+    return false;
   }
 
   private RedisTarget redisTarget() {
@@ -147,16 +136,6 @@ public class ReadinessProbeService {
     String host = firstText("REDIS_HOST");
     int port = parsePort(firstText("REDIS_PORT"), 6379);
     return new RedisTarget(host == null ? "localhost" : host, port);
-  }
-
-  private URI minioHealthUri() {
-    String endpoint = firstText("OBJECT_STORAGE_ENDPOINT", "MINIO_ENDPOINT");
-    URI base = URI.create(endpoint == null ? "http://localhost:9000" : endpoint);
-    if (base.getScheme() == null || base.getHost() == null) {
-      throw new IllegalArgumentException("MinIO endpoint must include scheme and host");
-    }
-    String baseText = base.toString().replaceAll("/+$", "");
-    return URI.create(baseText + "/minio/health/live");
   }
 
   private int parsePort(String value, int defaultPort) {
@@ -188,11 +167,6 @@ public class ReadinessProbeService {
     void connect(String host, int port, int timeoutMillis) throws Exception;
   }
 
-  @FunctionalInterface
-  interface HttpStatusReader {
-    int status(URI uri, Duration timeout) throws Exception;
-  }
-
   private record RedisTarget(String host, int port) {
   }
 
@@ -204,16 +178,4 @@ public class ReadinessProbeService {
     };
   }
 
-  private static HttpStatusReader defaultHttpStatusReader() {
-    HttpClient httpClient = HttpClient.newBuilder()
-      .connectTimeout(HTTP_TIMEOUT)
-      .build();
-    return (uri, timeout) -> {
-      HttpRequest request = HttpRequest.newBuilder(uri)
-        .timeout(timeout)
-        .GET()
-        .build();
-      return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-    };
-  }
 }

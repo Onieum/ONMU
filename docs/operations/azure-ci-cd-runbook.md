@@ -160,7 +160,9 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 
 - runtime managed identity에 staging ACR scope `AcrPull`
 - runtime managed identity에 재사용 Key Vault scope `Key Vault Secrets User`
-- Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제가 staging target과 맞는지 확인
+- runtime managed identity에 Blob storage account scope `Storage Blob Data Contributor`
+- presigned URL 유지를 위해 Blob storage account scope `Storage Blob Delegator`
+- Spring API plain env `OBJECT_STORAGE_PROVIDER=azure_blob`와 Blob endpoint/container secret reference 확인
 - `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신이 끝났는지 확인
 - Managed Redis 전환 후 `/readyz` 최종 200을 다시 확인
 

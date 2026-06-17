@@ -424,7 +424,7 @@ Azure runtime에서는 Managed Identity로 Key Vault secret reference를 읽는�
 | Smoke | 기대값 |
 | --- | --- |
 | `GET /healthz` | 200 |
-| `GET /readyz` | 200, PostgreSQL/Redis/MinIO dependency ok |
+| `GET /readyz` | 200, PostgreSQL/Redis/object storage dependency ok |
 | `POST /api/v1/place-search` | status, result_count, provider_counts, source_counts, coordinate_count |
 | `POST /api/v1/routes/recommend` | status, provider, stops count, geometry count, travelMode |
 | `GET /place-candidates` | plan별 후보 list 반환 |

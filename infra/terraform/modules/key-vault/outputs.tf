@@ -13,3 +13,7 @@ output "runtime_identity_id" {
 output "runtime_identity_principal_id" {
   value = azurerm_user_assigned_identity.runtime.principal_id
 }
+
+output "runtime_identity_client_id" {
+  value = azurerm_user_assigned_identity.runtime.client_id
+}

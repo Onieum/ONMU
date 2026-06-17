@@ -70,6 +70,10 @@ Spring container는 다음 env var name을 기준으로 한다.
 - `NAVER_SEARCH_CLIENT_ID`
 - `NAVER_SEARCH_CLIENT_SECRET`
 - `OPENROUTESERVICE_API_KEY`
+- `OBJECT_STORAGE_PROVIDER`
+- `OBJECT_STORAGE_ENDPOINT`
+- `OBJECT_STORAGE_BUCKET`
+- `AZURE_CLIENT_ID` 또는 `OBJECT_STORAGE_MANAGED_IDENTITY_CLIENT_ID`
 
 값은 Key Vault/managed identity/secret reference로 주입한다. 문서와 PR에는 값이 아니라 env var name과 secret name만 적는다.
 
@@ -162,7 +166,8 @@ Azure staging 1차에서는 Spring SSE 유지가 가능하지만, scale-out 전�
 - Flutter는 records/OOTD 사진을 MinIO 또는 Azure Blob Storage에 직접 쓰지 않는다.
 - Spring Main API가 `POST /api/v1/media/upload`, media public read/proxy, memories create/update와 `record_media` metadata 연결을 소유한다.
 - DB에는 원본 image bytes를 저장하지 않고 object key, public URL, content type, size, sort order, comment 같은 metadata만 저장한다.
-- Azure staging/prod의 target object storage는 Azure Blob Storage이며 local/dev MinIO compatibility는 runtime provider 교체 대상으로 둔다.
+- Azure staging/prod의 target object storage는 Azure Blob Storage이며 local/dev는 `minio` provider를 사용한다.
+- `POST /api/v1/media/upload`, `GET /api/v1/media/public?key=...`, `POST /api/v1/uploads/presigned-url` 계약은 object storage provider와 무관하게 유지한다.
 - `type=DAILY`와 `type=OOTD`는 같은 날짜에 공존할 수 있고, OOTD record가 없으면 캐릭터 썸네일을 표시하지 않는다.
 - 저장된 diary 화면은 `layoutType`과 decoration seed 또는 selected asset key로 재현 가능해야 한다.
 - media upload smoke는 status/count/field presence 중심으로 보고하고 실제 사용자 사진 URL, raw filename, object credential은 출력하지 않는다.
