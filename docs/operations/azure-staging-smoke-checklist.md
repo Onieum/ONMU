@@ -75,7 +75,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 
 Private user media는 public CDN cache 대상으로 smoke하지 않는다. 공개 가능한 asset과 private media는 container/path/cache policy를 분리해서 검증한다. `tiles`는 public blob origin이지만 실제 사용자 media는 계속 private boundary에 남아야 한다.
 
-Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를 먼저 smoke한다. PMTiles는 Range `206`, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`를 확인한다. Custom domain/TLS와 DNS 변경은 별도 승인 전까지 수행하지 않는다.
+Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를 먼저 smoke한다. PMTiles는 Range `206`, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`를 확인한다. public tile/static은 credential 없는 읽기만 허용하므로 `Access-Control-Allow-Origin: *`가 기본 정상값이다. Custom domain/TLS와 DNS 변경은 별도 승인 전까지 수행하지 않는다.
 
 ## 5. Tile smoke
 
@@ -87,7 +87,7 @@ Front Door Standard 적용 후에는 custom domain/TLS 없이 기본 endpoint를
 | PMTiles Range | 206 |
 | `Accept-Ranges` | present |
 | `Content-Range` | present |
-| `Access-Control-Allow-Origin` | present |
+| `Access-Control-Allow-Origin` | `*` 또는 호출 origin과 동등한 허용값 |
 | `Access-Control-Expose-Headers` | `Accept-Ranges`, `Content-Length`, `Content-Range` 포함 |
 | Android MapLibre | blank/fallback grid/water-style 회귀 없음 |
 
