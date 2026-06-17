@@ -89,6 +89,23 @@ void main() {
     expect(source, isNot(contains('class _DiaryResultLayout')));
   });
 
+  test('daily record screens do not contain mojibake copy', () {
+    const pagePaths = [
+      'lib/features/ootd/presentation/pages/daily_record_screen.dart',
+      'lib/features/ootd/presentation/pages/daily_record_result.dart',
+    ];
+    final mojibakePattern = RegExp(r'[筌繹醫揶疫熬夷]|뮎|퀡|쏙옙|占');
+
+    for (final path in pagePaths) {
+      final source = File(path).readAsStringSync();
+      expect(
+        source,
+        isNot(contains(mojibakePattern)),
+        reason: '$path contains broken Korean copy',
+      );
+    }
+  });
+
   test('plan create page delegates repository work to view model layer', () {
     final source = File(
       'lib/features/plan/presentation/pages/plan_create_page.dart',

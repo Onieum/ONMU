@@ -222,7 +222,7 @@ class DailyRecordResultScreen extends StatelessWidget {
       record: record,
       photoItems: limitedPhotoItems,
       imageUrls: imageUrls,
-      dailyMemo: dailyMemo ?? '??삳뮎?????㉦????볦퍢??疫꿸퀡以??됰선??',
+      dailyMemo: dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
       includeCrew: includeCrew,
       userCharacter: userCharacter,
       backgrounds: _backgrounds,
@@ -300,7 +300,7 @@ class DailyRecordResultScreen extends StatelessWidget {
             border: Border.all(color: AppColors.lineSoft),
           ),
           child: Text(
-            dailyMemo ?? '??삳뮎?????㉦????볦퍢??疫꿸퀡以??됰선??',
+            dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textMain,
               height: 1.45,
@@ -310,7 +310,7 @@ class DailyRecordResultScreen extends StatelessWidget {
         if (ootdRecord != null) ...[
           SizedBox(height: 20),
           Text(
-            '??삳뮎??OOTD',
+            '오늘의 OOTD',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
           SizedBox(height: 12),
@@ -1175,7 +1175,7 @@ class _DiaryEmptyPhotoCard extends StatelessWidget {
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Text(
-        '??彛???곸뵠 ??삳뮎 ??롳펷??筌롫뗀?덌쭕???ｊ펷??곸뒄.',
+        '사진을 추가하지 않아 오늘의 메모만 기록했어요.',
         style: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSub,
           height: 1.45,
@@ -1475,7 +1475,7 @@ class _CleanPeopleBlock extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              '??ｍ뜞??筌?Ŧ??怨? ??釉????롳펷 疫꿸퀡以???類ｂ봺??됰선??',
+              '함께한 크루와 오늘의 분위기를 기록에 담았어요.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSub,
                 height: 1.35,

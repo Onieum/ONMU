@@ -199,7 +199,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   void _addPhotoMemo() {
     if (_photoMemos.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('??彛?? 筌ㅼ뮆? 5?觀?댐쭪? ?곕떽???????됰선??')),
+        const SnackBar(content: Text('사진 메모는 최대 5개까지 추가할 수 있어요.')),
       );
       return;
     }
@@ -227,9 +227,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '???筌왖揶쎛 ?袁⑹춦 ?뚣끉?? 1MB ??꾨릭 ??彛??곗쨮 ??쇰뻻 ?醫뤾문??雅뚯눘苑??',
-          ),
+          content: Text('이미지는 1MB 이하의 jpg, png, webp 파일만 업로드할 수 있어요.'),
         ),
       );
       return;
@@ -243,7 +241,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (!allowed) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('jpg, png, webp ???筌왖筌??醫뤾문??????됰선??')),
+        const SnackBar(content: Text('jpg, png, webp 파일만 업로드할 수 있어요.')),
       );
       return;
     }
@@ -586,7 +584,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '??彛?${index + 1}',
+                  '사진 ${index + 1}',
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
@@ -687,10 +685,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          '??삳뮎??OOTD',
-          '揶쏆늿? ?醫롮?????ｋ┸ ?꾨뗀逾?疫꿸퀡以????롳펷 ??⑤궢 餓λ쵌而??獄쏄퀣???곸뒄.',
-        ),
+        _sectionTitle('오늘의 OOTD', '오늘 입은 옷차림을 하루 일과와 함께 남겨보세요.'),
         if (ootd != null)
           Container(
             width: double.infinity,
@@ -703,7 +698,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             child: Column(
               children: [
                 Text(
-                  '疫꿸퀡以??OOTD??筌≪뼚釉??곸뒄',
+                  '오늘의 OOTD를 연결했어요',
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
@@ -753,7 +748,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '??롳펷 疫꿸퀡以???꾨뗀逾????ｍ뜞 ??ｋ쭔繹먮슣??',
+                  'OOTD를 기록하면 오늘의 일과에 함께 남길 수 있어요.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSub,
@@ -867,16 +862,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         ),
         SizedBox(height: 10),
         Text(
-          '??롳펷 疫꿸퀡以??餓Β??쑬由??곸뒄',
+          '하루 일과 기록이 저장됐어요',
           style: AppTextStyles.headlineSmall.copyWith(
             color: AppColors.textMain,
           ),
         ),
         SizedBox(height: 8),
         Text(
-          isDiary
-              ? '??쇱뵠???곻㎗?롮쓥 熬곷챶흭?????館釉룟칰??뒄.'
-              : '繹먮뗀嫄??疫꿸퀡以??곗쨮 ???館釉룟칰??뒄.',
+          isDiary ? '다이어리 형식으로 하루를 꾸며 저장했어요.' : '클린 형식으로 하루를 정리해 저장했어요.',
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
         ),
         SizedBox(height: 24),
@@ -915,7 +908,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 SizedBox(height: 14),
               ],
               Text(
-                '${_weathers[_selectedWeather].label} 夷?${_moods[_selectedMood].label}',
+                '${_weathers[_selectedWeather].label} · ${_moods[_selectedMood].label}',
                 style: AppTextStyles.labelLarge.copyWith(
                   color: AppColors.textMain,
                 ),
