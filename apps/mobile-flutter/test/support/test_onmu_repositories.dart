@@ -14,6 +14,7 @@ import 'package:onmu_mobile/features/character/repository/character_repository.d
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
+import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/my/repository/my_repository.dart';
 import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
@@ -49,6 +50,7 @@ ProviderContainer createOnmuTestContainer() {
         TestNotificationRepository(store),
       ),
       recordRepositoryProvider.overrideWithValue(TestRecordRepository()),
+      friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
       myRepositoryProvider.overrideWithValue(TestMyRepository()),
       characterRepositoryProvider.overrideWithValue(TestCharacterRepository()),
     ],
@@ -83,6 +85,7 @@ ProviderScope onmuTestProviderScope({
       recordRepositoryProvider.overrideWithValue(
         recordRepository ?? TestRecordRepository(),
       ),
+      friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
       myRepositoryProvider.overrideWithValue(
         myRepository ?? TestMyRepository(),
       ),
@@ -145,6 +148,92 @@ class TestMyRepository implements MyRepository {
     lastOnboardingStatus = onboardingStatus;
     return _profile;
   }
+}
+
+class TestFriendRepository implements FriendRepository {
+  TestFriendRepository({List<FriendProfile>? friends})
+    : _friends = friends ?? _defaultFriends;
+
+  static const _defaultFriends = [
+    FriendProfile(
+      publicId: 'friend-doyun',
+      userCode: 'doyun',
+      name: '도윤',
+      preferenceSummary: '러닝크루 친구',
+      isFriend: true,
+      isFavorite: true,
+      memo: '러닝크루 친구',
+    ),
+    FriendProfile(
+      publicId: 'friend-minseo',
+      userCode: 'minseo',
+      name: '민서',
+      preferenceSummary: '보드게임 모임 친구',
+      isFriend: true,
+      memo: '보드게임 모임 친구',
+    ),
+    FriendProfile(
+      publicId: 'friend-seoyun',
+      userCode: 'seoyun',
+      name: '서윤',
+      preferenceSummary: '러닝크루 친구',
+      isFriend: true,
+      memo: '러닝크루 친구',
+    ),
+  ];
+
+  final List<FriendProfile> _friends;
+
+  @override
+  Future<List<FriendProfile>> fetchFriends() async => _friends;
+
+  @override
+  Future<List<FriendProfile>> searchFriends(String query) async {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.length < 2) {
+      return const [];
+    }
+    return _friends
+        .where(
+          (friend) =>
+              friend.name.toLowerCase().contains(normalized) ||
+              friend.userCode.toLowerCase().contains(normalized) ||
+              friend.publicId.toLowerCase().contains(normalized),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<MyProfile> fetchFriendProfile(FriendProfile friend) async {
+    return TestMyRepository._defaultProfile.copyWith(
+      realName: friend.name,
+      introText: friend.preferenceSummary,
+    );
+  }
+
+  @override
+  Future<FriendProfile> addFriend(String publicId, {String? memo}) async {
+    return FriendProfile(
+      publicId: publicId,
+      userCode: publicId,
+      name: publicId,
+      preferenceSummary: memo ?? '친구 요청 대기 중',
+      isFriend: true,
+      memo: memo ?? publicId,
+    );
+  }
+
+  @override
+  Future<FriendProfile> updateFriend(
+    FriendProfile friend, {
+    String? memo,
+    bool? favorite,
+  }) async {
+    return friend.copyWith(memo: memo, isFavorite: favorite);
+  }
+
+  @override
+  Future<void> deleteFriend(FriendProfile friend) async {}
 }
 
 class TestCharacterRepository implements CharacterRepository {

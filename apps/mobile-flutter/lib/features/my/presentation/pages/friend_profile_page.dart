@@ -282,12 +282,26 @@ class _FriendProfileHero extends StatelessWidget {
 }
 
 CharacterDraft _characterForFriend(FriendProfile friend) {
-  final friends = _createInitialFriends();
-  final characters = _createFriendCharacters();
-  final index = friends.indexWhere((item) => item.name == friend.name);
-  final safeIndex = index.clamp(0, characters.length - 1).toInt();
+  final source = [
+    friend.publicId,
+    friend.userCode,
+    friend.name,
+  ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => 'friend');
+  final seed = source.runes.fold<int>(
+    0,
+    (value, codePoint) => (value * 31 + codePoint) & 0x7fffffff,
+  );
 
-  return characters[safeIndex];
+  return CharacterDraft(
+    gender: seed.isEven ? 'female' : 'male',
+    nickname: friend.name,
+    skinToneIndex: seed % CharacterDraft.skinTones.length,
+    eyeShapeIndex: (seed ~/ 3) % 3,
+    eyeColorIndex: (seed ~/ 5) % CharacterDraft.eyeColors.length,
+    hairColorIndex: (seed ~/ 7) % CharacterDraft.hairColors.length,
+    hairStyleIndex: (seed ~/ 11) % 4,
+    topStyleIndex: (seed ~/ 13) % 3,
+  );
 }
 
 class _FriendAddSheet extends StatefulWidget {

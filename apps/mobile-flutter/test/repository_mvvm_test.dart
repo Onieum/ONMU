@@ -12,6 +12,7 @@ import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
+import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
 import 'package:onmu_mobile/features/ootd/view_model/record_flow_controller.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
@@ -168,6 +169,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
+        friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -175,6 +177,7 @@ void main() {
     final state = await container.read(groupCreateViewModelProvider.future);
 
     expect(state.recommendedMemberNames, isEmpty);
+    expect(state.friendCandidates.map((friend) => friend.name), contains('도윤'));
   });
 
   test('온모임 홈 ViewModel은 요청한 groupId 범위의 상태를 만든다', () async {

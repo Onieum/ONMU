@@ -604,13 +604,6 @@ class _FavoriteFriend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final friends = _createInitialFriends();
-    final characters = _createFriendCharacters();
-    final characterIndex = friends
-        .indexWhere((item) => item.name == friend.name)
-        .clamp(0, characters.length - 1)
-        .toInt();
-
     return InkWell(
       onTap: isEditing ? onToggle : null,
       borderRadius: BorderRadius.circular(999),
@@ -625,7 +618,7 @@ class _FavoriteFriend extends StatelessWidget {
                   opacity: 1,
                   child: _CharacterPortrait(
                     size: 54,
-                    character: characters[characterIndex],
+                    character: _characterForFriend(friend),
                     profileImageUrl: friend.profileImageUrl,
                   ),
                 ),
@@ -860,12 +853,6 @@ class _FriendListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final friends = _createInitialFriends();
-    final characters = _createFriendCharacters();
-    final index = friends.indexWhere((item) => item.name == friend.name);
-    final characterIndex = index.clamp(0, characters.length - 1).toInt();
-    final character = characters[characterIndex];
-
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -874,7 +861,7 @@ class _FriendListTile extends StatelessWidget {
           children: [
             _CharacterPortrait(
               size: 52,
-              character: character,
+              character: _characterForFriend(friend),
               profileImageUrl: friend.profileImageUrl,
             ),
             const SizedBox(width: 14),

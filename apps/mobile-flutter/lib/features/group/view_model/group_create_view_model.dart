@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
+import '../../my/domain/my_profile.dart';
+import '../../my/repository/friend_repository.dart';
 import '../repository/group_repository.dart';
 import 'group_list_view_model.dart';
 
@@ -10,18 +12,27 @@ final groupCreateViewModelProvider =
     );
 
 class GroupCreateState {
-  const GroupCreateState({required this.recommendedMemberNames});
+  const GroupCreateState({
+    required this.recommendedMemberNames,
+    required this.friendCandidates,
+  });
 
   final List<String> recommendedMemberNames;
+  final List<FriendProfile> friendCandidates;
 }
 
 class GroupCreateViewModel extends AsyncNotifier<GroupCreateState> {
   @override
   Future<GroupCreateState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
+    final friendRepository = ref.watch(friendRepositoryProvider);
+    final friendCandidates = await friendRepository.fetchFriends();
     final groups = await repository.fetchGroups();
     if (groups.isEmpty) {
-      return const GroupCreateState(recommendedMemberNames: []);
+      return GroupCreateState(
+        recommendedMemberNames: const [],
+        friendCandidates: friendCandidates,
+      );
     }
 
     final members = await repository.fetchMembers(groups.first.id);
@@ -31,6 +42,7 @@ class GroupCreateViewModel extends AsyncNotifier<GroupCreateState> {
           .map((member) => member.name)
           .take(4)
           .toList(growable: false),
+      friendCandidates: friendCandidates,
     );
   }
 

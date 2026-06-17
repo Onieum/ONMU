@@ -59,6 +59,20 @@ void main() {
     expect(find.byTooltip('태호 제거'), findsOneWidget);
   });
 
+  testWidgets('group create member picker uses repository friends', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testMaterialApp(const GroupCreatePage()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('추가').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('도윤'), findsOneWidget);
+    expect(find.text('민서'), findsOneWidget);
+    expect(find.text('유나'), findsNothing);
+  });
+
   testWidgets('creating group with first plan toggle off opens plan creation', (
     tester,
   ) async {
