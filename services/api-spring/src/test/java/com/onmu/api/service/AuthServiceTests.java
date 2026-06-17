@@ -113,7 +113,7 @@ class AuthServiceTests {
       .thenReturn(new VerifiedOAuthIdentity("NAVER", "naver-new-subject", "New User", "new@example.test", null));
     when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("NAVER", "naver-new-subject"))
       .thenReturn(Optional.empty());
-    when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(authIdentityRepository.save(any(AuthIdentityEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(userCodeService.ensureActiveCode(any(UserEntity.class))).thenReturn("4839201746");
     when(accessTokenIssuer.issue(any(UserEntity.class)))
