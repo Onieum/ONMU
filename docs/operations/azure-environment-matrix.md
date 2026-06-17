@@ -73,12 +73,15 @@ Edge/API gateway 단계:
 
 | 환경 | Flutter define 파일 후보 | 포함 가능 | 금지 |
 | --- | --- | --- | --- |
+| Azure staging 기본 앱 | define 없음 또는 `.dart_tool/onmu-staging-api.defines.json` | staging API base URL, 필요 시 짧은 수명 staging JWT 후보 | JWT signing secret, OAuth client secret |
+| Azure staging OAuth smoke | `.dart_tool/onmu-staging-oauth.defines.json` | staging API base URL, staging public OAuth config | access token, refresh token, DB password |
 | local/dev API mode | `.dart_tool/onmu-dev-api.defines.json` | `ONMU_API_BASE_URL`, 짧은 수명 dev JWT 후보 | JWT signing secret, OAuth client secret |
 | dev OAuth smoke | `.dart_tool/onmu-dev-oauth.defines.json` | provider public client id, redirect URI, Google public client ids | access token, refresh token, DB password |
-| Azure staging | `.dart_tool/onmu-staging-oauth.defines.json` 후보 | staging API base URL, staging public OAuth config | secret 값 |
 | production release | release pipeline managed define 후보 | production API base URL, production public OAuth config | secret 값, debug/dev token |
 
 iOS는 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공해야 Google 앱 복귀가 가능하다. Android는 manifest intent filter와 package/SHA-1 provider console 설정을 환경별로 확인한다.
+
+현재 팀 표준 모바일 재빌드 기본값은 Azure staging이다. Windows dev/local 연결은 명시적으로 dev define 또는 local base URL을 넣었을 때만 사용한다.
 
 ## 6. Smoke 기준 요약
 

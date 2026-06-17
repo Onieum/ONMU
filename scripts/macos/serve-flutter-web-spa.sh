@@ -42,7 +42,7 @@ done
 
 if [[ ! -f "$web_root/index.html" ]]; then
   echo "index.html not found under WebRoot: $web_root" >&2
-  echo "Run: cd apps/mobile-flutter && flutter build web --dart-define-from-file=.dart_tool/onmu-dev-api.defines.json" >&2
+  echo "Run: cd apps/mobile-flutter && flutter build web --dart-define-from-file=.dart_tool/onmu-staging-api.defines.json" >&2
   exit 1
 fi
 

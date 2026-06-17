@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-  [ValidateSet("dev", "integration")]
-  [string]$Environment = "dev",
+  [ValidateSet("staging", "dev", "integration")]
+  [string]$Environment = "staging",
   [string]$VaultName = $env:AZURE_KEY_VAULT_NAME,
   [string]$UserPublicId = "user-me",
   [int]$ExpiresInMinutes = 120,
@@ -16,7 +16,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$secretPrefix = if ($Environment -eq "integration") { "int" } else { "dev" }
+switch ($Environment) {
+  "integration" { $secretPrefix = "int" }
+  "dev" { $secretPrefix = "dev" }
+  default { $secretPrefix = "staging" }
+}
 $secretName = "$secretPrefix-access-token-secret"
 $vaultNameWasProvided = $PSBoundParameters.ContainsKey("VaultName")
 
@@ -27,17 +31,17 @@ if (-not $Audience) {
   $Audience = "onmu-mobile"
 }
 if (-not $ApiBaseUrl) {
-  $ApiBaseUrl = if ($Environment -eq "integration") {
-    "https://int-api.onmu.cloud"
-  } else {
-    "https://dev-api.onmu.cloud"
+  $ApiBaseUrl = switch ($Environment) {
+    "integration" { "https://int-api.onmu.cloud" }
+    "dev" { "https://dev-api.onmu.cloud" }
+    default { "https://staging-api.onmu.cloud" }
   }
 }
 if (-not $OutputPath) {
-  $fileName = if ($Environment -eq "integration") {
-    "onmu-integration-api.defines.json"
-  } else {
-    "onmu-dev-api.defines.json"
+  $fileName = switch ($Environment) {
+    "integration" { "onmu-integration-api.defines.json" }
+    "dev" { "onmu-dev-api.defines.json" }
+    default { "onmu-staging-api.defines.json" }
   }
   $OutputPath = Join-Path $repoRoot "apps\mobile-flutter\.dart_tool\$fileName"
 }

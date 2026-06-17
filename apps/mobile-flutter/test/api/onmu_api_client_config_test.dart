@@ -3,8 +3,8 @@ import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 
 void main() {
   group('ONMU API config', () {
-    test('defaults to Windows dev Spring API base URL', () {
-      expect(defaultOnmuApiBaseUrl, 'https://dev-api.onmu.cloud');
+    test('defaults to Azure staging API base URL', () {
+      expect(defaultOnmuApiBaseUrl, 'https://staging-api.onmu.cloud');
     });
 
     test('prefers access JWT over legacy dev access token', () {

@@ -2,6 +2,8 @@
 
 이 문서는 Windows `dev`와 `integration-staging` backend-host에서 Spring Boot Main API를 운영하는 기준이다. 현재 ONMU Windows backend 배포 runtime은 Spring으로 고정한다.
 
+모바일 앱의 기본 재빌드/검증 동선은 이 문서가 아니라 Azure staging 기준이다. 여기의 Flutter 실행 예시는 모두 Windows dev 또는 integration 경로로 명시 opt-in할 때만 사용한다.
+
 ## 운영 결정
 
 | 항목 | 결정 |

@@ -39,7 +39,8 @@ class KakaoOAuthCredentialLoader {
       : _defaultRestApiKey;
   static const _defaultRedirectUri = String.fromEnvironment(
     'KAKAO_OAUTH_REDIRECT_URI',
-    defaultValue: 'https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
+    defaultValue:
+        'https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
   );
   static const _defaultCallbackScheme = 'io.onieum.onmu';
   static const _defaultCallbackHost = 'oauth';
