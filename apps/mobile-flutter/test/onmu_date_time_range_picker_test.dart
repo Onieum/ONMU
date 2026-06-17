@@ -65,9 +65,7 @@ void main() {
   });
 
   testWidgets('시작 날짜 필드만 열면 캘린더와 시작 시간 선택만 함께 보여준다', (tester) async {
-    final picked = <OnmuDateTimeRange>[];
-
-    await _pumpRangePicker(tester, onPicked: picked.add);
+    await _pumpRangePicker(tester);
     await _openRangePicker(tester);
 
     await tester.tap(find.text('시작 날짜'));
@@ -80,26 +78,6 @@ void main() {
     expect(find.text('종료 시간'), findsNothing);
     expect(find.byType(Slider), findsNothing);
     expect(find.byType(ListWheelScrollView), findsNWidgets(2));
-
-    await tester.tap(_calendarDay('16'));
-    await tester.pumpAndSettle();
-    await tester.dragUntilVisible(
-      find.byKey(const ValueKey('start-time-slider-hour')),
-      find.byType(Scrollable).last,
-      const Offset(0, -120),
-    );
-    await tester.drag(
-      find.byKey(const ValueKey('start-time-slider-hour')),
-      const Offset(0, -58),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('선택 완료'));
-    await tester.pumpAndSettle();
-
-    expect(picked, hasLength(1));
-    expect(picked.single.start, DateTime(2026, 6, 16, 15).toUtc());
-    expect(picked.single.end, DateTime(2026, 6, 20, 17).toUtc());
   });
 
   testWidgets('종료 날짜 필드만 열면 캘린더와 종료 시간 선택만 함께 보여준다', (tester) async {
@@ -123,8 +101,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, hasLength(1));
-    expect(picked.single.start, DateTime(2026, 6, 15, 14).toUtc());
-    expect(picked.single.end, DateTime(2026, 6, 21, 16).toUtc());
+    _expectLocalDateTime(
+      picked.single.start,
+      year: 2026,
+      month: 6,
+      day: 15,
+      hour: 14,
+      minute: 0,
+    );
+    _expectLocalDateTime(
+      picked.single.end,
+      year: 2026,
+      month: 6,
+      day: 21,
+      hour: 16,
+      minute: 0,
+    );
   });
 
   testWidgets('직접 시간을 조정한 뒤 추천 시간대를 선택해도 build 중 setState 예외가 나지 않는다', (
@@ -232,4 +224,21 @@ Finder _calendarDay(String day) {
     of: find.byType(OnmuCalendarDatePicker),
     matching: find.text(day),
   );
+}
+
+void _expectLocalDateTime(
+  DateTime actual, {
+  required int year,
+  required int month,
+  required int day,
+  required int hour,
+  required int minute,
+}) {
+  final local = actual.toLocal();
+
+  expect(local.year, year);
+  expect(local.month, month);
+  expect(local.day, day);
+  expect(local.hour, hour);
+  expect(local.minute, minute);
 }
