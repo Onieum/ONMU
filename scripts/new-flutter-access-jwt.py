@@ -22,26 +22,30 @@ def repo_root() -> Path:
 
 
 def default_api_base_url(environment: str) -> str:
+    if environment == "staging":
+        return "https://staging-api.onmu.cloud"
     if environment == "integration":
         return "https://int-api.onmu.cloud"
     return "https://dev-api.onmu.cloud"
 
 
 def default_output_path(environment: str) -> Path:
-    file_name = (
-        "onmu-integration-api.defines.json"
-        if environment == "integration"
-        else "onmu-dev-api.defines.json"
-    )
+    if environment == "staging":
+        file_name = "onmu-staging-api.defines.json"
+    elif environment == "integration":
+        file_name = "onmu-integration-api.defines.json"
+    else:
+        file_name = "onmu-dev-api.defines.json"
     return repo_root() / "apps" / "mobile-flutter" / ".dart_tool" / file_name
 
 
 def default_oauth_output_path(environment: str) -> Path:
-    file_name = (
-        "onmu-integration-oauth.defines.json"
-        if environment == "integration"
-        else "onmu-dev-oauth.defines.json"
-    )
+    if environment == "staging":
+        file_name = "onmu-staging-oauth.defines.json"
+    elif environment == "integration":
+        file_name = "onmu-integration-oauth.defines.json"
+    else:
+        file_name = "onmu-dev-oauth.defines.json"
     return repo_root() / "apps" / "mobile-flutter" / ".dart_tool" / file_name
 
 
@@ -57,28 +61,36 @@ def default_ios_google_xcconfig_path() -> Path:
 
 
 def key_vault_secret_name(environment: str) -> str:
-    prefix = "int" if environment == "integration" else "dev"
+    prefix = secret_prefix(environment)
     return f"{prefix}-access-token-secret"
 
 
 def kakao_rest_api_key_secret_name(environment: str) -> str:
-    prefix = "int" if environment == "integration" else "dev"
+    prefix = secret_prefix(environment)
     return f"{prefix}-kakao-rest-api-key"
 
 
 def naver_oauth_client_id_secret_name(environment: str) -> str:
-    prefix = "int" if environment == "integration" else "dev"
+    prefix = secret_prefix(environment)
     return f"{prefix}-naver-oauth-client-id"
 
 
 def google_oauth_client_id_secret_name(environment: str) -> str:
-    prefix = "int" if environment == "integration" else "dev"
+    prefix = secret_prefix(environment)
     return f"{prefix}-google-oauth-client-id"
 
 
 def google_server_client_id_secret_name(environment: str) -> str:
-    prefix = "int" if environment == "integration" else "dev"
+    prefix = secret_prefix(environment)
     return f"{prefix}-google-server-client-id"
+
+
+def secret_prefix(environment: str) -> str:
+    if environment == "integration":
+        return "int"
+    if environment == "dev":
+        return "dev"
+    return "staging"
 
 
 def default_kakao_oauth_redirect_uri(api_base_url: str) -> str:
@@ -277,7 +289,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate a local Flutter dart-define file with ONMU API or public OAuth settings."
     )
-    parser.add_argument("--environment", choices=["dev", "integration"], default="dev")
+    parser.add_argument("--environment", choices=["staging", "dev", "integration"], default="staging")
     parser.add_argument("--vault-name", default=os.environ.get("AZURE_KEY_VAULT_NAME"))
     parser.add_argument("--user-public-id", default="user-me")
     parser.add_argument("--expires-in-minutes", type=int, default=120)

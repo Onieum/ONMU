@@ -25,6 +25,8 @@ Auth/OAuth fresh 검증은 항상 최신 `origin/dev` 또는 staging 배포 comm
 
 OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke 시작 전 다음 public define의 존재 여부만 확인하고 실제 값은 출력하지 않는다.
 
+현재 팀 표준 모바일 재빌드 기본값은 staging host다. 단순 `flutter run` 또는 재빌드로도 `ONMU_API_BASE_URL=https://staging-api.onmu.cloud` 경로가 기본이며, 보호 API나 actual OAuth smoke가 필요할 때만 `.dart_tool/onmu-staging-api.defines.json` 또는 `.dart_tool/onmu-staging-oauth.defines.json`을 명시한다. Windows dev/local 연결은 명시 opt-in define일 때만 사용한다.
+
 - `ONMU_API_BASE_URL`
 - `KAKAO_REST_API_KEY`
 - `KAKAO_OAUTH_REDIRECT_URI`

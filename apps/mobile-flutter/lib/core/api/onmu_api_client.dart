@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const defaultOnmuApiBaseUrl = 'https://dev-api.onmu.cloud';
+const defaultOnmuApiBaseUrl = 'https://staging-api.onmu.cloud';
 
 final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
   const baseUrl = String.fromEnvironment(

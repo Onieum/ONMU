@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
 
 void main() {
@@ -41,7 +42,7 @@ void main() {
     final image = tester.widget<Image>(find.byType(Image));
     expect(
       (image.image as NetworkImage).url,
-      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fuser-me.png',
+      '$defaultOnmuApiBaseUrl/api/v1/media/public?key=dev%2Favatars%2Fuser-me.png',
     );
     expect(find.text('나'), findsNothing);
   });

@@ -10,7 +10,7 @@ void main() {
     final loader = NaverOAuthCredentialLoader(
       clientId: 'client-id',
       redirectUri:
-          'https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback',
+          'https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/callback',
       stateGenerator: () => 'state-123',
       initialLinkReader: () async => null,
       linkStreamReader: () => links.stream,
@@ -37,7 +37,10 @@ void main() {
     expect(credential.providerAccessToken, isNull);
     expect(launchedUri?.host, 'nid.naver.com');
     expect(launchedUri?.queryParameters['client_id'], 'client-id');
-    expect(launchedUri?.queryParameters['redirect_uri'], contains('dev-api'));
+    expect(
+      launchedUri?.queryParameters['redirect_uri'],
+      contains('staging-api'),
+    );
     expect(launchedUri?.queryParameters['state'], 'state-123');
     expect(launchedUri?.queryParameters.containsKey('client_secret'), isFalse);
   });

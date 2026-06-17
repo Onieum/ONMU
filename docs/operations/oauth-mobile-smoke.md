@@ -2,6 +2,8 @@
 
 이 문서는 Kakao/Naver browser authorization-code 로그인을 웹 smoke와 모바일 smoke로 나누어 검증하는 기준이다. 목표는 provider 설정 문제, Spring callback 문제, 모바일 deep link 문제, 앱 세션 저장 문제를 서로 섞지 않는 것이다.
 
+현재 팀 기본 smoke 환경은 Azure staging이다. 특별히 지정하지 않은 Flutter 기본 실행, OAuth-only define 생성, callback 기준은 `staging-api.onmu.cloud`를 사용하고, Windows dev/local 경로는 명시 opt-in일 때만 사용한다.
+
 ## 핵심 원칙
 
 - 웹 빌드와 모바일 빌드는 로그인 완료 기준이 다르다.
@@ -24,9 +26,9 @@
 백엔드:
 
 ```powershell
-curl.exe -i https://dev-api.onmu.cloud/healthz
-curl.exe -i https://dev-api.onmu.cloud/readyz
-curl.exe -i https://dev-api.onmu.cloud/api/v1/users/me
+curl.exe -i https://staging-api.onmu.cloud/healthz
+curl.exe -i https://staging-api.onmu.cloud/readyz
+curl.exe -i https://staging-api.onmu.cloud/api/v1/users/me
 ```
 
 - `/healthz`: `200`
@@ -37,8 +39,8 @@ Kakao 설정:
 
 - Flutter 공개 define: `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`
 - Spring 서버 env: `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`
-- Key Vault secret name: `dev-kakao-rest-api-key`, `dev-kakao-client-secret`
-- Kakao Developers redirect URI: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- Key Vault secret name: `staging-kakao-rest-api-key`, `staging-kakao-client-secret`
+- Kakao Developers redirect URI: `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 - Android deep link: `io.onieum.onmu://oauth/kakao/callback`
 - iOS URL scheme: `io.onieum.onmu`
 
@@ -46,7 +48,7 @@ Naver 설정:
 
 - Flutter 공개 define: `ONMU_API_BASE_URL`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`
 - Spring 서버 env: `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
-- Key Vault secret name: `dev-naver-oauth-client-id`, `dev-naver-oauth-client-secret`
+- Key Vault secret name: `staging-naver-oauth-client-id`, `staging-naver-oauth-client-secret`
 - Android deep link: `io.onieum.onmu://oauth/naver/callback`
 - iOS URL scheme: `io.onieum.onmu`
 
@@ -54,8 +56,8 @@ Google 설정:
 
 - Flutter 공개 define: `ONMU_API_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`
 - Spring 서버 env: `GOOGLE_OAUTH_CLIENT_ID` 또는 `GOOGLE_SERVER_CLIENT_ID`
-- Key Vault secret name: `dev-google-oauth-client-id`
-- `GOOGLE_SERVER_CLIENT_ID` fallback secret name: `dev-google-server-client-id`
+- Key Vault secret name: `staging-google-oauth-client-id`
+- `GOOGLE_SERVER_CLIENT_ID` fallback secret name: `staging-google-server-client-id`
 - iOS generated xcconfig: `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_SERVER_CLIENT_ID`, `GOOGLE_IOS_REVERSED_CLIENT_ID`
 - Flutter는 Google idToken을 Spring `POST /api/v1/auth/oauth/google`의 `providerIdToken`으로 전달한다.
 - Spring은 Google tokeninfo 응답에서 issuer, audience, subject, expiration을 검증한 뒤 ONMU access/refresh token을 발급한다.
@@ -101,7 +103,6 @@ Windows PowerShell:
 ```powershell
 cd C:\dev\ONMU
 python scripts\new-flutter-access-jwt.py `
-  --environment dev `
   --vault-name $env:AZURE_KEY_VAULT_NAME `
   --oauth-only `
   --include-provider-oauth
@@ -112,18 +113,17 @@ macOS:
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-oauth-defines.sh \
-  --environment dev \
   --vault-name "$AZURE_KEY_VAULT_NAME"
 ```
 
-생성되는 `.dart_tool/onmu-dev-oauth.defines.json`은 `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`를 포함한다. Google이 포함된 경우 iOS 빌드용 `ios/Flutter/GoogleOAuth.generated.xcconfig`도 생성되어 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공한다. 실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
+생성되는 `.dart_tool/onmu-staging-oauth.defines.json`은 `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`를 포함한다. Google이 포함된 경우 iOS 빌드용 `ios/Flutter/GoogleOAuth.generated.xcconfig`도 생성되어 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공한다. 실제 값은 문서나 채팅에 붙이지 않는다. 값 확인이 필요하면 길이와 키 이름만 출력한다.
 
 빌드와 설치:
 
 ```powershell
 cd apps\mobile-flutter
 flutter pub get
-flutter build apk --debug --dart-define-from-file=.dart_tool\onmu-dev-oauth.defines.json
+flutter build apk --debug --dart-define-from-file=.dart_tool\onmu-staging-oauth.defines.json
 adb -s <serial> install -r -d build\app\outputs\flutter-apk\app-debug.apk
 adb -s <serial> shell pm clear io.onieum.onmu_mobile
 adb -s <serial> shell am start -n "io.onieum.onmu_mobile/.MainActivity"
@@ -179,13 +179,12 @@ Mac에서 OAuth 전용 define 파일을 먼저 생성한다.
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-oauth-defines.sh \
-  --environment dev \
   --vault-name "$AZURE_KEY_VAULT_NAME"
 ```
 
 검증 순서:
 
-1. `.dart_tool/onmu-dev-oauth.defines.json`을 `--dart-define-from-file`로 넣어 실행한다.
+1. `.dart_tool/onmu-staging-oauth.defines.json`을 `--dart-define-from-file`로 넣어 실행한다.
 2. provider 로그인 화면이 열린다.
 3. 계정/비밀번호/2FA/동의가 필요하면 사용자가 직접 조작한다.
 4. `io.onieum.onmu://oauth/<provider>/callback`을 iOS 앱이 받는지 확인한다.
