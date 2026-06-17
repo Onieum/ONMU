@@ -132,16 +132,17 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
     final plans = targetPlanId == null
         ? await groupRepository.fetchPlans(scope.groupId)
         : const <GroupPlanSummary>[];
+    final candidates = await placeRepository.fetchCandidates(
+      groupId: scope.groupId,
+      planId:
+          targetPlanId ??
+          pinnedPlan?.id ??
+          (plans.isEmpty ? 0 : plans.first.id),
+    );
 
     return VoteDetailState(
       vote: vote,
-      candidates: await placeRepository.fetchCandidates(
-        groupId: scope.groupId,
-        planId:
-            targetPlanId ??
-            pinnedPlan?.id ??
-            (plans.isEmpty ? 0 : plans.first.id),
-      ),
+      candidates: _candidatesForVoteOptions(vote.options, candidates),
       votersByCandidateId: await groupRepository.fetchVoteVoters(
         groupId: scope.groupId,
         voteId: scope.voteId,
@@ -162,6 +163,47 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
     return Map.unmodifiable(counts);
   }
 
+  List<PlaceCandidate> _candidatesForVoteOptions(
+    List<VoteOptionSummary> options,
+    List<PlaceCandidate> candidates,
+  ) {
+    if (options.isEmpty || candidates.isEmpty) {
+      return candidates;
+    }
+
+    final candidatesById = {
+      for (final candidate in candidates) candidate.id: candidate,
+    };
+    final candidatesByName = <String, PlaceCandidate>{};
+    for (final candidate in candidates) {
+      final normalizedName = _normalizeOptionLabel(candidate.name);
+      if (normalizedName.isNotEmpty) {
+        candidatesByName.putIfAbsent(normalizedName, () => candidate);
+      }
+    }
+
+    final hasCandidateIds = options.any(
+      (option) => _candidateIdForOption(option) != 0,
+    );
+    final filtered = <PlaceCandidate>[];
+    final addedIds = <int>{};
+    for (final option in options) {
+      final candidateId = _candidateIdForOption(option);
+      final candidate =
+          candidatesById[candidateId] ??
+          candidatesByName[_normalizeOptionLabel(option.label)];
+      if (candidate == null || !addedIds.add(candidate.id)) {
+        continue;
+      }
+      filtered.add(candidate);
+    }
+
+    if (filtered.isNotEmpty || hasCandidateIds) {
+      return List.unmodifiable(filtered);
+    }
+    return candidates;
+  }
+
   int _candidateIdForOption(VoteOptionSummary option) {
     final candidateId = int.tryParse(option.candidateId.trim());
     if (candidateId != null && candidateId != 0) {
@@ -171,5 +213,9 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
       return int.tryParse(option.targetId.trim()) ?? 0;
     }
     return 0;
+  }
+
+  String _normalizeOptionLabel(String value) {
+    return value.trim().toLowerCase();
   }
 }

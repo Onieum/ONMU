@@ -291,6 +291,7 @@ void main() {
       plan: basePlan,
       selectedMembers: const [],
       visitPlansByDate: const [],
+      dateTabs: const [],
       participantArrivals: const [],
       currentTime: currentTime,
     );
@@ -429,6 +430,31 @@ void main() {
 
     expect(state.votersFor(9901), isEmpty);
     expect(state.voteCountFor(9901), 3);
+  });
+
+  test('투표 상세 ViewModel은 투표 옵션에 포함된 장소 후보만 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _VoteCountOnlyGroupRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(
+          _MultiCandidatePlaceRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: '101',
+      )).future,
+    );
+
+    expect(state.candidates.map((candidate) => candidate.id), [9901]);
+    expect(state.candidates.map((candidate) => candidate.name), ['목업 카페']);
   });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
@@ -1973,6 +1999,36 @@ class _FakePlaceRepository implements PlaceRepository {
     voters: ['지우'],
     note: '테스트 결과',
   );
+}
+
+class _MultiCandidatePlaceRepository extends _FakePlaceRepository {
+  static final _otherCandidate = PlaceCandidate(
+    id: 9902,
+    name: '투표에 없는 식당',
+    category: '한식',
+    summary: '투표 옵션에 포함되지 않은 후보',
+    score: 72,
+    matchPercent: 61,
+    distanceLabel: '도보 8분',
+    travelTimeLabel: '도보 8분',
+    priceLabel: '1인 12,000원대',
+    isOpen: true,
+    address: '서울시 테스트구',
+    openingLabel: '오늘 11:00-21:00',
+    sourceLabel: 'Test API',
+    riskLabel: '안정',
+    riskTone: 'none',
+    memberFits: [],
+    tags: ['식사'],
+    reasons: ['근처에 있어요.'],
+    risks: ['운영 리스크 없음'],
+  );
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async => [_FakePlaceRepository._candidate, _otherCandidate];
 }
 
 class _FakePlanRepository implements PlanRepository {
