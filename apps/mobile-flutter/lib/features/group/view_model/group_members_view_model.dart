@@ -39,7 +39,7 @@ class GroupMembersViewModel extends AsyncNotifier<GroupMembersState> {
       group: group,
       members: members,
       inviteCandidates: members
-          .where((profile) => profile.invited || profile.name == '소연')
+          .where((profile) => profile.invited)
           .toList(growable: false),
     );
   }

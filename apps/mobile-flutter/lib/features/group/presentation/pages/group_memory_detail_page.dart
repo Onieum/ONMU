@@ -93,11 +93,9 @@ class _GroupMemoryDetailContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         const Divider(color: AppColors.lineSoft),
         const SizedBox(height: AppSpacing.md),
-        Text('댓글 3', style: Theme.of(context).textTheme.titleSmall),
+        Text('댓글 0', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.md),
-        const _CommentRow(author: '민수', body: '분위기 좋다! 어디야?', date: '05.24'),
-        const SizedBox(height: AppSpacing.sm),
-        const _CommentRow(author: '하린', body: '다음에 같이 가자!', date: '05.24'),
+        const _EmptyCommentState(),
         const SizedBox(height: 72),
       ],
     );
@@ -205,48 +203,22 @@ class _TagPill extends StatelessWidget {
   }
 }
 
-class _CommentRow extends StatelessWidget {
-  const _CommentRow({
-    required this.author,
-    required this.body,
-    required this.date,
-  });
-
-  final String author;
-  final String body;
-  final String date;
+class _EmptyCommentState extends StatelessWidget {
+  const _EmptyCommentState();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PixelAvatar(label: author, size: 28),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '$author  ',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                TextSpan(
-                  text: body,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          date,
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineSoft,
+      child: Center(
+        child: Text(
+          '아직 댓글이 없어요.',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
         ),
-      ],
+      ),
     );
   }
 }

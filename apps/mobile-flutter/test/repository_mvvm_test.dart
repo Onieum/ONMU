@@ -10,6 +10,7 @@ import 'package:onmu_mobile/features/group/view_model/group_chat_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_create_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_members_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
@@ -178,6 +179,22 @@ void main() {
 
     expect(state.recommendedMemberNames, isEmpty);
     expect(state.friendCandidates.map((friend) => friend.name), contains('도윤'));
+  });
+
+  test('온모임 멤버 ViewModel은 초대된 멤버만 초대 후보로 노출한다', () async {
+    final container = createOnmuTestContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupMembersViewModelProvider('1').future,
+    );
+    final candidateNames = state.inviteCandidates.map(
+      (profile) => profile.name,
+    );
+
+    expect(state.members.map((profile) => profile.name), contains('소연'));
+    expect(candidateNames, ['재훈', '은지', '태호']);
+    expect(candidateNames, isNot(contains('소연')));
   });
 
   test('온모임 홈 ViewModel은 요청한 groupId 범위의 상태를 만든다', () async {

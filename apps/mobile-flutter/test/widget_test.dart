@@ -1518,6 +1518,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('댓글 0'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('댓글 0'), findsOneWidget);
+    expect(find.text('분위기 좋다! 어디야?'), findsNothing);
+    expect(find.text('다음에 같이 가자!'), findsNothing);
   });
 
   testWidgets('group chat input sends a visible message', (tester) async {
