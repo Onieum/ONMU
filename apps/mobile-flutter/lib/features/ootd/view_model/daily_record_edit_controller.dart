@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/ootd_model.dart';
-import '../../memory/view_model/memory_detail_view_model.dart';
 import '../repository/record_repository.dart';
+import 'record_lookup_service.dart';
 
 final dailyRecordEditControllerProvider = Provider<DailyRecordEditController>(
   (ref) => DailyRecordEditController(ref),
@@ -19,7 +19,7 @@ class DailyRecordEditController {
 
   Future<DailyRecordEditLoadState> load(String memoryId) async {
     final record = await _ref
-        .read(recordRepositoryProvider)
+        .read(recordLookupServiceProvider)
         .fetchRecord(memoryId);
     final dailyItems = record.timeline
         .where((item) => item.category == 'daily')
@@ -134,7 +134,7 @@ class DailyRecordEditController {
     final saved = await _ref
         .read(recordRepositoryProvider)
         .updateRecord(input.memoryId, updated);
-    _invalidateRecord(input.memoryId);
+    _invalidateRecords();
     return DailyRecordEditSaveResult(
       record: saved,
       hasPhotoUploadFailure: hasPhotoUploadFailure,
@@ -143,12 +143,11 @@ class DailyRecordEditController {
 
   Future<void> delete(String memoryId) async {
     await _ref.read(recordRepositoryProvider).deleteRecord(memoryId);
-    _invalidateRecord(memoryId);
+    _invalidateRecords();
   }
 
-  void _invalidateRecord(String memoryId) {
+  void _invalidateRecords() {
     _ref.invalidate(ootdRecordsProvider);
-    _ref.invalidate(memoryRecordProvider(memoryId));
   }
 }
 

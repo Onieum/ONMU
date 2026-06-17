@@ -58,6 +58,7 @@ ProviderContainer createOnmuTestContainer() {
 ProviderScope onmuTestProviderScope({
   required Widget child,
   AuthUser? user,
+  GroupRepository? groupRepository,
   MyRepository? myRepository,
   RecordRepository? recordRepository,
   PreferenceProfile? preferenceProfile,
@@ -68,7 +69,9 @@ ProviderScope onmuTestProviderScope({
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
-      groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
+      groupRepositoryProvider.overrideWithValue(
+        groupRepository ?? TestGroupRepository(store),
+      ),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
       settlementRepositoryProvider.overrideWithValue(
