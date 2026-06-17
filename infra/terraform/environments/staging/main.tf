@@ -13,6 +13,18 @@ locals {
     data_classification = var.data_classification
   }
 
+  tile_cors_allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "https://dev-api.onmu.cloud",
+    "https://int-api.onmu.cloud",
+    "https://staging-api.onmu.cloud",
+  ]
+
   resource_group_name     = var.create_resource_group ? module.resource_group[0].name : data.azurerm_resource_group.existing[0].name
   resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
   runtime_key_vault_id    = data.azurerm_key_vault.runtime.id
@@ -212,14 +224,15 @@ module "redis" {
 module "storage" {
   count = var.enabled_modules.storage ? 1 : 0
 
-  source               = "../../modules/storage"
-  resource_group_name  = local.resource_group_name
-  location             = local.resource_group_location
-  account_name         = module.naming.storage_account_name
-  replication_type     = "LRS"
-  media_container_name = module.naming.media_container_name
-  tile_container_name  = module.naming.tile_container_name
-  tags                 = local.tags
+  source                    = "../../modules/storage"
+  resource_group_name       = local.resource_group_name
+  location                  = local.resource_group_location
+  account_name              = module.naming.storage_account_name
+  replication_type          = "LRS"
+  media_container_name      = module.naming.media_container_name
+  tile_container_name       = module.naming.tile_container_name
+  tile_cors_allowed_origins = local.tile_cors_allowed_origins
+  tags                      = local.tags
 }
 
 module "cdn" {

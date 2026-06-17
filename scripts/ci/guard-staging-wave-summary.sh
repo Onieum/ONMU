@@ -80,8 +80,8 @@ case "$wave" in
     unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.type != "azurerm_storage_account" and .type != "azurerm_storage_container")) | .type] | length' "$plan_json")"
     storage_account_updates="$(count_types_by_action update azurerm_storage_account)"
     storage_container_updates="$(count_types_by_action update azurerm_storage_container)"
-    if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -ne 1 ]; then
-      echo "Only one azurerm_storage_account update and one azurerm_storage_container update are allowed for frontdoor_origin_access. Existing Front Door and diagnostics must stay no-op/read." >&2
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_update" -gt 0 ] || [ "$storage_account_updates" -ne 1 ] || [ "$storage_container_updates" -gt 1 ]; then
+      echo "Only one azurerm_storage_account update and zero or one azurerm_storage_container update are allowed for frontdoor_origin_access. Existing Front Door and diagnostics must stay no-op/read." >&2
       exit 1
     fi
     ;;
