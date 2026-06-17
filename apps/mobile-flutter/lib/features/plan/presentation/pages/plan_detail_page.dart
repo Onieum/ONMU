@@ -14,6 +14,7 @@ import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../view_model/plan_detail_view_model.dart';
+import '../../widgets/plan_date_tabs.dart';
 import '../../widgets/plan_member_avatar_row.dart';
 
 class PlanDetailPage extends ConsumerWidget {
@@ -121,9 +122,8 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
       onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         canLeavePlan: canLeavePlan,
-        onEditPressed: () => context.push(
-          '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',
-        ),
+        onEditPressed: () =>
+            context.push(RoutePaths.planEdit(widget.groupId, widget.planId)),
         onLeavePressed: () => _leavePlan(context, widget.onRemoveCurrentUser),
       ),
       bottom: _DraftPlaceActions(
@@ -145,7 +145,8 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
           ),
         ],
         const SizedBox(height: AppSpacing.md),
-        _DateTabs(
+        PlanDateTabs(
+          tabs: widget.detail.dateTabs,
           selectedIndex: _selectedDateIndex,
           onChanged: (index) => setState(() => _selectedDateIndex = index),
         ),
@@ -288,9 +289,8 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
       onBack: () => context.popOrGo(RoutePaths.groupDetail(widget.groupId)),
       action: _PlanMoreMenu(
         canLeavePlan: canLeavePlan,
-        onEditPressed: () => context.push(
-          '${RoutePaths.planNew(widget.groupId)}?edit=${widget.planId}',
-        ),
+        onEditPressed: () =>
+            context.push(RoutePaths.planEdit(widget.groupId, widget.planId)),
         onLeavePressed: () => _leavePlan(context, widget.onRemoveCurrentUser),
       ),
       bottom: OnmuPrimaryButton(
@@ -311,7 +311,8 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
           ),
         ],
         const SizedBox(height: AppSpacing.md),
-        _DateTabs(
+        PlanDateTabs(
+          tabs: widget.detail.dateTabs,
           selectedIndex: _selectedDateIndex,
           onChanged: (index) => setState(() => _selectedDateIndex = index),
         ),
@@ -568,53 +569,6 @@ Future<void> _leavePlan(
   ScaffoldMessenger.of(
     context,
   ).showSnackBar(const SnackBar(content: Text('약속에서 나갔어요.')));
-}
-
-class _DateTabs extends StatelessWidget {
-  const _DateTabs({required this.selectedIndex, required this.onChanged});
-
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final tabs = ['6/7 토', '6/8 일', '6/9 월'];
-
-    return Row(
-      children: [
-        for (var index = 0; index < tabs.length; index += 1)
-          Expanded(
-            child: InkWell(
-              onTap: () => onChanged(index),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.lineSoft,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    tabs[index],
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: index == selectedIndex
-                          ? AppColors.primaryPink
-                          : AppColors.textSub,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 class _PlanItineraryPreviewSection extends StatelessWidget {

@@ -1,12 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
+import '../../../shared/models/ootd_model.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../group/repository/group_repository.dart';
+import '../../ootd/repository/record_repository.dart';
 
 final homeViewModelProvider = AsyncNotifierProvider<HomeViewModel, HomeState>(
   HomeViewModel.new,
 );
+
+final homeRecentRecordsProvider = FutureProvider<List<OotdRecord>>((ref) async {
+  final records = await ref.watch(recordRepositoryProvider).fetchMyRecords();
+  return _recentRecords(records);
+});
 
 class HomeState {
   const HomeState({
@@ -103,4 +110,10 @@ class HomeViewModel extends AsyncNotifier<HomeState> {
         left.month == right.month &&
         left.day == right.day;
   }
+}
+
+List<OotdRecord> _recentRecords(List<OotdRecord> records) {
+  final sorted = records.toList(growable: false)
+    ..sort((left, right) => right.date.compareTo(left.date));
+  return List.unmodifiable(sorted);
 }

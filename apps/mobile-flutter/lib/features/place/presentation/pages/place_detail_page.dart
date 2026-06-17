@@ -171,10 +171,14 @@ class _DetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${candidate.category} · ${candidate.distanceLabel}',
+            candidate.categoryDistanceLabel,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          Text(candidate.address, style: Theme.of(context).textTheme.bodySmall),
+          if (candidate.displayAddress.isNotEmpty)
+            Text(
+              candidate.displayAddress,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
@@ -185,12 +189,14 @@ class _DetailSheet extends StatelessWidget {
             ],
           ),
           const Divider(height: AppSpacing.xl),
-          _InfoBlock(
-            title: candidate.openingLabel,
-            body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
-            trailing: candidate.isOpen ? '영업중' : '확인 필요',
-          ),
-          const Divider(height: AppSpacing.xl),
+          if (candidate.openingLabel.trim().isNotEmpty) ...[
+            _InfoBlock(
+              title: candidate.openingLabel,
+              body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
+              trailing: candidate.isOpen ? '영업중' : '확인 필요',
+            ),
+            const Divider(height: AppSpacing.xl),
+          ],
           Text('리뷰 키워드', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
           Wrap(

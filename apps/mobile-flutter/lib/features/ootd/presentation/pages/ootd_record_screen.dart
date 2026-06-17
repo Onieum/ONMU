@@ -439,7 +439,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               ),
               SizedBox(height: 10),
               Text(
-                '사진을 선택하거나\n여기로 드래그 해주세요\n(JPG, PNG / 최대 10장)',
+                '전체 코디가 보이는 사진 1장을 선택하거나\n여기로 드래그 해주세요\n(JPG, PNG)',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.labelSmall.copyWith(
                   color: AppColors.textSub,

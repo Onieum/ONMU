@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/routing/route_paths.dart';
-import '../../features/my/repository/my_repository.dart';
-import '../../features/onboarding/onboarding_status.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_radius.dart';
+import '../../features/preferences/view_model/preference_summary_controller.dart';
 import '../../shared/models/preference_profile.dart';
-import '../../shared/onmu_design.dart';
-import '../../shared/providers/state_providers.dart';
 import '../../shared/widgets/grid_background.dart';
+import '../../shared/widgets/onmu_button.dart';
 
 Future<void> showPreferenceSummaryBottomSheet(
   BuildContext context,
@@ -143,49 +142,9 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
     setState(() => _isSaving = true);
 
     try {
-      final profile = widget.profile;
-      final onboardingStatus = deriveOnboardingStatus(
-        preferenceReady: true,
-        characterReady:
-            ref.read(userCharacterProvider) != null ||
-            ref.read(skippedCharacterProvider),
-      );
-      final currentProfile = await ref
-          .read(myProfileProvider.future)
-          .timeout(_saveTimeout);
-      final updatedProfile = currentProfile.copyWith(
-        favoriteFoodTags: _withOther(
-          profile.favoriteFoodTags,
-          profile.otherFavoriteFood,
-        ),
-        dislikedFoodTags: _withOther(
-          profile.dislikedFoodTags,
-          profile.otherDislikedFood,
-        ),
-        favoritePlaceTags: _withOther(
-          profile.favoritePlaceTags,
-          profile.otherFavoritePlace,
-        ),
-        dislikedPlaceTags: _withOther(
-          profile.dislikedPlaceTags,
-          profile.otherDislikedPlace,
-        ),
-        planStyles: profile.planStyles,
-        preferredWeekdays: profile.preferredWeekdays,
-        preferredTimes: profile.preferredTimes,
-      );
-
       await ref
-          .read(myRepositoryProvider)
-          .updateMyProfile(
-            updatedProfile,
-            onboardingStatus: onboardingStatus.value,
-          )
-          .timeout(_saveTimeout);
-      ref.read(preferenceProfileProvider.notifier).state = profile;
-      ref.read(skippedPreferenceProvider.notifier).state = false;
-      syncAuthUserOnboardingStatus(ref, onboardingStatus);
-      ref.invalidate(myProfileProvider);
+          .read(preferenceSummaryControllerProvider)
+          .savePreferenceProfile(widget.profile, timeout: _saveTimeout);
 
       if (!mounted) {
         return;
@@ -204,14 +163,6 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
       }
     }
   }
-}
-
-List<String> _withOther(List<String> values, String other) {
-  final cleanOther = other.trim();
-  if (cleanOther.isEmpty) {
-    return values;
-  }
-  return [...values, cleanOther];
 }
 
 class _PreferenceSummarySheet extends StatelessWidget {

@@ -64,38 +64,32 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
   }
 
   Future<void> _showRenameSheet(WidgetRef ref, String description) async {
-    final controller = TextEditingController(text: _groupName);
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: _RenameGroupSheet(initialName: _groupName ?? ''),
+        );
+      },
+    );
 
-    try {
-      final result = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: AppColors.transparent,
-        builder: (context) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: _RenameGroupSheet(controller: controller),
-          );
-        },
-      );
-
-      if (!mounted || result == null || result.isEmpty) {
-        return;
-      }
-
-      final updated = await ref
-          .read(groupMembersViewModelProvider(widget.groupId).notifier)
-          .updateGroup(name: result, description: description);
-      if (!mounted) {
-        return;
-      }
-      setState(() => _groupName = updated.name);
-    } finally {
-      controller.dispose();
+    if (!mounted || result == null || result.isEmpty) {
+      return;
     }
+
+    final updated = await ref
+        .read(groupMembersViewModelProvider(widget.groupId).notifier)
+        .updateGroup(name: result, description: description);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _groupName = updated.name);
   }
 
   Future<void> _showNotificationSheet() async {
@@ -344,10 +338,41 @@ class _SettingActionCard extends StatelessWidget {
   }
 }
 
-class _RenameGroupSheet extends StatelessWidget {
-  const _RenameGroupSheet({required this.controller});
+class _RenameGroupSheet extends StatefulWidget {
+  const _RenameGroupSheet({required this.initialName});
 
-  final TextEditingController controller;
+  final String initialName;
+
+  @override
+  State<_RenameGroupSheet> createState() => _RenameGroupSheetState();
+}
+
+class _RenameGroupSheetState extends State<_RenameGroupSheet> {
+  late final TextEditingController _controller;
+  late int _nameLength;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+    _nameLength = _controller.text.characters.length;
+    _controller.addListener(_syncNameLength);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_syncNameLength);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _syncNameLength() {
+    final nextLength = _controller.text.characters.length;
+    if (nextLength == _nameLength || !mounted) {
+      return;
+    }
+    setState(() => _nameLength = nextLength);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -392,7 +417,7 @@ class _RenameGroupSheet extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${controller.text.characters.length}/20',
+                  '$_nameLength/20',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -401,7 +426,7 @@ class _RenameGroupSheet extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
-              controller: controller,
+              controller: _controller,
               maxLength: 20,
               autofocus: true,
               textInputAction: TextInputAction.done,
@@ -438,7 +463,7 @@ class _RenameGroupSheet extends StatelessWidget {
   }
 
   void _submit(BuildContext context) {
-    final value = controller.text.trim();
+    final value = _controller.text.trim();
     if (value.isEmpty) {
       return;
     }

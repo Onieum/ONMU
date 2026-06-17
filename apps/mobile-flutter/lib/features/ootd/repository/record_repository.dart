@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,8 +88,8 @@ class ApiRecordRepository implements RecordRepository {
     final imageUrls = record.imageUrls.isNotEmpty
         ? record.imageUrls
         : record.imagePath == null
-            ? const <String>[]
-            : <String>[record.imagePath!];
+        ? const <String>[]
+        : <String>[record.imagePath!];
     return {
       'type': isDaily ? 'DAILY' : 'OOTD',
       'title': _recordTitle(record),
@@ -108,9 +108,9 @@ class ApiRecordRepository implements RecordRepository {
   OotdRecord _fromMemory(Map<String, dynamic> json) {
     final type = OnmuJson.readString(json, 'type', 'OOTD').toUpperCase();
     final tags = OnmuJson.stringList(json['tags']);
-    final imageUrls = OnmuJson.stringList(json['imageUrls'])
-        .map(_absoluteApiUrl)
-        .toList(growable: false);
+    final imageUrls = OnmuJson.stringList(
+      json['imageUrls'],
+    ).map(_absoluteApiUrl).toList(growable: false);
     final payload = OnmuJson.asMap(json['payload']);
     final payloadBrands = OnmuJson.asMap(payload['brands']);
     final snapshot = OnmuJson.asMap(json['characterSnapshot']);
@@ -136,7 +136,13 @@ class ApiRecordRepository implements RecordRepository {
       'publicId',
       OnmuJson.readString(json, 'id'),
     );
-    final timeline = _timelineFromPayload(payload, memo, isDaily, date, imageUrls);
+    final timeline = _timelineFromPayload(
+      payload,
+      memo,
+      isDaily,
+      date,
+      imageUrls,
+    );
     final brands = <String, String>{
       for (final entry in payloadBrands.entries)
         entry.key.toString(): entry.value?.toString() ?? '',
@@ -144,8 +150,16 @@ class ApiRecordRepository implements RecordRepository {
       'visibility': OnmuJson.readString(json, 'visibility'),
       'aiStatus': OnmuJson.readString(json, 'aiStatus'),
     };
-    final mood = OnmuJson.readString(payload, 'mood', OnmuJson.readString(payloadBrands, 'mood'));
-    final weather = OnmuJson.readString(payload, 'weather', OnmuJson.readString(payloadBrands, 'weather'));
+    final mood = OnmuJson.readString(
+      payload,
+      'mood',
+      OnmuJson.readString(payloadBrands, 'mood'),
+    );
+    final weather = OnmuJson.readString(
+      payload,
+      'weather',
+      OnmuJson.readString(payloadBrands, 'weather'),
+    );
 
     return OotdRecord(
       id: id.isEmpty ? null : id,
@@ -191,22 +205,34 @@ class ApiRecordRepository implements RecordRepository {
   ) {
     final rawTimeline = payload['timeline'];
     if (rawTimeline is List && rawTimeline.isNotEmpty) {
-      return rawTimeline.asMap().entries.map((entry) {
-        final item = OnmuJson.asMap(entry.value);
-        return TimelineItem(
-          time: OnmuJson.readString(item, 'time', entry.key.toString()),
-          placeName: OnmuJson.readString(item, 'placeName', '사진 기록 ${entry.key + 1}'),
-          category: OnmuJson.readString(item, 'category', 'photo'),
-          description: OnmuJson.readString(item, 'description'),
-          imageUrl: _nullableImageUrl(OnmuJson.readString(
-            item,
-            'imageUrl',
-            entry.key < imageUrls.length ? imageUrls[entry.key] : '',
-          )),
-        );
-      }).toList(growable: false);
+      return rawTimeline
+          .asMap()
+          .entries
+          .map((entry) {
+            final item = OnmuJson.asMap(entry.value);
+            return TimelineItem(
+              time: OnmuJson.readString(item, 'time', entry.key.toString()),
+              placeName: OnmuJson.readString(
+                item,
+                'placeName',
+                '사진 기록 ${entry.key + 1}',
+              ),
+              category: OnmuJson.readString(item, 'category', 'photo'),
+              description: OnmuJson.readString(item, 'description'),
+              imageUrl: _nullableImageUrl(
+                OnmuJson.readString(
+                  item,
+                  'imageUrl',
+                  entry.key < imageUrls.length ? imageUrls[entry.key] : '',
+                ),
+              ),
+            );
+          })
+          .toList(growable: false);
     }
-    final photoItems = imageUrls.asMap().entries
+    final photoItems = imageUrls
+        .asMap()
+        .entries
         .map(
           (entry) => TimelineItem(
             time: '사진 ${entry.key + 1}',
@@ -227,6 +253,7 @@ class ApiRecordRepository implements RecordRepository {
     );
     return photoItems;
   }
+
   String _recordTitle(OotdRecord record) {
     final isDaily = record.brands['recordType'] == 'daily';
     return isDaily
@@ -280,5 +307,3 @@ class ApiRecordRepository implements RecordRepository {
     return normalized.isEmpty ? null : normalized;
   }
 }
-
-

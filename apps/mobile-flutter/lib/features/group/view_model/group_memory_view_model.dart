@@ -59,11 +59,26 @@ class GroupMemoryDetailViewModel extends AsyncNotifier<GroupMemoryDetailState> {
   @override
   Future<GroupMemoryDetailState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
-    final memory = await repository.fetchMemory(
-      groupId: scope.groupId,
-      memoryId: scope.memoryId,
-    );
+    final memory = await _fetchMemory(repository);
 
     return GroupMemoryDetailState(memory: memory, photoIndex: memory.id);
+  }
+
+  Future<GroupMemoryRecord> _fetchMemory(GroupRepository repository) async {
+    try {
+      return await repository.fetchMemory(
+        groupId: scope.groupId,
+        memoryId: scope.memoryId,
+      );
+    } catch (error, stackTrace) {
+      final memories = await repository.fetchMemories(scope.groupId);
+      final parsedId = int.tryParse(scope.memoryId);
+      for (final memory in memories) {
+        if (memory.id == parsedId || memory.id.toString() == scope.memoryId) {
+          return memory;
+        }
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }

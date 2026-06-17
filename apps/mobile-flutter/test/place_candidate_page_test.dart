@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
+import 'package:onmu_mobile/features/place/presentation/widgets/place_candidate_card.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
@@ -56,6 +57,20 @@ void main() {
       find.widgetWithText(TextButton, '투표 만들기'),
     );
     expect(voteButton.onPressed, isNull);
+  });
+
+  testWidgets('장소 후보 선호 문구는 memberFit label을 사용한다', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: const Scaffold(
+          body: MemberPreferenceList(candidate: _memberFitCandidate),
+        ),
+      ),
+    );
+
+    expect(find.text('도윤님이 좋아하는 장소입니다 · 조용한 대화 공간을 선호해요'), findsOneWidget);
+    expect(find.textContaining('민서님'), findsNothing);
   });
 }
 
@@ -257,6 +272,28 @@ const _exhibitCandidate = PlaceCandidate(
   riskTone: 'none',
   memberFits: [],
   tags: ['관광'],
+  reasons: [],
+  risks: [],
+);
+
+const _memberFitCandidate = PlaceCandidate(
+  id: 4,
+  name: '선호 테스트 장소',
+  category: '카페',
+  summary: '멤버 선호 문구 테스트',
+  score: 0,
+  matchPercent: 0,
+  distanceLabel: '',
+  travelTimeLabel: '',
+  priceLabel: '',
+  isOpen: true,
+  address: '',
+  openingLabel: '',
+  sourceLabel: '',
+  riskLabel: '',
+  riskTone: 'none',
+  memberFits: [MemberFit(label: '도윤', score: 94, note: '조용한 대화 공간을 선호해요')],
+  tags: [],
   reasons: [],
   risks: [],
 );

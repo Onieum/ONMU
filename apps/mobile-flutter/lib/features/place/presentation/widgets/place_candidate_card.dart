@@ -34,20 +34,26 @@ class PlaceCandidateCard extends StatelessWidget {
           Text(candidate.name, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            '${candidate.category} · ${candidate.distanceLabel}',
+            candidate.categoryDistanceLabel,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(candidate.summary, style: Theme.of(context).textTheme.bodySmall),
+          if (candidate.summary.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              candidate.summary,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              OnmuChip(
-                label: candidate.travelTimeLabel,
-                icon: Icons.directions_walk,
-              ),
+              if (candidate.travelTimeLabel.trim().isNotEmpty)
+                OnmuChip(
+                  label: candidate.travelTimeLabel,
+                  icon: Icons.directions_walk,
+                ),
               for (final tag in candidate.tags.take(compact ? 2 : 3))
                 OnmuChip(label: tag),
             ],
@@ -102,32 +108,49 @@ class MemberPreferenceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final names = ['민서', '하린', '지우', '현우'];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var index = 0; index < candidate.memberFits.length; index += 1)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.favorite,
-                  size: 16,
-                  color: AppColors.accentRed,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    '${names[index % names.length]}님이 ${index.isEven ? '좋아하는' : '가고 싶어하는'} 장소입니다 · ${candidate.memberFits[index].note}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
+            child: _MemberPreferenceRow(
+              fit: candidate.memberFits[index],
+              fallbackIndex: index + 1,
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _MemberPreferenceRow extends StatelessWidget {
+  const _MemberPreferenceRow({required this.fit, required this.fallbackIndex});
+
+  final MemberFit fit;
+  final int fallbackIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final memberLabel = fit.label.trim().isEmpty
+        ? '참여자 $fallbackIndex'
+        : fit.label.trim();
+    final note = fit.note.trim();
+    final description = note.isEmpty
+        ? '$memberLabel님의 선호와 맞는 장소입니다'
+        : '$memberLabel님이 좋아하는 장소입니다 · $note';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.favorite, size: 16, color: AppColors.accentRed),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            description,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
       ],
     );
   }

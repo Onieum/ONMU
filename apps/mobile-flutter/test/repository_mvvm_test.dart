@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,13 +10,20 @@ import 'package:onmu_mobile/features/group/view_model/group_chat_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_create_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_members_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
+import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
+import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
+import 'package:onmu_mobile/features/ootd/view_model/record_flow_controller.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/place/view_model/place_candidates_view_model.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/plan/view_model/plan_create_view_model.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/ootd_model.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -37,6 +45,22 @@ void main() {
     expect(state.groups, hasLength(1));
     expect(state.groups.single.id, 9001);
     expect(state.groupCount, 1);
+  });
+
+  test('온모임 목록 ViewModel은 비어 있는 요약을 멤버와 약속 API로 보강한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_SparseGroupListRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+    final group = state.groups.single;
+
+    expect(group.members, ['지우', '민수']);
+    expect(group.memberAvatars.map((member) => member.name), ['지우', '민수']);
+    expect(group.pinnedPlanTitle, '서버 보강 약속');
   });
 
   test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
@@ -146,6 +170,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
+        friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -153,6 +178,23 @@ void main() {
     final state = await container.read(groupCreateViewModelProvider.future);
 
     expect(state.recommendedMemberNames, isEmpty);
+    expect(state.friendCandidates.map((friend) => friend.name), contains('도윤'));
+  });
+
+  test('온모임 멤버 ViewModel은 초대된 멤버만 초대 후보로 노출한다', () async {
+    final container = createOnmuTestContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupMembersViewModelProvider('1').future,
+    );
+    final candidateNames = state.inviteCandidates.map(
+      (profile) => profile.name,
+    );
+
+    expect(state.members.map((profile) => profile.name), contains('소연'));
+    expect(candidateNames, ['재훈', '은지', '태호']);
+    expect(candidateNames, isNot(contains('소연')));
   });
 
   test('온모임 홈 ViewModel은 요청한 groupId 범위의 상태를 만든다', () async {
@@ -269,6 +311,7 @@ void main() {
       plan: basePlan,
       selectedMembers: const [],
       visitPlansByDate: const [],
+      dateTabs: const [],
       participantArrivals: const [],
       currentTime: currentTime,
     );
@@ -319,6 +362,56 @@ void main() {
     expect(updated.favoriteCountFor(9901), 4);
   });
 
+  test('약속 생성 Controller는 새 약속 저장을 repository에 위임한다', () async {
+    final repository = _RecordingPlanCreateRepository();
+    final container = ProviderContainer(
+      overrides: [planRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final input = PlanCreateInput(
+      groupId: 33,
+      title: '컨트롤러 경계 테스트',
+      dateTime: '2026-06-18T10:00:00+09:00',
+      endsAt: '2026-06-18T12:00:00+09:00',
+      location: '성수',
+      memo: 'repository 호출은 ViewModel 계층에서 처리한다',
+      members: const [PlanMember(userId: 'user-1', name: '민서')],
+    );
+
+    final created = await container
+        .read(planCreateControllerProvider)
+        .createPlan(input);
+
+    expect(repository.createdInputs.single, same(input));
+    expect(created.title, '컨트롤러 경계 테스트');
+    expect(created.location, '성수');
+  });
+
+  test('기록 흐름 Controller는 저장/업로드/삭제를 repository에 위임한다', () async {
+    final repository = _RecordingRecordRepository();
+    final container = ProviderContainer(
+      overrides: [recordRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(recordFlowControllerProvider);
+    final draft = _recordForMutation();
+
+    final saved = await controller.saveRecord(draft);
+    final uploadedUrl = await controller.uploadMedia(
+      Uint8List.fromList(const [1, 2, 3]),
+      'daily.jpg',
+    );
+    final missingDelete = await controller.deleteRecord(draft);
+    final completedDelete = await controller.deleteRecord(saved);
+
+    expect(repository.createdRecords.single, same(draft));
+    expect(repository.uploadedFiles.single, 'daily.jpg');
+    expect(uploadedUrl, 'https://cdn.onmu.test/daily.jpg');
+    expect(missingDelete, RecordMutationResult.missingId);
+    expect(completedDelete, RecordMutationResult.completed);
+    expect(repository.deletedIds, ['record-created']);
+  });
+
   test('투표 상세 ViewModel은 voteId로 투표 카드와 후보를 조회한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
@@ -334,6 +427,54 @@ void main() {
     expect(state.vote.title, '제주도 여행 장소 투표');
     expect(state.candidates.first.name, '온무식당');
     expect(state.votersFor(201), contains('민서'));
+  });
+
+  test('투표 상세 ViewModel은 voters projection이 없어도 option count를 유지한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _VoteCountOnlyGroupRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: '101',
+      )).future,
+    );
+
+    expect(state.votersFor(9901), isEmpty);
+    expect(state.voteCountFor(9901), 3);
+  });
+
+  test('투표 상세 ViewModel은 투표 옵션에 포함된 장소 후보만 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _VoteCountOnlyGroupRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(
+          _MultiCandidatePlaceRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: '101',
+      )).future,
+    );
+
+    expect(state.candidates.map((candidate) => candidate.id), [9901]);
+    expect(state.candidates.map((candidate) => candidate.name), ['목업 카페']);
   });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
@@ -829,6 +970,24 @@ void main() {
   });
 }
 
+OotdRecord _recordForMutation({String? id}) {
+  return OotdRecord(
+    id: id,
+    date: DateTime.parse('2026-06-17T10:00:00+09:00'),
+    character: const CharacterDraft(),
+    moodTags: const ['daily'],
+    brands: const {'recordType': 'daily'},
+    timeline: const [
+      TimelineItem(
+        time: '10:00',
+        placeName: '성수',
+        category: 'daily',
+        description: 'ViewModel 경계 테스트',
+      ),
+    ],
+  );
+}
+
 class _FakeGroupRepository implements GroupRepository {
   _FakeGroupRepository({
     this.sentMessage,
@@ -1164,6 +1323,59 @@ class _EmptyGroupRepository implements GroupRepository {
     required Object memoryId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _SparseGroupListRepository extends _EmptyGroupRepository {
+  static const _group = GroupSummary(
+    id: 77,
+    name: '요약 부족 모임',
+    description: '목록 응답이 일부 필드를 생략한 상태',
+    members: [],
+    lastMessage: '',
+    unreadCount: 0,
+    pinnedPlanTitle: '약속 준비 중',
+  );
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async => const [_group];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return const [
+      GroupMemberProfile(
+        userId: 'user-jiwoo',
+        name: '지우',
+        note: '참여 중',
+        statusLabel: '참여 중',
+        profileImageUrl: 'https://cdn.onmu.test/jiwoo.png',
+      ),
+      GroupMemberProfile(
+        userId: 'user-minsu',
+        name: '민수',
+        note: '참여 중',
+        statusLabel: '참여 중',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 7701,
+        title: '서버 보강 약속',
+        dateLabel: '6월 18일 10:00',
+        startsAt: DateTime.utc(2026, 6, 18, 1),
+        placeName: '성수동',
+        statusLabel: '예정',
+        statusType: 'scheduled',
+        memberCount: 2,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+    ];
   }
 }
 
@@ -1555,6 +1767,62 @@ class _UnusedPlanRepository implements PlanRepository {
   }
 }
 
+class _RecordingPlanCreateRepository extends _UnusedPlanRepository {
+  final createdInputs = <PlanCreateInput>[];
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) async {
+    createdInputs.add(input);
+    return Plan(
+      id: 3301,
+      title: input.title,
+      dateTime: input.dateTime,
+      location: input.location,
+      status: 'draft',
+      memo: input.memo,
+      members: input.members,
+      timeCandidates: const [],
+      visitPlan: const [],
+    );
+  }
+}
+
+class _RecordingRecordRepository implements RecordRepository {
+  final createdRecords = <OotdRecord>[];
+  final deletedIds = <String>[];
+  final uploadedFiles = <String>[];
+
+  @override
+  Future<List<OotdRecord>> fetchMyRecords() async => const [];
+
+  @override
+  Future<OotdRecord> createRecord(OotdRecord record) async {
+    createdRecords.add(record);
+    return record.copyWith(id: 'record-created');
+  }
+
+  @override
+  Future<OotdRecord> fetchRecord(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<OotdRecord> updateRecord(String id, OotdRecord record) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteRecord(String id) async {
+    deletedIds.add(id);
+  }
+
+  @override
+  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
+    uploadedFiles.add(fileName);
+    return 'https://cdn.onmu.test/$fileName';
+  }
+}
+
 class _UnusedSettlementRepository implements SettlementRepository {
   @override
   Future<SettlementSummary> fetchSettlement({
@@ -1649,6 +1917,41 @@ class _ChatSettlementRepository implements SettlementRepository {
   }) async => _summary;
 }
 
+class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return VoteCard(
+      title: '응답 수만 있는 투표',
+      summary: '목업 카페',
+      statusLabel: 'open',
+      actionLabel: '투표 보기',
+      participantCount: 3,
+      targetType: 'PLAN',
+      targetId: '101',
+      options: [
+        VoteOptionSummary(
+          label: '목업 카페',
+          countLabel: '3표',
+          progress: 1,
+          candidateId: '9901',
+          responseCount: 3,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return const {};
+  }
+}
+
 class _FakePlaceRepository implements PlaceRepository {
   static final _candidate = PlaceCandidate(
     id: 9901,
@@ -1716,6 +2019,36 @@ class _FakePlaceRepository implements PlaceRepository {
     voters: ['지우'],
     note: '테스트 결과',
   );
+}
+
+class _MultiCandidatePlaceRepository extends _FakePlaceRepository {
+  static final _otherCandidate = PlaceCandidate(
+    id: 9902,
+    name: '투표에 없는 식당',
+    category: '한식',
+    summary: '투표 옵션에 포함되지 않은 후보',
+    score: 72,
+    matchPercent: 61,
+    distanceLabel: '도보 8분',
+    travelTimeLabel: '도보 8분',
+    priceLabel: '1인 12,000원대',
+    isOpen: true,
+    address: '서울시 테스트구',
+    openingLabel: '오늘 11:00-21:00',
+    sourceLabel: 'Test API',
+    riskLabel: '안정',
+    riskTone: 'none',
+    memberFits: [],
+    tags: ['식사'],
+    reasons: ['근처에 있어요.'],
+    risks: ['운영 리스크 없음'],
+  );
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async => [_FakePlaceRepository._candidate, _otherCandidate];
 }
 
 class _FakePlanRepository implements PlanRepository {

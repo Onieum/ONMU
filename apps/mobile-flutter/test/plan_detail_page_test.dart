@@ -7,12 +7,31 @@ import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
 import 'package:onmu_mobile/features/plan/presentation/pages/plan_detail_page.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_card.dart';
 
 void main() {
+  test('plan date tabs are derived from plan start date', () {
+    final tabs = buildPlanDateTabs(
+      plan: _testPlan(startsAt: DateTime(2026, 6, 18, 10)),
+      dayCount: 3,
+    );
+
+    expect(tabs.map((tab) => tab.tabLabel), ['6/18 목', '6/19 금', '6/20 토']);
+    expect(tabs[0].headingLabel, '6/18 목 동선');
+  });
+
+  testWidgets('plan detail date tabs follow plan start date', (tester) async {
+    await tester.pumpWidget(_planDetailTestApp(_PlanDetailTestRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('6/18 목'), findsOneWidget);
+    expect(find.text('6/7 토'), findsNothing);
+  });
+
   testWidgets('empty memo card uses full plan detail content width', (
     tester,
   ) async {
@@ -115,27 +134,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return const Plan(
-      id: 101,
-      title: '테스트 약속',
-      dateTime: '일정 미정',
-      location: '성수동',
-      status: '예정',
-      memo: '',
-      members: [
-        PlanMember(name: '지우', message: '', badge: '참여 중', selected: true),
-      ],
-      timeCandidates: [],
-      visitPlan: [
-        VisitPlan(
-          time: '10:00',
-          endTime: '11:00',
-          place: '테스트 카페',
-          kind: '카페',
-          duration: '1시간',
-        ),
-      ],
-    );
+    return _testPlan(startsAt: DateTime(2026, 6, 18, 10));
   }
 
   @override
@@ -229,6 +228,31 @@ class _PlanDetailTestRepository implements PlanRepository {
   }) {
     throw UnimplementedError();
   }
+}
+
+Plan _testPlan({DateTime? startsAt}) {
+  return Plan(
+    id: 101,
+    title: '테스트 약속',
+    dateTime: '일정 미정',
+    location: '성수동',
+    status: '예정',
+    memo: '',
+    members: const [
+      PlanMember(name: '지우', message: '', badge: '참여 중', selected: true),
+    ],
+    timeCandidates: const [],
+    visitPlan: const [
+      VisitPlan(
+        time: '10:00',
+        endTime: '11:00',
+        place: '테스트 카페',
+        kind: '카페',
+        duration: '1시간',
+      ),
+    ],
+    startsAt: startsAt,
+  );
 }
 
 class _PlanDetailGroupRepository implements GroupRepository {

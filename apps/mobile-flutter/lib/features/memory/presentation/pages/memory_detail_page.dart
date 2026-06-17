@@ -8,14 +8,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
-import '../../../ootd/repository/record_repository.dart';
-
-final memoryRecordProvider = FutureProvider.family<OotdRecord, String>((
-  ref,
-  memoryId,
-) {
-  return ref.watch(recordRepositoryProvider).fetchRecord(memoryId);
-});
+import '../../../ootd/view_model/record_lookup_service.dart';
+import '../../view_model/memory_detail_view_model.dart';
 
 class MemoryDetailPage extends ConsumerWidget {
   final String memoryId;
@@ -24,18 +18,8 @@ class MemoryDetailPage extends ConsumerWidget {
 
   OotdRecord? _findRecord(WidgetRef ref, String key) {
     final records =
-        ref.watch(ootdRecordsProvider).value ?? const <OotdRecord>[];
-
-    try {
-      return records.firstWhere((r) {
-        if (r.id == key) return true;
-        final type = r.brands['recordType'] ?? 'ootd';
-        final k = '${r.date.year}-${r.date.month}-${r.date.day}-$type';
-        return k == key;
-      });
-    } catch (_) {
-      return null;
-    }
+        ref.watch(memoryRecordListProvider).value ?? const <OotdRecord>[];
+    return findRecordByMemoryKey(records, key);
   }
 
   @override

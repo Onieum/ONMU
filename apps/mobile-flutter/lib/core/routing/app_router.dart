@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/login_page.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
-import '../../features/character/character_start_page.dart';
-import '../../features/character/repository/character_repository.dart';
+import '../../features/character/presentation/pages/character_start_page.dart';
 import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/home_recent_records_page.dart';
@@ -17,7 +16,7 @@ import '../../features/plan/presentation/pages/plan_detail_page.dart';
 import '../../features/plan/presentation/pages/plan_itinerary_page.dart';
 import '../../features/memory/presentation/pages/memory_detail_page.dart';
 import '../../features/memory/presentation/pages/memory_diary_template_page.dart';
-import '../../features/my/my_page.dart';
+import '../../features/my/presentation/pages/my_page.dart';
 import '../../features/group/presentation/pages/group_home_page.dart';
 import '../../features/group/presentation/pages/group_settings_page.dart';
 import '../../features/group/presentation/pages/group_create_page.dart';
@@ -32,23 +31,21 @@ import '../../features/group/presentation/pages/plan_settlement_detail_page.dart
 import '../../features/group/presentation/pages/plan_settlement_target_selection_page.dart';
 import '../../features/group/presentation/pages/group_chat_page.dart';
 import '../../features/group/presentation/pages/vote_detail_page.dart';
-import '../../features/onboarding/onboarding_hub_page.dart';
-import '../../features/onboarding/onboarding_status.dart';
-import '../../features/ootd/ootd_list_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_hub_page.dart';
+import '../../features/onboarding/view_model/onboarding_character_controller.dart';
+import '../../features/ootd/presentation/pages/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
-import '../../features/ootd/repository/record_repository.dart';
+import '../../features/ootd/view_model/record_flow_controller.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
 import '../../features/place/presentation/pages/place_map_page.dart';
 import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../features/place/presentation/pages/place_vote_create_page.dart';
-import '../../features/preferences/preference_intro_page.dart';
-import '../../features/my/repository/my_repository.dart';
+import '../../features/preferences/presentation/pages/preference_intro_page.dart';
 import '../../main_shell.dart';
-import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/providers/state_providers.dart';
@@ -85,55 +82,49 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: RoutePaths.onboardingPreferences,
+      redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
           final profile =
               ref.watch(preferenceProfileProvider) ?? PreferenceProfile.empty();
 
-          return PreferenceIntroPage(profile: profile);
+          return _OnboardingAccessGate(
+            child: PreferenceIntroPage(profile: profile),
+          );
         },
       ),
     ),
     GoRoute(
       path: RoutePaths.onboarding,
-      builder: (context, state) => const OnboardingHubPage(),
+      redirect: _redirectCompletedOnboarding,
+      builder: (context, state) =>
+          const _OnboardingAccessGate(child: OnboardingHubPage()),
     ),
     GoRoute(
       path: RoutePaths.onboardingCharacter,
+      redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
-        builder: (context, ref, child) => CharacterStartPage(
-          onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
-          onCompleted: (draft) async {
-            final router = GoRouter.of(context);
-            try {
-              final saved = await ref
-                  .read(characterRepositoryProvider)
-                  .saveMyCharacter(draft);
-              final onboardingStatus = deriveOnboardingStatus(
-                preferenceReady:
-                    ref.read(preferenceProfileProvider) != null ||
-                    ref.read(skippedPreferenceProvider),
-                characterReady: true,
-              );
-              await ref
-                  .read(myRepositoryProvider)
-                  .updateOnboardingStatus(onboardingStatus.value);
-              ref.read(userCharacterProvider.notifier).state = saved;
-              ref.read(skippedCharacterProvider.notifier).state = false;
-              syncAuthUserOnboardingStatus(ref, onboardingStatus);
-              ref.invalidate(characterProfileProvider);
-              ref.invalidate(myProfileProvider);
-              router.go(RoutePaths.onboarding);
-            } catch (_) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
-                  ),
-                );
+        builder: (context, ref, child) => _OnboardingAccessGate(
+          child: CharacterStartPage(
+            onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
+            onCompleted: (draft) async {
+              final router = GoRouter.of(context);
+              try {
+                await ref
+                    .read(onboardingCharacterControllerProvider)
+                    .saveCharacter(draft);
+                router.go(RoutePaths.onboarding);
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
+                    ),
+                  );
+                }
               }
-            }
-          },
+            },
+          ),
         ),
       ),
     ),
@@ -246,143 +237,162 @@ final appRouter = GoRouter(
                       ],
                     ),
                     GoRoute(
-                      path: 'plans/new',
-                      builder: (context, state) => PlanCreatePage(
-                        groupId: state.pathParameters['groupId']!,
-                        editingPlanId: state.uri.queryParameters['edit'],
-                      ),
-                    ),
-                    GoRoute(
                       path: 'plans',
                       builder: (context, state) => GroupPlanListPage(
                         groupId: state.pathParameters['groupId']!,
                       ),
-                    ),
-                    GoRoute(
-                      path: 'plans/new/schedule',
-                      builder: (context, state) => PlanCreatePage(
-                        groupId: state.pathParameters['groupId']!,
-                        editingPlanId: state.uri.queryParameters['edit'],
-                      ),
                       routes: [
                         GoRoute(
-                          path: 'calendar',
+                          path: 'new',
                           builder: (context, state) => PlanCreatePage(
                             groupId: state.pathParameters['groupId']!,
-                            editingPlanId: state.uri.queryParameters['edit'],
                           ),
-                        ),
-                      ],
-                    ),
-                    GoRoute(
-                      path: 'plans/:planId',
-                      builder: (context, state) => PlanDetailPage(
-                        groupId: state.pathParameters['groupId']!,
-                        planId: state.pathParameters['planId']!,
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: 'board',
-                          builder: (context, state) => GroupPlanBoardPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'place-candidates',
-                          builder: (context, state) {
-                            return PlaceCandidatePage(
-                              groupId: state.pathParameters['groupId']!,
-                              planId: state.pathParameters['planId']!,
-                            );
-                          },
                           routes: [
                             GoRoute(
-                              path: ':candidateId',
-                              builder: (context, state) => PlaceDetailPage(
+                              path: 'schedule',
+                              builder: (context, state) => PlanCreatePage(
                                 groupId: state.pathParameters['groupId']!,
-                                planId: state.pathParameters['planId']!,
-                                placeId: state.pathParameters['candidateId']!,
+                                entryIntent: PlanCreateEntryIntent.schedule,
                               ),
+                              routes: [
+                                GoRoute(
+                                  path: 'calendar',
+                                  builder: (context, state) => PlanCreatePage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    entryIntent: PlanCreateEntryIntent.calendar,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                         GoRoute(
-                          path: 'place-search',
-                          builder: (context, state) => PlaceMapPage(
+                          path: ':planId',
+                          builder: (context, state) => PlanDetailPage(
                             groupId: state.pathParameters['groupId']!,
                             planId: state.pathParameters['planId']!,
                           ),
                           routes: [
                             GoRoute(
-                              path: 'results',
+                              path: 'edit',
+                              builder: (context, state) => PlanCreatePage(
+                                groupId: state.pathParameters['groupId']!,
+                                editingPlanId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'board',
+                              builder: (context, state) => GroupPlanBoardPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'place-candidates',
+                              builder: (context, state) {
+                                return PlaceCandidatePage(
+                                  groupId: state.pathParameters['groupId']!,
+                                  planId: state.pathParameters['planId']!,
+                                );
+                              },
+                              routes: [
+                                GoRoute(
+                                  path: ':candidateId',
+                                  builder: (context, state) => PlaceDetailPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    placeId:
+                                        state.pathParameters['candidateId']!,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            GoRoute(
+                              path: 'place-search',
+                              pageBuilder: (context, state) =>
+                                  NoTransitionPage<void>(
+                                    key: state.pageKey,
+                                    child: PlaceMapPage(
+                                      groupId: state.pathParameters['groupId']!,
+                                      planId: state.pathParameters['planId']!,
+                                    ),
+                                  ),
+                              routes: [
+                                GoRoute(
+                                  path: 'results',
+                                  builder: (context, state) =>
+                                      PlaceSearchFilterPage(
+                                        groupId:
+                                            state.pathParameters['groupId']!,
+                                        planId: state.pathParameters['planId']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            GoRoute(
+                              path: 'votes',
+                              builder: (context, state) => GroupVoteListPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'votes/new',
+                              builder: (context, state) => PlaceVoteCreatePage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'votes/:voteId',
+                              builder: (context, state) => VoteDetailPage(
+                                groupId: state.pathParameters['groupId']!,
+                                voteId: state.pathParameters['voteId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'itinerary',
+                              builder: (context, state) => PlanItineraryPage(
+                                groupId: state.pathParameters['groupId']!,
+                                planId: state.pathParameters['planId']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new',
                               builder: (context, state) =>
-                                  PlaceSearchFilterPage(
+                                  PlanSettlementCreatePage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/items/:itemId/targets',
+                              builder: (context, state) =>
+                                  PlanSettlementTargetSelectionPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    itemId: state.pathParameters['itemId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/new/preview',
+                              builder: (context, state) =>
+                                  PlanSettlementDetailPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    preview: true,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/:settlementId',
+                              builder: (context, state) =>
+                                  PlanSettlementDetailPage(
                                     groupId: state.pathParameters['groupId']!,
                                     planId: state.pathParameters['planId']!,
                                   ),
                             ),
                           ],
-                        ),
-                        GoRoute(
-                          path: 'votes',
-                          builder: (context, state) => GroupVoteListPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'votes/new',
-                          builder: (context, state) => PlaceVoteCreatePage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'votes/:voteId',
-                          builder: (context, state) => VoteDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            voteId: state.pathParameters['voteId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'itinerary',
-                          builder: (context, state) => PlanItineraryPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new',
-                          builder: (context, state) => PlanSettlementCreatePage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new/items/:itemId/targets',
-                          builder: (context, state) =>
-                              PlanSettlementTargetSelectionPage(
-                                groupId: state.pathParameters['groupId']!,
-                                planId: state.pathParameters['planId']!,
-                                itemId: state.pathParameters['itemId']!,
-                              ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/new/preview',
-                          builder: (context, state) => PlanSettlementDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                            preview: true,
-                          ),
-                        ),
-                        GoRoute(
-                          path: 'settlements/:settlementId',
-                          builder: (context, state) => PlanSettlementDetailPage(
-                            groupId: state.pathParameters['groupId']!,
-                            planId: state.pathParameters['planId']!,
-                          ),
                         ),
                       ],
                     ),
@@ -398,16 +408,12 @@ final appRouter = GoRouter(
               path: RoutePaths.records,
               builder: (context, state) => Consumer(
                 builder: (context, ref, child) {
-                  final profile = ref.watch(characterProfileProvider);
-                  final character =
-                      profile.value ??
-                      ref.watch(userCharacterProvider) ??
-                      const CharacterDraft();
-                  final records = ref.watch(ootdRecordsProvider);
+                  final routeState = ref.watch(recordRouteStateProvider);
+                  final controller = ref.watch(recordFlowControllerProvider);
 
                   return OotdListPage(
-                    userCharacter: character,
-                    customRecords: records.value ?? const [],
+                    userCharacter: routeState.character,
+                    customRecords: routeState.records.value ?? const [],
                     onAddOotd: (date, ootdRecord) {
                       context.push(
                         '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}',
@@ -421,38 +427,40 @@ final appRouter = GoRouter(
                       );
                     },
                     onViewOotdDetail: (record) {
-                      final id = record.id;
-                      final type = record.brands['recordType'] ?? 'ootd';
-                      final recordKey = id ??
-                          '${record.date.year}-${record.date.month}-${record.date.day}-$type';
-                      context.push(RoutePaths.recordDetail(recordKey));
+                      context.push(
+                        RoutePaths.recordDetail(
+                          controller.detailKeyFor(record),
+                        ),
+                      );
                     },
                     onEditRecord: (record) async {
-                      final id = record.id;
-                      if (id == null || id.isEmpty) {
+                      if (controller.validateEditableRecord(record) ==
+                          RecordMutationResult.missingId) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('저장된 기록만 수정할 수 있어요.')),
                         );
                         return null;
                       }
                       final result = await context.push<Object?>(
-                        RoutePaths.recordEdit(id),
+                        RoutePaths.recordEdit(record.id!),
                       );
-                      ref.invalidate(ootdRecordsProvider);
+                      controller.refreshRecords();
                       return result;
                     },
                     onDeleteRecord: (record) async {
-                      final id = record.id;
-                      if (id == null || id.isEmpty) {
+                      final result = await controller.deleteRecord(record);
+                      if (result == RecordMutationResult.missingId) {
+                        if (!context.mounted) {
+                          return;
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('삭제할 수 없는 기록이에요.')),
                         );
                         return;
                       }
-                      await ref.read(recordRepositoryProvider).deleteRecord(id);
-                      ref.invalidate(ootdRecordsProvider);
                     },
-                    onNavigateToProfile: () => _showResetDialog(context, ref),
+                    onNavigateToProfile: () =>
+                        _showResetDialog(context, controller),
                   );
                 },
               ),
@@ -485,18 +493,15 @@ final appRouter = GoRouter(
         builder: (context, ref, child) {
           final date = _recordDateFromState(state);
           final ootdRecord = state.extra as OotdRecord?;
-          final character =
-              ref.watch(characterProfileProvider).value ??
-              ref.read(userCharacterProvider) ??
-              const CharacterDraft();
+          final routeState = ref.watch(recordRouteStateProvider);
+          final controller = ref.watch(recordFlowControllerProvider);
 
           return DailyRecordScreen(
-            userCharacter: character,
+            userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
-            onSave: (record) => _saveRecord(ref, record),
-            onUploadMedia: (bytes, fileName) =>
-                ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName),
+            onSave: controller.saveRecord,
+            onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {
               return context.push<OotdRecord>(
                 '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}&daily=1',
@@ -511,19 +516,17 @@ final appRouter = GoRouter(
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
           final date = _recordDateFromState(state);
-          final character =
-              ref.watch(characterProfileProvider).value ??
-              ref.read(userCharacterProvider) ??
-              const CharacterDraft();
+          final routeState = ref.watch(recordRouteStateProvider);
+          final controller = ref.watch(recordFlowControllerProvider);
           final existingRecord = state.extra as OotdRecord?;
           final isDailyRecord = state.uri.queryParameters['daily'] == '1';
 
           return OotdRecordScreen(
-            userCharacter: character,
+            userCharacter: routeState.character,
             recordDate: date,
             existingRecord: existingRecord,
             isDailyRecord: isDailyRecord,
-            onSave: (record) => _saveRecord(ref, record),
+            onSave: controller.saveRecord,
           );
         },
       ),
@@ -564,19 +567,60 @@ Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
   return RoutePaths.onboarding;
 }
 
+Future<String?> _redirectCompletedOnboarding(
+  BuildContext context,
+  GoRouterState state,
+) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final existingUser =
+      container.read(authUserProvider) ??
+      container.read(authBootstrapProvider).asData?.value.user;
+  if (existingUser?.hasCompletedOnboarding == true) {
+    return RoutePaths.home;
+  }
+  final AuthBootstrapResult bootstrap;
+  try {
+    bootstrap = await container
+        .read(authBootstrapProvider.future)
+        .timeout(const Duration(seconds: 6));
+  } catch (_) {
+    return null;
+  }
+  final user = bootstrap.user;
+  if (user?.hasCompletedOnboarding == true) {
+    return RoutePaths.home;
+  }
+  return null;
+}
+
+class _OnboardingAccessGate extends ConsumerWidget {
+  const _OnboardingAccessGate({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bootstrap = ref.watch(authBootstrapProvider);
+    final user = bootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+    if (user?.hasCompletedOnboarding == true) {
+      return const SizedBox.shrink();
+    }
+
+    if (bootstrap.isLoading && user == null) {
+      return const SizedBox.shrink();
+    }
+
+    return child;
+  }
+}
+
 DateTime _recordDateFromState(GoRouterState state) {
   final dateStr =
       state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
   return DateTime.parse(dateStr);
 }
 
-Future<OotdRecord> _saveRecord(WidgetRef ref, OotdRecord newRecord) async {
-  final saved = await ref.read(recordRepositoryProvider).createRecord(newRecord);
-  ref.invalidate(ootdRecordsProvider);
-  return saved;
-}
-
-void _showResetDialog(BuildContext context, WidgetRef ref) {
+void _showResetDialog(BuildContext context, RecordFlowController controller) {
   showDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
@@ -590,8 +634,7 @@ void _showResetDialog(BuildContext context, WidgetRef ref) {
         TextButton(
           onPressed: () {
             Navigator.of(dialogContext).pop();
-            ref.read(userCharacterProvider.notifier).state = null;
-            ref.read(skippedCharacterProvider.notifier).state = false;
+            controller.resetCharacterDraft();
           },
           child: const Text('초기화', style: TextStyle(color: Colors.red)),
         ),

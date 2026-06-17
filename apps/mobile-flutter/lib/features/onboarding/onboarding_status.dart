@@ -38,3 +38,13 @@ void syncAuthUserOnboardingStatus(WidgetRef ref, OnboardingStatus status) {
     onboardingStatus: status.value,
   );
 }
+
+void syncAuthUserOnboardingStatusFromRef(Ref ref, OnboardingStatus status) {
+  final user = ref.read(authUserProvider);
+  if (user == null || user.onboardingStatus == status.value) {
+    return;
+  }
+  ref.read(authUserProvider.notifier).state = user.copyWith(
+    onboardingStatus: status.value,
+  );
+}

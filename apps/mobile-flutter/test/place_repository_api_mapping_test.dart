@@ -88,5 +88,9 @@ void main() {
     expect(saved.sourceLabel, '외부 검색');
     expect(saved.latitude, 37.544);
     expect(saved.longitude, 127.055);
+    expect(saved.distanceLabel, '');
+    expect(saved.travelTimeLabel, '');
+    expect(saved.priceLabel, '');
+    expect(saved.openingLabel, '');
   });
 }

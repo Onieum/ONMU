@@ -10,12 +10,12 @@ import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/auth/data/auth_token_store.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
-import 'package:onmu_mobile/features/home/home_page.dart';
+import 'package:onmu_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_home_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_chat_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_memory_detail_page.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
-import 'package:onmu_mobile/features/my/my_page.dart';
+import 'package:onmu_mobile/features/my/presentation/pages/my_page.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
@@ -67,6 +67,59 @@ void main() {
     expect(find.text('안녕하세요, 나님'), findsOneWidget);
     expect(find.text('카카오로 시작하기'), findsNothing);
   });
+
+  testWidgets('completed user direct onboarding route returns home', (
+    tester,
+  ) async {
+    appRouter.go(RoutePaths.onboarding);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('캐릭터 만들기'), findsNothing);
+    expect(find.text('취향 선택'), findsNothing);
+  });
+
+  testWidgets(
+    'completed user direct onboarding child routes do not reparent shell',
+    (tester) async {
+      const user = AuthUser(
+        id: '00000000-0000-0000-0000-000000000001',
+        publicId: 'user-me',
+        provider: 'NAVER',
+        displayName: '나',
+        onboardingStatus: 'COMPLETED',
+      );
+
+      for (final route in [
+        RoutePaths.onboardingPreferences,
+        RoutePaths.onboardingCharacter,
+      ]) {
+        appRouter.go(route);
+        await tester.pumpWidget(
+          onmuTestProviderScope(user: user, child: const app.OnmuMaterialApp()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('안녕하세요, 나님'), findsOneWidget);
+        expect(find.text('취향 선택'), findsNothing);
+        expect(find.text('캐릭터 만들기'), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets('starts with splash and opens login', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -203,6 +256,23 @@ void main() {
     expect(find.text('약속 이름'), findsOneWidget);
     expect(find.text('참여 멤버'), findsOneWidget);
     expect(find.text('참여자 선택'), findsNothing);
+  });
+
+  testWidgets('group plan schedule routes focus date time creation intent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planNewSchedule(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('날짜와 시간을 먼저 정해요'), findsOneWidget);
+
+    appRouter.go(RoutePaths.planNewCalendar(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('캘린더에서 날짜와 시간을 고르세요'), findsOneWidget);
   });
 
   testWidgets('plan create starts with current user and warns before saving', (
@@ -583,7 +653,7 @@ void main() {
     expect(find.text('성수 저녁 약속이 30분 뒤 시작돼요'), findsNothing);
   });
 
-  testWidgets('home recent records see all opens empty record state', (
+  testWidgets('home recent records see all opens API record list', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -595,17 +665,27 @@ void main() {
     await tester.scrollUntilVisible(find.text('최근 기록'), 320);
     await tester.pumpAndSettle();
 
+    expect(find.text('한강 피크닉 기록'), findsOneWidget);
+
     await tester.tap(find.text('전체 보기').last);
     await tester.pumpAndSettle();
 
     expect(find.text('최근 기록'), findsOneWidget);
-    expect(find.text('최근 기록이 없어요.'), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('기록 카드 만들기'),
-      320,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('기록 카드 만들기'), findsOneWidget);
+    expect(find.text('한강 피크닉 기록'), findsOneWidget);
+    expect(find.text('성수 디저트룩'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsNothing);
+  });
+
+  testWidgets('records calendar ignores invalid bgColorIndex values', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.records);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('group home uses create plan fab only', (tester) async {
@@ -784,10 +864,16 @@ void main() {
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('6/8 일'));
+    final dateTabs = find.byWidgetPredicate((widget) {
+      return widget is Text &&
+          RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
+    });
+    expect(dateTabs, findsNWidgets(3));
+
+    await tester.tap(dateTabs.at(1));
     await tester.pumpAndSettle();
 
-    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+    final secondTabText = tester.widget<Text>(dateTabs.at(1));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
     expect(find.text('장소 동선'), findsOneWidget);
@@ -916,6 +1002,20 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+  });
+
+  testWidgets('canonical plan edit route opens the edit screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planEdit(_groupId, 103));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsOneWidget);
+    expect(find.text('수정 완료'), findsOneWidget);
+    expect(find.text('Page Not Found'), findsNothing);
   });
 
   testWidgets('canonical group and plan routes open operating screens', (
@@ -1377,19 +1477,28 @@ void main() {
     expect(find.text('후보에 추가하기'), findsWidgets);
   });
 
-  testWidgets('route review date tabs can be selected', (tester) async {
+  testWidgets('route review date tabs can be selected from plan dates', (
+    tester,
+  ) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('6/8 일'));
+    final dateTabs = find.byWidgetPredicate((widget) {
+      return widget is Text &&
+          RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
+    });
+    expect(dateTabs, findsNWidgets(3));
+
+    await tester.tap(dateTabs.at(1));
     await tester.pumpAndSettle();
 
-    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+    final secondTabText = tester.widget<Text>(dateTabs.at(1));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
+    expect(find.text('6/8 일'), findsNothing);
   });
 
   testWidgets('group memory detail screen renders', (tester) async {
@@ -1409,6 +1518,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('분위기 좋은 카페 발견! 디저트도 너무 맛있었어요.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('댓글 0'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('댓글 0'), findsOneWidget);
+    expect(find.text('분위기 좋다! 어디야?'), findsNothing);
+    expect(find.text('다음에 같이 가자!'), findsNothing);
   });
 
   testWidgets('group chat input sends a visible message', (tester) async {

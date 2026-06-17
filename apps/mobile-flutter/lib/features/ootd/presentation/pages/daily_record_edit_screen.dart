@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
-import '../../../memory/presentation/pages/memory_detail_page.dart';
-import '../../repository/record_repository.dart';
+import '../../view_model/daily_record_edit_controller.dart';
 
 class DailyRecordEditScreen extends ConsumerStatefulWidget {
   final String memoryId;
@@ -37,6 +36,7 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
 
   static const _moods = ['평온', '행복', '신남', '피곤'];
   static const _weathers = ['맑음', '흐림', '비', '눈'];
+  static const _photoCommentMaxLength = 25;
 
   @override
   void initState() {
@@ -56,50 +56,25 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
 
   Future<void> _load() async {
     try {
-      final record = await ref.read(recordRepositoryProvider).fetchRecord(
-        widget.memoryId,
-      );
-      final dailyItems = record.timeline
-          .where((item) => item.category == 'daily')
-          .toList(growable: false);
-      final photoItems = record.timeline
-          .where((item) => item.category == 'photo')
-          .toList(growable: false);
-      final memo = dailyItems.isNotEmpty
-          ? dailyItems.first.description
-          : record.timeline.isEmpty
-          ? ''
-          : record.timeline.first.description;
+      final state = await ref
+          .read(dailyRecordEditControllerProvider)
+          .load(widget.memoryId);
 
       _photos.clear();
-      if (photoItems.isEmpty && record.imageUrls.isEmpty) {
-        _photos.add(_EditablePhoto());
-      } else {
-        final rawCount = photoItems.length > record.imageUrls.length
-            ? photoItems.length
-            : record.imageUrls.length;
-        final count = rawCount > 5 ? 5 : rawCount;
-        for (var i = 0; i < count; i++) {
-          final item = i < photoItems.length ? photoItems[i] : null;
-          final photo = _EditablePhoto(
-            originalUrl: item?.imageUrl ??
-                (i < record.imageUrls.length ? record.imageUrls[i] : null),
-          );
-          photo.controller.text = item?.description ?? '';
-          _photos.add(photo);
-        }
+      for (final photoState in state.photos) {
+        final photo = _EditablePhoto(originalUrl: photoState.originalUrl);
+        photo.controller.text = photoState.description;
+        _photos.add(photo);
       }
 
       if (!mounted) return;
       setState(() {
-        _record = record;
-        _tags = [...record.moodTags];
-        _memoController.text = memo;
-        _mood = record.mood.isEmpty ? record.brands['mood'] ?? '평온' : record.mood;
-        _weather = record.weather.isEmpty
-            ? record.brands['weather'] ?? '맑음'
-            : record.weather;
-        _theme = record.brands['theme'] == 'clean' ? 'clean' : 'diary';
+        _record = state.record;
+        _tags = state.tags;
+        _memoController.text = state.memo;
+        _mood = state.mood;
+        _weather = state.weather;
+        _theme = state.theme;
         _isLoading = false;
       });
     } catch (_) {
@@ -123,9 +98,9 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
 
   void _addPhoto() {
     if (_photos.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사진은 최대 5장까지 추가할 수 있어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진은 최대 5장까지 추가할 수 있어요.')));
       return;
     }
     setState(() => _photos.add(_EditablePhoto()));
@@ -144,7 +119,6 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
       removed.dispose();
     });
   }
-
 
   Future<void> _pickPhoto(int index) async {
     final picked = await _imagePicker.pickImage(
@@ -233,78 +207,36 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
     });
 
     try {
-      final imageUrls = <String>[];
-      final photoTimeline = <TimelineItem>[];
-      var hasPhotoUploadFailure = false;
-      for (var i = 0; i < _photos.length; i++) {
-        final photo = _photos[i];
-        String? url = photo.originalUrl;
-        if (photo.imageBytes != null) {
-          try {
-            url = await ref.read(recordRepositoryProvider).uploadMedia(
-                  photo.imageBytes!,
-                  photo.fileName ?? 'daily-record.jpg',
-                );
-          } catch (error) {
-            hasPhotoUploadFailure = true;
-            debugPrint('Daily record edit photo upload failed: $error');
-          }
-        }
-        if (url == null && photo.controller.text.trim().isEmpty) continue;
-        if (url != null) imageUrls.add(url);
-        photoTimeline.add(
-          TimelineItem(
-            time: '사진 ${i + 1}',
-            placeName: url == null ? '사진 메모' : '추가한 사진',
-            category: 'photo',
-            description: photo.controller.text.trim().isEmpty
-                ? '사진에 대한 코멘트를 남기지 않았어요.'
-                : photo.controller.text.trim(),
-            imageUrl: url,
-          ),
-        );
-      }
-
-      final updated = record.copyWith(
-        imagePath: imageUrls.isEmpty ? null : imageUrls.first,
-        clearImagePath: imageUrls.isEmpty,
-        imageUrls: imageUrls,
-        moodTags: _tags,
-        mood: _mood,
-        weather: _weather,
-        brands: {
-          ...record.brands,
-          'recordType': 'daily',
-          'mood': _mood,
-          'weather': _weather,
-          'theme': _theme,
-        },
-        timeline: [
-          ...photoTimeline,
-          TimelineItem(
-            time: '오늘',
-            placeName: '하루 일과',
-            category: 'daily',
-            description: _memoController.text.trim().isEmpty
-                ? '오늘의 소중한 순간을 기록했어요.'
-                : _memoController.text.trim(),
-          ),
-        ],
-      );
-      final saved = await ref
-          .read(recordRepositoryProvider)
-          .updateRecord(widget.memoryId, updated);
-      ref.invalidate(ootdRecordsProvider);
-      ref.invalidate(memoryRecordProvider(widget.memoryId));
+      final result = await ref
+          .read(dailyRecordEditControllerProvider)
+          .save(
+            DailyRecordEditSaveInput(
+              memoryId: widget.memoryId,
+              record: record,
+              tags: _tags,
+              mood: _mood,
+              weather: _weather,
+              theme: _theme,
+              memo: _memoController.text,
+              photos: _photos
+                  .map(
+                    (photo) => DailyRecordEditPhotoInput(
+                      originalUrl: photo.originalUrl,
+                      imageBytes: photo.imageBytes,
+                      fileName: photo.fileName,
+                      description: photo.controller.text,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          );
       if (!mounted) return;
-      if (hasPhotoUploadFailure) {
+      if (result.hasPhotoUploadFailure) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('사진 일부는 업로드되지 않았지만 수정 내용은 저장했어요.'),
-          ),
+          const SnackBar(content: Text('사진 일부는 업로드되지 않았지만 수정 내용은 저장했어요.')),
         );
       }
-      context.pop(saved);
+      context.pop(result.record);
     } catch (error) {
       debugPrint('Daily record edit save failed: $error');
       if (!mounted) return;
@@ -329,7 +261,10 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('삭제', style: TextStyle(color: AppColors.primaryPink)),
+            child: const Text(
+              '삭제',
+              style: TextStyle(color: AppColors.primaryPink),
+            ),
           ),
         ],
       ),
@@ -340,9 +275,7 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
       _error = null;
     });
     try {
-      await ref.read(recordRepositoryProvider).deleteRecord(widget.memoryId);
-      ref.invalidate(ootdRecordsProvider);
-      ref.invalidate(memoryRecordProvider(widget.memoryId));
+      await ref.read(dailyRecordEditControllerProvider).delete(widget.memoryId);
       if (mounted) context.pop('deleted');
     } catch (_) {
       if (!mounted) return;
@@ -448,7 +381,9 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
                           Expanded(child: _sectionTitle('사진과 코멘트')),
                           TextButton.icon(
                             onPressed: _addPhoto,
-                            icon: const Icon(Icons.add_photo_alternate_outlined),
+                            icon: const Icon(
+                              Icons.add_photo_alternate_outlined,
+                            ),
                             label: const Text('사진 추가'),
                           ),
                         ],
@@ -503,20 +438,26 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _isDeleting || _isSaving ? null : _delete,
+                              onPressed: _isDeleting || _isSaving
+                                  ? null
+                                  : _delete,
                               icon: const Icon(Icons.delete_outline, size: 18),
                               label: Text(_isDeleting ? '삭제 중...' : '삭제하기'),
                               style: OutlinedButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 52),
                                 foregroundColor: AppColors.primaryPink,
-                                side: const BorderSide(color: AppColors.linePink),
+                                side: const BorderSide(
+                                  color: AppColors.linePink,
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _isSaving || _isDeleting ? null : _save,
+                              onPressed: _isSaving || _isDeleting
+                                  ? null
+                                  : _save,
                               icon: const Icon(Icons.check, size: 18),
                               label: Text(_isSaving ? '저장 중...' : '수정 저장하기'),
                               style: ElevatedButton.styleFrom(
@@ -629,11 +570,12 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
                     ? Image.network(
                         photo.originalUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: AppColors.textMuted,
-                          size: 34,
-                        ),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.image_not_supported_outlined,
+                              color: AppColors.textMuted,
+                              size: 34,
+                            ),
                       )
                     : const Icon(
                         Icons.add_photo_alternate_outlined,
@@ -647,11 +589,9 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
           TextField(
             controller: photo.controller,
             maxLines: 2,
-            maxLength: 120,
-            decoration: const InputDecoration(
-              hintText: '사진 코멘트 수정',
-              counterText: '',
-            ),
+            maxLength: _photoCommentMaxLength,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            decoration: const InputDecoration(hintText: '사진 코멘트 수정'),
           ),
         ],
       ),
@@ -691,7 +631,9 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
                 Text(
                   label,
                   style: AppTextStyles.labelLarge.copyWith(
-                    color: selected ? AppColors.primaryPink : AppColors.textMain,
+                    color: selected
+                        ? AppColors.primaryPink
+                        : AppColors.textMain,
                   ),
                 ),
               ],
@@ -746,8 +688,6 @@ IconData _dailyWeatherIcon(String weather) {
       return Icons.wb_sunny_outlined;
   }
 }
-
-
 
 class _EditablePhoto {
   Uint8List? imageBytes;

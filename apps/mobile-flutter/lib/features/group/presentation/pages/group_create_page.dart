@@ -12,7 +12,6 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../../my/domain/my_profile.dart';
-import '../../../my/model/friend_fixtures.dart';
 import '../../../my/widgets/friend_picker_sheet.dart';
 import '../../view_model/group_create_view_model.dart';
 
@@ -83,7 +82,11 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
       return;
     }
 
-    final selectedFriend = await _showMemberAddSheet(context, currentNames);
+    final selectedFriend = await _showMemberAddSheet(
+      context,
+      state,
+      currentNames,
+    );
     if (!mounted || selectedFriend == null) {
       return;
     }
@@ -110,6 +113,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
 
   Future<FriendProfile?> _showMemberAddSheet(
     BuildContext context,
+    GroupCreateState state,
     List<String> currentNames,
   ) async {
     return showModalBottomSheet<FriendProfile>(
@@ -120,7 +124,7 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (context) => FriendPickerSheet(
-        friends: createInitialFriends(),
+        friends: state.friendCandidates,
         excludedNames: currentNames.toSet(),
       ),
     );

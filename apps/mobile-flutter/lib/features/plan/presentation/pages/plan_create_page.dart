@@ -15,18 +15,23 @@ import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../../../group/view_model/group_plan_list_view_model.dart';
-import '../../../group/repository/group_repository.dart';
-import '../../../home/view_model/home_view_model.dart';
-import '../../repository/plan_repository.dart';
+import '../../view_model/plan_create_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_member_avatar_row.dart';
 
+enum PlanCreateEntryIntent { form, schedule, calendar }
+
 class PlanCreatePage extends ConsumerStatefulWidget {
-  const PlanCreatePage({required this.groupId, super.key, this.editingPlanId});
+  const PlanCreatePage({
+    required this.groupId,
+    super.key,
+    this.editingPlanId,
+    this.entryIntent = PlanCreateEntryIntent.form,
+  });
 
   final String groupId;
   final String? editingPlanId;
+  final PlanCreateEntryIntent entryIntent;
 
   @override
   ConsumerState<PlanCreatePage> createState() => _PlanCreatePageState();
@@ -41,6 +46,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   late DateTime _endsAt;
   int? _loadedPlanId;
   List<PlanMember>? _createSelectedMembers;
+  var _entryIntentApplied = false;
 
   @override
   void initState() {
@@ -54,6 +60,9 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     ]) {
       controller.addListener(_sync);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyInitialEntryIntent();
+    });
   }
 
   @override
@@ -71,6 +80,16 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   }
 
   void _sync() => setState(() {});
+
+  void _applyInitialEntryIntent() {
+    if (_entryIntentApplied ||
+        !mounted ||
+        widget.entryIntent == PlanCreateEntryIntent.form) {
+      return;
+    }
+    _entryIntentApplied = true;
+    _scrollToDateTimeSection();
+  }
 
   List<PlanMember> _defaultSelectedMembers(
     AuthUser? currentUser,
@@ -257,11 +276,12 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         ref.watch(preferenceProfileProvider),
       );
       final groupMembers = ref.watch(
-        _groupPlanMemberOptionsProvider(widget.groupId),
+        groupPlanMemberOptionsProvider(widget.groupId),
       );
       return _PlanCreateContent(
         groupId: widget.groupId,
         editingPlanId: null,
+        entryIntent: widget.entryIntent,
         dateTimeSectionKey: _dateTimeSectionKey,
         titleController: _titleController,
         startsAt: _startsAt,
@@ -283,7 +303,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                   return;
                 }
                 final plan = await ref
-                    .read(planRepositoryProvider)
+                    .read(planCreateControllerProvider)
                     .createPlan(
                       PlanCreateInput(
                         groupId: widget.groupId,
@@ -295,8 +315,6 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                         members: selectedMembers,
                       ),
                     );
-                ref.invalidate(groupPlanListViewModelProvider(widget.groupId));
-                ref.invalidate(homeViewModelProvider);
                 if (!context.mounted) {
                   return;
                 }
@@ -318,6 +336,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         return _PlanCreateContent(
           groupId: widget.groupId,
           editingPlanId: widget.editingPlanId,
+          entryIntent: widget.entryIntent,
           dateTimeSectionKey: _dateTimeSectionKey,
           titleController: _titleController,
           startsAt: _startsAt,
@@ -328,7 +347,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
           candidateMembers: ref.watch(
-            _groupPlanMemberOptionsProvider(widget.groupId),
+            groupPlanMemberOptionsProvider(widget.groupId),
           ),
           onMemberAdded: (member) async =>
               ref.read(provider.notifier).addParticipant(member.userId),
@@ -379,29 +398,10 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   }
 }
 
-final _groupPlanMemberOptionsProvider =
-    FutureProvider.family<List<PlanMember>, String>((ref, groupId) async {
-      final members = await ref
-          .watch(groupRepositoryProvider)
-          .fetchMembers(groupId);
-      return members
-          .where((member) => !member.invited && member.userId.trim().isNotEmpty)
-          .map(
-            (member) => PlanMember(
-              userId: member.userId,
-              name: member.name,
-              message: member.note,
-              badge: member.statusLabel,
-              selected: true,
-              profileImageUrl: member.profileImageUrl,
-            ),
-          )
-          .toList(growable: false);
-    });
-
 class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({
     required this.groupId,
+    required this.entryIntent,
     required this.dateTimeSectionKey,
     required this.titleController,
     required this.startsAt,
@@ -418,6 +418,7 @@ class _PlanCreateContent extends StatelessWidget {
 
   final String groupId;
   final String? editingPlanId;
+  final PlanCreateEntryIntent entryIntent;
   final GlobalKey dateTimeSectionKey;
   final TextEditingController titleController;
   final DateTime startsAt;
@@ -466,6 +467,10 @@ class _PlanCreateContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (entryIntent != PlanCreateEntryIntent.form) ...[
+                _PlanCreateEntryIntentCard(intent: entryIntent),
+                const SizedBox(height: AppSpacing.md),
+              ],
               Text('날짜와 시간', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: AppSpacing.sm),
               _DateTimeRangeField(
@@ -503,6 +508,46 @@ class _PlanCreateContent extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PlanCreateEntryIntentCard extends StatelessWidget {
+  const _PlanCreateEntryIntentCard({required this.intent});
+
+  final PlanCreateEntryIntent intent;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = switch (intent) {
+      PlanCreateEntryIntent.schedule => '날짜와 시간을 먼저 정해요',
+      PlanCreateEntryIntent.calendar => '캘린더에서 날짜와 시간을 고르세요',
+      PlanCreateEntryIntent.form => '약속 만들기',
+    };
+    final icon = switch (intent) {
+      PlanCreateEntryIntent.schedule => Icons.schedule,
+      PlanCreateEntryIntent.calendar => Icons.calendar_month_outlined,
+      PlanCreateEntryIntent.form => Icons.add_task,
+    };
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primaryPink),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppColors.primaryPurpleDark,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

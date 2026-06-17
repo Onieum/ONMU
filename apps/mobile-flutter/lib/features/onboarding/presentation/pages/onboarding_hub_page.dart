@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/routing/route_paths.dart';
-import '../../core/theme/app_radius.dart';
-import '../../features/auth/providers/auth_providers.dart';
-import '../../features/my/repository/my_repository.dart';
-import '../../shared/onmu_design.dart';
-import '../../shared/providers/state_providers.dart';
-import '../../shared/widgets/grid_background.dart';
-import 'onboarding_status.dart';
+import '../../../../core/routing/route_paths.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/providers/state_providers.dart';
+import '../../../../shared/widgets/grid_background.dart';
+import '../../../auth/providers/auth_providers.dart';
+import '../../view_model/onboarding_hub_controller.dart';
 
 class OnboardingHubPage extends ConsumerStatefulWidget {
   const OnboardingHubPage({super.key});
@@ -151,23 +150,16 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
     required bool skippedCharacter,
     required bool skippedPreference,
   }) async {
-    final nextSkippedCharacter = skippedCharacter || !hasCharacter;
-    final nextSkippedPreference = skippedPreference || !hasPreference;
-    final onboardingStatus = deriveOnboardingStatus(
-      preferenceReady: hasPreference || nextSkippedPreference,
-      characterReady: hasCharacter || nextSkippedCharacter,
-    );
-
     setState(() => _isSavingHomeStatus = true);
     try {
       await ref
-          .read(myRepositoryProvider)
-          .updateOnboardingStatus(onboardingStatus.value);
-      ref.read(skippedCharacterProvider.notifier).state = nextSkippedCharacter;
-      ref.read(skippedPreferenceProvider.notifier).state =
-          nextSkippedPreference;
-      syncAuthUserOnboardingStatus(ref, onboardingStatus);
-      ref.invalidate(myProfileProvider);
+          .read(onboardingHubControllerProvider)
+          .saveSkipStatus(
+            hasCharacter: hasCharacter,
+            hasPreference: hasPreference,
+            skippedCharacter: skippedCharacter,
+            skippedPreference: skippedPreference,
+          );
 
       if (!mounted) {
         return;
