@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../../../shared/widgets/grid_background.dart';
@@ -12,13 +11,58 @@ class OotdDetailScreen extends StatelessWidget {
 
   const OotdDetailScreen({super.key, required this.record});
 
+  String get _recordTitle {
+    final title = record.brands['title']?.trim();
+    return title == null || title.isEmpty ? 'OOTD 기록' : title;
+  }
+
+  String _formatDateLabel(DateTime date) {
+    final weekday = const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
+    return '${date.year}.${_twoDigits(date.month)}.${_twoDigits(date.day)} ($weekday)';
+  }
+
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  String get _moodLabel {
+    return switch (record.mood.trim().toLowerCase()) {
+      'happy' => '😊 신남',
+      'excited' => '🥰 설렘',
+      'calm' => '☕ 차분',
+      'sad' => '🌧️ 차분',
+      _ => '🙂 보통',
+    };
+  }
+
+  String get _weatherLabel {
+    return switch (record.weather.trim().toLowerCase()) {
+      'sunny' => '맑음',
+      'cloudy' => '구름',
+      'rainy' || 'rain' => '비',
+      'snowy' || 'snow' => '눈',
+      _ => '날씨 미정',
+    };
+  }
+
+  IconData get _weatherIcon {
+    return switch (record.weather.trim().toLowerCase()) {
+      'sunny' => Icons.wb_sunny,
+      'rainy' || 'rain' => Icons.umbrella_outlined,
+      'snowy' || 'snow' => Icons.ac_unit,
+      _ => Icons.wb_cloudy_outlined,
+    };
+  }
+
+  Color get _weatherColor {
+    return switch (record.weather.trim().toLowerCase()) {
+      'sunny' => AppColors.accentOrange,
+      'rainy' || 'rain' => AppColors.accentBlue,
+      'snowy' || 'snow' => AppColors.accentBlue,
+      _ => AppColors.textMuted,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 10월 3일 '서울 카페 투어' 레코드에 대한 특별 콜라주 레이아웃 활성화
-    final isSpecialCollage =
-        record.moodTags.contains('#서울카페투어') ||
-        (record.date.month == 10 && record.date.day == 3);
-
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
@@ -49,13 +93,7 @@ class OotdDetailScreen extends StatelessWidget {
               _buildTitleHeader(),
               SizedBox(height: 16),
 
-              if (isSpecialCollage) ...[
-                // 피그마 시안과 일치하는 스크랩북 콜라주 레이아웃
-                _buildScrapbookCollage(),
-              ] else ...[
-                // 일반 OOTD 상세 레이아웃
-                _buildStandardOotdDetail(),
-              ],
+              _buildStandardOotdDetail(),
               SizedBox(height: 24),
 
               // 3. 동행인 정보 & 날씨 & 기분
@@ -77,14 +115,14 @@ class OotdDetailScreen extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '📝 2026.10.03 (SAT) 💖',
+            _formatDateLabel(record.date),
             style: AppTextStyles.labelMedium.copyWith(
               color: AppColors.primaryPink,
             ),
           ),
           SizedBox(height: 4),
           Text(
-            '서울 카페 투어 ☕',
+            _recordTitle,
             style: AppTextStyles.headlineMedium.copyWith(
               color: AppColors.textMain,
             ),
@@ -103,147 +141,6 @@ class OotdDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  // 10월 3일 전용: 피그마 시안의 '아기자기한 스크랩북' 콜라주 구현
-  Widget _buildScrapbookCollage() {
-    return Column(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 왼쪽 상단: 케이크 폴라로이드 카드 (mRd Record)
-            Expanded(
-              flex: 5,
-              child: _buildPolaroidPhoto(
-                title: 'PLACE 01 - mRd Record',
-                description: '케이크가 진짜 맛있었고 매장 분위기도 너무 좋았어! 🍰',
-                imageColor: AppColors.photoFrameRoseBg,
-                emoji: '🍰',
-              ),
-            ),
-            SizedBox(width: 12),
-            // 오른쪽 상단: 편집숍 폴라로이드 카드 (Archive Hannam)
-            Expanded(
-              flex: 5,
-              child: _buildPolaroidPhoto(
-                title: 'PLACE 02 - Archive Hannam',
-                description: '편집숍 구경 넘 재밌었고 시향해본 향수 취향 저격!',
-                imageColor: AppColors.photoFrameGreenBg,
-                emoji: '🛍️',
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
-
-        // 중앙: '나 & 지훈' standing 픽셀 아바타 커플 렌더링!
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.bgPaper,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lineBrown.withOpacity(0.5)),
-            image: const DecorationImage(
-              image: AssetImage('assets/images/dots.png'), // 모눈 배경 스타일
-              repeat: ImageRepeat.repeat,
-              opacity: 0.05,
-            ),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(
-                    children: [
-                      PixelCharacterWidget(
-                        character: record.character,
-                        size: 70,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '나',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 24),
-                  const Icon(
-                    Icons.favorite,
-                    color: AppColors.accentRed,
-                    size: 24,
-                  ),
-                  SizedBox(width: 24),
-                  Column(
-                    children: [
-                      // 동행 캐릭터 (지훈 - 남성 숏컷 프리셋)
-                      PixelCharacterWidget(
-                        character: CharacterDraft(
-                          gender: 'male',
-                          nickname: '지훈',
-                          hairStyleIndex: 2,
-                          hairColorIndex: 1,
-                          skinToneIndex: 1,
-                          topStyleIndex: 1,
-                          bottomStyleIndex: 0,
-                        ),
-                        size: 70,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '지훈',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              // 하트 말풍선 데코
-              Text(
-                '우리의 가을 시밀러 룩 데이트! 💕',
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.primaryPink,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 16),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 왼쪽 하단: 커피 컵 폴라로이드 카드 (Ofr. seoul)
-            Expanded(
-              flex: 5,
-              child: _buildPolaroidPhoto(
-                title: 'PLACE 03 - Ofr. seoul',
-                description: '성수동으로 넘어와서 먹은 고소한 플랫화이트 ☕',
-                imageColor: AppColors.photoFrameMintBg,
-                emoji: '☕',
-              ),
-            ),
-            SizedBox(width: 12),
-            // 오른쪽 하단: 저녁 파스타 카드
-            Expanded(
-              flex: 5,
-              child: _buildPolaroidPhoto(
-                title: 'EVENING - 성수 맛집',
-                description: '예약해 둔 저녁 파스타! 분위기 맛 다 완벽해 🍝',
-                imageColor: AppColors.photoFrameYellowBg,
-                emoji: '🍝',
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -333,60 +230,6 @@ class OotdDetailScreen extends StatelessWidget {
     );
   }
 
-  // 폴라로이드 사진 카드 생성 함수
-  Widget _buildPolaroidPhoto({
-    required String title,
-    required String description,
-    required Color imageColor,
-    required String emoji,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.lineSoft, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textMain.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 스냅 사진 영역 (컬러 플레이스홀더)
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: imageColor,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            alignment: Alignment.center,
-            child: Text(emoji, style: AppTextStyles.emojiLarge),
-          ),
-          SizedBox(height: 8),
-          Text(
-            title,
-            style: AppTextStyles.sticker.copyWith(color: AppColors.textMuted),
-          ),
-          SizedBox(height: 4),
-          Text(
-            description,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.textSub,
-              height: 1.3,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMetaStatsCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -421,17 +264,6 @@ class OotdDetailScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 4),
-                  if (record.moodTags.contains('#데이트'))
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: AppColors.primaryPurpleSoft,
-                      child: Text(
-                        '지훈',
-                        style: AppTextStyles.sticker.copyWith(
-                          color: AppColors.primaryPurple,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ],
@@ -447,11 +279,7 @@ class OotdDetailScreen extends StatelessWidget {
               ),
               SizedBox(height: 8),
               Text(
-                record.mood == 'happy'
-                    ? '😊 신남'
-                    : record.mood == 'excited'
-                    ? '🥰 데이트'
-                    : '☕ 차분',
+                _moodLabel,
                 style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.textMain,
                 ),
@@ -470,18 +298,10 @@ class OotdDetailScreen extends StatelessWidget {
               SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(
-                    record.weather == 'sunny'
-                        ? Icons.wb_sunny
-                        : Icons.wb_cloudy_outlined,
-                    size: 14,
-                    color: record.weather == 'sunny'
-                        ? AppColors.accentOrange
-                        : AppColors.accentBlue,
-                  ),
+                  Icon(_weatherIcon, size: 14, color: _weatherColor),
                   SizedBox(width: 4),
                   Text(
-                    record.weather == 'sunny' ? '맑음 20°C' : '구름',
+                    _weatherLabel,
                     style: AppTextStyles.labelMedium.copyWith(
                       color: AppColors.textMain,
                     ),

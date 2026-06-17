@@ -133,4 +133,43 @@ void main() {
       );
     }
   });
+
+  test('production lib does not include prototype or social fixture data', () {
+    expect(
+      File('lib/shared/widgets/prototype_placeholder_page.dart').existsSync(),
+      isFalse,
+    );
+    expect(
+      File('lib/features/my/model/friend_fixtures.dart').existsSync(),
+      isFalse,
+    );
+
+    final dartFiles = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.dart'));
+
+    for (final file in dartFiles) {
+      final source = file.readAsStringSync();
+      for (final forbidden in [
+        'friend_fixtures.dart',
+        'createInitialFriends',
+        '_createInitialFriends',
+        '_createFriendCharacters',
+        "profile.name == '소연'",
+        "final names = ['민서'",
+        '_CommentRow(author:',
+        '서울 카페 투어',
+        "nickname: '지훈'",
+        "Text('지훈'",
+        'PrototypePlaceholderPage',
+      ]) {
+        expect(
+          source,
+          isNot(contains(forbidden)),
+          reason: '${file.path} contains fixture/prototype data: $forbidden',
+        );
+      }
+    }
+  });
 }
