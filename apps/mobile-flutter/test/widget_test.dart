@@ -864,10 +864,16 @@ void main() {
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('6/8 일'));
+    final dateTabs = find.byWidgetPredicate((widget) {
+      return widget is Text &&
+          RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
+    });
+    expect(dateTabs, findsNWidgets(3));
+
+    await tester.tap(dateTabs.at(1));
     await tester.pumpAndSettle();
 
-    final secondTabText = tester.widget<Text>(find.text('6/8 일'));
+    final secondTabText = tester.widget<Text>(dateTabs.at(1));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
     expect(find.text('장소 동선'), findsOneWidget);
