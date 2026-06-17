@@ -28,6 +28,12 @@ variable "tile_container_name" {
   type        = string
 }
 
+variable "tile_cors_allowed_origins" {
+  description = "Allowed origins for public tile/static blob reads."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Required common tags."
   type        = map(string)

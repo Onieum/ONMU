@@ -194,14 +194,14 @@ Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route �
 
 ### Staging Front Door Origin Access
 
-`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다. Managed Redis가 아직 없는 단계에서도 plan/apply가 성립하도록 Redis resource와 Redis diagnostic target은 함께 켜지 않는다.
+`wave=frontdoor_origin_access`는 이미 적용된 staging Front Door가 Blob origin에 익명으로 접근하고 browser tile smoke까지 통과할 수 있게 storage access boundary를 보정하는 patch wave다. 이 wave는 새 Front Door를 만들지 않고 기존 storage account와 `tiles` container만 수정한다. Managed Redis가 아직 없는 단계에서도 plan/apply가 성립하도록 Redis resource와 Redis diagnostic target은 함께 켜지 않는다.
 
-기대 변경은 다음 두 개뿐이다.
+기대 변경은 다음 중 필요한 범위로 제한한다.
 
-- `azurerm_storage_account` update 1: nested public item 허용
-- `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
+- `azurerm_storage_account` update 1: nested public item 허용 또는 tile/static CORS rule 보정
+- 선택적 `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
 
-기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
+기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. Tile browser smoke에 필요한 CORS는 최소한 local Flutter web origin(`localhost`/`127.0.0.1` 5173~5175)과 `dev-api.onmu.cloud`, `int-api.onmu.cloud`, `staging-api.onmu.cloud`를 포함하고, exposed headers에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
 
 ### Staging Front Door Diagnostics
 
