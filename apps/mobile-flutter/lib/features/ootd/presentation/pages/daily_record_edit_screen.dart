@@ -647,10 +647,10 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
           TextField(
             controller: photo.controller,
             maxLines: 2,
-            maxLength: 120,
+            maxLength: 25,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
             decoration: const InputDecoration(
               hintText: '사진 코멘트 수정',
-              counterText: '',
             ),
           ),
         ],

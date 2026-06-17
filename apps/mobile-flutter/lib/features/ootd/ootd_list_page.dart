@@ -570,63 +570,54 @@ class _OotdListPageState extends State<OotdListPage> {
             (constraints.maxWidth * (isCompact ? 0.48 : 0.42))
                 .clamp(132.0, 196.0)
                 .toDouble();
-        final headerTitle = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        color: AppColors.textMain,
-                      ),
+        final monthNavigator = Container(
+          constraints: BoxConstraints(minHeight: isCompact ? 54 : 58),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      color: AppColors.textMain,
+                      fontSize: isCompact ? 24 : 26,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    size: 16,
-                    color: AppColors.textSub,
-                  ),
-                  onPressed: _prevMonth,
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: AppColors.textSub,
-                  ),
-                  onPressed: _nextMonth,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '오늘의 코디 기록 다이어리',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.labelLarge.copyWith(
-                color: AppColors.primaryPink,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  size: 16,
+                  color: AppColors.textSub,
+                ),
+                onPressed: _prevMonth,
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                icon: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.textSub,
+                ),
+                onPressed: _nextMonth,
+              ),
+            ],
+          ),
         );
         final progressBadge = _buildMonthlyProgressBadge(
           recordedDayCount: recordedDayCount,
@@ -642,12 +633,33 @@ class _OotdListPageState extends State<OotdListPage> {
             top: 16,
             bottom: 10,
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: headerTitle),
-              SizedBox(width: isCompact ? 8 : 12),
-              SizedBox(width: progressBadgeWidth, child: progressBadge),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: monthNavigator),
+                  SizedBox(width: isCompact ? 8 : 12),
+                  SizedBox(width: progressBadgeWidth, child: progressBadge),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '오늘의 코디 기록 다이어리',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: AppColors.primaryPink,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -1091,6 +1103,9 @@ class _TimelineBottomSheetContentState
   }
 
   Widget _buildSheetScrollableBody() {
+    final hasAnyRecord =
+        _dailyRecord != null && _dailyRecord!.timeline.isNotEmpty ||
+        _ootdRecord != null && _ootdRecord!.timeline.isNotEmpty;
     final hasActiveRecord = _tabIndex == 0
         ? _dailyRecord != null && _dailyRecord!.timeline.isNotEmpty
         : _ootdRecord != null && _ootdRecord!.timeline.isNotEmpty;
@@ -1100,8 +1115,12 @@ class _TimelineBottomSheetContentState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_localRecord.timeline.isEmpty)
+          if (!hasAnyRecord)
             _buildEmptyRecordView()
+          else if (!hasActiveRecord && _tabIndex == 0)
+            _buildEmptyDailyView()
+          else if (!hasActiveRecord)
+            _buildEmptyOotdView()
           else if (_tabIndex == 0)
             _buildDailyTimelineView()
           else
@@ -1347,6 +1366,60 @@ class _TimelineBottomSheetContentState
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyDailyView() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.menu_book_outlined,
+            size: 48,
+            color: AppColors.textMuted,
+          ),
+          SizedBox(height: 16),
+          Text(
+            '아직 하루 일과 기록이 없어요',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: AppColors.textMain,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            '오늘 하루를 기록하면\n이 탭에서 사진과 메모를 볼 수 있어요.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textSub,
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 22),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onAddDailyRecord(_localRecord.date, _ootdRecord);
+            },
+            icon: const Icon(Icons.calendar_today_outlined, size: 18),
+            label: Text('하루 일과 기록하기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryPink,
+              side: const BorderSide(color: AppColors.primaryPink, width: 1.5),
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
@@ -1654,7 +1727,3 @@ class _TimelineBottomSheetContentState
     );
   }
 }
-
-
-
-
