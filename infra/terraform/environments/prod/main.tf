@@ -105,7 +105,7 @@ module "postgres" {
   storage_mb                    = 65536
   backup_retention_days         = 14
   public_network_access_enabled = false
-  enabled_extensions            = ["POSTGIS"]
+  enabled_extensions            = ["POSTGIS", "PGCRYPTO"]
   tags                          = local.tags
 }
 

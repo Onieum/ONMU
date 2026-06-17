@@ -44,6 +44,12 @@ resource "azurerm_container_app" "spring_api" {
     }
   }
 
+  lifecycle {
+    # Azure Container Apps reports resolved Key Vault secret values back to the provider.
+    # Keep Terraform focused on the secret reference wiring, not rotated secret contents.
+    ignore_changes = [secret]
+  }
+
   ingress {
     external_enabled = true
     target_port      = var.spring_api.target_port
@@ -155,6 +161,12 @@ resource "azurerm_container_app" "worker" {
       key_vault_secret_id = secret.value
       identity            = var.runtime_identity_id
     }
+  }
+
+  lifecycle {
+    # Azure Container Apps reports resolved Key Vault secret values back to the provider.
+    # Keep Terraform focused on the secret reference wiring, not rotated secret contents.
+    ignore_changes = [secret]
   }
 
   template {

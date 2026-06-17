@@ -180,7 +180,7 @@ module "postgres" {
   storage_mb                    = 32768
   backup_retention_days         = 7
   public_network_access_enabled = true
-  enabled_extensions            = ["POSTGIS"]
+  enabled_extensions            = ["POSTGIS", "PGCRYPTO"]
   firewall_rules = try(data.azurerm_container_app_environment.existing[0].static_ip_address, null) == null ? {} : {
     "aca-environment-static-ip" = {
       start_ip_address = data.azurerm_container_app_environment.existing[0].static_ip_address
