@@ -14,6 +14,10 @@ output "redis_hostname" {
   value = module.redis.hostname
 }
 
+output "redis_port" {
+  value = module.redis.port
+}
+
 output "blob_endpoint" {
   value = module.storage.primary_blob_endpoint
 }

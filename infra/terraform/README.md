@@ -60,6 +60,8 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `core_foundation`: Blob Storage origin, Event Hubs Standard, Key Vault, user-assigned managed identity, ACA Environment.
 - `key_vault_rbac`: runtime managed identity에 Key Vault Secrets User role assignment 연결. RBAC assignment 권한 승인 후 실행.
 - `core_diagnostics`: `core_foundation` apply 후 foundation 리소스 diagnostic setting을 Log Analytics로 연결.
+- `managed_redis_ready`: Azure Managed Redis만 별도 생성한다.
+- `managed_redis_diagnostics`: Managed Redis diagnostic setting만 별도 생성한다.
 - `frontdoor_tile_edge`: Azure Front Door Standard profile/endpoint/origin group/origin/route. 기본료 발생으로 apply 전 별도 비용 승인 필요.
 - `frontdoor_origin_access`: 기존 staging Blob origin이 private tiles로 남아 있을 때 storage account와 `tiles` container access boundary만 보정하는 patch wave.
 - `frontdoor_diagnostics`: `frontdoor_tile_edge` apply 후 지원되는 Front Door scope의 diagnostic setting을 Log Analytics로 연결. 현재 staging 기준으로는 profile scope만 대상이다.
@@ -70,7 +72,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 
 Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 먼저 build하고, 필요 시 protected environment approval 뒤 staging ACR에 push한다. `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
 
-`core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Storage account는 nested public item 허용을 켜고, `tiles` container만 public blob access를 허용하며 `media` container는 private로 유지한다. Public tile/static delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. 기존 staging state가 private `tiles`를 이미 가진 경우에는 `frontdoor_origin_access` patch wave로 storage account와 `tiles` access boundary만 보정한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Front Door wave에서도 이미 적용된 foundation diagnostic target은 no-op로 유지해야 하며 delete되면 안 된다. Redis는 Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.
+`core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Storage account는 nested public item 허용을 켜고, `tiles` container만 public blob access를 허용하며 `media` container는 private로 유지한다. Public tile/static delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. 기존 staging state가 private `tiles`를 이미 가진 경우에는 `frontdoor_origin_access` patch wave로 storage account와 `tiles` access boundary만 보정한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Front Door wave에서도 이미 적용된 foundation diagnostic target은 no-op로 유지해야 하며 delete되면 안 된다. Redis는 `managed_redis_ready`, `managed_redis_diagnostics` 전용 wave로 분리한다.
 
 ## state/backend 기준
 
@@ -93,21 +95,23 @@ Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 �
 3. `core_foundation` apply 승인과 적용 후 Blob/Event Hubs/Key Vault/ACA Environment smoke
 4. `key_vault_rbac` 전 RBAC assignment 권한 승인 또는 운영자 수동 role assignment 결정
 5. `core_diagnostics` plan/apply 승인과 diagnostic setting smoke
-6. Front Door Standard 기본료와 egress/request 비용 승인 후 `frontdoor_tile_edge` plan/apply 여부 결정
-7. 기존 staging Blob origin이 private tiles로 남아 있으면 `frontdoor_origin_access` plan/apply와 Front Door default endpoint smoke 수행
-8. `frontdoor_diagnostics` plan/apply 승인과 diagnostic setting smoke
-9. Azure Managed Redis 전환 리소스와 provider 지원 여부 결정
-10. Cost Management 조회 권한 또는 비용 확인 담당자 확정
-11. `postgres_ready` 전 protected Postgres password 승인과 state rotation 절차 결정
-12. `api_app_ready` 전 ACR push image ref, runtime identity의 `AcrPull`, 재사용 Key Vault의 `Key Vault Secrets User` 확인
-13. Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제 유지 여부 또는 Azure Blob 전환 방향 결정
-14. `worker_app_ready` 전 worker image ref와 queue/runtime scope 확인
-15. Clean DB + Flyway full migration smoke 기준 확정
-16. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
-17. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
-18. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-19. provider console redirect/package/SHA-1 확인
-20. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-21. Windows dev backend smoke를 rollback 기준으로 유지
+6. `managed_redis_ready` plan/apply 승인과 Azure Managed Redis 생성 확인
+7. 운영자가 `staging-redis-url`을 수동 갱신하고, state 접근 통제와 access key rotation 절차를 정리
+8. `managed_redis_diagnostics` plan/apply 승인과 Redis diagnostic setting smoke
+9. Front Door Standard 기본료와 egress/request 비용 승인 후 `frontdoor_tile_edge` plan/apply 여부 결정
+10. 기존 staging Blob origin이 private tiles로 남아 있으면 `frontdoor_origin_access` plan/apply와 Front Door default endpoint smoke 수행
+11. `frontdoor_diagnostics` plan/apply 승인과 diagnostic setting smoke
+12. Cost Management 조회 권한 또는 비용 확인 담당자 확정
+13. `postgres_ready` 전 protected Postgres password 승인과 state rotation 절차 결정
+14. `api_app_ready` 전 ACR push image ref, runtime identity의 `AcrPull`, 재사용 Key Vault의 `Key Vault Secrets User` 확인
+15. Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제 유지 여부 또는 Azure Blob 전환 방향 결정
+16. `worker_app_ready` 전 worker image ref와 queue/runtime scope 확인
+17. Clean DB + Flyway full migration smoke 기준 확정
+18. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
+19. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
+20. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+21. provider console redirect/package/SHA-1 확인
+22. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+23. Windows dev backend smoke를 rollback 기준으로 유지
 
 `core_diagnostics`가 foundation 리소스 create/update를 다시 만들지 않게 하려면, ACA Environment의 기본 `Consumption` workload profile이 Terraform module에도 명시되어 있어야 한다. 그렇지 않으면 diagnostics wave에서 environment update drift가 섞일 수 있다.

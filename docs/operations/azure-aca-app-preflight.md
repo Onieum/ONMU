@@ -67,9 +67,16 @@ image ref 자체는 secret은 아니지만, 로그/채팅에는 필요 이상으
 
 ### 4.1 Redis
 
-Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terraform은 Azure Cache for Redis classic 신규 생성을 더 이상 전제로 둘 수 없으므로, Azure Managed Redis 설계가 닫히기 전에는 Spring app revision readiness가 실패할 수 있다.
+Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terraform은 Azure Managed Redis 전용 wave로 Redis를 분리한다.
 
-즉, `api_app_ready`는 Container App resource를 만들 준비 단계로는 유효하지만, 최종 `/readyz=200` 승격 기준은 Redis 방향이 확정된 뒤에 다시 확인해야 한다.
+사전 조건은 다음과 같다.
+
+- `managed_redis_ready` apply 완료
+- 필요 시 `managed_redis_diagnostics` apply 완료
+- 운영자가 Azure Managed Redis access 정보로 Key Vault의 기존 `staging-redis-url` 값을 수동 갱신
+- `REDIS_URL`, `SPRING_DATA_REDIS_URL`는 계속 같은 secret name을 참조
+
+즉, `api_app_ready`는 Container App resource를 만들 준비 단계로는 유효하지만, 최종 `/readyz=200` 승격 기준은 Managed Redis와 Key Vault secret 동기화가 끝난 뒤에 다시 확인해야 한다.
 
 ### 4.2 object storage adapter
 
@@ -98,7 +105,7 @@ Spring `/readyz`는 현재 Redis를 필수 의존성으로 본다. staging Terra
 - `Build Staging Images`로 Spring image build, 필요 시 push
 - `STAGING_SPRING_API_IMAGE` 갱신
 - runtime identity의 `AcrPull`, `Key Vault Secrets User` 확인
-- object storage/Redis 병목 상태를 확인한 뒤 `wave=api_app_ready`
+- object storage/Redis 병목 상태를 확인하고 `managed_redis_ready` 및 secret sync까지 끝낸 뒤 `wave=api_app_ready`
 
 ### 5.3 worker
 

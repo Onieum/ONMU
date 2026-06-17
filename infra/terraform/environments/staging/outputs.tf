@@ -46,6 +46,10 @@ output "redis_hostname" {
   value = try(module.redis[0].hostname, null)
 }
 
+output "redis_port" {
+  value = try(module.redis[0].port, null)
+}
+
 output "blob_endpoint" {
   value = try(module.storage[0].primary_blob_endpoint, null)
 }

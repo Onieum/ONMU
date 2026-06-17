@@ -44,6 +44,7 @@ append_frontdoor_keepalive_targets() {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = true
   front_door = true
 }
 EOF
@@ -137,6 +138,55 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = false
+  front_door = false
+}
+EOF
+    ;;
+  managed_redis_ready)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = false
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = false
+  rbac_assignments           = false
+}
+EOF
+    ;;
+  managed_redis_diagnostics)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = false
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = false
+  diagnostics                = true
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = true
   front_door = false
 }
 EOF
@@ -150,7 +200,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = false
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -163,6 +213,7 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = true
   front_door = false
 }
 EOF
@@ -176,7 +227,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = false
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -189,6 +240,7 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = true
   front_door = true
 }
 EOF
@@ -202,7 +254,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = false
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -215,6 +267,7 @@ enabled_modules = {
 
 enabled_diagnostic_targets = {
   foundation = true
+  redis      = true
   front_door = true
 }
 EOF
@@ -229,7 +282,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -255,7 +308,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -283,7 +336,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true
@@ -311,7 +364,7 @@ enabled_modules = {
   container_registry         = true
   key_vault                  = true
   postgres                   = true
-  redis                      = false
+  redis                      = true
   storage                    = true
   cdn                        = false
   front_door                 = true

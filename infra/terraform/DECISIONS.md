@@ -12,7 +12,7 @@
 | 4 | Blob + edge tile/static serving | Public `tiles` Blob origin + private `media` + Azure Front Door Standard |
 | 5 | Event Hubs topology | Event Hubs Standard |
 | 6 | PostgreSQL Flexible Server | Burstable `B_Standard_B1ms` |
-| 7 | Redis | Azure Managed Redis 후보로 재설계. core foundation에서는 제외 |
+| 7 | Redis | Azure Managed Redis 전용 wave로 분리. core foundation에서는 제외 |
 | 8 | Container Apps scale | API min 1, worker min 0 |
 | 9 | Networking | Public ingress + Key Vault reference |
 | 10 | Secret management | Key Vault RBAC + managed identity |
@@ -87,11 +87,11 @@
 
 | 선택지 | 장점 | 단점 | 추천 |
 | --- | --- | --- | --- |
-| Azure Managed Redis 후보 | Azure Cache for Redis classic 신규 생성 차단 이후 권장 경로 | provider/resource/SKU와 비용 재검토 필요 | 후속 PR |
+| Azure Managed Redis | Azure Cache for Redis classic 신규 생성 차단 이후 지원 경로 | access key 기반 secret sync와 state 접근 통제가 필요 | 전용 wave |
 | Redis 미사용 | 비용이 없다 | place-search/route cache와 readiness 계약 검증이 약해진다 | core foundation 임시 기본 |
 | Azure Cache for Redis classic Basic C0 | 과거 skeleton 기준 비용이 낮았다 | 신규 생성이 차단될 수 있다 | 비추천 |
 
-확정: Redis는 source of truth로 쓰지 않는다. Azure Cache for Redis classic 신규 생성 차단이 확인되어, core foundation에서는 Redis를 제외하고 Azure Managed Redis 후보를 별도 PR에서 결정한다.
+확정: Redis는 source of truth로 쓰지 않는다. Azure Cache for Redis classic 신규 생성 차단이 확인되어, core foundation에서는 Redis를 제외하고 `managed_redis_ready`, `managed_redis_diagnostics` 전용 wave로 분리한다. Spring 계약은 `REDIS_URL`, `SPRING_DATA_REDIS_URL`, 기존 Key Vault secret naming을 유지하고, secret value는 운영자가 수동 갱신한다.
 
 ## 8. Container Apps scale
 

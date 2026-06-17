@@ -49,6 +49,23 @@ case "$wave" in
       exit 1
     fi
     ;;
+  managed_redis_ready)
+    unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_managed_redis") | .type] | length' "$plan_json")"
+    managed_redis_creates="$(count_types_by_action create azurerm_managed_redis)"
+    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$managed_redis_creates" -ne 1 ]; then
+      echo "Only one azurerm_managed_redis create and existing resource no-op/read are allowed for managed_redis_ready." >&2
+      exit 1
+    fi
+    ;;
+  managed_redis_diagnostics)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+      echo "Only azurerm_monitor_diagnostic_setting create and existing resource no-op/read are allowed for managed_redis_diagnostics." >&2
+      exit 1
+    fi
+    ;;
   frontdoor_tile_edge)
     unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_cdn_frontdoor_profile" and .type != "azurerm_cdn_frontdoor_endpoint" and .type != "azurerm_cdn_frontdoor_origin_group" and .type != "azurerm_cdn_frontdoor_origin" and .type != "azurerm_cdn_frontdoor_route")) | .type] | length' "$plan_json")"
