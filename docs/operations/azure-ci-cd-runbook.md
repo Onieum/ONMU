@@ -190,7 +190,7 @@ staging에서 PostgreSQL public access를 유지하는 동안 `postgres_ready`�
 - DNS 변경
 - production 적용
 
-Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
+Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route 외의 예상 밖 create/update/delete를 포함하면 apply하지 않고 중단한다. `frontdoor_tile_edge`는 foundation diagnostic setting을 no-op로 유지해야 하며 delete가 나오면 apply하지 않는다. staging 기준 Front Door route는 Blob account root가 아니라 `tiles` container를 `cdn_frontdoor_origin_path=/tiles`로 prefix해야 한다. Front Door가 아직 없는 환경이면 profile/endpoint/origin group/origin/route create만 허용하고, 이미 적용된 staging라면 `azurerm_cdn_frontdoor_route` update 1건만 허용한다. 현재 staging처럼 postgres, managed redis, Spring API, worker가 이미 state에 들어간 뒤에는 `frontdoor_tile_edge`, `frontdoor_origin_access`, `frontdoor_diagnostics` wave도 이 리소스들을 keepalive 입력으로 유지해야 하며 delete가 나오면 apply하지 않는다. Front Door diagnostic setting은 resource id가 remote state에 안정화된 뒤 별도 diagnostics wave에서 붙인다. Front Door 적용 후에는 `tiles` container 안에 `manifest.json`, `styles/onmu-light.json`, `pmtiles/korea-dev.pmtiles`가 실제로 업로드되어 있는지 먼저 확인하고, 그 다음 PMTiles Range 206, `Accept-Ranges`, `Content-Range`, `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers`, cache-control, rollback 기준을 별도 smoke로 확인한다.
 
 ### Staging Front Door Origin Access
 

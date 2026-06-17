@@ -246,6 +246,7 @@ module "front_door" {
   origin_name         = module.naming.frontdoor_origin_name
   route_name          = module.naming.frontdoor_route_name
   origin_host_name    = module.storage[0].primary_blob_host
+  origin_path         = "/tiles"
   patterns_to_match   = ["/*"]
   health_probe_path   = "/"
   tags                = local.tags
