@@ -4,6 +4,8 @@
 
 현재 팀 기본 smoke 환경은 Azure staging이다. 특별히 지정하지 않은 Flutter 기본 실행, OAuth-only define 생성, callback 기준은 `staging-api.onmu.cloud`를 사용하고, Windows dev/local 경로는 명시 opt-in일 때만 사용한다.
 
+일반 staging 실행, 보호 API define, dev/local opt-in 경로는 [Flutter staging 실행 runbook](./flutter-staging-runbook.md)을 먼저 보고, 이 문서는 actual OAuth smoke 절차와 판정 기준에만 집중한다.
+
 ## 핵심 원칙
 
 - 웹 빌드와 모바일 빌드는 로그인 완료 기준이 다르다.

@@ -2,6 +2,22 @@
 
 이 문서는 Windows 노트북을 팀 개발용 백엔드 서버로 사용할 때 필요한 세팅과 운영 기준입니다. OBS와 캡처보드는 화면 공유와 모니터링 용도이고, 백엔드 서비스 자체는 Windows, Docker Desktop, WSL2, 방화벽, 네트워크 설정으로 운영합니다.
 
+## 중요: 현재 표준 staging 경로가 아닙니다
+
+- 현재 팀의 기본 배포/검증/모바일 재빌드 기준은 Azure staging입니다.
+- 이 문서는 Windows dev, rollback 비교, provider 문제 분리, legacy 경계 확인이 필요할 때만 봅니다.
+- 일반 팀 검증은 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [Azure staging smoke checklist](./azure-staging-smoke-checklist.md)를 먼저 봅니다.
+
+## 언제 Windows 경로를 쓰는가
+
+| 상황 | Windows 경로 사용 여부 |
+| --- | --- |
+| 팀 기본 모바일 재빌드/실행 | 사용하지 않음. staging 기본값 사용 |
+| staging acceptance smoke | 사용하지 않음. Azure staging 기준 |
+| dev 전용 회귀 분리 | 사용 |
+| 로컬 Spring/provider 문제 분리 | 사용 |
+| rollback 비교 또는 legacy tunnel 확인 | 사용 |
+
 ## 운영 목표
 
 목표:
