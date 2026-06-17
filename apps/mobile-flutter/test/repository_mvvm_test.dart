@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,11 +12,16 @@ import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
+import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
+import 'package:onmu_mobile/features/ootd/view_model/record_flow_controller.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/place/view_model/place_candidates_view_model.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
+import 'package:onmu_mobile/features/plan/view_model/plan_create_view_model.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/ootd_model.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -317,6 +323,56 @@ void main() {
     final updated = container.read(provider).requireValue;
     expect(updated.isLiked(9901), isTrue);
     expect(updated.favoriteCountFor(9901), 4);
+  });
+
+  test('약속 생성 Controller는 새 약속 저장을 repository에 위임한다', () async {
+    final repository = _RecordingPlanCreateRepository();
+    final container = ProviderContainer(
+      overrides: [planRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final input = PlanCreateInput(
+      groupId: 33,
+      title: '컨트롤러 경계 테스트',
+      dateTime: '2026-06-18T10:00:00+09:00',
+      endsAt: '2026-06-18T12:00:00+09:00',
+      location: '성수',
+      memo: 'repository 호출은 ViewModel 계층에서 처리한다',
+      members: const [PlanMember(userId: 'user-1', name: '민서')],
+    );
+
+    final created = await container
+        .read(planCreateControllerProvider)
+        .createPlan(input);
+
+    expect(repository.createdInputs.single, same(input));
+    expect(created.title, '컨트롤러 경계 테스트');
+    expect(created.location, '성수');
+  });
+
+  test('기록 흐름 Controller는 저장/업로드/삭제를 repository에 위임한다', () async {
+    final repository = _RecordingRecordRepository();
+    final container = ProviderContainer(
+      overrides: [recordRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(recordFlowControllerProvider);
+    final draft = _recordForMutation();
+
+    final saved = await controller.saveRecord(draft);
+    final uploadedUrl = await controller.uploadMedia(
+      Uint8List.fromList(const [1, 2, 3]),
+      'daily.jpg',
+    );
+    final missingDelete = await controller.deleteRecord(draft);
+    final completedDelete = await controller.deleteRecord(saved);
+
+    expect(repository.createdRecords.single, same(draft));
+    expect(repository.uploadedFiles.single, 'daily.jpg');
+    expect(uploadedUrl, 'https://cdn.onmu.test/daily.jpg');
+    expect(missingDelete, RecordMutationResult.missingId);
+    expect(completedDelete, RecordMutationResult.completed);
+    expect(repository.deletedIds, ['record-created']);
   });
 
   test('투표 상세 ViewModel은 voteId로 투표 카드와 후보를 조회한다', () async {
@@ -827,6 +883,24 @@ void main() {
     expect(canceled, isTrue);
     await realtime.close();
   });
+}
+
+OotdRecord _recordForMutation({String? id}) {
+  return OotdRecord(
+    id: id,
+    date: DateTime.parse('2026-06-17T10:00:00+09:00'),
+    character: const CharacterDraft(),
+    moodTags: const ['daily'],
+    brands: const {'recordType': 'daily'},
+    timeline: const [
+      TimelineItem(
+        time: '10:00',
+        placeName: '성수',
+        category: 'daily',
+        description: 'ViewModel 경계 테스트',
+      ),
+    ],
+  );
 }
 
 class _FakeGroupRepository implements GroupRepository {
@@ -1552,6 +1626,62 @@ class _UnusedPlanRepository implements PlanRepository {
     required String userId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _RecordingPlanCreateRepository extends _UnusedPlanRepository {
+  final createdInputs = <PlanCreateInput>[];
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) async {
+    createdInputs.add(input);
+    return Plan(
+      id: 3301,
+      title: input.title,
+      dateTime: input.dateTime,
+      location: input.location,
+      status: 'draft',
+      memo: input.memo,
+      members: input.members,
+      timeCandidates: const [],
+      visitPlan: const [],
+    );
+  }
+}
+
+class _RecordingRecordRepository implements RecordRepository {
+  final createdRecords = <OotdRecord>[];
+  final deletedIds = <String>[];
+  final uploadedFiles = <String>[];
+
+  @override
+  Future<List<OotdRecord>> fetchMyRecords() async => const [];
+
+  @override
+  Future<OotdRecord> createRecord(OotdRecord record) async {
+    createdRecords.add(record);
+    return record.copyWith(id: 'record-created');
+  }
+
+  @override
+  Future<OotdRecord> fetchRecord(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<OotdRecord> updateRecord(String id, OotdRecord record) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteRecord(String id) async {
+    deletedIds.add(id);
+  }
+
+  @override
+  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
+    uploadedFiles.add(fileName);
+    return 'https://cdn.onmu.test/$fileName';
   }
 }
 

@@ -17,8 +17,18 @@ void main() {
       'friends',
       'lunch-split',
       '/ootd/list',
+      '/group/list',
+      '/home/page',
+      '/my/page',
+      '/place/candidate',
       'planPlaceCompare',
       'planPlaceRisks',
+      'groupListPage',
+      'homePage',
+      'memoryDetailPage',
+      'myPage',
+      'ootdListPage',
+      'placeCandidatePage',
     ]) {
       expect(source, isNot(contains(forbidden)));
     }

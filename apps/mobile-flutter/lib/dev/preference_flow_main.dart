@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
 import '../features/launch/splash_page.dart';
-import '../features/preferences/preference_intro_page.dart';
+import '../features/preferences/presentation/pages/preference_intro_page.dart';
 import '../shared/models/preference_profile.dart';
 
 void main() {

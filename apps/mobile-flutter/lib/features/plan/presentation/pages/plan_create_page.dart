@@ -15,10 +15,7 @@ import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../../../group/view_model/group_plan_list_view_model.dart';
-import '../../../group/repository/group_repository.dart';
-import '../../../home/view_model/home_view_model.dart';
-import '../../repository/plan_repository.dart';
+import '../../view_model/plan_create_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_member_avatar_row.dart';
 
@@ -257,7 +254,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         ref.watch(preferenceProfileProvider),
       );
       final groupMembers = ref.watch(
-        _groupPlanMemberOptionsProvider(widget.groupId),
+        groupPlanMemberOptionsProvider(widget.groupId),
       );
       return _PlanCreateContent(
         groupId: widget.groupId,
@@ -283,7 +280,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                   return;
                 }
                 final plan = await ref
-                    .read(planRepositoryProvider)
+                    .read(planCreateControllerProvider)
                     .createPlan(
                       PlanCreateInput(
                         groupId: widget.groupId,
@@ -295,8 +292,6 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                         members: selectedMembers,
                       ),
                     );
-                ref.invalidate(groupPlanListViewModelProvider(widget.groupId));
-                ref.invalidate(homeViewModelProvider);
                 if (!context.mounted) {
                   return;
                 }
@@ -328,7 +323,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           memoController: _memoController,
           selectedMembers: state.selectedMembers,
           candidateMembers: ref.watch(
-            _groupPlanMemberOptionsProvider(widget.groupId),
+            groupPlanMemberOptionsProvider(widget.groupId),
           ),
           onMemberAdded: (member) async =>
               ref.read(provider.notifier).addParticipant(member.userId),
@@ -378,26 +373,6 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     );
   }
 }
-
-final _groupPlanMemberOptionsProvider =
-    FutureProvider.family<List<PlanMember>, String>((ref, groupId) async {
-      final members = await ref
-          .watch(groupRepositoryProvider)
-          .fetchMembers(groupId);
-      return members
-          .where((member) => !member.invited && member.userId.trim().isNotEmpty)
-          .map(
-            (member) => PlanMember(
-              userId: member.userId,
-              name: member.name,
-              message: member.note,
-              badge: member.statusLabel,
-              selected: true,
-              profileImageUrl: member.profileImageUrl,
-            ),
-          )
-          .toList(growable: false);
-    });
 
 class _PlanCreateContent extends StatelessWidget {
   const _PlanCreateContent({

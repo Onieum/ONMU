@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../shared/models/preference_profile.dart';
 import '../../shared/providers/state_providers.dart';
-import '../preferences/preference_intro_page.dart';
+import '../preferences/presentation/pages/preference_intro_page.dart';
 
 class ProfilePreferenceScreen extends ConsumerWidget {
   const ProfilePreferenceScreen({super.key});

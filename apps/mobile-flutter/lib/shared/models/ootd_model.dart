@@ -1,4 +1,4 @@
-﻿import 'character_model.dart';
+import 'character_model.dart';
 
 class TimelineItem {
   final String time;
@@ -72,4 +72,3 @@ class OotdRecord {
     );
   }
 }
-

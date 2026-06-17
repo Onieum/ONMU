@@ -8,14 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
-import '../../../ootd/repository/record_repository.dart';
-
-final memoryRecordProvider = FutureProvider.family<OotdRecord, String>((
-  ref,
-  memoryId,
-) {
-  return ref.watch(recordRepositoryProvider).fetchRecord(memoryId);
-});
+import '../../view_model/memory_detail_view_model.dart';
 
 class MemoryDetailPage extends ConsumerWidget {
   final String memoryId;
@@ -24,7 +17,7 @@ class MemoryDetailPage extends ConsumerWidget {
 
   OotdRecord? _findRecord(WidgetRef ref, String key) {
     final records =
-        ref.watch(ootdRecordsProvider).value ?? const <OotdRecord>[];
+        ref.watch(memoryRecordListProvider).value ?? const <OotdRecord>[];
 
     try {
       return records.firstWhere((r) {

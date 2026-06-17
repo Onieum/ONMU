@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/routing/route_paths.dart';
-import '../../core/theme/app_radius.dart';
-import '../../shared/onmu_design.dart';
-import '../../shared/widgets/asset_crop_image.dart';
-import 'data/kakao_oauth_credential_loader.dart';
-import 'data/naver_oauth_credential_loader.dart';
-import 'data/social_auth_service.dart';
-import 'domain/auth_user.dart';
-import 'domain/oauth_provider_credential.dart';
-import 'providers/auth_providers.dart';
+import '../../../../core/routing/route_paths.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/asset_crop_image.dart';
+import '../../data/kakao_oauth_credential_loader.dart';
+import '../../data/naver_oauth_credential_loader.dart';
+import '../../data/social_auth_service.dart';
+import '../../domain/auth_user.dart';
+import '../../domain/oauth_provider_credential.dart';
+import '../../providers/auth_providers.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});

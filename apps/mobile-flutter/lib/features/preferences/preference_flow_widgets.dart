@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_radius.dart';
-import '../../shared/onmu_design.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/grid_background.dart';
 
 class PreferencePageFrame extends StatelessWidget {

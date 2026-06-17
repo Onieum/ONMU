@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/routing/route_paths.dart';
-import '../../shared/models/preference_profile.dart';
-import '../../shared/onmu_design.dart';
-import 'preference_flow_widgets.dart';
-import 'preference_food_page.dart';
+import '../../../../core/routing/route_paths.dart';
+import '../../../../shared/models/preference_profile.dart';
+import '../../../../shared/widgets/onmu_paper_note.dart';
+import '../../preference_flow_widgets.dart';
+import '../../preference_food_page.dart';
 
 class PreferenceIntroPage extends StatelessWidget {
   final PreferenceProfile profile;
@@ -30,7 +30,7 @@ class PreferenceIntroPage extends StatelessWidget {
         children: [
           _PreferenceIntroImage(assetPath: _selectImageAsset),
           SizedBox(height: 24),
-          PaperNote(
+          OnmuPaperNote(
             title: '간단한 취향만 조사할게요.',
             body: '음식, 장소 분위기, 약속 스타일과 선호하는 약속 요일 및 시간대를 저장해요. 수정 가능합니다.',
             icon: Icons.tune,

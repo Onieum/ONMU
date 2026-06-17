@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
-import '../../shared/models/character_model.dart';
-import '../../shared/widgets/grid_background.dart';
-import '../../shared/widgets/pixel_character.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/models/character_model.dart';
+import '../../../../shared/widgets/grid_background.dart';
+import '../../../../shared/widgets/pixel_character.dart';
 
 class CharacterStartPage extends StatefulWidget {
   final Function(CharacterDraft) onCompleted;

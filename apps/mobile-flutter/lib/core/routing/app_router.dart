@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/login_page.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
-import '../../features/character/character_start_page.dart';
-import '../../features/character/repository/character_repository.dart';
+import '../../features/character/presentation/pages/character_start_page.dart';
 import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/home_recent_records_page.dart';
@@ -17,7 +16,7 @@ import '../../features/plan/presentation/pages/plan_detail_page.dart';
 import '../../features/plan/presentation/pages/plan_itinerary_page.dart';
 import '../../features/memory/presentation/pages/memory_detail_page.dart';
 import '../../features/memory/presentation/pages/memory_diary_template_page.dart';
-import '../../features/my/my_page.dart';
+import '../../features/my/presentation/pages/my_page.dart';
 import '../../features/group/presentation/pages/group_home_page.dart';
 import '../../features/group/presentation/pages/group_settings_page.dart';
 import '../../features/group/presentation/pages/group_create_page.dart';
@@ -32,23 +31,21 @@ import '../../features/group/presentation/pages/plan_settlement_detail_page.dart
 import '../../features/group/presentation/pages/plan_settlement_target_selection_page.dart';
 import '../../features/group/presentation/pages/group_chat_page.dart';
 import '../../features/group/presentation/pages/vote_detail_page.dart';
-import '../../features/onboarding/onboarding_hub_page.dart';
-import '../../features/onboarding/onboarding_status.dart';
-import '../../features/ootd/ootd_list_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_hub_page.dart';
+import '../../features/onboarding/view_model/onboarding_character_controller.dart';
+import '../../features/ootd/presentation/pages/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
-import '../../features/ootd/repository/record_repository.dart';
+import '../../features/ootd/view_model/record_flow_controller.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
 import '../../features/place/presentation/pages/place_map_page.dart';
 import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../features/place/presentation/pages/place_vote_create_page.dart';
-import '../../features/preferences/preference_intro_page.dart';
-import '../../features/my/repository/my_repository.dart';
+import '../../features/preferences/presentation/pages/preference_intro_page.dart';
 import '../../main_shell.dart';
-import '../../shared/models/character_model.dart';
 import '../../shared/models/ootd_model.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/providers/state_providers.dart';
@@ -106,23 +103,9 @@ final appRouter = GoRouter(
           onCompleted: (draft) async {
             final router = GoRouter.of(context);
             try {
-              final saved = await ref
-                  .read(characterRepositoryProvider)
-                  .saveMyCharacter(draft);
-              final onboardingStatus = deriveOnboardingStatus(
-                preferenceReady:
-                    ref.read(preferenceProfileProvider) != null ||
-                    ref.read(skippedPreferenceProvider),
-                characterReady: true,
-              );
               await ref
-                  .read(myRepositoryProvider)
-                  .updateOnboardingStatus(onboardingStatus.value);
-              ref.read(userCharacterProvider.notifier).state = saved;
-              ref.read(skippedCharacterProvider.notifier).state = false;
-              syncAuthUserOnboardingStatus(ref, onboardingStatus);
-              ref.invalidate(characterProfileProvider);
-              ref.invalidate(myProfileProvider);
+                  .read(onboardingCharacterControllerProvider)
+                  .saveCharacter(draft);
               router.go(RoutePaths.onboarding);
             } catch (_) {
               if (context.mounted) {
@@ -398,16 +381,12 @@ final appRouter = GoRouter(
               path: RoutePaths.records,
               builder: (context, state) => Consumer(
                 builder: (context, ref, child) {
-                  final profile = ref.watch(characterProfileProvider);
-                  final character =
-                      profile.value ??
-                      ref.watch(userCharacterProvider) ??
-                      const CharacterDraft();
-                  final records = ref.watch(ootdRecordsProvider);
+                  final routeState = ref.watch(recordRouteStateProvider);
+                  final controller = ref.watch(recordFlowControllerProvider);
 
                   return OotdListPage(
-                    userCharacter: character,
-                    customRecords: records.value ?? const [],
+                    userCharacter: routeState.character,
+                    customRecords: routeState.records.value ?? const [],
                     onAddOotd: (date, ootdRecord) {
                       context.push(
                         '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}',
@@ -421,38 +400,40 @@ final appRouter = GoRouter(
                       );
                     },
                     onViewOotdDetail: (record) {
-                      final id = record.id;
-                      final type = record.brands['recordType'] ?? 'ootd';
-                      final recordKey = id ??
-                          '${record.date.year}-${record.date.month}-${record.date.day}-$type';
-                      context.push(RoutePaths.recordDetail(recordKey));
+                      context.push(
+                        RoutePaths.recordDetail(
+                          controller.detailKeyFor(record),
+                        ),
+                      );
                     },
                     onEditRecord: (record) async {
-                      final id = record.id;
-                      if (id == null || id.isEmpty) {
+                      if (controller.validateEditableRecord(record) ==
+                          RecordMutationResult.missingId) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('저장된 기록만 수정할 수 있어요.')),
                         );
                         return null;
                       }
                       final result = await context.push<Object?>(
-                        RoutePaths.recordEdit(id),
+                        RoutePaths.recordEdit(record.id!),
                       );
-                      ref.invalidate(ootdRecordsProvider);
+                      controller.refreshRecords();
                       return result;
                     },
                     onDeleteRecord: (record) async {
-                      final id = record.id;
-                      if (id == null || id.isEmpty) {
+                      final result = await controller.deleteRecord(record);
+                      if (result == RecordMutationResult.missingId) {
+                        if (!context.mounted) {
+                          return;
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('삭제할 수 없는 기록이에요.')),
                         );
                         return;
                       }
-                      await ref.read(recordRepositoryProvider).deleteRecord(id);
-                      ref.invalidate(ootdRecordsProvider);
                     },
-                    onNavigateToProfile: () => _showResetDialog(context, ref),
+                    onNavigateToProfile: () =>
+                        _showResetDialog(context, controller),
                   );
                 },
               ),
@@ -485,18 +466,15 @@ final appRouter = GoRouter(
         builder: (context, ref, child) {
           final date = _recordDateFromState(state);
           final ootdRecord = state.extra as OotdRecord?;
-          final character =
-              ref.watch(characterProfileProvider).value ??
-              ref.read(userCharacterProvider) ??
-              const CharacterDraft();
+          final routeState = ref.watch(recordRouteStateProvider);
+          final controller = ref.watch(recordFlowControllerProvider);
 
           return DailyRecordScreen(
-            userCharacter: character,
+            userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
-            onSave: (record) => _saveRecord(ref, record),
-            onUploadMedia: (bytes, fileName) =>
-                ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName),
+            onSave: controller.saveRecord,
+            onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {
               return context.push<OotdRecord>(
                 '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}&daily=1',
@@ -511,19 +489,17 @@ final appRouter = GoRouter(
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
           final date = _recordDateFromState(state);
-          final character =
-              ref.watch(characterProfileProvider).value ??
-              ref.read(userCharacterProvider) ??
-              const CharacterDraft();
+          final routeState = ref.watch(recordRouteStateProvider);
+          final controller = ref.watch(recordFlowControllerProvider);
           final existingRecord = state.extra as OotdRecord?;
           final isDailyRecord = state.uri.queryParameters['daily'] == '1';
 
           return OotdRecordScreen(
-            userCharacter: character,
+            userCharacter: routeState.character,
             recordDate: date,
             existingRecord: existingRecord,
             isDailyRecord: isDailyRecord,
-            onSave: (record) => _saveRecord(ref, record),
+            onSave: controller.saveRecord,
           );
         },
       ),
@@ -570,13 +546,7 @@ DateTime _recordDateFromState(GoRouterState state) {
   return DateTime.parse(dateStr);
 }
 
-Future<OotdRecord> _saveRecord(WidgetRef ref, OotdRecord newRecord) async {
-  final saved = await ref.read(recordRepositoryProvider).createRecord(newRecord);
-  ref.invalidate(ootdRecordsProvider);
-  return saved;
-}
-
-void _showResetDialog(BuildContext context, WidgetRef ref) {
+void _showResetDialog(BuildContext context, RecordFlowController controller) {
   showDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
@@ -590,8 +560,7 @@ void _showResetDialog(BuildContext context, WidgetRef ref) {
         TextButton(
           onPressed: () {
             Navigator.of(dialogContext).pop();
-            ref.read(userCharacterProvider.notifier).state = null;
-            ref.read(skippedCharacterProvider.notifier).state = false;
+            controller.resetCharacterDraft();
           },
           child: const Text('초기화', style: TextStyle(color: Colors.red)),
         ),
