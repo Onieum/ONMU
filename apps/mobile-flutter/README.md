@@ -2,6 +2,8 @@
 
 ONMU 핵심 제품을 위한 Flutter 앱입니다.
 
+팀 표준 실행/재빌드/검증 동선은 [Flutter staging 실행 runbook](../../docs/operations/flutter-staging-runbook.md)을 먼저 본다. 이 README는 앱 자체 설명과 스크립트 예시를 유지하고, 운영 순서와 팀 표준 경계는 runbook에 모은다.
+
 ## 프로토타입 목표
 
 첫 앱 골격은 네 가지 전달 파트를 연결합니다.

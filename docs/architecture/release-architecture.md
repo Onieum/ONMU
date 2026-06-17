@@ -13,6 +13,7 @@ Azure/Terraform 전환을 준비할 때는 [Current-to-target 아키텍처 인�
 - 현재 일정에서는 Azure staging acceptance를 먼저 닫고, 이 환경을 prod-like 운영 기준점으로 사용한다.
 - 이 메모는 기존 production 목표 아키텍처와 cutover/runbook을 대체하지 않는다.
 - 전용 production 환경, 더 강한 rollback discipline, 네트워크 hardening, production smoke는 후속 단계에서 기존 로드맵으로 다시 합류해 진행한다.
+- 현재 운영 경계와 읽는 순서는 [staging cutover status](../operations/staging-cutover-status.md)에 따로 정리한다.
 
 ## 제품 표면
 

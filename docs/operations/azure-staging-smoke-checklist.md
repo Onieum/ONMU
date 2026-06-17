@@ -2,6 +2,19 @@
 
 이 문서는 ONMU Azure staging이 실제로 동작한다고 판정하기 위한 smoke 기준이다. Terraform apply, container image push, 또는 build 성공만으로 배포 성공으로 보지 않는다.
 
+현재 팀 운영 기준은 Azure staging을 pre-prod 기본선처럼 사용하는 것이다. 일반 실행/배포 순서는 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [staging cutover status](./staging-cutover-status.md)를 먼저 본다.
+
+## 0. 빠른 실행 순서
+
+| 순서 | 항목 | pass 기준 | fail 시 먼저 분리할 축 |
+| --- | --- | --- | --- |
+| 1 | API 기본 | `/healthz` 200, `/readyz` 200, no-token `/api/v1/users/me` 401 | runtime, secret reference, DB/Redis readiness |
+| 2 | actual OAuth | callback 복귀, authenticated `/api/v1/users/me` 200, 세션 유지 | provider console, callback host, mobile deep link |
+| 3 | route | status 200, `provider != dev-mock`, distance/duration present | ORS secret, revision refresh, runtime wiring |
+| 4 | media/object storage | upload/public read/presigned-url 성공, `/readyz` 유지 | Blob RBAC, object storage provider, secret wiring |
+| 5 | tile/front door | manifest/style 200, PMTiles Range 206, CORS/header 조건 충족 | Blob origin, Front Door route, CORS/Range |
+| 6 | observability | requests/dependencies count 존재, exceptions 0 또는 설명 가능 | App Insights agent, diagnostic settings, log filtering |
+
 ## 1. 보고 원칙
 
 - secret, API key, token, DB password, OAuth code/state/idToken, Authorization header, raw request/response body, provider raw body, 사용자 개인정보 실제 값은 출력하지 않는다.
@@ -171,3 +184,5 @@ Staging 성공 판정은 다음을 모두 만족해야 한다.
 6. Observability smoke 통과
 7. secret 미출력/미수집 확인
 8. rollback 또는 versioned path 복구 기준 확인
+
+각 단계에서 fail이 나면 다음 단계로 무리하게 넘어가지 않는다. 특히 actual OAuth, route live provider, media/object storage, tile/front door는 서로 원인 축이 달라서 분리 보고가 필요하다.
