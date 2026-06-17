@@ -36,6 +36,7 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
 
   static const _moods = ['평온', '행복', '신남', '피곤'];
   static const _weathers = ['맑음', '흐림', '비', '눈'];
+  static const _photoCommentMaxLength = 25;
 
   @override
   void initState() {
@@ -588,11 +589,9 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
           TextField(
             controller: photo.controller,
             maxLines: 2,
-            maxLength: 120,
-            decoration: const InputDecoration(
-              hintText: '사진 코멘트 수정',
-              counterText: '',
-            ),
+            maxLength: _photoCommentMaxLength,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            decoration: const InputDecoration(hintText: '사진 코멘트 수정'),
           ),
         ],
       ),

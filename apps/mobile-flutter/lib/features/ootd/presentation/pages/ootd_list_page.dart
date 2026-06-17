@@ -578,63 +578,54 @@ class _OotdListPageState extends State<OotdListPage> {
             (constraints.maxWidth * (isCompact ? 0.48 : 0.42))
                 .clamp(132.0, 196.0)
                 .toDouble();
-        final headerTitle = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        color: AppColors.textMain,
-                      ),
+        final monthNavigator = Container(
+          constraints: BoxConstraints(minHeight: isCompact ? 54 : 58),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_currentMonth.year}. ${_currentMonth.month.toString().padLeft(2, '0')}',
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      color: AppColors.textMain,
+                      fontSize: isCompact ? 24 : 26,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    size: 16,
-                    color: AppColors.textSub,
-                  ),
-                  onPressed: _prevMonth,
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: AppColors.textSub,
-                  ),
-                  onPressed: _nextMonth,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '오늘의 코디 기록 다이어리',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.labelLarge.copyWith(
-                color: AppColors.primaryPink,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  size: 16,
+                  color: AppColors.textSub,
+                ),
+                onPressed: _prevMonth,
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 24,
+                  height: 24,
+                ),
+                icon: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.textSub,
+                ),
+                onPressed: _nextMonth,
+              ),
+            ],
+          ),
         );
         final progressBadge = _buildMonthlyProgressBadge(
           recordedDayCount: recordedDayCount,
@@ -650,12 +641,33 @@ class _OotdListPageState extends State<OotdListPage> {
             top: 16,
             bottom: 10,
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: headerTitle),
-              SizedBox(width: isCompact ? 8 : 12),
-              SizedBox(width: progressBadgeWidth, child: progressBadge),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: monthNavigator),
+                  SizedBox(width: isCompact ? 8 : 12),
+                  SizedBox(width: progressBadgeWidth, child: progressBadge),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '오늘의 코디 기록 다이어리',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: AppColors.primaryPink,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );

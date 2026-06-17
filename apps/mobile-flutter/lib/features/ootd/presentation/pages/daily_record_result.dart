@@ -310,7 +310,7 @@ class DailyRecordResultScreen extends StatelessWidget {
         if (ootdRecord != null) ...[
           SizedBox(height: 20),
           Text(
-            '오늘의 OOTD',
+            '함께 기록한 OOTD',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
           SizedBox(height: 12),
@@ -528,10 +528,12 @@ class _DiaryCollageCanvas extends StatelessWidget {
                     spec.memoFooterPlace,
                     _DiaryMemoFooter(memo: dailyMemo, stampAsset: stampAsset),
                   ),
-                  _DiaryCanvasStickers(
-                    stickers: stickers,
-                    places: spec.stickerPlaces,
-                    seed: seed,
+                  Positioned.fill(
+                    child: _DiaryCanvasStickers(
+                      stickers: stickers,
+                      places: spec.stickerPlaces,
+                      seed: seed,
+                    ),
                   ),
                 ],
               ),
@@ -850,10 +852,12 @@ class _DiaryCanvasStickers extends StatelessWidget {
     final random = Random(seed);
     return IgnorePointer(
       child: Stack(
+        clipBehavior: Clip.none,
         children: places.map((place) {
           final asset = stickers[random.nextInt(stickers.length)];
+          final safeLeft = min(place.x, 344 - place.width - 18);
           return Positioned(
-            left: place.x,
+            left: max(8, safeLeft),
             top: place.y,
             width: place.width,
             height: place.height,
@@ -1198,7 +1202,7 @@ class _DiaryMemoFooter extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 16, 62, 16),
+          padding: const EdgeInsets.fromLTRB(14, 12, 58, 12),
           decoration: BoxDecoration(
             color: AppColors.bgDefault.withOpacity(0.9),
             borderRadius: BorderRadius.circular(14),
@@ -1206,9 +1210,11 @@ class _DiaryMemoFooter extends StatelessWidget {
           ),
           child: Text(
             memo,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSub,
-              height: 1.45,
+              height: 1.35,
             ),
           ),
         ),
@@ -1234,7 +1240,7 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: AppColors.bgDefault.withOpacity(0.92),
         borderRadius: BorderRadius.circular(14),
@@ -1247,16 +1253,16 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
             "TODAY'S MEMORY",
             style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           ...List.generate(
             3,
             (index) => Padding(
-              padding: EdgeInsets.only(top: index == 0 ? 0 : 8),
+              padding: EdgeInsets.only(top: index == 0 ? 0 : 5),
               child: Row(
                 children: [
                   Container(
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.textMuted),
                       borderRadius: BorderRadius.circular(2),
@@ -1265,7 +1271,7 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Container(
-                      height: 8,
+                      height: 6,
                       decoration: BoxDecoration(
                         color: AppColors.bgWarm,
                         borderRadius: BorderRadius.circular(99),
@@ -1290,7 +1296,7 @@ class _DiaryTodayStatusBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.bgDefault.withOpacity(0.92),
         borderRadius: BorderRadius.circular(14),
@@ -1303,9 +1309,9 @@ class _DiaryTodayStatusBlock extends StatelessWidget {
             "TODAY'S STATUS",
             style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _statusLine('MOOD', _dailyMoodIcon(record.mood), record.mood),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           _statusLine(
             'WEATHER',
             _dailyWeatherIcon(record.weather),
@@ -1319,13 +1325,15 @@ class _DiaryTodayStatusBlock extends StatelessWidget {
   Widget _statusLine(String label, IconData icon, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.primaryPink),
-        const SizedBox(width: 6),
-        Text(
-          '$label  $value',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
+        Icon(icon, size: 14, color: AppColors.primaryPink),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            '$label  $value',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
+          ),
         ),
       ],
     );

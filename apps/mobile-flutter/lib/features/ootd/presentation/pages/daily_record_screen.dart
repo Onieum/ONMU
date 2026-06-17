@@ -198,9 +198,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
   void _addPhotoMemo() {
     if (_photoMemos.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사진 메모는 최대 5개까지 추가할 수 있어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진은 최대 5장까지 추가할 수 있어요.')));
       return;
     }
     setState(() => _photoMemos.add(_PhotoMemoDraft()));
@@ -226,9 +226,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (bytes.length > 900 * 1024) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이미지는 1MB 이하의 jpg, png, webp 파일만 업로드할 수 있어요.'),
-        ),
+        const SnackBar(content: Text('이미지 용량이 너무 커요. 1MB 이하 사진을 선택해 주세요.')),
       );
       return;
     }
@@ -241,7 +239,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (!allowed) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('jpg, png, webp 파일만 업로드할 수 있어요.')),
+        const SnackBar(content: Text('jpg, png, webp 형식의 사진만 선택할 수 있어요.')),
       );
       return;
     }
@@ -667,9 +665,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             controller: photo.controller,
             maxLines: 2,
             maxLength: _photoCommentMaxLength,
-            maxLengthEnforcement: MaxLengthEnforcement.none,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             decoration: InputDecoration(
-              hintText: '사진 에 대한 코멘트',
+              hintText: '사진에 대한 코멘트',
               counterStyle: AppTextStyles.tiny.copyWith(
                 color: AppColors.textSub,
               ),
@@ -685,7 +683,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('오늘의 OOTD', '오늘 입은 옷차림을 하루 일과와 함께 남겨보세요.'),
+        _sectionTitle('오늘의 OOTD', '오늘 입은 코디도 함께 기록할 수 있어요. 건너뛰면 하루 일과만 저장됩니다.'),
         if (ootd != null)
           Container(
             width: double.infinity,
@@ -698,7 +696,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             child: Column(
               children: [
                 Text(
-                  '오늘의 OOTD를 연결했어요',
+                  'OOTD 기록이 연결되었어요',
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
