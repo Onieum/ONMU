@@ -4,6 +4,7 @@ import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_create_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_list_page.dart';
+import 'package:onmu_mobile/features/group/presentation/pages/group_settings_page.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 
 import 'support/in_memory_onmu_store.dart';
@@ -120,5 +121,23 @@ void main() {
       find.ancestor(of: search, matching: find.byType(ListView)),
       findsNothing,
     );
+  });
+
+  testWidgets('group rename sheet saves without disposing active controller', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testMaterialApp(const GroupSettingsPage(groupId: '1')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('모임 이름 변경'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '이름 변경 확인');
+    await tester.tap(find.text('저장').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('이름 변경 확인'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
