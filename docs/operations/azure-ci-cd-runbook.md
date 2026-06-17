@@ -81,7 +81,7 @@ Plan과 apply job은 raw Terraform plan/state를 log나 artifact로 공유하지
 `core_foundation`에서 명시적으로 제외한다.
 
 - PostgreSQL Flexible Server
-- Redis. Azure Cache for Redis 신규 생성 차단으로 Azure Managed Redis 재설계 전까지 별도 wave로 분리한다.
+- Redis. `managed_redis_ready`와 `managed_redis_diagnostics` 전용 wave로 분리한다. Spring/Flutter 계약은 `REDIS_URL`, `SPRING_DATA_REDIS_URL`, 기존 Key Vault secret naming을 유지한다.
 - Spring API Container App
 - Worker Container App
 - CDN/edge resource. Terraform foundation은 Blob origin까지만 만든다.
@@ -117,6 +117,16 @@ ACA Environment는 foundation apply 이후 Azure state에 기본 `Consumption` w
 
 `frontdoor_tile_edge`처럼 diagnostics를 새로 만들지 않는 wave에서도, 이미 적용된 foundation diagnostic setting은 Terraform target 집합에 계속 포함해야 한다. 그렇지 않으면 Front Door plan이 기존 diagnostic setting delete를 같이 잡는다.
 
+### Staging Managed Redis
+
+`wave=managed_redis_ready`는 `core_foundation`과 `core_diagnostics` 이후에 Azure Managed Redis만 별도로 생성한다. 이 wave는 기존 foundation 리소스를 recreate하지 않고 `azurerm_managed_redis` create 1건만 허용한다.
+
+`wave=managed_redis_diagnostics`는 Managed Redis resource id가 remote state에 기록된 뒤 diagnostic setting만 별도로 붙인다. 이 wave도 기존 foundation 리소스는 no-op/read만 허용한다.
+
+Managed Redis는 access key 인증을 켜서 현재 Spring의 `REDIS_URL`, `SPRING_DATA_REDIS_URL` 계약을 그대로 유지한다. 다만 Terraform이 Key Vault secret value를 직접 쓰지는 않는다. 운영자는 Managed Redis apply 후 Azure Portal 또는 승인된 운영 경로에서 access key를 확인하고, 기존 `staging-redis-url` secret value를 수동 갱신해야 한다.
+
+AzureRM provider는 access key 인증을 켠 Managed Redis의 계산된 access key를 remote state에 보관할 수 있다. 따라서 이 wave는 state 접근 통제와 key rotation 절차를 별도 운영 gate로 둔다. PR 본문, workflow log, 문서에는 access key 실제 값을 기록하지 않는다.
+
 App phase 전 사전 조건과 현재 병목은 [Azure ACA 앱 배포 사전 점검](./azure-aca-app-preflight.md)에 따로 정리한다. Terraform wave 설계와 Docker image 준비는 이 문서와 함께 본다.
 
 ### Staging App Phase Prework
@@ -151,7 +161,8 @@ PostgreSQL admin password는 Terraform state에 sensitive value로 기록될 수
 - runtime managed identity에 staging ACR scope `AcrPull`
 - runtime managed identity에 재사용 Key Vault scope `Key Vault Secrets User`
 - Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제가 staging target과 맞는지 확인
-- Redis 방향이 확정되기 전에는 `/readyz` 최종 200을 승격 조건으로 다시 확인
+- `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신이 끝났는지 확인
+- Managed Redis 전환 후 `/readyz` 최종 200을 다시 확인
 
 `db_and_app_ready`는 기존 호환용 alias로 유지하지만, 실제 운영 기준은 split wave다. 어느 경로를 쓰더라도 staging 성공 판정은 Terraform apply 성공이 아니다. Clean DB + Flyway full migration, 실제 OAuth 로그인 기반 `/users/me`, `/healthz`, `/readyz`, Blob origin과 후속 edge/tile, Place/Search/Route, Notification/Event, Observability smoke까지 통과해야 한다.
 

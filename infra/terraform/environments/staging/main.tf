@@ -48,12 +48,15 @@ locals {
 
   foundation_diagnostic_target_candidates = {
     key_vault                  = try(module.key_vault[0].key_vault_id, null)
-    redis                      = try(module.redis[0].id, null)
     storage                    = try(module.storage[0].storage_account_id, null)
     cdn_profile                = try(module.cdn[0].profile_id, null)
     cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
     eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
     container_apps_environment = try(module.container_apps[0].environment_id, null)
+  }
+
+  redis_diagnostic_target_candidates = {
+    redis = try(module.redis[0].id, null)
   }
 
   frontdoor_diagnostic_target_candidates = {
@@ -68,6 +71,12 @@ locals {
     if id != null && id != ""
   }
 
+  redis_diagnostic_targets = {
+    for name, id in local.redis_diagnostic_target_candidates :
+    name => id
+    if id != null && id != ""
+  }
+
   frontdoor_diagnostic_targets = {
     for name, id in local.frontdoor_diagnostic_target_candidates :
     name => id
@@ -76,6 +85,7 @@ locals {
 
   diagnostic_targets = merge(
     var.enabled_diagnostic_targets.foundation ? local.foundation_diagnostic_targets : {},
+    var.enabled_diagnostic_targets.redis ? local.redis_diagnostic_targets : {},
     var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {}
   )
 }
@@ -160,15 +170,20 @@ module "postgres" {
 module "redis" {
   count = var.enabled_modules.redis ? 1 : 0
 
-  source              = "../../modules/redis"
-  resource_group_name = local.resource_group_name
-  location            = local.resource_group_location
-  name                = module.naming.redis_name
-  capacity            = 0
-  family              = "C"
-  sku_name            = "Basic"
-  minimum_tls_version = "1.2"
-  tags                = local.tags
+  source                    = "../../modules/redis"
+  resource_group_name       = local.resource_group_name
+  location                  = local.resource_group_location
+  name                      = module.naming.redis_name
+  sku_name                  = "Balanced_B0"
+  public_network_access     = "Enabled"
+  high_availability_enabled = false
+  default_database = {
+    access_keys_authentication_enabled = true
+    client_protocol                    = "Encrypted"
+    clustering_policy                  = "NoCluster"
+    eviction_policy                    = "AllKeysLRU"
+  }
+  tags = local.tags
 }
 
 module "storage" {

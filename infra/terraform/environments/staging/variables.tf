@@ -128,10 +128,12 @@ variable "enabled_diagnostic_targets" {
   description = "Diagnostic target groups to keep or add by wave. Keep foundation diagnostics enabled in later waves so previously applied settings are not planned for deletion."
   type = object({
     foundation = bool
+    redis      = bool
     front_door = bool
   })
   default = {
     foundation = false
+    redis      = false
     front_door = false
   }
 }

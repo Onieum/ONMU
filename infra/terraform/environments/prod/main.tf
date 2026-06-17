@@ -108,15 +108,20 @@ module "postgres" {
 }
 
 module "redis" {
-  source              = "../../modules/redis"
-  resource_group_name = module.resource_group.name
-  location            = module.resource_group.location
-  name                = module.naming.redis_name
-  capacity            = 0
-  family              = "C"
-  sku_name            = "Standard"
-  minimum_tls_version = "1.2"
-  tags                = local.tags
+  source                    = "../../modules/redis"
+  resource_group_name       = module.resource_group.name
+  location                  = module.resource_group.location
+  name                      = module.naming.redis_name
+  sku_name                  = "Balanced_B3"
+  public_network_access     = "Enabled"
+  high_availability_enabled = true
+  default_database = {
+    access_keys_authentication_enabled = true
+    client_protocol                    = "Encrypted"
+    clustering_policy                  = "NoCluster"
+    eviction_policy                    = "AllKeysLRU"
+  }
+  tags = local.tags
 }
 
 module "storage" {

@@ -9,28 +9,33 @@ variable "location" {
 }
 
 variable "name" {
-  description = "Azure Cache for Redis name."
-  type        = string
-}
-
-variable "capacity" {
-  description = "Redis capacity."
-  type        = number
-}
-
-variable "family" {
-  description = "Redis family."
+  description = "Azure Managed Redis name."
   type        = string
 }
 
 variable "sku_name" {
-  description = "Redis SKU name."
+  description = "Azure Managed Redis SKU name."
   type        = string
 }
 
-variable "minimum_tls_version" {
-  description = "Minimum TLS version."
+variable "public_network_access" {
+  description = "Public network access setting."
   type        = string
+}
+
+variable "high_availability_enabled" {
+  description = "Enable high availability for the Managed Redis instance."
+  type        = bool
+}
+
+variable "default_database" {
+  description = "Default database configuration for Azure Managed Redis."
+  type = object({
+    access_keys_authentication_enabled = bool
+    client_protocol                    = string
+    clustering_policy                  = string
+    eviction_policy                    = string
+  })
 }
 
 variable "tags" {
