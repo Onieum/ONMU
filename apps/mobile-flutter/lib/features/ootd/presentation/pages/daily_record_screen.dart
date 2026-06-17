@@ -1697,10 +1697,12 @@ class _DiaryCollageCanvas extends StatelessWidget {
                     spec.memoFooterPlace,
                     _DiaryMemoFooter(memo: dailyMemo, stampAsset: stampAsset),
                   ),
-                  _DiaryCanvasStickers(
-                    stickers: stickers,
-                    places: spec.stickerPlaces,
-                    seed: seed,
+                  Positioned.fill(
+                    child: _DiaryCanvasStickers(
+                      stickers: stickers,
+                      places: spec.stickerPlaces,
+                      seed: seed,
+                    ),
                   ),
                 ],
               ),
@@ -2025,9 +2027,10 @@ class _DiaryCanvasStickers extends StatelessWidget {
     final random = Random(seed);
     return IgnorePointer(
       child: Stack(
+        clipBehavior: Clip.none,
         children: places.map((place) {
           final asset = stickers[random.nextInt(stickers.length)];
-          final safeLeft = min(place.x, 344 - place.width - 14);
+          final safeLeft = min(place.x, 344 - place.width - 18);
           return Positioned(
             left: max(8, safeLeft),
             top: place.y,
