@@ -7,7 +7,7 @@ variable "enabled" {
 variable "selected_pattern" {
   description = "Selected edge pattern. Keep destructive DNS or gateway changes disabled until approved."
   type        = string
-  default     = "blob-storage-plus-azure-cdn"
+  default     = "blob-storage-plus-front-door"
 }
 
 variable "notes" {

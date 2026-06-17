@@ -108,6 +108,11 @@ variable "enabled_modules" {
   }
 
   validation {
+    condition     = !var.enabled_modules.container_apps || (var.enabled_modules.container_registry && var.enabled_modules.postgres)
+    error_message = "enabled_modules.container_apps requires enabled_modules.container_registry and enabled_modules.postgres."
+  }
+
+  validation {
     condition     = !var.enabled_modules.diagnostics || var.enabled_modules.observability
     error_message = "enabled_modules.diagnostics requires enabled_modules.observability."
   }

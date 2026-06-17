@@ -41,6 +41,37 @@ cd C:\dev\ONMU\services\api-spring
 .\mvnw.cmd -DskipTests package
 ```
 
+컨테이너 빌드:
+
+```powershell
+cd C:\dev\ONMU\services\api-spring
+docker build -t onmu-api-spring:local .
+```
+
+로컬 의존성과 함께 컨테이너 실행:
+
+```powershell
+docker run --rm `
+  -p 8080:8080 `
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:15432/onmu `
+  -e SPRING_DATASOURCE_USERNAME=onmu `
+  -e SPRING_DATASOURCE_PASSWORD=<local-only> `
+  -e REDIS_URL=redis://host.docker.internal:6379 `
+  -e OBJECT_STORAGE_ENDPOINT=http://host.docker.internal:9000 `
+  -e OBJECT_STORAGE_BUCKET=onmu-local `
+  -e ONMU_ACCESS_TOKEN_SECRET=<local-only> `
+  onmu-api-spring:local
+```
+
+ACA staging 기준 probe는 `/healthz`, `/readyz`를 사용한다.
+
+현재 컨테이너 자산은 ACA 선행 준비용이다. 다만 staging target을 true Azure Blob으로 둘 때는 아래 두 전제를 같이 다시 봐야 한다.
+
+- `MediaService`는 아직 MinIO client와 access key/secret 기반 object storage 경로를 사용한다.
+- `/readyz`는 현재 `{OBJECT_STORAGE_ENDPOINT}/minio/health/live` 형태의 MinIO-compatible health check를 사용한다.
+
+즉, 컨테이너 이미지와 ACA resource를 먼저 준비하는 것은 가능하지만, Blob adapter 전환 또는 staging 전용 호환 경로 결정 없이 바로 `/readyz=200`을 기대하면 안 된다.
+
 ## 환경 변수
 
 기본값은 Windows dev backend-host와 맞춰져 있습니다.

@@ -51,10 +51,16 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 - Event Hubs namespace, hubs `notification-requested`/`worker-jobs`, consumer groups `worker`/`analytics` count 확인
 - Key Vault RBAC enabled, secret value count/status만 확인하고 값은 출력하지 않음
 - user-assigned managed identity 존재 확인. Key Vault Secrets User role assignment는 `key_vault_rbac` wave 이후 별도 확인
+- staging ACR `AcrPull` role assignment는 `api_app_ready` 전 별도 확인
 - ACA Environment 존재, Spring API/worker Container App 미생성 확인
 - diagnostic settings가 Log Analytics workspace로 연결됐는지 count/status 확인
 
-`db_and_app_ready` wave는 protected Postgres password, Spring image, worker image, Flyway 실행 계획, Key Vault secret value 준비가 끝난 뒤 별도 승인으로만 실행한다.
+`postgres_ready`, `api_app_ready`, `worker_app_ready` wave는 protected Postgres password, Spring image, worker image, Flyway 실행 계획, Key Vault secret value 준비가 끝난 뒤 별도 승인으로만 실행한다. `db_and_app_ready`는 호환용 alias로만 유지한다.
+
+현재 app phase smoke는 두 가지 전제 리스크를 함께 본다.
+
+- Redis는 Azure Managed Redis 방향이 확정되기 전까지 `/readyz` 최종 통과를 바로 보장하지 않는다.
+- Spring object storage adapter와 `/readyz` object storage check는 아직 MinIO-compatible endpoint를 가정하므로, true Azure Blob runtime 전환 전에는 별도 전환 또는 호환 경로 결정이 필요하다.
 
 ## 4. Blob/CDN smoke
 

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onmu-ai-data-worker"
+version = "0.1.0"
+description = "ONMU AI/Data Worker"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn[standard]==0.35.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

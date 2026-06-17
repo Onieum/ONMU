@@ -171,6 +171,10 @@ module "container_apps" {
   log_analytics_workspace_id = module.observability.log_analytics_workspace_id
   runtime_identity_id        = module.key_vault.runtime_identity_id
   tags                       = local.tags
+  registry = {
+    server   = module.container_registry.login_server
+    identity = module.key_vault.runtime_identity_id
+  }
 
   spring_api = {
     name         = module.naming.spring_container_app_name
@@ -187,6 +191,32 @@ module "container_apps" {
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs
+    startup_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/healthz"
+      interval_seconds        = 5
+      timeout                 = 3
+      failure_count_threshold = 20
+    }
+    liveness_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/healthz"
+      initial_delay           = 30
+      interval_seconds        = 30
+      timeout                 = 5
+      failure_count_threshold = 3
+    }
+    readiness_probe = {
+      transport               = "HTTP"
+      port                    = 8080
+      path                    = "/readyz"
+      interval_seconds        = 10
+      timeout                 = 5
+      failure_count_threshold = 3
+      success_count_threshold = 1
+    }
   }
 
   worker = {
@@ -203,6 +233,32 @@ module "container_apps" {
     }
     secret_env  = {}
     secret_refs = {}
+    startup_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      interval_seconds        = 5
+      timeout                 = 3
+      failure_count_threshold = 12
+    }
+    liveness_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      initial_delay           = 10
+      interval_seconds        = 30
+      timeout                 = 5
+      failure_count_threshold = 3
+    }
+    readiness_probe = {
+      transport               = "HTTP"
+      port                    = 8000
+      path                    = "/healthz"
+      interval_seconds        = 10
+      timeout                 = 5
+      failure_count_threshold = 3
+      success_count_threshold = 1
+    }
   }
 
   depends_on = [
@@ -222,9 +278,9 @@ module "network" {
 module "edge_decision" {
   source           = "../../modules/edge"
   enabled          = true
-  selected_pattern = "blob-storage-plus-azure-cdn"
+  selected_pattern = "blob-storage-plus-front-door"
   notes = [
-    "Tile/static serving은 Blob Storage + Azure CDN으로 진행한다.",
-    "WAF/API policy는 Front Door 또는 APIM을 production hardening 후보로 별도 검토한다."
+    "Tile/static serving은 Blob Storage + Azure Front Door Standard를 우선 기준으로 둔다.",
+    "WAF/API policy와 custom domain/TLS는 production hardening 후보로 별도 검토한다."
   ]
 }

@@ -39,6 +39,16 @@ variable "runtime_identity_id" {
   type        = string
 }
 
+variable "registry" {
+  description = "Optional private registry binding for Container Apps image pull."
+  type = object({
+    server   = string
+    identity = string
+  })
+  default  = null
+  nullable = true
+}
+
 variable "create_spring_api_app" {
   description = "Create the Spring API Container App. Keep false for environment-only foundation waves."
   type        = bool
@@ -58,6 +68,33 @@ variable "spring_api" {
     plain_env    = map(string)
     secret_env   = map(string)
     secret_refs  = map(string)
+    startup_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      initial_delay           = optional(number)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+    }))
+    liveness_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      initial_delay           = optional(number)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+    }))
+    readiness_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+      success_count_threshold = optional(number)
+    }))
   })
 }
 
@@ -75,6 +112,33 @@ variable "worker" {
     plain_env    = map(string)
     secret_env   = map(string)
     secret_refs  = map(string)
+    startup_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      initial_delay           = optional(number)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+    }))
+    liveness_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      initial_delay           = optional(number)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+    }))
+    readiness_probe = optional(object({
+      transport               = string
+      port                    = number
+      path                    = optional(string)
+      interval_seconds        = optional(number)
+      timeout                 = optional(number)
+      failure_count_threshold = optional(number)
+      success_count_threshold = optional(number)
+    }))
   })
 }
 
