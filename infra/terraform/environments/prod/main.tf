@@ -17,6 +17,8 @@ locals {
   spring_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
     POSTGRES_PASSWORD                     = "${local.secret_prefix}-postgres-password"
+    SPRING_DATASOURCE_URL                 = "${local.secret_prefix}-database-url"
+    SPRING_DATASOURCE_PASSWORD            = "${local.secret_prefix}-postgres-password"
     ONMU_ACCESS_TOKEN_SECRET              = "${local.secret_prefix}-access-token-secret"
     REDIS_URL                             = "${local.secret_prefix}-redis-url"
     SPRING_DATA_REDIS_URL                 = "${local.secret_prefix}-redis-url"
@@ -190,11 +192,12 @@ module "container_apps" {
     cpu          = 1
     memory       = "2Gi"
     plain_env = {
-      AZURE_CLIENT_ID         = module.key_vault.runtime_identity_client_id
-      OBJECT_STORAGE_PROVIDER = "azure_blob"
-      ONMU_ENV                = local.environment
-      SERVER_ADDRESS          = "0.0.0.0"
-      SERVER_PORT             = "8080"
+      AZURE_CLIENT_ID            = module.key_vault.runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER    = "azure_blob"
+      ONMU_ENV                   = local.environment
+      SERVER_ADDRESS             = "0.0.0.0"
+      SERVER_PORT                = "8080"
+      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs
