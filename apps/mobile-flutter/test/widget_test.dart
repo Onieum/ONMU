@@ -92,6 +92,34 @@ void main() {
     expect(find.text('취향 선택'), findsNothing);
   });
 
+  testWidgets('completed user direct onboarding child routes do not reparent shell', (
+    tester,
+  ) async {
+    const user = AuthUser(
+      id: '00000000-0000-0000-0000-000000000001',
+      publicId: 'user-me',
+      provider: 'NAVER',
+      displayName: '나',
+      onboardingStatus: 'COMPLETED',
+    );
+
+    for (final route in [
+      RoutePaths.onboardingPreferences,
+      RoutePaths.onboardingCharacter,
+    ]) {
+      appRouter.go(route);
+      await tester.pumpWidget(
+        onmuTestProviderScope(user: user, child: const app.OnmuMaterialApp()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('안녕하세요, 나님'), findsOneWidget);
+      expect(find.text('취향 선택'), findsNothing);
+      expect(find.text('캐릭터 만들기'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('starts with splash and opens login', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
 

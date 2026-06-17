@@ -82,6 +82,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: RoutePaths.onboardingPreferences,
+      redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
           final profile =
@@ -95,11 +96,13 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: RoutePaths.onboarding,
+      redirect: _redirectCompletedOnboarding,
       builder: (context, state) =>
           const _OnboardingAccessGate(child: OnboardingHubPage()),
     ),
     GoRoute(
       path: RoutePaths.onboardingCharacter,
+      redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
         builder: (context, ref, child) => _OnboardingAccessGate(
           child: CharacterStartPage(
@@ -560,6 +563,32 @@ Future<String> _resolvePostSplashRoute(WidgetRef ref) async {
   return RoutePaths.onboarding;
 }
 
+Future<String?> _redirectCompletedOnboarding(
+  BuildContext context,
+  GoRouterState state,
+) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final existingUser =
+      container.read(authUserProvider) ??
+      container.read(authBootstrapProvider).asData?.value.user;
+  if (existingUser?.hasCompletedOnboarding == true) {
+    return RoutePaths.home;
+  }
+  final AuthBootstrapResult bootstrap;
+  try {
+    bootstrap = await container
+        .read(authBootstrapProvider.future)
+        .timeout(const Duration(seconds: 6));
+  } catch (_) {
+    return null;
+  }
+  final user = bootstrap.user;
+  if (user?.hasCompletedOnboarding == true) {
+    return RoutePaths.home;
+  }
+  return null;
+}
+
 class _OnboardingAccessGate extends ConsumerWidget {
   const _OnboardingAccessGate({required this.child});
 
@@ -570,11 +599,6 @@ class _OnboardingAccessGate extends ConsumerWidget {
     final bootstrap = ref.watch(authBootstrapProvider);
     final user = bootstrap.asData?.value.user ?? ref.watch(authUserProvider);
     if (user?.hasCompletedOnboarding == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          context.go(RoutePaths.home);
-        }
-      });
       return const SizedBox.shrink();
     }
 
