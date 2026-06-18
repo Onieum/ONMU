@@ -48,6 +48,7 @@
 
 - 최신 `origin/dev` 기준인지 확인
 - `Build Staging Images` workflow가 active인지 확인
+- `Deploy Staging Spring API` workflow가 active인지 확인
 - `Terraform Staging` workflow가 active인지 확인
 - `azure-staging-apply` GitHub Environment가 유지되는지 확인
   - required reviewers
@@ -64,6 +65,13 @@
 - `STAGING_SPRING_API_IMAGE`
 - `STAGING_WORKER_IMAGE`
 
+아래 이름은 기본값이 workflow에 있지만, resource name이 바뀐 경우 GitHub Environment variable로 덮어쓴다.
+
+- `STAGING_RESOURCE_GROUP`
+- `STAGING_ACR_NAME`
+- `STAGING_API_CONTAINER_APP_NAME`
+- `STAGING_API_BASE_URL`
+
 실제 값은 문서, PR, 로그에 출력하지 않는다.
 
 ### 3.3 수동 운영 gate
@@ -79,6 +87,20 @@
 ## 4. 현재 표준 운영 경로
 
 ### 4.1 코드/이미지 변경 배포
+
+Spring API 코드만 바뀐 일반 배포는 `Deploy Staging Spring API` workflow를 표준으로 쓴다.
+
+1. PR이 `dev`에 merge됨
+2. workflow가 Spring API image를 build
+3. staging ACR에 image push
+4. 기존 Spring API Container App image update
+5. latest revision ready 확인
+6. `/healthz`, `/readyz`, no-token `/api/v1/users/me=401` smoke
+7. 통과한 image ref를 `STAGING_SPRING_API_IMAGE`에 기록
+
+이 경로는 이미 생성된 Spring API Container App의 image rollout만 담당한다. 신규 ACA 생성, PostgreSQL/Redis/Blob/Key Vault wiring 변경, worker rollout, DB migration이 필요하면 아래 Terraform split wave를 사용한다.
+
+초기 app 생성 또는 인프라 변경 배포:
 
 1. 최신 `origin/dev` 머지 확인
 2. `Build Staging Images` 실행
@@ -187,6 +209,7 @@ secret refresh 뒤에는 최소한 아래 순서로 다시 본다.
 | 작업 | workflow_dispatch 가능 | protected approval 필요 | 수동 운영 필요 |
 | --- | --- | --- | --- |
 | image build | 예 | 아니오 또는 repo 정책에 따름 | 아니오 |
+| Spring API image rollout | 예, `dev` push도 가능 | `azure-staging-apply` 환경 정책에 따름 | 실패 시 원인 분리 |
 | Terraform plan | 예 | 예 | 아니오 |
 | Terraform apply | 예 | 예 | 아니오 |
 | Key Vault secret 값 쓰기 | 아니오 | 아니오 | 예 |
@@ -199,7 +222,7 @@ secret refresh 뒤에는 최소한 아래 순서로 다시 본다.
 
 | 항목 | 표준 대상 | 기본 원칙 |
 | --- | --- | --- |
-| GitHub image ref | `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE` | image build 결과만 반영하고 app wave 전에 값만 갱신 |
+| GitHub image ref | `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE` | Spring API는 deploy workflow가 smoke 통과 image로 갱신하고, worker와 초기 app wave는 운영자가 현재 image만 반영 |
 | runtime secret value | 재사용 Key Vault `onmu-dev-kv-27db5e` | secret value는 Key Vault에만 쓰고 문서/PR/log에는 secret name만 남김 |
 | OAuth/provider console | Kakao, Naver, Google, 외부 provider console | callback host와 공개 client 설정만 확인하고 secret 값은 출력하지 않음 |
 | custom domain/DNS | `staging-api.onmu.cloud`, `tiles.onmu.cloud` | smoke 전후 host 분리, 승인 없는 즉시 변경 금지 |

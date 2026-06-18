@@ -42,6 +42,7 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 | staging OAuth smoke | 가능 | 가능 | 가능 |
 | PR/push/CI 확인 | 가능 | 가능 | 가능 |
 | `Build Staging Images` 실행 | 가능 | 가능 | 가능 |
+| `Deploy Staging Spring API` 실행/확인 | 가능 | 가능 | 가능 |
 | `Terraform Staging` plan-only | 가능 | 가능 | 가능 |
 | `Terraform Staging` apply | 아니오, approval 필요 | approval 후 가능 | 가능 |
 | Key Vault secret 값 쓰기 | 아니오 | 아니오 | 가능 |
@@ -54,6 +55,7 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 ### 5.1 workflow_dispatch로 가능한 것
 
 - `Build Staging Images`
+- `Deploy Staging Spring API`
 - `Terraform Staging`
   - `backend_smoke`
   - `wave` plan/apply
@@ -103,4 +105,5 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 
 - 팀원이 무옵션으로 앱을 다시 빌드하면 staging을 봐야 한다.
 - staging acceptance와 cutover 판단은 Azure 기준 smoke로 본다.
+- Spring API 코드 변경은 `dev` merge 후 `Deploy Staging Spring API` workflow의 image rollout과 smoke 결과를 본다.
 - dev/local은 문제 분리나 rollback 비교처럼 명시 목적이 있을 때만 사용한다.

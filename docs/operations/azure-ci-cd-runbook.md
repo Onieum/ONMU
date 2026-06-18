@@ -19,7 +19,8 @@
 | `terraform-plan.yml` | PR 또는 manual | fmt/validate/plan, artifact 저장 |
 | `terraform-staging.yml` | PR/push + manual | Terraform fmt/validate, protected staging backend init smoke, approved staging wave plan/apply |
 | `build-staging-images.yml` | PR + manual | Spring API/worker Docker build, optional staging ACR push |
-| `deploy-staging.yml` | future candidate | image build/push와 app phase orchestration을 하나로 묶는 후속 workflow 후보 |
+| `deploy-staging-api.yml` | `dev` push + manual | Spring API image build/push, ACA image rollout, staging API smoke |
+| `deploy-staging.yml` | future candidate | worker, migration job, app phase orchestration을 하나로 묶는 후속 workflow 후보 |
 | `deploy-prod.yml` | manual + approval | staging 검증 image digest 승격, production migration/cutover smoke |
 | `smoke-staging.yml` | manual 또는 deploy 후 | smoke checklist 실행 |
 | `rollback.yml` | manual + approval | previous revision/image/DNS rollback |
@@ -136,6 +137,16 @@ App phase 전 사전 조건과 현재 병목은 [Azure ACA 앱 배포 사전 점
 - PR 단계: Spring API/worker Dockerfile이 실제로 빌드되는지 확인
 - manual 단계: 승인 후 staging ACR에 image를 push하고, 결과 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신할 준비
 
+`Deploy Staging Spring API` workflow는 이미 `api_app_ready`로 Spring API Container App이 생성된 이후의 코드 변경 배포 경로다. `dev` merge 또는 manual dispatch에서 Spring API image를 staging ACR에 push하고, 기존 `ca-onmu-staging-krc-001-api`의 image만 새 revision으로 바꾼다. 배포 뒤 `/healthz`, `/readyz`, no-token `/api/v1/users/me=401` smoke가 모두 통과하면 `azure-staging-apply` environment variable `STAGING_SPRING_API_IMAGE`를 같은 image ref로 갱신해 후속 Terraform app wave가 이전 image로 되돌리지 않게 한다.
+
+이 workflow가 새로 만들지 않는 것:
+
+- PostgreSQL, Redis, Blob, Key Vault, ACA Environment 같은 인프라 리소스
+- Key Vault secret value
+- DB migration 전용 job
+- worker Container App rollout
+- DNS/custom domain/provider console 변경
+
 현재 app rollout은 별도 orchestration workflow보다 `terraform-staging.yml`의 split wave를 우선 사용한다.
 
 - `postgres_ready`
@@ -166,6 +177,7 @@ staging에서 PostgreSQL public access를 유지하는 동안 `postgres_ready`�
 - runtime managed identity에 재사용 Key Vault scope `Key Vault Secrets User`
 - runtime managed identity에 Blob storage account scope `Storage Blob Data Contributor`
 - presigned URL 유지를 위해 Blob storage account scope `Storage Blob Delegator`
+- GitHub OIDC identity에 staging ACR `AcrPush`, Spring API Container App image update 권한, resource group read 권한
 - Spring API plain env `OBJECT_STORAGE_PROVIDER=azure_blob`와 Blob endpoint/container secret reference 확인
 - OAuth redirect/callback env가 ACA plain value가 아니라 재사용 Key Vault secretRef인지 확인
   - `KAKAO_OAUTH_REDIRECT_URI` -> `staging-kakao-oauth-redirect-uri`
