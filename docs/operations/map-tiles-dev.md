@@ -6,7 +6,7 @@
 
 Flutter 앱은 PMTiles 파일 URL을 직접 하드코딩하지 않고 manifest pointer를 읽는다. manifest가 현재 style과 tileset object를 가리키고, 롤백 시에는 manifest pointer만 이전 object로 되돌릴 수 있게 한다.
 
-개발용 object storage는 MinIO를 사용한다. 운영 Azure Blob/CDN 전환 시에도 앱이 읽는 경계는 `manifest.json`으로 유지한다.
+개발용 object storage는 MinIO를 사용한다. 현재 팀의 release/pre-prod tile smoke는 Azure Blob Storage와 Azure Front Door 기준이며, 이 문서의 Cloudflare/Windows gateway 경로는 legacy dev opt-in으로만 사용한다. 운영 Azure Blob/Front Door 전환 시에도 앱이 읽는 경계는 `manifest.json`으로 유지한다.
 
 ## Object layout
 
@@ -17,13 +17,13 @@ Flutter 앱은 PMTiles 파일 URL을 직접 하드코딩하지 않고 manifest p
 | Manifest object | `tiles/manifest.json` |
 | Style object | `styles/onmu-light.json` |
 | Local manifest URL | `http://localhost:9000/onmu-tiles/tiles/manifest.json` |
-| Public manifest URL | `https://tiles.onmu.cloud/manifest.json` |
+| Legacy public manifest URL | `https://tiles.onmu.cloud/manifest.json` |
 
 PMTiles 파일은 저장소에 커밋하지 않는다. `.gitignore`는 `*.pmtiles`를 무시한다.
 
 ## Public tile gateway
 
-`tiles.onmu.cloud`는 Cloudflare Tunnel에서 바로 MinIO bucket path로 rewrite할 수 없으므로 Windows 서버에 작은 local gateway를 둔다.
+이 절은 Windows dev용 legacy tile gateway 설명이다. `tiles.onmu.cloud`를 Azure Front Door custom domain으로 넘긴 뒤에는 이 Cloudflare/Windows gateway 경로를 release/pre-prod smoke에 사용하지 않는다. 과거 Windows dev에서는 Cloudflare Tunnel에서 바로 MinIO bucket path로 rewrite할 수 없어 Windows 서버에 작은 local gateway를 두었다.
 
 ```text
 tiles.onmu.cloud
@@ -47,7 +47,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File scripts\windows\start-map-tiles-gateway.ps1
 ```
 
-Cloudflare ingress는 `infra/cloudflare/cloudflared-local.yml`에서 `tiles.onmu.cloud -> http://localhost:19100`을 포함한다. DNS route는 `onmu-dev-api` tunnel ID에 연결한다. local smoke만 필요하면 Flutter에 `ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`를 주입해 gateway 없이 검증할 수 있다.
+Cloudflare ingress는 legacy Windows dev에서만 `infra/cloudflare/cloudflared-local.yml`의 `tiles.onmu.cloud -> http://localhost:19100` 구성을 사용한다. Azure staging/release smoke에서는 `tiles.onmu.cloud`를 Azure Front Door custom domain으로 보며, local smoke만 필요하면 Flutter에 `ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`를 주입해 gateway 없이 검증할 수 있다.
 
 ## Seed script
 
@@ -142,8 +142,9 @@ style 생성 구조만 확인하려면 업로드 없이 dry-run을 먼저 실행
 - `http://127.0.0.1:5174`
 - `http://localhost:5175`
 - `http://127.0.0.1:5175`
-- `https://dev-api.onmu.cloud`
-- `https://int-api.onmu.cloud`
+- `https://staging-api.onmu.cloud`
+
+`https://dev-api.onmu.cloud`와 `https://int-api.onmu.cloud` origin은 legacy/dev opt-in 또는 integration 경로를 명시 점검할 때만 추가한다.
 
 tile gateway는 위 origin에 대해 `Access-Control-Allow-Origin`을 반환한다. `Range` 요청 검증을 위해 `Access-Control-Expose-Headers`에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다.
 
@@ -189,4 +190,4 @@ MinIO 접속은 기존 `OBJECT_STORAGE_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT
 - 실제 Korea dev PMTiles source URL 확보
 - 실제 PMTiles schema 기준 style layer 검증
 - Flutter MapLibre UI에서 manifest fetch 후 `pmtiles://` protocol 등록
-- public `tiles.onmu.cloud` routing/CDN 설정
+- `tiles.onmu.cloud` Azure Front Door custom domain 전환과 Android MapLibre smoke

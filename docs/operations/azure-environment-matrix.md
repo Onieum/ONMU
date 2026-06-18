@@ -6,13 +6,13 @@
 
 | 항목 | Local | Windows dev | Integration staging | Azure staging | Azure production |
 | --- | --- | --- | --- | --- | --- |
-| 목적 | 개인 개발 | 팀 공유 dev API | dev와 분리된 연동 검증 | Terraform 1차 목표 | 실제 서비스 |
+| 목적 | 개인 개발 | legacy/dev opt-in, shutdown 전 비교 | dev와 분리된 연동 검증 | 팀 기본 pre-prod 기준 | 실제 서비스 |
 | API host | `127.0.0.1:8080` | `https://dev-api.onmu.cloud` | `https://int-api.onmu.cloud` | `https://staging-api.onmu.cloud` | `https://api.onmu.cloud` 후보 |
 | Compute | Spring local process | Windows stable worktree Spring | Windows 분리 process | Azure Container Apps 우선 | AKS 또는 Container Apps |
 | DB | Docker Postgres/PostGIS | Docker Postgres/PostGIS | 분리 DB 또는 schema | Azure Database for PostgreSQL Flexible Server | Azure Database for PostgreSQL Flexible Server |
-| Redis | Docker Redis | Docker Redis | 분리 Redis DB 또는 instance | Azure Cache for Redis | Azure Cache for Redis |
-| Object storage | MinIO | MinIO | 분리 MinIO bucket | Azure Blob Storage | Azure Blob Storage + CDN/Front Door |
-| Tile | local/MinIO/gateway | `https://tiles.onmu.cloud` | 별도 manifest 후보 | Blob Storage + Azure Front Door Standard | Blob + Front Door |
+| Redis | Docker Redis | Docker Redis | 분리 Redis DB 또는 instance | Azure Managed Redis | Azure Managed Redis |
+| Object storage | MinIO | MinIO | 분리 MinIO bucket | Azure Blob Storage native adapter | Azure Blob Storage + Front Door |
+| Tile | local/MinIO/gateway | legacy tile gateway 후보 | 별도 manifest 후보 | Blob Storage + Azure Front Door Standard | Blob + Front Door |
 | Secret source | local env | Azure Key Vault import | Azure Key Vault import | Key Vault + Managed Identity | Key Vault + Managed Identity |
 | Runtime env | shell/process env | PowerShell process env | PowerShell process env | container app env/secret ref | workload identity/secret ref |
 | CI/CD | 수동 | GitHub Actions + Windows runner | GitHub Actions + Windows runner | GitHub Actions protected env | GitHub Actions protected env |
@@ -22,7 +22,7 @@
 
 | 환경 | Key Vault secret prefix 후보 | 비고 |
 | --- | --- | --- |
-| Windows dev | `dev-*` | 현재 팀 공유 dev 기준 |
+| Windows dev | `dev-*` | legacy/dev opt-in 기준. release/pre-prod smoke gate가 아님 |
 | Integration staging | `int-*` | dev와 token/DB를 분리 |
 | Azure staging | `staging-*` | Terraform 전환 rehearsal 기준 |
 | Azure production | `prod-*` | production cutover 전 별도 승인 |
@@ -46,8 +46,8 @@ OAuth smoke는 provider callback과 mobile deep link를 분리해 판정한다. 
 | 환경 | API base URL | CORS origin 기준 | 비고 |
 | --- | --- | --- | --- |
 | Local Flutter web | local API 또는 dev API | `http://localhost:<port>`, `http://127.0.0.1:<port>`. 현재 Vite/Flutter web smoke 기준 `http://127.0.0.1:5173`, `http://localhost:5173` 포함 | local-only |
-| Windows dev web smoke | `https://dev-api.onmu.cloud` | dev Flutter web origin 후보 또는 local web origin | dev API host 자체를 browser origin으로 허용할지 여부는 별도 판단 |
-| Android/iOS dev build | `https://dev-api.onmu.cloud` | 모바일 앱은 CORS 대상이 아님 | deep link/URL scheme 별도 |
+| Legacy Windows dev web smoke | `https://dev-api.onmu.cloud` | dev Flutter web origin 후보 또는 local web origin | 명시 opt-in한 legacy 점검 전용 |
+| Legacy Android/iOS dev build | `https://dev-api.onmu.cloud` | 모바일 앱은 CORS 대상이 아님 | 명시 opt-in한 dev define에서만 사용 |
 | Azure staging web build | `https://staging-api.onmu.cloud` | staging web origin 후보 | DNS/provider console 변경은 별도 승인 후 수행 |
 | Production web build | `https://api.onmu.cloud` 후보 | production web origin 후보 | production approval 필요 |
 
@@ -85,7 +85,7 @@ iOS는 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 `GOOGLE_IOS_REVERSED_CLIE
 
 ## 6. Smoke 기준 요약
 
-각 환경은 최소 다음 smoke를 통과해야 한다.
+Release/pre-prod acceptance는 Azure staging 기준으로만 본다. Local/Windows dev/integration은 해당 환경을 명시 opt-in했을 때의 보조 smoke다. Azure staging은 최소 다음 smoke를 통과해야 한다.
 
 - `GET /healthz` 200
 - `GET /readyz` 200
