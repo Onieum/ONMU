@@ -691,6 +691,25 @@ class TestPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<SchedulePlace> createSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required String name,
+    String note = '',
+  }) async {
+    return SchedulePlace(
+      id: '701',
+      groupId: groupId.toString(),
+      planId: planId.toString(),
+      candidateId: candidateId.toString(),
+      name: name,
+      note: note,
+      sortOrder: 1,
+    );
+  }
+
+  @override
   Future<List<PlaceCandidate>> fetchCandidates({
     required Object groupId,
     required Object planId,
