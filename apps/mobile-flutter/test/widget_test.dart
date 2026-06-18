@@ -67,7 +67,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('나님'), findsOneWidget);
     expect(find.text('카카오로 시작하기'), findsNothing);
   });
 
@@ -90,7 +91,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('나님'), findsOneWidget);
     expect(find.text('캐릭터 만들기'), findsNothing);
     expect(find.text('취향 선택'), findsNothing);
   });
@@ -116,7 +118,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('안녕하세요, 나님'), findsOneWidget);
+        expect(find.text('안녕하세요,'), findsOneWidget);
+        expect(find.text('나님'), findsOneWidget);
         expect(find.text('취향 선택'), findsNothing);
         expect(find.text('캐릭터 만들기'), findsNothing);
         expect(tester.takeException(), isNull);
@@ -156,7 +159,8 @@ void main() {
     await tester.tap(find.text('홈으로 가기').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 네이버 친구님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('네이버 친구님'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
     expect(find.text('전체 보기'), findsWidgets);
