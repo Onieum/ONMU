@@ -1,5 +1,9 @@
 bool isDefaultOnmuDisplayName(String? value) {
-  return value?.trim().toLowerCase() == 'onmu user';
+  final clean = value?.trim();
+  if (clean == null || clean.isEmpty) {
+    return true;
+  }
+  return clean.toLowerCase() == 'onmu user' || clean == '사용자';
 }
 
 String resolveOnmuDisplayName(

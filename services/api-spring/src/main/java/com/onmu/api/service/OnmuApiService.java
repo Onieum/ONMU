@@ -1259,7 +1259,8 @@ public class OnmuApiService {
     return value == null
       || value.isBlank()
       || "ONMU User".equals(value.trim())
-      || "ONMU user".equals(value.trim());
+      || "ONMU user".equals(value.trim())
+      || "사용자".equals(value.trim());
   }
 
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft) {
