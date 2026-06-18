@@ -323,6 +323,9 @@ final appRouter = GoRouter(
                                     child: PlaceMapPage(
                                       groupId: state.pathParameters['groupId']!,
                                       planId: state.pathParameters['planId']!,
+                                      initialQuery:
+                                          state.uri.queryParameters['query'] ??
+                                          '',
                                     ),
                                   ),
                               routes: [

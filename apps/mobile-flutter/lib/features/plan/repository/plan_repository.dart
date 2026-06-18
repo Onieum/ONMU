@@ -174,15 +174,7 @@ class ApiPlanRepository implements PlanRepository {
       memo: OnmuJson.readString(json, 'memo'),
       members: _planMembers(json),
       timeCandidates: const [],
-      visitPlan: [
-        VisitPlan(
-          time: '미정',
-          endTime: '',
-          place: location,
-          kind: '장소',
-          duration: title,
-        ),
-      ],
+      visitPlan: const [],
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
     );
@@ -208,13 +200,15 @@ class ApiPlanRepository implements PlanRepository {
 
   VisitPlan _visitPlanForSchedulePlace(SchedulePlace place) {
     return VisitPlan(
+      id: place.id,
+      candidateId: place.candidateId,
       time: _timeLabel(place.startsAt),
       endTime: _timeLabel(place.endsAt),
       place: place.name,
       kind: '일정 장소',
-      duration: place.note.trim().isEmpty
-          ? '동선 장소 ${place.sortOrder <= 0 ? 1 : place.sortOrder}'
-          : place.note.trim(),
+      duration: place.note.trim(),
+      startsAt: place.startsAt,
+      endsAt: place.endsAt,
     );
   }
 
@@ -300,7 +294,7 @@ class ApiPlanRepository implements PlanRepository {
 
   String _timeLabel(DateTime? value) {
     if (value == null) {
-      return '미정';
+      return '';
     }
     final local = value.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');

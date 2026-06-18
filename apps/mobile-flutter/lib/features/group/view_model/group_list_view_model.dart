@@ -83,7 +83,8 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
   }
 
   bool _needsPinnedPlanTitle(String value) {
-    return value.trim().isEmpty;
+    final normalized = value.trim();
+    return normalized.isEmpty || normalized == '예정된 약속 없음';
   }
 
   String _resolvePinnedPlanTitle({
@@ -96,7 +97,12 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
       return sourceTitle;
     }
     if (plans.isNotEmpty) {
-      return plans.first.title;
+      final now = DateTime.now().toLocal();
+      final upcoming = plans.where((plan) => plan.isUpcomingFrom(now)).toList()
+        ..sort(GroupPlanSummary.compareUpcoming);
+      if (upcoming.isNotEmpty) {
+        return upcoming.first.title;
+      }
     }
     return planLookupFailed ? '약속 정보를 불러오지 못했어요' : '예정된 약속 없음';
   }

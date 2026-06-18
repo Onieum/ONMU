@@ -63,10 +63,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('일정 타임라인'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('좌표 연동 전 미리보기'), 320);
+    await tester.scrollUntilVisible(find.text('장소 동선'), 320);
     await tester.pumpAndSettle();
 
-    expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
+    expect(find.text('좌표 연동 전 미리보기'), findsNothing);
+    expect(find.text('장소 동선'), findsOneWidget);
     expect(find.text('방문 지도'), findsNothing);
   });
 
@@ -389,6 +390,15 @@ class _PlanDetailGroupRepository implements GroupRepository {
   Future<VoteCard> fetchVoteCard({
     required Object groupId,
     required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
   }) {
     throw UnimplementedError();
   }

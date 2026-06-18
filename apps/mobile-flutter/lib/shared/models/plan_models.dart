@@ -122,13 +122,21 @@ class VisitPlan {
     required this.place,
     required this.kind,
     required this.duration,
+    this.id = '',
+    this.candidateId = '',
+    this.startsAt,
+    this.endsAt,
   });
 
+  final String id;
+  final String candidateId;
   final String time;
   final String endTime;
   final String place;
   final String kind;
   final String duration;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
 }
 
 class SchedulePlace {

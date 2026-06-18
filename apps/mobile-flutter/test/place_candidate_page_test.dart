@@ -132,6 +132,13 @@ class _StaticPlaceRepository implements PlaceRepository {
   );
 
   @override
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  }) async {}
+
+  @override
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,

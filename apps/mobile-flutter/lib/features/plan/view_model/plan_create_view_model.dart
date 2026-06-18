@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/plan_models.dart';
 import '../../group/repository/group_repository.dart';
+import '../../group/view_model/group_home_view_model.dart';
+import '../../group/view_model/group_list_view_model.dart';
 import '../../group/view_model/group_plan_list_view_model.dart';
 import '../../home/view_model/home_view_model.dart';
 import '../repository/plan_repository.dart';
@@ -37,7 +39,10 @@ class PlanCreateController {
 
   Future<Plan> createPlan(PlanCreateInput input) async {
     final plan = await _ref.read(planRepositoryProvider).createPlan(input);
-    _ref.invalidate(groupPlanListViewModelProvider(input.groupId.toString()));
+    final groupId = input.groupId.toString();
+    _ref.invalidate(groupPlanListViewModelProvider(groupId));
+    _ref.invalidate(groupHomeViewModelProvider(groupId));
+    _ref.invalidate(groupListViewModelProvider);
     _ref.invalidate(homeViewModelProvider);
     return plan;
   }

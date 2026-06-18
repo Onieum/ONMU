@@ -15,6 +15,7 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
+import '../../../place/view_model/place_candidates_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_date_tabs.dart';
 
@@ -66,6 +67,7 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   }
 
   Widget _buildContent(BuildContext context, PlanDetailState state) {
+    final selectedVisitPlan = state.visitPlanForDate(_selectedDateIndex);
     final routeState = ref.watch(
       routeRecommendationViewModelProvider((
         groupId: widget.groupId,
@@ -102,6 +104,7 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                 children: [
                   _RouteMap(
                     routeState: routeState,
+                    visitPlan: selectedVisitPlan,
                     travelMode: _travelMode,
                     onTravelModeChanged: (mode) =>
                         setState(() => _travelMode = mode),
@@ -122,8 +125,10 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                   Text('동선 목록', style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: AppSpacing.md),
                   _RouteList(
-                    routeState: routeState,
-                    visitPlan: state.visitPlanForDate(_selectedDateIndex),
+                    groupId: widget.groupId,
+                    planId: widget.planId,
+                    visitPlan: selectedVisitPlan,
+                    onDelete: _deleteSchedulePlace,
                   ),
                 ],
               ),
@@ -153,6 +158,17 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
       ),
     );
   }
+
+  Future<void> _deleteSchedulePlace(VisitPlan plan) async {
+    await ref
+        .read(
+          placeCandidatesViewModelProvider((
+            groupId: widget.groupId,
+            planId: widget.planId,
+          )).notifier,
+        )
+        .deleteSchedulePlace(plan.id);
+  }
 }
 
 List<OnmuMapPoint> _uniqueRouteStops(List<OnmuMapPoint> stops) {
@@ -175,14 +191,64 @@ List<OnmuMapPoint> _uniqueRouteStops(List<OnmuMapPoint> stops) {
   return uniqueStops;
 }
 
+List<OnmuMapPoint> _routeStopsForVisitPlan(
+  RouteRecommendation route,
+  List<VisitPlan> visitPlan,
+) {
+  if (visitPlan.isEmpty) {
+    return const [];
+  }
+
+  final stopsByName = <String, OnmuMapPoint>{};
+  for (final stop in _uniqueRouteStops(route.stops)) {
+    final key = _normalizePlaceName(stop.label);
+    if (key.isNotEmpty) {
+      stopsByName.putIfAbsent(key, () => stop);
+    }
+  }
+
+  final filtered = <OnmuMapPoint>[];
+  for (final plan in visitPlan) {
+    final stop = stopsByName[_normalizePlaceName(plan.place)];
+    if (stop == null) {
+      continue;
+    }
+    filtered.add(
+      OnmuMapPoint(
+        id: stop.id,
+        label: stop.label,
+        coordinate: stop.coordinate,
+        order: filtered.length + 1,
+      ),
+    );
+  }
+  return List.unmodifiable(filtered);
+}
+
+String _normalizePlaceName(String value) {
+  return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+}
+
+double _mapZoomFor(List<OnmuMapPoint> stops) {
+  if (stops.length <= 1) {
+    return 14;
+  }
+  if (stops.length == 2) {
+    return 12;
+  }
+  return 10.8;
+}
+
 class _RouteMap extends StatelessWidget {
   const _RouteMap({
     required this.routeState,
+    required this.visitPlan,
     required this.travelMode,
     required this.onTravelModeChanged,
   });
 
   final AsyncValue<RouteRecommendation> routeState;
+  final List<VisitPlan> visitPlan;
   final String travelMode;
   final ValueChanged<String> onTravelModeChanged;
 
@@ -199,11 +265,14 @@ class _RouteMap extends StatelessWidget {
             Positioned.fill(
               child: routeState.when(
                 data: (route) {
-                  final stops = _uniqueRouteStops(route.stops);
+                  final stops = _routeStopsForVisitPlan(route, visitPlan);
                   return OnmuMapView(
                     points: stops,
-                    routeGeometry: route.geometry,
-                    fallbackLabel: '동선 지도 미리보기',
+                    routeGeometry: stops.length >= 2
+                        ? route.geometry
+                        : const [],
+                    zoom: _mapZoomFor(stops),
+                    fallbackLabel: '장소 동선',
                   );
                 },
                 loading: () =>
@@ -246,9 +315,12 @@ class _RouteMap extends StatelessWidget {
               right: AppSpacing.sm,
               bottom: AppSpacing.sm,
               child: routeState.when(
-                data: (route) => _hasRouteData(route)
-                    ? _RouteSummaryPill(route: route)
-                    : const _RouteStatusPill(label: '계산된 동선이 없어요'),
+                data: (route) {
+                  final stops = _routeStopsForVisitPlan(route, visitPlan);
+                  return stops.length >= 2
+                      ? _RouteSummaryPill(route: route, stops: stops)
+                      : _RouteStatusPill(label: _routeStatusLabel(stops));
+                },
                 loading: () => const _RouteStatusPill(label: '동선 계산 중'),
                 error: (error, stackTrace) =>
                     const _RouteStatusPill(label: '동선을 계산하지 못했어요'),
@@ -261,18 +333,14 @@ class _RouteMap extends StatelessWidget {
   }
 }
 
-bool _hasRouteData(RouteRecommendation route) {
-  return route.stops.isNotEmpty || route.geometry.isNotEmpty;
-}
-
 class _RouteSummaryPill extends StatelessWidget {
-  const _RouteSummaryPill({required this.route});
+  const _RouteSummaryPill({required this.route, required this.stops});
 
   final RouteRecommendation route;
+  final List<OnmuMapPoint> stops;
 
   @override
   Widget build(BuildContext context) {
-    final stops = _uniqueRouteStops(route.stops);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.bgDefault.withValues(alpha: 0.92),
@@ -334,6 +402,13 @@ class _RouteStatusPill extends StatelessWidget {
   }
 }
 
+String _routeStatusLabel(List<OnmuMapPoint> stops) {
+  if (stops.isEmpty) {
+    return '계산된 동선이 없어요';
+  }
+  return '방문 장소 1곳';
+}
+
 String _durationLabel(int seconds) {
   if (seconds <= 0) {
     return '시간 계산 중';
@@ -380,95 +455,29 @@ class _TravelModeChip extends StatelessWidget {
   }
 }
 
-class RouteMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = AppColors.lineSoft
-      ..strokeWidth = 1;
-    for (var x = 24.0; x < size.width; x += 56) {
-      canvas.drawLine(Offset(x, 0), Offset(x + 30, size.height), gridPaint);
-    }
-    for (var y = 30.0; y < size.height; y += 48) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y - 18), gridPaint);
-    }
-
-    final path = Path()
-      ..moveTo(66, 58)
-      ..cubicTo(120, 96, 156, 42, size.width - 108, 96)
-      ..quadraticBezierTo(size.width - 58, 128, size.width - 72, 158)
-      ..quadraticBezierTo(size.width - 108, 190, size.width - 58, 224);
-
-    final linePaint = Paint()
-      ..color = AppColors.primaryPink
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 3;
-    canvas.drawPath(path, linePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class RoutePoint extends StatelessWidget {
-  const RoutePoint({required this.order, required this.label, super.key});
-
-  final int order;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.primaryPink,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: AppColors.bgDefault, width: 3),
-          ),
-          child: SizedBox.square(
-            dimension: 32,
-            child: Center(
-              child: Text(
-                '$order',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textInverse),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xxs),
-        OnmuChip(label: label),
-      ],
-    );
-  }
-}
-
 class _RouteList extends StatelessWidget {
-  const _RouteList({required this.routeState, required this.visitPlan});
+  const _RouteList({
+    required this.groupId,
+    required this.planId,
+    required this.visitPlan,
+    required this.onDelete,
+  });
 
-  final AsyncValue<RouteRecommendation> routeState;
+  final String groupId;
+  final String planId;
   final List<VisitPlan> visitPlan;
+  final Future<void> Function(VisitPlan plan) onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final stops = routeState.maybeWhen(
-      data: (route) => _uniqueRouteStops(route.stops),
-      orElse: () => const <OnmuMapPoint>[],
-    );
-    if (stops.isNotEmpty) {
+    if (visitPlan.isEmpty) {
       return OnmuCard(
         backgroundColor: AppColors.bgDefault,
-        child: Column(
-          children: [
-            for (var index = 0; index < stops.length; index += 1)
-              _RouteStopListItem(
-                point: stops[index],
-                isLast: index == stops.length - 1,
-              ),
-          ],
+        child: Text(
+          '아직 추가된 방문 장소가 없어요.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
         ),
       );
     }
@@ -481,203 +490,161 @@ class _RouteList extends StatelessWidget {
             _RouteListItem(
               order: index + 1,
               plan: visitPlan[index],
-              isLast: index == visitPlan.length - 1,
+              onTap: () => _openPlaceSearch(context, visitPlan[index]),
+              onDelete: visitPlan[index].id.trim().isEmpty
+                  ? null
+                  : () => _deleteVisitPlan(context, visitPlan[index]),
             ),
         ],
       ),
     );
   }
-}
 
-class _RouteStopListItem extends StatelessWidget {
-  const _RouteStopListItem({required this.point, required this.isLast});
-
-  final OnmuMapPoint point;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.primaryPink,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: SizedBox.square(
-              dimension: 28,
-              child: Center(
-                child: Text(
-                  '${point.order}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textInverse,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          _RouteStopThumbnail(order: point.order),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  point.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  isLast ? '도착 장소' : '다음 장소로 이동',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xxs,
-                  children: [
-                    OnmuChip(
-                      label: isLast ? '마지막 장소' : '도보 연결',
-                      icon: isLast
-                          ? Icons.flag_outlined
-                          : Icons.directions_walk,
-                    ),
-                    OnmuChip(
-                      label: point.order == 1 ? '출발' : '경유 ${point.order}',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RouteStopThumbnail extends StatelessWidget {
-  const _RouteStopThumbnail({required this.order});
-
-  final int order;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: SizedBox.square(
-        dimension: 64,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: _colors,
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -8,
-                top: -8,
-                child: Icon(
-                  Icons.circle,
-                  size: 40,
-                  color: AppColors.bgDefault.withValues(alpha: 0.36),
-                ),
-              ),
-              const Center(
-                child: Icon(
-                  Icons.storefront_outlined,
-                  color: AppColors.textInverse,
-                  size: 30,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _openPlaceSearch(BuildContext context, VisitPlan plan) {
+    final query = Uri.encodeComponent(plan.place.trim());
+    context.push('${RoutePaths.planPlaceSearch(groupId, planId)}?query=$query');
   }
 
-  List<Color> get _colors {
-    switch (order % 3) {
-      case 1:
-        return const [AppColors.accentBrown, AppColors.primaryPink];
-      case 2:
-        return const [AppColors.accentGreen, AppColors.accentOrange];
-      default:
-        return const [AppColors.accentBlue, AppColors.primaryPurple];
+  Future<void> _deleteVisitPlan(BuildContext context, VisitPlan plan) async {
+    try {
+      await onDelete(plan);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('방문 장소를 삭제하지 못했어요.')));
+      return;
     }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('방문 장소를 삭제했어요.')));
   }
 }
+
+enum _RoutePlaceAction { delete }
 
 class _RouteListItem extends StatelessWidget {
   const _RouteListItem({
     required this.order,
     required this.plan,
-    required this.isLast,
+    required this.onTap,
+    required this.onDelete,
   });
 
   final int order;
   final VisitPlan plan;
-  final bool isLast;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final metaLabel = _visitPlanMetaLabel(plan);
+    final timeRangeLabel = _visitTimeRangeLabel(plan);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPink,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: SizedBox.square(
-                  dimension: 26,
-                  child: Center(
-                    child: Text(
-                      '$order',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.textInverse,
-                      ),
+      child: OnmuCard(
+        onTap: onTap,
+        backgroundColor: AppColors.bgPaper,
+        borderColor: AppColors.lineSoft,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.primaryPink,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: SizedBox.square(
+                dimension: 30,
+                child: Center(
+                  child: Text(
+                    '$order',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textInverse,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  plan.place,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              Text(plan.endTime, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Padding(
-            padding: const EdgeInsets.only(left: 38),
-            child: Text(
-              '${plan.kind} · ${plan.duration}',
-              style: Theme.of(context).textTheme.bodySmall,
             ),
-          ),
-          if (!isLast) const SizedBox(height: AppSpacing.sm),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    plan.place,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  if (metaLabel.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      metaLabel,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
+                  if (timeRangeLabel.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      timeRangeLabel,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            PopupMenuButton<_RoutePlaceAction>(
+              tooltip: '장소 더보기',
+              icon: const Icon(Icons.more_horiz),
+              onSelected: (action) {
+                switch (action) {
+                  case _RoutePlaceAction.delete:
+                    onDelete?.call();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: _RoutePlaceAction.delete,
+                  enabled: onDelete != null,
+                  child: const Text('삭제하기'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+String _visitPlanMetaLabel(VisitPlan plan) {
+  final kind = plan.kind.trim();
+  final duration = plan.duration.trim();
+  if (kind.isEmpty) {
+    return duration;
+  }
+  if (duration.isEmpty) {
+    return kind;
+  }
+  return '$kind · $duration';
+}
+
+String _visitTimeRangeLabel(VisitPlan plan) {
+  final start = plan.time.trim();
+  final end = plan.endTime.trim();
+  if (start.isEmpty) {
+    return end;
+  }
+  if (end.isEmpty) {
+    return start;
+  }
+  return '$start ~ $end';
 }

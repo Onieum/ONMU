@@ -43,6 +43,26 @@ class PlaceDetailPage extends ConsumerWidget {
         groupId: groupId,
         planId: planId,
         candidate: candidate,
+        onAddCandidate: () async {
+          await ref
+              .read(
+                placeCandidatesViewModelProvider((
+                  groupId: groupId,
+                  planId: planId,
+                )).notifier,
+              )
+              .addCandidate(candidate);
+        },
+        onRegisterCandidate: () async {
+          await ref
+              .read(
+                placeCandidatesViewModelProvider((
+                  groupId: groupId,
+                  planId: planId,
+                )).notifier,
+              )
+              .addCandidateToSchedule(candidate);
+        },
       ),
       loading: () => const OnmuScaffold(
         title: '장소 상세',
@@ -66,11 +86,15 @@ class _PlaceDetailContent extends StatelessWidget {
     required this.groupId,
     required this.planId,
     required this.candidate,
+    required this.onAddCandidate,
+    required this.onRegisterCandidate,
   });
 
   final String groupId;
   final String planId;
   final PlaceCandidate candidate;
+  final Future<void> Function() onAddCandidate;
+  final Future<void> Function() onRegisterCandidate;
 
   @override
   Widget build(BuildContext context) {
@@ -85,8 +109,13 @@ class _PlaceDetailContent extends StatelessWidget {
             child: OnmuSecondaryButton(
               label: '후보에 추가하기',
               icon: Icons.favorite_border,
-              onPressed: () =>
-                  context.go(RoutePaths.planPlaceCandidates(groupId, planId)),
+              onPressed: () async {
+                await onAddCandidate();
+                if (!context.mounted) {
+                  return;
+                }
+                context.go(RoutePaths.planPlaceCandidates(groupId, planId));
+              },
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -96,8 +125,13 @@ class _PlaceDetailContent extends StatelessWidget {
               icon: Icons.event_available_outlined,
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
-              onPressed: () =>
-                  context.go(RoutePaths.planItinerary(groupId, planId)),
+              onPressed: () async {
+                await onRegisterCandidate();
+                if (!context.mounted) {
+                  return;
+                }
+                context.go(RoutePaths.planItinerary(groupId, planId));
+              },
             ),
           ),
         ],

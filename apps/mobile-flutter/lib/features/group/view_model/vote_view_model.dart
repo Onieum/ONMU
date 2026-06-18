@@ -60,6 +60,36 @@ class VoteDetailState {
     }
     return optionCountsByCandidateId[candidateId] ?? 0;
   }
+
+  VoteOptionSummary? optionForCandidate(int candidateId) {
+    for (final option in vote.options) {
+      if (_candidateIdForVoteOption(option) == candidateId) {
+        return option;
+      }
+    }
+    return null;
+  }
+
+  bool isSelectedCandidate(int candidateId) {
+    final option = optionForCandidate(candidateId);
+    if (option == null) {
+      return false;
+    }
+    final myOptionId = vote.myOptionId.trim();
+    return option.selectedByMe ||
+        (myOptionId.isNotEmpty && option.id.trim() == myOptionId);
+  }
+}
+
+int _candidateIdForVoteOption(VoteOptionSummary option) {
+  final candidateId = int.tryParse(option.candidateId.trim());
+  if (candidateId != null && candidateId != 0) {
+    return candidateId;
+  }
+  if (option.targetType.toUpperCase() == 'PLACE_CANDIDATE') {
+    return int.tryParse(option.targetId.trim()) ?? 0;
+  }
+  return 0;
 }
 
 enum VoteFilter {
@@ -150,7 +180,7 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
   Map<int, int> _optionCountsByCandidateId(List<VoteOptionSummary> options) {
     final counts = <int, int>{};
     for (final option in options) {
-      final candidateId = _candidateIdForOption(option);
+      final candidateId = _candidateIdForVoteOption(option);
       if (candidateId == 0 || option.responseCount <= 0) {
         continue;
       }
@@ -163,8 +193,11 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
     List<VoteOptionSummary> options,
     List<PlaceCandidate> candidates,
   ) {
-    if (options.isEmpty || candidates.isEmpty) {
+    if (options.isEmpty) {
       return candidates;
+    }
+    if (candidates.isEmpty) {
+      return _fallbackCandidatesForOptions(options);
     }
 
     final candidatesById = {
@@ -179,12 +212,12 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
     }
 
     final hasCandidateIds = options.any(
-      (option) => _candidateIdForOption(option) != 0,
+      (option) => _candidateIdForVoteOption(option) != 0,
     );
     final filtered = <PlaceCandidate>[];
     final addedIds = <int>{};
     for (final option in options) {
-      final candidateId = _candidateIdForOption(option);
+      final candidateId = _candidateIdForVoteOption(option);
       final candidate =
           candidatesById[candidateId] ??
           candidatesByName[_normalizeOptionLabel(option.label)];
@@ -195,20 +228,42 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
     }
 
     if (filtered.isNotEmpty || hasCandidateIds) {
-      return List.unmodifiable(filtered);
+      return List.unmodifiable(
+        filtered.isEmpty ? _fallbackCandidatesForOptions(options) : filtered,
+      );
     }
     return candidates;
   }
 
-  int _candidateIdForOption(VoteOptionSummary option) {
-    final candidateId = int.tryParse(option.candidateId.trim());
-    if (candidateId != null && candidateId != 0) {
-      return candidateId;
-    }
-    if (option.targetType.toUpperCase() == 'PLACE_CANDIDATE') {
-      return int.tryParse(option.targetId.trim()) ?? 0;
-    }
-    return 0;
+  List<PlaceCandidate> _fallbackCandidatesForOptions(
+    List<VoteOptionSummary> options,
+  ) {
+    return [
+      for (final option in options)
+        PlaceCandidate(
+          id: _candidateIdForVoteOption(option) == 0
+              ? option.label.hashCode & 0x7fffffff
+              : _candidateIdForVoteOption(option),
+          name: option.label,
+          category: '장소',
+          summary: '',
+          score: 0,
+          matchPercent: 0,
+          distanceLabel: '',
+          travelTimeLabel: '',
+          priceLabel: '',
+          isOpen: true,
+          address: '',
+          openingLabel: '',
+          sourceLabel: '',
+          riskLabel: '',
+          riskTone: 'none',
+          memberFits: const [],
+          tags: const [],
+          reasons: const [],
+          risks: const [],
+        ),
+    ];
   }
 
   String? _targetPlanIdFromVote(VoteCard vote) {
@@ -228,5 +283,24 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
 
   String _normalizeOptionLabel(String value) {
     return value.trim().toLowerCase();
+  }
+
+  Future<void> submitVote(String optionId) async {
+    final normalizedOptionId = optionId.trim();
+    if (normalizedOptionId.isEmpty) {
+      return;
+    }
+
+    final repository = ref.read(groupRepositoryProvider);
+    await repository.submitVote(
+      groupId: scope.groupId,
+      voteId: scope.voteId,
+      optionId: normalizedOptionId,
+    );
+    ref.invalidateSelf();
+    ref.invalidate(
+      voteListViewModelProvider((groupId: scope.groupId, planId: scope.planId)),
+    );
+    await future;
   }
 }

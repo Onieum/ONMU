@@ -5,6 +5,39 @@ import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 
 void main() {
+  test(
+    'fetchPlan does not synthesize plan placeName as itinerary visit place',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 104,
+                  'title': '샘플약속-진희',
+                  'startsAt': '2026-06-19T05:00:00Z',
+                  'endsAt': '2026-06-24T07:00:00Z',
+                  'placeName': '수원',
+                  'memo': '오늘약속테스트',
+                  'status': 'draft',
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiPlanRepository(OnmuApiClient(dio));
+
+      final plan = await repository.fetchPlan(groupId: 1, planId: 104);
+
+      expect(plan.location, '수원');
+      expect(plan.visitPlan, isEmpty);
+    },
+  );
+
   test('maps schedule places into itinerary visit plans', () async {
     final requests = <RequestOptions>[];
     final dio = Dio();

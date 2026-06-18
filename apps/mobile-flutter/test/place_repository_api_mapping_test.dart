@@ -55,6 +55,38 @@ void main() {
     expect(saved.sortOrder, 1);
   });
 
+  test('deletes a schedule place through the Spring API contract', () async {
+    final requests = <RequestOptions>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requests.add(options);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              statusCode: 204,
+              data: null,
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiPlaceRepository(OnmuApiClient(dio));
+
+    await repository.deleteSchedulePlace(
+      groupId: 1,
+      planId: 104,
+      schedulePlaceId: '701',
+    );
+
+    expect(
+      requests.single.path,
+      '/api/v1/groups/1/plans/104/schedule-places/701',
+    );
+    expect(requests.single.method, 'DELETE');
+  });
+
   test('creates a place candidate through the Spring API contract', () async {
     final requestedPaths = <String>[];
     final requestedBodies = <Map<String, dynamic>>[];

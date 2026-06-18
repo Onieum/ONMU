@@ -67,6 +67,12 @@ abstract interface class GroupRepository {
     required Object voteId,
   });
 
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  });
+
   Future<Map<int, List<String>>> fetchVoteVoters({
     required Object groupId,
     required Object voteId,
@@ -308,6 +314,36 @@ class ApiGroupRepository implements GroupRepository {
       targetType: OnmuJson.readString(vote, 'targetType'),
       targetId: OnmuJson.readString(vote, 'targetId'),
       options: optionSummaries,
+      myOptionId: _myVoteOptionId(vote, optionSummaries),
+    );
+  }
+
+  @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  }) async {
+    final vote = await _client.postObject(
+      '/api/v1/groups/$groupId/votes/$voteId/responses/me',
+      body: {'optionId': optionId.toString()},
+    );
+    final optionSummaries = _voteOptionSummaries(vote);
+    final options = optionSummaries.map((option) => option.label).toList();
+    return VoteCard(
+      title: OnmuJson.readString(vote, 'title', '투표'),
+      summary: options.isEmpty ? '등록된 투표 후보가 없어요' : options.join(', '),
+      statusLabel: OnmuJson.readString(
+        vote,
+        'status',
+        OnmuJson.readBool(vote, 'closed') ? 'closed' : 'open',
+      ),
+      actionLabel: '투표 보기',
+      participantCount: OnmuJson.readInt(vote, 'participantCount'),
+      targetType: OnmuJson.readString(vote, 'targetType'),
+      targetId: OnmuJson.readString(vote, 'targetId'),
+      options: optionSummaries,
+      myOptionId: _myVoteOptionId(vote, optionSummaries),
     );
   }
 
@@ -629,6 +665,7 @@ class ApiGroupRepository implements GroupRepository {
     final options = optionSummaries.map((option) => option.label).toList();
     final closed = OnmuJson.readBool(json, 'closed');
     final targetId = OnmuJson.readString(json, 'targetId');
+    final myOptionId = _myVoteOptionId(json, optionSummaries);
     return VoteSummary(
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '투표'),
@@ -640,7 +677,7 @@ class ApiGroupRepository implements GroupRepository {
       participantCount: OnmuJson.readInt(json, 'participantCount'),
       options: optionSummaries,
       closed: closed,
-      joinedByMe: false,
+      joinedByMe: OnmuJson.readBool(json, 'joinedByMe', myOptionId.isNotEmpty),
       actionLabel: closed ? '결과 보기' : '투표 확인하기',
       targetType: OnmuJson.readString(json, 'targetType'),
       targetId: targetId,
@@ -673,6 +710,7 @@ class ApiGroupRepository implements GroupRepository {
               targetId: OnmuJson.readString(map, 'targetId'),
               candidateId: OnmuJson.readString(map, 'candidateId'),
               responseCount: OnmuJson.readInt(map, 'responseCount'),
+              selectedByMe: OnmuJson.readBool(map, 'selectedByMe'),
             );
           }
           final label = option.toString();
@@ -766,6 +804,26 @@ class ApiGroupRepository implements GroupRepository {
       return int.tryParse(OnmuJson.readString(option, 'targetId')) ?? 0;
     }
     return 0;
+  }
+
+  String _myVoteOptionId(
+    Map<String, dynamic> json,
+    List<VoteOptionSummary> options,
+  ) {
+    final explicit = OnmuJson.readString(
+      json,
+      'myOptionId',
+      OnmuJson.readString(json, 'selectedOptionId'),
+    );
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+    for (final option in options) {
+      if (option.selectedByMe && option.id.trim().isNotEmpty) {
+        return option.id.trim();
+      }
+    }
+    return '';
   }
 }
 
