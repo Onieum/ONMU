@@ -317,6 +317,45 @@ void main() {
       expect(find.text('PMTiles 후보', findRichText: true), findsNothing);
     },
   );
+
+  testWidgets('reports unavailable current location without native controller', (
+    tester,
+  ) async {
+    var unavailableCount = 0;
+
+    Widget buildMap({required int requestSerial}) {
+      return ProviderScope(
+        overrides: [
+          tileManifestRepositoryProvider.overrideWithValue(
+            const _FailingTileManifestRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: SizedBox(
+            width: 320,
+            height: 240,
+            child: OnmuMapView(
+              fallbackLabel: '지도 fallback',
+              points: const [],
+              myLocationRequestSerial: requestSerial,
+              onMyLocationUnavailable: () {
+                unavailableCount += 1;
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildMap(requestSerial: 0));
+    await tester.pump();
+
+    await tester.pumpWidget(buildMap(requestSerial: 1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(unavailableCount, 1);
+  });
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {
