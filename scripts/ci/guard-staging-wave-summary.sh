@@ -125,6 +125,16 @@ case "$wave" in
       exit 1
     fi
     ;;
+  ai_foundation)
+    unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_machine_learning_workspace" and .type != "azurerm_cognitive_account" and .type != "azurerm_cognitive_deployment" and .type != "azurerm_monitor_diagnostic_setting" and .type != "azurerm_role_assignment")) | .address] | length' "$plan_json")"
+    ml_workspace_creates="$(count_types_by_action create azurerm_machine_learning_workspace)"
+    cognitive_account_creates="$(count_types_by_action create azurerm_cognitive_account)"
+    if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$ml_workspace_creates" -ne 1 ] || [ "$cognitive_account_creates" -ne 1 ]; then
+      echo "Only AI foundation creates, AI diagnostic settings, optional runtime role assignments, and existing resource no-op/read are allowed for ai_foundation." >&2
+      exit 1
+    fi
+    ;;
   db_and_app_ready)
     unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.address != "module.postgres[0].azurerm_postgresql_flexible_server.this" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_configuration.extensions[0]" and .address != "module.postgres[0].azurerm_postgresql_flexible_server_database.this" and .address != "module.container_apps[0].azurerm_container_app.spring_api[0]" and .address != "module.container_apps[0].azurerm_container_app.worker[0]")) | .address] | length' "$plan_json")"

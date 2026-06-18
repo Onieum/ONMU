@@ -46,6 +46,7 @@ on:
           - postgres_firewall_ready
           - api_app_ready
           - worker_app_ready
+          - ai_foundation
           - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."
