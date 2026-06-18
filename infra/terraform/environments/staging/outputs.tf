@@ -77,3 +77,23 @@ output "worker_enabled" {
 output "diagnostic_setting_count" {
   value = try(length(module.diagnostic_settings[0].diagnostic_setting_ids), 0)
 }
+
+output "machine_learning_workspace_name" {
+  value = try(module.ai_foundation[0].machine_learning_workspace_name, null)
+}
+
+output "machine_learning_workspace_id" {
+  value = try(module.ai_foundation[0].machine_learning_workspace_id, null)
+}
+
+output "vision_openai_account_name" {
+  value = try(module.ai_foundation[0].vision_openai_account_name, null)
+}
+
+output "vision_openai_endpoint" {
+  value = try(module.ai_foundation[0].vision_openai_endpoint, null)
+}
+
+output "vision_openai_deployment_name" {
+  value = try(module.ai_foundation[0].vision_openai_deployment_name, null)
+}

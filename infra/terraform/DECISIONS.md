@@ -22,6 +22,7 @@
 | 14 | Terraform backend Storage Account 후보 | `onmutfstatekrc001`부터 suffix 증가 |
 | 15 | ACR | 신규 ACR 생성 |
 | 16 | Staging budget gate | 2026-06-26까지 총 1,000,000원 상한 |
+| 17 | OOTD AI foundation | `ai_foundation` 전용 wave, 기본 provider는 `mock` |
 
 ## 1. Azure region
 
@@ -180,3 +181,17 @@
 | apply 전 보고 | 현재 누적 / 예상 증가분 / 상한 대비 잔여율 |
 
 확정: Budget 리소스 생성은 이번 Terraform PR 범위가 아니다. ACR, ACA, PostgreSQL, Redis, CDN, Event Hubs는 plan-only 이후 별도 apply 승인 전에 budget impact를 확인한다. WAF/APIM/Front Door Premium/Private Endpoint/AKS는 2026-06-26 전 staging 1차 범위에서 제외한다.
+
+## 17. OOTD AI foundation
+
+| 선택지 | 장점 | 단점 | 추천 |
+| --- | --- | --- | --- |
+| Terraform `ai_foundation` wave + mock-first rollout | 기존 staging wave 체계와 맞고 실제 secret value 없이 구조를 먼저 검증할 수 있다 | Azure ML/Vision 실제 호출은 별도 secret과 quota 준비가 끝나야 한다 | 확정 |
+| 수동 Azure ML/Vision 생성 후 나중에 import | 빠르게 포털에서 실험할 수 있다 | Terraform state와 실제 리소스가 어긋나기 쉽다 | 임시 POC 외 비추천 |
+| Worker mock만 유지 | 비용이 없다 | 실제 OOTD 생성 품질 검증이 불가능하다 | 초기 개발까지만 |
+
+확정: OOTD 생성 기능은 Terraform에 `ai_foundation` wave를 추가해 Azure ML Workspace, Vision 계정, optional Vision deployment, worker runtime RBAC, worker AI env/secret reference를 준비한다. 기본 `ootd_generation_provider`는 `mock`으로 유지해 Flutter, Spring job API, worker 상태 전이를 먼저 검증한다. 실제 모델 호출은 `azure_ml` provider로 전환하고 Key Vault secret이 준비된 뒤 수행한다.
+
+MVP 모델은 `black-forest-labs/FLUX.1-Kontext-dev`를 사용한다. 현재 프로젝트 범위는 MVP/교육/POC이므로 non-commercial license 사용 가능 여부를 팀 기록으로 남긴다. 상업 배포 또는 production service phase로 넘어가면 모델 교체, 별도 라이선스 승인, 또는 상업용 endpoint 재선정이 필요하다.
+
+`ONMU_HF_TOKEN`, `ONMU_OOTD_MODEL_ID`, `ONMU_OOTD_MODEL_REVISION`, `ONMU_AZUREML_ENDPOINT_URL`, `ONMU_AZUREML_ENDPOINT_KEY`, `ONMU_VISION_API_KEY`는 Key Vault secret reference로만 연결한다. 모델 id와 revision은 secret 값은 아니지만, 상업 배포 또는 production service phase에서 모델을 교체할 가능성이 높으므로 Key Vault에서 운영자가 통제한다. `ONMU_VISION_MODEL_DEPLOYMENT`는 Azure OpenAI deployment name으로 현재 plain runtime config로 둔다.

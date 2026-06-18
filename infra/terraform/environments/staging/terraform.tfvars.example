@@ -21,15 +21,42 @@ enabled_modules = {
   eventhubs                  = false
   container_apps_environment = false
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = false
   rbac_assignments           = false
 }
 
 enabled_diagnostic_targets = {
   foundation = false
+  redis      = false
   front_door = false
+  ai         = false
 }
 
-# 실제 password 값은 git에 기록하지 않는다.
-# PostgreSQL wave에서 enabled_modules.postgres=true일 때만
-# TF_VAR_postgres_administrator_password 또는 protected CI secret으로 전달한다.
+worker_enabled                = false
+ootd_generation_provider      = "mock"
+vision_model_deployment_name  = "onmu-ootd-vision"
+
+# OOTD model values are intentionally supplied through Key Vault secretRefs,
+# not through Terraform variables, so the team can swap models later without a
+# Terraform code change.
+# Required when ootd_generation_provider="azure_ml":
+# - staging-hf-token
+# - staging-ootd-model-id
+# - staging-ootd-model-revision
+# - staging-azureml-endpoint-url
+# - staging-azureml-endpoint-key
+# - staging-vision-api-key
+
+# Enable after Azure OpenAI quota/model availability is confirmed.
+# vision_openai_deployment = {
+#   name          = "onmu-ootd-vision"
+#   model_name    = "gpt-4o"
+#   model_version = "2024-11-20"
+#   sku_name      = "Standard"
+#   capacity      = 1
+# }
+
+# Actual password values must not be committed to git.
+# When enabled_modules.postgres=true, pass it through
+# TF_VAR_postgres_administrator_password or protected CI secrets.

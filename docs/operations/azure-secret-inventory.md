@@ -96,7 +96,24 @@ Kakao Local API 사용 여부는 provider 권한/심사 상태를 별도 runbook
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | `dev-appinsights-connection-string` 후보 | `staging-appinsights-connection-string` | `prod-appinsights-connection-string` | Spring/FastAPI | 아니오 |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | config 후보 | config 후보 | config 후보 | Spring/FastAPI | 아니오 |
 
-## 8. Smoke 보고 허용 항목
+## 8. OOTD AI generation 후보
+
+| Env var | Dev secret name 후보 | Staging secret name 후보 | Prod secret name 후보 | 대상 | Flutter 허용 |
+| --- | --- | --- | --- | --- | --- |
+| `ONMU_OOTD_GENERATION_PROVIDER` | config `mock` | config `mock` 또는 `azure_ml` | config 후보 | FastAPI worker plain env | 아니오 |
+| `ONMU_HF_TOKEN` | `dev-hf-token` 후보 | `staging-hf-token` | `prod-hf-token` | FastAPI worker | 아니오 |
+| `ONMU_OOTD_MODEL_ID` | `dev-ootd-model-id` 후보 | `staging-ootd-model-id` | `prod-ootd-model-id` | FastAPI worker | 아니오 |
+| `ONMU_OOTD_MODEL_REVISION` | `dev-ootd-model-revision` 후보 | `staging-ootd-model-revision` | `prod-ootd-model-revision` | FastAPI worker | 아니오 |
+| `ONMU_AZUREML_ENDPOINT_URL` | `dev-azureml-endpoint-url` 후보 | `staging-azureml-endpoint-url` | `prod-azureml-endpoint-url` | FastAPI worker | 아니오 |
+| `ONMU_AZUREML_ENDPOINT_KEY` | `dev-azureml-endpoint-key` 후보 | `staging-azureml-endpoint-key` | `prod-azureml-endpoint-key` | FastAPI worker | 아니오 |
+| `ONMU_VISION_MODEL_DEPLOYMENT` | config 후보 | config 후보 | config 후보 | FastAPI worker plain env 후보 | 아니오 |
+| `ONMU_VISION_API_KEY` | `dev-vision-api-key` 후보 | `staging-vision-api-key` | `prod-vision-api-key` | FastAPI worker | 아니오 |
+
+OOTD AI generation 값은 Flutter에 넣지 않는다. Flutter는 Spring `/api/v1/ootd/avatar-generations`와 job polling API만 호출한다. Worker, Hugging Face, Azure ML, Vision endpoint, Blob private object key는 Flutter가 직접 호출하지 않는다.
+
+`ONMU_OOTD_MODEL_ID`, `ONMU_OOTD_MODEL_REVISION`은 secret 값은 아니지만 Key Vault secret name으로 관리한다. FLUX.1-Kontext-dev는 non-commercial license이므로, production 또는 상업 배포 단계에서 모델 교체가 필요할 수 있기 때문이다. `ONMU_VISION_MODEL_DEPLOYMENT`는 현재 plain env 후보로 둔다.
+
+## 9. Smoke 보고 허용 항목
 
 허용한다.
 

@@ -17,6 +17,7 @@
 | Runtime env | shell/process env | PowerShell process env | PowerShell process env | container app env/secret ref | workload identity/secret ref |
 | CI/CD | 수동 | GitHub Actions + Windows runner | GitHub Actions + Windows runner | GitHub Actions protected env | GitHub Actions protected env |
 | Observability | console/log file | log file + smoke | log file + smoke | App Insights + Log Analytics | App Insights + alerts |
+| OOTD AI generation | mock provider | mock provider | mock 또는 Azure ML 후보 | Worker + Azure ML + Vision 후보, 기본 mock | production 승인 후 상업 가능 모델 또는 승인된 endpoint |
 
 ## 2. Secret prefix 기준
 
@@ -96,3 +97,11 @@ Release/pre-prod acceptance는 Azure staging 기준으로만 본다. Local/Windo
 - tile manifest/style/PMTiles Range 200/206
 - Naver place-search는 status/result_count/provider_counts/source_counts/coordinate_count만 보고
 - chat/notification/push-token은 raw body/token 없이 status/count 중심 보고
+
+OOTD AI generation은 Azure staging에서도 단계적으로 판정한다.
+
+- mock provider smoke: Flutter 생성 요청, Spring job 생성, worker 상태 전이, completed result 표시
+- media smoke: 업로드 응답의 `storageKey`와 `publicUrl` 보존, worker가 private object key 기준으로 입력 이미지를 참조할 수 있는지 확인
+- Azure ML smoke: Key Vault secret 존재 여부, worker secretRef resolve, Azure ML endpoint 호출 성공/실패 상태 전이
+- Vision smoke: OOTD 사진에서 의상 descriptor JSON을 생성하되, 원본 이미지나 사용자 개인정보 값을 로그에 출력하지 않음
+- result smoke: 생성 결과 이미지는 Blob generated path에 저장하고 Flutter는 Spring API가 반환한 결과 URL만 사용
