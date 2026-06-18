@@ -84,6 +84,11 @@ public class ApiController {
     return onmuApiService.updateUserProfile(user.userId(), request);
   }
 
+  @DeleteMapping("/users/me")
+  public Map<String, Object> deleteUser(@AuthenticationPrincipal AuthenticatedUser user) {
+    return onmuApiService.deleteUser(user.userId());
+  }
+
   @GetMapping("/groups")
   public List<Map<String, Object>> groups(@AuthenticationPrincipal AuthenticatedUser user) {
     return groupApiService.groups(user.userId());

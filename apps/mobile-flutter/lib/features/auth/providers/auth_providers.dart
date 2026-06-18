@@ -3,7 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../shared/providers/state_providers.dart';
+import '../../character/repository/character_repository.dart';
+import '../../home/view_model/home_notifications_view_model.dart';
+import '../../home/view_model/home_view_model.dart';
+import '../../my/repository/friend_repository.dart';
+import '../../my/repository/my_repository.dart';
 import '../../notifications/repository/device_push_token_repository.dart';
+import '../../ootd/repository/record_repository.dart';
 import '../data/auth_token_store.dart';
 import '../data/social_auth_service.dart';
 import '../domain/auth_session.dart';
@@ -125,13 +132,41 @@ class AuthActionController {
   }
 
   Future<void> signOut() async {
-    await _ref
-        .read(pushTokenRegistrationCoordinatorProvider)
-        .deactivateCurrentDevice();
+    final tokens = await _ref.read(authTokenStoreProvider).read();
+    try {
+      await _ref.read(authRepositoryProvider).logout(tokens?.refreshToken);
+    } catch (error) {
+      debugPrint('ONMU logout failed before local cleanup: $error');
+    }
+    await _clearLocalSession();
+  }
+
+  Future<void> withdraw() async {
+    await _deactivateCurrentDevice();
+    await _ref.read(authRepositoryProvider).withdraw();
+    await _clearLocalSession(deactivateDevice: false);
+  }
+
+  Future<void> _clearLocalSession({bool deactivateDevice = true}) async {
+    if (deactivateDevice) {
+      await _deactivateCurrentDevice();
+    }
     await _ref.read(socialAuthServiceProvider).signOut();
     await _ref.read(authTokenStoreProvider).clear();
     _ref.read(onmuApiClientProvider).clearAccessToken();
     _ref.read(authUserProvider.notifier).state = null;
+    _resetUserScopedState();
+    _ref.invalidate(authBootstrapProvider);
+  }
+
+  Future<void> _deactivateCurrentDevice() async {
+    try {
+      await _ref
+          .read(pushTokenRegistrationCoordinatorProvider)
+          .deactivateCurrentDevice();
+    } catch (error) {
+      debugPrint('Push token deactivation failed before auth cleanup: $error');
+    }
   }
 
   Future<void> _completeOAuthLogin(OAuthProviderCredential credential) async {
@@ -144,6 +179,7 @@ class AuthActionController {
   Future<void> _applySpringSession(AuthSession session) async {
     await _ref.read(authTokenStoreProvider).save(session.tokens);
     _ref.read(onmuApiClientProvider).setAccessToken(session.tokens.accessToken);
+    _resetUserScopedState();
     var user = session.user;
     try {
       user =
@@ -156,5 +192,21 @@ class AuthActionController {
     await _ref
         .read(pushTokenRegistrationCoordinatorProvider)
         .registerCurrentDevice();
+  }
+
+  void _resetUserScopedState() {
+    _ref.invalidate(myProfileProvider);
+    _ref.invalidate(friendsProvider);
+    _ref.invalidate(friendProfileProvider);
+    _ref.invalidate(characterProfileProvider);
+    _ref.invalidate(ootdRecordsProvider);
+    _ref.invalidate(homeRecentRecordsProvider);
+    _ref.invalidate(homeViewModelProvider);
+    _ref.invalidate(homeNotificationsViewModelProvider);
+    _ref.invalidate(notificationUnreadCountProvider);
+    _ref.read(userCharacterProvider.notifier).state = null;
+    _ref.read(preferenceProfileProvider.notifier).state = null;
+    _ref.read(skippedCharacterProvider.notifier).state = false;
+    _ref.read(skippedPreferenceProvider.notifier).state = false;
   }
 }

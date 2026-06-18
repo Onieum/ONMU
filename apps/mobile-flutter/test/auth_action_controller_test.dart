@@ -306,4 +306,10 @@ class RecordingAuthRepository implements AuthRepository {
       ),
     );
   }
+
+  @override
+  Future<void> logout(String? refreshToken) async {}
+
+  @override
+  Future<void> withdraw() async {}
 }
