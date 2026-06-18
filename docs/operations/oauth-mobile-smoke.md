@@ -42,6 +42,7 @@ Kakao 설정:
 - Flutter 공개 define: `ONMU_API_BASE_URL`, `KAKAO_REST_API_KEY`, `KAKAO_OAUTH_REDIRECT_URI`
 - Spring 서버 env: `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`
 - Key Vault secret name: `staging-kakao-rest-api-key`, `staging-kakao-client-secret`
+- ACA plain env: `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`
 - Kakao Developers redirect URI: `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 - Android deep link: `io.onieum.onmu://oauth/kakao/callback`
 - iOS URL scheme: `io.onieum.onmu`
@@ -49,8 +50,9 @@ Kakao 설정:
 Naver 설정:
 
 - Flutter 공개 define: `ONMU_API_BASE_URL`, `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_REDIRECT_URI`
-- Spring 서버 env: `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
+- Spring 서버 env: `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
 - Key Vault secret name: `staging-naver-oauth-client-id`, `staging-naver-oauth-client-secret`
+- ACA plain env: `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
 - Android deep link: `io.onieum.onmu://oauth/naver/callback`
 - iOS URL scheme: `io.onieum.onmu`
 

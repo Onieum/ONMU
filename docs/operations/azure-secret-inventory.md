@@ -49,11 +49,12 @@ Azure staging/prod runtime에서는 connection string보다 managed identity/RBA
 | --- | --- | --- | --- | --- | --- |
 | `KAKAO_REST_API_KEY` | `dev-kakao-rest-api-key` | `staging-kakao-rest-api-key` | `prod-kakao-rest-api-key` | Spring/Flutter public define | 예 |
 | `KAKAO_CLIENT_SECRET` | `dev-kakao-client-secret` | `staging-kakao-client-secret` | `prod-kakao-client-secret` | Spring | 아니오 |
-| `KAKAO_OAUTH_REDIRECT_URI` | env/config | env/config | env/config | Spring/Flutter public define | 공개 URI만 예 |
-| `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | env/config | env/config | env/config | Spring/Flutter public define | 예 |
+| `KAKAO_OAUTH_REDIRECT_URI` | env/config | ACA plain env | ACA plain env | Spring/Flutter public define | 공개 URI만 예 |
+| `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | env/config | ACA plain env | ACA plain env | Spring callback deep link | 예 |
 | `NAVER_OAUTH_CLIENT_ID` | `dev-naver-oauth-client-id` | `staging-naver-oauth-client-id` | `prod-naver-oauth-client-id` | Spring/Flutter public define | 예 |
 | `NAVER_OAUTH_CLIENT_SECRET` | `dev-naver-oauth-client-secret` | `staging-naver-oauth-client-secret` | `prod-naver-oauth-client-secret` | Spring | 아니오 |
-| `NAVER_OAUTH_MOBILE_CALLBACK_URI` | env/config | env/config | env/config | Spring/Flutter public define | 예 |
+| `NAVER_OAUTH_REDIRECT_URI` | env/config | ACA plain env | ACA plain env | Flutter public define, Spring parity env | 공개 URI만 예 |
+| `NAVER_OAUTH_MOBILE_CALLBACK_URI` | env/config | ACA plain env | ACA plain env | Spring callback deep link | 예 |
 | `GOOGLE_OAUTH_CLIENT_ID` | `dev-google-oauth-client-id` | `staging-google-oauth-client-id` | `prod-google-oauth-client-id` | Spring/Flutter public define | 예 |
 | `GOOGLE_SERVER_CLIENT_ID` | `dev-google-server-client-id` | `staging-google-server-client-id` | `prod-google-server-client-id` | Spring/Flutter public define | 예 |
 | `GOOGLE_CLIENT_ID` | `dev-google-oauth-client-id` | `staging-google-oauth-client-id` | `prod-google-oauth-client-id` | Flutter public define | 예 |

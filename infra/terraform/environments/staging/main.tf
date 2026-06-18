@@ -307,12 +307,16 @@ module "container_apps" {
     cpu          = 0.5
     memory       = "1Gi"
     plain_env = {
-      AZURE_CLIENT_ID            = module.key_vault[0].runtime_identity_client_id
-      OBJECT_STORAGE_PROVIDER    = "azure_blob"
-      ONMU_ENV                   = local.environment
-      SERVER_ADDRESS             = "0.0.0.0"
-      SERVER_PORT                = "8080"
-      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
+      AZURE_CLIENT_ID                 = module.key_vault[0].runtime_identity_client_id
+      KAKAO_OAUTH_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/kakao/callback"
+      KAKAO_OAUTH_REDIRECT_URI        = "https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback"
+      NAVER_OAUTH_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/naver/callback"
+      NAVER_OAUTH_REDIRECT_URI        = "https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/callback"
+      OBJECT_STORAGE_PROVIDER         = "azure_blob"
+      ONMU_ENV                        = local.environment
+      SERVER_ADDRESS                  = "0.0.0.0"
+      SERVER_PORT                     = "8080"
+      SPRING_DATASOURCE_USERNAME      = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs
