@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
@@ -65,9 +64,12 @@ class _GroupPlanBoardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtitle = state.subtitle;
+    final hasVote = state.voteId > 0;
+
     return OnmuScaffold(
       title: '약속 보드',
-      subtitle: '온모임 · 우리들의 주말 · 투표 마감 D-1',
+      subtitle: subtitle.isEmpty ? null : subtitle,
       bottom: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -80,34 +82,28 @@ class _GroupPlanBoardContent extends StatelessWidget {
         ),
       ),
       children: [
-        _BoardNoticeCard(title: state.pinnedPlan?.title ?? '약속'),
+        _BoardNoticeCard(
+          title: state.boardTitle,
+          badgeLabel: state.noticeBadgeLabel,
+        ),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
             Text('장소 후보', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(width: AppSpacing.xs),
-            OnmuChip(label: '${state.candidates.length}', selected: true),
+            OnmuChip(label: '${state.candidateResults.length}', selected: true),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (var index = 0; index < state.candidates.length; index += 1) ...[
-          _VoteCard(
-            rank: index + 1,
-            candidate: state.candidates[index],
-            voteCount: switch (index) {
-              0 => 5,
-              1 => 3,
-              _ => 1,
-            },
-            progress: switch (index) {
-              0 => 0.62,
-              1 => 0.25,
-              _ => 0.13,
-            },
-          ),
+        for (
+          var index = 0;
+          index < state.candidateResults.length;
+          index += 1
+        ) ...[
+          _VoteCard(rank: index + 1, result: state.candidateResults[index]),
           const SizedBox(height: AppSpacing.md),
         ],
-        const _ParticipantResponseCard(),
+        _ParticipantResponseCard(responses: state.participantResponses),
         const SizedBox(height: AppSpacing.md),
         OnmuCard(
           backgroundColor: AppColors.bgPaper,
@@ -118,7 +114,7 @@ class _GroupPlanBoardContent extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  '모두가 만족할 장소를 정해보아요!',
+                  state.voteDescription,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -127,10 +123,13 @@ class _GroupPlanBoardContent extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         OnmuSecondaryButton(
-          label: '장소 추천',
-          icon: Icons.place_outlined,
-          onPressed: () =>
-              context.go(RoutePaths.planVote(groupId, planId, state.voteId)),
+          label: state.voteActionLabel,
+          icon: hasVote ? Icons.how_to_vote_outlined : Icons.info_outline,
+          onPressed: hasVote
+              ? () => context.go(
+                  RoutePaths.planVote(groupId, planId, state.voteId),
+                )
+              : null,
         ),
       ],
     );
@@ -138,9 +137,10 @@ class _GroupPlanBoardContent extends StatelessWidget {
 }
 
 class _BoardNoticeCard extends StatelessWidget {
-  const _BoardNoticeCard({required this.title});
+  const _BoardNoticeCard({required this.title, required this.badgeLabel});
 
   final String title;
+  final String badgeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +165,7 @@ class _BoardNoticeCard extends StatelessWidget {
               ],
             ),
           ),
-          const OnmuChip(label: 'D-1', selected: true),
+          OnmuChip(label: badgeLabel, selected: true),
         ],
       ),
     );
@@ -173,21 +173,15 @@ class _BoardNoticeCard extends StatelessWidget {
 }
 
 class _VoteCard extends StatelessWidget {
-  const _VoteCard({
-    required this.rank,
-    required this.candidate,
-    required this.voteCount,
-    required this.progress,
-  });
+  const _VoteCard({required this.rank, required this.result});
 
   final int rank;
-  final PlaceCandidate candidate;
-  final int voteCount;
-  final double progress;
+  final GroupPlanBoardCandidateResult result;
 
   @override
   Widget build(BuildContext context) {
     final isTop = rank == 1;
+    final candidate = result.candidate;
 
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
@@ -209,7 +203,7 @@ class _VoteCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$voteCount표',
+                      result.voteCountLabel,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: AppColors.primaryPink,
                       ),
@@ -223,14 +217,14 @@ class _VoteCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 LinearProgressIndicator(
-                  value: progress,
+                  value: result.progress,
                   minHeight: 8,
                   backgroundColor: AppColors.primaryPinkSoft,
                   color: AppColors.primaryPink,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${(progress * 100).round()}%',
+                  result.progressLabel,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -243,7 +237,9 @@ class _VoteCard extends StatelessWidget {
 }
 
 class _ParticipantResponseCard extends StatelessWidget {
-  const _ParticipantResponseCard();
+  const _ParticipantResponseCard({required this.responses});
+
+  final List<GroupPlanParticipantResponse> responses;
 
   @override
   Widget build(BuildContext context) {
@@ -255,21 +251,20 @@ class _ParticipantResponseCard extends StatelessWidget {
         children: [
           Text('참여자 응답', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: const [
-              Expanded(
-                child: _ResponseTile(label: '참석', count: '5', selected: true),
-              ),
-              SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _ResponseTile(label: '미정', count: '1'),
-              ),
-              SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _ResponseTile(label: '불참', count: '0'),
-              ),
-            ],
-          ),
+          if (responses.isEmpty)
+            Text(
+              '참여자 정보를 불러오지 못했어요.',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          else
+            Row(
+              children: [
+                for (var index = 0; index < responses.length; index += 1) ...[
+                  if (index > 0) const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: _ResponseTile(response: responses[index])),
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -277,33 +272,32 @@ class _ParticipantResponseCard extends StatelessWidget {
 }
 
 class _ResponseTile extends StatelessWidget {
-  const _ResponseTile({
-    required this.label,
-    required this.count,
-    this.selected = false,
-  });
+  const _ResponseTile({required this.response});
 
-  final String label;
-  final String count;
-  final bool selected;
+  final GroupPlanParticipantResponse response;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+        color: response.selected
+            ? AppColors.primaryPinkSoft
+            : AppColors.bgDefault,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: selected ? AppColors.linePink : AppColors.lineSoft,
+          color: response.selected ? AppColors.linePink : AppColors.lineSoft,
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Column(
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            Text(response.label, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: AppSpacing.xxs),
-            Text(count, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              response.count.toString(),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
       ),

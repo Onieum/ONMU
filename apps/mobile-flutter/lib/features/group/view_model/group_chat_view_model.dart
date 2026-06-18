@@ -121,7 +121,6 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   ) async {
     GroupPinnedPlan? pinnedPlan;
     List<GroupPlanSummary> plans = const [];
-    List<VoteSummary> votes = const [];
 
     try {
       pinnedPlan = await groupRepository.fetchPinnedPlan(groupId);
@@ -135,23 +134,32 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       // 약속 목록 실패는 채팅 본문 표시와 독립적으로 처리한다.
     }
 
+    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
+    List<VoteSummary> votes = const [];
     try {
-      votes = await groupRepository.fetchVotes(groupId);
+      if (planId > 0) {
+        votes = await groupRepository.fetchVotes(
+          groupId,
+          targetType: 'PLAN',
+          targetId: planId,
+        );
+      }
     } catch (_) {
       // 투표 목록 실패는 투표 카드만 생략한다.
     }
 
-    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
-    final voteId = votes.isEmpty ? 0 : votes.first.id;
+    final selectedVote = _selectAuxiliaryVote(votes, planId);
+    final voteId = selectedVote?.id ?? 0;
     VoteCard? vote;
     SettlementSummary? settlement;
 
     if (voteId > 0) {
       try {
-        vote = await groupRepository.fetchVoteCard(
+        final fetchedVote = await groupRepository.fetchVoteCard(
           groupId: groupId,
           voteId: voteId,
         );
+        vote = fetchedVote;
       } catch (_) {
         // 투표 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
       }
@@ -180,10 +188,27 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         pinnedPlan: pinnedPlan,
         planId: planId,
         vote: vote,
-        voteId: voteId,
+        voteId: vote == null ? 0 : voteId,
         settlement: settlement,
       ),
     );
+  }
+
+  VoteSummary? _selectAuxiliaryVote(List<VoteSummary> votes, int planId) {
+    if (votes.isEmpty) {
+      return null;
+    }
+    for (final vote in votes) {
+      if (_voteSummaryMatchesPlan(vote, planId) && !vote.closed) {
+        return vote;
+      }
+    }
+    return null;
+  }
+
+  bool _voteSummaryMatchesPlan(VoteSummary vote, int planId) {
+    return vote.targetType.trim().toUpperCase() == 'PLAN' &&
+        vote.targetId.trim() == planId.toString();
   }
 
   Future<bool> sendMessage(String text) async {

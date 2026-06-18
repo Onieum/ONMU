@@ -121,11 +121,7 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
       voteId: scope.voteId,
     );
     final targetPlanId =
-        scope.planId ??
-        (vote.targetType.toUpperCase() == 'PLAN' &&
-                vote.targetId.trim().isNotEmpty
-            ? vote.targetId.trim()
-            : null);
+        _targetPlanIdFromVote(vote) ?? _normalizedOptionalId(scope.planId);
     final pinnedPlan = targetPlanId == null
         ? await groupRepository.fetchPinnedPlan(scope.groupId)
         : null;
@@ -213,6 +209,21 @@ class VoteDetailViewModel extends AsyncNotifier<VoteDetailState> {
       return int.tryParse(option.targetId.trim()) ?? 0;
     }
     return 0;
+  }
+
+  String? _targetPlanIdFromVote(VoteCard vote) {
+    if (vote.targetType.trim().toUpperCase() != 'PLAN') {
+      return null;
+    }
+    return _normalizedOptionalId(vote.targetId);
+  }
+
+  String? _normalizedOptionalId(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
   }
 
   String _normalizeOptionLabel(String value) {

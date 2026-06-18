@@ -59,6 +59,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('일정 타임라인'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('좌표 연동 전 미리보기'), 320);
+    await tester.pumpAndSettle();
+
     expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
     expect(find.text('방문 지도'), findsNothing);
   });

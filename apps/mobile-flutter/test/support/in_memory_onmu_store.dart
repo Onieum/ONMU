@@ -489,6 +489,8 @@ class InMemoryOnmuStore {
       closed: false,
       joinedByMe: true,
       actionLabel: '투표 확인하기',
+      targetType: 'PLAN',
+      targetId: input.planId.toString(),
     );
 
     _votesByGroupId.putIfAbsent(groupId, () => []).insert(0, vote);
@@ -498,6 +500,8 @@ class InMemoryOnmuStore {
       statusLabel:
           '${input.modeLabel} · ${input.deadlineDate} ${input.deadlineTime} 마감',
       actionLabel: '투표 보기',
+      targetType: 'PLAN',
+      targetId: input.planId.toString(),
     );
     _voteVotersByVoteId[vote.id] = {};
     return vote;
@@ -1102,7 +1106,7 @@ class InMemoryOnmuStore {
         joinedByMe: true,
         actionLabel: '투표 확인하기',
         targetType: 'PLAN',
-        targetId: '105',
+        targetId: '101',
       ),
       VoteSummary(
         id: 502,
@@ -1176,7 +1180,7 @@ class InMemoryOnmuStore {
       actionLabel: '투표 보기',
       participantCount: 4,
       targetType: 'PLAN',
-      targetId: '105',
+      targetId: '101',
     );
     _voteCardsByVoteId[502] = VoteCard(
       title: '성수 카페 투어 시간 정하기',
