@@ -132,7 +132,6 @@ class _MyPageState extends ConsumerState<MyPage> {
                             onOpenAddFriend: _showFriendAddSheet,
                             onFriendTap: _openFriendProfile,
                             onToggleFavorite: _toggleFavoriteFriend,
-                            onUpdateMemo: _updateFriendMemo,
                           ),
                   ),
                 ),
@@ -146,10 +145,6 @@ class _MyPageState extends ConsumerState<MyPage> {
 
   Future<void> _toggleFavoriteFriend(FriendProfile friend) async {
     await ref.read(myProfileControllerProvider).toggleFavoriteFriend(friend);
-  }
-
-  Future<void> _updateFriendMemo(FriendProfile friend, String memo) async {
-    await ref.read(myProfileControllerProvider).updateFriendMemo(friend, memo);
   }
 
   Future<void> _showProfileEditor() async {
