@@ -26,6 +26,7 @@ class GroupSettingsPage extends StatefulWidget {
 
 class _GroupSettingsPageState extends State<GroupSettingsPage> {
   String? _groupName;
+  String? _groupDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +37,13 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
         return state.when(
           data: (state) {
             _groupName ??= state.group.name;
+            _groupDescription ??= state.group.description;
             return _GroupSettingsContent(
               groupId: widget.groupId,
               group: state.group,
               groupName: _groupName!,
-              onRename: () => _showRenameSheet(ref, state.group.description),
+              groupDescription: _groupDescription!,
+              onRename: () => _showRenameSheet(ref),
               onNotification: _showNotificationSheet,
               onLeave: _confirmLeaveGroup,
             );
@@ -63,8 +66,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     );
   }
 
-  Future<void> _showRenameSheet(WidgetRef ref, String description) async {
-    final result = await showModalBottomSheet<String>(
+  Future<void> _showRenameSheet(WidgetRef ref) async {
+    final result = await showModalBottomSheet<_GroupEditResult>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -74,22 +77,28 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
-          child: _RenameGroupSheet(initialName: _groupName ?? ''),
+          child: _RenameGroupSheet(
+            initialName: _groupName ?? '',
+            initialDescription: _groupDescription ?? '',
+          ),
         );
       },
     );
 
-    if (!mounted || result == null || result.isEmpty) {
+    if (!mounted || result == null || result.name.isEmpty) {
       return;
     }
 
     final updated = await ref
         .read(groupMembersViewModelProvider(widget.groupId).notifier)
-        .updateGroup(name: result, description: description);
+        .updateGroup(name: result.name, description: result.description);
     if (!mounted) {
       return;
     }
-    setState(() => _groupName = updated.name);
+    setState(() {
+      _groupName = updated.name;
+      _groupDescription = updated.description;
+    });
   }
 
   Future<void> _showNotificationSheet() async {
@@ -144,6 +153,7 @@ class _GroupSettingsContent extends StatelessWidget {
     required this.groupId,
     required this.group,
     required this.groupName,
+    required this.groupDescription,
     required this.onRename,
     required this.onNotification,
     required this.onLeave,
@@ -152,6 +162,7 @@ class _GroupSettingsContent extends StatelessWidget {
   final String groupId;
   final GroupSummary group;
   final String groupName;
+  final String groupDescription;
   final VoidCallback onRename;
   final VoidCallback onNotification;
   final VoidCallback onLeave;
@@ -164,7 +175,11 @@ class _GroupSettingsContent extends StatelessWidget {
       onBack: () => context.popOrGo(RoutePaths.groupDetail(groupId)),
       useWarmBackground: false,
       children: [
-        _SettingsHeroCard(group: group, groupName: groupName),
+        _SettingsHeroCard(
+          group: group,
+          groupName: groupName,
+          groupDescription: groupDescription,
+        ),
         const SizedBox(height: AppSpacing.lg),
         _SettingActionCard(
           icon: Icons.drive_file_rename_outline,
@@ -201,10 +216,15 @@ class _GroupSettingsContent extends StatelessWidget {
 }
 
 class _SettingsHeroCard extends StatelessWidget {
-  const _SettingsHeroCard({required this.group, required this.groupName});
+  const _SettingsHeroCard({
+    required this.group,
+    required this.groupName,
+    required this.groupDescription,
+  });
 
   final GroupSummary group;
   final String groupName;
+  final String groupDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +275,7 @@ class _SettingsHeroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      group.description,
+                      groupDescription,
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -338,40 +358,66 @@ class _SettingActionCard extends StatelessWidget {
   }
 }
 
+class _GroupEditResult {
+  const _GroupEditResult({required this.name, required this.description});
+
+  final String name;
+  final String description;
+}
+
 class _RenameGroupSheet extends StatefulWidget {
-  const _RenameGroupSheet({required this.initialName});
+  const _RenameGroupSheet({
+    required this.initialName,
+    required this.initialDescription,
+  });
 
   final String initialName;
+  final String initialDescription;
 
   @override
   State<_RenameGroupSheet> createState() => _RenameGroupSheetState();
 }
 
 class _RenameGroupSheetState extends State<_RenameGroupSheet> {
-  late final TextEditingController _controller;
+  late final TextEditingController _nameController;
+  late final TextEditingController _descriptionController;
   late int _nameLength;
+  late int _descriptionLength;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialName);
-    _nameLength = _controller.text.characters.length;
-    _controller.addListener(_syncNameLength);
+    _nameController = TextEditingController(text: widget.initialName);
+    _descriptionController = TextEditingController(
+      text: widget.initialDescription,
+    );
+    _nameLength = _nameController.text.characters.length;
+    _descriptionLength = _descriptionController.text.characters.length;
+    _nameController.addListener(_syncLengths);
+    _descriptionController.addListener(_syncLengths);
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_syncNameLength);
-    _controller.dispose();
+    _nameController.removeListener(_syncLengths);
+    _descriptionController.removeListener(_syncLengths);
+    _nameController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
-  void _syncNameLength() {
-    final nextLength = _controller.text.characters.length;
-    if (nextLength == _nameLength || !mounted) {
+  void _syncLengths() {
+    final nextNameLength = _nameController.text.characters.length;
+    final nextDescriptionLength = _descriptionController.text.characters.length;
+    if ((nextNameLength == _nameLength &&
+            nextDescriptionLength == _descriptionLength) ||
+        !mounted) {
       return;
     }
-    setState(() => _nameLength = nextLength);
+    setState(() {
+      _nameLength = nextNameLength;
+      _descriptionLength = nextDescriptionLength;
+    });
   }
 
   @override
@@ -412,7 +458,7 @@ class _RenameGroupSheetState extends State<_RenameGroupSheet> {
             Row(
               children: [
                 Text(
-                  '모임 이름 변경',
+                  '모임 정보 변경',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
@@ -426,16 +472,40 @@ class _RenameGroupSheetState extends State<_RenameGroupSheet> {
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
-              controller: _controller,
+              controller: _nameController,
               maxLength: 20,
               autofocus: true,
-              textInputAction: TextInputAction.done,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: '모임 이름',
                 helperText: '모임원에게 보이는 이름이에요.',
                 counterText: '',
               ),
-              onSubmitted: (_) => _submit(context),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Text('모임 소개', style: Theme.of(context).textTheme.labelMedium),
+                const Spacer(),
+                Text(
+                  '$_descriptionLength/100',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextField(
+              controller: _descriptionController,
+              maxLength: 100,
+              minLines: 3,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: '모임 소개',
+                helperText: '모임의 분위기나 메모를 적어둘 수 있어요.',
+                counterText: '',
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -463,12 +533,17 @@ class _RenameGroupSheetState extends State<_RenameGroupSheet> {
   }
 
   void _submit(BuildContext context) {
-    final value = _controller.text.trim();
-    if (value.isEmpty) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       return;
     }
 
-    Navigator.of(context).pop(value);
+    Navigator.of(context).pop(
+      _GroupEditResult(
+        name: name,
+        description: _descriptionController.text.trim(),
+      ),
+    );
   }
 }
 

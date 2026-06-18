@@ -34,7 +34,6 @@ public class FriendService {
           friend.id as user_id,
           friend.public_id,
           coalesce(active_code.code, friend.public_id) as user_code,
-          friend.display_name,
           friend.nickname,
           friend.profile_image_url,
           coalesce(nullif(fs.memo, ''), coalesce(active_code.code, friend.public_id)) as memo,
@@ -56,7 +55,7 @@ public class FriendService {
           and f.deleted_at is null
           and friend.deleted_at is null
         order by coalesce(fs.is_favorite, false) desc,
-          coalesce(nullif(fs.display_alias, ''), nullif(friend.nickname, ''), friend.display_name)
+          coalesce(nullif(fs.display_alias, ''), nullif(friend.nickname, ''), friend.public_id)
       """,
       this::friendResponse,
       userId
@@ -102,7 +101,6 @@ public class FriendService {
           u.id as user_id,
           u.public_id,
           coalesce(active_code.code, u.public_id) as user_code,
-          u.display_name,
           u.nickname,
           u.profile_image_url,
           coalesce(active_code.code, u.public_id) as memo,
@@ -121,15 +119,13 @@ public class FriendService {
           and (
             lower(u.public_id) like ?
             or lower(coalesce(active_code.code, '')) like ?
-            or lower(coalesce(u.display_name, '')) like ?
             or lower(coalesce(u.nickname, '')) like ?
           )
-        order by u.display_name
+        order by u.nickname
         limit 20
       """,
       this::friendResponse,
       userId,
-      like,
       like,
       like,
       like
@@ -230,7 +226,6 @@ public class FriendService {
           friend.id as user_id,
           friend.public_id,
           coalesce(active_code.code, friend.public_id) as user_code,
-          friend.display_name,
           friend.nickname,
           friend.profile_image_url,
           coalesce(nullif(fs.memo, ''), coalesce(active_code.code, friend.public_id)) as memo,
@@ -314,7 +309,6 @@ public class FriendService {
       rs.getString("user_id"),
       rs.getString("public_id"),
       rs.getString("user_code"),
-      rs.getString("display_name"),
       rs.getString("nickname"),
       rs.getString("profile_image_url"),
       rs.getString("memo"),

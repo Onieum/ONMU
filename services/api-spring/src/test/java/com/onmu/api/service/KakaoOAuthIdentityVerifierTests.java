@@ -31,7 +31,7 @@ class KakaoOAuthIdentityVerifierTests {
     assertThat(userInfoClient.requestedToken).isEqualTo("kakao-provider-token");
     assertThat(identity.provider()).isEqualTo("KAKAO");
     assertThat(identity.providerSubject()).isEqualTo("123456789");
-    assertThat(identity.displayName()).isEqualTo("카카오 사용자");
+    assertThat(identity.providerProfileName()).isEqualTo("카카오 사용자");
     assertThat(identity.email()).isEqualTo("kakao-user@example.test");
     assertThat(identity.profileImageUrl()).isEqualTo("https://example.test/kakao.png");
   }

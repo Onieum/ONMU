@@ -29,9 +29,9 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
     final hasPreference = ref.watch(preferenceProfileProvider) != null;
     final skippedCharacter = ref.watch(skippedCharacterProvider);
     final skippedPreference = ref.watch(skippedPreferenceProvider);
-    final rawDisplayName = user?.displayName.trim();
-    final displayName = rawDisplayName != null && rawDisplayName.isNotEmpty
-        ? rawDisplayName
+    final rawNickname = user?.nickname.trim();
+    final nickname = rawNickname != null && rawNickname.isNotEmpty
+        ? rawNickname
         : '카카오 친구';
 
     return Scaffold(
@@ -61,7 +61,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _OnboardingTitle(
-                            displayName: displayName,
+                            nickname: nickname,
                             compact: layout.compact,
                           ),
                           SizedBox(height: layout.compact ? 20 : 28),
@@ -233,9 +233,9 @@ class _OnboardingLayout {
 }
 
 class _OnboardingTitle extends StatelessWidget {
-  const _OnboardingTitle({required this.displayName, required this.compact});
+  const _OnboardingTitle({required this.nickname, required this.compact});
 
-  final String displayName;
+  final String nickname;
   final bool compact;
 
   @override
@@ -251,7 +251,7 @@ class _OnboardingTitle extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '$displayName님,',
+          '$nickname님,',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,

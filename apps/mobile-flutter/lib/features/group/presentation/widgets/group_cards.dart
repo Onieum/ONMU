@@ -75,7 +75,7 @@ class GroupSummaryCard extends StatelessWidget {
             Row(
               children: [
                 const Icon(
-                  Icons.event_outlined,
+                  Icons.sticky_note_2_outlined,
                   size: 16,
                   color: AppColors.primaryPink,
                 ),
@@ -88,8 +88,6 @@ class GroupSummaryCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                const _CompactStatus(label: '진행중'),
               ],
             ),
           ],
@@ -616,35 +614,6 @@ class _AvatarCluster extends StatelessWidget {
               child: PixelAvatar(label: members[index], size: 34),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _CompactStatus extends StatelessWidget {
-  const _CompactStatus({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.primaryPurpleSoft,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.linePurple),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPurpleDark),
-        ),
       ),
     );
   }

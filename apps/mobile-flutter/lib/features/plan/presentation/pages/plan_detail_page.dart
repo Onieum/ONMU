@@ -517,7 +517,7 @@ class _ParticipantArrivalChip extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         child: Text(
-          '${participant.displayName} ${participant.arrivalStatus.label}',
+          '${participant.nickname} ${participant.arrivalStatus.label}',
           style: Theme.of(
             context,
           ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPurpleDark),

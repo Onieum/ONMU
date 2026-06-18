@@ -17,7 +17,7 @@ void main() {
               data: {
                 'databaseId': '00000000-0000-0000-0000-000000000001',
                 'id': 'user-me',
-                'displayName': '나',
+                'nickname': '나',
                 'email': 'me@example.test',
                 'profileImageUrl': 'dev/avatars/user-me.png',
                 'onboardingStatus': 'COMPLETED',
@@ -35,7 +35,7 @@ void main() {
     expect(user, isNotNull);
     expect(user!.id, '00000000-0000-0000-0000-000000000001');
     expect(user.publicId, 'user-me');
-    expect(user.displayName, '나');
+    expect(user.nickname, '나');
     expect(
       user.profileImageUrl,
       'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fuser-me.png',
@@ -44,7 +44,7 @@ void main() {
     expect(user.hasCompletedOnboarding, isTrue);
   });
 
-  test('maps fallback user name fields when displayName is absent', () async {
+  test('maps nickname from current user API', () async {
     final dio = Dio();
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -69,10 +69,10 @@ void main() {
     final user = await repository.fetchCurrentUser();
 
     expect(user, isNotNull);
-    expect(user!.displayName, '지무');
+    expect(user!.nickname, '지무');
   });
 
-  test('prefers nickname over stale displayName for current user label', () {
+  test('ignores stale displayName when nickname is present', () {
     final user = authUserFromJson({
       'databaseId': '00000000-0000-0000-0000-000000000001',
       'id': 'user-me',
@@ -81,7 +81,7 @@ void main() {
       'authProvider': 'NAVER',
     });
 
-    expect(user.displayName, '나');
+    expect(user.nickname, '나');
   });
 
   test(
@@ -113,7 +113,7 @@ void main() {
                   },
                   'user': {
                     'id': 'usr_kakao',
-                    'displayName': '카카오 사용자',
+                    'nickname': '카카오 사용자',
                     'onboardingStatus': 'PENDING',
                   },
                 },
@@ -135,7 +135,7 @@ void main() {
       expect(session.tokens.refreshToken, 'onmu-refresh-token');
       expect(session.user.publicId, 'usr_kakao');
       expect(session.user.provider, 'KAKAO');
-      expect(session.user.displayName, '카카오 사용자');
+      expect(session.user.nickname, '카카오 사용자');
     },
   );
 
@@ -167,7 +167,7 @@ void main() {
                   },
                   'user': {
                     'id': 'usr_kakao_code',
-                    'displayName': 'Kakao User',
+                    'nickname': 'Kakao User',
                     'onboardingStatus': 'PENDING',
                   },
                 },
@@ -221,7 +221,7 @@ void main() {
                   },
                   'user': {
                     'id': 'usr_naver',
-                    'displayName': '네이버 사용자',
+                    'nickname': '네이버 사용자',
                     'onboardingStatus': 'PENDING',
                   },
                 },
@@ -243,7 +243,7 @@ void main() {
       expect(session.tokens.refreshToken, 'onmu-refresh-token');
       expect(session.user.publicId, 'usr_naver');
       expect(session.user.provider, 'NAVER');
-      expect(session.user.displayName, '네이버 사용자');
+      expect(session.user.nickname, '네이버 사용자');
     },
   );
 
@@ -275,7 +275,7 @@ void main() {
                   },
                   'user': {
                     'id': 'usr_naver_code',
-                    'displayName': '네이버 사용자',
+                    'nickname': '네이버 사용자',
                     'onboardingStatus': 'PENDING',
                   },
                 },
@@ -329,7 +329,7 @@ void main() {
                   },
                   'user': {
                     'id': 'usr_google',
-                    'displayName': 'Google User',
+                    'nickname': 'Google User',
                     'onboardingStatus': 'PENDING',
                   },
                 },
@@ -351,7 +351,7 @@ void main() {
       expect(session.tokens.refreshToken, 'onmu-refresh-token');
       expect(session.user.publicId, 'usr_google');
       expect(session.user.provider, 'GOOGLE');
-      expect(session.user.displayName, 'Google User');
+      expect(session.user.nickname, 'Google User');
     },
   );
 }

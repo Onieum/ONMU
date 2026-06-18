@@ -19,10 +19,7 @@ public class UserEntity {
   @Column(name = "public_id", nullable = false, unique = true)
   private String publicId;
 
-  @Column(name = "display_name", nullable = false)
-  private String displayName;
-
-  @Column(name = "nickname")
+  @Column(name = "nickname", nullable = false)
   private String nickname;
 
   @Column(name = "email")
@@ -54,11 +51,10 @@ public class UserEntity {
   protected UserEntity() {
   }
 
-  public UserEntity(String publicId, String displayName, String email, String profileImageUrl) {
+  public UserEntity(String publicId, String nickname, String email, String profileImageUrl) {
     this.id = UUID.randomUUID();
     this.publicId = Objects.requireNonNull(publicId);
-    this.displayName = Objects.requireNonNull(displayName);
-    this.nickname = displayName;
+    this.nickname = Objects.requireNonNull(nickname);
     this.email = email;
     this.profileImageUrl = profileImageUrl;
     this.pixelCharacter = "{}";
@@ -66,11 +62,10 @@ public class UserEntity {
     this.onboardingStatus = "PENDING";
   }
 
-  public UserEntity(UUID id, String displayName) {
+  public UserEntity(UUID id, String nickname) {
     this.id = Objects.requireNonNull(id);
     this.publicId = "usr_" + id.toString().replace("-", "");
-    this.displayName = Objects.requireNonNull(displayName);
-    this.nickname = displayName;
+    this.nickname = Objects.requireNonNull(nickname);
     this.pixelCharacter = "{}";
     this.preferenceProfile = "{}";
     this.onboardingStatus = "PENDING";
@@ -82,10 +77,6 @@ public class UserEntity {
 
   public String getPublicId() {
     return publicId;
-  }
-
-  public String getDisplayName() {
-    return displayName;
   }
 
   public String getNickname() {
@@ -125,14 +116,14 @@ public class UserEntity {
   }
 
   public void updateProfile(
-    String displayName,
+    String nickname,
     String profileImageUrl,
     String preferenceProfile,
     String pixelCharacter,
     String onboardingStatus
   ) {
-    if (displayName != null && !displayName.isBlank()) {
-      this.displayName = displayName.trim();
+    if (nickname != null && !nickname.isBlank()) {
+      this.nickname = nickname.trim();
     }
     if (profileImageUrl != null) {
       this.profileImageUrl = profileImageUrl.isBlank() ? null : profileImageUrl.trim();

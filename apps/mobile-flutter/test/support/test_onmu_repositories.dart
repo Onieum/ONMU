@@ -72,6 +72,7 @@ ProviderScope onmuTestProviderScope({
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
+      if (user != null) authUserProvider.overrideWith((ref) => user),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(
         groupRepository ?? TestGroupRepository(store),
@@ -391,7 +392,7 @@ SocialAuthService testSocialAuthService() {
     naverCredentialLoader: () async => const OAuthProviderCredential(
       provider: 'naver',
       devVerifiedSubject: 'naver-dev-local-user',
-      displayName: '네이버 친구',
+      providerProfileName: '네이버 친구',
       email: 'naver-user@example.com',
     ),
   );
@@ -410,15 +411,15 @@ class TestAuthRepository implements AuthRepository {
     OAuthProviderCredential credential,
   ) async {
     final provider = credential.provider.toUpperCase();
-    final displayName = credential.displayName?.trim().isNotEmpty == true
-        ? credential.displayName!.trim()
+    final nickname = credential.providerProfileName?.trim().isNotEmpty == true
+        ? credential.providerProfileName!.trim()
         : '테스트 사용자';
     return AuthSession(
       user: AuthUser(
         id: 'usr_test_oauth',
         publicId: 'usr_test_oauth',
         provider: provider,
-        displayName: displayName,
+        nickname: nickname,
         email: credential.email,
       ),
       tokens: const OnmuAuthTokens(
@@ -622,7 +623,7 @@ class TestPlanRepository implements PlanRepository {
   }) async {
     return PlanParticipantArrival(
       id: 'current-user',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'joined',
       arrivalStatus: status,
       isFallback: false,
@@ -636,7 +637,7 @@ class TestPlanRepository implements PlanRepository {
   }) async {
     return const PlanParticipantArrival(
       id: 'current-user',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'left',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,
@@ -652,7 +653,7 @@ class TestPlanRepository implements PlanRepository {
     return PlanParticipantArrival(
       id: userId,
       userId: userId,
-      displayName: userId,
+      nickname: userId,
       participantStatus: 'joined',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,

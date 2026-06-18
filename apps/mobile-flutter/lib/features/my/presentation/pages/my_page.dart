@@ -287,9 +287,9 @@ MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
     return profile;
   }
 
-  final displayName = user?.displayName.trim();
-  if (displayName == null || displayName.isEmpty) {
+  final nickname = user?.nickname.trim();
+  if (nickname == null || nickname.isEmpty) {
     return profile.copyWith(realName: '사용자');
   }
-  return profile.copyWith(realName: displayName);
+  return profile.copyWith(realName: nickname);
 }

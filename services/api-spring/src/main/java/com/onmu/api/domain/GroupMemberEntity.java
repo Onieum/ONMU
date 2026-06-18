@@ -27,8 +27,8 @@ public class GroupMemberEntity {
   @Column(nullable = false)
   private String role;
 
-  @Column(name = "display_name_override")
-  private String displayNameOverride;
+  @Column(name = "name_override")
+  private String nameOverride;
 
   @Column(nullable = false)
   private String status;
@@ -80,8 +80,8 @@ public class GroupMemberEntity {
     return role;
   }
 
-  public String getDisplayNameOverride() {
-    return displayNameOverride;
+  public String getNameOverride() {
+    return nameOverride;
   }
 
   public String getStatus() {

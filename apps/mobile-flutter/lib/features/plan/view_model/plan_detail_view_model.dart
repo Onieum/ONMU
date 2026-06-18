@@ -114,7 +114,7 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       if (status == 'left' || status == 'declined') {
         continue;
       }
-      final name = participant.displayName.trim();
+      final name = participant.nickname.trim();
       if (name.isEmpty || selectedNames.contains(name)) {
         continue;
       }

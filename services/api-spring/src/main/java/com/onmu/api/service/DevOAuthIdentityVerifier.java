@@ -32,7 +32,7 @@ public class DevOAuthIdentityVerifier {
     return new VerifiedOAuthIdentity(
       normalizedProvider,
       request.devVerifiedSubject().trim(),
-      blankToNull(request.displayName()),
+      blankToNull(request.providerProfileName()),
       blankToNull(request.email()),
       blankToNull(request.profileImageUrl())
     );

@@ -9,8 +9,11 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_remove_badge_button.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../my/domain/my_profile.dart';
 import '../../../my/widgets/friend_picker_sheet.dart';
 import '../../view_model/group_create_view_model.dart';
@@ -28,7 +31,6 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final List<String> _invitedMemberNames = [];
-  bool _membersCustomized = false;
   bool _makeFirstPlanLater = true;
 
   @override
@@ -37,7 +39,6 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     _nameController.addListener(_sync);
     _descriptionController.addListener(_sync);
     _invitedMemberNames.addAll(widget.initialMemberNames);
-    _membersCustomized = widget.initialMemberNames.isNotEmpty;
   }
 
   @override
@@ -53,28 +54,19 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
 
   void _sync() => setState(() {});
 
-  List<String> _memberNamesFor(GroupCreateState state) {
-    if (_membersCustomized) {
-      return List.unmodifiable(_invitedMemberNames);
-    }
-    return state.recommendedMemberNames;
-  }
-
-  void _removeMember(String name, GroupCreateState state) {
+  void _removeMember(String name) {
     setState(() {
-      if (!_membersCustomized) {
-        _invitedMemberNames.addAll(state.recommendedMemberNames);
-      }
-      _membersCustomized = true;
       _invitedMemberNames.remove(name);
     });
   }
 
   Future<void> _openMemberAddSheet(
     BuildContext context,
+    WidgetRef ref,
     GroupCreateState state,
   ) async {
-    final currentNames = _memberNamesFor(state);
+    final currentMember = _currentMember(ref.read(authUserProvider));
+    final currentNames = [currentMember.name, ..._invitedMemberNames];
     if (currentNames.length >= 20) {
       ScaffoldMessenger.of(
         context,
@@ -103,10 +95,6 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     }
 
     setState(() {
-      if (!_membersCustomized) {
-        _invitedMemberNames.addAll(state.recommendedMemberNames);
-      }
-      _membersCustomized = true;
       _invitedMemberNames.add(trimmedName);
     });
   }
@@ -138,7 +126,15 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
 
         return state.when(
           data: (state) {
-            final memberNames = _memberNamesFor(state);
+            final currentMember = _currentMember(ref.watch(authUserProvider));
+            final displayMembers = [
+              currentMember,
+              for (final name in _invitedMemberNames)
+                _InviteMember(name: name, removable: true),
+            ];
+            final memberNames = displayMembers
+                .map((member) => member.name)
+                .toList(growable: false);
 
             return OnmuScaffold(
               title: '온모임 만들기',
@@ -193,9 +189,10 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       _InvitePreviewRow(
-                        memberNames: memberNames,
-                        onAddPressed: () => _openMemberAddSheet(context, state),
-                        onRemovePressed: (name) => _removeMember(name, state),
+                        members: displayMembers,
+                        onAddPressed: () =>
+                            _openMemberAddSheet(context, ref, state),
+                        onRemovePressed: _removeMember,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -279,6 +276,15 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
   }
 }
 
+_InviteMember _currentMember(AuthUser? user) {
+  final nickname = user?.nickname.trim();
+  return _InviteMember(
+    name: nickname == null || nickname.isEmpty ? '나' : nickname,
+    profileImageUrl: user?.profileImageUrl ?? '',
+    removable: false,
+  );
+}
+
 class _LabeledInput extends StatelessWidget {
   const _LabeledInput({
     required this.label,
@@ -316,12 +322,12 @@ class _LabeledInput extends StatelessWidget {
 
 class _InvitePreviewRow extends StatelessWidget {
   const _InvitePreviewRow({
-    required this.memberNames,
+    required this.members,
     required this.onAddPressed,
     required this.onRemovePressed,
   });
 
-  final List<String> memberNames;
+  final List<_InviteMember> members;
   final VoidCallback onAddPressed;
   final ValueChanged<String> onRemovePressed;
 
@@ -331,10 +337,12 @@ class _InvitePreviewRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (final name in memberNames) ...[
+          for (final member in members) ...[
             _InviteAvatar(
-              name: name,
-              onRemovePressed: () => onRemovePressed(name),
+              member: member,
+              onRemovePressed: member.removable
+                  ? () => onRemovePressed(member.name)
+                  : null,
             ),
             const SizedBox(width: AppSpacing.md),
           ],
@@ -368,11 +376,23 @@ class _InvitePreviewRow extends StatelessWidget {
   }
 }
 
-class _InviteAvatar extends StatelessWidget {
-  const _InviteAvatar({required this.name, required this.onRemovePressed});
+class _InviteMember {
+  const _InviteMember({
+    required this.name,
+    this.profileImageUrl = '',
+    this.removable = true,
+  });
 
   final String name;
-  final VoidCallback onRemovePressed;
+  final String profileImageUrl;
+  final bool removable;
+}
+
+class _InviteAvatar extends StatelessWidget {
+  const _InviteAvatar({required this.member, required this.onRemovePressed});
+
+  final _InviteMember member;
+  final VoidCallback? onRemovePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -386,31 +406,29 @@ class _InviteAvatar extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
-                  child: Center(child: PixelAvatar(label: name, size: 50)),
-                ),
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: IconButton.filled(
-                    tooltip: '$name 제거',
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primaryPink,
-                      foregroundColor: AppColors.textInverse,
-                      minimumSize: const Size(24, 24),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  child: Center(
+                    child: PixelAvatar(
+                      label: member.name,
+                      profileImageUrl: member.profileImageUrl,
+                      size: 50,
                     ),
-                    iconSize: 14,
-                    onPressed: onRemovePressed,
-                    icon: const Icon(Icons.close),
                   ),
                 ),
+                if (onRemovePressed != null)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: OnmuRemoveBadgeButton(
+                      tooltip: '${member.name} 제거',
+                      onPressed: onRemovePressed!,
+                    ),
+                  ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            name,
+            member.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelMedium,

@@ -7,7 +7,7 @@ public record GoogleIdTokenInfo(
   String audience,
   String subject,
   Instant expiresAt,
-  String displayName,
+  String providerProfileName,
   String email,
   String profileImageUrl
 ) {

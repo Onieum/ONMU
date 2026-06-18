@@ -53,7 +53,7 @@ class PlanParticipantArrival {
   const PlanParticipantArrival({
     required this.id,
     this.userId = '',
-    required this.displayName,
+    required this.nickname,
     required this.participantStatus,
     required this.arrivalStatus,
     required this.isFallback,
@@ -63,7 +63,7 @@ class PlanParticipantArrival {
 
   final String id;
   final String userId;
-  final String displayName;
+  final String nickname;
   final String participantStatus;
   final PlanArrivalStatus arrivalStatus;
   final bool isFallback;

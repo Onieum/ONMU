@@ -133,7 +133,7 @@ public class ChatActivityService {
     UserEntity actorUser = findUser(currentUserId);
 
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("senderName", displayName(actorUser));
+    payload.put("senderName", nickname(actorUser));
     payload.put("message", message == null ? "" : message);
     payload.put("attachments", attachments);
     payload.put("messageType", "message");
@@ -183,7 +183,7 @@ public class ChatActivityService {
     }
 
     Instant createdAt = Instant.now();
-    String senderName = displayName(actorUser);
+    String senderName = nickname(actorUser);
     String body = messagePreview(message, attachmentCount);
     String payload = toJson(Map.of(
       "groupId", group.getPublicId(),
@@ -412,15 +412,12 @@ public class ChatActivityService {
       return senderName;
     }
     if (actorUser != null) {
-      return displayName(actorUser);
+      return nickname(actorUser);
     }
     return "message".equals(messageType) ? "알 수 없음" : "ONMU";
   }
 
-  private String displayName(UserEntity user) {
-    if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) {
-      return user.getDisplayName();
-    }
+  private String nickname(UserEntity user) {
     if (user.getNickname() != null && !user.getNickname().isBlank()) {
       return user.getNickname();
     }

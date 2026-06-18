@@ -307,6 +307,7 @@ class InMemoryOnmuStore {
       timeCandidates: _seedTimeCandidates(),
       visitPlan: _seedVisitPlan(),
       startsAt: _parsePlanDateTime(input.dateTime),
+      endsAt: DateTime.tryParse(input.endsAt)?.toUtc(),
     );
 
     _plansById[plan.id] = plan;
@@ -324,6 +325,7 @@ class InMemoryOnmuStore {
             title: plan.title,
             dateLabel: plan.dateTime,
             startsAt: _parsePlanDateTime(plan.dateTime),
+            endsAt: plan.endsAt,
             placeName: plan.location,
             statusLabel: 'D-day',
             statusType: '예정',
@@ -368,6 +370,7 @@ class InMemoryOnmuStore {
       timeCandidates: previous.timeCandidates,
       visitPlan: previous.visitPlan,
       startsAt: _parsePlanDateTime(input.dateTime),
+      endsAt: DateTime.tryParse(input.endsAt)?.toUtc(),
     );
     _plansById[parsedPlanId] = updated;
     _replaceGroupPlanSummary(input.groupId, updated);
@@ -601,7 +604,8 @@ class InMemoryOnmuStore {
       id: previous.id,
       title: plan.title,
       dateLabel: plan.dateTime,
-      startsAt: _parsePlanDateTime(plan.dateTime),
+      startsAt: plan.startsAt ?? _parsePlanDateTime(plan.dateTime),
+      endsAt: plan.endsAt,
       placeName: plan.location,
       statusLabel: previous.statusLabel,
       statusType: previous.statusType,
@@ -645,14 +649,31 @@ class InMemoryOnmuStore {
 
     _membersByGroupId[1] = [
       GroupMemberProfile(
+        userId: 'user-jiyun',
         name: '지연',
         note: '여행 가이드 준비 중이에요',
         statusLabel: '참여 중',
       ),
-      GroupMemberProfile(name: '민수', note: '맛집 리스트 정리 중!', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '하린', note: '렌터카 비교해봤어요', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '현우', note: '숙소 후보 찾아보는 중', statusLabel: '참여 중'),
       GroupMemberProfile(
+        userId: 'user-minsu',
+        name: '민수',
+        note: '맛집 리스트 정리 중!',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-harin',
+        name: '하린',
+        note: '렌터카 비교해봤어요',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-hyunwoo',
+        name: '현우',
+        note: '숙소 후보 찾아보는 중',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-soyeon',
         name: '소연',
         note: '카페 투어 코스 짜는 중',
         statusLabel: '참여 중',
@@ -677,14 +698,44 @@ class InMemoryOnmuStore {
       ),
     ];
     _membersByGroupId[2] = [
-      GroupMemberProfile(name: '서윤', note: '러닝 코스 담당', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '도윤', note: '페이스 조절 담당', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '나', note: '참여 중', statusLabel: '참여 중'),
+      GroupMemberProfile(
+        userId: 'user-seoyun',
+        name: '서윤',
+        note: '러닝 코스 담당',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-doyun',
+        name: '도윤',
+        note: '페이스 조절 담당',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-me',
+        name: '나',
+        note: '참여 중',
+        statusLabel: '참여 중',
+      ),
     ];
     _membersByGroupId[3] = [
-      GroupMemberProfile(name: '민서', note: '보드게임 추천 중', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '지훈', note: '장소 후보 정리 중', statusLabel: '참여 중'),
-      GroupMemberProfile(name: '나', note: '참여 중', statusLabel: '참여 중'),
+      GroupMemberProfile(
+        userId: 'user-minseo',
+        name: '민서',
+        note: '보드게임 추천 중',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-jihoon',
+        name: '지훈',
+        note: '장소 후보 정리 중',
+        statusLabel: '참여 중',
+      ),
+      GroupMemberProfile(
+        userId: 'user-me',
+        name: '나',
+        note: '참여 중',
+        statusLabel: '참여 중',
+      ),
     ];
 
     _messagesByGroupId[1] = [
@@ -793,6 +844,7 @@ class InMemoryOnmuStore {
         title: '제주도 여행',
         dateLabel: '6.7 (금) - 6.9 (일)',
         startsAt: _relativeSeedPlanDateTime(daysFromToday: -5, hour: 10),
+        endsAt: _relativeSeedPlanDateTime(daysFromToday: -3, hour: 16),
         placeName: '제주도 일대',
         statusLabel: 'D-12',
         statusType: '진행중',
@@ -869,6 +921,7 @@ class InMemoryOnmuStore {
         timeCandidates: _seedTimeCandidates(),
         visitPlan: _seedVisitPlan(),
         startsAt: summary.startsAt,
+        endsAt: summary.endsAt,
       );
       _visitPlansByPlanId[summary.id] = [
         List.unmodifiable(_seedVisitPlan()),

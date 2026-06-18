@@ -402,7 +402,7 @@ public class SettlementApiService {
     value.put("createdDateLabel", preview ? "미리보기" : "정산 생성됨");
     value.put("itemCountLabel", "결제 항목 " + itemViews.size() + "개");
     value.put("finalSummaryLabel", targetCount + "명 기준 " + amountLabel(averageAmount));
-    String currentUserKey = memberKey(currentUser, currentUser.getDisplayName());
+    String currentUserKey = memberKey(currentUser, nickname(currentUser));
     value.put("mySummaryLabel", mySummaryLabel(balances.get(currentUserKey)));
     value.put("paymentItems", itemViews.stream().map(this::paymentItemCard).toList());
     value.put("memberResults", memberKeys.stream()
@@ -528,7 +528,7 @@ public class SettlementApiService {
     List<TargetShare> targetShares = targets.stream()
       .map(target -> new TargetShare(
         target.getUser(),
-        target.getUser().getDisplayName(),
+        nickname(target.getUser()),
         target.getAmountCents() == null ? 0 : target.getAmountCents()
       ))
       .toList();
@@ -556,7 +556,7 @@ public class SettlementApiService {
           intValue(map.get("amount"), 0),
           intValue(map.get("amountWon"), intValue(map.get("amount"), 0)),
           stringOrDefault(asString(map.get("payerUserId")), null),
-          stringOrDefault(asString(map.get("payerName")), currentUser.getDisplayName()),
+          stringOrDefault(asString(map.get("payerName")), nickname(currentUser)),
           stringOrDefault(asString(map.get("splitType")), "equal"),
           stringList(map.get("targetUserIds")),
           stringList(map.get("targetNames"))
@@ -646,13 +646,13 @@ public class SettlementApiService {
           continue;
         }
         String payerUserId = firstString(map, "payerUserId", "userId", "publicId", "memberId");
-        String payerName = firstString(map, "payerName", "name", "displayName");
+        String payerName = firstString(map, "payerName", "name");
         if (payerUserId == null && payerName == null) {
           continue;
         }
         long amount = longValue(map.get("amountWon"), longValue(map.get("amount"), 0));
         UserEntity payer = userByRef(payerUserId, payerName);
-        payerSharesByItemId.put(itemId, List.of(new PayerShare(payer, payer.getDisplayName(), amount)));
+        payerSharesByItemId.put(itemId, List.of(new PayerShare(payer, nickname(payer), amount)));
       }
     }
     return payerSharesByItemId;
@@ -663,10 +663,10 @@ public class SettlementApiService {
     for (Object item : payerShareItems) {
       if (item instanceof Map<?, ?> map) {
         String payerUserId = firstString(map, "payerUserId", "userId", "publicId", "memberId");
-        String payerName = firstString(map, "payerName", "name", "displayName");
+        String payerName = firstString(map, "payerName", "name");
         UserEntity payer = userByRef(payerUserId, payerName);
         long amount = longValue(map.get("amountWon"), longValue(map.get("amount"), 0));
-        payerShares.add(new PayerShare(payer, payer.getDisplayName(), amount));
+        payerShares.add(new PayerShare(payer, nickname(payer), amount));
       }
     }
     return payerShares;
@@ -676,9 +676,9 @@ public class SettlementApiService {
     return settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement).stream()
       .map(transfer -> new TransferView(
         transfer.getFromUser(),
-        transfer.getFromUser().getDisplayName(),
+        nickname(transfer.getFromUser()),
         transfer.getToUser(),
-        transfer.getToUser().getDisplayName(),
+        nickname(transfer.getToUser()),
         transfer.getAmountCents()
       ))
       .toList();
@@ -746,10 +746,10 @@ public class SettlementApiService {
   }
 
   private ItemInput itemInput(SettlementDraftItemRequest request, UserEntity currentUser) {
-    String payerName = stringOrDefault(request.payerName(), currentUser.getDisplayName());
+    String payerName = stringOrDefault(request.payerName(), nickname(currentUser));
     UserEntity payer = userByRef(request.payerUserId(), payerName);
     List<String> targetNames = request.targetNames() == null || request.targetNames().isEmpty()
-      ? List.of(payer.getDisplayName())
+      ? List.of(nickname(payer))
       : request.targetNames();
     List<String> targetUserIds = request.targetUserIds() == null || request.targetUserIds().isEmpty()
       ? List.of()
@@ -765,14 +765,14 @@ public class SettlementApiService {
     List<TargetShare> targetShares = new ArrayList<>();
     for (int index = 0; index < targets.size(); index++) {
       UserEntity target = targets.get(index);
-      targetShares.add(new TargetShare(target, target.getDisplayName(), targetAmounts.get(index)));
+      targetShares.add(new TargetShare(target, nickname(target), targetAmounts.get(index)));
     }
     return new ItemInput(
       stringOrDefault(request.id(), null),
       stringOrDefault(request.title(), "결제 항목"),
       amount,
       normalizeSplitType(request.splitType()),
-      List.of(new PayerShare(payer, payer.getDisplayName(), amount)),
+      List.of(new PayerShare(payer, nickname(payer), amount)),
       targetShares
     );
   }
@@ -784,10 +784,10 @@ public class SettlementApiService {
     return items;
   }
 
-  private UserEntity userByRef(String publicId, String displayName) {
+  private UserEntity userByRef(String publicId, String nickname) {
     return usersByRefs(
       publicId == null || publicId.isBlank() ? List.of() : List.of(publicId),
-      displayName == null || displayName.isBlank() ? List.of() : List.of(displayName)
+      nickname == null || nickname.isBlank() ? List.of() : List.of(nickname)
     ).get(0);
   }
 
@@ -824,9 +824,9 @@ public class SettlementApiService {
     if (normalizedNames.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_item_targets");
     }
-    Map<String, List<UserEntity>> usersByName = userRepository.findByDisplayNameIn(normalizedNames).stream()
+    Map<String, List<UserEntity>> usersByName = userRepository.findByNicknameIn(normalizedNames).stream()
       .collect(Collectors.groupingBy(
-        UserEntity::getDisplayName,
+        UserEntity::getNickname,
         LinkedHashMap::new,
         Collectors.toList()
       ));
@@ -886,6 +886,10 @@ public class SettlementApiService {
       return user.getPublicId();
     }
     return "name:" + stringOrDefault(fallbackName, "unknown");
+  }
+
+  private String nickname(UserEntity user) {
+    return user == null ? "사용자" : stringOrDefault(user.getNickname(), "사용자");
   }
 
   private String normalizeSplitType(String value) {

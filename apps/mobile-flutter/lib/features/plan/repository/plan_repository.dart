@@ -222,7 +222,7 @@ class ApiPlanRepository implements PlanRepository {
     return PlanParticipantArrival(
       id: OnmuJson.readString(json, 'id'),
       userId: OnmuJson.readString(json, 'userId'),
-      displayName: OnmuJson.readString(json, 'displayName', '참여자'),
+      nickname: OnmuJson.readString(json, 'nickname', '참여자'),
       participantStatus: OnmuJson.readString(json, 'status', 'joined'),
       arrivalStatus: PlanArrivalStatus.fromApi(
         OnmuJson.readString(json, 'response'),
@@ -242,7 +242,7 @@ class ApiPlanRepository implements PlanRepository {
           final name = OnmuJson.readString(
             member,
             'name',
-            OnmuJson.readString(member, 'displayName', '참여자'),
+            OnmuJson.readString(member, 'nickname', '참여자'),
           );
           return PlanMember(
             name: name,

@@ -6,7 +6,7 @@ class OAuthProviderCredential {
     this.providerIdToken,
     this.state,
     this.devVerifiedSubject,
-    this.displayName,
+    this.providerProfileName,
     this.email,
     this.profileImageUrl,
   });
@@ -17,7 +17,7 @@ class OAuthProviderCredential {
   final String? providerIdToken;
   final String? state;
   final String? devVerifiedSubject;
-  final String? displayName;
+  final String? providerProfileName;
   final String? email;
   final String? profileImageUrl;
 
@@ -30,7 +30,8 @@ class OAuthProviderCredential {
       if (_hasText(state)) 'state': state,
       if (_hasText(devVerifiedSubject))
         'devVerifiedSubject': devVerifiedSubject,
-      if (_hasText(displayName)) 'displayName': displayName,
+      if (_hasText(providerProfileName))
+        'providerProfileName': providerProfileName,
       if (_hasText(email)) 'email': email,
       if (_hasText(profileImageUrl)) 'profileImageUrl': profileImageUrl,
     };

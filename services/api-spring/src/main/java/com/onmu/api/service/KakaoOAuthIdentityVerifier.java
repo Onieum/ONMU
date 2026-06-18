@@ -37,7 +37,7 @@ public class KakaoOAuthIdentityVerifier implements OAuthProviderVerifier {
     return new VerifiedOAuthIdentity(
       PROVIDER,
       userInfo.id().trim(),
-      blankToNull(userInfo.displayName()),
+      blankToNull(userInfo.providerProfileName()),
       blankToNull(userInfo.email()),
       blankToNull(userInfo.profileImageUrl())
     );

@@ -58,7 +58,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         child: const app.OnmuMaterialApp(),
@@ -81,7 +81,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         child: const app.OnmuMaterialApp(),
@@ -102,7 +102,7 @@ void main() {
         id: '00000000-0000-0000-0000-000000000001',
         publicId: 'user-me',
         provider: 'NAVER',
-        displayName: '나',
+        nickname: '나',
         onboardingStatus: 'COMPLETED',
       );
 
@@ -286,7 +286,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         preferenceProfile: PreferenceProfile.empty().copyWith(
@@ -373,7 +373,7 @@ void main() {
               id: '00000000-0000-0000-0000-000000000001',
               publicId: 'user-me',
               provider: 'NAVER',
-              displayName: '나',
+              nickname: '나',
               onboardingStatus: 'COMPLETED',
             ),
           ),
@@ -402,7 +402,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         myRepository: repository,
@@ -441,7 +441,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         myRepository: repository,
@@ -485,7 +485,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
         myRepository: repository,
@@ -534,7 +534,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: 'Me',
+          nickname: 'Me',
           onboardingStatus: 'COMPLETED',
         ),
         friendRepository: friendRepository,
@@ -850,12 +850,12 @@ void main() {
 
     expect(find.text('멤버 추가'), findsOneWidget);
     expect(find.text('친구 목록에서 초대할 멤버를 선택해 주세요.'), findsOneWidget);
-    expect(find.text('민수'), findsOneWidget);
+    expect(find.text('도윤'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(TextButton, '선택').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('민수'), findsOneWidget);
+    expect(find.text('도윤'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).at(0), '초대 테스트 모임');
     await tester.enterText(find.byType(TextField).at(1), '멤버 추가 검증');
@@ -875,6 +875,7 @@ void main() {
     appRouter.go(RoutePaths.groupDetail(_groupId));
     await tester.pumpAndSettle();
 
+    expect(find.text('우리, 또 하나의 추억을 만들자'), findsOneWidget);
     await tester.tap(find.text('멤버 8명'));
     await tester.pumpAndSettle();
 
@@ -988,6 +989,7 @@ void main() {
     expect(find.text('제주도 일대'), findsOneWidget);
     expect(find.text('선택한 일정'), findsOneWidget);
     expect(find.text('추천 시간대 또는 직접 시간을 터치해서 선택'), findsNothing);
+    expect(find.textContaining('~ 6월'), findsWidgets);
 
     expect(find.widgetWithText(TextFormField, '제주도 일대'), findsOneWidget);
     expect(find.byTooltip('지역 지우기'), findsOneWidget);
@@ -1045,6 +1047,28 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+  });
+
+  testWidgets('new plan selected members can remove added members', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planNew(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('참여 멤버 추가'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('민수').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('민수 제거'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('민수 제거'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('민수 제거'), findsNothing);
   });
 
   testWidgets('canonical plan edit route opens the edit screen', (

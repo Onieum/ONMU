@@ -95,8 +95,8 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     AuthUser? currentUser,
     PreferenceProfile? preferenceProfile,
   ) {
-    final displayName = currentUser?.displayName.trim();
-    final name = displayName == null || displayName.isEmpty ? '나' : displayName;
+    final nickname = currentUser?.nickname.trim();
+    final name = nickname == null || nickname.isEmpty ? '나' : nickname;
     return [
       PlanMember(
         userId: currentUser?.id ?? '',
@@ -122,20 +122,34 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 
   void _addCreateMember(PlanMember member) {
     final current = _createSelectedMembers ?? const <PlanMember>[];
-    final memberKey = member.userId.trim().isNotEmpty
-        ? member.userId.trim()
-        : member.name.trim();
-    final alreadySelected = current.any((selected) {
-      final selectedKey = selected.userId.trim().isNotEmpty
-          ? selected.userId.trim()
-          : selected.name.trim();
-      return selectedKey == memberKey;
-    });
+    final memberTokens = _memberSelectionTokens(member);
+    final alreadySelected = current.any(
+      (selected) => _memberSelectionTokens(
+        selected,
+      ).intersection(memberTokens).isNotEmpty,
+    );
     if (alreadySelected) {
       return;
     }
     setState(() {
       _createSelectedMembers = List.unmodifiable([...current, member]);
+    });
+  }
+
+  void _removeCreateMember(PlanMember member) {
+    final current = _createSelectedMembers ?? const <PlanMember>[];
+    if (current.length <= 1) {
+      return;
+    }
+    final memberTokens = _memberSelectionTokens(member);
+    setState(() {
+      _createSelectedMembers = List.unmodifiable(
+        current.where((selected) {
+          return _memberSelectionTokens(
+            selected,
+          ).intersection(memberTokens).isEmpty;
+        }),
+      );
     });
   }
 
@@ -293,6 +307,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         selectedMembers: selectedMembers,
         candidateMembers: groupMembers,
         onMemberAdded: (member) async => _addCreateMember(member),
+        onMemberRemoved: _removeCreateMember,
         onSave: _titleController.text.trim().isEmpty
             ? null
             : () async {
@@ -351,6 +366,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
           ),
           onMemberAdded: (member) async =>
               ref.read(provider.notifier).addParticipant(member.userId),
+          onMemberRemoved: null,
           onSave: _titleController.text.trim().isEmpty
               ? null
               : () async {
@@ -412,6 +428,7 @@ class _PlanCreateContent extends StatelessWidget {
     required this.selectedMembers,
     required this.candidateMembers,
     required this.onMemberAdded,
+    required this.onMemberRemoved,
     required this.onSave,
     this.editingPlanId,
   });
@@ -429,6 +446,7 @@ class _PlanCreateContent extends StatelessWidget {
   final List<PlanMember> selectedMembers;
   final AsyncValue<List<PlanMember>> candidateMembers;
   final Future<void> Function(PlanMember member)? onMemberAdded;
+  final ValueChanged<PlanMember>? onMemberRemoved;
   final Future<void> Function()? onSave;
 
   @override
@@ -460,6 +478,7 @@ class _PlanCreateContent extends StatelessWidget {
           members: selectedMembers,
           candidateMembers: candidateMembers,
           onMemberAdded: onMemberAdded,
+          onMemberRemoved: onMemberRemoved,
         ),
         const SizedBox(height: AppSpacing.lg),
         KeyedSubtree(
@@ -612,7 +631,7 @@ class _DateTimeRangeField extends StatelessWidget {
                 Text('선택한 일정', style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${_formatPlanDate(startsAt)} · ${_formatPlanTime(startsAt)} ~ ${_formatPlanTime(endsAt)}',
+                  _formatPlanDateTimeRange(startsAt, endsAt),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
@@ -692,18 +711,36 @@ class _MemberPickerRow extends StatelessWidget {
     required this.members,
     required this.candidateMembers,
     required this.onMemberAdded,
+    required this.onMemberRemoved,
   });
 
   final List<PlanMember> members;
   final AsyncValue<List<PlanMember>> candidateMembers;
   final Future<void> Function(PlanMember member)? onMemberAdded;
+  final ValueChanged<PlanMember>? onMemberRemoved;
 
   @override
   Widget build(BuildContext context) {
+    final firstMemberTokens = members.isEmpty
+        ? const <String>{}
+        : _memberSelectionTokens(members.first);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: PlanMemberAvatarRow(members: members)),
+        Expanded(
+          child: PlanMemberAvatarRow(
+            members: members,
+            onRemoveMember: onMemberRemoved,
+            canRemoveMember: (member) {
+              if (members.length <= 1) {
+                return false;
+              }
+              return _memberSelectionTokens(
+                member,
+              ).intersection(firstMemberTokens).isEmpty;
+            },
+          ),
+        ),
         const SizedBox(width: AppSpacing.sm),
         if (onMemberAdded != null)
           IconButton.outlined(
@@ -717,23 +754,19 @@ class _MemberPickerRow extends StatelessWidget {
 
   Future<void> _showMemberAddSheet(BuildContext context) async {
     final candidates = candidateMembers.asData?.value ?? const <PlanMember>[];
-    final selectedKeys = {
-      for (final member in members)
-        if (member.userId.trim().isNotEmpty)
-          member.userId.trim()
-        else
-          member.name.trim(),
+    final selectedTokens = {
+      for (final member in members) ..._memberSelectionTokens(member),
     };
     final available = candidates
         .where((member) {
-          final key = member.userId.trim().isNotEmpty
-              ? member.userId.trim()
-              : member.name.trim();
-          return !selectedKeys.contains(key);
+          return _memberSelectionTokens(
+            member,
+          ).intersection(selectedTokens).isEmpty;
         })
         .toList(growable: false);
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.bgDefault,
       builder: (context) {
         if (candidateMembers.isLoading) {
@@ -755,30 +788,45 @@ class _MemberPickerRow extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '참여 멤버 추가',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (final member in available)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(member.name),
-                    subtitle: Text(member.badge),
-                    trailing: const Icon(Icons.add_circle_outline),
-                    onTap: () async {
-                      await onMemberAdded?.call(member);
-                      if (!context.mounted) {
-                        return;
-                      }
-                      Navigator.of(context).pop();
-                    },
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '참여 멤버 추가',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-              ],
+                  const SizedBox(height: AppSpacing.md),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: available.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.xs),
+                      itemBuilder: (context, index) {
+                        final member = available[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(member.name),
+                          subtitle: Text(member.badge),
+                          trailing: const Icon(Icons.add_circle_outline),
+                          onTap: () async {
+                            await onMemberAdded?.call(member);
+                            if (!context.mounted) {
+                              return;
+                            }
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -845,6 +893,24 @@ String _formatPlanTime(DateTime date) {
   final hour = localDate.hour.toString().padLeft(2, '0');
   final minute = localDate.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+String _formatPlanDateTimeRange(DateTime startsAt, DateTime endsAt) {
+  final localStart = startsAt.toLocal();
+  final localEnd = endsAt.toLocal();
+  final startLabel =
+      '${_formatPlanDate(localStart)} · ${_formatPlanTime(localStart)}';
+  if (localStart.year == localEnd.year &&
+      localStart.month == localEnd.month &&
+      localStart.day == localEnd.day) {
+    return '$startLabel ~ ${_formatPlanTime(localEnd)}';
+  }
+  return '$startLabel ~ ${_formatPlanDate(localEnd)} ${_formatPlanTime(localEnd)}';
+}
+
+Set<String> _memberSelectionTokens(PlanMember member) {
+  final userId = member.userId.trim();
+  return userId.isEmpty ? const <String>{} : {userId};
 }
 
 List<PreferenceProfile> _participantPreferences(List<PlanMember> members) {

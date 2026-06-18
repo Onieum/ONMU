@@ -21,12 +21,12 @@ import '../../view_model/home_notifications_view_model.dart';
 import '../widgets/home_recent_record_cards.dart';
 import '../../../preferences/preference_summary_page.dart';
 
-String _resolveDisplayName(AuthUser? user) {
-  final displayName = user?.displayName.trim();
-  if (displayName == null || displayName.isEmpty) {
+String _resolveNickname(AuthUser? user) {
+  final nickname = user?.nickname.trim();
+  if (nickname == null || nickname.isEmpty) {
     return '사용자';
   }
-  return displayName;
+  return nickname;
 }
 
 class HomePage extends ConsumerStatefulWidget {
@@ -77,12 +77,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final authBootstrap = ref.watch(authBootstrapProvider);
     final authUser =
         authBootstrap.asData?.value.user ?? ref.watch(authUserProvider);
-    final displayName = _resolveDisplayName(authUser);
+    final nickname = _resolveNickname(authUser);
 
     return state.when(
       data: (state) => _HomeContent(
         showOnlyPlans: widget.showOnlyPlans,
-        displayName: displayName,
+        nickname: nickname,
         profileImageUrl: authUser?.profileImageUrl,
         groupId: state.groupId,
         todayPlans: state.todayPlans,
@@ -107,7 +107,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 class _HomeContent extends ConsumerWidget {
   const _HomeContent({
     required this.showOnlyPlans,
-    required this.displayName,
+    required this.nickname,
     this.profileImageUrl,
     required this.groupId,
     required this.todayPlans,
@@ -116,7 +116,7 @@ class _HomeContent extends ConsumerWidget {
   });
 
   final bool showOnlyPlans;
-  final String displayName;
+  final String nickname;
   final String? profileImageUrl;
   final int? groupId;
   final List<GroupPlanSummary> todayPlans;
@@ -135,7 +135,7 @@ class _HomeContent extends ConsumerWidget {
       children: [
         if (!showOnlyPlans) ...[
           _HomeHeader(
-            displayName: displayName,
+            nickname: nickname,
             profileImageUrl: profileImageUrl,
             todayPlanCount: todayPlanCount,
             unreadNotificationCount: unreadCount,
@@ -269,14 +269,14 @@ class _RecentRecordsPreview extends StatelessWidget {
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
-    required this.displayName,
+    required this.nickname,
     this.profileImageUrl,
     required this.todayPlanCount,
     required this.unreadNotificationCount,
     required this.onNotificationTap,
   });
 
-  final String displayName;
+  final String nickname;
   final String? profileImageUrl;
   final int todayPlanCount;
   final int unreadNotificationCount;
@@ -284,7 +284,7 @@ class _HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarLabel = displayName.trim().isEmpty ? '온' : displayName;
+    final avatarLabel = nickname.trim().isEmpty ? '온' : nickname;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,7 +313,7 @@ class _HomeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '안녕하세요, $displayName님',
+                    '안녕하세요, $nickname님',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppSpacing.xxs),

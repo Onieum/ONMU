@@ -12,38 +12,17 @@ final groupCreateViewModelProvider =
     );
 
 class GroupCreateState {
-  const GroupCreateState({
-    required this.recommendedMemberNames,
-    required this.friendCandidates,
-  });
+  const GroupCreateState({required this.friendCandidates});
 
-  final List<String> recommendedMemberNames;
   final List<FriendProfile> friendCandidates;
 }
 
 class GroupCreateViewModel extends AsyncNotifier<GroupCreateState> {
   @override
   Future<GroupCreateState> build() async {
-    final repository = ref.watch(groupRepositoryProvider);
     final friendRepository = ref.watch(friendRepositoryProvider);
     final friendCandidates = await friendRepository.fetchFriends();
-    final groups = await repository.fetchGroups();
-    if (groups.isEmpty) {
-      return GroupCreateState(
-        recommendedMemberNames: const [],
-        friendCandidates: friendCandidates,
-      );
-    }
-
-    final members = await repository.fetchMembers(groups.first.id);
-
-    return GroupCreateState(
-      recommendedMemberNames: members
-          .map((member) => member.name)
-          .take(4)
-          .toList(growable: false),
-      friendCandidates: friendCandidates,
-    );
+    return GroupCreateState(friendCandidates: friendCandidates);
   }
 
   Future<GroupSummary> createGroup({

@@ -656,7 +656,7 @@ public class RecordService {
         memo,
         date,
         record.getAuthor().getId(),
-        record.getAuthor().getDisplayName(),
+        nickname(record.getAuthor()),
         record.getGroup() != null ? record.getGroup().getId() : null,
         tags,
         imageUrls,
@@ -666,6 +666,13 @@ public class RecordService {
         aiStatus,
         record.getCreatedAt()
     );
+  }
+
+  private String nickname(UserEntity user) {
+    if (user == null || user.getNickname() == null || user.getNickname().isBlank()) {
+      return "사용자";
+    }
+    return user.getNickname();
   }
 
   private String normalizeRecordVisibility(String visibility) {

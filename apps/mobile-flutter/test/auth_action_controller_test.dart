@@ -261,7 +261,7 @@ class RecordingAuthRepository implements AuthRepository {
         id: userId,
         publicId: userId,
         provider: provider,
-        displayName: '$provider 사용자',
+        nickname: '$provider 사용자',
       ),
       tokens: OnmuAuthTokens(
         accessToken: 'onmu-access-jwt',

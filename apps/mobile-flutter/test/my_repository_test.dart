@@ -18,7 +18,7 @@ void main() {
             expect(options.method, 'PATCH');
             expect(options.path, '/api/v1/users/me');
             expect(options.data, {
-              'displayName': 'Shinseok',
+              'nickname': 'Shinseok',
               'onboardingStatus': 'COMPLETED',
               'preferenceProfile': {
                 'favoriteKeywords': ['quiet'],
@@ -48,7 +48,7 @@ void main() {
               Response<Object?>(
                 requestOptions: options,
                 data: {
-                  'displayName': 'Shinseok',
+                  'nickname': 'Shinseok',
                   'preferenceProfile': {
                     'favoriteKeywords': ['quiet'],
                     'introText': 'hello',
@@ -125,7 +125,7 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               data: {
-                'displayName': 'Shinseok',
+                'nickname': 'Shinseok',
                 'onboardingStatus': 'PREFERENCE_READY',
                 'preferenceProfile': {'introText': 'hello', 'region': '서울 성동구'},
               },
@@ -153,7 +153,7 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               data: {
-                'displayName': 'Shinseok',
+                'nickname': 'Shinseok',
                 'preferenceProfile': {
                   'introText': 'hello',
                   'region': '부산 해운대구',
@@ -188,7 +188,7 @@ void main() {
               Response<Object?>(
                 requestOptions: options,
                 data: {
-                  'displayName': 'Shinseok',
+                  'nickname': 'Shinseok',
                   'preferenceProfile': {
                     'introText': 'hello',
                     'region': requestedRegion,
@@ -222,7 +222,7 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               data: {
-                'displayName': 'Shinseok',
+                'nickname': 'Shinseok',
                 'preferenceProfile': {
                   'introText': 'hello',
                   'region': {
@@ -268,7 +268,7 @@ void main() {
               Response<Object?>(
                 requestOptions: options,
                 data: {
-                  'displayName': 'Shinseok',
+                  'nickname': 'Shinseok',
                   'preferenceProfile': {
                     'introText': nestedJsonText,
                     'region': brokenRegion,
@@ -318,7 +318,7 @@ void main() {
               Response<Object?>(
                 requestOptions: options,
                 data: {
-                  'displayName': 'Shinseok',
+                  'nickname': 'Shinseok',
                   'preferenceProfile': {
                     'introText': '',
                     'region': KoreaRegionSelection.fallback.toJson(),
