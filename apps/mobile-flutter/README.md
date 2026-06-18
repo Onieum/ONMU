@@ -28,7 +28,8 @@ flutter run
 
 지도 화면은 PMTiles object URL을 앱에 직접 넣지 않고 tile manifest pointer를 읽습니다.
 
-- 기본 manifest: `https://tiles.onmu.cloud/manifest.json`
+- 기본 manifest: `https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json`
+- `tiles.onmu.cloud` custom domain은 Front Door cutover가 끝날 때까지 기본 모바일 smoke에 사용하지 않습니다.
 - 로컬 MinIO smoke: `--dart-define=ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`
 
 Flutter web은 `web/index.html`에서 MapLibre GL JS/CSS를 로드합니다. Spring 장소 검색과 동선 추천 API credential은 서버 환경변수로만 주입하고 Flutter bundle에는 넣지 않습니다.

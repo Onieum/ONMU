@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | 모바일 앱 기본 재빌드 | staging host 기본값 | dev/local은 명시 opt-in |
 | public API smoke | `https://staging-api.onmu.cloud` | `https://dev-api.onmu.cloud`는 legacy/dev opt-in 전용이며 acceptance gate가 아님 |
-| tile manifest | Azure Front Door default endpoint 또는 `https://tiles.onmu.cloud/manifest.json` | `tiles.onmu.cloud`는 Azure Front Door custom domain으로 정리한다. Windows local gateway는 dev 전용 |
+| tile manifest | `https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json` | `tiles.onmu.cloud`는 Azure Front Door custom domain cutover 후 기본 smoke 기준으로 승격한다. Windows local gateway는 dev 전용 |
 | runtime secret source | `onmu-dev-kv-27db5e` | `kvonmustagingkrc001`는 현재 표준 runtime source 아님 |
 | 표준 backend compute | Azure Container Apps | Windows Spring runtime은 legacy/dev/rollback |
 
