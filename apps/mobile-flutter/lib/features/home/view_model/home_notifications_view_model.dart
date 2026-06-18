@@ -73,6 +73,34 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
     }
   }
 
+  Future<void> respondFriendRequest(
+    NotificationItem item, {
+    required bool accept,
+  }) async {
+    final requestId = item.payloadString('friendRequestId');
+    if (requestId == null || requestId.isEmpty) {
+      return;
+    }
+    final previous = state.value;
+    if (previous == null) {
+      return;
+    }
+
+    state = AsyncValue.data(_replaceItem(previous, item.id, item.markRead()));
+    try {
+      final repository = ref.read(notificationRepositoryProvider);
+      if (accept) {
+        await repository.acceptFriendRequest(requestId);
+      } else {
+        await repository.declineFriendRequest(requestId);
+      }
+      ref.invalidate(notificationUnreadCountProvider);
+    } catch (_) {
+      state = AsyncValue.data(previous);
+      rethrow;
+    }
+  }
+
   List<NotificationItem> _replaceItem(
     List<NotificationItem> items,
     String id,

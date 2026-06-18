@@ -119,6 +119,9 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
                         onPressed: _isSaving ? null : _savePreferenceProfile,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryPink,
+                          textStyle: AppTextStyles.labelSmall.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         child: _isSaving
                             ? const SizedBox(

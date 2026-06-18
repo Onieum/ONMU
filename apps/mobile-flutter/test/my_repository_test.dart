@@ -25,6 +25,7 @@ void main() {
                 'favoriteKeywords': ['quiet'],
                 'introText': 'hello',
                 'profileVisibility': 'FRIENDS',
+                'searchAllowed': true,
                 'region': {
                   'country': 'KR',
                   'sido': '서울특별시',

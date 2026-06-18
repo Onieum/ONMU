@@ -7,6 +7,7 @@ public record FriendResponse(
   String nickname,
   String profileImageUrl,
   String memo,
+  String introText,
   boolean favorite
 ) {
 }

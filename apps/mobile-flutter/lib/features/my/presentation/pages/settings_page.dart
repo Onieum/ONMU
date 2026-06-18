@@ -309,10 +309,12 @@ class _SettingsDetailPage extends ConsumerWidget {
                 value: profile.visibility.label,
                 onTap: () => _showVisibilitySheet(context, ref, profile),
               ),
-              const _SettingsSwitchRow(
+              _SettingsSwitchRow(
                 label: '검색 허용',
                 description: 'ONMU ID로 검색 허용',
-                initialValue: true,
+                initialValue: profile.searchAllowed,
+                onChanged: (value) =>
+                    _updateSearchAllowed(context, ref, profile, value),
               ),
             ],
           ),
@@ -693,6 +695,27 @@ class _SettingsDetailPage extends ConsumerWidget {
         }
       },
     );
+  }
+
+  Future<void> _updateSearchAllowed(
+    BuildContext context,
+    WidgetRef ref,
+    MyProfile profile,
+    bool value,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(settingsViewModelProvider.notifier)
+          .updateSearchAllowed(profile, value);
+      messenger.showSnackBar(
+        SnackBar(content: Text(value ? '검색 허용을 켰어요.' : '검색 허용을 껐어요.')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('검색 허용 설정 변경에 실패했어요.')),
+      );
+    }
   }
 
   Future<void> _confirmClearCache(BuildContext context, WidgetRef ref) async {
@@ -1269,11 +1292,13 @@ class _SettingsSwitchRow extends StatefulWidget {
     required this.label,
     required this.initialValue,
     this.description,
+    this.onChanged,
   });
 
   final String label;
   final String? description;
   final bool initialValue;
+  final ValueChanged<bool>? onChanged;
 
   @override
   State<_SettingsSwitchRow> createState() => _SettingsSwitchRowState();
@@ -1286,6 +1311,14 @@ class _SettingsSwitchRowState extends State<_SettingsSwitchRow> {
   void initState() {
     super.initState();
     _value = widget.initialValue;
+  }
+
+  @override
+  void didUpdateWidget(covariant _SettingsSwitchRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue) {
+      _value = widget.initialValue;
+    }
   }
 
   @override
@@ -1323,7 +1356,10 @@ class _SettingsSwitchRowState extends State<_SettingsSwitchRow> {
             activeColor: AppColors.primaryPink,
             inactiveThumbColor: AppColors.bgDefault,
             inactiveTrackColor: AppColors.lineSoft,
-            onChanged: (value) => setState(() => _value = value),
+            onChanged: (value) {
+              setState(() => _value = value);
+              widget.onChanged?.call(value);
+            },
           ),
         ],
       ),
