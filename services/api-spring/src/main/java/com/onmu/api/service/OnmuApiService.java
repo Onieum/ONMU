@@ -1137,7 +1137,23 @@ public class OnmuApiService {
   }
 
   private String displayName(UserEntity user) {
-    return stringOrDefault(user.getNickname(), stringOrDefault(user.getDisplayName(), "나"));
+    return firstNonDefaultDisplayName(user.getNickname(), user.getDisplayName(), "나");
+  }
+
+  private String firstNonDefaultDisplayName(String... candidates) {
+    for (String candidate : candidates) {
+      if (candidate != null && !candidate.isBlank() && !isDefaultDisplayName(candidate)) {
+        return candidate.trim();
+      }
+    }
+    return "나";
+  }
+
+  private boolean isDefaultDisplayName(String displayName) {
+    return displayName == null
+      || displayName.isBlank()
+      || "ONMU User".equals(displayName.trim())
+      || "ONMU user".equals(displayName.trim());
   }
 
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft) {

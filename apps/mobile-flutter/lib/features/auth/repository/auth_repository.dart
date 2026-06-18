@@ -70,12 +70,7 @@ AuthUser authUserFromJson(
     id: databaseId.isNotEmpty ? databaseId : publicId,
     publicId: publicId.isEmpty ? null : publicId,
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
-    displayName: [
-      nickname,
-      displayName,
-      name,
-      username,
-    ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => '사용자'),
+    displayName: _preferredDisplayName([nickname, displayName, name, username]),
     email: OnmuJson.readString(json, 'email'),
     profileImageUrl: resolveOnmuMediaUrl(
       OnmuJson.readString(json, 'profileImageUrl'),
@@ -83,4 +78,21 @@ AuthUser authUserFromJson(
     ),
     onboardingStatus: OnmuJson.readString(json, 'onboardingStatus', 'PENDING'),
   );
+}
+
+String _preferredDisplayName(List<String> candidates) {
+  for (final value in candidates) {
+    final clean = value.trim();
+    if (clean.isNotEmpty && !_isDefaultDisplayName(clean)) {
+      return clean;
+    }
+  }
+  return candidates
+      .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '사용자')
+      .trim();
+}
+
+bool _isDefaultDisplayName(String value) {
+  final clean = value.trim().toLowerCase();
+  return clean == 'onmu user';
 }

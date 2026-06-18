@@ -84,6 +84,18 @@ void main() {
     expect(user.displayName, '나');
   });
 
+  test('ignores default nickname when provider displayName is available', () {
+    final user = authUserFromJson({
+      'databaseId': '00000000-0000-0000-0000-000000000001',
+      'id': 'user-me',
+      'displayName': '카카오 사용자',
+      'nickname': 'ONMU User',
+      'authProvider': 'KAKAO',
+    });
+
+    expect(user.displayName, '카카오 사용자');
+  });
+
   test(
     'exchanges Kakao provider token for ONMU tokens without using it as bearer',
     () async {

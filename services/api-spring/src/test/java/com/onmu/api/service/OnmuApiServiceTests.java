@@ -187,6 +187,20 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void userMeDoesNotLetDefaultNicknameOverrideProviderDisplayName() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "ONMU User");
+    viewer.updateProfile("카카오 사용자", null, null, null, null);
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+
+    Map<String, Object> profile = service.userMe(viewer.getId());
+
+    assertThat(profile)
+      .containsEntry("displayName", "카카오 사용자")
+      .containsEntry("nickname", "ONMU User");
+  }
+
+  @Test
   void userMeIncludesActiveUserCode() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "ONMU User");
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));

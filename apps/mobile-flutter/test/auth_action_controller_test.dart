@@ -50,6 +50,42 @@ void main() {
     },
   );
 
+  test(
+    'OAuth login refreshes current user profile display name after token save',
+    () async {
+      const providerToken = 'kakao-provider-token';
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(Dio());
+      final repository = RecordingAuthRepository()
+        ..currentUser = const AuthUser(
+          id: 'usr_kakao',
+          publicId: 'usr_kakao',
+          provider: 'KAKAO',
+          displayName: '카카오 프로필',
+        );
+      final socialAuthService = SocialAuthService(
+        kakaoCredentialLoader: () async => const OAuthProviderCredential(
+          provider: 'kakao',
+          providerAccessToken: providerToken,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          socialAuthServiceProvider.overrideWithValue(socialAuthService),
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authActionProvider).signInWithKakao();
+
+      expect(container.read(authUserProvider)?.displayName, '카카오 프로필');
+      expect(apiClient.authorizationHeader, contains('onmu-access-jwt'));
+    },
+  );
+
   test('Kakao action fails safe when REST API key is missing', () async {
     final tokenStore = InMemoryAuthTokenStore();
     final apiClient = OnmuApiClient(Dio());
@@ -245,9 +281,10 @@ void main() {
 
 class RecordingAuthRepository implements AuthRepository {
   OAuthProviderCredential? lastCredential;
+  AuthUser? currentUser;
 
   @override
-  Future<AuthUser?> fetchCurrentUser() async => null;
+  Future<AuthUser?> fetchCurrentUser() async => currentUser;
 
   @override
   Future<AuthSession> exchangeOAuthLogin(
