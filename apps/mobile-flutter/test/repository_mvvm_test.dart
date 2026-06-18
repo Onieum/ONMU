@@ -22,6 +22,7 @@ import 'package:onmu_mobile/features/place/view_model/place_candidates_view_mode
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_create_view_model.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/features/settlement/view_model/settlement_view_model.dart';
 import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
@@ -618,6 +619,26 @@ void main() {
     );
 
     expect(state.voteDescription, '등록된 투표 후보가 없어요');
+  });
+
+  test('정산 ViewModel은 settlementId가 있으면 특정 정산을 조회한다', () async {
+    final repository = _TrackingSettlementRepository();
+    final container = ProviderContainer(
+      overrides: [settlementRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final settlement = await container.read(
+      settlementByIdViewModelProvider((
+        groupId: '1',
+        planId: '101',
+        settlementId: '301',
+      )).future,
+    );
+
+    expect(settlement.id, '301');
+    expect(repository.fetchLatestCalls, isZero);
+    expect(repository.fetchByIdCalls, ['1/101/301']);
   });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
@@ -2213,6 +2234,30 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
   }) async => _summary;
+}
+
+class _TrackingSettlementRepository extends _ChatSettlementRepository {
+  final fetchByIdCalls = <String>[];
+  var fetchLatestCalls = 0;
+
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    fetchLatestCalls += 1;
+    return _ChatSettlementRepository._summary;
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    fetchByIdCalls.add('$groupId/$planId/$settlementId');
+    return _ChatSettlementRepository._summary;
+  }
 }
 
 class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
