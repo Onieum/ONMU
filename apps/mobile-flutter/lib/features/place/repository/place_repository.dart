@@ -45,6 +45,9 @@ abstract interface class PlaceRepository {
     required Object planId,
     required String query,
     String? category,
+    double? lat,
+    double? lng,
+    int? radius,
   });
 
   Future<List<PlaceRisk>> fetchRisks({
@@ -159,20 +162,33 @@ class ApiPlaceRepository implements PlaceRepository {
     required Object planId,
     required String query,
     String? category,
+    double? lat,
+    double? lng,
+    int? radius,
   }) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
       return const [];
     }
+    final body = <String, dynamic>{
+      'groupId': groupId.toString(),
+      'planId': planId.toString(),
+      'query': normalizedQuery,
+      if (category != null && category.trim().isNotEmpty)
+        'category': category.trim(),
+    };
+    if (lat != null) {
+      body['lat'] = lat;
+    }
+    if (lng != null) {
+      body['lng'] = lng;
+    }
+    if (radius != null) {
+      body['radius'] = radius;
+    }
     final response = await _client.postObject(
       '/api/v1/place-search',
-      body: {
-        'groupId': groupId.toString(),
-        'planId': planId.toString(),
-        'query': normalizedQuery,
-        if (category != null && category.trim().isNotEmpty)
-          'category': category.trim(),
-      },
+      body: body,
     );
     return OnmuJson.asMapList(
       response['results'],

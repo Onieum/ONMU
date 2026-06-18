@@ -122,7 +122,8 @@ class SecurityConfigTests {
 
   @Test
   void placeSearchResponseIncludesProviderAndCoordinateCounts() throws Exception {
-    authenticatedUser();
+    UserEntity user = authenticatedUser();
+    when(onmuApiService.plan("1", "101", user.getId())).thenReturn(Map.of("id", "101"));
     when(placeSearchService.search("홍대 카페", "1", "101", null, null, null, null, null, false))
       .thenReturn(List.of(Map.of(
         "provider", "naver",
@@ -141,6 +142,8 @@ class SecurityConfigTests {
       .andExpect(jsonPath("$.source_counts.naver").value(1))
       .andExpect(jsonPath("$.coordinate_count").value(1))
       .andExpect(jsonPath("$.results[0].provider").value("naver"));
+
+    verify(onmuApiService).plan("1", "101", user.getId());
   }
 
   @Test

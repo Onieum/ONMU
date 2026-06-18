@@ -103,6 +103,10 @@ public class RouteRecommendationService {
     RouteRecommendationResult result = routeRecommendation(stops, travelMode, routeProviderAvailable);
     RouteRecommendation recommendation = result.recommendation();
     Map<String, Object> value = recommendation.toApiMap();
+    value.put("liveProvider", result.liveProvider());
+    if (!result.fallbackReason().isBlank()) {
+      value.put("fallbackReason", result.fallbackReason());
+    }
     if (result.cacheable()) {
       cache.put(cacheKey, value);
     }
@@ -116,11 +120,21 @@ public class RouteRecommendationService {
   ) {
     if (!routeProviderAvailable) {
       LOGGER.info("Using dev mock route fallback: reason=provider_unavailable, stop_count={}", stops.size());
-      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), true);
+      return new RouteRecommendationResult(
+        devMockRouteProvider.recommend(stops, travelMode),
+        true,
+        false,
+        "provider_unavailable"
+      );
     }
     if (stops.size() < 2) {
       LOGGER.info("Using dev mock route fallback: reason=insufficient_coordinates, stop_count={}", stops.size());
-      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), true);
+      return new RouteRecommendationResult(
+        devMockRouteProvider.recommend(stops, travelMode),
+        true,
+        false,
+        "insufficient_coordinates"
+      );
     }
     try {
       LOGGER.info("Route provider invocation started: provider={}", openRouteServiceProvider.provider());
@@ -132,7 +146,7 @@ public class RouteRecommendationService {
         recommendation.distanceMeters() > 0,
         recommendation.durationSeconds() > 0
       );
-      return new RouteRecommendationResult(recommendation, true);
+      return new RouteRecommendationResult(recommendation, true, true, "");
     } catch (RuntimeException exception) {
       LOGGER.warn(
         "Route provider failed: provider={}, error_type={}",
@@ -140,7 +154,12 @@ public class RouteRecommendationService {
         exception.getClass().getSimpleName()
       );
       LOGGER.info("Using dev mock route fallback: reason=provider_failure, stop_count={}", stops.size());
-      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), false);
+      return new RouteRecommendationResult(
+        devMockRouteProvider.recommend(stops, travelMode),
+        false,
+        false,
+        "provider_failure"
+      );
     }
   }
 
@@ -252,7 +271,7 @@ public class RouteRecommendationService {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] hash = digest.digest(value.toString().getBytes(StandardCharsets.UTF_8));
-      return "route-recommendation:v1:" + HexFormat.of().formatHex(hash, 0, 16);
+      return "route-recommendation:v2:" + HexFormat.of().formatHex(hash, 0, 16);
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is required", exception);
     }
@@ -261,6 +280,11 @@ public class RouteRecommendationService {
   private record Coordinate(double latitude, double longitude) {
   }
 
-  private record RouteRecommendationResult(RouteRecommendation recommendation, boolean cacheable) {
+  private record RouteRecommendationResult(
+    RouteRecommendation recommendation,
+    boolean cacheable,
+    boolean liveProvider,
+    String fallbackReason
+  ) {
   }
 }

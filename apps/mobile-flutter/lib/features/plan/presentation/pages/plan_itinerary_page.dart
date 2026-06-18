@@ -364,11 +364,28 @@ class _RouteSummaryPill extends StatelessWidget {
             const Icon(Icons.route, color: AppColors.primaryPink),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                '${_durationLabel(route.durationSeconds)} · '
-                '${_distanceLabel(route.distanceMeters)} · '
-                '${stops.length}곳',
-                style: Theme.of(context).textTheme.labelLarge,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    route.isFallback
+                        ? '${_routeFallbackLabel(route)} · ${stops.length}곳'
+                        : '${_durationLabel(route.durationSeconds)} · '
+                              '${_distanceLabel(route.distanceMeters)} · '
+                              '${_legLabel(route, stops)}',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  if (!route.isFallback &&
+                      _routeLegPreviewLabel(route).isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      _routeLegPreviewLabel(route),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -407,6 +424,36 @@ String _routeStatusLabel(List<OnmuMapPoint> stops) {
     return '계산된 동선이 없어요';
   }
   return '방문 장소 1곳';
+}
+
+String _routeFallbackLabel(RouteRecommendation route) {
+  return switch (route.fallbackReason) {
+    'provider_unavailable' => '실제 경로 제공자 미설정',
+    'provider_failure' => '실제 경로 계산 실패',
+    'insufficient_coordinates' => '경로 계산 좌표 부족',
+    _ => '실제 경로 확인 전',
+  };
+}
+
+String _legLabel(RouteRecommendation route, List<OnmuMapPoint> stops) {
+  if (route.legs.isNotEmpty) {
+    return '${route.legs.length}구간';
+  }
+  return '${stops.length}곳';
+}
+
+String _routeLegPreviewLabel(RouteRecommendation route) {
+  if (route.legs.isEmpty) {
+    return '';
+  }
+  final leg = route.legs.first;
+  final labels = [
+    '${leg.fromName} → ${leg.toName}',
+    if (leg.durationSeconds != null) _durationLabel(leg.durationSeconds!),
+    if (leg.distanceMeters != null) _distanceLabel(leg.distanceMeters!),
+  ];
+  final suffix = route.legs.length > 1 ? ' 외 ${route.legs.length - 1}구간' : '';
+  return '${labels.join(' · ')}$suffix';
 }
 
 String _durationLabel(int seconds) {

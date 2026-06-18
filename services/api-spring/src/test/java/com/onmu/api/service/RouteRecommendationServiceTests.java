@@ -71,9 +71,13 @@ class RouteRecommendationServiceTests {
         .containsEntry("provider", "dev-mock")
         .containsEntry("travelMode", mode);
       assertThat((List<?>) route.get("stops")).hasSize(2);
+      assertThat((List<?>) route.get("legs")).hasSize(1);
       assertThat((List<?>) route.get("geometry")).hasSize(2);
       assertThat((Number) route.get("distanceMeters")).isNotNull();
       assertThat((Number) route.get("durationSeconds")).isNotNull();
+      assertThat(route)
+        .containsEntry("liveProvider", false)
+        .containsEntry("fallbackReason", "provider_unavailable");
     }
   }
 
@@ -89,7 +93,13 @@ class RouteRecommendationServiceTests {
       .containsEntry("provider", "openrouteservice")
       .containsEntry("travelMode", "walk")
       .containsEntry("distanceMeters", 1500L)
-      .containsEntry("durationSeconds", 600L);
+      .containsEntry("durationSeconds", 600L)
+      .containsEntry("liveProvider", true);
+    assertThat(route).doesNotContainKey("fallbackReason");
+    List<?> legs = (List<?>) route.get("legs");
+    assertThat(legs).hasSize(1);
+    assertThat(((Map<?, ?>) legs.getFirst()).get("distanceMeters")).isEqualTo(1500L);
+    assertThat(((Map<?, ?>) legs.getFirst()).get("durationSeconds")).isEqualTo(600L);
     assertThat(httpClient.lastUri.toString()).contains("/v2/directions/foot-walking/geojson");
     assertThat(httpClient.lastHeaders).containsEntry("Accept", "application/geo+json");
     assertThat(httpClient.lastBody.toString()).contains("126.978");
@@ -140,7 +150,9 @@ class RouteRecommendationServiceTests {
 
     assertThat(route)
       .containsEntry("provider", "dev-mock")
-      .containsEntry("travelMode", "walk");
+      .containsEntry("travelMode", "walk")
+      .containsEntry("fallbackReason", "insufficient_coordinates")
+      .containsEntry("liveProvider", false);
     verify(placeCandidateRepository, never()).findByPlanOrderByCreatedAtAsc(plan);
   }
 
@@ -155,7 +167,8 @@ class RouteRecommendationServiceTests {
 
     assertThat(route)
       .containsEntry("provider", "dev-mock")
-      .containsEntry("travelMode", "bike");
+      .containsEntry("travelMode", "bike")
+      .containsEntry("fallbackReason", "insufficient_coordinates");
     assertThat((List<?>) route.get("stops")).hasSizeGreaterThanOrEqualTo(2);
   }
 
@@ -168,6 +181,9 @@ class RouteRecommendationServiceTests {
     Map<String, Object> route = service.recommend("1", "101", "walk");
 
     assertThat(route).containsEntry("provider", "dev-mock");
+    assertThat(route)
+      .containsEntry("liveProvider", false)
+      .containsEntry("fallbackReason", "provider_failure");
     assertThat(cache.putCount).isZero();
   }
 
@@ -249,7 +265,13 @@ class RouteRecommendationServiceTests {
                 "summary": {
                   "distance": 1500,
                   "duration": 600
-                }
+                },
+                "segments": [
+                  {
+                    "distance": 1500,
+                    "duration": 600
+                  }
+                ]
               }
             }
           ]

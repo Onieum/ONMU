@@ -36,11 +36,16 @@ class PlaceMapPage extends ConsumerStatefulWidget {
 class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   static const _allCategory = '전체';
   static const _categories = ['전체', '한식', '카페', '전시', '술집'];
+  static const _mapSearchRadiusMeters = 1500;
+  static const _cameraChangeThreshold = 0.0007;
 
   bool _searchActive = false;
   String _query = '';
   String _selectedCategory = _allCategory;
   PlaceCandidate? _selectedCandidate;
+  OnmuLatLng? _lastCameraCenter;
+  OnmuLatLng? _mapSearchCenter;
+  int _myLocationRequestSerial = 0;
   final Set<int> _savingCandidateIds = {};
 
   @override
@@ -146,6 +151,45 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     });
   }
 
+  void _handleCameraIdle(OnmuLatLng center) {
+    final previous = _lastCameraCenter;
+    if (previous != null && !_isMeaningfullyDifferent(previous, center)) {
+      return;
+    }
+    setState(() {
+      _lastCameraCenter = center;
+    });
+  }
+
+  void _searchVisibleMapArea() {
+    final center = _lastCameraCenter;
+    if (center == null) {
+      return;
+    }
+    setState(() {
+      _mapSearchCenter = center;
+      _searchActive = true;
+      _selectedCandidate = null;
+    });
+  }
+
+  void _requestCurrentLocation() {
+    setState(() {
+      _myLocationRequestSerial += 1;
+    });
+  }
+
+  void _handleMyLocationResolved(OnmuLatLng center) {
+    setState(() {
+      _lastCameraCenter = center;
+    });
+  }
+
+  bool _isMeaningfullyDifferent(OnmuLatLng previous, OnmuLatLng next) {
+    return (previous.lat - next.lat).abs() > _cameraChangeThreshold ||
+        (previous.lng - next.lng).abs() > _cameraChangeThreshold;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(
@@ -181,6 +225,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     final effectiveQuery = autoSearch ? _defaultSearchQuery(state) : _query;
     final searchActive =
         _searchActive || autoSearch || _selectedCategory != _allCategory;
+    final mapSearchCenter = _mapSearchCenter;
     final remoteSearchState = effectiveQuery.trim().isEmpty
         ? null
         : ref.watch(
@@ -191,6 +236,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
               category: _selectedCategory == _allCategory
                   ? null
                   : _selectedCategory,
+              lat: mapSearchCenter?.lat,
+              lng: mapSearchCenter?.lng,
+              radius: mapSearchCenter == null ? null : _mapSearchRadiusMeters,
             )),
           );
     final visibleCandidates =
@@ -228,6 +276,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                         searchHadError: searchHadError,
                       ),
                       focusedPointId: _selectedCandidate?.id.toString(),
+                      onCameraIdle: _handleCameraIdle,
+                      onMyLocationResolved: _handleMyLocationResolved,
+                      myLocationRequestSerial: _myLocationRequestSerial,
                       onPointTap: (point) {
                         final selected = _candidateByPointId(
                           visibleCandidates,
@@ -273,12 +324,30 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     ),
                   ),
                   Positioned(
+                    left: AppSpacing.lg,
+                    top: 126,
+                    child: _MapAreaSearchButton(
+                      enabled: _lastCameraCenter != null,
+                      active: _mapSearchCenter != null,
+                      onPressed: _searchVisibleMapArea,
+                    ),
+                  ),
+                  Positioned(
                     right: AppSpacing.lg,
                     top: 126,
                     child: IconButton.filledTonal(
                       tooltip: '필터',
                       onPressed: _activateSearch,
                       icon: const Icon(Icons.tune),
+                    ),
+                  ),
+                  Positioned(
+                    right: AppSpacing.lg,
+                    top: 176,
+                    child: IconButton.filledTonal(
+                      tooltip: '현재 위치로 이동',
+                      onPressed: _requestCurrentLocation,
+                      icon: const Icon(Icons.my_location),
                     ),
                   ),
                   DraggableScrollableSheet(
@@ -297,6 +366,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                           selectedCategory: _selectedCategory,
                           searchLoading: searchLoading,
                           searchHadError: searchHadError,
+                          mapScopedSearch: _mapSearchCenter != null,
+                          searchRadiusMeters: _mapSearchRadiusMeters,
                           selectedCandidate: _selectedCandidate,
                           isAlreadyCandidate: state.hasCandidate,
                           isSavingCandidate: (candidate) =>
@@ -640,6 +711,58 @@ class _CategoryPill extends StatelessWidget {
   }
 }
 
+class _MapAreaSearchButton extends StatelessWidget {
+  const _MapAreaSearchButton({
+    required this.enabled,
+    required this.active,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final bool active;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = active
+        ? AppColors.primaryPink
+        : AppColors.bgDefault;
+    final foregroundColor = active ? AppColors.textInverse : AppColors.textMain;
+    return Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      elevation: 3,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: enabled ? onPressed : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.travel_explore,
+                size: 18,
+                color: enabled ? foregroundColor : AppColors.textSub,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                '현 지도에서 검색',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: enabled ? foregroundColor : AppColors.textSub,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class MapPin extends StatelessWidget {
   const MapPin({
     required this.order,
@@ -733,6 +856,8 @@ class _RecommendationSheet extends StatelessWidget {
     required this.selectedCategory,
     required this.searchLoading,
     required this.searchHadError,
+    required this.mapScopedSearch,
+    required this.searchRadiusMeters,
     required this.selectedCandidate,
     required this.isAlreadyCandidate,
     required this.isSavingCandidate,
@@ -752,6 +877,8 @@ class _RecommendationSheet extends StatelessWidget {
   final String selectedCategory;
   final bool searchLoading;
   final bool searchHadError;
+  final bool mapScopedSearch;
+  final int searchRadiusMeters;
   final PlaceCandidate? selectedCandidate;
   final bool Function(PlaceCandidate candidate) isAlreadyCandidate;
   final bool Function(PlaceCandidate candidate) isSavingCandidate;
@@ -819,6 +946,15 @@ class _RecommendationSheet extends StatelessWidget {
                   : '일정에 바로 넣거나 후보 리스트에 담아둘 수 있어요',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (mapScopedSearch) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '현 지도 중심 반경 ${(searchRadiusMeters / 1000).toStringAsFixed(1)}km 기준',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPink),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             if (candidates.isEmpty) ...[
               _EmptyPlaceSearchCard(

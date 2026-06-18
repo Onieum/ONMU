@@ -222,7 +222,11 @@ public class ApiController {
   }
 
   @PostMapping("/place-search")
-  public Map<String, Object> placeSearch(@Valid @RequestBody PlaceSearchRequest request) {
+  public Map<String, Object> placeSearch(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody PlaceSearchRequest request
+  ) {
+    onmuApiService.plan(request.groupId(), request.planId(), user.userId());
     List<Map<String, Object>> results = placeSearchService.search(
       request.query(),
       request.groupId(),

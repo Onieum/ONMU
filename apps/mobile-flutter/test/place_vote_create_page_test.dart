@@ -100,6 +100,9 @@ class _EmptyPlaceRepository implements PlaceRepository {
     required Object planId,
     required String query,
     String? category,
+    double? lat,
+    double? lng,
+    int? radius,
   }) async => const [];
 
   @override
