@@ -251,7 +251,7 @@ class _MyPageState extends ConsumerState<MyPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return const _FriendAddSheet(candidates: []);
+        return const _FriendAddSheet();
       },
     );
 
