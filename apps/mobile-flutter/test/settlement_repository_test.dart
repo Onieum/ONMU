@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/core/api/onmu_api_client.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 
@@ -29,4 +31,38 @@ void main() {
       });
     });
   });
+
+  test(
+    'does not synthesize summary copy when settlement summary is missing',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': 301,
+                  'planTitle': '성수 브런치',
+                  'totalAmountLabel': '0원',
+                  'itemCountLabel': '결제 항목 0개',
+                  'paymentItems': [],
+                  'memberResults': [],
+                  'transfers': [],
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final settlement = await ApiSettlementRepository(
+        OnmuApiClient(dio),
+      ).fetchSettlement(groupId: 1, planId: 101);
+
+      expect(settlement.finalSummaryLabel, isEmpty);
+      expect(settlement.displayFinalSummaryLabel, '정산 요약 없음');
+    },
+  );
 }

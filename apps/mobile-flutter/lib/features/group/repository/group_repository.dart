@@ -297,7 +297,7 @@ class ApiGroupRepository implements GroupRepository {
     final options = optionSummaries.map((option) => option.label).toList();
     return VoteCard(
       title: OnmuJson.readString(vote, 'title', '투표'),
-      summary: options.isEmpty ? '투표 후보를 불러왔어요.' : options.join(', '),
+      summary: options.isEmpty ? '등록된 투표 후보가 없어요' : options.join(', '),
       statusLabel: OnmuJson.readString(
         vote,
         'status',
@@ -333,7 +333,7 @@ class ApiGroupRepository implements GroupRepository {
       memberAvatars: memberAvatars,
       lastMessage: OnmuJson.readString(json, 'lastMessage'),
       unreadCount: OnmuJson.readInt(json, 'unreadCount'),
-      pinnedPlanTitle: OnmuJson.readString(json, 'pinnedPlanTitle', '약속 준비 중'),
+      pinnedPlanTitle: OnmuJson.readString(json, 'pinnedPlanTitle'),
     );
   }
 
@@ -630,7 +630,7 @@ class ApiGroupRepository implements GroupRepository {
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '투표'),
       statusLabel: closed ? '마감' : '진행 중',
-      description: options.isEmpty ? '투표 후보 준비 중' : options.join(', '),
+      description: options.join(', '),
       planLabel: targetId.isEmpty ? '모임 투표' : '약속 $targetId',
       planMeta: OnmuJson.readString(json, 'voteType', 'PLACE'),
       participants: OnmuJson.stringList(json['participants']),

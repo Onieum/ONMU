@@ -153,7 +153,6 @@ class ApiSettlementRepository implements SettlementRepository {
       finalSummaryLabel: OnmuJson.readString(
         json,
         'finalSummaryLabel',
-        '정산 준비 중',
       ),
       mySummaryLabel: OnmuJson.readString(json, 'mySummaryLabel', '내 정산 없음'),
       paymentItems: OnmuJson.asMapList(

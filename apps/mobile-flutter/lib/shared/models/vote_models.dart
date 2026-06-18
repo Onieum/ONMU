@@ -32,6 +32,14 @@ class VoteSummary {
   final String targetId;
 
   String get participantCountLabel => '$participantCount명 참여';
+
+  String get displayDescription {
+    final trimmed = description.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return '등록된 투표 후보가 없어요';
+  }
 }
 
 class VoteOptionSummary {

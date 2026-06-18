@@ -37,6 +37,7 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
 
     List<GroupMemberProfile> members = const [];
     List<GroupPlanSummary> plans = const [];
+    var planLookupFailed = false;
 
     if (needsMembers) {
       try {
@@ -49,6 +50,7 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
       try {
         plans = await repository.fetchPlans(group.id);
       } catch (_) {
+        planLookupFailed = true;
         plans = const [];
       }
     }
@@ -66,9 +68,12 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
                 ),
               )
               .toList(growable: false);
-    final pinnedPlanTitle = needsPinnedPlan && plans.isNotEmpty
-        ? plans.first.title
-        : group.pinnedPlanTitle;
+    final pinnedPlanTitle = _resolvePinnedPlanTitle(
+      sourceTitle: group.pinnedPlanTitle,
+      needsPinnedPlan: needsPinnedPlan,
+      plans: plans,
+      planLookupFailed: planLookupFailed,
+    );
 
     return group.copyWith(
       members: memberNames,
@@ -78,7 +83,21 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
   }
 
   bool _needsPinnedPlanTitle(String value) {
-    final normalized = value.trim();
-    return normalized.isEmpty || normalized == '약속 준비 중';
+    return value.trim().isEmpty;
+  }
+
+  String _resolvePinnedPlanTitle({
+    required String sourceTitle,
+    required bool needsPinnedPlan,
+    required List<GroupPlanSummary> plans,
+    required bool planLookupFailed,
+  }) {
+    if (!needsPinnedPlan) {
+      return sourceTitle;
+    }
+    if (plans.isNotEmpty) {
+      return plans.first.title;
+    }
+    return planLookupFailed ? '약속 정보를 불러오지 못했어요' : '예정된 약속 없음';
   }
 }

@@ -256,7 +256,7 @@ class _VoteSummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      vote.description,
+                      vote.displayDescription,
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -452,7 +452,7 @@ class _ClosedVoteRow extends StatelessWidget {
                 Text(vote.title, style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  vote.description,
+                  vote.displayDescription,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),

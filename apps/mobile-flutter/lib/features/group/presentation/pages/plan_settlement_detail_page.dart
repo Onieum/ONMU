@@ -174,7 +174,7 @@ class _SettlementHeaderCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '${settlement.itemCountLabel} · ${settlement.finalSummaryLabel}',
+                      '${settlement.itemCountLabel} · ${settlement.displayFinalSummaryLabel}',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),

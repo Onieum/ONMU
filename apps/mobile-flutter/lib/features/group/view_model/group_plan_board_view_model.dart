@@ -65,11 +65,11 @@ class GroupPlanBoardState {
   }
 
   String get voteDescription {
-    final description = vote?.description.trim();
-    if (description != null && description.isNotEmpty) {
-      return description;
+    final currentVote = vote;
+    if (currentVote != null) {
+      return currentVote.displayDescription;
     }
-    return vote == null ? '이 약속에 연결된 투표가 아직 없어요.' : '투표 내용을 확인해 주세요.';
+    return '이 약속에 연결된 투표가 아직 없어요.';
   }
 
   String get voteActionLabel {

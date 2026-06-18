@@ -672,7 +672,7 @@ class _SettlementNoticeCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                '총 ${settlement.totalAmountLabel} · ${settlement.finalSummaryLabel}',
+                '총 ${settlement.totalAmountLabel} · ${settlement.displayFinalSummaryLabel}',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),

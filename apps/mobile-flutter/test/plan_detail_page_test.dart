@@ -5,7 +5,11 @@ import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/map/model/map_models.dart';
+import 'package:onmu_mobile/features/map/repository/route_repository.dart';
+import 'package:onmu_mobile/features/map/repository/tile_manifest_repository.dart';
 import 'package:onmu_mobile/features/plan/presentation/pages/plan_detail_page.dart';
+import 'package:onmu_mobile/features/plan/presentation/pages/plan_itinerary_page.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
@@ -91,6 +95,22 @@ void main() {
     expect(find.text('약속에서 나갔어요.'), findsOneWidget);
     expect(find.text('참여자 1명'), findsOneWidget);
   });
+
+  testWidgets('itinerary shows route failure instead of ambiguous ready copy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _planItineraryTestApp(
+        planRepository: _PlanDetailTestRepository(),
+        routeRepository: const _FailingRouteRepository(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('동선을 계산하지 못했어요'), findsOneWidget);
+    expect(find.text('동선 준비 중'), findsNothing);
+  });
 }
 
 Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
@@ -111,6 +131,25 @@ Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
     child: MaterialApp(
       theme: AppTheme.lightTheme,
       home: const PlanDetailPage(groupId: '1', planId: '101'),
+    ),
+  );
+}
+
+Widget _planItineraryTestApp({
+  required _PlanDetailTestRepository planRepository,
+  required RouteRepository routeRepository,
+}) {
+  return ProviderScope(
+    overrides: [
+      planRepositoryProvider.overrideWithValue(planRepository),
+      routeRepositoryProvider.overrideWithValue(routeRepository),
+      tileManifestRepositoryProvider.overrideWithValue(
+        const _FailingTileManifestRepository(),
+      ),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: const PlanItineraryPage(groupId: '1', planId: '101'),
     ),
   );
 }
@@ -378,5 +417,27 @@ class _PlanDetailGroupRepository implements GroupRepository {
     required String description,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _FailingRouteRepository implements RouteRepository {
+  const _FailingRouteRepository();
+
+  @override
+  Future<RouteRecommendation> recommend({
+    required Object groupId,
+    required Object planId,
+    required String travelMode,
+  }) {
+    throw StateError('route failed');
+  }
+}
+
+class _FailingTileManifestRepository implements TileManifestRepository {
+  const _FailingTileManifestRepository();
+
+  @override
+  Future<TileManifest> fetchManifest() {
+    throw StateError('manifest failed');
   }
 }

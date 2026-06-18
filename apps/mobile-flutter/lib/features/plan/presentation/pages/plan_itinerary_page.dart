@@ -198,16 +198,19 @@ class _RouteMap extends StatelessWidget {
           children: [
             Positioned.fill(
               child: routeState.when(
-                data: (route) => OnmuMapView(
-                  points: _uniqueRouteStops(route.stops),
-                  routeGeometry: route.geometry,
-                  fallbackLabel: '동선 지도 미리보기',
-                ),
+                data: (route) {
+                  final stops = _uniqueRouteStops(route.stops);
+                  return OnmuMapView(
+                    points: stops,
+                    routeGeometry: route.geometry,
+                    fallbackLabel: '동선 지도 미리보기',
+                  );
+                },
                 loading: () =>
                     const OnmuMapView(points: [], fallbackLabel: '동선 계산 중입니다.'),
                 error: (error, stackTrace) => const OnmuMapView(
                   points: [],
-                  fallbackLabel: '동선 지도를 불러오지 못했습니다.',
+                  fallbackLabel: '동선 지도를 불러오지 못했어요',
                 ),
               ),
             ),
@@ -242,10 +245,13 @@ class _RouteMap extends StatelessWidget {
               left: AppSpacing.sm,
               right: AppSpacing.sm,
               bottom: AppSpacing.sm,
-              child: routeState.maybeWhen(
-                data: (route) => _RouteSummaryPill(route: route),
+              child: routeState.when(
+                data: (route) => _hasRouteData(route)
+                    ? _RouteSummaryPill(route: route)
+                    : const _RouteStatusPill(label: '계산된 동선이 없어요'),
                 loading: () => const _RouteStatusPill(label: '동선 계산 중'),
-                orElse: () => const _RouteStatusPill(label: '동선 준비 중'),
+                error: (error, stackTrace) =>
+                    const _RouteStatusPill(label: '동선을 계산하지 못했어요'),
               ),
             ),
           ],
@@ -253,6 +259,10 @@ class _RouteMap extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _hasRouteData(RouteRecommendation route) {
+  return route.stops.isNotEmpty || route.geometry.isNotEmpty;
 }
 
 class _RouteSummaryPill extends StatelessWidget {

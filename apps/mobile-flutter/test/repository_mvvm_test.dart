@@ -64,6 +64,36 @@ void main() {
     expect(group.pinnedPlanTitle, '서버 보강 약속');
   });
 
+  test('온모임 목록 ViewModel은 예정 약속이 없으면 명확한 빈 상태 문구를 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(plans: const []),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '예정된 약속 없음');
+  });
+
+  test('온모임 목록 ViewModel은 약속 보강 실패를 빈 상태와 구분한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(throwOnFetchPlans: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '약속 정보를 불러오지 못했어요');
+  });
+
   test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -554,6 +584,41 @@ void main() {
       expect(state.candidates.map((candidate) => candidate.id), [9901]);
     },
   );
+
+  test('약속 보드 상태는 후보 없는 투표를 명확한 empty state로 설명한다', () {
+    final state = GroupPlanBoardState(
+      group: const GroupSummary(
+        id: 1,
+        name: '온모임',
+        description: '',
+        members: [],
+        lastMessage: '',
+        unreadCount: 0,
+        pinnedPlanTitle: '',
+      ),
+      currentPlan: null,
+      candidateResults: const [],
+      vote: VoteSummary(
+        id: 501,
+        title: '장소 투표',
+        statusLabel: '진행 중',
+        description: '',
+        planLabel: '약속',
+        planMeta: 'PLACE',
+        participants: const [],
+        participantCount: 0,
+        options: const [],
+        closed: false,
+        joinedByMe: false,
+        actionLabel: '투표 확인하기',
+        targetType: 'PLAN',
+        targetId: '101',
+      ),
+      participantResponses: const [],
+    );
+
+    expect(state.voteDescription, '등록된 투표 후보가 없어요');
+  });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
     final repository = _FakeGroupRepository(
@@ -1474,6 +1539,14 @@ class _EmptyGroupRepository implements GroupRepository {
 }
 
 class _SparseGroupListRepository extends _EmptyGroupRepository {
+  _SparseGroupListRepository({
+    List<GroupPlanSummary>? plans,
+    this.throwOnFetchPlans = false,
+  }) : plans = plans ?? _defaultPlans;
+
+  final List<GroupPlanSummary> plans;
+  final bool throwOnFetchPlans;
+
   static const _group = GroupSummary(
     id: 77,
     name: '요약 부족 모임',
@@ -1481,7 +1554,7 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
     members: [],
     lastMessage: '',
     unreadCount: 0,
-    pinnedPlanTitle: '약속 준비 중',
+    pinnedPlanTitle: '',
   );
 
   @override
@@ -1506,23 +1579,28 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
     ];
   }
 
+  static final _defaultPlans = [
+    GroupPlanSummary(
+      id: 7701,
+      title: '서버 보강 약속',
+      dateLabel: '6월 18일 10:00',
+      startsAt: DateTime.utc(2026, 6, 18, 1),
+      placeName: '성수동',
+      statusLabel: '예정',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: false,
+    ),
+  ];
+
   @override
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
-    return [
-      GroupPlanSummary(
-        id: 7701,
-        title: '서버 보강 약속',
-        dateLabel: '6월 18일 10:00',
-        startsAt: DateTime.utc(2026, 6, 18, 1),
-        placeName: '성수동',
-        statusLabel: '예정',
-        statusType: 'scheduled',
-        memberCount: 2,
-        extraMemberCount: 0,
-        iconKind: 'coffee',
-        isPast: false,
-      ),
-    ];
+    if (throwOnFetchPlans) {
+      throw StateError('plans failed');
+    }
+    return plans;
   }
 }
 
