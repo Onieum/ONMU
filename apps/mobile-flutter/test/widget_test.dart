@@ -15,7 +15,9 @@ import 'package:onmu_mobile/features/group/presentation/pages/group_home_page.da
 import 'package:onmu_mobile/features/group/presentation/pages/group_chat_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_memory_detail_page.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/presentation/pages/my_page.dart';
+import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
@@ -516,6 +518,48 @@ void main() {
 
     expect(find.text('프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요.'), findsOneWidget);
     expect(find.text('저장하기'), findsOneWidget);
+  });
+
+  testWidgets('my page friend add searches by user code and adds result', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final friendRepository = _UserCodeFriendRepository();
+
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          displayName: 'Me',
+          onboardingStatus: 'COMPLETED',
+        ),
+        friendRepository: friendRepository,
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('친구'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person_add_alt_1));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, '1234567890');
+    await tester.pumpAndSettle();
+
+    expect(friendRepository.lastSearchQuery, '1234567890');
+    expect(find.text('Code Friend'), findsOneWidget);
+
+    await tester.tap(find.text('Code Friend'));
+    await tester.pumpAndSettle();
+
+    expect(friendRepository.addedPublicId, 'friend-code');
   });
 
   testWidgets('upcoming plan see all opens the full upcoming list', (
@@ -2036,4 +2080,62 @@ class _SingleMemberGroupRepository implements GroupRepository {
   }) {
     throw UnimplementedError();
   }
+}
+
+class _UserCodeFriendRepository implements FriendRepository {
+  final _candidate = const FriendProfile(
+    userId: '00000000-0000-0000-0000-000000000099',
+    publicId: 'friend-code',
+    userCode: '1234567890',
+    name: 'Code Friend',
+    preferenceSummary: '1234567890',
+    isFriend: false,
+    memo: '1234567890',
+  );
+
+  String? lastSearchQuery;
+  String? addedPublicId;
+
+  @override
+  Future<List<FriendProfile>> fetchFriends() async => const [];
+
+  @override
+  Future<List<FriendProfile>> searchFriends(String query) async {
+    lastSearchQuery = query;
+    return query.trim() == _candidate.userCode ? [_candidate] : const [];
+  }
+
+  @override
+  Future<MyProfile> fetchFriendProfile(FriendProfile friend) async {
+    return MyProfile(
+      realName: friend.name,
+      visibility: ProfileVisibility.friends,
+      favoriteKeywords: const [],
+      dislikedKeywords: const [],
+      preferredTimes: const [],
+      availableDays: const [],
+      unavailableDates: const [],
+      favoritePlaces: const [],
+      wantToGoPlaces: const [],
+      dislikedPlaces: const [],
+    );
+  }
+
+  @override
+  Future<FriendProfile> addFriend(String publicId, {String? memo}) async {
+    addedPublicId = publicId;
+    return _candidate.copyWith(isFriend: true, memo: memo);
+  }
+
+  @override
+  Future<FriendProfile> updateFriend(
+    FriendProfile friend, {
+    String? memo,
+    bool? favorite,
+  }) async {
+    return friend.copyWith(memo: memo, isFavorite: favorite);
+  }
+
+  @override
+  Future<void> deleteFriend(FriendProfile friend) async {}
 }

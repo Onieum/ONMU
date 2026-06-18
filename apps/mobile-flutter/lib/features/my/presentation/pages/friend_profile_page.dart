@@ -304,17 +304,19 @@ CharacterDraft _characterForFriend(FriendProfile friend) {
   );
 }
 
-class _FriendAddSheet extends StatefulWidget {
-  const _FriendAddSheet({required this.candidates});
-
-  final List<FriendProfile> candidates;
+class _FriendAddSheet extends ConsumerStatefulWidget {
+  const _FriendAddSheet();
 
   @override
-  State<_FriendAddSheet> createState() => _FriendAddSheetState();
+  ConsumerState<_FriendAddSheet> createState() => _FriendAddSheetState();
 }
 
-class _FriendAddSheetState extends State<_FriendAddSheet> {
+class _FriendAddSheetState extends ConsumerState<_FriendAddSheet> {
   final TextEditingController _idController = TextEditingController();
+  var _results = const <FriendProfile>[];
+  var _isSearching = false;
+  String? _errorText;
+  int _searchVersion = 0;
 
   @override
   void dispose() {
@@ -322,20 +324,57 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _search(String value) async {
+    final query = value.trim();
+    _searchVersion += 1;
+    final version = _searchVersion;
+    if (query.length < 2) {
+      setState(() {
+        _results = const [];
+        _isSearching = false;
+        _errorText = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _errorText = null;
+    });
+
+    try {
+      final results = await ref
+          .read(friendRepositoryProvider)
+          .searchFriends(query);
+      if (!mounted || version != _searchVersion) {
+        return;
+      }
+      setState(() {
+        _results = results;
+        _isSearching = false;
+      });
+    } catch (_) {
+      if (!mounted || version != _searchVersion) {
+        return;
+      }
+      setState(() {
+        _results = const [];
+        _isSearching = false;
+        _errorText = 'Friend search failed. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _submit() async {
     final id = _idController.text.trim();
     if (id.isEmpty) {
       return;
     }
-    Navigator.of(context).pop(
-      FriendProfile(
-        publicId: id,
-        userCode: id,
-        name: id,
-        preferenceSummary: '친구 요청 대기 중',
-        isFriend: true,
-      ),
-    );
+    if (_results.length == 1) {
+      Navigator.of(context).pop(_results.single);
+      return;
+    }
+    await _search(id);
   }
 
   @override
@@ -378,11 +417,19 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
               controller: _idController,
               autofocus: true,
               textInputAction: TextInputAction.done,
+              onChanged: _search,
               onSubmitted: (_) => _submit(),
               decoration: const InputDecoration(
                 hintText: '친구 고유 ID 입력',
                 prefixIcon: Icon(Icons.tag_rounded),
               ),
+            ),
+            const SizedBox(height: 12),
+            _FriendSearchResults(
+              isSearching: _isSearching,
+              errorText: _errorText,
+              results: _results,
+              onSelect: (friend) => Navigator.of(context).pop(friend),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -396,6 +443,78 @@ class _FriendAddSheetState extends State<_FriendAddSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FriendSearchResults extends StatelessWidget {
+  const _FriendSearchResults({
+    required this.isSearching,
+    required this.errorText,
+    required this.results,
+    required this.onSelect,
+  });
+
+  final bool isSearching;
+  final String? errorText;
+  final List<FriendProfile> results;
+  final ValueChanged<FriendProfile> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSearching) {
+      return const SizedBox(
+        height: 48,
+        child: Center(child: CircularProgressIndicator.adaptive()),
+      );
+    }
+    if (errorText != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          errorText!,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.accentRed),
+        ),
+      );
+    }
+    if (results.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 220),
+      child: ListView.separated(
+        shrinkWrap: true,
+        itemCount: results.length,
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: AppColors.lineSoft),
+        itemBuilder: (context, index) {
+          final friend = results[index];
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: _CharacterPortrait(
+              size: 42,
+              character: _characterForFriend(friend),
+              profileImageUrl: friend.profileImageUrl,
+            ),
+            title: Text(
+              friend.name,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textMain,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            subtitle: Text(
+              friend.userCode,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
+            ),
+            trailing: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: AppColors.primaryPink,
+            ),
+            onTap: () => onSelect(friend),
+          );
+        },
       ),
     );
   }

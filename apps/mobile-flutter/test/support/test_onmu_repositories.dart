@@ -61,6 +61,7 @@ ProviderScope onmuTestProviderScope({
   required Widget child,
   AuthUser? user,
   GroupRepository? groupRepository,
+  FriendRepository? friendRepository,
   MyRepository? myRepository,
   RecordRepository? recordRepository,
   PreferenceProfile? preferenceProfile,
@@ -85,7 +86,9 @@ ProviderScope onmuTestProviderScope({
       recordRepositoryProvider.overrideWithValue(
         recordRepository ?? TestRecordRepository(),
       ),
-      friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
+      friendRepositoryProvider.overrideWithValue(
+        friendRepository ?? TestFriendRepository(),
+      ),
       myRepositoryProvider.overrideWithValue(
         myRepository ?? TestMyRepository(),
       ),
