@@ -109,7 +109,10 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
                           foregroundColor: AppColors.textMain,
                           side: const BorderSide(color: AppColors.lineSoft),
                         ),
-                        child: const Text('이전'),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('이전', maxLines: 1),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -119,9 +122,6 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
                         onPressed: _isSaving ? null : _savePreferenceProfile,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryPink,
-                          textStyle: AppTextStyles.labelSmall.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
                         ),
                         child: _isSaving
                             ? const SizedBox(
@@ -132,10 +132,14 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
                                   color: AppColors.bgDefault,
                                 ),
                               )
-                            : Text(
-                                willCompleteOnboarding
-                                    ? '홈으로 가기'
-                                    : '첫 설정 페이지로 돌아가기',
+                            : FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  willCompleteOnboarding
+                                      ? '홈으로 가기'
+                                      : '첫 설정 페이지로 돌아가기',
+                                  maxLines: 1,
+                                ),
                               ),
                       ),
                     ),

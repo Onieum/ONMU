@@ -143,7 +143,7 @@ class ApiFriendRepository implements FriendRepository {
     required String userCode,
   }) {
     final memo = value.trim();
-    final looksLikeGeneratedUserCode = RegExp(r'^\d{8,12}$').hasMatch(memo);
+    final looksLikeGeneratedUserCode = RegExp(r'^\d+$').hasMatch(memo);
     if (memo.isEmpty ||
         memo == publicId ||
         memo == userCode ||

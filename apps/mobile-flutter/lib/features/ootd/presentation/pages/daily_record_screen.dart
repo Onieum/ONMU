@@ -364,7 +364,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
         backgroundColor: AppColors.transparent,
@@ -508,6 +508,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               child: TextField(
                 controller: _tagController,
                 decoration: const InputDecoration(hintText: '# 카페 #산책 #기록'),
+                textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _addTag(),
               ),
             ),
@@ -516,7 +517,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               width: 92,
               child: ElevatedButton(
                 onPressed: _addTag,
-                child: const Text('?곕떽?', maxLines: 1, softWrap: false),
+                child: const Text('추가', maxLines: 1, softWrap: false),
               ),
             ),
           ],
@@ -666,6 +667,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             maxLines: 2,
             maxLength: _photoCommentMaxLength,
             maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
             decoration: InputDecoration(
               hintText: '사진에 대한 코멘트',
               counterStyle: AppTextStyles.tiny.copyWith(

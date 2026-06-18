@@ -747,7 +747,10 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                       foregroundColor: AppColors.textMain,
                       side: const BorderSide(color: AppColors.lineSoft),
                     ),
-                    child: const Text('이전'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('이전', maxLines: 1),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -760,11 +763,11 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                     backgroundColor: isStart || isLast
                         ? AppColors.primaryPink
                         : AppColors.primaryPurple,
-                    textStyle: AppTextStyles.labelSmall.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
                   ),
-                  child: Text(isStart ? '시작하기' : label),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(isStart ? '시작하기' : label, maxLines: 1),
+                  ),
                 ),
               ),
             ],
