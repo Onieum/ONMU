@@ -1,8 +1,13 @@
 part of 'my_page.dart';
 
 class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.onAlarmTap, required this.onSettingTap});
+  const _PageHeader({
+    required this.hasUnreadNotifications,
+    required this.onAlarmTap,
+    required this.onSettingTap,
+  });
 
+  final bool hasUnreadNotifications;
   final VoidCallback onAlarmTap;
   final VoidCallback onSettingTap;
 
@@ -32,7 +37,7 @@ class _PageHeader extends StatelessWidget {
         const Spacer(),
         _HeaderIconButton(
           icon: Icons.notifications_none_rounded,
-          showDot: true,
+          showDot: hasUnreadNotifications,
           onTap: onAlarmTap,
         ),
         const SizedBox(width: 8),

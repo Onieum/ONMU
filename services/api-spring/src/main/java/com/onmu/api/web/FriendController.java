@@ -64,6 +64,23 @@ public class FriendController {
     return ResponseEntity.status(HttpStatus.CREATED).body(friendService.addFriend(user.userId(), request));
   }
 
+  @PostMapping("/me/friend-requests/{requestId}/accept")
+  public FriendResponse acceptFriendRequest(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @PathVariable UUID requestId
+  ) {
+    return friendService.acceptFriendRequest(user.userId(), requestId);
+  }
+
+  @PostMapping("/me/friend-requests/{requestId}/decline")
+  public ResponseEntity<Void> declineFriendRequest(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @PathVariable UUID requestId
+  ) {
+    friendService.declineFriendRequest(user.userId(), requestId);
+    return ResponseEntity.noContent().build();
+  }
+
   @PatchMapping("/me/friends/{friendUserId}")
   public FriendResponse updateFriend(
     @AuthenticationPrincipal AuthenticatedUser user,

@@ -109,16 +109,18 @@ class ApiFriendRepository implements FriendRepository {
       OnmuJson.readString(json, 'displayName'),
       OnmuJson.readString(json, 'name'),
     ], fallback: '친구');
-    final memo = OnmuJson.readString(json, 'memo', userCode);
+    final memo = OnmuJson.readString(json, 'memo');
+    final introText = OnmuJson.readString(json, 'introText');
     return FriendProfile(
       userId: OnmuJson.readString(json, 'userId'),
       publicId: publicId,
       userCode: userCode,
       name: name,
-      preferenceSummary: memo.isEmpty ? userCode : memo,
+      preferenceSummary: introText,
       isFriend: true,
       isFavorite: OnmuJson.readBool(json, 'favorite'),
       memo: memo,
+      introText: introText,
       profileImageUrl: OnmuJson.readString(
         json,
         'profileImageUrl',
