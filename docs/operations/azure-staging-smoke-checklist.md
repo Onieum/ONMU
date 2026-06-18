@@ -148,11 +148,17 @@ Dev-safe 알림 E2E에서는 `provider=dev`, `status=skipped_dev` delivery 기�
 
 ### 7.1 Notification API count-only helper
 
-반복 가능한 API contract 확인은 Windows PowerShell에서 `scripts/windows/smoke-notification-staging.ps1`를 사용한다. 이 스크립트는 Authorization 값, raw push token, raw request/response body를 출력하지 않고 endpoint별 status/count/boolean만 JSON Lines로 출력한다.
+반복 가능한 API contract 확인은 Windows PowerShell에서 `scripts/windows/smoke-notification-staging.ps1`를 사용한다. 이 스크립트는 Authorization 값, raw push token, raw request/response body를 출력하지 않고 endpoint별 status/count/boolean만 JSON Lines로 출력한다. 기본 실행은 알림 read mutation 없이 목록/count/preferences/push-token readiness만 확인한다.
 
 ```powershell
 $env:ONMU_STAGING_ACCESS_TOKEN = "<short-lived access token>"
 .\scripts\windows\smoke-notification-staging.ps1
+```
+
+단건 read와 `read-all`은 전용 staging smoke 사용자/token 또는 synthetic notification fixture가 준비된 경우에만 명시적으로 켠다. 단건 read는 `-IncludeReadOne`을 주면 현재 목록의 첫 알림을 대상으로 하고, 더 안전하게는 `-NotificationId <notification UUID>`로 smoke fixture 알림을 지정한다.
+
+```powershell
+.\scripts\windows\smoke-notification-staging.ps1 -NotificationId "<fixture notification UUID>"
 ```
 
 `read-all`은 전용 테스트 사용자 또는 synthetic notification fixture가 준비된 경우에만 명시적으로 켠다.
@@ -164,12 +170,12 @@ $env:ONMU_STAGING_ACCESS_TOKEN = "<short-lived access token>"
 보고에는 다음 항목만 남긴다.
 
 - notification list count, unread count
-- 단건 read 후 unread count
+- 단건 read 실행 여부와, 명시 실행 시 read 후 unread count
 - preferences item count
 - push token register/deactivate의 provider/status/registered/tokenLast4 존재 여부
 - `read-all` 실행 여부와 updated count
 
-토큰 값 자체, 알림 본문, 사용자 식별자, Authorization header, raw JSON body는 보고하지 않는다.
+토큰 값 자체, 알림 본문, 사용자 식별자, Authorization header, raw JSON body는 보고하지 않는다. helper 실패 시에도 raw response body를 출력하지 않고 `{step, ok=false, statusCode, errorType}` 형태의 sanitized JSON Line만 남긴다.
 
 ## 8. Mobile flow smoke
 
