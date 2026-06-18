@@ -75,7 +75,6 @@ class MyProfileController {
     } on DioException catch (error) {
       throw FriendAddException.fromDio(error);
     }
-    _ref.invalidate(friendsProvider);
   }
 }
 

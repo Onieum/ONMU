@@ -206,7 +206,10 @@ class _PreferenceBottomCta extends StatelessWidget {
                       foregroundColor: AppColors.textMain,
                       side: const BorderSide(color: AppColors.lineSoft),
                     ),
-                    child: const Text('이전'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('이전', maxLines: 1),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -219,11 +222,11 @@ class _PreferenceBottomCta extends StatelessWidget {
                     backgroundColor: isStart
                         ? AppColors.primaryPink
                         : AppColors.primaryPurple,
-                    textStyle: AppTextStyles.labelSmall.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
                   ),
-                  child: Text(buttonLabel),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(buttonLabel, maxLines: 1),
+                  ),
                 ),
               ),
             ],
