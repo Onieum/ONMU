@@ -155,7 +155,9 @@ class OnmuApiServiceTests {
 
     assertThat(summary).extracting("viewer")
       .isInstanceOfSatisfying(Map.class, viewerValue ->
-        assertThat(viewerValue).containsEntry("displayName", "인증 사용자"));
+        assertThat(viewerValue)
+          .containsEntry("nickname", "인증 사용자")
+          .doesNotContainKey("displayName"));
   }
 
   @Test
@@ -182,12 +184,12 @@ class OnmuApiServiceTests {
     Map<String, Object> profile = service.userMe(viewer.getId());
 
     assertThat(profile)
-      .containsEntry("displayName", "나")
-      .containsEntry("nickname", "나");
+      .containsEntry("nickname", "나")
+      .doesNotContainKey("displayName");
   }
 
   @Test
-  void userMeDoesNotLetDefaultNicknameOverrideProviderDisplayName() {
+  void userMeDoesNotExposeDefaultNicknameWhenProfileWasUpdated() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "ONMU User");
     viewer.updateProfile("카카오 사용자", null, null, null, null);
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
@@ -196,8 +198,8 @@ class OnmuApiServiceTests {
     Map<String, Object> profile = service.userMe(viewer.getId());
 
     assertThat(profile)
-      .containsEntry("displayName", "카카오 사용자")
-      .containsEntry("nickname", "ONMU User");
+      .containsEntry("nickname", "카카오 사용자")
+      .doesNotContainKey("displayName");
   }
 
   @Test
@@ -389,7 +391,7 @@ class OnmuApiServiceTests {
       .isInstanceOfSatisfying(List.class, participants -> {
         assertThat(participants).hasSize(1);
         Map<?, ?> participant = (Map<?, ?>) participants.getFirst();
-        assertThat(participant.get("displayName")).isEqualTo("지민");
+        assertThat(participant.get("nickname")).isEqualTo("지민");
         assertThat(participant.get("status")).isEqualTo("joined");
         assertThat(participant.get("fallback")).isEqualTo(false);
         assertThat(participant.get("preferenceProfile"))
@@ -838,7 +840,7 @@ class OnmuApiServiceTests {
 
     assertThat(participant)
       .containsEntry("userId", target.getId().toString())
-      .containsEntry("displayName", "민수")
+      .containsEntry("nickname", "민수")
       .containsEntry("status", "joined");
   }
 
@@ -1254,8 +1256,8 @@ class OnmuApiServiceTests {
     );
   }
 
-  private UserEntity user(String id, String displayName) {
-    return new UserEntity(java.util.UUID.fromString(id), displayName);
+  private UserEntity user(String id, String nickname) {
+    return new UserEntity(java.util.UUID.fromString(id), nickname);
   }
 
   private String mojibake(String value) {

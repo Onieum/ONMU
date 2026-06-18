@@ -7,7 +7,7 @@ public record OAuthLoginRequest(
   @Size(max = 4096) String providerAccessToken,
   @Size(max = 4096) String providerIdToken,
   @Size(max = 120) String devVerifiedSubject,
-  @Size(max = 80) String displayName,
+  @Size(max = 80) String providerProfileName,
   @Size(max = 254) String email,
   @Size(max = 2048) String profileImageUrl,
   @Size(max = 512) String state
@@ -16,23 +16,23 @@ public record OAuthLoginRequest(
     String authorizationCode,
     String providerAccessToken,
     String devVerifiedSubject,
-    String displayName,
+    String providerProfileName,
     String email,
     String profileImageUrl
   ) {
-    this(authorizationCode, providerAccessToken, null, devVerifiedSubject, displayName, email, profileImageUrl, null);
+    this(authorizationCode, providerAccessToken, null, devVerifiedSubject, providerProfileName, email, profileImageUrl, null);
   }
 
   public OAuthLoginRequest(
     String authorizationCode,
     String providerAccessToken,
     String devVerifiedSubject,
-    String displayName,
+    String providerProfileName,
     String email,
     String profileImageUrl,
     String state
   ) {
-    this(authorizationCode, providerAccessToken, null, devVerifiedSubject, displayName, email, profileImageUrl, state);
+    this(authorizationCode, providerAccessToken, null, devVerifiedSubject, providerProfileName, email, profileImageUrl, state);
   }
 
   public boolean hasVerificationInput() {

@@ -45,7 +45,7 @@ class ApiMyRepository implements MyRepository {
     String? onboardingStatus,
   }) async {
     final body = {
-      'displayName': profile.realName,
+      'nickname': profile.realName,
       'preferenceProfile': _preferenceProfileJson(profile),
     };
     if (onboardingStatus != null) {
@@ -66,12 +66,13 @@ class ApiMyRepository implements MyRepository {
 
   MyProfile _profileFromJson(Map<String, dynamic> json) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
-    final displayName = resolveOnmuDisplayName([
+    final nickname = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
       OnmuJson.readString(json, 'displayName'),
     ], fallback: '');
     final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
-      realName: displayName,
+      realName: nickname,
       introText: _readProfileText(preference, 'introText', _defaultIntroText),
       region: regionSelection.displayName,
       regionSelection: regionSelection,

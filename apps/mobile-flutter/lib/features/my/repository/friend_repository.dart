@@ -107,6 +107,7 @@ class ApiFriendRepository implements FriendRepository {
     final name = resolveOnmuDisplayName([
       OnmuJson.readString(json, 'nickname'),
       OnmuJson.readString(json, 'displayName'),
+      OnmuJson.readString(json, 'name'),
     ], fallback: '친구');
     final memo = OnmuJson.readString(json, 'memo', userCode);
     return FriendProfile(
@@ -132,7 +133,8 @@ class ApiFriendRepository implements FriendRepository {
 
   MyProfile _profileFromJson(Map<String, dynamic> json, FriendProfile friend) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
-    final displayName = resolveOnmuDisplayName([
+    final nickname = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
       OnmuJson.readString(json, 'displayName'),
       friend.name,
     ], fallback: '친구');
@@ -141,7 +143,7 @@ class ApiFriendRepository implements FriendRepository {
       preference['regionVisibility'],
     );
     return MyProfile(
-      realName: displayName,
+      realName: nickname,
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''

@@ -742,9 +742,9 @@ class ApiGroupRepository implements GroupRepository {
           if (voter is Map) {
             final map = Map<String, dynamic>.from(voter);
             return resolveOnmuDisplayName([
+              OnmuJson.readString(map, 'nickname'),
               OnmuJson.readString(map, 'displayName'),
               OnmuJson.readString(map, 'name'),
-              OnmuJson.readString(map, 'nickname'),
             ], fallback: '');
           }
           return voter.toString();

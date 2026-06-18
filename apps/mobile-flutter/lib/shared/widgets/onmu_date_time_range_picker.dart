@@ -521,12 +521,12 @@ class _TimeRecommendationTile extends StatelessWidget {
                       recommendation: recommendation,
                       compact: true,
                     ),
-                    Text(
-                      recommendation.availability,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: recommendation.statusColor,
+                    if (recommendation.availability.isNotEmpty)
+                      Text(
+                        recommendation.availability,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: recommendation.statusColor),
                       ),
-                    ),
                   ],
                 ),
               ],
@@ -584,7 +584,7 @@ class _TimeRecommendation {
   int get durationHours => duration.inHours;
 
   String get availability =>
-      generic ? '일반 추천' : '$preferredCount명 선호, $unavailableCount명 비선호';
+      generic ? '' : '$preferredCount명 선호, $unavailableCount명 비선호';
 
   IconData get statusIcon =>
       isRecommended ? Icons.star_rounded : Icons.close_rounded;
@@ -764,11 +764,9 @@ _TimeRecommendationResult _fallbackTimeRecommendationResult(DateTime anchor) {
   ];
   return _TimeRecommendationResult(
     recommendations: recommendations,
-    highlightedDates: [
-      date,
-      date.add(const Duration(days: 2)),
-      date.add(const Duration(days: 7)),
-    ],
+    highlightedDates: _uniqueDates(
+      recommendations.map((recommendation) => recommendation.start),
+    ),
   );
 }
 

@@ -290,6 +290,6 @@ MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
   }
 
   return profile.copyWith(
-    realName: resolveOnmuDisplayName([user?.displayName], fallback: '사용자'),
+    realName: resolveOnmuDisplayName([user?.nickname], fallback: '사용자'),
   );
 }

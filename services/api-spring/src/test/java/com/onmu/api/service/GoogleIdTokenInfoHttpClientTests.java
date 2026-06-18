@@ -47,7 +47,7 @@ class GoogleIdTokenInfoHttpClientTests {
     assertThat(tokenInfo.audience()).isEqualTo("google-client-id");
     assertThat(tokenInfo.subject()).isEqualTo("google-subject");
     assertThat(tokenInfo.expiresAt()).isEqualTo(Instant.ofEpochSecond(1781309400L));
-    assertThat(tokenInfo.displayName()).isEqualTo("Google User");
+    assertThat(tokenInfo.providerProfileName()).isEqualTo("Google User");
   }
 
   @Test

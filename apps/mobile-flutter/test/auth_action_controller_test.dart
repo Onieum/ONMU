@@ -61,7 +61,7 @@ void main() {
           id: 'usr_kakao',
           publicId: 'usr_kakao',
           provider: 'KAKAO',
-          displayName: '카카오 프로필',
+          nickname: '카카오 프로필',
         );
       final socialAuthService = SocialAuthService(
         kakaoCredentialLoader: () async => const OAuthProviderCredential(
@@ -81,7 +81,7 @@ void main() {
 
       await container.read(authActionProvider).signInWithKakao();
 
-      expect(container.read(authUserProvider)?.displayName, '카카오 프로필');
+      expect(container.read(authUserProvider)?.nickname, '카카오 프로필');
       expect(apiClient.authorizationHeader, contains('onmu-access-jwt'));
     },
   );
@@ -298,7 +298,7 @@ class RecordingAuthRepository implements AuthRepository {
         id: userId,
         publicId: userId,
         provider: provider,
-        displayName: '$provider 사용자',
+        nickname: '$provider 사용자',
       ),
       tokens: OnmuAuthTokens(
         accessToken: 'onmu-access-jwt',

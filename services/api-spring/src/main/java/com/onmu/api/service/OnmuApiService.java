@@ -130,7 +130,7 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", user.getPublicId());
     value.put("databaseId", user.getId().toString());
-    value.put("displayName", user.getDisplayName());
+    value.put("nickname", nickname(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));
     value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
@@ -144,8 +144,7 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", user.getPublicId());
     value.put("databaseId", user.getId().toString());
-    value.put("displayName", displayName(user));
-    value.put("nickname", user.getNickname());
+    value.put("nickname", nickname(user));
     value.put("userCode", userCodeService.findActiveCode(user.getId()).orElse(null));
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
@@ -166,7 +165,7 @@ public class OnmuApiService {
   public Map<String, Object> updateUserProfile(java.util.UUID userId, UpdateUserProfileRequest request) {
     UserEntity user = userOrThrow(userId);
     user.updateProfile(
-      request.displayName(),
+      request.nickname(),
       request.profileImageUrl(),
       request.preferenceProfile() == null ? null : toJson(sanitizeProfilePayload(request.preferenceProfile())),
       request.pixelCharacter() == null ? null : toJson(request.pixelCharacter()),
@@ -1101,7 +1100,7 @@ public class OnmuApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", participant.getId().toString());
     value.put("userId", user.getId().toString());
-    value.put("displayName", displayName(user));
+    value.put("nickname", nickname(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     value.put("status", participant.getStatus());
@@ -1126,7 +1125,8 @@ public class OnmuApiService {
 
   private Map<String, Object> memberCard(Map<String, Object> participant) {
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("name", stringOrDefault((String) participant.get("displayName"), "참여자"));
+    value.put("name", stringOrDefault((String) participant.get("nickname"), "참여자"));
+    value.put("nickname", stringOrDefault((String) participant.get("nickname"), "참여자"));
     value.put("message", "");
     value.put("badge", "참여 중");
     value.put("selected", true);
@@ -1136,24 +1136,24 @@ public class OnmuApiService {
     return value;
   }
 
-  private String displayName(UserEntity user) {
-    return firstNonDefaultDisplayName(user.getNickname(), user.getDisplayName(), "나");
+  private String nickname(UserEntity user) {
+    return firstNonDefaultText(user.getNickname(), "나");
   }
 
-  private String firstNonDefaultDisplayName(String... candidates) {
+  private String firstNonDefaultText(String... candidates) {
     for (String candidate : candidates) {
-      if (candidate != null && !candidate.isBlank() && !isDefaultDisplayName(candidate)) {
+      if (candidate != null && !candidate.isBlank() && !isDefaultOnmuDisplayName(candidate)) {
         return candidate.trim();
       }
     }
     return "나";
   }
 
-  private boolean isDefaultDisplayName(String displayName) {
-    return displayName == null
-      || displayName.isBlank()
-      || "ONMU User".equals(displayName.trim())
-      || "ONMU user".equals(displayName.trim());
+  private boolean isDefaultOnmuDisplayName(String value) {
+    return value == null
+      || value.isBlank()
+      || "ONMU User".equals(value.trim())
+      || "ONMU user".equals(value.trim());
   }
 
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft) {

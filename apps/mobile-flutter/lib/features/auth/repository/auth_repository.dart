@@ -71,7 +71,7 @@ AuthUser authUserFromJson(
     id: databaseId.isNotEmpty ? databaseId : publicId,
     publicId: publicId.isEmpty ? null : publicId,
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
-    displayName: resolveOnmuDisplayName([
+    nickname: resolveOnmuDisplayName([
       nickname,
       displayName,
       name,

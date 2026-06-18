@@ -121,7 +121,7 @@ Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
           id: 'user-me',
           publicId: 'user-me',
           provider: 'NAVER',
-          displayName: '나',
+          nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
       ),
@@ -160,7 +160,7 @@ class _PlanDetailTestRepository implements PlanRepository {
           ? const PlanParticipantArrival(
               id: 'participant-me',
               userId: 'user-me',
-              displayName: '나',
+              nickname: '나',
               participantStatus: 'joined',
               arrivalStatus: PlanArrivalStatus.none,
               isFallback: false,
@@ -216,7 +216,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     _currentParticipant = PlanParticipantArrival(
       id: 'participant-me',
       userId: 'user-me',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'joined',
       arrivalStatus: status,
       isFallback: false,
@@ -233,7 +233,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     _currentParticipant = const PlanParticipantArrival(
       id: 'participant-me',
       userId: 'user-me',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'left',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,
@@ -250,7 +250,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     _currentParticipant = PlanParticipantArrival(
       id: userId,
       userId: userId,
-      displayName: userId,
+      nickname: userId,
       participantStatus: 'joined',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: false,

@@ -115,13 +115,13 @@ class SettlementApiServiceTests {
         .filter(user -> userIds.contains(user.getPublicId()))
         .toList();
     });
-    lenient().when(userRepository.findByDisplayNameIn(any())).thenAnswer(invocation -> {
+    lenient().when(userRepository.findByNicknameIn(any())).thenAnswer(invocation -> {
       Collection<?> names = invocation.getArgument(0);
       if (names == null) {
         return List.of();
       }
       return List.of(me, jimin, minsu).stream()
-        .filter(user -> names.contains(user.getDisplayName()))
+        .filter(user -> names.contains(user.getNickname()))
         .toList();
     });
   }
@@ -195,7 +195,7 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void userPublicIdsArePreferredOverDisplayNameFallback() {
+  void userPublicIdsArePreferredOverNicknameFallback() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
 
@@ -218,11 +218,11 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void duplicateDisplayNameFallbackReturnsValidationError() {
+  void duplicateNicknameFallbackReturnsValidationError() {
     UserEntity anotherJimin = user("user-jimin-2", "지민");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findByDisplayNameIn(any())).thenReturn(List.of(jimin, anotherJimin));
+    when(userRepository.findByNicknameIn(any())).thenReturn(List.of(jimin, anotherJimin));
 
     org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.previewSettlement("1", "101", me.getId(), nameFallbackRequest()))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
@@ -344,14 +344,14 @@ class SettlementApiServiceTests {
     )));
   }
 
-  private UserEntity user(String publicId, String displayName) {
+  private UserEntity user(String publicId, String nickname) {
     try {
       var constructor = UserEntity.class.getDeclaredConstructor();
       constructor.setAccessible(true);
       UserEntity user = constructor.newInstance();
       ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
       ReflectionTestUtils.setField(user, "publicId", publicId);
-      ReflectionTestUtils.setField(user, "displayName", displayName);
+      ReflectionTestUtils.setField(user, "nickname", nickname);
       return user;
     } catch (ReflectiveOperationException exception) {
       throw new IllegalStateException("Could not create test user fixture", exception);

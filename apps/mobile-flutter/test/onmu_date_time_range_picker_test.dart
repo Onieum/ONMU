@@ -178,6 +178,15 @@ void main() {
     expect(find.byIcon(Icons.close_rounded), findsWidgets);
     expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
+
+  testWidgets('fallback recommendations do not repeat the generic label', (
+    tester,
+  ) async {
+    await _pumpRangePicker(tester);
+    await _openRangePicker(tester);
+
+    expect(find.text('일반 추천'), findsNWidgets(4));
+  });
 }
 
 Future<void> _pumpRangePicker(

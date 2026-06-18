@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/character_model.dart';
 import '../../../shared/providers/state_providers.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../character/repository/character_repository.dart';
 import '../domain/my_profile.dart';
 import '../repository/friend_repository.dart';
@@ -17,7 +18,16 @@ class MyProfileController {
   final Ref _ref;
 
   Future<void> saveProfile(MyProfile profile) async {
-    await _ref.read(myRepositoryProvider).updateMyProfile(profile);
+    final updated = await _ref
+        .read(myRepositoryProvider)
+        .updateMyProfile(profile);
+    final currentUser = _ref.read(authUserProvider);
+    final nickname = updated.realName.trim();
+    if (currentUser != null && nickname.isNotEmpty) {
+      _ref.read(authUserProvider.notifier).state = currentUser.copyWith(
+        nickname: nickname,
+      );
+    }
     _ref.invalidate(myProfileProvider);
   }
 

@@ -305,7 +305,7 @@ void main() {
                       'label': '온무식당',
                       'candidateId': '201',
                       'voters': [
-                        {'displayName': '민서'},
+                        {'nickname': '민서'},
                         {'name': '하린'},
                       ],
                     },
@@ -384,7 +384,7 @@ void main() {
                   'memberCount': 2,
                   'members': [
                     {
-                      'displayName': '지우',
+                      'nickname': '지우',
                       'profileImageUrl': 'dev/avatars/jiwoo.png',
                     },
                     {

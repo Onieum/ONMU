@@ -16,7 +16,7 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
   List<UserEntity> findByPublicIdIn(Collection<String> publicIds);
 
-  List<UserEntity> findByDisplayNameIn(Collection<String> displayNames);
+  List<UserEntity> findByNicknameIn(Collection<String> nicknames);
 
   @Query(
     value = "SELECT COALESCE((SELECT consented FROM user_consents WHERE user_id = :userId AND consent_type = 'privacy' ORDER BY created_at DESC LIMIT 1), false)",

@@ -33,7 +33,7 @@ class GoogleOAuthIdentityVerifierTests {
 
     assertThat(identity.provider()).isEqualTo("GOOGLE");
     assertThat(identity.providerSubject()).isEqualTo("google-subject");
-    assertThat(identity.displayName()).isEqualTo("Google User");
+    assertThat(identity.providerProfileName()).isEqualTo("Google User");
     assertThat(identity.email()).isEqualTo("google@example.test");
     assertThat(identity.profileImageUrl()).isEqualTo("https://example.test/google.png");
   }

@@ -139,7 +139,7 @@ public class GroupApiService {
       )
     );
 
-    return groupCard(group, 1, List.of(displayName(user)), List.of(userProfile(user, "owner", "active")));
+    return groupCard(group, 1, List.of(nickname(user)), List.of(userProfile(user, "owner", "active")));
   }
 
   private Map<String, Object> groupCard(GroupEntity group) {
@@ -171,17 +171,18 @@ public class GroupApiService {
   }
 
   private Map<String, Object> memberProfile(GroupMemberEntity member) {
-    return userProfile(member.getUser(), member.getRole(), member.getStatus(), memberDisplayName(member));
+    return userProfile(member.getUser(), member.getRole(), member.getStatus(), memberName(member));
   }
 
   private Map<String, Object> userProfile(UserEntity user, String role, String status) {
-    return userProfile(user, role, status, displayName(user));
+    return userProfile(user, role, status, nickname(user));
   }
 
   private Map<String, Object> userProfile(UserEntity user, String role, String status, String name) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("userId", user == null || user.getId() == null ? "" : user.getId().toString());
     value.put("name", name);
+    value.put("nickname", nickname(user));
     value.put("note", roleNote(role));
     value.put("statusLabel", statusLabel(status));
     value.put("invited", isInvited(status));
@@ -235,19 +236,16 @@ public class GroupApiService {
     return group.getDescription();
   }
 
-  private String memberDisplayName(GroupMemberEntity member) {
-    if (member.getDisplayNameOverride() != null && !member.getDisplayNameOverride().isBlank()) {
-      return member.getDisplayNameOverride();
+  private String memberName(GroupMemberEntity member) {
+    if (member.getNameOverride() != null && !member.getNameOverride().isBlank()) {
+      return member.getNameOverride();
     }
-    return displayName(member.getUser());
+    return nickname(member.getUser());
   }
 
-  private String displayName(UserEntity user) {
+  private String nickname(UserEntity user) {
     if (user == null) {
       return "ONMU 사용자";
-    }
-    if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) {
-      return user.getDisplayName();
     }
     if (user.getNickname() != null && !user.getNickname().isBlank()) {
       return user.getNickname();
