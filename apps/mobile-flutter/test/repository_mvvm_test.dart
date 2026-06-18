@@ -696,6 +696,41 @@ void main() {
     await pumpEventQueue();
   });
 
+  test('채팅 ViewModel은 정산 카드 메시지 메타데이터를 유지한다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'settlement-card-1',
+          sender: 'ONMU',
+          message: '성수 브런치 정산이 만들어졌어요.',
+          timeLabel: '14:03',
+          messageType: 'settlement_card',
+          cardType: 'settlement',
+          planId: '101',
+          settlementId: '301',
+          isMine: false,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupChatViewModelProvider('1').future);
+
+    expect(state.messages.single.sender, 'ONMU');
+    expect(state.messages.single.isSettlementCard, isTrue);
+    expect(state.messages.single.planId, '101');
+    expect(state.messages.single.settlementId, '301');
+    expect(state.messages.single.hasSettlementRoute, isTrue);
+  });
+
   test('채팅 ViewModel은 현재 약속의 진행 중 투표가 없으면 투표 카드를 숨긴다', () async {
     final repository = _ChatNoCurrentVoteRepository();
     final container = ProviderContainer(

@@ -259,6 +259,10 @@ class GroupMessage {
     required this.isMine,
     this.id = '',
     this.cursor = '',
+    this.messageType = '',
+    this.cardType = '',
+    this.planId = '',
+    this.settlementId = '',
     this.sendStatus = GroupMessageSendStatus.sent,
     this.senderProfileImageUrl = '',
     this.attachments = const [],
@@ -269,6 +273,10 @@ class GroupMessage {
   final String sender;
   final String message;
   final String timeLabel;
+  final String messageType;
+  final String cardType;
+  final String planId;
+  final String settlementId;
   final bool isMine;
   final GroupMessageSendStatus sendStatus;
   final String senderProfileImageUrl;
@@ -276,6 +284,9 @@ class GroupMessage {
 
   bool get canRetry => isMine && sendStatus.isFailed;
   bool get hasAttachments => attachments.isNotEmpty;
+  bool get isSettlementCard =>
+      messageType == 'settlement_card' || cardType == 'settlement';
+  bool get hasSettlementRoute => planId.isNotEmpty && settlementId.isNotEmpty;
 
   GroupMessage copyWith({
     String? id,
@@ -283,6 +294,10 @@ class GroupMessage {
     String? sender,
     String? message,
     String? timeLabel,
+    String? messageType,
+    String? cardType,
+    String? planId,
+    String? settlementId,
     bool? isMine,
     GroupMessageSendStatus? sendStatus,
     String? senderProfileImageUrl,
@@ -294,6 +309,10 @@ class GroupMessage {
       sender: sender ?? this.sender,
       message: message ?? this.message,
       timeLabel: timeLabel ?? this.timeLabel,
+      messageType: messageType ?? this.messageType,
+      cardType: cardType ?? this.cardType,
+      planId: planId ?? this.planId,
+      settlementId: settlementId ?? this.settlementId,
       isMine: isMine ?? this.isMine,
       sendStatus: sendStatus ?? this.sendStatus,
       senderProfileImageUrl:

@@ -28,6 +28,8 @@ class SettlementPaymentParticipant {
   final String owedAmountLabel;
   final bool included;
   final String profileImageUrl;
+
+  String get selectionKey => userId.isNotEmpty ? userId : name;
 }
 
 class SettlementPaymentItem {

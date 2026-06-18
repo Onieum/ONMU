@@ -34,30 +34,36 @@ class PlanSettlementTargetSelectionPage extends StatefulWidget {
 class _PlanSettlementTargetSelectionPageState
     extends State<PlanSettlementTargetSelectionPage> {
   String? _mode;
-  final Set<String> _selectedNames = {};
+  final Set<String> _selectedKeys = {};
 
   void _selectMode(String mode, SettlementPaymentItem item) {
     setState(() {
       _mode = mode;
       if (mode == '전체 참여자') {
-        _selectedNames
+        _selectedKeys
           ..clear()
-          ..addAll(item.participants.map((participant) => participant.name));
+          ..addAll(
+            item.participants.map((participant) => participant.selectionKey),
+          );
       }
     });
   }
 
-  void _toggleParticipant(String name, SettlementPaymentItem item) {
+  void _toggleParticipant(
+    SettlementPaymentParticipant participant,
+    SettlementPaymentItem item,
+  ) {
     if (_mode == '전체 참여자') {
       _selectMode('직접 선택', item);
     }
 
+    final selectionKey = participant.selectionKey;
     setState(() {
-      if (_selectedNames.contains(name)) {
-        _selectedNames.remove(name);
+      if (_selectedKeys.contains(selectionKey)) {
+        _selectedKeys.remove(selectionKey);
         return;
       }
-      _selectedNames.add(name);
+      _selectedKeys.add(selectionKey);
     });
   }
 
@@ -95,10 +101,10 @@ class _PlanSettlementTargetSelectionPageState
               widget.itemId,
             );
             _mode ??= item.targetModeLabel;
-            if (_selectedNames.isEmpty) {
-              _selectedNames.addAll(
+            if (_selectedKeys.isEmpty) {
+              _selectedKeys.addAll(
                 item.includedParticipants.map(
-                  (participant) => participant.name,
+                  (participant) => participant.selectionKey,
                 ),
               );
             }
@@ -109,14 +115,15 @@ class _PlanSettlementTargetSelectionPageState
               item: item,
               items: settlement.paymentItems,
               mode: _mode!,
-              selectedNames: _selectedNames,
+              selectedKeys: _selectedKeys,
               onModeSelected: (mode) => _selectMode(mode, item),
-              onParticipantSelected: (name) => _toggleParticipant(name, item),
+              onParticipantSelected: (participant) =>
+                  _toggleParticipant(participant, item),
               onSave: () async {
                 final targets = item.participants
                     .where(
                       (participant) =>
-                          _selectedNames.contains(participant.name),
+                          _selectedKeys.contains(participant.selectionKey),
                     )
                     .toList(growable: false);
                 await ref
@@ -177,7 +184,7 @@ class _SettlementTargetContent extends StatelessWidget {
     required this.item,
     required this.items,
     required this.mode,
-    required this.selectedNames,
+    required this.selectedKeys,
     required this.onModeSelected,
     required this.onParticipantSelected,
     required this.onSave,
@@ -188,14 +195,14 @@ class _SettlementTargetContent extends StatelessWidget {
   final SettlementPaymentItem item;
   final List<SettlementPaymentItem> items;
   final String mode;
-  final Set<String> selectedNames;
+  final Set<String> selectedKeys;
   final ValueChanged<String> onModeSelected;
-  final ValueChanged<String> onParticipantSelected;
+  final ValueChanged<SettlementPaymentParticipant> onParticipantSelected;
   final Future<void> Function() onSave;
 
   @override
   Widget build(BuildContext context) {
-    final selectedCount = selectedNames.length;
+    final selectedCount = selectedKeys.length;
 
     return OnmuScaffold(
       title: '정산 대상자 선택',
@@ -208,7 +215,7 @@ class _SettlementTargetContent extends StatelessWidget {
         icon: Icons.check_circle_outline,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: selectedNames.isEmpty
+        onPressed: selectedKeys.isEmpty
             ? null
             : () async {
                 try {
@@ -241,9 +248,9 @@ class _SettlementTargetContent extends StatelessWidget {
         for (final participant in item.participants) ...[
           _TargetParticipantRow(
             participant: participant,
-            selected: selectedNames.contains(participant.name),
+            selected: selectedKeys.contains(participant.selectionKey),
             editableAmount: mode == '금액 다르게',
-            onTap: () => onParticipantSelected(participant.name),
+            onTap: () => onParticipantSelected(participant),
           ),
           const SizedBox(height: AppSpacing.xs),
         ],

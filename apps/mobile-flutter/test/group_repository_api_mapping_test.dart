@@ -450,6 +450,15 @@ void main() {
                     'messageType': 'vote_card',
                     'createdAt': '2026-06-09T14:03:00+09:00',
                   },
+                  {
+                    'senderName': 'ONMU',
+                    'message': '성수 브런치 정산이 만들어졌어요.',
+                    'messageType': 'settlement_card',
+                    'cardType': 'settlement',
+                    'planId': '101',
+                    'settlementId': '301',
+                    'isMine': false,
+                  },
                   {'createdAt': 'not-a-date'},
                 ],
               },
@@ -464,7 +473,7 @@ void main() {
     ).fetchMessages('1');
 
     expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
-    expect(messages, hasLength(3));
+    expect(messages, hasLength(4));
     expect(messages[0].sender, '지민');
     expect(messages[0].message, '안녕!');
     expect(messages[0].timeLabel, '14:00');
@@ -487,8 +496,16 @@ void main() {
     expect(messages[1].timeLabel, _localTimeLabel('2026-06-09T14:03:00+09:00'));
     expect(messages[1].isMine, isFalse);
     expect(messages[2].sender, 'ONMU');
-    expect(messages[2].message, '새 활동이 있어요.');
-    expect(messages[2].timeLabel, '');
+    expect(messages[2].message, '성수 브런치 정산이 만들어졌어요.');
+    expect(messages[2].messageType, 'settlement_card');
+    expect(messages[2].cardType, 'settlement');
+    expect(messages[2].planId, '101');
+    expect(messages[2].settlementId, '301');
+    expect(messages[2].isSettlementCard, isTrue);
+    expect(messages[2].hasSettlementRoute, isTrue);
+    expect(messages[3].sender, 'ONMU');
+    expect(messages[3].message, '새 활동이 있어요.');
+    expect(messages[3].timeLabel, '');
   });
 
   test('API 메시지 페이지 JSON을 cursor pagination 상태로 매핑한다', () async {

@@ -226,9 +226,15 @@ class _SettlementHeaderCard extends StatelessWidget {
             children: [
               _MiniSummaryTile(label: '총액', value: settlement.totalAmountLabel),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '결제 항목', value: '2개'),
+              _MiniSummaryTile(
+                label: '결제 항목',
+                value: '${settlement.paymentItems.length}개',
+              ),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '송금', value: '5건'),
+              _MiniSummaryTile(
+                label: '송금',
+                value: '${settlement.transfers.length}건',
+              ),
             ],
           ),
         ],

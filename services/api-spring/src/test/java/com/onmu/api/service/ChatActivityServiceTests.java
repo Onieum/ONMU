@@ -516,6 +516,31 @@ class ChatActivityServiceTests {
   }
 
   @Test
+  void settlementCardMessagesExposeRoutingMetadata() {
+    ChatActivityEventEntity settlementCard = new ChatActivityEventEntity(
+      group,
+      null,
+      "settlement.created",
+      "{\"senderName\":\"ONMU\",\"messageType\":\"settlement_card\",\"cardType\":\"settlement\",\"message\":\"정산이 만들어졌어요.\",\"planId\":\"101\",\"settlementId\":\"301\"}",
+      Instant.parse("2026-06-09T05:04:00Z")
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(chatActivityEventRepository.findLatestPage(eq(group), any(Pageable.class)))
+      .thenReturn(List.of(settlementCard));
+    stubUnread(0L);
+
+    List<Map<String, Object>> messages = messages(service.messages("1", currentUser.getId(), null, null));
+
+    assertThat(messages.getFirst())
+      .containsEntry("senderName", "ONMU")
+      .containsEntry("messageType", "settlement_card")
+      .containsEntry("cardType", "settlement")
+      .containsEntry("planId", "101")
+      .containsEntry("settlementId", "301");
+  }
+
+  @Test
   void markReadUpdatesLastReadCursorAndReturnsUnreadCount() {
     ChatActivityEventEntity lastMessage = new ChatActivityEventEntity(
       group,
