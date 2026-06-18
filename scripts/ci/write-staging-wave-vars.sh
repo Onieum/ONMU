@@ -368,59 +368,67 @@ EOF
     append_frontdoor_keepalive_targets
     ;;
   ai_foundation)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    cat >> "$output_path" <<EOF
+
+spring_api_image = "${STAGING_SPRING_API_IMAGE}"
+worker_image     = "${STAGING_WORKER_IMAGE}"
+worker_enabled   = true
 
 enabled_modules = {
   observability              = true
   container_registry         = true
   key_vault                  = true
-  postgres                   = false
-  redis                      = false
+  postgres                   = true
+  redis                      = true
   storage                    = true
   cdn                        = false
-  front_door                 = false
-  eventhubs                  = false
-  container_apps_environment = false
-  container_apps             = false
-  ai_foundation              = true
-  diagnostics                = false
-  rbac_assignments           = false
-}
-
-enabled_diagnostic_targets = {
-  foundation = true
-  redis      = false
-  front_door = false
-  ai         = false
-}
-EOF
-    ;;
-  ai_diagnostics)
-    append_placeholder_images
-    cat >> "$output_path" <<'EOF'
-
-enabled_modules = {
-  observability              = true
-  container_registry         = true
-  key_vault                  = true
-  postgres                   = false
-  redis                      = false
-  storage                    = true
-  cdn                        = false
-  front_door                 = false
-  eventhubs                  = false
-  container_apps_environment = false
-  container_apps             = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = true
   ai_foundation              = true
   diagnostics                = true
   rbac_assignments           = false
 }
+EOF
+    append_frontdoor_keepalive_targets
+    ;;
+  ai_diagnostics)
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    cat >> "$output_path" <<EOF
+
+spring_api_image = "${STAGING_SPRING_API_IMAGE}"
+worker_image     = "${STAGING_WORKER_IMAGE}"
+worker_enabled   = true
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = true
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = true
+  ai_foundation              = true
+  diagnostics                = true
+  rbac_assignments           = false
+}
+EOF
+    cat >> "$output_path" <<'EOF'
 
 enabled_diagnostic_targets = {
   foundation = true
-  redis      = false
-  front_door = false
+  redis      = true
+  front_door = true
   ai         = true
 }
 EOF
