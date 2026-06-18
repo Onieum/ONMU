@@ -127,11 +127,19 @@ case "$wave" in
     ;;
   ai_foundation)
     unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
-    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_machine_learning_workspace" and .type != "azurerm_cognitive_account" and .type != "azurerm_cognitive_deployment" and .type != "azurerm_monitor_diagnostic_setting" and .type != "azurerm_role_assignment")) | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_machine_learning_workspace" and .type != "azurerm_cognitive_account" and .type != "azurerm_cognitive_deployment")) | .address] | length' "$plan_json")"
     ml_workspace_creates="$(count_types_by_action create azurerm_machine_learning_workspace)"
     cognitive_account_creates="$(count_types_by_action create azurerm_cognitive_account)"
     if [ "$unexpected_mutation" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$ml_workspace_creates" -ne 1 ] || [ "$cognitive_account_creates" -ne 1 ]; then
-      echo "Only AI foundation creates, AI diagnostic settings, optional runtime role assignments, and existing resource no-op/read are allowed for ai_foundation." >&2
+      echo "Only AI foundation creates and existing resource no-op/read are allowed for ai_foundation. Run ai_diagnostics after foundation resources are in state." >&2
+      exit 1
+    fi
+    ;;
+  ai_diagnostics)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .type] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .type != "azurerm_monitor_diagnostic_setting") | .type] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ]; then
+      echo "Only AI diagnostic setting create and existing resource no-op/read are allowed for ai_diagnostics." >&2
       exit 1
     fi
     ;;

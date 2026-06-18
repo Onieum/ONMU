@@ -47,6 +47,7 @@ on:
           - api_app_ready
           - worker_app_ready
           - ai_foundation
+          - ai_diagnostics
           - db_and_app_ready
       apply_wave:
         description: "Apply the selected wave after protected environment approval. Leave false for plan only."

@@ -384,6 +384,35 @@ enabled_modules = {
   container_apps_environment = false
   container_apps             = false
   ai_foundation              = true
+  diagnostics                = false
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
+  front_door = false
+  ai         = false
+}
+EOF
+    ;;
+  ai_diagnostics)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = false
+  storage                    = true
+  cdn                        = false
+  front_door                 = false
+  eventhubs                  = false
+  container_apps_environment = false
+  container_apps             = false
+  ai_foundation              = true
   diagnostics                = true
   rbac_assignments           = false
 }
