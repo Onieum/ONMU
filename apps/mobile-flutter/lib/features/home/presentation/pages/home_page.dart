@@ -26,6 +26,9 @@ String _resolveDisplayName(AuthUser? user) {
   if (displayName == null || displayName.isEmpty) {
     return '사용자';
   }
+  if (displayName.toLowerCase() == 'onmu user') {
+    return '사용자';
+  }
   return displayName;
 }
 
@@ -76,7 +79,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final state = ref.watch(homeViewModelProvider);
     final authBootstrap = ref.watch(authBootstrapProvider);
     final authUser =
-        authBootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+        ref.watch(authUserProvider) ?? authBootstrap.asData?.value.user;
     final displayName = _resolveDisplayName(authUser);
 
     return state.when(
