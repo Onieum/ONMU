@@ -610,7 +610,7 @@ class _FavoriteFriend extends StatelessWidget {
                   opacity: 1,
                   child: _CharacterPortrait(
                     size: 54,
-                    character: _characterForFriend(friend),
+                    character: friend.character ?? _characterForFriend(friend),
                     profileImageUrl: friend.profileImageUrl,
                   ),
                 ),
@@ -813,7 +813,7 @@ class _FavoriteFriendCandidateTile extends StatelessWidget {
           children: [
             _CharacterPortrait(
               size: 46,
-              character: _characterForFriend(friend),
+              character: friend.character ?? _characterForFriend(friend),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -855,7 +855,7 @@ class _FriendListTile extends StatelessWidget {
           children: [
             _CharacterPortrait(
               size: 52,
-              character: _characterForFriend(friend),
+              character: friend.character ?? _characterForFriend(friend),
               profileImageUrl: friend.profileImageUrl,
             ),
             const SizedBox(width: 14),
@@ -884,20 +884,7 @@ class _FriendListTile extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(
-              flex: 4,
-              child: Text(
-                friend.introText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSub,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
+            const Spacer(),
             const Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textSub,

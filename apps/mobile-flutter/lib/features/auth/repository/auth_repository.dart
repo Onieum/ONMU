@@ -16,6 +16,10 @@ abstract interface class AuthRepository {
   Future<AuthUser?> fetchCurrentUser();
 
   Future<AuthSession> exchangeOAuthLogin(OAuthProviderCredential credential);
+
+  Future<void> logout(String? refreshToken);
+
+  Future<void> withdraw();
 }
 
 class ApiAuthRepository implements AuthRepository {
@@ -54,6 +58,22 @@ class ApiAuthRepository implements AuthRepository {
         'authProvider': provider.toUpperCase(),
     }, mediaBaseUrl: _client.baseUrl);
     return AuthSession(user: user, tokens: tokens);
+  }
+
+  @override
+  Future<void> logout(String? refreshToken) async {
+    await _client.postObject(
+      '/api/v1/auth/logout',
+      body: {
+        if (refreshToken != null && refreshToken.trim().isNotEmpty)
+          'refreshToken': refreshToken.trim(),
+      },
+    );
+  }
+
+  @override
+  Future<void> withdraw() async {
+    await _client.deleteObject('/api/v1/users/me');
   }
 }
 

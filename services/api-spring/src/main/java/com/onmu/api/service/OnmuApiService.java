@@ -16,6 +16,7 @@ import com.onmu.api.domain.PlanParticipantEntity;
 import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.RefreshTokenRepository;
 import com.onmu.api.domain.SchedulePlaceEntity;
 import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.domain.SettlementDraftEntity;
@@ -65,6 +66,7 @@ public class OnmuApiService {
 
   private final UserRepository userRepository;
   private final AuthIdentityRepository authIdentityRepository;
+  private final RefreshTokenRepository refreshTokenRepository;
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
   private final VoteRepository voteRepository;
@@ -84,6 +86,7 @@ public class OnmuApiService {
   public OnmuApiService(
     UserRepository userRepository,
     AuthIdentityRepository authIdentityRepository,
+    RefreshTokenRepository refreshTokenRepository,
     GroupRepository groupRepository,
     PlanRepository planRepository,
     VoteRepository voteRepository,
@@ -102,6 +105,7 @@ public class OnmuApiService {
   ) {
     this.userRepository = userRepository;
     this.authIdentityRepository = authIdentityRepository;
+    this.refreshTokenRepository = refreshTokenRepository;
     this.groupRepository = groupRepository;
     this.planRepository = planRepository;
     this.voteRepository = voteRepository;
@@ -174,6 +178,16 @@ public class OnmuApiService {
       request.onboardingStatus()
     );
     return userMe(user);
+  }
+
+  @Transactional
+  public Map<String, Object> deleteUser(java.util.UUID userId) {
+    UserEntity user = userOrThrow(userId);
+    Instant now = Instant.now();
+    user.markDeleted(now);
+    authIdentityRepository.softDeleteByUser(user, now);
+    refreshTokenRepository.revokeAllByUser(user, now, "user_withdrawal");
+    return Map.of("ok", true, "deleted", true);
   }
 
   @Transactional(readOnly = true)

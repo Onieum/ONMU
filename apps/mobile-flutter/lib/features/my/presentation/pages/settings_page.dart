@@ -58,6 +58,7 @@ class _SettingsPage extends ConsumerWidget {
                       const SizedBox(height: 28),
                       _AccountActionCard(
                         onSignOut: () => _signOut(context, ref),
+                        onWithdraw: () => _withdraw(context, ref),
                       ),
                       const SizedBox(height: 28),
                       Text(
@@ -90,7 +91,7 @@ class _SettingsPage extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
-      context.go(RoutePaths.onboarding);
+      context.go(RoutePaths.login);
     } catch (_) {
       if (!context.mounted) {
         return;
@@ -98,6 +99,48 @@ class _SettingsPage extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('로그아웃에 실패했어요. 다시 시도해주세요.')));
+    }
+  }
+
+  Future<void> _withdraw(BuildContext context, WidgetRef ref) async {
+    final shouldWithdraw = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('회원탈퇴'),
+        content: const Text('현재 계정을 탈퇴할까요?\n탈퇴하면 이 계정으로 다시 로그인할 수 없어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryPink,
+              foregroundColor: AppColors.textInverse,
+            ),
+            child: const Text('탈퇴하기'),
+          ),
+        ],
+      ),
+    );
+    if (shouldWithdraw != true) {
+      return;
+    }
+
+    try {
+      await ref.read(authActionProvider).withdraw();
+      if (!context.mounted) {
+        return;
+      }
+      context.go(RoutePaths.login);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원탈퇴에 실패했어요. 다시 시도해주세요.')));
     }
   }
 }
@@ -1411,9 +1454,10 @@ class _ProviderLetter extends StatelessWidget {
 }
 
 class _AccountActionCard extends StatelessWidget {
-  const _AccountActionCard({required this.onSignOut});
+  const _AccountActionCard({required this.onSignOut, required this.onWithdraw});
 
   final VoidCallback onSignOut;
+  final VoidCallback onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -1431,8 +1475,8 @@ class _AccountActionCard extends StatelessWidget {
           _AccountActionTile(
             icon: Icons.person_outline,
             label: '회원탈퇴',
-            color: AppColors.textMuted,
-            onTap: null,
+            color: AppColors.primaryPink,
+            onTap: onWithdraw,
           ),
         ],
       ),

@@ -138,4 +138,8 @@ public class UserEntity {
       this.onboardingStatus = onboardingStatus.trim();
     }
   }
+
+  public void markDeleted(Instant deletedAt) {
+    this.deletedAt = Objects.requireNonNull(deletedAt);
+  }
 }

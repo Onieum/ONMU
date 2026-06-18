@@ -115,4 +115,44 @@ class CharacterDraft {
     'purple',
     'gold',
   ];
+
+  static CharacterDraft fromApiJson(
+    Map<String, dynamic> json, {
+    String nickname = '온뮤',
+  }) {
+    return CharacterDraft(
+      gender: _readString(json, 'gender', 'female'),
+      nickname: nickname,
+      skinToneIndex: _readIndexedValue(json['skinTone'], 'skin'),
+      hairStyleIndex: _readIndexedValue(json['hairStyle'], 'hair_style'),
+      hairColorIndex: _readIndexedValue(json['hairColor'], 'hair_color'),
+      eyeShapeIndex: _readIndexedValue(json['eyeStyle'], 'eye_style'),
+      eyeColorIndex: _readIndexedValue(json['eyeColor'], 'eye_color'),
+      topStyleIndex: _readIndexedValue(json['clothes'], 'top', fallback: -1),
+    );
+  }
+
+  static String _readString(
+    Map<String, dynamic> json,
+    String key,
+    String fallback,
+  ) {
+    final value = json[key]?.toString().trim();
+    return value == null || value.isEmpty ? fallback : value;
+  }
+
+  static int _readIndexedValue(
+    Object? value,
+    String prefix, {
+    int fallback = 0,
+  }) {
+    final text = value?.toString() ?? '';
+    final match = RegExp(
+      '^${RegExp.escape(prefix)}_(-?\\d+)\$',
+    ).firstMatch(text);
+    if (match != null) {
+      return int.tryParse(match.group(1) ?? '') ?? fallback;
+    }
+    return fallback;
+  }
 }

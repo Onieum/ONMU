@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../shared/models/character_model.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
@@ -125,6 +126,7 @@ class ApiFriendRepository implements FriendRepository {
       isFavorite: OnmuJson.readBool(json, 'favorite'),
       memo: memo,
       introText: introText,
+      character: _characterFromJson(json['pixelCharacter'], name),
       profileImageUrl: OnmuJson.readString(
         json,
         'profileImageUrl',
@@ -166,6 +168,7 @@ class ApiFriendRepository implements FriendRepository {
     );
     return MyProfile(
       realName: nickname,
+      character: _characterFromJson(json['pixelCharacter'], nickname),
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''
@@ -187,5 +190,13 @@ class ApiFriendRepository implements FriendRepository {
       planStyles: OnmuJson.stringList(preference['planStyles']),
       preferredWeekdays: OnmuJson.stringList(preference['preferredWeekdays']),
     );
+  }
+
+  CharacterDraft? _characterFromJson(Object? value, String nickname) {
+    final json = OnmuJson.asMap(value);
+    if (json.isEmpty) {
+      return null;
+    }
+    return CharacterDraft.fromApiJson(json, nickname: nickname);
   }
 }

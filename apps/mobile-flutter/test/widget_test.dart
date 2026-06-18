@@ -545,7 +545,7 @@ void main() {
     expect(find.text('저장하기'), findsOneWidget);
   });
 
-  testWidgets('my page friend add sends request by pasted user id', (
+  testWidgets('my page friend add registers friend by pasted user id', (
     tester,
   ) async {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -582,6 +582,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(friendRepository.addedPublicId, '1234567890');
+    expect(find.text('친구로 등록했어요.'), findsOneWidget);
   });
 
   testWidgets('upcoming plan see all opens the full upcoming list', (
@@ -2312,7 +2313,7 @@ class _UserCodeFriendRepository implements FriendRepository {
   @override
   Future<FriendProfile> addFriend(String publicId, {String? memo}) async {
     addedPublicId = publicId;
-    return _candidate.copyWith(isFriend: false, memo: memo);
+    return _candidate.copyWith(isFriend: true, memo: memo);
   }
 
   @override
