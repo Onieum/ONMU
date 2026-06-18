@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +25,202 @@ bool shouldUseOnmuMapLibre({
       pmtilesProtocolReady;
 }
 
-class OnmuMapView extends ConsumerWidget {
+@visibleForTesting
+const String mapNativePointDataKey = 'onmuPointId';
+
+@visibleForTesting
+const double onmuMapMinUsableZoom = 6.2;
+
+@visibleForTesting
+const EdgeInsets onmuMapCameraFitPadding = EdgeInsets.fromLTRB(
+  56,
+  160,
+  56,
+  480,
+);
+
+@visibleForTesting
+const EdgeInsets onmuMapMarkerScreenSafetyPadding = EdgeInsets.fromLTRB(
+  0,
+  160,
+  0,
+  240,
+);
+
+@visibleForTesting
+String nativeMarkerIconImageName({required int order, required bool focused}) {
+  final state = focused ? 'focused' : 'normal';
+  return 'onmu-map-marker-$state-$order';
+}
+
+@visibleForTesting
+Future<Uint8List> createNativeMarkerIconBytes({
+  required int order,
+  required bool focused,
+}) async {
+  final size = focused ? 56.0 : 46.0;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final center = Offset(size / 2, size / 2);
+  final radius = focused ? 22.0 : 18.0;
+
+  final shadowPaint = Paint()
+    ..color = const Color(0x33000000)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+  canvas.drawCircle(center.translate(0, 2), radius + 1, shadowPaint);
+
+  final fillPaint = Paint()
+    ..color = focused ? const Color(0xFFE86D75) : const Color(0xFFFF8FA3);
+  canvas.drawCircle(center, radius, fillPaint);
+
+  final strokePaint = Paint()
+    ..color = Colors.white
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = focused ? 5 : 4;
+  canvas.drawCircle(center, radius, strokePaint);
+
+  final textPainter = TextPainter(
+    text: TextSpan(
+      text: '$order',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: focused ? 24 : 20,
+        fontWeight: FontWeight.w800,
+        height: 1,
+      ),
+    ),
+    textAlign: TextAlign.center,
+    textDirection: TextDirection.ltr,
+  )..layout(maxWidth: size);
+  textPainter.paint(
+    canvas,
+    Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
+  );
+
+  final image = await recorder.endRecording().toImage(size.ceil(), size.ceil());
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  if (byteData == null) {
+    return Uint8List(0);
+  }
+  return byteData.buffer.asUint8List();
+}
+
+@visibleForTesting
+SymbolOptions nativeSymbolOptionsForPoint({
+  required OnmuMapPoint point,
+  required bool focused,
+}) {
+  return SymbolOptions(
+    geometry: LatLng(point.coordinate.lat, point.coordinate.lng),
+    iconImage: nativeMarkerIconImageName(order: point.order, focused: focused),
+    iconAnchor: 'center',
+    iconSize: 1,
+    zIndex: focused ? 20 : 10,
+  );
+}
+
+@visibleForTesting
+LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
+  if (routeGeometry.length < 2) {
+    return null;
+  }
+  return LineOptions(
+    geometry: routeGeometry
+        .map((point) => LatLng(point.lat, point.lng))
+        .toList(growable: false),
+    lineColor: '#FF8FA3',
+    lineWidth: 4,
+    lineOpacity: 0.84,
+    lineJoin: 'round',
+  );
+}
+
+@visibleForTesting
+bool shouldFitCameraForMapUpdate({
+  required bool pointsChanged,
+  required bool routeGeometryChanged,
+  required bool centerChanged,
+  required bool zoomChanged,
+  required bool styleLoaded,
+}) {
+  return pointsChanged ||
+      routeGeometryChanged ||
+      centerChanged ||
+      zoomChanged ||
+      styleLoaded;
+}
+
+@visibleForTesting
+bool haveSameMapPointCameraTargets(
+  List<OnmuMapPoint> previous,
+  List<OnmuMapPoint> next,
+) {
+  if (previous.length != next.length) {
+    return false;
+  }
+  for (var i = 0; i < previous.length; i += 1) {
+    final previousPoint = previous[i];
+    final nextPoint = next[i];
+    if (previousPoint.id != nextPoint.id ||
+        previousPoint.order != nextPoint.order ||
+        !_sameCoordinate(previousPoint.coordinate, nextPoint.coordinate)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@visibleForTesting
+bool haveSameRouteCameraTargets(
+  List<OnmuLatLng> previous,
+  List<OnmuLatLng> next,
+) {
+  if (previous.length != next.length) {
+    return false;
+  }
+  for (var i = 0; i < previous.length; i += 1) {
+    if (!_sameCoordinate(previous[i], next[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@visibleForTesting
+bool haveSameOptionalCameraTarget(OnmuLatLng? previous, OnmuLatLng? next) {
+  if (previous == null || next == null) {
+    return previous == null && next == null;
+  }
+  return _sameCoordinate(previous, next);
+}
+
+bool _sameCoordinate(OnmuLatLng previous, OnmuLatLng next) {
+  return previous.lat == next.lat && previous.lng == next.lng;
+}
+
+@visibleForTesting
+CameraTargetBounds cameraTargetBoundsFromManifest(TileManifest? manifest) {
+  final bounds = manifest?.bounds;
+  if (bounds == null || bounds.length < 4) {
+    return CameraTargetBounds.unbounded;
+  }
+  final minLng = bounds[0];
+  final minLat = bounds[1];
+  final maxLng = bounds[2];
+  final maxLat = bounds[3];
+  if (minLat >= maxLat || minLng >= maxLng) {
+    return CameraTargetBounds.unbounded;
+  }
+  return CameraTargetBounds(
+    LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    ),
+  );
+}
+
+class OnmuMapView extends ConsumerStatefulWidget {
   const OnmuMapView({
     required this.points,
     this.routeGeometry = const [],
@@ -45,17 +243,71 @@ class OnmuMapView extends ConsumerWidget {
   final bool? debugWebPmtilesProtocolReady;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OnmuMapView> createState() => _OnmuMapViewState();
+}
+
+class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
+  MapLibreMapController? _mapController;
+  bool _styleLoaded = false;
+  int _nativeSyncGeneration = 0;
+  final Set<String> _registeredNativeMarkerImages = {};
+
+  @override
+  void didUpdateWidget(covariant OnmuMapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final pointsChanged = !haveSameMapPointCameraTargets(
+      oldWidget.points,
+      widget.points,
+    );
+    final routeGeometryChanged = !haveSameRouteCameraTargets(
+      oldWidget.routeGeometry,
+      widget.routeGeometry,
+    );
+    final centerChanged = !haveSameOptionalCameraTarget(
+      oldWidget.center,
+      widget.center,
+    );
+    final zoomChanged = oldWidget.zoom != widget.zoom;
+    final focusChanged = oldWidget.focusedPointId != widget.focusedPointId;
+    if (pointsChanged ||
+        routeGeometryChanged ||
+        centerChanged ||
+        zoomChanged ||
+        focusChanged) {
+      _syncNativeMap(
+        fitCamera: shouldFitCameraForMapUpdate(
+          pointsChanged: pointsChanged,
+          routeGeometryChanged: routeGeometryChanged,
+          centerChanged: centerChanged,
+          zoomChanged: zoomChanged,
+          styleLoaded: false,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    final controller = _mapController;
+    if (controller != null) {
+      controller.onSymbolTapped.remove(_handleSymbolTapped);
+    }
+    _mapController = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final manifestState = ref.watch(tileManifestProvider);
     final manifest = manifestState.asData?.value;
     final mapCenter =
-        center ??
+        widget.center ??
         _centerFromData() ??
         manifest?.center ??
         const OnmuLatLng(lat: 36.5, lng: 127.8);
     final styleUrl = manifest?.styleUrl ?? '';
     final webBootstrapReady =
-        debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
+        widget.debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
     final useMapLibre = shouldUseOnmuMapLibre(
       manifest: manifest,
       platformViewAvailable: _canUseMapLibre,
@@ -63,7 +315,7 @@ class OnmuMapView extends ConsumerWidget {
     );
     final effectiveFallbackLabel = styleUrl.isNotEmpty && !webBootstrapReady
         ? '지도 스크립트를 준비하는 중입니다.'
-        : fallbackLabel;
+        : widget.fallbackLabel;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -75,8 +327,17 @@ class OnmuMapView extends ConsumerWidget {
                     styleString: styleUrl,
                     initialCameraPosition: CameraPosition(
                       target: LatLng(mapCenter.lat, mapCenter.lng),
-                      zoom: zoom,
+                      zoom: math.max(widget.zoom, onmuMapMinUsableZoom),
                     ),
+                    cameraTargetBounds: cameraTargetBoundsFromManifest(
+                      manifest,
+                    ),
+                    minMaxZoomPreference: const MinMaxZoomPreference(
+                      onmuMapMinUsableZoom,
+                      18,
+                    ),
+                    onMapCreated: _handleMapCreated,
+                    onStyleLoadedCallback: _handleStyleLoaded,
                     compassEnabled: false,
                     logoEnabled: false,
                     attributionButtonPosition:
@@ -84,18 +345,27 @@ class OnmuMapView extends ConsumerWidget {
                     rotateGesturesEnabled: false,
                     tiltGesturesEnabled: false,
                     myLocationEnabled: false,
+                    annotationOrder: const [
+                      AnnotationType.line,
+                      AnnotationType.symbol,
+                    ],
+                    annotationConsumeTapEvents: const [
+                      AnnotationType.symbol,
+                      AnnotationType.line,
+                    ],
                   )
                 : _FallbackMapBackground(label: effectiveFallbackLabel),
           ),
-          Positioned.fill(
-            child: _ProjectedMapOverlay(
-              points: points,
-              routeGeometry: routeGeometry,
-              focusedPointId: focusedPointId,
-              onPointTap: onPointTap,
-              center: mapCenter,
+          if (!useMapLibre)
+            Positioned.fill(
+              child: _ProjectedMapOverlay(
+                points: widget.points,
+                routeGeometry: widget.routeGeometry,
+                focusedPointId: widget.focusedPointId,
+                onPointTap: widget.onPointTap,
+                center: mapCenter,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -106,10 +376,220 @@ class OnmuMapView extends ConsumerWidget {
         'AutomatedTestWidgetsFlutterBinding';
   }
 
+  void _handleMapCreated(MapLibreMapController controller) {
+    _mapController = controller;
+    controller.onSymbolTapped.add(_handleSymbolTapped);
+  }
+
+  void _handleStyleLoaded() {
+    _styleLoaded = true;
+    _registeredNativeMarkerImages.clear();
+    unawaited(_configureNativeMarkerSymbolsAndSync());
+  }
+
+  Future<void> _configureNativeMarkerSymbolsAndSync() async {
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+    try {
+      await controller.setSymbolIconAllowOverlap(true);
+      await controller.setSymbolIconIgnorePlacement(true);
+      await controller.setSymbolTextAllowOverlap(true);
+      await controller.setSymbolTextIgnorePlacement(true);
+    } catch (_) {
+      // 일부 플랫폼은 style 초기화 직후 placement 옵션 반영이 늦을 수 있다.
+    }
+    await _syncNativeMap(fitCamera: true);
+  }
+
+  void _handleSymbolTapped(Symbol symbol) {
+    _handleNativePointTap(symbol.data?[mapNativePointDataKey]);
+  }
+
+  void _handleNativePointTap(Object? pointId) {
+    final id = pointId?.toString();
+    if (id == null || widget.onPointTap == null) {
+      return;
+    }
+    for (final point in widget.points) {
+      if (point.id == id) {
+        widget.onPointTap!(point);
+        return;
+      }
+    }
+  }
+
+  Future<void> _syncNativeMap({required bool fitCamera}) async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded) {
+      return;
+    }
+    final generation = ++_nativeSyncGeneration;
+    try {
+      await controller.clearSymbols();
+      await controller.clearCircles();
+      await controller.clearLines();
+      if (!mounted || generation != _nativeSyncGeneration) {
+        return;
+      }
+      await _ensureNativeMarkerImages(controller);
+      if (!mounted || generation != _nativeSyncGeneration) {
+        return;
+      }
+
+      final lineOptions = nativeLineOptionsForRoute(widget.routeGeometry);
+      if (lineOptions != null) {
+        await controller.addLine(lineOptions, const {'type': 'route'});
+      }
+
+      final symbolOptions = <SymbolOptions>[];
+      final pointData = <Map<String, dynamic>>[];
+      for (final point in widget.points) {
+        final focused = widget.focusedPointId == point.id;
+        symbolOptions.add(
+          nativeSymbolOptionsForPoint(point: point, focused: focused),
+        );
+        pointData.add({mapNativePointDataKey: point.id});
+      }
+      if (symbolOptions.isNotEmpty) {
+        await controller.addSymbols(symbolOptions, pointData);
+      }
+      debugPrint(
+        'ONMU_MAP_NATIVE_SYNC points=${widget.points.length} '
+        'symbols=${symbolOptions.length} '
+        'images=${_registeredNativeMarkerImages.length} '
+        'fitCamera=$fitCamera',
+      );
+
+      if (!mounted || generation != _nativeSyncGeneration) {
+        return;
+      }
+      if (fitCamera) {
+        await _fitNativeCamera(controller);
+      }
+      await _logNativeMarkerScreenSummary(controller);
+    } catch (_) {
+      // 지도 annotation 동기화 실패는 플랫폼 뷰 수명주기 경쟁일 수 있어 UI를 유지한다.
+    }
+  }
+
+  Future<void> _logNativeMarkerScreenSummary(
+    MapLibreMapController controller,
+  ) async {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final size = renderBox?.size;
+    if (size == null || widget.points.isEmpty) {
+      return;
+    }
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final screenWidth = size.width * devicePixelRatio;
+    final screenHeight = size.height * devicePixelRatio;
+    final locations = await controller.toScreenLocationBatch(
+      widget.points.map(
+        (point) => LatLng(point.coordinate.lat, point.coordinate.lng),
+      ),
+    );
+    var onscreen = 0;
+    var coveredBySearch = 0;
+    var coveredBySheet = 0;
+    var visibleSafeArea = 0;
+    var offscreen = 0;
+    final searchBottom =
+        onmuMapMarkerScreenSafetyPadding.top * devicePixelRatio;
+    final sheetTop =
+        (size.height - onmuMapMarkerScreenSafetyPadding.bottom) *
+        devicePixelRatio;
+    for (final location in locations) {
+      final x = location.x.toDouble();
+      final y = location.y.toDouble();
+      final isOnscreen =
+          x >= 0 && x <= screenWidth && y >= 0 && y <= screenHeight;
+      if (!isOnscreen) {
+        offscreen += 1;
+        continue;
+      }
+      onscreen += 1;
+      if (y < searchBottom) {
+        coveredBySearch += 1;
+      } else if (y > sheetTop) {
+        coveredBySheet += 1;
+      } else {
+        visibleSafeArea += 1;
+      }
+    }
+    debugPrint(
+      'ONMU_MAP_NATIVE_SCREEN points=${widget.points.length} '
+      'onscreen=$onscreen visibleSafeArea=$visibleSafeArea '
+      'coveredBySearch=$coveredBySearch coveredBySheet=$coveredBySheet '
+      'offscreen=$offscreen',
+    );
+  }
+
+  Future<void> _ensureNativeMarkerImages(
+    MapLibreMapController controller,
+  ) async {
+    for (final point in widget.points) {
+      for (final focused in const [false, true]) {
+        final imageName = nativeMarkerIconImageName(
+          order: point.order,
+          focused: focused,
+        );
+        if (_registeredNativeMarkerImages.contains(imageName)) {
+          continue;
+        }
+        final imageBytes = await createNativeMarkerIconBytes(
+          order: point.order,
+          focused: focused,
+        );
+        await controller.addImage(imageName, imageBytes);
+        _registeredNativeMarkerImages.add(imageName);
+      }
+    }
+  }
+
+  Future<void> _fitNativeCamera(MapLibreMapController controller) async {
+    final coordinates = [
+      ...widget.points.map((point) => point.coordinate),
+      ...widget.routeGeometry,
+    ];
+    if (coordinates.isEmpty) {
+      return;
+    }
+    if (coordinates.length == 1) {
+      final target = coordinates.first;
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(target.lat, target.lng), 14.2),
+        duration: const Duration(milliseconds: 350),
+      );
+      return;
+    }
+
+    final minLat = coordinates.map((value) => value.lat).reduce(math.min);
+    final maxLat = coordinates.map((value) => value.lat).reduce(math.max);
+    final minLng = coordinates.map((value) => value.lng).reduce(math.min);
+    final maxLng = coordinates.map((value) => value.lng).reduce(math.max);
+    final latPadding = math.max((maxLat - minLat).abs() * 0.16, 0.0015);
+    final lngPadding = math.max((maxLng - minLng).abs() * 0.16, 0.0015);
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+          northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+        ),
+        left: onmuMapCameraFitPadding.left,
+        top: onmuMapCameraFitPadding.top,
+        right: onmuMapCameraFitPadding.right,
+        bottom: onmuMapCameraFitPadding.bottom,
+      ),
+      duration: const Duration(milliseconds: 350),
+    );
+  }
+
   OnmuLatLng? _centerFromData() {
     final values = [
-      ...points.map((point) => point.coordinate),
-      ...routeGeometry,
+      ...widget.points.map((point) => point.coordinate),
+      ...widget.routeGeometry,
     ];
     if (values.isEmpty) {
       return null;
@@ -238,80 +718,51 @@ class _PositionedMapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = math.min(168.0, math.max(88.0, viewportSize.width - 16));
+    final width = focused ? 46.0 : 38.0;
     final left = (offset.dx - width / 2)
         .clamp(8.0, math.max(8.0, viewportSize.width - width - 8))
         .toDouble();
-    final top = (offset.dy - 42)
-        .clamp(8.0, math.max(8.0, viewportSize.height - 72))
+    final top = (offset.dy - width / 2)
+        .clamp(8.0, math.max(8.0, viewportSize.height - width - 8))
         .toDouble();
 
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        key: focused ? ValueKey('focused-place-pin-${point.order}') : null,
-        onTap: onTap,
-        child: SizedBox(
-          width: width,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: focused
-                      ? AppColors.primaryPurple
-                      : AppColors.primaryPink,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(
-                    color: AppColors.bgDefault,
-                    width: focused ? 4 : 3,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: AppColors.shadow,
-                      blurRadius: 10,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
+      child: Semantics(
+        button: onTap != null,
+        label: '장소 후보 ${point.order}',
+        child: GestureDetector(
+          key: focused ? ValueKey('focused-place-pin-${point.order}') : null,
+          onTap: onTap,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: focused ? AppColors.primaryPurple : AppColors.primaryPink,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: AppColors.bgDefault,
+                width: focused ? 4 : 3,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
                 ),
-                child: SizedBox.square(
-                  dimension: focused ? 42 : 34,
-                  child: Center(
-                    child: Text(
-                      '${point.order}',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.textInverse,
-                      ),
-                    ),
+              ],
+            ),
+            child: SizedBox.square(
+              dimension: width,
+              child: Center(
+                child: Text(
+                  '${point.order}',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppColors.textInverse,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.bgDefault,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: AppColors.lineSoft),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: 2,
-                  ),
-                  child: RichText(
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    text: TextSpan(
-                      text: point.label,
-                      style: DefaultTextStyle.of(
-                        context,
-                      ).style.merge(Theme.of(context).textTheme.labelSmall),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

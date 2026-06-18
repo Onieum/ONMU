@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:onmu_mobile/features/map/model/map_models.dart';
 import 'package:onmu_mobile/features/map/repository/tile_manifest_repository.dart';
 import 'package:onmu_mobile/features/map/widgets/onmu_map_view.dart';
@@ -47,6 +48,154 @@ void main() {
     );
   });
 
+  test('builds camera bounds from manifest bounds', () {
+    final cameraBounds = cameraTargetBoundsFromManifest(_readyPmtilesManifest);
+
+    expect(onmuMapMinUsableZoom, 6.2);
+    expect(onmuMapCameraFitPadding.top, 160);
+    expect(onmuMapCameraFitPadding.bottom, 480);
+    expect(cameraBounds.bounds?.southwest.longitude, 124);
+    expect(cameraBounds.bounds?.southwest.latitude, 33);
+    expect(cameraBounds.bounds?.northeast.longitude, 132);
+    expect(cameraBounds.bounds?.northeast.latitude, 39);
+    expect(cameraTargetBoundsFromManifest(null), CameraTargetBounds.unbounded);
+  });
+
+  test('builds native annotations with numbered marker icons only', () async {
+    const point = OnmuMapPoint(
+      id: 'place-1',
+      label: '긴 장소명은 지도 marker text로 쓰지 않는다',
+      coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      order: 7,
+    );
+
+    final symbol = nativeSymbolOptionsForPoint(point: point, focused: false);
+    final focusedSymbol = nativeSymbolOptionsForPoint(
+      point: point,
+      focused: true,
+    );
+    final line = nativeLineOptionsForRoute(const [
+      OnmuLatLng(lat: 37.5665, lng: 126.978),
+      OnmuLatLng(lat: 37.5651, lng: 126.9895),
+    ]);
+    final markerBytes = await createNativeMarkerIconBytes(
+      order: point.order,
+      focused: false,
+    );
+
+    expect(symbol.iconImage, 'onmu-map-marker-normal-7');
+    expect(symbol.iconAnchor, 'center');
+    expect(symbol.textField, isNull);
+    expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
+    expect(markerBytes, isNotEmpty);
+    expect(line?.geometry, hasLength(2));
+  });
+
+  test('does not refit camera when only focused marker changes', () {
+    final oldPoints = [
+      const OnmuMapPoint(
+        id: 'place-1',
+        label: '이전 라벨',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+        order: 1,
+      ),
+    ];
+    final rebuiltPoints = [
+      const OnmuMapPoint(
+        id: 'place-1',
+        label: '라벨만 바뀌어도 camera target은 같다',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+        order: 1,
+      ),
+    ];
+    final movedPoints = [
+      const OnmuMapPoint(
+        id: 'place-1',
+        label: '이동한 후보',
+        coordinate: OnmuLatLng(lat: 37.57, lng: 126.982),
+        order: 1,
+      ),
+    ];
+    final reorderedPoints = [
+      const OnmuMapPoint(
+        id: 'place-1',
+        label: '순서 변경 후보',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+        order: 2,
+      ),
+    ];
+
+    expect(haveSameMapPointCameraTargets(oldPoints, rebuiltPoints), isTrue);
+    expect(haveSameMapPointCameraTargets(oldPoints, movedPoints), isFalse);
+    expect(haveSameMapPointCameraTargets(oldPoints, reorderedPoints), isFalse);
+    expect(
+      haveSameRouteCameraTargets(
+        const [OnmuLatLng(lat: 37.5665, lng: 126.978)],
+        const [OnmuLatLng(lat: 37.5665, lng: 126.978)],
+      ),
+      isTrue,
+    );
+    expect(
+      haveSameRouteCameraTargets(
+        const [OnmuLatLng(lat: 37.5665, lng: 126.978)],
+        const [OnmuLatLng(lat: 37.5651, lng: 126.9895)],
+      ),
+      isFalse,
+    );
+    expect(haveSameOptionalCameraTarget(null, null), isTrue);
+    expect(
+      haveSameOptionalCameraTarget(
+        const OnmuLatLng(lat: 37.5665, lng: 126.978),
+        const OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+      isTrue,
+    );
+    expect(
+      haveSameOptionalCameraTarget(
+        const OnmuLatLng(lat: 37.5665, lng: 126.978),
+        const OnmuLatLng(lat: 37.57, lng: 126.982),
+      ),
+      isFalse,
+    );
+    expect(
+      haveSameOptionalCameraTarget(
+        null,
+        const OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: !haveSameMapPointCameraTargets(oldPoints, rebuiltPoints),
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: false,
+        styleLoaded: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: true,
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: false,
+        styleLoaded: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: false,
+        styleLoaded: true,
+      ),
+      isTrue,
+    );
+  });
+
   testWidgets('renders fallback map state when manifest fetch fails', (
     tester,
   ) async {
@@ -80,7 +229,7 @@ void main() {
 
     expect(find.text('지도 fallback'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
-    expect(find.text('ONMU', findRichText: true), findsOneWidget);
+    expect(find.text('ONMU', findRichText: true), findsNothing);
   });
 
   testWidgets('keeps fallback map when web PMTiles protocol is not ready', (
@@ -116,7 +265,7 @@ void main() {
 
     expect(find.text('지도 스크립트를 준비하는 중입니다.'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
-    expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
+    expect(find.text('PMTiles 후보', findRichText: true), findsNothing);
   });
 
   testWidgets(
@@ -157,7 +306,7 @@ void main() {
 
       expect(find.text('지도 타일 fallback'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
-      expect(find.text('PMTiles 후보', findRichText: true), findsOneWidget);
+      expect(find.text('PMTiles 후보', findRichText: true), findsNothing);
     },
   );
 }
