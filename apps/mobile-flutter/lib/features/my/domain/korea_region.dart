@@ -11,6 +11,7 @@ class KoreaRegionSelection {
   final String sido;
   final String sigungu;
 
+  static const empty = KoreaRegionSelection(sido: '', sigungu: '');
   static const fallback = KoreaRegionSelection(sido: '서울', sigungu: '성동구');
 
   String get displayName {
@@ -50,7 +51,7 @@ class KoreaRegionSelection {
   static KoreaRegionSelection fromDisplayName(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
-      return fallback;
+      return empty;
     }
     final parts = trimmed.split(RegExp(r'\s+'));
     if (parts.length == 1) {
@@ -69,7 +70,7 @@ class KoreaRegionSelection {
     final cleanSido = sido.trim();
     final cleanSigungu = sigungu.trim();
     if (cleanSido.isEmpty) {
-      return fallback;
+      return empty;
     }
 
     final candidates = sigunguOptionsFor(cleanSido);

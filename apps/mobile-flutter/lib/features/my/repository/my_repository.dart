@@ -143,6 +143,9 @@ class ApiMyRepository implements MyRepository {
 
   KoreaRegionSelection _safeRegionSelection(Object? value) {
     final selection = KoreaRegionSelection.fromJson(value);
+    if (selection.displayName.trim().isEmpty) {
+      return KoreaRegionSelection.empty;
+    }
     if (_isSafeProfileText(selection.sido) &&
         _isSafeProfileText(selection.sigungu) &&
         _isSafeProfileText(selection.displayName)) {

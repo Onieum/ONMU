@@ -41,6 +41,12 @@ class MyProfileController {
     _ref.invalidate(friendsProvider);
   }
 
+  Future<void> deleteFriend(FriendProfile friend) async {
+    await _ref.read(friendRepositoryProvider).deleteFriend(friend);
+    _ref.invalidate(friendsProvider);
+    _ref.invalidate(friendProfileProvider(friend));
+  }
+
   Future<void> addFriend(String publicId) async {
     await _ref.read(friendRepositoryProvider).addFriend(publicId);
     _ref.invalidate(friendsProvider);
