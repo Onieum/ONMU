@@ -226,6 +226,9 @@ jobs:
           if [ "${{ inputs.wave }}" = "ai_foundation" ]; then
             target_args=(-target=module.ai_foundation)
             echo "Using targeted Terraform plan for ai_foundation to avoid unrelated staging resource changes."
+          elif [ "${{ inputs.wave }}" = "ai_diagnostics" ]; then
+            target_args=(-target=module.ai_diagnostic_settings)
+            echo "Using targeted Terraform plan for ai_diagnostics to avoid unrelated staging resource changes."
           fi
           set +e
           terraform plan \
@@ -357,6 +360,9 @@ jobs:
           if [ "${{ inputs.wave }}" = "ai_foundation" ]; then
             target_args=(-target=module.ai_foundation)
             echo "Using targeted Terraform plan for ai_foundation to avoid unrelated staging resource changes."
+          elif [ "${{ inputs.wave }}" = "ai_diagnostics" ]; then
+            target_args=(-target=module.ai_diagnostic_settings)
+            echo "Using targeted Terraform plan for ai_diagnostics to avoid unrelated staging resource changes."
           fi
           set +e
           terraform plan \
