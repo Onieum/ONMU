@@ -448,6 +448,11 @@ void main() {
                     'sender': 'ONMU',
                     'content': '새 투표가 열렸어요.',
                     'messageType': 'vote_card',
+                    'cardType': 'vote_card',
+                    'targetType': 'PLAN',
+                    'targetId': '101',
+                    'planId': '101',
+                    'voteId': '501',
                     'createdAt': '2026-06-09T14:03:00+09:00',
                   },
                   {
@@ -495,6 +500,13 @@ void main() {
     expect(messages[1].message, '새 투표가 열렸어요.');
     expect(messages[1].timeLabel, _localTimeLabel('2026-06-09T14:03:00+09:00'));
     expect(messages[1].isMine, isFalse);
+    expect(messages[1].messageType, 'vote_card');
+    expect(messages[1].isVoteCard, isTrue);
+    expect(messages[1].cardType, 'vote_card');
+    expect(messages[1].targetType, 'PLAN');
+    expect(messages[1].targetId, '101');
+    expect(messages[1].planId, '101');
+    expect(messages[1].voteId, '501');
     expect(messages[2].sender, 'ONMU');
     expect(messages[2].message, '성수 브런치 정산이 만들어졌어요.');
     expect(messages[2].messageType, 'settlement_card');
