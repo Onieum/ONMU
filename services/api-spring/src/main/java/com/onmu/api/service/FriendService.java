@@ -61,9 +61,14 @@ public class FriendService {
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
           coalesce(fs.is_favorite, false) as favorite
-        from friend_settings fs
-        join friendships f on f.id = fs.friendship_id
-        join users friend on friend.id = fs.friend_user_id
+        from friendships f
+        join users friend on friend.id = case
+          when f.user_low_id = ? then f.user_high_id
+          else f.user_low_id
+        end
+        left join friend_settings fs on fs.friendship_id = f.id
+          and fs.user_id = ?
+          and fs.friend_user_id = friend.id
         left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
@@ -73,7 +78,7 @@ public class FriendService {
           order by created_at desc
           limit 1
         ) active_code on true
-        where fs.user_id = ?
+        where (f.user_low_id = ? or f.user_high_id = ?)
           and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
@@ -82,6 +87,9 @@ public class FriendService {
           coalesce(nullif(fs.display_alias, ''), nullif(friend.nickname, ''), friend.public_id)
       """,
       this::friendResponse,
+      userId,
+      userId,
+      userId,
       userId
     );
   }
@@ -93,15 +101,21 @@ public class FriendService {
     Integer count = jdbcTemplate.queryForObject(
       """
         select count(*)
-        from friend_settings fs
-        join friendships f on f.id = fs.friendship_id
-        where fs.user_id = ?
+        from friendships f
+        left join friend_settings fs on fs.friendship_id = f.id
+          and fs.user_id = ?
           and fs.friend_user_id = ?
+        where f.user_low_id = least(?, ?)
+          and f.user_high_id = greatest(?, ?)
           and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
       """,
       Integer.class,
+      user.getId(),
+      friend.getId(),
+      user.getId(),
+      friend.getId(),
       user.getId(),
       friend.getId()
     );
@@ -331,6 +345,9 @@ public class FriendService {
   public FriendResponse updateFriend(UUID userId, String friendIdentifier, UpdateFriendRequest request) {
     UserEntity user = requireUser(userId);
     UserEntity friend = resolveUserIdentifier(friendIdentifier);
+    UUID friendshipId = activeFriendshipId(user.getId(), friend.getId());
+    upsertSetting(friendshipId, user.getId(), friend.getId(), null);
+    upsertSetting(friendshipId, friend.getId(), user.getId(), null);
     String memo = request.memo() == null ? null : request.memo().trim();
     jdbcTemplate.update(
       """
@@ -353,36 +370,25 @@ public class FriendService {
   public void deleteFriend(UUID userId, String friendIdentifier) {
     UserEntity user = requireUser(userId);
     UserEntity friend = resolveUserIdentifier(friendIdentifier);
+    UUID friendshipId = activeFriendshipId(user.getId(), friend.getId());
     jdbcTemplate.update(
       """
         update friendships
         set status = 'deleted',
             deleted_at = now(),
             updated_at = now()
-        where id in (
-          select friendship_id
-          from friend_settings
-          where user_id = ?
-            and friend_user_id = ?
-        )
+        where id = ?
       """,
-      user.getId(),
-      friend.getId()
+      friendshipId
     );
     jdbcTemplate.update(
       """
         update friend_settings
         set hidden = true,
             updated_at = now()
-        where friendship_id in (
-          select friendship_id
-          from friend_settings
-          where user_id = ?
-            and friend_user_id = ?
-        )
+        where friendship_id = ?
       """,
-      user.getId(),
-      friend.getId()
+      friendshipId
     );
   }
 
@@ -415,9 +421,11 @@ public class FriendService {
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
           coalesce(fs.is_favorite, false) as favorite
-        from friend_settings fs
-        join friendships f on f.id = fs.friendship_id
-        join users friend on friend.id = fs.friend_user_id
+        from friendships f
+        join users friend on friend.id = ?
+        left join friend_settings fs on fs.friendship_id = f.id
+          and fs.user_id = ?
+          and fs.friend_user_id = friend.id
         left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
@@ -427,12 +435,17 @@ public class FriendService {
           order by created_at desc
           limit 1
         ) active_code on true
-        where fs.user_id = ?
-          and fs.friend_user_id = ?
+        where f.user_low_id = least(?, ?)
+          and f.user_high_id = greatest(?, ?)
+          and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
       """,
       this::friendResponse,
+      friendUserId,
+      userId,
+      userId,
+      friendUserId,
       userId,
       friendUserId
     );
@@ -454,6 +467,29 @@ public class FriendService {
       friendUserId,
       blankToNull(memo)
     );
+  }
+
+  private UUID activeFriendshipId(UUID userId, UUID friendUserId) {
+    List<UUID> ids = jdbcTemplate.query(
+      """
+        select id
+        from friendships
+        where user_low_id = least(?, ?)
+          and user_high_id = greatest(?, ?)
+          and status = 'active'
+          and deleted_at is null
+        limit 1
+      """,
+      (rs, rowNum) -> rs.getObject("id", UUID.class),
+      userId,
+      friendUserId,
+      userId,
+      friendUserId
+    );
+    if (ids.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "friend_not_found");
+    }
+    return ids.get(0);
   }
 
   private UserEntity requireUser(UUID userId) {
