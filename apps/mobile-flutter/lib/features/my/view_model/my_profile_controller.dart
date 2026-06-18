@@ -74,30 +74,58 @@ class MyProfileController {
       await _ref.read(friendRepositoryProvider).addFriend(publicId);
       _ref.invalidate(friendsProvider);
     } on DioException catch (error) {
-      throw FriendAddException.fromDio(error);
+      final friendError = FriendAddException.fromDio(error);
+      if (friendError.kind == FriendAddErrorKind.alreadyFriend) {
+        _ref.invalidate(friendsProvider);
+      }
+      throw friendError;
     }
   }
 }
 
+enum FriendAddErrorKind {
+  notFound,
+  alreadyFriend,
+  searchNotAllowed,
+  cannotAddSelf,
+  unknown,
+}
+
 class FriendAddException implements Exception {
-  const FriendAddException(this.message);
+  const FriendAddException(
+    this.message, {
+    this.kind = FriendAddErrorKind.unknown,
+  });
 
   final String message;
+  final FriendAddErrorKind kind;
 
   factory FriendAddException.fromDio(DioException error) {
     final statusCode = error.response?.statusCode;
     final reason = error.response?.data?.toString() ?? '';
     if (statusCode == 404) {
-      return const FriendAddException('없는 고유 ID예요.');
+      return const FriendAddException(
+        '없는 고유 ID예요.',
+        kind: FriendAddErrorKind.notFound,
+      );
     }
     if (statusCode == 409 || reason.contains('already_friend')) {
-      return const FriendAddException('이미 친구예요.');
+      return const FriendAddException(
+        '이미 친구예요.',
+        kind: FriendAddErrorKind.alreadyFriend,
+      );
     }
     if (statusCode == 403 || reason.contains('search_not_allowed')) {
-      return const FriendAddException('상대가 친구 추가를 허용하지 않았어요.');
+      return const FriendAddException(
+        '상대가 친구 추가를 허용하지 않았어요.',
+        kind: FriendAddErrorKind.searchNotAllowed,
+      );
     }
     if (statusCode == 400 || reason.contains('cannot_add_self')) {
-      return const FriendAddException('내 고유 ID는 친구로 추가할 수 없어요.');
+      return const FriendAddException(
+        '내 고유 ID는 친구로 추가할 수 없어요.',
+        kind: FriendAddErrorKind.cannotAddSelf,
+      );
     }
     return const FriendAddException('친구 등록에 실패했어요. 다시 시도해주세요.');
   }
