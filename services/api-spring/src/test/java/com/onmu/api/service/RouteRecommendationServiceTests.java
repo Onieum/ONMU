@@ -1,6 +1,8 @@
 package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,11 +26,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class RouteRecommendationServiceTests {
@@ -50,8 +55,8 @@ class RouteRecommendationServiceTests {
     group = new GroupEntity("1", "ONMU", null);
     plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "draft");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
-    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
+    lenient().when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    lenient().when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
   }
 
   @Test
@@ -178,6 +183,19 @@ class RouteRecommendationServiceTests {
     assertThat(unavailableCache.lastKey).isNotBlank();
     assertThat(availableCache.lastKey).isNotBlank();
     assertThat(unavailableCache.lastKey).isNotEqualTo(availableCache.lastKey);
+  }
+
+  @Test
+  void rejectsNonGroupMemberWhenUserIdIsProvided() {
+    UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    when(groupRepository.isUserMember("1", userId)).thenReturn(false);
+    RouteRecommendationService service = serviceWith("", new FakeRouteHttpClient());
+
+    assertThatThrownBy(() -> service.recommend("1", "101", "walk", userId))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(exception.getReason()).isEqualTo("not_group_member");
+      });
   }
 
   private RouteRecommendationService serviceWith(String apiKey, RouteHttpClient httpClient) {

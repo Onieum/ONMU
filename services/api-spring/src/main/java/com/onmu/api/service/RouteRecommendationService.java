@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -71,9 +72,17 @@ public class RouteRecommendationService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> recommend(String groupId, String planId, String travelModeValue) {
+    return recommend(groupId, planId, travelModeValue, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> recommend(String groupId, String planId, String travelModeValue, UUID userId) {
     RouteTravelMode travelMode = RouteTravelMode.fromApiValue(travelModeValue);
     GroupEntity group = groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+    if (userId != null && !groupRepository.isUserMember(group.getPublicId(), userId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
     PlanEntity plan = planRepository.findByGroupAndPublicId(group, planId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
 

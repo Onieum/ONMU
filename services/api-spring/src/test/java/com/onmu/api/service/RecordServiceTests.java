@@ -82,6 +82,7 @@ class RecordServiceTests {
     );
     user = org.mockito.Mockito.mock(UserEntity.class);
     org.mockito.Mockito.lenient().when(user.getId()).thenReturn(java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    org.mockito.Mockito.lenient().when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
     group = new GroupEntity("1", "ONMU 개발 모임", user);
     plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "confirmed");
   }
@@ -90,13 +91,12 @@ class RecordServiceTests {
   void creatingRecordRecordsOutboxEvent() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(userRepository.checkPrivacyConsent(any())).thenReturn(true);
     when(groupRepository.isUserMember(eq("1"), any())).thenReturn(true);
     when(planRepository.isUserParticipant(eq("101"), any())).thenReturn(true);
     when(recordRepository.save(any(RecordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var created = service.createRecord("1", "101", new CreateRecordRequest(
+    var created = service.createRecord(user.getId(), "1", "101", new CreateRecordRequest(
       "오늘의 OOTD",
       "여름 휴가 룩",
       "participants",
@@ -128,13 +128,12 @@ class RecordServiceTests {
   void creatingRecordWithoutConsentSkipsOutboxEvent() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(userRepository.checkPrivacyConsent(any())).thenReturn(false);
     when(groupRepository.isUserMember(eq("1"), any())).thenReturn(true);
     when(planRepository.isUserParticipant(eq("101"), any())).thenReturn(true);
     when(recordRepository.save(any(RecordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var created = service.createRecord("1", "101", new CreateRecordRequest(
+    var created = service.createRecord(user.getId(), "1", "101", new CreateRecordRequest(
       "오늘의 OOTD",
       "여름 휴가 룩",
       "participants",
@@ -218,12 +217,11 @@ class RecordServiceTests {
   void creatingRecordWithoutGroupMembershipFails() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember(eq("1"), any())).thenReturn(false);
 
     org.junit.jupiter.api.Assertions.assertThrows(
       org.springframework.web.server.ResponseStatusException.class,
-      () -> service.createRecord("1", "101", new CreateRecordRequest(
+      () -> service.createRecord(user.getId(), "1", "101", new CreateRecordRequest(
         "오늘의 OOTD",
         "여름 휴가 룩",
         "participants",
@@ -240,13 +238,12 @@ class RecordServiceTests {
   void creatingRecordWithoutPlanParticipationFails() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember(eq("1"), any())).thenReturn(true);
     when(planRepository.isUserParticipant(eq("101"), any())).thenReturn(false);
 
     org.junit.jupiter.api.Assertions.assertThrows(
       org.springframework.web.server.ResponseStatusException.class,
-      () -> service.createRecord("1", "101", new CreateRecordRequest(
+      () -> service.createRecord(user.getId(), "1", "101", new CreateRecordRequest(
         "오늘의 OOTD",
         "여름 휴가 룩",
         "participants",
@@ -263,10 +260,9 @@ class RecordServiceTests {
   void getRecordDetailSuccessWhenPublicAndGroupMember() {
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "public title", "public", "{}", "[]");
     when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
 
-    var detail = service.getRecordDetail("rec_1");
+    var detail = service.getRecordDetail(user.getId(), "rec_1");
     assertThat(detail).containsKey("id");
     assertThat(detail.get("title")).isEqualTo("public title");
   }
@@ -278,12 +274,11 @@ class RecordServiceTests {
     
     RecordEntity record = new RecordEntity("rec_1", group, plan, otherUser, "private title", "private", "{}", "[]");
     when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
 
     org.junit.jupiter.api.Assertions.assertThrows(
       org.springframework.web.server.ResponseStatusException.class,
-      () -> service.getRecordDetail("rec_1")
+      () -> service.getRecordDetail(user.getId(), "rec_1")
     );
   }
 
@@ -291,10 +286,9 @@ class RecordServiceTests {
   void getRecordDetailSuccessWhenPrivateAndUserIsAuthor() {
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "private title", "private", "{}", "[]");
     when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
 
-    var detail = service.getRecordDetail("rec_1");
+    var detail = service.getRecordDetail(user.getId(), "rec_1");
     assertThat(detail.get("title")).isEqualTo("private title");
   }
 
@@ -302,13 +296,12 @@ class RecordServiceTests {
   void getRecordDetailFailsWhenParticipantsAndUserNotParticipant() {
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "participants title", "participants", "{}", "[]");
     when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(planRepository.isUserParticipant("101", user.getId())).thenReturn(false);
 
     org.junit.jupiter.api.Assertions.assertThrows(
       org.springframework.web.server.ResponseStatusException.class,
-      () -> service.getRecordDetail("rec_1")
+      () -> service.getRecordDetail(user.getId(), "rec_1")
     );
   }
 
@@ -316,11 +309,10 @@ class RecordServiceTests {
   void getRecordDetailSuccessWhenParticipantsAndUserIsParticipant() {
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "participants title", "participants", "{}", "[]");
     when(recordRepository.findByPublicIdAndDeletedAtIsNull("rec_1")).thenReturn(Optional.of(record));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(planRepository.isUserParticipant("101", user.getId())).thenReturn(true);
 
-    var detail = service.getRecordDetail("rec_1");
+    var detail = service.getRecordDetail(user.getId(), "rec_1");
     assertThat(detail.get("title")).isEqualTo("participants title");
   }
 
@@ -328,7 +320,6 @@ class RecordServiceTests {
   void creatingMemoryStoresCharacterSnapshotAndOutbox() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(userRepository.checkPrivacyConsent(any())).thenReturn(true);
 
     CharacterProfileEntity profile = new CharacterProfileEntity(
@@ -351,7 +342,7 @@ class RecordServiceTests {
       Map.of()
     );
 
-    MemoryResponse response = service.createMemory("1", request);
+    MemoryResponse response = service.createMemory(user.getId(), "1", request);
 
     assertThat(response).isNotNull();
     assertThat(response.title()).isEqualTo("오늘의 스타일");
@@ -381,10 +372,9 @@ class RecordServiceTests {
   @Test
   void getPersonalMemoriesReturnsSuccessfully() {
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "Personal Memory", "PUBLIC", "{}", "[]");
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     when(recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(user)).thenReturn(List.of(record));
 
-    List<MemoryResponse> memories = service.getPersonalMemories();
+    List<MemoryResponse> memories = service.getPersonalMemories(user.getId());
     assertThat(memories).hasSize(1);
     assertThat(memories.get(0).title()).isEqualTo("Personal Memory");
   }
@@ -393,11 +383,10 @@ class RecordServiceTests {
   void getGroupMemoriesReturnsSuccessfully() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
     RecordEntity record = new RecordEntity("rec_1", group, plan, user, "Group Memory", "PUBLIC", "{}", "[]");
     when(recordRepository.findByGroupAndDeletedAtIsNullOrderByCreatedAtDesc(group)).thenReturn(List.of(record));
 
-    List<MemoryResponse> memories = service.getGroupMemories("1");
+    List<MemoryResponse> memories = service.getGroupMemories(user.getId(), "1");
     assertThat(memories).hasSize(1);
     assertThat(memories.get(0).title()).isEqualTo("Group Memory");
   }

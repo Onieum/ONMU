@@ -1,5 +1,7 @@
 package com.onmu.api.web;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -88,19 +90,21 @@ class SecurityConfigTests {
 
   @Test
   void protectedApiAcceptsValidBearerToken() throws Exception {
-    authenticatedUser();
-    when(onmuApiService.groups()).thenReturn(List.of(Map.of("id", "1", "name", "ONMU Dev")));
+    UserEntity user = authenticatedUser();
+    when(groupApiService.groups(user.getId())).thenReturn(List.of(Map.of("id", "2", "name", "내 모임")));
 
     mvc.perform(get("/api/v1/groups")
         .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$[0].id").value("1"));
+      .andExpect(jsonPath("$[0].id").value("2"));
+
+    verify(groupApiService).groups(eq(user.getId()));
   }
 
   @Test
   void routeRecommendDelegatesWithValidBearerToken() throws Exception {
-    authenticatedUser();
-    when(routeRecommendationService.recommend("1", "101", "walk"))
+    UserEntity user = authenticatedUser();
+    when(routeRecommendationService.recommend("1", "101", "walk", user.getId()))
       .thenReturn(Map.of(
         "provider", "dev-mock",
         "travelMode", "walk",
@@ -277,9 +281,11 @@ class SecurityConfigTests {
       ));
   }
 
-  private void authenticatedUser() {
+  private UserEntity authenticatedUser() {
+    UserEntity user = new UserEntity("usr_test", "ONMU User", null, null);
     when(accessTokenVerifier.verify("test-access-token")).thenReturn("usr_test");
     when(userRepository.findByPublicIdAndDeletedAtIsNull("usr_test"))
-      .thenReturn(Optional.of(new UserEntity("usr_test", "ONMU User", null, null)));
+      .thenReturn(Optional.of(user));
+    return user;
   }
 }

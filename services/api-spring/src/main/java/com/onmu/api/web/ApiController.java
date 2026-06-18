@@ -84,37 +84,50 @@ public class ApiController {
   }
 
   @GetMapping("/groups")
-  public List<Map<String, Object>> groups() {
-    return onmuApiService.groups();
+  public List<Map<String, Object>> groups(@AuthenticationPrincipal AuthenticatedUser user) {
+    return groupApiService.groups(user.userId());
   }
 
   @PostMapping("/groups")
-  public ResponseEntity<Map<String, Object>> createGroup(@Valid @RequestBody CreateGroupRequest request) {
+  public ResponseEntity<Map<String, Object>> createGroup(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody CreateGroupRequest request
+  ) {
     return ResponseEntity.status(HttpStatus.CREATED)
-      .body(groupApiService.createGroup(request.name(), request.description()));
+      .body(groupApiService.createGroup(user.userId(), request.name(), request.description()));
   }
 
   @GetMapping("/groups/{groupId}")
-  public Map<String, Object> groupDetail(@PathVariable String groupId) {
-    return groupApiService.groupDetail(groupId);
+  public Map<String, Object> groupDetail(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return groupApiService.groupDetail(groupId, user.userId());
   }
 
   @PatchMapping("/groups/{groupId}")
   public Map<String, Object> updateGroup(
     @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpdateGroupRequest request
   ) {
-    return groupApiService.updateGroup(groupId, request);
+    return groupApiService.updateGroup(groupId, user.userId(), request);
   }
 
   @GetMapping("/groups/{groupId}/members")
-  public List<Map<String, Object>> groupMembers(@PathVariable String groupId) {
-    return groupApiService.members(groupId);
+  public List<Map<String, Object>> groupMembers(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return groupApiService.members(groupId, user.userId());
   }
 
   @DeleteMapping("/groups/{groupId}/members/me")
-  public ResponseEntity<Void> leaveGroup(@PathVariable String groupId) {
-    groupApiService.leaveGroup(groupId);
+  public ResponseEntity<Void> leaveGroup(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    groupApiService.leaveGroup(groupId, user.userId());
     return ResponseEntity.noContent().build();
   }
 
@@ -144,25 +157,31 @@ public class ApiController {
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}")
-  public Map<String, Object> plan(@PathVariable String groupId, @PathVariable String planId) {
-    return onmuApiService.plan(groupId, planId);
+  public Map<String, Object> plan(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.plan(groupId, planId, user.userId());
   }
 
   @PatchMapping("/groups/{groupId}/plans/{planId}")
   public Map<String, Object> updatePlan(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpdatePlanRequest request
   ) {
-    return onmuApiService.updatePlan(groupId, planId, request);
+    return onmuApiService.updatePlan(groupId, planId, user.userId(), request);
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/participants")
   public List<Map<String, Object>> planParticipants(
     @PathVariable String groupId,
-    @PathVariable String planId
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
   ) {
-    return onmuApiService.planParticipants(groupId, planId);
+    return onmuApiService.planParticipants(groupId, planId, user.userId());
   }
 
   @PostMapping("/groups/{groupId}/plans/{planId}/participants")
@@ -237,54 +256,69 @@ public class ApiController {
   }
 
   @PostMapping("/routes/recommend")
-  public Map<String, Object> routeRecommend(@Valid @RequestBody RouteRecommendationRequest request) {
-    return routeRecommendationService.recommend(request.groupId(), request.planId(), request.travelMode());
+  public Map<String, Object> routeRecommend(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody RouteRecommendationRequest request
+  ) {
+    return routeRecommendationService.recommend(request.groupId(), request.planId(), request.travelMode(), user.userId());
   }
 
   @GetMapping("/groups/{groupId}/votes")
   public List<Map<String, Object>> votes(
     @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestParam(required = false) String targetType,
     @RequestParam(required = false) String targetId
   ) {
-    return onmuApiService.votes(groupId, targetType, targetId);
+    return onmuApiService.votes(groupId, user.userId(), targetType, targetId);
   }
 
   @PostMapping("/groups/{groupId}/votes")
   public ResponseEntity<Map<String, Object>> createVote(
     @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @Valid @RequestBody CreateVoteRequest request
   ) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createVote(groupId, request));
+    return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createVote(groupId, user.userId(), request));
   }
 
   @GetMapping("/groups/{groupId}/votes/{voteId}")
-  public Map<String, Object> vote(@PathVariable String groupId, @PathVariable String voteId) {
-    return onmuApiService.vote(groupId, voteId);
+  public Map<String, Object> vote(
+    @PathVariable String groupId,
+    @PathVariable String voteId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.vote(groupId, voteId, user.userId());
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/place-candidates")
-  public List<Map<String, Object>> placeCandidates(@PathVariable String groupId, @PathVariable String planId) {
-    return onmuApiService.placeCandidates(groupId, planId);
+  public List<Map<String, Object>> placeCandidates(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.placeCandidates(groupId, planId, user.userId());
   }
 
   @PostMapping("/groups/{groupId}/plans/{planId}/place-candidates")
   public ResponseEntity<Map<String, Object>> createPlaceCandidate(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @Valid @RequestBody CreatePlaceCandidateRequest request
   ) {
     return ResponseEntity.status(HttpStatus.CREATED)
-      .body(onmuApiService.createPlaceCandidate(groupId, planId, request));
+      .body(onmuApiService.createPlaceCandidate(groupId, planId, user.userId(), request));
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}")
   public Map<String, Object> placeCandidate(
     @PathVariable String groupId,
     @PathVariable String planId,
-    @PathVariable String candidateId
+    @PathVariable String candidateId,
+    @AuthenticationPrincipal AuthenticatedUser user
   ) {
-    return onmuApiService.placeCandidate(groupId, planId, candidateId);
+    return onmuApiService.placeCandidate(groupId, planId, candidateId, user.userId());
   }
 
   @PutMapping("/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart")
@@ -292,40 +326,52 @@ public class ApiController {
     @PathVariable String groupId,
     @PathVariable String planId,
     @PathVariable String candidateId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpsertPlaceCandidateHeartRequest request
   ) {
-    return onmuApiService.upsertMyPlaceCandidateHeart(groupId, planId, candidateId, request);
+    return onmuApiService.upsertMyPlaceCandidateHeart(groupId, planId, candidateId, user.userId(), request);
   }
 
   @PostMapping("/groups/{groupId}/plans/{planId}/schedule-places")
   public ResponseEntity<Map<String, Object>> createSchedulePlace(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @Valid @RequestBody CreateSchedulePlaceRequest request
   ) {
     return ResponseEntity.status(HttpStatus.CREATED)
-      .body(onmuApiService.createSchedulePlace(groupId, planId, request));
+      .body(onmuApiService.createSchedulePlace(groupId, planId, user.userId(), request));
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/schedule-places")
-  public List<Map<String, Object>> schedulePlaces(@PathVariable String groupId, @PathVariable String planId) {
-    return onmuApiService.schedulePlaces(groupId, planId);
+  public List<Map<String, Object>> schedulePlaces(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return onmuApiService.schedulePlaces(groupId, planId, user.userId());
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
-  public Map<String, Object> settlementDraft(@PathVariable String groupId, @PathVariable String planId) {
-    return settlementApiService.settlementDraft(groupId, planId);
+  public Map<String, Object> settlementDraft(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.settlementDraft(groupId, planId, user.userId());
   }
 
   @PatchMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
   public Map<String, Object> updateSettlementDraft(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpdateSettlementDraftRequest request
   ) {
     return settlementApiService.updateSettlementDraft(
       groupId,
       planId,
+      user.userId(),
       request == null ? new UpdateSettlementDraftRequest(List.of(), null) : request
     );
   }
@@ -335,12 +381,14 @@ public class ApiController {
     @PathVariable String groupId,
     @PathVariable String planId,
     @PathVariable String itemId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) UpdateSettlementItemTargetsRequest request
   ) {
     return settlementApiService.updateSettlementDraftItemTargets(
       groupId,
       planId,
       itemId,
+      user.userId(),
       request == null ? new UpdateSettlementItemTargetsRequest(List.of(), List.of()) : request
     );
   }
@@ -349,11 +397,13 @@ public class ApiController {
   public Map<String, Object> previewSettlement(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) SettlementPreviewRequest request
   ) {
     return settlementApiService.previewSettlement(
       groupId,
       planId,
+      user.userId(),
       request == null ? new SettlementPreviewRequest(List.of()) : request
     );
   }
@@ -362,26 +412,33 @@ public class ApiController {
   public ResponseEntity<Map<String, Object>> createSettlement(
     @PathVariable String groupId,
     @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user,
     @RequestBody(required = false) SettlementPreviewRequest request
   ) {
     return ResponseEntity.status(HttpStatus.CREATED).body(settlementApiService.createSettlement(
       groupId,
       planId,
+      user.userId(),
       request == null ? new SettlementPreviewRequest(List.of()) : request
     ));
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlements")
-  public Map<String, Object> settlement(@PathVariable String groupId, @PathVariable String planId) {
-    return settlementApiService.settlement(groupId, planId);
+  public Map<String, Object> settlement(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.settlement(groupId, planId, user.userId());
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlements/{settlementId}")
   public Map<String, Object> settlementById(
     @PathVariable String groupId,
     @PathVariable String planId,
-    @PathVariable String settlementId
+    @PathVariable String settlementId,
+    @AuthenticationPrincipal AuthenticatedUser user
   ) {
-    return settlementApiService.settlementById(groupId, planId, settlementId);
+    return settlementApiService.settlementById(groupId, planId, settlementId, user.userId());
   }
 }
