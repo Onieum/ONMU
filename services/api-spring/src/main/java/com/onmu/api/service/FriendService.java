@@ -41,18 +41,7 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
-          case
-            when cp.user_id is null then friend.pixel_character
-            else jsonb_build_object(
-              'gender', cp.gender,
-              'skinTone', cp.skin_tone,
-              'hairStyle', cp.hair_style,
-              'hairColor', cp.hair_color,
-              'eyeStyle', cp.eye_style,
-              'eyeColor', cp.eye_color,
-              'clothes', cp.clothes
-            )::text
-          end as pixel_character,
+          friend.pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -69,7 +58,6 @@ public class FriendService {
         left join friend_settings fs on fs.friendship_id = f.id
           and fs.user_id = ?
           and fs.friend_user_id = friend.id
-        left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
           from user_codes
@@ -79,7 +67,6 @@ public class FriendService {
           limit 1
         ) active_code on true
         where (f.user_low_id = ? or f.user_high_id = ?)
-          and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
           and friend.deleted_at is null
@@ -107,7 +94,6 @@ public class FriendService {
           and fs.friend_user_id = ?
         where f.user_low_id = least(?, ?)
           and f.user_high_id = greatest(?, ?)
-          and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
       """,
@@ -143,23 +129,11 @@ public class FriendService {
           coalesce(active_code.code, u.public_id) as user_code,
           u.nickname,
           u.profile_image_url,
-          case
-            when cp.user_id is null then u.pixel_character
-            else jsonb_build_object(
-              'gender', cp.gender,
-              'skinTone', cp.skin_tone,
-              'hairStyle', cp.hair_style,
-              'hairColor', cp.hair_color,
-              'eyeStyle', cp.eye_style,
-              'eyeColor', cp.eye_color,
-              'clothes', cp.clothes
-            )::text
-          end as pixel_character,
+          u.pixel_character,
           '' as memo,
           coalesce(u.preference_profile::jsonb ->> 'introText', '') as intro_text,
           false as favorite
         from users u
-        left join character_profiles cp on cp.user_id = u.id
         left join lateral (
           select code
           from user_codes
@@ -215,6 +189,9 @@ public class FriendService {
       highId
     );
     if (activeCount != null && activeCount > 0) {
+      UUID friendshipId = activeFriendshipId(user.getId(), friend.getId());
+      upsertSetting(friendshipId, user.getId(), friend.getId(), request.memo() == null ? null : request.memo().trim());
+      upsertSetting(friendshipId, friend.getId(), user.getId(), null);
       throw new ResponseStatusException(HttpStatus.CONFLICT, "already_friend");
     }
 
@@ -401,18 +378,7 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
-          case
-            when cp.user_id is null then friend.pixel_character
-            else jsonb_build_object(
-              'gender', cp.gender,
-              'skinTone', cp.skin_tone,
-              'hairStyle', cp.hair_style,
-              'hairColor', cp.hair_color,
-              'eyeStyle', cp.eye_style,
-              'eyeColor', cp.eye_color,
-              'clothes', cp.clothes
-            )::text
-          end as pixel_character,
+          friend.pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -426,7 +392,6 @@ public class FriendService {
         left join friend_settings fs on fs.friendship_id = f.id
           and fs.user_id = ?
           and fs.friend_user_id = friend.id
-        left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
           from user_codes
@@ -437,7 +402,6 @@ public class FriendService {
         ) active_code on true
         where f.user_low_id = least(?, ?)
           and f.user_high_id = greatest(?, ?)
-          and coalesce(fs.hidden, false) = false
           and f.status = 'active'
           and f.deleted_at is null
       """,
