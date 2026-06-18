@@ -152,6 +152,60 @@ class AuthServiceTests {
   }
 
   @Test
+  void existingOAuthUserWithDefaultNameIsUpdatedFromVerifiedProviderProfile() {
+    OAuthLoginRequest request = new OAuthLoginRequest("kakao-auth-code", null, null, null, null, null, "state-123");
+    AuthIdentityEntity identity = new AuthIdentityEntity("aid_kakao", user, "KAKAO", "kakao-subject", null);
+    when(oAuthIdentityVerifier.verify("KAKAO", request))
+      .thenReturn(new VerifiedOAuthIdentity(
+        "KAKAO",
+        "kakao-subject",
+        "카카오 사용자",
+        "kakao@example.test",
+        "https://example.test/kakao.png"
+      ));
+    when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("KAKAO", "kakao-subject"))
+      .thenReturn(Optional.of(identity));
+    when(accessTokenIssuer.issue(user))
+      .thenReturn(new IssuedAccessToken("access-token", Instant.parse("2026-07-01T00:00:00Z")));
+    when(refreshTokenRepository.save(any(RefreshTokenEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = authService.oauthLogin("KAKAO", request, "127.0.0.1", "test-agent");
+
+    assertThat(response).containsEntry("authenticated", true);
+    assertThat(user.getDisplayName()).isEqualTo("카카오 사용자");
+    assertThat(user.getProfileImageUrl()).isEqualTo("https://example.test/kakao.png");
+    assertThat(response).extracting("user")
+      .isInstanceOfSatisfying(Map.class, userPayload ->
+        assertThat(userPayload).containsEntry("displayName", "카카오 사용자"));
+  }
+
+  @Test
+  void existingOAuthUserWithCustomNameIsNotOverwrittenByProviderProfile() {
+    UserEntity customUser = new UserEntity("usr_custom", "건동", "user@example.test", "https://example.test/me.png");
+    OAuthLoginRequest request = new OAuthLoginRequest("kakao-auth-code", null, null, null, null, null, "state-123");
+    AuthIdentityEntity identity = new AuthIdentityEntity("aid_kakao", customUser, "KAKAO", "kakao-subject", null);
+    when(oAuthIdentityVerifier.verify("KAKAO", request))
+      .thenReturn(new VerifiedOAuthIdentity(
+        "KAKAO",
+        "kakao-subject",
+        "카카오 사용자",
+        "kakao@example.test",
+        "https://example.test/kakao.png"
+      ));
+    when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("KAKAO", "kakao-subject"))
+      .thenReturn(Optional.of(identity));
+    when(accessTokenIssuer.issue(customUser))
+      .thenReturn(new IssuedAccessToken("access-token", Instant.parse("2026-07-01T00:00:00Z")));
+    when(refreshTokenRepository.save(any(RefreshTokenEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = authService.oauthLogin("KAKAO", request, "127.0.0.1", "test-agent");
+
+    assertThat(response).containsEntry("authenticated", true);
+    assertThat(customUser.getDisplayName()).isEqualTo("건동");
+    assertThat(customUser.getProfileImageUrl()).isEqualTo("https://example.test/me.png");
+  }
+
+  @Test
   void refreshRotatesActiveToken() {
     UUID familyId = UUID.randomUUID();
     RefreshTokenEntity currentToken = new RefreshTokenEntity(
