@@ -143,7 +143,7 @@ class _VoteListContent extends StatelessWidget {
             _VoteSummaryCard(
               vote: vote,
               onTap: () =>
-                  context.push(_votePath(group.id, state.planId, vote.id)),
+                  context.push(_votePath(group.id, state.planId, vote)),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -155,7 +155,7 @@ class _VoteListContent extends StatelessWidget {
             _ClosedVoteRow(
               vote: vote,
               onTap: () =>
-                  context.push(_votePath(group.id, state.planId, vote.id)),
+                  context.push(_votePath(group.id, state.planId, vote)),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -170,11 +170,23 @@ class _VoteListContent extends StatelessWidget {
     );
   }
 
-  String _votePath(Object groupId, int planId, Object voteId) {
-    if (planId == 0) {
-      return RoutePaths.groupVote(groupId, voteId);
+  String _votePath(Object groupId, int planId, VoteSummary vote) {
+    final targetPlanId = _targetPlanId(vote);
+    if (targetPlanId != null) {
+      return RoutePaths.planVote(groupId, targetPlanId, vote.id);
     }
-    return RoutePaths.planVote(groupId, planId, voteId);
+    if (planId <= 0) {
+      return RoutePaths.groupVote(groupId, vote.id);
+    }
+    return RoutePaths.planVote(groupId, planId, vote.id);
+  }
+
+  Object? _targetPlanId(VoteSummary vote) {
+    if (vote.targetType.trim().toUpperCase() != 'PLAN') {
+      return null;
+    }
+    final targetId = vote.targetId.trim();
+    return targetId.isEmpty ? null : targetId;
   }
 }
 
@@ -244,7 +256,7 @@ class _VoteSummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      vote.description,
+                      vote.displayDescription,
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -440,7 +452,7 @@ class _ClosedVoteRow extends StatelessWidget {
                 Text(vote.title, style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  vote.description,
+                  vote.displayDescription,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),

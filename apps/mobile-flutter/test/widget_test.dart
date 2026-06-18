@@ -1973,7 +1973,7 @@ class _SingleMemberGroupRepository implements GroupRepository {
     members: ['지우'],
     lastMessage: '',
     unreadCount: 0,
-    pinnedPlanTitle: '약속 준비 중',
+    pinnedPlanTitle: '',
   );
 
   @override

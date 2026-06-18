@@ -110,6 +110,44 @@ void main() {
       expect(groups.single.description, isEmpty);
       expect(groups.single.lastMessage, isEmpty);
       expect(groups.single.members, isEmpty);
+      expect(groups.single.pinnedPlanTitle, isEmpty);
+    },
+  );
+
+  test(
+    'fetchVotes keeps description empty when vote options are missing',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'id': 501,
+                    'title': '제주도 여행 장소 투표',
+                    'targetType': 'PLAN',
+                    'targetId': '101',
+                    'participantCount': 4,
+                    'closed': false,
+                    'options': [],
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      final votes = await ApiGroupRepository(
+        OnmuApiClient(dio),
+      ).fetchVotes(1, targetType: 'PLAN', targetId: 101);
+
+      expect(votes.single.description, isEmpty);
+      expect(votes.single.displayDescription, '등록된 투표 후보가 없어요');
+      expect(votes.single.options, isEmpty);
     },
   );
 

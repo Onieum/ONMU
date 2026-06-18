@@ -11,6 +11,7 @@ import 'package:onmu_mobile/features/group/view_model/group_create_view_model.da
 import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_members_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_plan_board_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
@@ -61,6 +62,36 @@ void main() {
     expect(group.members, ['지우', '민수']);
     expect(group.memberAvatars.map((member) => member.name), ['지우', '민수']);
     expect(group.pinnedPlanTitle, '서버 보강 약속');
+  });
+
+  test('온모임 목록 ViewModel은 예정 약속이 없으면 명확한 빈 상태 문구를 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(plans: const []),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '예정된 약속 없음');
+  });
+
+  test('온모임 목록 ViewModel은 약속 보강 실패를 빈 상태와 구분한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(throwOnFetchPlans: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '약속 정보를 불러오지 못했어요');
   });
 
   test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
@@ -477,6 +508,118 @@ void main() {
     expect(state.candidates.map((candidate) => candidate.name), ['목업 카페']);
   });
 
+  test('약속 보드 ViewModel은 현재 약속에 연결된 투표와 후보 집계를 사용한다', () async {
+    final groupRepository = _PlanBoardGroupRepository();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(groupRepository),
+        placeRepositoryProvider.overrideWithValue(_PlanBoardPlaceRepository()),
+        planRepositoryProvider.overrideWithValue(_PlanBoardPlanRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupPlanBoardViewModelProvider((groupId: '1', planId: '103')).future,
+    );
+
+    expect(groupRepository.fetchedVoteTargetTypes, ['PLAN']);
+    expect(groupRepository.fetchedVoteTargetIds, ['103']);
+    expect(state.currentPlan?.title, '한강 피크닉');
+    expect(state.voteId, 703);
+    expect(state.candidateResults.map((row) => row.candidate.id), [9902, 9901]);
+    expect(state.candidateResults.map((row) => row.voteCount), [4, 1]);
+    expect(state.candidateResults.map((row) => row.progress), [0.8, 0.2]);
+    expect(state.participantResponses.map((response) => response.count), [
+      2,
+      1,
+      1,
+    ]);
+  });
+
+  test('약속 보드 ViewModel은 다른 약속의 투표를 현재 약속 투표로 쓰지 않는다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _PlanBoardMismatchedVoteRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(_PlanBoardPlaceRepository()),
+        planRepositoryProvider.overrideWithValue(_PlanBoardPlanRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupPlanBoardViewModelProvider((groupId: '1', planId: '103')).future,
+    );
+
+    expect(state.voteId, 0);
+    expect(state.voteActionLabel, '연결된 투표 없음');
+    expect(state.candidateResults.map((row) => row.voteCount), [0, 0]);
+  });
+
+  test(
+    '투표 상세 ViewModel은 route planId가 투표 대상과 다르면 투표 대상 약속의 후보를 조회한다',
+    () async {
+      final placeRepository = _PlanScopedPlaceRepository();
+      final container = ProviderContainer(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _MismatchedVoteGroupRepository(),
+          ),
+          placeRepositoryProvider.overrideWithValue(placeRepository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final state = await container.read(
+        voteDetailViewModelProvider((
+          groupId: '1',
+          voteId: '501',
+          planId: '103',
+        )).future,
+      );
+
+      expect(placeRepository.fetchedPlanIds, ['101']);
+      expect(state.candidates.map((candidate) => candidate.id), [9901]);
+    },
+  );
+
+  test('약속 보드 상태는 후보 없는 투표를 명확한 empty state로 설명한다', () {
+    final state = GroupPlanBoardState(
+      group: const GroupSummary(
+        id: 1,
+        name: '온모임',
+        description: '',
+        members: [],
+        lastMessage: '',
+        unreadCount: 0,
+        pinnedPlanTitle: '',
+      ),
+      currentPlan: null,
+      candidateResults: const [],
+      vote: VoteSummary(
+        id: 501,
+        title: '장소 투표',
+        statusLabel: '진행 중',
+        description: '',
+        planLabel: '약속',
+        planMeta: 'PLACE',
+        participants: const [],
+        participantCount: 0,
+        options: const [],
+        closed: false,
+        joinedByMe: false,
+        actionLabel: '투표 확인하기',
+        targetType: 'PLAN',
+        targetId: '101',
+      ),
+      participantResponses: const [],
+    );
+
+    expect(state.voteDescription, '등록된 투표 후보가 없어요');
+  });
+
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
     final repository = _FakeGroupRepository(
       sentMessage: const GroupMessage(
@@ -551,6 +694,29 @@ void main() {
     plansCompleter.complete(const []);
     votesCompleter.complete(const []);
     await pumpEventQueue();
+  });
+
+  test('채팅 ViewModel은 현재 약속의 진행 중 투표가 없으면 투표 카드를 숨긴다', () async {
+    final repository = _ChatNoCurrentVoteRepository();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    final state = container.read(provider).requireValue;
+    expect(repository.fetchedVoteTargetIds, ['101']);
+    expect(state.planId, 101);
+    expect(state.vote, isNull);
+    expect(state.voteId, 0);
   });
 
   test('채팅 ViewModel은 서버 응답 전에도 pending 말풍선을 즉시 추가한다', () async {
@@ -1200,6 +1366,52 @@ class _FakeGroupRepository implements GroupRepository {
   }
 }
 
+class _ChatNoCurrentVoteRepository extends _FakeGroupRepository {
+  final fetchedVoteTargetIds = <String?>[];
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
+    return const GroupPinnedPlan(
+      id: 101,
+      title: '제주도 여행',
+      dateLabel: '6월 7일',
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      voteSummary: '',
+    );
+  }
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async {
+    fetchedVoteTargetIds.add(targetId?.toString());
+    if (targetType == 'PLAN' && targetId?.toString() == '101') {
+      return const [];
+    }
+    return [
+      VoteSummary(
+        id: 501,
+        title: '다른 약속 투표',
+        statusLabel: '진행 중',
+        description: '현재 약속이 아닌 투표',
+        planLabel: '다른 약속',
+        planMeta: '6월 10일',
+        participants: const ['민서'],
+        participantCount: 1,
+        options: const [],
+        closed: false,
+        joinedByMe: false,
+        actionLabel: '투표 보기',
+        targetType: 'PLAN',
+        targetId: '105',
+      ),
+    ];
+  }
+}
+
 class _FakeMediaRepository implements MediaRepository {
   _FakeMediaRepository({required this.uploaded});
 
@@ -1327,6 +1539,14 @@ class _EmptyGroupRepository implements GroupRepository {
 }
 
 class _SparseGroupListRepository extends _EmptyGroupRepository {
+  _SparseGroupListRepository({
+    List<GroupPlanSummary>? plans,
+    this.throwOnFetchPlans = false,
+  }) : plans = plans ?? _defaultPlans;
+
+  final List<GroupPlanSummary> plans;
+  final bool throwOnFetchPlans;
+
   static const _group = GroupSummary(
     id: 77,
     name: '요약 부족 모임',
@@ -1334,7 +1554,7 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
     members: [],
     lastMessage: '',
     unreadCount: 0,
-    pinnedPlanTitle: '약속 준비 중',
+    pinnedPlanTitle: '',
   );
 
   @override
@@ -1359,23 +1579,28 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
     ];
   }
 
+  static final _defaultPlans = [
+    GroupPlanSummary(
+      id: 7701,
+      title: '서버 보강 약속',
+      dateLabel: '6월 18일 10:00',
+      startsAt: DateTime.utc(2026, 6, 18, 1),
+      placeName: '성수동',
+      statusLabel: '예정',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: false,
+    ),
+  ];
+
   @override
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
-    return [
-      GroupPlanSummary(
-        id: 7701,
-        title: '서버 보강 약속',
-        dateLabel: '6월 18일 10:00',
-        startsAt: DateTime.utc(2026, 6, 18, 1),
-        placeName: '성수동',
-        statusLabel: '예정',
-        statusType: 'scheduled',
-        memberCount: 2,
-        extraMemberCount: 0,
-        iconKind: 'coffee',
-        isPast: false,
-      ),
-    ];
+    if (throwOnFetchPlans) {
+      throw StateError('plans failed');
+    }
+    return plans;
   }
 }
 
@@ -1952,6 +2177,185 @@ class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
   }
 }
 
+class _PlanBoardGroupRepository extends _EmptyGroupRepository {
+  final fetchedVoteTargetTypes = <String?>[];
+  final fetchedVoteTargetIds = <String?>[];
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async {
+    return const GroupSummary(
+      id: 1,
+      name: '온모임',
+      description: '',
+      members: [],
+      lastMessage: '',
+      unreadCount: 0,
+      pinnedPlanTitle: '제주도 여행',
+    );
+  }
+
+  @override
+  Future<GroupPinnedPlan?> fetchPinnedPlan(Object groupId) async {
+    return const GroupPinnedPlan(
+      id: 101,
+      title: '제주도 여행',
+      dateLabel: '6월 7일',
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      voteSummary: '',
+    );
+  }
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return const [
+      GroupPlanSummary(
+        id: 101,
+        title: '제주도 여행',
+        dateLabel: '6월 7일',
+        placeName: '제주',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 4,
+        extraMemberCount: 0,
+        iconKind: 'travel',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 103,
+        title: '한강 피크닉',
+        dateLabel: '6월 10일',
+        placeName: '여의도 한강공원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 4,
+        extraMemberCount: 0,
+        iconKind: 'park',
+        isPast: false,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async {
+    fetchedVoteTargetTypes.add(targetType);
+    fetchedVoteTargetIds.add(targetId?.toString());
+    if (targetType != 'PLAN' || targetId?.toString() != '103') {
+      return const [];
+    }
+    return [
+      VoteSummary(
+        id: 703,
+        title: '한강 피크닉 장소 투표',
+        statusLabel: '진행 중',
+        description: '장소 후보 투표',
+        planLabel: '한강 피크닉',
+        planMeta: '6월 10일 · 여의도 한강공원',
+        participants: const ['민서', '지훈', '하린', '현우'],
+        participantCount: 4,
+        options: [
+          VoteOptionSummary(
+            label: '투표에 없는 식당',
+            countLabel: '4표',
+            progress: 0.8,
+            candidateId: '9902',
+            responseCount: 4,
+          ),
+          VoteOptionSummary(
+            label: '목업 카페',
+            countLabel: '1표',
+            progress: 0.2,
+            candidateId: '9901',
+            responseCount: 1,
+          ),
+        ],
+        closed: false,
+        joinedByMe: true,
+        actionLabel: '투표 확인하기',
+        targetType: 'PLAN',
+        targetId: '103',
+      ),
+    ];
+  }
+}
+
+class _PlanBoardMismatchedVoteRepository extends _PlanBoardGroupRepository {
+  @override
+  Future<List<VoteSummary>> fetchVotes(
+    Object groupId, {
+    String? targetType,
+    Object? targetId,
+  }) async {
+    fetchedVoteTargetTypes.add(targetType);
+    fetchedVoteTargetIds.add(targetId?.toString());
+    return [
+      VoteSummary(
+        id: 501,
+        title: '제주도 여행 장소 투표',
+        statusLabel: '진행 중',
+        description: '다른 약속 투표',
+        planLabel: '제주도 여행',
+        planMeta: '6월 7일 · 제주',
+        participants: const ['민서'],
+        participantCount: 1,
+        options: [
+          VoteOptionSummary(
+            label: '목업 카페',
+            countLabel: '1표',
+            progress: 1,
+            candidateId: '9901',
+            responseCount: 1,
+          ),
+        ],
+        closed: false,
+        joinedByMe: true,
+        actionLabel: '투표 확인하기',
+        targetType: 'PLAN',
+        targetId: '101',
+      ),
+    ];
+  }
+}
+
+class _MismatchedVoteGroupRepository extends _EmptyGroupRepository {
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return VoteCard(
+      title: '제주도 여행 장소 투표',
+      summary: '목업 카페 후보를 비교 중이에요.',
+      statusLabel: 'open',
+      actionLabel: '투표 보기',
+      participantCount: 1,
+      targetType: 'PLAN',
+      targetId: '101',
+      options: [
+        VoteOptionSummary(
+          label: '목업 카페',
+          countLabel: '1표',
+          progress: 1,
+          candidateId: '9901',
+          responseCount: 1,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return const {};
+  }
+}
+
 class _FakePlaceRepository implements PlaceRepository {
   static final _candidate = PlaceCandidate(
     id: 9901,
@@ -2051,6 +2455,35 @@ class _MultiCandidatePlaceRepository extends _FakePlaceRepository {
   }) async => [_FakePlaceRepository._candidate, _otherCandidate];
 }
 
+class _PlanBoardPlaceRepository extends _FakePlaceRepository {
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return [
+      _MultiCandidatePlaceRepository._otherCandidate,
+      _FakePlaceRepository._candidate,
+    ];
+  }
+}
+
+class _PlanScopedPlaceRepository extends _FakePlaceRepository {
+  final fetchedPlanIds = <String>[];
+
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    fetchedPlanIds.add(planId.toString());
+    if (planId.toString() == '101') {
+      return [_FakePlaceRepository._candidate];
+    }
+    return [_MultiCandidatePlaceRepository._otherCandidate];
+  }
+}
+
 class _FakePlanRepository implements PlanRepository {
   static const _plan = Plan(
     id: 101,
@@ -2125,6 +2558,45 @@ class _FakePlanRepository implements PlanRepository {
     required String userId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _PlanBoardPlanRepository extends _FakePlanRepository {
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [
+      PlanParticipantArrival(
+        id: 'participant-1',
+        displayName: '민서',
+        participantStatus: 'joined',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+      PlanParticipantArrival(
+        id: 'participant-2',
+        displayName: '지훈',
+        participantStatus: 'joined',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+      PlanParticipantArrival(
+        id: 'participant-3',
+        displayName: '하린',
+        participantStatus: 'invited',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+      PlanParticipantArrival(
+        id: 'participant-4',
+        displayName: '현우',
+        participantStatus: 'left',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+    ];
   }
 }
 

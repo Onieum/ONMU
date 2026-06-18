@@ -119,4 +119,12 @@ class SettlementSummary {
   final List<SettlementMemberResult> memberResults;
   final List<SettlementTransferSummary> transfers;
   final String shareMessage;
+
+  String get displayFinalSummaryLabel {
+    final trimmed = finalSummaryLabel.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return '정산 요약 없음';
+  }
 }
