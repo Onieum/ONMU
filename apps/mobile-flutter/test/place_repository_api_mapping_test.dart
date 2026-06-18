@@ -5,6 +5,56 @@ import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 
 void main() {
+  test('creates a schedule place through the Spring API contract', () async {
+    final requestedPaths = <String>[];
+    final requestedBodies = <Map<String, dynamic>>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              statusCode: 201,
+              data: {
+                'id': '701',
+                'groupId': '1',
+                'planId': '104',
+                'candidateId': '204',
+                'name': '성수 테스트 카페',
+                'placeName': '성수 테스트 카페',
+                'sortOrder': 1,
+                'note': '점심',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiPlaceRepository(OnmuApiClient(dio));
+
+    final saved = await repository.createSchedulePlace(
+      groupId: 1,
+      planId: 104,
+      candidateId: 204,
+      name: '성수 테스트 카페',
+      note: '점심',
+    );
+
+    expect(requestedPaths.single, '/api/v1/groups/1/plans/104/schedule-places');
+    expect(requestedBodies.single, {
+      'candidateId': '204',
+      'name': '성수 테스트 카페',
+      'note': '점심',
+    });
+    expect(saved.id, '701');
+    expect(saved.candidateId, '204');
+    expect(saved.name, '성수 테스트 카페');
+    expect(saved.sortOrder, 1);
+  });
+
   test('creates a place candidate through the Spring API contract', () async {
     final requestedPaths = <String>[];
     final requestedBodies = <Map<String, dynamic>>[];

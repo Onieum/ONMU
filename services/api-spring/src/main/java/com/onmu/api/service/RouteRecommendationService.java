@@ -10,6 +10,8 @@ import com.onmu.api.domain.PlaceCandidateEntity;
 import com.onmu.api.domain.PlaceCandidateRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceEntity;
+import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.route.DevMockRouteProvider;
 import com.onmu.api.route.OpenRouteServiceProvider;
 import com.onmu.api.route.RouteRecommendation;
@@ -41,6 +43,7 @@ public class RouteRecommendationService {
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
   private final PlaceCandidateRepository placeCandidateRepository;
+  private final SchedulePlaceRepository schedulePlaceRepository;
   private final OpenRouteServiceProvider openRouteServiceProvider;
   private final DevMockRouteProvider devMockRouteProvider;
   private final RouteRecommendationCache cache;
@@ -50,6 +53,7 @@ public class RouteRecommendationService {
     GroupRepository groupRepository,
     PlanRepository planRepository,
     PlaceCandidateRepository placeCandidateRepository,
+    SchedulePlaceRepository schedulePlaceRepository,
     OpenRouteServiceProvider openRouteServiceProvider,
     DevMockRouteProvider devMockRouteProvider,
     RouteRecommendationCache cache,
@@ -58,6 +62,7 @@ public class RouteRecommendationService {
     this.groupRepository = groupRepository;
     this.planRepository = planRepository;
     this.placeCandidateRepository = placeCandidateRepository;
+    this.schedulePlaceRepository = schedulePlaceRepository;
     this.openRouteServiceProvider = openRouteServiceProvider;
     this.devMockRouteProvider = devMockRouteProvider;
     this.cache = cache;
@@ -72,35 +77,96 @@ public class RouteRecommendationService {
     PlanEntity plan = planRepository.findByGroupAndPublicId(group, planId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
 
-    List<RouteStop> stops = routeStops(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan));
-    String cacheKey = cacheKey(groupId, planId, travelMode, stops);
+    List<RouteStop> stops = routeStops(plan);
+    boolean routeProviderAvailable = openRouteServiceProvider.isAvailable();
+    LOGGER.info(
+      "Route provider selection: provider={}, available={}, stop_count={}",
+      openRouteServiceProvider.provider(),
+      routeProviderAvailable,
+      stops.size()
+    );
+    String cacheKey = cacheKey(groupId, planId, travelMode, stops, routeProviderAvailable);
     Optional<Map<String, Object>> cached = cache.get(cacheKey);
     if (cached.isPresent()) {
       return cached.get();
     }
 
-    RouteRecommendation recommendation = useOpenRouteService(stops)
-      ? openRouteService(stops, travelMode)
-      : devMockRouteProvider.recommend(stops, travelMode);
+    RouteRecommendationResult result = routeRecommendation(stops, travelMode, routeProviderAvailable);
+    RouteRecommendation recommendation = result.recommendation();
     Map<String, Object> value = recommendation.toApiMap();
-    cache.put(cacheKey, value);
+    if (result.cacheable()) {
+      cache.put(cacheKey, value);
+    }
     return value;
   }
 
-  private boolean useOpenRouteService(List<RouteStop> stops) {
-    return openRouteServiceProvider.isAvailable() && stops.size() >= 2;
-  }
-
-  private RouteRecommendation openRouteService(List<RouteStop> stops, RouteTravelMode travelMode) {
+  private RouteRecommendationResult routeRecommendation(
+    List<RouteStop> stops,
+    RouteTravelMode travelMode,
+    boolean routeProviderAvailable
+  ) {
+    if (!routeProviderAvailable) {
+      LOGGER.info("Using dev mock route fallback: reason=provider_unavailable, stop_count={}", stops.size());
+      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), true);
+    }
+    if (stops.size() < 2) {
+      LOGGER.info("Using dev mock route fallback: reason=insufficient_coordinates, stop_count={}", stops.size());
+      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), true);
+    }
     try {
-      return openRouteServiceProvider.recommend(stops, travelMode);
+      LOGGER.info("Route provider invocation started: provider={}", openRouteServiceProvider.provider());
+      RouteRecommendation recommendation = openRouteServiceProvider.recommend(stops, travelMode);
+      LOGGER.info(
+        "Route provider invocation finished: provider={}, geometry_count={}, distance_present={}, duration_present={}",
+        openRouteServiceProvider.provider(),
+        recommendation.geometry().size(),
+        recommendation.distanceMeters() > 0,
+        recommendation.durationSeconds() > 0
+      );
+      return new RouteRecommendationResult(recommendation, true);
     } catch (RuntimeException exception) {
-      LOGGER.warn("Route provider failed: provider={}, message={}", openRouteServiceProvider.provider(), exception.getClass().getSimpleName());
-      return devMockRouteProvider.recommend(stops, travelMode);
+      LOGGER.warn(
+        "Route provider failed: provider={}, error_type={}",
+        openRouteServiceProvider.provider(),
+        exception.getClass().getSimpleName()
+      );
+      LOGGER.info("Using dev mock route fallback: reason=provider_failure, stop_count={}", stops.size());
+      return new RouteRecommendationResult(devMockRouteProvider.recommend(stops, travelMode), false);
     }
   }
 
-  private List<RouteStop> routeStops(List<PlaceCandidateEntity> candidates) {
+  private List<RouteStop> routeStops(PlanEntity plan) {
+    List<SchedulePlaceEntity> schedulePlaces = schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan);
+    if (!schedulePlaces.isEmpty()) {
+      List<RouteStop> scheduleStops = routeStopsFromSchedulePlaces(schedulePlaces);
+      if (!scheduleStops.isEmpty()) {
+        return scheduleStops;
+      }
+    }
+    return routeStopsFromCandidates(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan));
+  }
+
+  private List<RouteStop> routeStopsFromSchedulePlaces(List<SchedulePlaceEntity> schedulePlaces) {
+    List<RouteStop> stops = new ArrayList<>();
+    for (SchedulePlaceEntity schedulePlace : schedulePlaces) {
+      PlaceCandidateEntity candidate = schedulePlace.getPlaceCandidate();
+      if (candidate == null) {
+        continue;
+      }
+      coordinate(candidate)
+        .map(coordinate -> new RouteStop(
+          schedulePlace.getPublicId(),
+          schedulePlace.getName(),
+          coordinate.latitude(),
+          coordinate.longitude(),
+          stops.size() + 1
+        ))
+        .ifPresent(stops::add);
+    }
+    return stops;
+  }
+
+  private List<RouteStop> routeStopsFromCandidates(List<PlaceCandidateEntity> candidates) {
     List<RouteStop> stops = new ArrayList<>();
     for (PlaceCandidateEntity candidate : candidates) {
       coordinate(candidate)
@@ -162,11 +228,18 @@ public class RouteRecommendationService {
     }
   }
 
-  private String cacheKey(String groupId, String planId, RouteTravelMode travelMode, List<RouteStop> stops) {
+  private String cacheKey(
+    String groupId,
+    String planId,
+    RouteTravelMode travelMode,
+    List<RouteStop> stops,
+    boolean routeProviderAvailable
+  ) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("groupId", groupId);
     value.put("planId", planId);
     value.put("travelMode", travelMode.apiValue());
+    value.put("routeProviderAvailable", routeProviderAvailable);
     value.put("stops", stops.stream()
       .map(stop -> List.of(stop.id(), stop.latitude(), stop.longitude()))
       .toList());
@@ -180,5 +253,8 @@ public class RouteRecommendationService {
   }
 
   private record Coordinate(double latitude, double longitude) {
+  }
+
+  private record RouteRecommendationResult(RouteRecommendation recommendation, boolean cacheable) {
   }
 }

@@ -103,7 +103,14 @@ class ApiPlanRepository implements PlanRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return const [];
+    final places = await _client.getList(
+      '/api/v1/groups/$groupId/plans/$planId/schedule-places',
+    );
+    final visitPlans = places
+        .map(_schedulePlace)
+        .map(_visitPlanForSchedulePlace)
+        .toList(growable: false);
+    return visitPlans.isEmpty ? const [] : [visitPlans];
   }
 
   @override
@@ -178,6 +185,36 @@ class ApiPlanRepository implements PlanRepository {
       ],
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
+    );
+  }
+
+  SchedulePlace _schedulePlace(Map<String, dynamic> json) {
+    return SchedulePlace(
+      id: OnmuJson.readString(json, 'id'),
+      groupId: OnmuJson.readString(json, 'groupId'),
+      planId: OnmuJson.readString(json, 'planId'),
+      candidateId: OnmuJson.readString(json, 'candidateId'),
+      name: OnmuJson.readString(
+        json,
+        'name',
+        OnmuJson.readString(json, 'placeName', '일정 장소'),
+      ),
+      startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
+      endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
+      note: OnmuJson.readString(json, 'note'),
+      sortOrder: OnmuJson.readInt(json, 'sortOrder'),
+    );
+  }
+
+  VisitPlan _visitPlanForSchedulePlace(SchedulePlace place) {
+    return VisitPlan(
+      time: _timeLabel(place.startsAt),
+      endTime: _timeLabel(place.endsAt),
+      place: place.name,
+      kind: '일정 장소',
+      duration: place.note.trim().isEmpty
+          ? '동선 장소 ${place.sortOrder <= 0 ? 1 : place.sortOrder}'
+          : place.note.trim(),
     );
   }
 
@@ -259,5 +296,15 @@ class ApiPlanRepository implements PlanRepository {
       return null;
     }
     return DateTime.tryParse(trimmed)?.toUtc().toIso8601String();
+  }
+
+  String _timeLabel(DateTime? value) {
+    if (value == null) {
+      return '미정';
+    }
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }

@@ -5,6 +5,45 @@ import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 
 void main() {
+  test('maps schedule places into itinerary visit plans', () async {
+    final requests = <RequestOptions>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requests.add(options);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': '701',
+                  'name': '성수 테스트 카페',
+                  'startsAt': '2026-06-12T02:00:00Z',
+                  'endsAt': '2026-06-12T03:00:00Z',
+                  'note': '점심',
+                  'sortOrder': 1,
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiPlanRepository(OnmuApiClient(dio));
+
+    final visitPlansByDate = await repository.fetchVisitPlansByDate(
+      groupId: 1,
+      planId: 101,
+    );
+
+    expect(requests.single.path, '/api/v1/groups/1/plans/101/schedule-places');
+    expect(visitPlansByDate, hasLength(1));
+    expect(visitPlansByDate.single.single.place, '성수 테스트 카페');
+    expect(visitPlansByDate.single.single.kind, '일정 장소');
+    expect(visitPlansByDate.single.single.duration, '점심');
+  });
+
   test('updates my plan arrival status through participant response', () async {
     final requests = <RequestOptions>[];
     final dio = Dio();

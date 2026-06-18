@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/place_models.dart';
+import '../../../shared/models/plan_models.dart';
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return ApiPlaceRepository(ref.watch(onmuApiClientProvider));
@@ -23,6 +24,14 @@ abstract interface class PlaceRepository {
     required Object groupId,
     required Object planId,
     required PlaceCandidate candidate,
+  });
+
+  Future<SchedulePlace> createSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required String name,
+    String note,
   });
 
   Future<List<PlaceCandidate>> searchPlaces({
@@ -106,6 +115,25 @@ class ApiPlaceRepository implements PlaceRepository {
       },
     );
     return _candidate(response);
+  }
+
+  @override
+  Future<SchedulePlace> createSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required String name,
+    String note = '',
+  }) async {
+    final response = await _client.postObject(
+      '/api/v1/groups/$groupId/plans/$planId/schedule-places',
+      body: {
+        'candidateId': candidateId.toString(),
+        'name': name.trim(),
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    return _schedulePlace(response);
   }
 
   @override
@@ -195,6 +223,24 @@ class ApiPlaceRepository implements PlaceRepository {
           _readNullableDouble(json, 'lng') ??
           _readNullableDouble(json, 'longitude'),
       fetchedAt: DateTime.tryParse(OnmuJson.readString(json, 'fetchedAt')),
+    );
+  }
+
+  SchedulePlace _schedulePlace(Map<String, dynamic> json) {
+    return SchedulePlace(
+      id: OnmuJson.readString(json, 'id'),
+      groupId: OnmuJson.readString(json, 'groupId'),
+      planId: OnmuJson.readString(json, 'planId'),
+      candidateId: OnmuJson.readString(json, 'candidateId'),
+      name: OnmuJson.readString(
+        json,
+        'name',
+        OnmuJson.readString(json, 'placeName', '일정 장소'),
+      ),
+      startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
+      endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
+      note: OnmuJson.readString(json, 'note'),
+      sortOrder: OnmuJson.readInt(json, 'sortOrder'),
     );
   }
 

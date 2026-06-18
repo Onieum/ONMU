@@ -295,15 +295,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                             });
                           },
                           onRegisterPressed: (candidate) =>
-                              _saveCandidateAndNavigate(
-                                candidate,
-                                context,
-                                message: '일정에 등록되었어요!',
-                                targetPath: RoutePaths.planItinerary(
-                                  widget.groupId,
-                                  widget.planId,
-                                ),
-                              ),
+                              _saveSchedulePlaceAndNavigate(candidate, context),
                           onAddCandidatePressed: (candidate) =>
                               _saveCandidateAndNavigate(
                                 candidate,
@@ -368,6 +360,52 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(content: Text('장소를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingCandidateIds.remove(candidate.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _saveSchedulePlaceAndNavigate(
+    PlaceCandidate candidate,
+    BuildContext context,
+  ) async {
+    if (_savingCandidateIds.contains(candidate.id)) {
+      return;
+    }
+
+    setState(() {
+      _savingCandidateIds.add(candidate.id);
+    });
+
+    try {
+      await ref
+          .read(
+            placeCandidatesViewModelProvider((
+              groupId: widget.groupId,
+              planId: widget.planId,
+            )).notifier,
+          )
+          .addCandidateToSchedule(candidate);
+      if (!mounted || !context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('일정에 등록되었어요!')));
+      context.push(RoutePaths.planItinerary(widget.groupId, widget.planId));
+    } catch (_) {
+      if (!mounted || !context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('일정 장소를 등록하지 못했어요. 잠시 후 다시 시도해 주세요.')),
         );
     } finally {
       if (mounted) {

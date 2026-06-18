@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/place_models.dart';
+import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/vote_models.dart';
+import '../../map/view_model/route_recommendation_view_model.dart';
 import '../../group/repository/group_repository.dart';
 import '../../group/view_model/vote_view_model.dart';
+import '../../plan/view_model/plan_detail_view_model.dart';
 import '../../plan/repository/plan_repository.dart';
 import '../repository/place_repository.dart';
 
@@ -219,6 +222,33 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       state = AsyncData(value.withCandidate(savedCandidate));
     }
     return savedCandidate;
+  }
+
+  Future<SchedulePlace> addCandidateToSchedule(PlaceCandidate candidate) async {
+    final savedCandidate = await addCandidate(candidate);
+    final repository = ref.read(placeRepositoryProvider);
+    final schedulePlace = await repository.createSchedulePlace(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      candidateId: savedCandidate.id,
+      name: savedCandidate.name,
+    );
+    ref.invalidate(
+      planDetailViewModelProvider((
+        groupId: scope.groupId,
+        planId: scope.planId,
+      )),
+    );
+    for (final travelMode in const ['walk', 'bike', 'car']) {
+      ref.invalidate(
+        routeRecommendationViewModelProvider((
+          groupId: scope.groupId,
+          planId: scope.planId,
+          travelMode: travelMode,
+        )),
+      );
+    }
+    return schedulePlace;
   }
 
   Future<int> createPlaceVote({
