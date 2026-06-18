@@ -25,8 +25,12 @@ locals {
     ONMU_CORS_ORIGINS                     = "${local.secret_prefix}-cors-origins"
     KAKAO_REST_API_KEY                    = "${local.secret_prefix}-kakao-rest-api-key"
     KAKAO_CLIENT_SECRET                   = "${local.secret_prefix}-kakao-client-secret"
+    KAKAO_OAUTH_REDIRECT_URI              = "${local.secret_prefix}-kakao-oauth-redirect-uri"
+    KAKAO_OAUTH_MOBILE_CALLBACK_URI       = "${local.secret_prefix}-kakao-oauth-mobile-callback-uri"
     NAVER_OAUTH_CLIENT_ID                 = "${local.secret_prefix}-naver-oauth-client-id"
     NAVER_OAUTH_CLIENT_SECRET             = "${local.secret_prefix}-naver-oauth-client-secret"
+    NAVER_OAUTH_REDIRECT_URI              = "${local.secret_prefix}-naver-oauth-redirect-uri"
+    NAVER_OAUTH_MOBILE_CALLBACK_URI       = "${local.secret_prefix}-naver-oauth-mobile-callback-uri"
     GOOGLE_OAUTH_CLIENT_ID                = "${local.secret_prefix}-google-oauth-client-id"
     GOOGLE_SERVER_CLIENT_ID               = "${local.secret_prefix}-google-server-client-id"
     NAVER_SEARCH_CLIENT_ID                = "${local.secret_prefix}-naver-search-client-id"
@@ -192,16 +196,12 @@ module "container_apps" {
     cpu          = 1
     memory       = "2Gi"
     plain_env = {
-      AZURE_CLIENT_ID                 = module.key_vault.runtime_identity_client_id
-      KAKAO_OAUTH_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/kakao/callback"
-      KAKAO_OAUTH_REDIRECT_URI        = "https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback"
-      NAVER_OAUTH_MOBILE_CALLBACK_URI = "io.onieum.onmu://oauth/naver/callback"
-      NAVER_OAUTH_REDIRECT_URI        = "https://api.onmu.cloud/api/v1/auth/oauth/naver/callback"
-      OBJECT_STORAGE_PROVIDER         = "azure_blob"
-      ONMU_ENV                        = local.environment
-      SERVER_ADDRESS                  = "0.0.0.0"
-      SERVER_PORT                     = "8080"
-      SPRING_DATASOURCE_USERNAME      = var.postgres_administrator_login
+      AZURE_CLIENT_ID            = module.key_vault.runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER    = "azure_blob"
+      ONMU_ENV                   = local.environment
+      SERVER_ADDRESS             = "0.0.0.0"
+      SERVER_PORT                = "8080"
+      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs

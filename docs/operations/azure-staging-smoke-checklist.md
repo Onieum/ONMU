@@ -48,7 +48,7 @@ OAuth-only dart-define에는 JWT 우회 key를 넣지 않는다. 모바일 smoke
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_SERVER_CLIENT_ID`
 
-Staging Spring API Container App도 동일한 callback host를 사용해야 한다. `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`는 공개 URI이므로 Terraform `plain_env`로 고정하고, `KAKAO_CLIENT_SECRET`, `NAVER_OAUTH_CLIENT_SECRET`, provider key/token류만 Key Vault secretRef로 둔다. 앱이 provider callback 뒤 다시 로그인 화면으로 돌아오면 먼저 ACA revision env에 staging redirect URI가 들어갔는지 확인한다.
+Staging Spring API Container App도 동일한 callback host를 사용해야 한다. ONMU staging ACA는 runtime env 주입 경계를 Key Vault secretRef로 통일한다. 따라서 `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`도 공개 URI 값이지만 Key Vault secret name으로 관리하고 ACA env는 `secretref`로 연결한다. 앱이 provider callback 뒤 다시 로그인 화면으로 돌아오면 먼저 ACA revision env가 staging redirect URI secretRef를 보고 있는지 확인한다.
 
 ## 3. Dependency smoke
 

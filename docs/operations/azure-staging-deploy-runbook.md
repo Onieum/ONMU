@@ -131,6 +131,21 @@ az containerapp revision restart `
 - secret 값 변경 직후 전체 Terraform wave를 다시 돌리지 않는다.
 - secret 값은 Key Vault에만 쓰고, 문서/PR/log에는 secret name만 남긴다.
 
+### 4.2.1 ACA runtime env와 Key Vault secretRef 기준
+
+Staging Container App의 runtime env는 기본적으로 Key Vault secretRef로 맞춘다. OAuth redirect URI와 mobile callback URI처럼 값 자체가 공개 URI인 항목도 예외로 두지 않는다. 이유는 재배포나 Terraform wave 이후 plain env와 secret env가 섞여 빠지는 일을 막기 위해서다.
+
+대표 OAuth env와 Key Vault secret name:
+
+| Env var | Key Vault secret name |
+| --- | --- |
+| `KAKAO_OAUTH_REDIRECT_URI` | `staging-kakao-oauth-redirect-uri` |
+| `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | `staging-kakao-oauth-mobile-callback-uri` |
+| `NAVER_OAUTH_REDIRECT_URI` | `staging-naver-oauth-redirect-uri` |
+| `NAVER_OAUTH_MOBILE_CALLBACK_URI` | `staging-naver-oauth-mobile-callback-uri` |
+
+운영자가 위 값을 수정할 때는 Key Vault secret value만 갱신하고, ACA env는 해당 secret name을 `secretref`로 계속 바라봐야 한다. ACA revision env에 redirect URI가 plain value로 직접 들어가 있으면 임시 hotfix 상태로 보고 Terraform/ACA secretRef 경계에 맞춰 되돌린다.
+
 ### 4.3 Terraform 인프라 patch
 
 Terraform으로 다루는 변경이면 `Terraform Staging` workflow를 사용한다.

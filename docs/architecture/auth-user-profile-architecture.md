@@ -412,15 +412,18 @@ Terraform이 하면 안 되는 일:
 | Access JWT signing | `ONMU_ACCESS_TOKEN_SECRET` | `dev-access-token-secret`, `int-access-token-secret` | 금지 |
 | Kakao REST API key | `KAKAO_REST_API_KEY` | `dev-kakao-rest-api-key`, `int-kakao-rest-api-key` | 공개 client id로만 가능 |
 | Kakao client secret | `KAKAO_CLIENT_SECRET` | `dev-kakao-client-secret`, `int-kakao-client-secret` | 금지 |
-| Kakao callback | `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | config 또는 secret reference 후보 | redirect URI만 가능 |
+| Kakao callback | `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | staging `staging-kakao-oauth-redirect-uri`, `staging-kakao-oauth-mobile-callback-uri`; prod `prod-kakao-oauth-redirect-uri`, `prod-kakao-oauth-mobile-callback-uri` | redirect URI만 가능 |
 | Naver OAuth client id | `NAVER_OAUTH_CLIENT_ID` | `dev-naver-oauth-client-id`, `int-naver-oauth-client-id` | 공개 client id로만 가능 |
 | Naver OAuth secret | `NAVER_OAUTH_CLIENT_SECRET` | `dev-naver-oauth-client-secret`, `int-naver-oauth-client-secret` | 금지 |
+| Naver callback | `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI` | staging `staging-naver-oauth-redirect-uri`, `staging-naver-oauth-mobile-callback-uri`; prod `prod-naver-oauth-redirect-uri`, `prod-naver-oauth-mobile-callback-uri` | redirect URI만 가능 |
 | Google Spring audience | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` | `dev-google-oauth-client-id`, `dev-google-server-client-id` | client id만 가능 |
 | Google Flutter public define | `GOOGLE_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID` | `dev-google-oauth-client-id`, `dev-google-server-client-id` | 예 |
 | Google iOS generated xcconfig | `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_IOS_SERVER_CLIENT_ID`, `GOOGLE_IOS_REVERSED_CLIENT_ID` | `GOOGLE_CLIENT_ID`와 `GOOGLE_SERVER_CLIENT_ID`에서 로컬 생성 | 예. generated file은 git ignored |
 | DB password | `SPRING_DATASOURCE_PASSWORD` | 환경별 DB password secret | 금지 |
 
 Secret 값은 이 문서, PR 본문, log, screenshot에 남기지 않는다.
+
+Azure staging/prod Container Apps에서는 OAuth callback/redirect env도 Key Vault secretRef로 주입한다. 값이 공개 URI여도 plain env와 secret env를 섞지 않는다. 이 경계가 빠지면 Spring fallback redirect URI가 dev host로 돌아가 Kakao/Naver token exchange가 실패할 수 있다.
 
 Google mobile 설정은 현재 repo 기준으로 다음 경계를 따른다.
 

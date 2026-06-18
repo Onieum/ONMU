@@ -18,6 +18,8 @@
 | runtime secret source | `onmu-dev-kv-27db5e` | `kvonmustagingkrc001`는 현재 표준 runtime source 아님 |
 | 표준 backend compute | Azure Container Apps | Windows Spring runtime은 legacy/dev/rollback |
 
+OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-27db5e`의 staging Key Vault secretRef를 기준으로 본다. 대상은 `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`다.
+
 ## 3. 팀원이 가장 먼저 읽을 순서
 
 1. [Flutter staging 실행 runbook](./flutter-staging-runbook.md)

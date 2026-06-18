@@ -41,6 +41,8 @@ Provider console 변경은 사용자 또는 권한 보유자가 직접 확인하
 
 OAuth smoke는 provider callback과 mobile deep link를 분리해 판정한다. Kakao/Naver browser flow는 Spring callback에 `code`/`state`가 도달한 뒤 모바일 custom scheme으로 앱 복귀가 이어져야 로그인 완료다. Flutter web callback path와 모바일 custom scheme은 같은 성공 기준으로 보지 않는다.
 
+Azure staging/prod runtime에서는 위 redirect/callback URI 값도 Container App plain env가 아니라 Key Vault secretRef로 주입한다. Staging secret name은 `staging-kakao-oauth-redirect-uri`, `staging-kakao-oauth-mobile-callback-uri`, `staging-naver-oauth-redirect-uri`, `staging-naver-oauth-mobile-callback-uri`를 사용한다. 값 자체가 공개 URI라도 배포 경계는 secretRef로 통일한다.
+
 ## 4. CORS와 앱 base URL
 
 | 환경 | API base URL | CORS origin 기준 | 비고 |
