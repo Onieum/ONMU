@@ -167,6 +167,40 @@ class PushTokenServiceTests {
         assertThat(exception.getReason()).isEqualTo("missing_push_token"));
   }
 
+  @Test
+  void registerRejectsMissingProvider() {
+    assertThatThrownBy(() -> service.register(user.getId(), new PushTokenRegistrationRequest(
+      " ",
+      "fcm-token-1234567890",
+      "android",
+      null,
+      null,
+      null,
+      null
+    )))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
+        assertThat(exception.getReason()).isEqualTo("missing_push_provider"));
+  }
+
+  @Test
+  void registerNormalizesUnsupportedPlatformToUnknown() {
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(userDeviceRepository.save(any(UserDeviceEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    var response = service.register(user.getId(), new PushTokenRegistrationRequest(
+      "dev",
+      "synthetic-dev-token-1234",
+      "desktop",
+      null,
+      null,
+      null,
+      null
+    ));
+
+    assertThat(response.platform()).isEqualTo("unknown");
+  }
+
   private PushTokenRegistrationRequest request(String token) {
     return new PushTokenRegistrationRequest(
       "FCM",
