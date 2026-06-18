@@ -68,11 +68,27 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `postgres_ready`: PostgreSQL Flexible Server와 database/extension만 먼저 적용한다.
 - `api_app_ready`: Spring API Container App만 적용한다.
 - `worker_app_ready`: worker Container App만 적용한다.
+- `ai_foundation`: OOTD AI generation을 위한 Azure ML Workspace, Azure OpenAI-compatible vision account, optional vision deployment, worker runtime RBAC, worker AI env/secret reference를 준비한다. 기본값은 꺼져 있으며, `storage`, `observability`, `container_registry`가 먼저 준비되어 있어야 한다.
 - `db_and_app_ready`: 기존 호환용 alias다. 실제 운영 순서는 split wave를 기준으로 본다.
 
 Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 먼저 build하고, 필요 시 protected environment approval 뒤 staging ACR에 push한다. 최초 `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
 
 Spring API Container App이 이미 생성된 뒤의 일반 코드 변경 배포는 `.github/workflows/deploy-staging-api.yml`을 사용한다. 이 workflow는 Spring API image를 staging ACR에 push하고 기존 ACA Spring API revision의 image만 갱신한 뒤 smoke를 수행한다. Terraform app wave는 인프라 wiring, 최초 app 생성, worker rollout처럼 resource graph 변경이 필요한 경우에 사용한다.
+
+`ai_foundation`은 OOTD 생성 기능의 실제 모델 호출을 위한 foundation wave다. 이 wave는 Azure ML Workspace와 Vision 계정을 만들고, worker managed identity가 Blob, Event Hubs, Azure ML, Vision 리소스에 접근할 수 있는 RBAC 경계를 준비한다. 단, Hugging Face token, Azure ML endpoint key, Vision API key 같은 secret value는 Terraform state에 넣지 않는다. Terraform은 Key Vault secret name과 Container Apps secret reference만 선언하고, 값 주입은 운영자가 Key Vault에서 별도 수행한다.
+
+`ootd_generation_provider`의 기본값은 `mock`이다. 따라서 `ai_foundation`을 켜지 않아도 worker mock pipeline, Spring job API, Flutter polling UI는 먼저 구현하고 검증할 수 있다. 실제 Azure ML 호출이 필요할 때만 `ootd_generation_provider = "azure_ml"`로 바꾸고 아래 secret이 Key Vault에 존재하는지 확인한다.
+
+| Env var | Staging Key Vault secret name 후보 | 비고 |
+| --- | --- | --- |
+| `ONMU_HF_TOKEN` | `staging-hf-token` | Hugging Face gated model 접근 token. secret value는 Terraform에 쓰지 않는다. |
+| `ONMU_OOTD_MODEL_ID` | `staging-ootd-model-id` | Hugging Face model id. MVP 기본값은 `black-forest-labs/FLUX.1-Kontext-dev`로 주입한다. |
+| `ONMU_OOTD_MODEL_REVISION` | `staging-ootd-model-revision` | Hugging Face model revision. full commit SHA로 주입한다. |
+| `ONMU_AZUREML_ENDPOINT_URL` | `staging-azureml-endpoint-url` | Azure ML Managed Online Endpoint URL. |
+| `ONMU_AZUREML_ENDPOINT_KEY` | `staging-azureml-endpoint-key` | Endpoint key를 쓰는 경우의 secret. 가능하면 managed identity 전환을 후속으로 검토한다. |
+| `ONMU_VISION_API_KEY` | `staging-vision-api-key` | Vision 모델 호출 key. |
+
+`ONMU_OOTD_MODEL_ID`, `ONMU_OOTD_MODEL_REVISION`은 secret 값은 아니지만 Key Vault secretRef로 관리한다. FLUX.1-Kontext-dev는 non-commercial license이므로, 상업 배포 또는 production service phase에서 모델 교체가 필요할 수 있기 때문이다. `ONMU_VISION_MODEL_DEPLOYMENT`는 Azure OpenAI deployment name으로 현재 plain runtime config에 둔다.
 
 `core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Storage account는 nested public item 허용을 켜고, `tiles` container만 public blob access를 허용하며 `media` container는 private로 유지한다. Public tile/static delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. staging Front Door route는 Blob account root가 아니라 `tiles` container를 `origin_path=/tiles`로 바라본다. 따라서 edge smoke 전에는 `tiles` container 안에 `manifest.json`, `styles/onmu-light.json`, `pmtiles/korea-dev.pmtiles` 같은 공개 tile object가 실제로 업로드되어 있어야 한다. 기존 staging state가 private `tiles`를 이미 가졌거나 browser CORS가 빠져 있으면 `frontdoor_origin_access` patch wave로 storage account와 `tiles` access/CORS boundary를 보정한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Front Door wave에서도 이미 적용된 foundation diagnostic target은 no-op로 유지해야 하며 delete되면 안 된다. Redis는 `managed_redis_ready`, `managed_redis_diagnostics` 전용 wave로 분리한다.
 
@@ -108,12 +124,14 @@ Spring API Container App이 이미 생성된 뒤의 일반 코드 변경 배포�
 14. `api_app_ready` 전 ACR push image ref, runtime identity의 `AcrPull`, 재사용 Key Vault의 `Key Vault Secrets User` 확인
 15. Spring object storage adapter와 `/readyz`의 MinIO-compatible 전제 유지 여부 또는 Azure Blob 전환 방향 결정
 16. `worker_app_ready` 전 worker image ref와 queue/runtime scope 확인
-17. Clean DB + Flyway full migration smoke 기준 확정
-18. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
-19. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
-20. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
-21. provider console redirect/package/SHA-1 확인
-22. `staging-api.onmu.cloud` DNS/provider console 연결 승인
-23. Windows dev backend smoke를 rollback 기준으로 유지
+17. `ai_foundation` 전 Azure ML GPU quota, Vision model availability, FLUX.1-Kontext-dev license scope, Key Vault secret 존재 여부 확인
+18. `ai_foundation` plan/apply 승인 후 Azure ML Workspace, Vision endpoint, worker RBAC, mock/azure_ml provider 전환 smoke 확인
+19. Clean DB + Flyway full migration smoke 기준 확정
+20. ACA Spring API/worker rollout 후 실제 OAuth smoke를 승격 기준으로 사용
+21. Front Door PMTiles Range/CORS/purge/rollback smoke 기준 확정
+22. Event Hubs `worker`/`analytics` consumer group, checkpoint storage, replay smoke 기준 확정
+23. provider console redirect/package/SHA-1 확인
+24. `staging-api.onmu.cloud` DNS/provider console 연결 승인
+25. Windows dev backend smoke를 rollback 기준으로 유지
 
 `core_diagnostics`가 foundation 리소스 create/update를 다시 만들지 않게 하려면, ACA Environment의 기본 `Consumption` workload profile이 Terraform module에도 명시되어 있어야 한다. 그렇지 않으면 diagnostics wave에서 environment update drift가 섞일 수 있다.

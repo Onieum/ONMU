@@ -50,15 +50,46 @@ locals {
     APPLICATIONINSIGHTS_CONNECTION_STRING = "${local.secret_prefix}-appinsights-connection-string"
   }
 
+  worker_ai_secret_names = {
+    ONMU_HF_TOKEN             = "${local.secret_prefix}-hf-token"
+    ONMU_OOTD_MODEL_ID        = "${local.secret_prefix}-ootd-model-id"
+    ONMU_OOTD_MODEL_REVISION  = "${local.secret_prefix}-ootd-model-revision"
+    ONMU_AZUREML_ENDPOINT_URL = "${local.secret_prefix}-azureml-endpoint-url"
+    ONMU_AZUREML_ENDPOINT_KEY = "${local.secret_prefix}-azureml-endpoint-key"
+    ONMU_VISION_API_KEY       = "${local.secret_prefix}-vision-api-key"
+  }
+
   spring_secret_refs = {
     for env_name, secret_name in local.spring_secret_names :
     lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
   }
 
+  worker_ai_secret_refs = var.ootd_generation_provider == "azure_ml" ? {
+    for env_name, secret_name in local.worker_ai_secret_names :
+    lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
+  } : {}
+
   spring_secret_env = {
     for env_name, secret_name in local.spring_secret_names :
     env_name => lower(replace(env_name, "_", "-"))
   }
+
+  worker_ai_secret_env = var.ootd_generation_provider == "azure_ml" ? {
+    for env_name, secret_name in local.worker_ai_secret_names :
+    env_name => lower(replace(env_name, "_", "-"))
+  } : {}
+
+  worker_ai_plain_env = merge(
+    {
+      AZURE_CLIENT_ID               = try(module.key_vault[0].runtime_identity_client_id, "")
+      ONMU_OOTD_GENERATION_PROVIDER = var.ootd_generation_provider
+      ONMU_VISION_MODEL_DEPLOYMENT  = var.vision_model_deployment_name
+    },
+    var.enabled_modules.ai_foundation ? {
+      ONMU_AZUREML_WORKSPACE_NAME = module.ai_foundation[0].machine_learning_workspace_name
+      ONMU_VISION_ENDPOINT        = module.ai_foundation[0].vision_openai_endpoint
+    } : {}
+  )
 
   foundation_diagnostic_target_candidates = {
     key_vault                  = try(module.key_vault[0].key_vault_id, null)
@@ -67,6 +98,11 @@ locals {
     cdn_endpoint               = try(module.cdn[0].endpoint_id, null)
     eventhubs_namespace        = try(module.eventhubs[0].namespace_id, null)
     container_apps_environment = try(module.container_apps[0].environment_id, null)
+  }
+
+  ai_diagnostic_target_candidates = {
+    machine_learning_workspace = try(module.ai_foundation[0].machine_learning_workspace_id, null)
+    vision_openai_account      = try(module.ai_foundation[0].vision_openai_account_id, null)
   }
 
   redis_diagnostic_target_candidates = {
@@ -97,10 +133,17 @@ locals {
     if id != null && id != ""
   }
 
+  ai_diagnostic_targets = {
+    for name, id in local.ai_diagnostic_target_candidates :
+    name => id
+    if id != null && id != ""
+  }
+
   diagnostic_targets = merge(
     var.enabled_diagnostic_targets.foundation ? local.foundation_diagnostic_targets : {},
     var.enabled_diagnostic_targets.redis ? local.redis_diagnostic_targets : {},
-    var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {}
+    var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {},
+    var.enabled_diagnostic_targets.ai ? local.ai_diagnostic_targets : {}
   )
 }
 
@@ -286,6 +329,27 @@ module "eventhubs" {
   tags = local.tags
 }
 
+module "ai_foundation" {
+  count = var.enabled_modules.ai_foundation ? 1 : 0
+
+  source                              = "../../modules/ai-foundation"
+  resource_group_name                 = local.resource_group_name
+  location                            = local.resource_group_location
+  machine_learning_workspace_name     = module.naming.machine_learning_workspace_name
+  vision_openai_account_name          = module.naming.vision_openai_account_name
+  vision_openai_custom_subdomain_name = module.naming.vision_openai_custom_subdomain_name
+  vision_openai_deployment            = var.vision_openai_deployment
+  application_insights_id             = module.observability[0].application_insights_id
+  key_vault_id                        = local.runtime_key_vault_id
+  storage_account_id                  = module.storage[0].storage_account_id
+  container_registry_id               = module.container_registry[0].id
+  eventhubs_namespace_id              = try(module.eventhubs[0].namespace_id, null)
+  runtime_principal_id                = try(module.key_vault[0].runtime_identity_principal_id, null)
+  create_runtime_role_assignments     = var.enabled_modules.rbac_assignments
+  public_network_access_enabled       = true
+  tags                                = local.tags
+}
+
 module "container_apps" {
   count = (var.enabled_modules.container_apps_environment || var.enabled_modules.container_apps) ? 1 : 0
 
@@ -357,11 +421,14 @@ module "container_apps" {
     max_replicas = 1
     cpu          = 0.5
     memory       = "1Gi"
-    plain_env = {
-      ONMU_ENV = local.environment
-    }
-    secret_env  = {}
-    secret_refs = {}
+    plain_env = merge(
+      {
+        ONMU_ENV = local.environment
+      },
+      local.worker_ai_plain_env
+    )
+    secret_env  = local.worker_ai_secret_env
+    secret_refs = local.worker_ai_secret_refs
     startup_probe = {
       transport               = "HTTP"
       port                    = 8000
@@ -411,6 +478,7 @@ module "diagnostic_settings" {
     module.cdn,
     module.front_door,
     module.eventhubs,
+    module.ai_foundation,
     module.container_apps
   ]
 }

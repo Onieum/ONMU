@@ -68,6 +68,7 @@ variable "enabled_modules" {
     eventhubs                  = bool
     container_apps_environment = bool
     container_apps             = bool
+    ai_foundation              = bool
     diagnostics                = bool
     rbac_assignments           = bool
   })
@@ -83,6 +84,7 @@ variable "enabled_modules" {
     eventhubs                  = false
     container_apps_environment = false
     container_apps             = false
+    ai_foundation              = false
     diagnostics                = false
     rbac_assignments           = false
   }
@@ -113,6 +115,11 @@ variable "enabled_modules" {
   }
 
   validation {
+    condition     = !var.enabled_modules.ai_foundation || (var.enabled_modules.observability && var.enabled_modules.storage && var.enabled_modules.container_registry)
+    error_message = "enabled_modules.ai_foundation requires enabled_modules.observability, enabled_modules.storage, and enabled_modules.container_registry."
+  }
+
+  validation {
     condition     = !var.enabled_modules.diagnostics || var.enabled_modules.observability
     error_message = "enabled_modules.diagnostics requires enabled_modules.observability."
   }
@@ -130,11 +137,13 @@ variable "enabled_diagnostic_targets" {
     foundation = bool
     redis      = bool
     front_door = bool
+    ai         = bool
   })
   default = {
     foundation = false
     redis      = false
     front_door = false
+    ai         = false
   }
 }
 
@@ -168,4 +177,34 @@ variable "worker_enabled" {
   description = "Enable FastAPI Worker Container App."
   type        = bool
   default     = false
+}
+
+variable "ootd_generation_provider" {
+  description = "Worker OOTD generation provider. Use mock before Azure ML endpoint smoke is ready."
+  type        = string
+  default     = "mock"
+
+  validation {
+    condition     = contains(["mock", "azure_ml"], var.ootd_generation_provider)
+    error_message = "ootd_generation_provider must be mock or azure_ml."
+  }
+}
+
+variable "vision_model_deployment_name" {
+  description = "Azure OpenAI vision model deployment name used by the worker outfit descriptor step."
+  type        = string
+  default     = "onmu-ootd-vision"
+}
+
+variable "vision_openai_deployment" {
+  description = "Optional Azure OpenAI deployment for the vision outfit descriptor. Keep null until quota/model availability is confirmed."
+  type = object({
+    name          = string
+    model_name    = string
+    model_version = string
+    sku_name      = string
+    capacity      = number
+  })
+  default  = null
+  nullable = true
 }
