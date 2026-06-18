@@ -1,6 +1,8 @@
 package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,6 +122,21 @@ class RouteRecommendationServiceTests {
     assertThat(stops).hasSize(2);
     assertThat(((Map<?, ?>) stops.get(0)).get("id")).isEqualTo("701");
     assertThat(((Map<?, ?>) stops.get(1)).get("id")).isEqualTo("702");
+  }
+
+  @Test
+  void doesNotFallbackToCandidatePoolWhenSchedulePlacesHaveNoRouteableCoordinates() {
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of(
+      new SchedulePlaceEntity("701", group, plan, null, "Direct place", null, 1)
+    ));
+    RouteRecommendationService service = serviceWith("test-ors-key", new FakeRouteHttpClient());
+
+    Map<String, Object> route = service.recommend("1", "101", "walk");
+
+    assertThat(route)
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("travelMode", "walk");
+    verify(placeCandidateRepository, never()).findByPlanOrderByCreatedAtAsc(plan);
   }
 
   @Test

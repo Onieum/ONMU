@@ -138,10 +138,7 @@ public class RouteRecommendationService {
   private List<RouteStop> routeStops(PlanEntity plan) {
     List<SchedulePlaceEntity> schedulePlaces = schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan);
     if (!schedulePlaces.isEmpty()) {
-      List<RouteStop> scheduleStops = routeStopsFromSchedulePlaces(schedulePlaces);
-      if (!scheduleStops.isEmpty()) {
-        return scheduleStops;
-      }
+      return routeStopsFromSchedulePlaces(schedulePlaces);
     }
     return routeStopsFromCandidates(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan));
   }
