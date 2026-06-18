@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,18 +45,46 @@ class GroupApiServiceTests {
   @BeforeEach
   void setUp() {
     service = new GroupApiService(userRepository, groupRepository, groupMemberRepository, outboxService);
-    currentUser = mock(UserEntity.class);
-    lenient().when(currentUser.getDisplayName()).thenReturn("ONMU Dev User");
+    currentUser = user("00000000-0000-0000-0000-000000000001", "ONMU Dev User");
     group = new GroupEntity("1", "ONMU 개발 모임", currentUser);
   }
 
   @Test
-  void groupDetailFallsBackWhenDescriptionIsNullAndMembersAreMissing() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(currentUser));
+  void groupsReturnOnlyMembershipScopedGroups() {
+    GroupEntity ownedGroup = new GroupEntity("2", "내 모임", currentUser);
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupRepository.findVisibleForUserOrderByCreatedAtAsc(currentUser.getId())).thenReturn(List.of(ownedGroup));
+    when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(ownedGroup)).thenReturn(List.of(
+      new GroupMemberEntity(ownedGroup, currentUser, "owner", "active")
+    ));
+
+    List<Map<String, Object>> groups = service.groups(currentUser.getId());
+
+    assertThat(groups).singleElement().satisfies(value -> assertThat(value)
+      .containsEntry("id", "2")
+      .containsEntry("name", "내 모임")
+      .containsEntry("memberCount", 1));
+  }
+
+  @Test
+  void groupDetailRejectsNonMember() {
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(false);
+
+    assertThatThrownBy(() -> service.groupDetail("1", currentUser.getId()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+  }
+
+  @Test
+  void groupDetailFallsBackWhenDescriptionIsNullAndMembersAreMissing() {
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of());
 
-    Map<String, Object> detail = service.groupDetail("1");
+    Map<String, Object> detail = service.groupDetail("1", currentUser.getId());
 
     assertThat(detail)
       .containsEntry("id", "1")
@@ -75,16 +101,18 @@ class GroupApiServiceTests {
 
   @Test
   void updateGroupRejectsBlankName() {
-    assertThatThrownBy(() -> service.updateGroup("1", new UpdateGroupRequest(" ", "설명")))
+    assertThatThrownBy(() -> service.updateGroup("1", currentUser.getId(), new UpdateGroupRequest(" ", "설명")))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
   }
 
   @Test
   void updateGroupRecordsOutboxEvent() {
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
 
-    Map<String, Object> updated = service.updateGroup("1", new UpdateGroupRequest("새 이름", "새 설명"));
+    Map<String, Object> updated = service.updateGroup("1", currentUser.getId(), new UpdateGroupRequest("새 이름", "새 설명"));
 
     assertThat(updated)
       .containsEntry("name", "새 이름")
@@ -99,11 +127,12 @@ class GroupApiServiceTests {
 
   @Test
   void membersFallbackToOwnerWhenMembershipSeedIsMissing() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of());
 
-    List<Map<String, Object>> members = service.members("1");
+    List<Map<String, Object>> members = service.members("1", currentUser.getId());
 
     assertThat(members).hasSize(1);
     assertThat(members.getFirst())
@@ -120,10 +149,12 @@ class GroupApiServiceTests {
     );
     user.updateProfile(null, "dev/avatars/jimin.png", null, null, null);
     GroupMemberEntity membership = new GroupMemberEntity(group, user, "member", "active");
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(membership));
 
-    List<Map<String, Object>> members = service.members("1");
+    List<Map<String, Object>> members = service.members("1", currentUser.getId());
 
     assertThat(members).singleElement()
       .satisfies(member -> assertThat(member)
@@ -134,12 +165,13 @@ class GroupApiServiceTests {
 
   @Test
   void leaveGroupSoftLeavesMembershipAndRecordsOutboxEvent() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     GroupMemberEntity membership = new GroupMemberEntity(group, currentUser, "member", "active");
     when(groupMemberRepository.findByGroupAndUser(group, currentUser)).thenReturn(Optional.of(membership));
 
-    service.leaveGroup("1");
+    service.leaveGroup("1", currentUser.getId());
 
     assertThat(membership.getStatus()).isEqualTo("left");
     assertThat(membership.getLeftAt()).isNotNull();
@@ -153,28 +185,31 @@ class GroupApiServiceTests {
 
   @Test
   void leaveGroupIsIdempotentWhenMembershipIsMissing() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(groupMemberRepository.findByGroupAndUser(group, currentUser)).thenReturn(Optional.empty());
 
-    service.leaveGroup("1");
+    service.leaveGroup("1", currentUser.getId());
   }
 
   @Test
   void createGroupRecordsOutboxAndAddsOwnerMembership() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(group));
     when(groupRepository.save(any(GroupEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(groupMemberRepository.save(any(GroupMemberEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    Map<String, Object> created = service.createGroup("새 모임", "새 소개");
+    Map<String, Object> created = service.createGroup(currentUser.getId(), "새 모임", "새 소개");
 
     assertThat(created)
       .containsEntry("id", "2")
       .containsEntry("name", "새 모임")
       .containsEntry("description", "새 소개");
     verify(groupMemberRepository).save(argThat(member ->
-      "owner".equals(member.getRole()) && "active".equals(member.getStatus())
+      currentUser.equals(member.getUser()) &&
+        "owner".equals(member.getRole()) &&
+        "active".equals(member.getStatus())
     ));
     verify(outboxService).record(
       eq("group.created"),
@@ -186,5 +221,9 @@ class GroupApiServiceTests {
           "새 소개".equals(payload.get("description"))
       )
     );
+  }
+
+  private UserEntity user(String id, String displayName) {
+    return new UserEntity(UUID.fromString(id), displayName);
   }
 }

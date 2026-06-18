@@ -73,12 +73,12 @@ public class RecordService {
   }
 
   @Transactional
-  public Map<String, Object> createRecord(String groupId, String planId, CreateRecordRequest request) {
+  public Map<String, Object> createRecord(UUID userId, String groupId, String planId, CreateRecordRequest request) {
     GroupEntity group = groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
     PlanEntity plan = planRepository.findByGroupAndPublicId(group, planId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
-    UserEntity author = currentUser();
+    UserEntity author = user(userId);
 
     if (!groupRepository.isUserMember(groupId, author.getId())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
@@ -158,28 +158,28 @@ public class RecordService {
   }
 
   @Transactional(readOnly = true)
-  public List<Map<String, Object>> getRecentRecords() {
-    UserEntity author = currentUser();
+  public List<Map<String, Object>> getRecentRecords(UUID userId) {
+    UserEntity author = user(userId);
     List<RecordEntity> records = recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(author);
     return records.stream().map(this::getRecordCard).toList();
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> getRecordDetail(String recordId) {
+  public Map<String, Object> getRecordDetail(UUID userId, String recordId) {
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(recordId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "record_not_found"));
-    UserEntity user = currentUser();
-    if (!groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
+    UserEntity viewer = user(userId);
+    if (!groupRepository.isUserMember(record.getGroup().getPublicId(), viewer.getId())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
     }
 
     String visibility = record.getVisibility() != null ? record.getVisibility().toLowerCase() : "participants";
     if ("private".equals(visibility)) {
-      if (!record.getAuthor().getId().equals(user.getId())) {
+      if (!record.getAuthor().getId().equals(viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "private_record_access_denied");
       }
     } else if ("participants".equals(visibility)) {
-      if (!planRepository.isUserParticipant(record.getPlan().getPublicId(), user.getId())) {
+      if (!planRepository.isUserParticipant(record.getPlan().getPublicId(), viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_plan_participant");
       }
     }
@@ -334,22 +334,9 @@ public class RecordService {
     return value;
   }
 
-  private UserEntity currentUser() {
-    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
-      return userRepository.findFirstByOrderByCreatedAtAsc()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized"));
-    }
-
-    String name = auth.getName();
-    try {
-      UUID userId = UUID.fromString(name);
-      return userRepository.findById(userId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
-    } catch (IllegalArgumentException e) {
-      return userRepository.findFirstByOrderByCreatedAtAsc()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing"));
-    }
+  private UserEntity user(UUID userId) {
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 
   private String toJson(Object obj) {
@@ -377,18 +364,18 @@ public class RecordService {
   }
 
   @Transactional(readOnly = true)
-  public List<MemoryResponse> getPersonalMemories() {
-    UserEntity author = currentUser();
+  public List<MemoryResponse> getPersonalMemories(UUID userId) {
+    UserEntity author = user(userId);
     List<RecordEntity> records = recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(author);
     return records.stream().map(this::mapToMemoryResponse).toList();
   }
 
   @Transactional(readOnly = true)
-  public List<MemoryResponse> getGroupMemories(String groupId) {
-    UserEntity user = currentUser();
+  public List<MemoryResponse> getGroupMemories(UUID userId, String groupId) {
+    UserEntity viewer = user(userId);
     GroupEntity group = groupRepository.findByPublicId(groupId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
-    if (!groupRepository.isUserMember(groupId, user.getId())) {
+    if (!groupRepository.isUserMember(groupId, viewer.getId())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
     }
     List<RecordEntity> records = recordRepository.findByGroupAndDeletedAtIsNullOrderByCreatedAtDesc(group);
@@ -396,28 +383,28 @@ public class RecordService {
   }
 
   @Transactional(readOnly = true)
-  public MemoryResponse getMemoryDetail(String memoryId) {
+  public MemoryResponse getMemoryDetail(UUID userId, String memoryId) {
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
-    UserEntity user = currentUser();
+    UserEntity viewer = user(userId);
     
     if (record.getGroup() != null) {
-      if (!groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
+      if (!groupRepository.isUserMember(record.getGroup().getPublicId(), viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
       }
     }
 
     String visibility = record.getVisibility() != null ? record.getVisibility().toLowerCase() : "public";
     if ("private".equals(visibility)) {
-      if (!record.getAuthor().getId().equals(user.getId())) {
+      if (!record.getAuthor().getId().equals(viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "private_record_access_denied");
       }
     } else if ("participants_only".equals(visibility) || "participants".equals(visibility)) {
-      if (record.getPlan() != null && !planRepository.isUserParticipant(record.getPlan().getPublicId(), user.getId())) {
+      if (record.getPlan() != null && !planRepository.isUserParticipant(record.getPlan().getPublicId(), viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_plan_participant");
       }
     } else if ("group_only".equals(visibility) || "group".equals(visibility)) {
-      if (record.getGroup() != null && !groupRepository.isUserMember(record.getGroup().getPublicId(), user.getId())) {
+      if (record.getGroup() != null && !groupRepository.isUserMember(record.getGroup().getPublicId(), viewer.getId())) {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
       }
     }
@@ -426,8 +413,8 @@ public class RecordService {
   }
 
   @Transactional(readOnly = true)
-  public MemoryResponse getGroupMemoryDetail(String groupId, String memoryId) {
-    MemoryResponse response = getMemoryDetail(memoryId);
+  public MemoryResponse getGroupMemoryDetail(UUID userId, String groupId, String memoryId) {
+    MemoryResponse response = getMemoryDetail(userId, memoryId);
     GroupEntity group = groupRepository.findByPublicId(groupId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
     if (response.groupId() == null || !response.groupId().equals(group.getId())) {
@@ -437,8 +424,8 @@ public class RecordService {
   }
 
   @Transactional
-  public MemoryResponse createMemory(String groupId, CreateMemoryRequest request) {
-    UserEntity author = currentUser();
+  public MemoryResponse createMemory(UUID userId, String groupId, CreateMemoryRequest request) {
+    UserEntity author = user(userId);
     GroupEntity group = null;
     if (groupId != null) {
       group = groupRepository.findByPublicId(groupId)
@@ -549,8 +536,8 @@ public class RecordService {
   }
 
   @Transactional
-  public MemoryResponse updateMemory(String memoryId, CreateMemoryRequest request) {
-    UserEntity author = currentUser();
+  public MemoryResponse updateMemory(UUID userId, String memoryId, CreateMemoryRequest request) {
+    UserEntity author = user(userId);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
     if (!record.getAuthor().getId().equals(author.getId())) {
@@ -632,8 +619,8 @@ public class RecordService {
   }
 
   @Transactional
-  public void deleteMemory(String memoryId) {
-    UserEntity author = currentUser();
+  public void deleteMemory(UUID userId, String memoryId) {
+    UserEntity author = user(userId);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
     if (!record.getAuthor().getId().equals(author.getId())) {

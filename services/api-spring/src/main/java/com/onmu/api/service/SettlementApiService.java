@@ -91,13 +91,15 @@ public class SettlementApiService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> settlementDraft(String groupId, String planId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+  public Map<String, Object> settlementDraft(String groupId, String planId, UUID userId) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
     return settlementDraftRepository.findByPlan(plan)
-      .map(draft -> settlementDraftCard(draft, true))
+      .map(draft -> settlementDraftCard(draft, true, access.user()))
       .orElseGet(() -> settlementDraftCard(
         new SettlementDraftEntity("draft", plan.getGroup(), plan, defaultDraftPayload(plan)),
-        false
+        false,
+        access.user()
       ));
   }
 
@@ -105,9 +107,11 @@ public class SettlementApiService {
   public Map<String, Object> updateSettlementDraft(
     String groupId,
     String planId,
+    UUID userId,
     UpdateSettlementDraftRequest request
   ) {
-    GroupEntity group = groupOrThrow(groupId);
+    GroupAccess access = memberGroup(groupId, userId);
+    GroupEntity group = access.group();
     PlanEntity plan = planOrThrow(group, planId);
     List<SettlementDraftItemRequest> items = requireItems(request.items());
     SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
@@ -120,7 +124,7 @@ public class SettlementApiService {
         defaultDraftPayload(plan)
       ));
 
-    List<ItemInput> itemInputs = itemInputs(items);
+    List<ItemInput> itemInputs = itemInputs(items, access.user());
     List<SettlementItemEntity> previousItems = settlementItemRepository.findBySettlementDraft(draft);
     Set<String> reusableIds = previousItems.stream()
       .map(SettlementItemEntity::getPublicId)
@@ -131,7 +135,7 @@ public class SettlementApiService {
     draft.setPayload(toJson(payloadFromItemViews(plan, itemViews, stringOrDefault(request.memo(), "Spring settlement draft"))));
     SettlementDraftEntity savedDraft = settlementDraftRepository.save(draft);
     replaceDraftItems(savedDraft, previousItems, itemViews);
-    return settlementDraftCard(savedDraft, true);
+    return settlementDraftCard(savedDraft, true, access.user());
   }
 
   @Transactional
@@ -139,9 +143,11 @@ public class SettlementApiService {
     String groupId,
     String planId,
     String itemId,
+    UUID userId,
     UpdateSettlementItemTargetsRequest request
   ) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
     SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_draft_not_found"));
     SettlementItemEntity item = settlementItemRepository.findBySettlementDraftAndPublicId(draft, itemId)
@@ -152,22 +158,34 @@ public class SettlementApiService {
     for (int index = 0; index < targets.size(); index++) {
       settlementItemTargetRepository.save(new SettlementItemTargetEntity(item, targets.get(index), targetAmounts.get(index)));
     }
-    draft.setPayload(toJson(payloadFromItemViews(plan, itemViewsForDraft(draft), "Spring settlement draft")));
-    return settlementDraftCard(draft, true);
+    draft.setPayload(toJson(payloadFromItemViews(plan, itemViewsForDraft(draft, access.user()), "Spring settlement draft")));
+    return settlementDraftCard(draft, true, access.user());
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> previewSettlement(String groupId, String planId, SettlementPreviewRequest request) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
-    List<ItemView> itemViews = allocateItemViews(itemInputs(requireItems(request.items())), List.of(), Set.of());
-    return settlementSummaryCard("preview", plan, itemViews, calculateTransfers(itemViews), true);
+  public Map<String, Object> previewSettlement(
+    String groupId,
+    String planId,
+    UUID userId,
+    SettlementPreviewRequest request
+  ) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
+    List<ItemView> itemViews = allocateItemViews(itemInputs(requireItems(request.items()), access.user()), List.of(), Set.of());
+    return settlementSummaryCard("preview", plan, itemViews, calculateTransfers(itemViews), true, access.user());
   }
 
   @Transactional
-  public Map<String, Object> createSettlement(String groupId, String planId, SettlementPreviewRequest request) {
-    GroupEntity group = groupOrThrow(groupId);
+  public Map<String, Object> createSettlement(
+    String groupId,
+    String planId,
+    UUID userId,
+    SettlementPreviewRequest request
+  ) {
+    GroupAccess access = memberGroup(groupId, userId);
+    GroupEntity group = access.group();
     PlanEntity plan = planOrThrow(group, planId);
-    List<ItemInput> itemInputs = itemInputs(requireItems(request.items()));
+    List<ItemInput> itemInputs = itemInputs(requireItems(request.items()), access.user());
     String publicId = nextPublicId(settlementRepository.findAll().stream()
       .map(SettlementEntity::getPublicId)
       .toList(), 301);
@@ -191,13 +209,13 @@ public class SettlementApiService {
         transfer.fromName() + " -> " + transfer.toName()
       ));
     }
-    createSettlementSideEffects(group, plan, settlement, itemViews, transfers);
+    createSettlementSideEffects(group, plan, settlement, itemViews, transfers, access.user());
     outboxService.record("settlement.created", "settlement", settlement.getId(), Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
       "settlementId", settlement.getPublicId()
     ));
-    return settlementSummaryCard(settlement.getPublicId(), plan, itemViews, transfers, false);
+    return settlementSummaryCard(settlement.getPublicId(), plan, itemViews, transfers, false, access.user());
   }
 
   private void createSettlementSideEffects(
@@ -205,9 +223,9 @@ public class SettlementApiService {
     PlanEntity plan,
     SettlementEntity settlement,
     List<ItemView> itemViews,
-    List<TransferView> transfers
+    List<TransferView> transfers,
+    UserEntity actor
   ) {
-    UserEntity actor = currentUser();
     Map<String, Object> activityPayload = settlementActivityPayload(plan, settlement, itemViews, transfers);
     chatActivityEventRepository.save(new ChatActivityEventEntity(
       group,
@@ -304,36 +322,42 @@ public class SettlementApiService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> settlement(String groupId, String planId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+  public Map<String, Object> settlement(String groupId, String planId, UUID userId) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
     return settlementRepository.findFirstByPlanOrderByCreatedAtDesc(plan)
-      .map(settlement -> settlementCard(settlement, false))
+      .map(settlement -> settlementCard(settlement, false, access.user()))
       .orElseGet(() -> {
         SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
           .orElseGet(() -> new SettlementDraftEntity("draft", plan.getGroup(), plan, defaultDraftPayload(plan)));
-        return settlementSummaryCard("draft", plan, itemViewsForDraft(draft), List.of(), true);
+        return settlementSummaryCard("draft", plan, itemViewsForDraft(draft, access.user()), List.of(), true, access.user());
       });
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> settlementById(String groupId, String planId, String settlementId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+  public Map<String, Object> settlementById(String groupId, String planId, String settlementId, UUID userId) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
     SettlementEntity settlement = settlementRepository.findByPlanAndPublicId(plan, settlementId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_not_found"));
-    return settlementCard(settlement, false);
+    return settlementCard(settlement, false, access.user());
   }
 
-  private Map<String, Object> settlementCard(SettlementEntity settlement, boolean preview) {
-    List<ItemView> itemViews = itemViewsForSettlement(settlement);
+  private Map<String, Object> settlementCard(SettlementEntity settlement, boolean preview, UserEntity currentUser) {
+    List<ItemView> itemViews = itemViewsForSettlement(settlement, currentUser);
     List<TransferView> transfers = transferViews(settlement);
     if (transfers.isEmpty()) {
       transfers = calculateTransfers(itemViews);
     }
-    return settlementSummaryCard(settlement.getPublicId(), settlement.getPlan(), itemViews, transfers, preview);
+    return settlementSummaryCard(settlement.getPublicId(), settlement.getPlan(), itemViews, transfers, preview, currentUser);
   }
 
-  private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft, boolean persisted) {
-    List<ItemView> itemViews = itemViewsForDraft(draft);
+  private Map<String, Object> settlementDraftCard(
+    SettlementDraftEntity draft,
+    boolean persisted,
+    UserEntity currentUser
+  ) {
+    List<ItemView> itemViews = itemViewsForDraft(draft, currentUser);
     Map<String, Object> payload = readObject(draft.getPayload());
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", draft.getPublicId());
@@ -343,7 +367,10 @@ public class SettlementApiService {
     value.put("targetPatchAvailable", persisted && !itemViews.isEmpty());
     value.put("items", itemViews.stream().map(this::draftItemCard).toList());
     value.put("memo", stringOrDefault(asString(payload.get("memo")), ""));
-    value.put("preview", settlementSummaryCard("preview", draft.getPlan(), itemViews, calculateTransfers(itemViews), true));
+    value.put(
+      "preview",
+      settlementSummaryCard("preview", draft.getPlan(), itemViews, calculateTransfers(itemViews), true, currentUser)
+    );
     return value;
   }
 
@@ -352,7 +379,8 @@ public class SettlementApiService {
     PlanEntity plan,
     List<ItemView> itemViews,
     List<TransferView> transferViews,
-    boolean preview
+    boolean preview,
+    UserEntity currentUser
   ) {
     long totalAmount = itemViews.stream().map(ItemView::amountCents).reduce(0L, Long::sum);
     Map<String, MemberBalance> balances = memberBalances(itemViews);
@@ -374,7 +402,6 @@ public class SettlementApiService {
     value.put("createdDateLabel", preview ? "미리보기" : "정산 생성됨");
     value.put("itemCountLabel", "결제 항목 " + itemViews.size() + "개");
     value.put("finalSummaryLabel", targetCount + "명 기준 " + amountLabel(averageAmount));
-    UserEntity currentUser = currentUser();
     String currentUserKey = memberKey(currentUser, currentUser.getDisplayName());
     value.put("mySummaryLabel", mySummaryLabel(balances.get(currentUserKey)));
     value.put("paymentItems", itemViews.stream().map(this::paymentItemCard).toList());
@@ -457,20 +484,20 @@ public class SettlementApiService {
     );
   }
 
-  private List<ItemView> itemViewsForDraft(SettlementDraftEntity draft) {
+  private List<ItemView> itemViewsForDraft(SettlementDraftEntity draft, UserEntity currentUser) {
     List<SettlementItemEntity> items = settlementItemRepository.findBySettlementDraftOrderByCreatedAtAsc(draft);
     if (!items.isEmpty()) {
       return itemViews(items, payerSharesByItemId(draft.getPayload()));
     }
-    return itemViewsFromPayload(draft.getPlan(), draft.getPayload());
+    return itemViewsFromPayload(draft.getPlan(), draft.getPayload(), currentUser);
   }
 
-  private List<ItemView> itemViewsForSettlement(SettlementEntity settlement) {
+  private List<ItemView> itemViewsForSettlement(SettlementEntity settlement, UserEntity currentUser) {
     List<SettlementItemEntity> items = settlementItemRepository.findBySettlementOrderByCreatedAtAsc(settlement);
     if (!items.isEmpty()) {
       return itemViews(items, payerSharesByItemId(settlement.getPayload()));
     }
-    return itemViewsFromPayload(settlement.getPlan(), settlement.getPayload());
+    return itemViewsFromPayload(settlement.getPlan(), settlement.getPayload(), currentUser);
   }
 
   private List<ItemView> itemViews(
@@ -515,7 +542,7 @@ public class SettlementApiService {
     );
   }
 
-  private List<ItemView> itemViewsFromPayload(PlanEntity plan, String payload) {
+  private List<ItemView> itemViewsFromPayload(PlanEntity plan, String payload, UserEntity currentUser) {
     Object rawItems = readObject(payload).get("items");
     if (!(rawItems instanceof List<?> items) || items.isEmpty()) {
       return defaultItemViews(plan);
@@ -529,14 +556,14 @@ public class SettlementApiService {
           intValue(map.get("amount"), 0),
           intValue(map.get("amountWon"), intValue(map.get("amount"), 0)),
           stringOrDefault(asString(map.get("payerUserId")), null),
-          stringOrDefault(asString(map.get("payerName")), currentUser().getDisplayName()),
+          stringOrDefault(asString(map.get("payerName")), currentUser.getDisplayName()),
           stringOrDefault(asString(map.get("splitType")), "equal"),
           stringList(map.get("targetUserIds")),
           stringList(map.get("targetNames"))
         ));
       }
     }
-    return itemInputs(requests).stream().map(input -> input.toView(input.publicId())).toList();
+    return itemInputs(requests, currentUser).stream().map(input -> input.toView(input.publicId())).toList();
   }
 
   private List<ItemView> defaultItemViews(PlanEntity plan) {
@@ -714,12 +741,11 @@ public class SettlementApiService {
     return balances;
   }
 
-  private List<ItemInput> itemInputs(List<SettlementDraftItemRequest> requests) {
-    return requests.stream().map(this::itemInput).toList();
+  private List<ItemInput> itemInputs(List<SettlementDraftItemRequest> requests, UserEntity currentUser) {
+    return requests.stream().map(request -> itemInput(request, currentUser)).toList();
   }
 
-  private ItemInput itemInput(SettlementDraftItemRequest request) {
-    UserEntity currentUser = currentUser();
+  private ItemInput itemInput(SettlementDraftItemRequest request, UserEntity currentUser) {
     String payerName = stringOrDefault(request.payerName(), currentUser.getDisplayName());
     UserEntity payer = userByRef(request.payerUserId(), payerName);
     List<String> targetNames = request.targetNames() == null || request.targetNames().isEmpty()
@@ -836,14 +862,23 @@ public class SettlementApiService {
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
   }
 
+  private GroupAccess memberGroup(String groupId, UUID userId) {
+    UserEntity user = userOrThrow(userId);
+    GroupEntity group = groupOrThrow(groupId);
+    if (user.getId() == null || !groupRepository.isUserMember(group.getPublicId(), user.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+    return new GroupAccess(group, user);
+  }
+
   private PlanEntity planOrThrow(GroupEntity group, String planId) {
     return planRepository.findByGroupAndPublicId(group, planId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
   }
 
-  private UserEntity currentUser() {
-    return userRepository.findFirstByOrderByCreatedAtAsc()
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing"));
+  private UserEntity userOrThrow(UUID userId) {
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 
   private String memberKey(UserEntity user, String fallbackName) {
@@ -1023,6 +1058,9 @@ public class SettlementApiService {
     String toName,
     long amountCents
   ) {
+  }
+
+  private record GroupAccess(GroupEntity group, UserEntity user) {
   }
 
   private static final class MemberBalance {

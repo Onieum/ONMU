@@ -143,7 +143,7 @@ class OnmuApiServiceTests {
   void homeSummaryUsesAuthenticatedViewer() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "인증 사용자");
     PlanParticipantEntity participant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
-    when(groupRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(group));
+    when(groupRepository.findVisibleForUserOrderByCreatedAtAsc(viewer.getId())).thenReturn(List.of(group));
     when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
     when(voteRepository.findByGroupOrderByCreatedAtAsc(group)).thenReturn(List.of(vote));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
@@ -156,6 +156,21 @@ class OnmuApiServiceTests {
     assertThat(summary).extracting("viewer")
       .isInstanceOfSatisfying(Map.class, viewerValue ->
         assertThat(viewerValue).containsEntry("displayName", "인증 사용자"));
+  }
+
+  @Test
+  void homeSummaryReturnsEmptyListsWhenAuthenticatedViewerHasNoGroups() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "신규 사용자");
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(authIdentityRepository.findFirstByUserOrderByCreatedAtAsc(viewer)).thenReturn(Optional.empty());
+    when(groupRepository.findVisibleForUserOrderByCreatedAtAsc(viewer.getId())).thenReturn(List.of());
+
+    Map<String, Object> summary = service.homeSummary(viewer.getId());
+
+    assertThat(summary.get("groups")).isEqualTo(List.of());
+    assertThat(summary.get("upcomingPlans")).isEqualTo(List.of());
+    assertThat(summary.get("activeVotes")).isEqualTo(List.of());
+    assertThat(summary).containsEntry("nextPlan", null);
   }
 
   @Test
@@ -276,6 +291,20 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void planDetailRejectsNonGroupMember() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000099", "신규 사용자");
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(false);
+
+    assertThatThrownBy(() -> service.plan("1", "101", viewer.getId()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(exception.getReason()).isEqualTo("not_group_member");
+      });
+  }
+
+  @Test
   void updatePlanRejectsBlankTitle() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
@@ -378,6 +407,7 @@ class OnmuApiServiceTests {
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(true);
     when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan));
     when(planParticipantRepository.findByPlanAndUser(plan, viewer)).thenReturn(Optional.of(participant));
     when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(participant));
@@ -402,6 +432,7 @@ class OnmuApiServiceTests {
     PlanParticipantEntity viewerParticipant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(true);
     when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(plan, otherPlan));
     when(planParticipantRepository.findByPlanAndUser(plan, viewer)).thenReturn(Optional.of(viewerParticipant));
     when(planParticipantRepository.findByPlanAndUser(otherPlan, viewer)).thenReturn(Optional.empty());
@@ -418,6 +449,7 @@ class OnmuApiServiceTests {
     UserEntity creator = user("00000000-0000-0000-0000-000000000001", "지민");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(userRepository.findByIdAndDeletedAtIsNull(creator.getId())).thenReturn(Optional.of(creator));
+    when(groupRepository.isUserMember("1", creator.getId())).thenReturn(true);
     when(planRepository.findAll()).thenReturn(List.of(plan));
     when(planRepository.save(any(PlanEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(planParticipantRepository.findByPlanAndUser(any(PlanEntity.class), eq(creator))).thenReturn(Optional.empty());
@@ -801,7 +833,7 @@ class OnmuApiServiceTests {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(planParticipantRepository.findByPlanAndUser(plan, user)).thenReturn(Optional.empty());
     when(planParticipantRepository.save(any(PlanParticipantEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -809,6 +841,7 @@ class OnmuApiServiceTests {
     var created = service.upsertMyPlanParticipant(
       "1",
       "101",
+      user.getId(),
       new UpsertPlanParticipantRequest("joined", "accepted")
     );
 
@@ -833,12 +866,13 @@ class OnmuApiServiceTests {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
     when(groupRepository.isUserMember("1", user.getId())).thenReturn(false);
 
     assertThatThrownBy(() -> service.upsertMyPlanParticipant(
       "1",
       "101",
+      user.getId(),
       new UpsertPlanParticipantRequest("joined", "accepted")
     ))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
@@ -852,7 +886,8 @@ class OnmuApiServiceTests {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateRepository.findAll()).thenReturn(List.of(
       new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}")
     ));
@@ -863,6 +898,7 @@ class OnmuApiServiceTests {
     var created = service.createPlaceCandidate(
       "1",
       "101",
+      user.getId(),
       new CreatePlaceCandidateRequest("새 후보", "카페", "서울", "후보 설명", List.of("카페"))
     );
 
@@ -886,7 +922,8 @@ class OnmuApiServiceTests {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateRepository.findAll()).thenReturn(List.of());
     when(externalPlaceRepository.findByProviderAndProviderPlaceId("KAKAO", "kakao-123"))
       .thenReturn(Optional.empty());
@@ -898,6 +935,7 @@ class OnmuApiServiceTests {
     var created = service.createPlaceCandidate(
       "1",
       "101",
+      user.getId(),
       new CreatePlaceCandidateRequest(
         "검색 후보",
         "카페",
@@ -950,11 +988,12 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(4L);
     when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
 
-    var detail = service.placeCandidate("1", "101", "201");
+    var detail = service.placeCandidate("1", "101", "201", user.getId());
 
     assertThat(detail)
       .containsEntry("id", "201")
@@ -996,11 +1035,12 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
     when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(false);
 
-    var detail = service.placeCandidate("1", "101", "201");
+    var detail = service.placeCandidate("1", "101", "201", user.getId());
 
     assertThat(detail)
       .containsEntry("provider", "NAVER")
@@ -1028,12 +1068,13 @@ class OnmuApiServiceTests {
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(candidate));
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(5L);
     when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
 
-    var candidates = service.placeCandidates("1", "101");
+    var candidates = service.placeCandidates("1", "101", user.getId());
 
     assertThat(candidates).singleElement()
       .satisfies(value -> assertThat(value)
@@ -1049,7 +1090,8 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.empty());
     when(placeCandidateHeartRepository.save(any(PlaceCandidateHeartEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
@@ -1059,6 +1101,7 @@ class OnmuApiServiceTests {
       "1",
       "101",
       "201",
+      user.getId(),
       new UpsertPlaceCandidateHeartRequest(true)
     );
 
@@ -1086,7 +1129,8 @@ class OnmuApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(placeCandidateHeartRepository.findByCandidateAndUser(candidate, user)).thenReturn(Optional.of(existingHeart));
     when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
     when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(true);
@@ -1095,6 +1139,7 @@ class OnmuApiServiceTests {
       "1",
       "101",
       "201",
+      user.getId(),
       new UpsertPlaceCandidateHeartRequest(true)
     );
 
@@ -1104,8 +1149,11 @@ class OnmuApiServiceTests {
 
   @Test
   void creatingSchedulePlaceRecordsOutboxEventAndReturnsScheduleFields() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
     when(schedulePlaceRepository.findAll()).thenReturn(List.of(
@@ -1117,6 +1165,7 @@ class OnmuApiServiceTests {
     var created = service.createSchedulePlace(
       "1",
       "101",
+      user.getId(),
       new CreateSchedulePlaceRequest("201", null, "2026-06-12T02:00:00Z", "2026-06-12T03:00:00Z", "점심")
     );
 

@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,8 +39,17 @@ public class GroupApiService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> groupDetail(String groupId) {
-    GroupEntity group = group(groupId);
+  public List<Map<String, Object>> groups(UUID userId) {
+    UserEntity user = user(userId);
+    return groupRepository.findVisibleForUserOrderByCreatedAtAsc(user.getId()).stream()
+      .map(this::groupCard)
+      .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> groupDetail(String groupId, UUID userId) {
+    UserEntity user = user(userId);
+    GroupEntity group = memberGroup(groupId, user);
     List<Map<String, Object>> memberProfiles = membersFor(group, true);
     List<String> memberNames = memberProfiles.stream()
       .map(member -> String.valueOf(member.get("name")))
@@ -49,13 +59,13 @@ public class GroupApiService {
   }
 
   @Transactional
-  public Map<String, Object> updateGroup(String groupId, UpdateGroupRequest request) {
+  public Map<String, Object> updateGroup(String groupId, UUID userId, UpdateGroupRequest request) {
     if (request == null || request.name() == null || request.name().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_group_name");
     }
 
-    GroupEntity group = group(groupId);
-    UserEntity user = userRepository.findFirstByOrderByCreatedAtAsc().orElse(null);
+    UserEntity user = user(userId);
+    GroupEntity group = memberGroup(groupId, user);
     group.update(request.name(), request.description(), user);
     groupRepository.save(group);
     outboxService.record(
@@ -77,14 +87,15 @@ public class GroupApiService {
   }
 
   @Transactional(readOnly = true)
-  public List<Map<String, Object>> members(String groupId) {
-    return membersFor(group(groupId), true);
+  public List<Map<String, Object>> members(String groupId, UUID userId) {
+    UserEntity user = user(userId);
+    return membersFor(memberGroup(groupId, user), true);
   }
 
   @Transactional
-  public void leaveGroup(String groupId) {
-    UserEntity user = currentUser();
-    GroupEntity group = group(groupId);
+  public void leaveGroup(String groupId, UUID userId) {
+    UserEntity user = user(userId);
+    GroupEntity group = memberGroup(groupId, user);
     groupMemberRepository.findByGroupAndUser(group, user)
       .filter(membership -> !"left".equals(membership.getStatus()))
       .ifPresent(membership -> {
@@ -103,12 +114,12 @@ public class GroupApiService {
   }
 
   @Transactional
-  public Map<String, Object> createGroup(String name, String description) {
+  public Map<String, Object> createGroup(UUID userId, String name, String description) {
     if (name == null || name.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_group_name");
     }
 
-    UserEntity user = currentUser();
+    UserEntity user = user(userId);
     String publicId = nextPublicId(groupRepository.findAllByOrderByCreatedAtAsc().stream()
       .map(GroupEntity::getPublicId)
       .toList());
@@ -131,6 +142,14 @@ public class GroupApiService {
     return groupCard(group, 1, List.of(displayName(user)), List.of(userProfile(user, "owner", "active")));
   }
 
+  private Map<String, Object> groupCard(GroupEntity group) {
+    List<Map<String, Object>> memberProfiles = membersFor(group, true);
+    List<String> memberNames = memberProfiles.stream()
+      .map(member -> String.valueOf(member.get("name")))
+      .toList();
+    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
+  }
+
   private List<Map<String, Object>> membersFor(GroupEntity group, boolean fallbackToOwner) {
     List<GroupMemberEntity> memberships = groupMemberRepository.findByGroupOrderByJoinedAtAsc(group);
     List<GroupMemberEntity> visibleMemberships = memberships.stream()
@@ -147,8 +166,7 @@ public class GroupApiService {
       return List.of();
     }
 
-    UserEntity fallbackUser = userRepository.findFirstByOrderByCreatedAtAsc()
-      .orElse(group.getOwnerUser());
+    UserEntity fallbackUser = group.getOwnerUser();
     return List.of(userProfile(fallbackUser, "owner", "active"));
   }
 
@@ -197,8 +215,16 @@ public class GroupApiService {
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
   }
 
-  private UserEntity currentUser() {
-    return userRepository.findFirstByOrderByCreatedAtAsc()
+  private GroupEntity memberGroup(String groupId, UserEntity user) {
+    GroupEntity group = group(groupId);
+    if (user.getId() == null || !groupRepository.isUserMember(group.getPublicId(), user.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "group_forbidden");
+    }
+    return group;
+  }
+
+  private UserEntity user(UUID userId) {
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 

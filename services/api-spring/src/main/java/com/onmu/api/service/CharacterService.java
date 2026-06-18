@@ -29,16 +29,16 @@ public class CharacterService {
   }
 
   @Transactional(readOnly = true)
-  public CharacterProfileResponse getMyCharacter() {
-    UserEntity user = currentUser();
+  public CharacterProfileResponse getMyCharacter(UUID userId) {
+    UserEntity user = user(userId);
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "character_profile_not_found"));
     return mapToResponse(entity);
   }
 
   @Transactional
-  public CharacterProfileResponse saveMyCharacter(UpdateCharacterRequest request) {
-    UserEntity user = currentUser();
+  public CharacterProfileResponse saveMyCharacter(UUID userId, UpdateCharacterRequest request) {
+    UserEntity user = user(userId);
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
         .orElseGet(() -> new CharacterProfileEntity(
             user.getId(),
@@ -65,8 +65,8 @@ public class CharacterService {
   }
 
   @Transactional
-  public CharacterProfileResponse generateCharacter(CharacterGenerateRequest request) {
-    UserEntity user = currentUser();
+  public CharacterProfileResponse generateCharacter(UUID userId, CharacterGenerateRequest request) {
+    UserEntity user = user(userId);
     String kw = request.keyword().toLowerCase();
     String gender = "male";
     String skin = "type_warm";
@@ -117,8 +117,8 @@ public class CharacterService {
   }
 
   @Transactional
-  public CharacterProfileResponse updateSkipStatus(CharacterSkipRequest request) {
-    UserEntity user = currentUser();
+  public CharacterProfileResponse updateSkipStatus(UUID userId, CharacterSkipRequest request) {
+    UserEntity user = user(userId);
     CharacterProfileEntity entity = characterProfileRepository.findByUserId(user.getId())
         .orElseGet(() -> new CharacterProfileEntity(
             user.getId(),
@@ -153,21 +153,8 @@ public class CharacterService {
     );
   }
 
-  private UserEntity currentUser() {
-    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
-      return userRepository.findFirstByOrderByCreatedAtAsc()
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized"));
-    }
-
-    String name = auth.getName();
-    try {
-      UUID userId = UUID.fromString(name);
-      return userRepository.findById(userId)
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
-    } catch (IllegalArgumentException e) {
-      return userRepository.findFirstByOrderByCreatedAtAsc()
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing"));
-    }
+  private UserEntity user(UUID userId) {
+    return userRepository.findByIdAndDeletedAtIsNull(userId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 }
