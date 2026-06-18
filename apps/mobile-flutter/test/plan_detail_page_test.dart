@@ -112,6 +112,43 @@ void main() {
     expect(find.text('동선을 계산하지 못했어요'), findsOneWidget);
     expect(find.text('동선 준비 중'), findsNothing);
   });
+
+  testWidgets('itinerary shows live route summary and first leg preview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _planItineraryTestApp(
+        planRepository: _PlanDetailTestRepository(
+          visitPlansByDate: const [
+            [
+              VisitPlan(
+                time: '10:00',
+                endTime: '11:00',
+                place: '테스트 카페',
+                kind: '카페',
+                duration: '1시간',
+              ),
+              VisitPlan(
+                time: '11:10',
+                endTime: '12:00',
+                place: '테스트 식당',
+                kind: '음식점',
+                duration: '50분',
+              ),
+            ],
+          ],
+        ),
+        routeRepository: const _SuccessfulRouteRepository(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('10분 · 1.5km · 1구간'), findsOneWidget);
+    expect(find.text('테스트 카페 → 테스트 식당 · 10분 · 1.5km'), findsOneWidget);
+    expect(find.text('실제 경로 계산 실패'), findsNothing);
+    expect(find.text('동선 계산 중'), findsNothing);
+  });
 }
 
 Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
@@ -156,8 +193,23 @@ Widget _planItineraryTestApp({
 }
 
 class _PlanDetailTestRepository implements PlanRepository {
-  _PlanDetailTestRepository({bool currentUserParticipating = false})
-    : _currentParticipant = currentUserParticipating
+  _PlanDetailTestRepository({
+    bool currentUserParticipating = false,
+    List<List<VisitPlan>>? visitPlansByDate,
+  }) : _visitPlansByDate =
+           visitPlansByDate ??
+           const [
+             [
+               VisitPlan(
+                 time: '10:00',
+                 endTime: '11:00',
+                 place: '테스트 카페',
+                 kind: '카페',
+                 duration: '1시간',
+               ),
+             ],
+           ],
+       _currentParticipant = currentUserParticipating
           ? const PlanParticipantArrival(
               id: 'participant-me',
               userId: 'user-me',
@@ -171,6 +223,7 @@ class _PlanDetailTestRepository implements PlanRepository {
   var joinCount = 0;
   var leaveCount = 0;
   PlanParticipantArrival? _currentParticipant;
+  final List<List<VisitPlan>> _visitPlansByDate;
 
   @override
   Future<Plan> fetchPlan({
@@ -185,17 +238,7 @@ class _PlanDetailTestRepository implements PlanRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return const [
-      [
-        VisitPlan(
-          time: '10:00',
-          endTime: '11:00',
-          place: '테스트 카페',
-          kind: '카페',
-          duration: '1시간',
-        ),
-      ],
-    ];
+    return _visitPlansByDate;
   }
 
   @override
@@ -440,6 +483,56 @@ class _FailingRouteRepository implements RouteRepository {
     required String travelMode,
   }) {
     throw StateError('route failed');
+  }
+}
+
+class _SuccessfulRouteRepository implements RouteRepository {
+  const _SuccessfulRouteRepository();
+
+  @override
+  Future<RouteRecommendation> recommend({
+    required Object groupId,
+    required Object planId,
+    required String travelMode,
+  }) async {
+    return RouteRecommendation.fromJson({
+      'provider': 'openrouteservice',
+      'travelMode': travelMode,
+      'liveProvider': true,
+      'distanceMeters': 1500,
+      'durationSeconds': 600,
+      'stops': [
+        {
+          'id': 'stop-1',
+          'name': '테스트 카페',
+          'lat': 37.5665,
+          'lng': 126.9780,
+          'order': 1,
+        },
+        {
+          'id': 'stop-2',
+          'name': '테스트 식당',
+          'lat': 37.5651,
+          'lng': 126.9895,
+          'order': 2,
+        },
+      ],
+      'geometry': [
+        [126.9780, 37.5665],
+        [126.9895, 37.5651],
+      ],
+      'legs': [
+        {
+          'order': 1,
+          'fromStopId': 'stop-1',
+          'toStopId': 'stop-2',
+          'fromName': '테스트 카페',
+          'toName': '테스트 식당',
+          'distanceMeters': 1500,
+          'durationSeconds': 600,
+        },
+      ],
+    });
   }
 }
 
