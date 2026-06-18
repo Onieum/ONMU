@@ -109,7 +109,11 @@ class ApiFriendRepository implements FriendRepository {
       OnmuJson.readString(json, 'displayName'),
       OnmuJson.readString(json, 'name'),
     ], fallback: '친구');
-    final memo = OnmuJson.readString(json, 'memo');
+    final memo = _cleanFriendMemo(
+      OnmuJson.readString(json, 'memo'),
+      publicId: publicId,
+      userCode: userCode,
+    );
     final introText = OnmuJson.readString(json, 'introText');
     return FriendProfile(
       userId: OnmuJson.readString(json, 'userId'),
@@ -131,6 +135,22 @@ class ApiFriendRepository implements FriendRepository {
         ),
       ),
     );
+  }
+
+  String _cleanFriendMemo(
+    String value, {
+    required String publicId,
+    required String userCode,
+  }) {
+    final memo = value.trim();
+    final looksLikeGeneratedUserCode = RegExp(r'^\d{8,12}$').hasMatch(memo);
+    if (memo.isEmpty ||
+        memo == publicId ||
+        memo == userCode ||
+        looksLikeGeneratedUserCode) {
+      return '';
+    }
+    return memo;
   }
 
   MyProfile _profileFromJson(Map<String, dynamic> json, FriendProfile friend) {

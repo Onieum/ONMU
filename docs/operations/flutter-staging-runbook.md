@@ -5,6 +5,8 @@
 ## 1. 현재 기본 원칙
 
 - `flutter run`, `flutter build apk`, `flutter build ios`를 define 없이 실행하면 기본 API base URL은 `https://staging-api.onmu.cloud`다.
+- define 없이 실행하는 staging 앱의 기본 tile manifest는 Azure Front Door default endpoint `https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json`다.
+- `tiles.onmu.cloud` custom domain은 Front Door cutover가 끝날 때까지 기본 모바일 smoke 기준으로 쓰지 않는다.
 - actual OAuth smoke는 `.dart_tool/onmu-staging-oauth.defines.json`을 사용한다.
 - staging 보호 API 화면 검증은 `.dart_tool/onmu-staging-api.defines.json`을 사용한다.
 - Windows dev/local 또는 로컬 Spring은 `--environment dev` 또는 `-ApiBaseUrl http://127.0.0.1:8080`처럼 명시 opt-in일 때만 사용한다.

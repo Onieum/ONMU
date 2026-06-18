@@ -95,3 +95,15 @@ output "log_analytics_workspace_name" {
 output "application_insights_name" {
   value = "appi-${local.base}"
 }
+
+output "machine_learning_workspace_name" {
+  value = "mlw-${local.base}"
+}
+
+output "vision_openai_account_name" {
+  value = "oai-${local.base}"
+}
+
+output "vision_openai_custom_subdomain_name" {
+  value = substr("oai${local.compact}", 0, 64)
+}

@@ -17,7 +17,8 @@ Flutter 앱은 PMTiles 파일 URL을 직접 하드코딩하지 않고 manifest p
 | Manifest object | `tiles/manifest.json` |
 | Style object | `styles/onmu-light.json` |
 | Local manifest URL | `http://localhost:9000/onmu-tiles/tiles/manifest.json` |
-| Legacy public manifest URL | `https://tiles.onmu.cloud/manifest.json` |
+| Staging Front Door manifest URL | `https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json` |
+| Future custom-domain manifest URL | `https://tiles.onmu.cloud/manifest.json` |
 
 PMTiles 파일은 저장소에 커밋하지 않는다. `.gitignore`는 `*.pmtiles`를 무시한다.
 
@@ -47,7 +48,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -File scripts\windows\start-map-tiles-gateway.ps1
 ```
 
-Cloudflare ingress는 legacy Windows dev에서만 `infra/cloudflare/cloudflared-local.yml`의 `tiles.onmu.cloud -> http://localhost:19100` 구성을 사용한다. Azure staging/release smoke에서는 `tiles.onmu.cloud`를 Azure Front Door custom domain으로 보며, local smoke만 필요하면 Flutter에 `ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`를 주입해 gateway 없이 검증할 수 있다.
+Cloudflare ingress는 legacy Windows dev에서만 `infra/cloudflare/cloudflared-local.yml`의 `tiles.onmu.cloud -> http://localhost:19100` 구성을 사용한다. Azure staging/release smoke에서는 Front Door default endpoint를 기본값으로 보며, `tiles.onmu.cloud`는 custom domain cutover가 끝난 뒤에만 기본 smoke 기준으로 승격한다. local smoke만 필요하면 Flutter에 `ONMU_TILE_MANIFEST_URL=http://localhost:9000/onmu-tiles/tiles/manifest.json`를 주입해 gateway 없이 검증할 수 있다.
 
 ## Seed script
 
@@ -154,9 +155,9 @@ public gateway 반영 뒤에는 브라우저 개발 origin별로 manifest/style/
 
 ```powershell
 $origin = "http://127.0.0.1:5175"
-Invoke-WebRequest "https://tiles.onmu.cloud/manifest.json" -Headers @{ Origin = $origin }
-Invoke-WebRequest "https://tiles.onmu.cloud/styles/onmu-light.json" -Headers @{ Origin = $origin }
-curl.exe -i "https://tiles.onmu.cloud/pmtiles/korea-dev.pmtiles" `
+Invoke-WebRequest "https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json" -Headers @{ Origin = $origin }
+Invoke-WebRequest "https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/styles/onmu-light.json" -Headers @{ Origin = $origin }
+curl.exe -i "https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/pmtiles/korea-dev.pmtiles" `
   -H "Origin: $origin" `
   -H "Range: bytes=0-15"
 ```
