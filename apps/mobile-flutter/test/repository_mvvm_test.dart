@@ -319,6 +319,19 @@ void main() {
     expect(state.upcomingPlan?.displayStatusLabel, '초안');
   });
 
+  test('온모임 목록 ViewModel은 다가오는 약속 기준으로 카드 약속 제목을 보강한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(_UpcomingOrderRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '내일 약속');
+  });
+
   test('온모임 홈 ViewModel은 최근 대화 API가 실패해도 상세 홈을 표시한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -346,6 +359,31 @@ void main() {
     expect(state.selectedMembers.every((member) => member.selected), isTrue);
     expect(state.visitPlanForDate(0).first.place, '다운타우너 성수');
     expect(state.visitPlanForDate(1).first.place, '협재 해수욕장');
+  });
+
+  test('약속 상세 ViewModel은 방문 장소가 없는 날도 약속 기간 날짜 탭을 만든다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        planRepositoryProvider.overrideWithValue(_LongRangePlanRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      planDetailViewModelProvider((groupId: '1', planId: '104')).future,
+    );
+
+    expect(state.dateTabs.map((tab) => tab.tabLabel), [
+      '6/19 금',
+      '6/20 토',
+      '6/21 일',
+      '6/22 월',
+      '6/23 화',
+      '6/24 수',
+    ]);
+    expect(state.visitPlanForDate(0).single.place, '퍼스트커피랩행궁');
+    expect(state.visitPlanForDate(1), isEmpty);
+    expect(state.visitPlanForDate(5), isEmpty);
   });
 
   test('약속 상세 ViewModel은 서버 fallback 참여자를 선택 멤버로 취급하지 않는다', () async {
@@ -503,6 +541,28 @@ void main() {
     expect(state.votersFor(201), contains('민서'));
   });
 
+  test('투표 상세 ViewModel은 선택 옵션으로 투표하고 다시 투표할 수 있다', () async {
+    final repository = _VoteSelectionGroupRepository();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final provider = voteDetailViewModelProvider((
+      groupId: '1',
+      voteId: '501',
+      planId: '101',
+    ));
+
+    await container.read(provider.notifier).submitVote('vopt-501-1');
+    await container.read(provider.notifier).submitVote('vopt-501-2');
+
+    expect(repository.selectedOptionIds, ['vopt-501-1', 'vopt-501-2']);
+  });
+
   test('투표 상세 ViewModel은 voters projection이 없어도 option count를 유지한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -523,6 +583,31 @@ void main() {
     );
 
     expect(state.votersFor(9901), isEmpty);
+    expect(state.voteCountFor(9901), 3);
+  });
+
+  test('투표 상세 ViewModel은 장소 후보가 없어도 vote option으로 후보 행을 만든다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _VoteCountOnlyGroupRepository(),
+        ),
+        placeRepositoryProvider.overrideWithValue(
+          _NoPlaceCandidatesRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      voteDetailViewModelProvider((
+        groupId: '1',
+        voteId: '501',
+        planId: '101',
+      )).future,
+    );
+
+    expect(state.candidates.map((candidate) => candidate.name), ['목업 카페']);
     expect(state.voteCountFor(9901), 3);
   });
 
@@ -1456,6 +1541,15 @@ class _FakeGroupRepository implements GroupRepository {
   );
 
   @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<int, List<String>>> fetchVoteVoters({
     required Object groupId,
     required Object voteId,
@@ -1620,6 +1714,15 @@ class _EmptyGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<int, List<String>>> fetchVoteVoters({
     required Object groupId,
     required Object voteId,
@@ -1633,6 +1736,67 @@ class _EmptyGroupRepository implements GroupRepository {
     required Object memoryId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _VoteSelectionGroupRepository extends _EmptyGroupRepository {
+  final selectedOptionIds = <String>[];
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) async =>
+      _FakeGroupRepository._group;
+
+  @override
+  Future<VoteCard> fetchVoteCard({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return VoteCard(
+      title: '테스트 투표',
+      summary: '온무식당',
+      statusLabel: 'open',
+      actionLabel: '투표 보기',
+      targetType: 'PLAN',
+      targetId: '101',
+      options: [
+        VoteOptionSummary(
+          id: 'vopt-501-1',
+          label: '온무식당',
+          countLabel: '0표',
+          progress: 0,
+          candidateId: '9901',
+          targetType: 'PLACE_CANDIDATE',
+          targetId: '9901',
+        ),
+        VoteOptionSummary(
+          id: 'vopt-501-2',
+          label: '다른 식당',
+          countLabel: '0표',
+          progress: 0,
+          candidateId: '9902',
+          targetType: 'PLACE_CANDIDATE',
+          targetId: '9902',
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  }) async {
+    selectedOptionIds.add(optionId.toString());
+    return fetchVoteCard(groupId: groupId, voteId: voteId);
+  }
+
+  @override
+  Future<Map<int, List<String>>> fetchVoteVoters({
+    required Object groupId,
+    required Object voteId,
+  }) async {
+    return const {};
   }
 }
 
@@ -1682,7 +1846,7 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
       id: 7701,
       title: '서버 보강 약속',
       dateLabel: '6월 18일 10:00',
-      startsAt: DateTime.utc(2026, 6, 18, 1),
+      startsAt: DateTime.utc(2099, 6, 18, 1),
       placeName: '성수동',
       statusLabel: '예정',
       statusType: 'scheduled',
@@ -2318,6 +2482,7 @@ class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
       targetId: '101',
       options: [
         VoteOptionSummary(
+          id: 'vopt-501-1',
           label: '목업 카페',
           countLabel: '3표',
           progress: 1,
@@ -2577,6 +2742,13 @@ class _FakePlaceRepository implements PlaceRepository {
   );
 
   @override
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  }) async {}
+
+  @override
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,
@@ -2630,6 +2802,14 @@ class _MultiCandidatePlaceRepository extends _FakePlaceRepository {
     required Object groupId,
     required Object planId,
   }) async => [_FakePlaceRepository._candidate, _otherCandidate];
+}
+
+class _NoPlaceCandidatesRepository extends _FakePlaceRepository {
+  @override
+  Future<List<PlaceCandidate>> fetchCandidates({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
 }
 
 class _PlanBoardPlaceRepository extends _FakePlaceRepository {
@@ -2707,6 +2887,89 @@ class _FakePlanRepository implements PlanRepository {
   Future<List<PlanParticipantArrival>> fetchPlanParticipants({
     required Object groupId,
     required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _LongRangePlanRepository implements PlanRepository {
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return Plan(
+      id: int.parse(planId.toString()),
+      title: '샘플약속-진희',
+      dateTime: '6/19 금',
+      location: '수원',
+      status: 'draft',
+      memo: '',
+      members: const [],
+      timeCandidates: const [],
+      visitPlan: const [],
+      startsAt: DateTime.parse('2026-06-19T14:00:00+09:00'),
+      endsAt: DateTime.parse('2026-06-24T16:00:00+09:00'),
+    );
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) async => [
+    const [
+      VisitPlan(
+        time: '14:00',
+        endTime: '',
+        place: '퍼스트커피랩행궁',
+        kind: '일정 장소',
+        duration: '',
+      ),
+    ],
+  ];
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async => const [];
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
   }) {
     throw UnimplementedError();
   }

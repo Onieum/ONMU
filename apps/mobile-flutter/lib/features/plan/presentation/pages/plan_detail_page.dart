@@ -602,7 +602,7 @@ class _PlanItineraryPreviewSection extends StatelessWidget {
                     vertical: AppSpacing.xs,
                   ),
                   child: Text(
-                    '좌표 연동 전 미리보기',
+                    '장소 동선',
                     style: Theme.of(
                       context,
                     ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
@@ -802,8 +802,16 @@ class _TimelineCard extends StatelessWidget {
       backgroundColor: AppColors.bgDefault,
       child: Column(
         children: [
-          for (var index = 0; index < visitPlan.length; index += 1)
-            _TimelineItem(order: index + 1, plan: visitPlan[index]),
+          if (visitPlan.isEmpty)
+            Text(
+              '방문 장소를 추가하면 일정 동선이 표시돼요.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            )
+          else
+            for (var index = 0; index < visitPlan.length; index += 1)
+              _TimelineItem(order: index + 1, plan: visitPlan[index]),
         ],
       ),
     );
@@ -818,6 +826,7 @@ class _TimelineItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metaLabel = _visitPlanMetaLabel(plan);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
@@ -827,8 +836,13 @@ class _TimelineItem extends StatelessWidget {
             width: 46,
             child: Column(
               children: [
-                Text(plan.time, style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(height: AppSpacing.xxs),
+                if (plan.time.trim().isNotEmpty) ...[
+                  Text(
+                    plan.time,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                ],
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: AppColors.primaryPink,
@@ -864,11 +878,13 @@ class _TimelineItem extends StatelessWidget {
                           plan.place,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          '${plan.kind} · ${plan.duration}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                        if (metaLabel.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            metaLabel,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -885,4 +901,16 @@ class _TimelineItem extends StatelessWidget {
       ),
     );
   }
+}
+
+String _visitPlanMetaLabel(VisitPlan plan) {
+  final kind = plan.kind.trim();
+  final duration = plan.duration.trim();
+  if (kind.isEmpty) {
+    return duration;
+  }
+  if (duration.isEmpty) {
+    return kind;
+  }
+  return '$kind · $duration';
 }

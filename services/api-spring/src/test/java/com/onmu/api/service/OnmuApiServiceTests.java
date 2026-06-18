@@ -33,6 +33,7 @@ import com.onmu.api.domain.UserRepository;
 import com.onmu.api.domain.VoteEntity;
 import com.onmu.api.domain.VoteOptionEntity;
 import com.onmu.api.domain.VoteOptionRepository;
+import com.onmu.api.domain.VoteResponseEntity;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.AddPlanParticipantRequest;
@@ -42,6 +43,7 @@ import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
@@ -601,6 +603,73 @@ class OnmuApiServiceTests {
         assertThat(optionMap.get("countLabel")).isEqualTo("3표");
         assertThat(optionMap.get("progress")).isEqualTo(0.75);
       });
+  }
+
+  @Test
+  void submittingVoteResponseReplacesMyPreviousOptionAndReturnsSelectedState() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    VoteOptionEntity previousOption = new VoteOptionEntity(
+      vote,
+      "vopt-501-1",
+      "기존 후보",
+      "TEXT",
+      null,
+      1,
+      "{}"
+    );
+    VoteOptionEntity nextOption = new VoteOptionEntity(
+      vote,
+      "vopt-501-2",
+      "새 후보",
+      "TEXT",
+      null,
+      2,
+      "{}"
+    );
+    VoteResponseEntity previousResponse = new VoteResponseEntity(vote, previousOption, user, "{\"optionId\":\"vopt-501-1\"}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(voteRepository.findByGroupAndPublicId(group, "501")).thenReturn(Optional.of(vote));
+    when(voteOptionRepository.findByVoteOrderBySortOrderAsc(vote)).thenReturn(List.of(previousOption, nextOption));
+    when(voteResponseRepository.findByVoteAndUser(vote, user)).thenReturn(List.of(previousResponse));
+    when(voteResponseRepository.save(any(VoteResponseEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(voteResponseRepository.findFirstByVoteAndUserOrderByCreatedAtDesc(vote, user))
+      .thenReturn(Optional.of(new VoteResponseEntity(vote, nextOption, user, "{\"optionId\":\"vopt-501-2\"}")));
+    when(voteResponseRepository.existsByVoteOptionAndUser(previousOption, user)).thenReturn(false);
+    when(voteResponseRepository.existsByVoteOptionAndUser(nextOption, user)).thenReturn(true);
+
+    var detail = service.submitVoteResponse(
+      "1",
+      "501",
+      user.getId(),
+      new SubmitVoteResponseRequest("vopt-501-2")
+    );
+
+    assertThat(detail)
+      .containsEntry("myOptionId", "vopt-501-2")
+      .containsEntry("joinedByMe", true);
+    assertThat(detail.get("options")).asList()
+      .element(1)
+      .satisfies(rawOption -> {
+        java.util.Map<?, ?> optionMap = (java.util.Map<?, ?>) rawOption;
+        assertThat(optionMap.get("selectedByMe")).isEqualTo(true);
+      });
+    verify(voteResponseRepository).deleteAll(List.of(previousResponse));
+    verify(voteResponseRepository).save(argThat(response ->
+      response.getVote() == vote &&
+        response.getVoteOption() == nextOption &&
+        response.getUser() == user &&
+        response.getResponseValue().contains("vopt-501-2")
+    ));
+    verify(outboxService).record(
+      eq("vote.response_upserted"),
+      eq("vote_response"),
+      any(),
+      argThat(payload -> "501".equals(payload.get("voteId"))
+        && "vopt-501-2".equals(payload.get("optionId"))
+        && user.getId().toString().equals(payload.get("userId")))
+    );
   }
 
   @Test
@@ -1186,6 +1255,39 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "702".equals(payload.get("schedulePlaceId"))
         && "201".equals(payload.get("candidateId")))
+    );
+  }
+
+  @Test
+  void deletingSchedulePlaceRemovesPlanScopedPlaceAndRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    SchedulePlaceEntity schedulePlace = new SchedulePlaceEntity(
+      "701",
+      group,
+      plan,
+      null,
+      "온무식당",
+      null,
+      null,
+      1,
+      null
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(schedulePlaceRepository.findByPlanAndPublicId(plan, "701")).thenReturn(Optional.of(schedulePlace));
+
+    service.deleteSchedulePlace("1", "101", "701", user.getId());
+
+    verify(schedulePlaceRepository).delete(schedulePlace);
+    verify(outboxService).record(
+      eq("schedule_place.deleted"),
+      eq("schedule_place"),
+      eq(schedulePlace.getId()),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "701".equals(payload.get("schedulePlaceId")))
     );
   }
 

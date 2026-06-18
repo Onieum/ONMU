@@ -462,6 +462,7 @@ class VoteCard {
     this.targetType = '',
     this.targetId = '',
     this.options = const [],
+    this.myOptionId = '',
   });
 
   final String title;
@@ -472,8 +473,16 @@ class VoteCard {
   final String targetType;
   final String targetId;
   final List<VoteOptionSummary> options;
+  final String myOptionId;
 
   String get participantCountLabel => '$participantCount명 참여';
+
+  bool get joinedByMe {
+    if (myOptionId.trim().isNotEmpty) {
+      return true;
+    }
+    return options.any((option) => option.selectedByMe);
+  }
 
   String get displayStatusLabel {
     final trimmed = statusLabel.trim();

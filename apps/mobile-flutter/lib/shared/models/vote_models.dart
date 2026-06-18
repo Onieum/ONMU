@@ -52,6 +52,7 @@ class VoteOptionSummary {
     this.targetId = '',
     this.candidateId = '',
     this.responseCount = 0,
+    this.selectedByMe = false,
   });
 
   final String label;
@@ -62,6 +63,7 @@ class VoteOptionSummary {
   final String targetId;
   final String candidateId;
   final int responseCount;
+  final bool selectedByMe;
 }
 
 class VoteCreateInput {

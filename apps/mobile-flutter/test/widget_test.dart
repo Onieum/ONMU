@@ -945,7 +945,7 @@ void main() {
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(find.text('방문 지도'), findsNothing);
-    expect(find.text('좌표 연동 전 미리보기'), findsOneWidget);
+    expect(find.text('장소 동선'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
     expect(find.text('2'), findsWidgets);
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
@@ -1240,10 +1240,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final candidateAction = find.byKey(
-      const ValueKey('place-action-201-candidate'),
+      const ValueKey('place-action-204-candidate'),
     );
     final scheduleAction = find.byKey(
-      const ValueKey('place-action-201-schedule'),
+      const ValueKey('place-action-204-schedule'),
     );
     final sheetScrollable = find.descendant(
       of: find.byKey(const ValueKey('place-map-bottom-sheet')),
@@ -1346,7 +1346,7 @@ void main() {
     expect(find.textContaining('Naver'), findsNothing);
     expect(find.text('Provider'), findsNothing);
     expect(find.textContaining('%'), findsNothing);
-    expect(find.text('후보에 추가'), findsWidgets);
+    expect(find.text('후보에 있음'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
   });
 
@@ -1425,7 +1425,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(candidateAction, findsOneWidget);
-    expect(find.text('후보에 추가'), findsWidgets);
+    expect(find.text('후보에 있음'), findsWidgets);
     expect(find.text('일정에 추가'), findsWidgets);
   });
 
@@ -2017,6 +2017,13 @@ class _EmptyPlaceRepository implements PlaceRepository {
   );
 
   @override
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  }) async {}
+
+  @override
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,
@@ -2210,6 +2217,15 @@ class _SingleMemberGroupRepository implements GroupRepository {
   Future<VoteCard> fetchVoteCard({
     required Object groupId,
     required Object voteId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
   }) {
     throw UnimplementedError();
   }

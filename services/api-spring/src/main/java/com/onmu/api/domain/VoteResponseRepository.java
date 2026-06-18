@@ -1,10 +1,18 @@
 package com.onmu.api.domain;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface VoteResponseRepository extends JpaRepository<VoteResponseEntity, UUID> {
+  List<VoteResponseEntity> findByVoteAndUser(VoteEntity vote, UserEntity user);
+
+  Optional<VoteResponseEntity> findFirstByVoteAndUserOrderByCreatedAtDesc(VoteEntity vote, UserEntity user);
+
+  boolean existsByVoteOptionAndUser(VoteOptionEntity voteOption, UserEntity user);
+
   long countByVote(VoteEntity vote);
 
   long countByVoteOption(VoteOptionEntity voteOption);
