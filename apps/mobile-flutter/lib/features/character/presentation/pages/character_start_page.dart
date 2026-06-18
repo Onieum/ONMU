@@ -760,6 +760,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
                     backgroundColor: isStart || isLast
                         ? AppColors.primaryPink
                         : AppColors.primaryPurple,
+                    textStyle: AppTextStyles.labelSmall.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   child: Text(isStart ? '시작하기' : label),
                 ),
@@ -772,8 +775,9 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
               onPressed: _returnToOnboarding,
               child: Text(
                 widget.returnButtonLabel,
-                style: AppTextStyles.labelLarge.copyWith(
+                style: AppTextStyles.labelSmall.copyWith(
                   color: AppColors.textSub,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),

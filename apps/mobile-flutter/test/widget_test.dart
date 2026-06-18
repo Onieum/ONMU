@@ -545,7 +545,7 @@ void main() {
     expect(find.text('저장하기'), findsOneWidget);
   });
 
-  testWidgets('my page friend add searches by user code and adds result', (
+  testWidgets('my page friend add sends request by pasted user id', (
     tester,
   ) async {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -578,13 +578,10 @@ void main() {
     await tester.enterText(find.byType(TextField).last, '1234567890');
     await tester.pumpAndSettle();
 
-    expect(friendRepository.lastSearchQuery, '1234567890');
-    expect(find.text('Code Friend'), findsOneWidget);
-
-    await tester.tap(find.text('Code Friend'));
+    await tester.tap(find.byType(FilledButton).last);
     await tester.pumpAndSettle();
 
-    expect(friendRepository.addedPublicId, 'friend-code');
+    expect(friendRepository.addedPublicId, '1234567890');
   });
 
   testWidgets('upcoming plan see all opens the full upcoming list', (
@@ -2279,9 +2276,9 @@ class _UserCodeFriendRepository implements FriendRepository {
     publicId: 'friend-code',
     userCode: '1234567890',
     name: 'Code Friend',
-    preferenceSummary: '1234567890',
+    preferenceSummary: '',
     isFriend: false,
-    memo: '1234567890',
+    memo: '',
   );
 
   String? lastSearchQuery;
@@ -2315,7 +2312,7 @@ class _UserCodeFriendRepository implements FriendRepository {
   @override
   Future<FriendProfile> addFriend(String publicId, {String? memo}) async {
     addedPublicId = publicId;
-    return _candidate.copyWith(isFriend: true, memo: memo);
+    return _candidate.copyWith(isFriend: false, memo: memo);
   }
 
   @override

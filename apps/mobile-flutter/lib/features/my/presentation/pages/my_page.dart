@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/api/onmu_media_url.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../home/view_model/home_notifications_view_model.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
@@ -59,6 +60,9 @@ class _MyPageState extends ConsumerState<MyPage> {
     final profileAsync = ref.watch(myProfileProvider);
     final friendsAsync = ref.watch(friendsProvider);
     final authUser = ref.watch(authUserProvider);
+    final unreadNotificationCount = ref
+        .watch(notificationUnreadCountProvider)
+        .maybeWhen(data: (count) => count, orElse: () => 0);
     final profile = _profileForAuthUser(
       profileAsync.value ?? _emptyProfile(),
       authUser,
@@ -75,6 +79,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 sliver: SliverToBoxAdapter(
                   child: _PageHeader(
+                    hasUnreadNotifications: unreadNotificationCount > 0,
                     onAlarmTap: () =>
                         context.push(RoutePaths.homeNotifications),
                     onSettingTap: _openSettingsPage,
@@ -127,6 +132,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                             onOpenAddFriend: _showFriendAddSheet,
                             onFriendTap: _openFriendProfile,
                             onToggleFavorite: _toggleFavoriteFriend,
+                            onUpdateMemo: _updateFriendMemo,
                           ),
                   ),
                 ),
@@ -140,6 +146,10 @@ class _MyPageState extends ConsumerState<MyPage> {
 
   Future<void> _toggleFavoriteFriend(FriendProfile friend) async {
     await ref.read(myProfileControllerProvider).toggleFavoriteFriend(friend);
+  }
+
+  Future<void> _updateFriendMemo(FriendProfile friend, String memo) async {
+    await ref.read(myProfileControllerProvider).updateFriendMemo(friend, memo);
   }
 
   Future<void> _showProfileEditor() async {
@@ -259,7 +269,8 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   Future<void> _showFriendAddSheet() async {
-    final result = await showModalBottomSheet<FriendProfile>(
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgDefault,
@@ -275,7 +286,27 @@ class _MyPageState extends ConsumerState<MyPage> {
       return;
     }
 
-    await ref.read(myProfileControllerProvider).addFriend(result.publicId);
+    try {
+      await ref.read(myProfileControllerProvider).addFriend(result);
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('친구 요청을 보냈어요. 상대가 수락하면 친구가 돼요.')),
+      );
+    } on FriendAddException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('친구 요청에 실패했어요. 다시 시도해주세요.')),
+      );
+    }
   }
 }
 

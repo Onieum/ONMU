@@ -55,6 +55,7 @@ class MyProfile {
     this.planStyles = const [],
     this.preferredWeekdays = const [],
     this.profileImageUrl = '',
+    this.searchAllowed = true,
   });
 
   final String realName;
@@ -78,6 +79,7 @@ class MyProfile {
   final List<String> planStyles;
   final List<String> preferredWeekdays;
   final String profileImageUrl;
+  final bool searchAllowed;
 
   List<String> get preferenceHighlights {
     return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
@@ -109,6 +111,7 @@ class MyProfile {
     List<String>? planStyles,
     List<String>? preferredWeekdays,
     String? profileImageUrl,
+    bool? searchAllowed,
   }) {
     return MyProfile(
       realName: realName ?? this.realName,
@@ -136,6 +139,7 @@ class MyProfile {
       planStyles: planStyles ?? this.planStyles,
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      searchAllowed: searchAllowed ?? this.searchAllowed,
     );
   }
 }
@@ -151,6 +155,7 @@ class FriendProfile {
     this.isFavorite = false,
     this.memo = '',
     this.profileImageUrl = '',
+    this.introText = '',
   });
 
   final String userId;
@@ -162,6 +167,7 @@ class FriendProfile {
   final bool isFavorite;
   final String memo;
   final String profileImageUrl;
+  final String introText;
 
   String get memoOrCode {
     final cleanMemo = memo.trim();
@@ -175,7 +181,12 @@ class FriendProfile {
     return publicId;
   }
 
-  FriendProfile copyWith({bool? isFriend, bool? isFavorite, String? memo}) {
+  FriendProfile copyWith({
+    bool? isFriend,
+    bool? isFavorite,
+    String? memo,
+    String? introText,
+  }) {
     return FriendProfile(
       userId: userId,
       publicId: publicId,
@@ -186,6 +197,7 @@ class FriendProfile {
       isFavorite: isFavorite ?? this.isFavorite,
       memo: memo ?? this.memo,
       profileImageUrl: profileImageUrl,
+      introText: introText ?? this.introText,
     );
   }
 }

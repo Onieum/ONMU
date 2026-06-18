@@ -21,6 +21,10 @@ abstract interface class NotificationRepository {
   Future<NotificationPreferences> updatePreferences(
     List<NotificationPreferenceItem> preferences,
   );
+
+  Future<void> acceptFriendRequest(String requestId);
+
+  Future<void> declineFriendRequest(String requestId);
 }
 
 class ApiNotificationRepository implements NotificationRepository {
@@ -84,5 +88,17 @@ class ApiNotificationRepository implements NotificationRepository {
       },
     );
     return NotificationPreferences.fromJson(response);
+  }
+
+  @override
+  Future<void> acceptFriendRequest(String requestId) async {
+    final id = Uri.encodeComponent(requestId.trim());
+    await _client.postObject('/api/v1/users/me/friend-requests/$id/accept');
+  }
+
+  @override
+  Future<void> declineFriendRequest(String requestId) async {
+    final id = Uri.encodeComponent(requestId.trim());
+    await _client.postObject('/api/v1/users/me/friend-requests/$id/decline');
   }
 }

@@ -36,6 +36,30 @@ class HomeNotificationsPage extends ConsumerWidget {
                     onMarkAllRead: () => ref
                         .read(homeNotificationsViewModelProvider.notifier)
                         .markAllRead(),
+                    onRespondFriendRequest: (item, accept) async {
+                      try {
+                        await ref
+                            .read(homeNotificationsViewModelProvider.notifier)
+                            .respondFriendRequest(item, accept: accept);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                accept ? '친구 요청을 수락했어요.' : '친구 요청을 거절했어요.',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('친구 요청 처리에 실패했어요. 다시 시도해주세요.'),
+                            ),
+                          );
+                        }
+                      }
+                    },
                     onTapItem: (item) async {
                       final route = _routeForNotification(item);
                       if (route == null) {
@@ -64,11 +88,13 @@ class _NotificationContent extends StatelessWidget {
     required this.items,
     required this.onMarkAllRead,
     required this.onTapItem,
+    required this.onRespondFriendRequest,
   });
 
   final List<NotificationItem> items;
   final VoidCallback onMarkAllRead;
   final ValueChanged<NotificationItem> onTapItem;
+  final void Function(NotificationItem item, bool accept) onRespondFriendRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +109,11 @@ class _NotificationContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        _NotificationList(items: items, onTapItem: onTapItem),
+        _NotificationList(
+          items: items,
+          onTapItem: onTapItem,
+          onRespondFriendRequest: onRespondFriendRequest,
+        ),
       ],
     );
   }
@@ -215,17 +245,27 @@ class _NotificationErrorState extends StatelessWidget {
 }
 
 class _NotificationList extends StatelessWidget {
-  const _NotificationList({required this.items, required this.onTapItem});
+  const _NotificationList({
+    required this.items,
+    required this.onTapItem,
+    required this.onRespondFriendRequest,
+  });
 
   final List<NotificationItem> items;
   final ValueChanged<NotificationItem> onTapItem;
+  final void Function(NotificationItem item, bool accept) onRespondFriendRequest;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         for (final item in items) ...[
-          _NotificationCard(item: item, onTap: () => onTapItem(item)),
+          _NotificationCard(
+            item: item,
+            onTap: () => onTapItem(item),
+            onAcceptFriendRequest: () => onRespondFriendRequest(item, true),
+            onDeclineFriendRequest: () => onRespondFriendRequest(item, false),
+          ),
           if (item != items.last) const SizedBox(height: AppSpacing.sm),
         ],
       ],
@@ -234,17 +274,30 @@ class _NotificationList extends StatelessWidget {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.onTap});
+  const _NotificationCard({
+    required this.item,
+    required this.onTap,
+    required this.onAcceptFriendRequest,
+    required this.onDeclineFriendRequest,
+  });
 
   final NotificationItem item;
   final VoidCallback onTap;
+  final VoidCallback onAcceptFriendRequest;
+  final VoidCallback onDeclineFriendRequest;
 
   @override
   Widget build(BuildContext context) {
     final route = _routeForNotification(item);
+    final friendRequestId = item.payloadString('friendRequestId');
+    final canRespondFriendRequest =
+        item.notificationType == 'friend_request' &&
+        friendRequestId != null &&
+        friendRequestId.isNotEmpty &&
+        !item.isRead;
     final textTheme = Theme.of(context).textTheme;
     return OnmuCard(
-      onTap: route == null ? null : onTap,
+      onTap: route == null || canRespondFriendRequest ? null : onTap,
       backgroundColor: item.isRead ? AppColors.bgDefault : AppColors.bgPaper,
       borderColor: item.isRead ? AppColors.lineSoft : AppColors.linePink,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -288,10 +341,32 @@ class _NotificationCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (canRespondFriendRequest) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OnmuSecondaryButton(
+                          label: '거절',
+                          icon: Icons.close_rounded,
+                          onPressed: onDeclineFriendRequest,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: OnmuPrimaryButton(
+                          label: '수락',
+                          icon: Icons.person_add_alt_1_rounded,
+                          onPressed: onAcceptFriendRequest,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          if (route != null) ...[
+          if (route != null && !canRespondFriendRequest) ...[
             const SizedBox(width: AppSpacing.xs),
             const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],

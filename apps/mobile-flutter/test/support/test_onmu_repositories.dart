@@ -228,8 +228,8 @@ class TestFriendRepository implements FriendRepository {
       userCode: publicId,
       name: publicId,
       preferenceSummary: memo ?? '친구 요청 대기 중',
-      isFriend: true,
-      memo: memo ?? publicId,
+      isFriend: false,
+      memo: memo ?? '',
     );
   }
 
@@ -390,6 +390,12 @@ class TestNotificationRepository implements NotificationRepository {
   ) async {
     return _store.updateNotificationPreferences(preferences);
   }
+
+  @override
+  Future<void> acceptFriendRequest(String requestId) async {}
+
+  @override
+  Future<void> declineFriendRequest(String requestId) async {}
 }
 
 SocialAuthService testSocialAuthService() {

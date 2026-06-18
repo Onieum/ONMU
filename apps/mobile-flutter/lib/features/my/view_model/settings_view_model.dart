@@ -87,6 +87,16 @@ class SettingsViewModel extends AsyncNotifier<SettingsState> {
     ref.invalidate(myProfileProvider);
   }
 
+  Future<void> updateSearchAllowed(
+    MyProfile profile,
+    bool searchAllowed,
+  ) async {
+    await ref
+        .read(myProfileControllerProvider)
+        .saveProfile(profile.copyWith(searchAllowed: searchAllowed));
+    ref.invalidate(myProfileProvider);
+  }
+
   void _update(SettingsState Function(SettingsState current) update) {
     final current = state.value ?? SettingsState.initial();
     state = AsyncData(update(current));
