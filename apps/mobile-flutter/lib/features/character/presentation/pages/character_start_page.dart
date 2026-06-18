@@ -22,7 +22,7 @@ class CharacterStartPage extends StatefulWidget {
 }
 
 class _CharacterStartPageState extends State<CharacterStartPage> {
-  static const int _lastStep = 6;
+  static const int _lastStep = 5;
 
   int _currentStep = 0;
   CharacterDraft _draft = const CharacterDraft(
@@ -30,24 +30,13 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     topStyleIndex: -1,
   );
 
-  final TextEditingController _nameController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
   void _next() {
     if (_currentStep < _lastStep) {
       setState(() => _currentStep++);
       return;
     }
 
-    final nickname = _nameController.text.trim().isEmpty
-        ? '온뮤'
-        : _nameController.text.trim();
-    widget.onCompleted(_draft.copyWith(nickname: nickname));
+    widget.onCompleted(_draft);
   }
 
   void _back() {
@@ -117,8 +106,6 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
       case 4:
         return _buildClothesPage();
       case 5:
-        return _buildNamePage();
-      case 6:
         return _buildCompletePage();
       default:
         return const SizedBox();
@@ -126,7 +113,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   }
 
   Widget _buildProgressBar() {
-    final labels = ['피부', '눈', '헤어', '의상', '이름', '완료'];
+    final labels = ['피부', '눈', '헤어', '의상', '완료'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -462,33 +449,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
     );
   }
 
-  Widget _buildNamePage() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTitle('05 캐릭터 이름을 정해 주세요'),
-        const SizedBox(height: 20),
-        Center(child: _buildPreview(size: 200)),
-        const SizedBox(height: 24),
-        Text(
-          '이름',
-          style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSub),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _nameController,
-          decoration: const InputDecoration(hintText: '이름을 입력해 주세요'),
-        ),
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
   Widget _buildCompletePage() {
-    final displayName = _nameController.text.trim().isEmpty
-        ? '온뮤'
-        : _nameController.text.trim();
-
     return Column(
       children: [
         const SizedBox(height: 10),
@@ -500,16 +461,6 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
         ),
         const SizedBox(height: 20),
         _buildPreview(size: 220),
-        const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.bgWarm,
-            border: Border.all(color: AppColors.lineSoft),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(displayName, style: AppTextStyles.labelLarge),
-        ),
         const SizedBox(height: 24),
         Container(
           width: double.infinity,

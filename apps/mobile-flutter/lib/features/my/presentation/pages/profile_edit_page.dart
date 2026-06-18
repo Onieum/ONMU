@@ -356,10 +356,6 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     switch (selected) {
       case _ProfilePhotoOption.character:
         _openCharacterEditor();
-      case _ProfilePhotoOption.album:
-        _showEditMessage('앨범에서 고르기 기능을 준비 중이에요.');
-      case _ProfilePhotoOption.camera:
-        _showEditMessage('지금 사진 찍기 기능을 준비 중이에요.');
     }
   }
 
@@ -383,11 +379,6 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     );
   }
 
-  void _showEditMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
 }
 
 class _ProfilePhotoOptionSheet extends StatelessWidget {
@@ -412,7 +403,7 @@ class _ProfilePhotoOptionSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '사용할 이미지를 선택해주세요.',
+              'ONMU 캐릭터를 프로필 이미지로 사용해요.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textMuted,
                 fontWeight: FontWeight.w700,
@@ -424,18 +415,6 @@ class _ProfilePhotoOptionSheet extends StatelessWidget {
               title: '캐릭터 이미지 사용',
               subtitle: 'ONMU 캐릭터를 프로필 사진으로 써요',
               option: _ProfilePhotoOption.character,
-            ),
-            _ProfilePhotoOptionTile(
-              icon: Icons.photo_library_outlined,
-              title: '앨범에서 고르기',
-              subtitle: '저장된 사진을 선택해요',
-              option: _ProfilePhotoOption.album,
-            ),
-            _ProfilePhotoOptionTile(
-              icon: Icons.photo_camera_outlined,
-              title: '지금 사진 찍기',
-              subtitle: '카메라로 바로 촬영해요',
-              option: _ProfilePhotoOption.camera,
             ),
           ],
         ),

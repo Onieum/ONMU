@@ -1,10 +1,10 @@
 part of 'my_page.dart';
 
-class _SettingsPage extends StatelessWidget {
+class _SettingsPage extends ConsumerWidget {
   const _SettingsPage();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
       body: SafeArea(
@@ -57,7 +57,7 @@ class _SettingsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 28),
                       _AccountActionCard(
-                        onTap: () => _showSettingsToast(context),
+                        onSignOut: () => _signOut(context, ref),
                       ),
                       const SizedBox(height: 28),
                       Text(
@@ -84,10 +84,21 @@ class _SettingsPage extends StatelessWidget {
     );
   }
 
-  void _showSettingsToast(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('곧 연결될 기능이에요.')));
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authActionProvider).signOut();
+      if (!context.mounted) {
+        return;
+      }
+      context.go(RoutePaths.onboarding);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그아웃에 실패했어요. 다시 시도해주세요.')));
+    }
   }
 }
 
@@ -973,9 +984,9 @@ class _ProviderLetter extends StatelessWidget {
 }
 
 class _AccountActionCard extends StatelessWidget {
-  const _AccountActionCard({required this.onTap});
+  const _AccountActionCard({required this.onSignOut});
 
-  final VoidCallback onTap;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -987,14 +998,14 @@ class _AccountActionCard extends StatelessWidget {
             icon: Icons.logout_rounded,
             label: '로그아웃',
             color: AppColors.textSub,
-            onTap: onTap,
+            onTap: onSignOut,
           ),
           const Divider(height: 1, color: AppColors.lineSoft),
           _AccountActionTile(
             icon: Icons.person_outline,
             label: '회원탈퇴',
-            color: AppColors.primaryPurple,
-            onTap: onTap,
+            color: AppColors.textMuted,
+            onTap: null,
           ),
         ],
       ),
@@ -1007,13 +1018,13 @@ class _AccountActionTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.color,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1247,4 +1258,4 @@ enum _ProfileDetailSection {
   final String title;
 }
 
-enum _ProfilePhotoOption { character, album, camera }
+enum _ProfilePhotoOption { character }
