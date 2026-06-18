@@ -160,17 +160,13 @@ jobs:
           fi
           echo "No-token /api/v1/users/me returned 401."
 
-      - name: Persist image ref for Terraform app wave
-        id: persist_image_ref
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Report image ref for Terraform app wave
         run: |
           set -euo pipefail
-          gh variable set STAGING_SPRING_API_IMAGE \
-            --env azure-staging-apply \
-            --body "${{ steps.refs.outputs.image_ref }}"
-          echo "Updated azure-staging-apply variable STAGING_SPRING_API_IMAGE."
+          {
+            echo "::notice title=Staging image ref::${{ steps.refs.outputs.image_ref }}"
+            echo "::notice title=Terraform app wave sync::Before running a future Terraform app wave, set STAGING_SPRING_API_IMAGE to this image ref if it differs."
+          }
 
       - name: Deployment summary
         run: |
@@ -181,5 +177,5 @@ jobs:
             echo "- image: \`${{ steps.refs.outputs.image_ref }}\`"
             echo "- app: \`${STAGING_API_CONTAINER_APP_NAME}\`"
             echo "- smoke: /healthz 200, /readyz 200, no-token /api/v1/users/me 401"
-            echo "- image variable update: \`${{ steps.persist_image_ref.outcome }}\`"
+            echo "- Terraform app wave sync: update \`STAGING_SPRING_API_IMAGE\` manually if a later Terraform app wave would use an older image"
           } >> "$GITHUB_STEP_SUMMARY"
