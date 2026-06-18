@@ -88,82 +88,118 @@ class _HeaderIconButton extends StatelessWidget {
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({
     required this.profile,
+    this.publicId,
     this.profileImageUrl,
     required this.onEdit,
   });
 
   final MyProfile profile;
+  final String? publicId;
   final String? profileImageUrl;
   final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
+    final cleanPublicId = publicId?.trim();
+    final cleanRegion = profile.region.trim();
+    final cleanIntro = profile.introText.trim();
+    final headline = profile.realName.trim().isEmpty
+        ? 'ONMU User'
+        : profile.realName.trim();
+
     return _SoftCard(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CharacterPortrait(size: 88, profileImageUrl: profileImageUrl),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _CharacterPortrait(size: 88, profileImageUrl: profileImageUrl),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        profile.realName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.headlineMedium.copyWith(
-                          color: AppColors.textMain,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            headline,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.headlineMedium.copyWith(
+                              color: AppColors.textMain,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        _EditProfileButton(onTap: onEdit),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _EditProfileButton(onTap: onEdit),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  profile.introText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMain,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      color: AppColors.textSub,
-                      size: 17,
-                    ),
-                    const SizedBox(width: 5),
+                    const SizedBox(height: 4),
                     Text(
-                      profile.region,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSub,
-                        fontWeight: FontWeight.w700,
+                      cleanPublicId == null || cleanPublicId.isEmpty
+                          ? '@ID 준비 중'
+                          : '@$cleanPublicId',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
                       ),
                     ),
+                    if (cleanRegion.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            color: AppColors.textSub,
+                            size: 17,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              cleanRegion,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSub,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 10),
-                _HorizontalChipList(
-                  labels: profile.favoriteKeywords.take(5).toList(),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          _HorizontalChipList(
+            labels: profile.favoriteKeywords.take(5).toList(),
+          ),
+          if (cleanIntro.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              '"$cleanIntro"',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textMain,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -9,12 +9,16 @@ class CharacterStartPage extends StatefulWidget {
   final Function(CharacterDraft) onCompleted;
   final VoidCallback? onBackToOnboarding;
   final String returnButtonLabel;
+  final String completionButtonLabel;
+  final CharacterDraft? initialDraft;
 
   const CharacterStartPage({
     super.key,
     required this.onCompleted,
     this.onBackToOnboarding,
     this.returnButtonLabel = '첫 설정 페이지로 돌아가기',
+    this.completionButtonLabel = '첫 설정 페이지로 돌아가기',
+    this.initialDraft,
   });
 
   @override
@@ -25,10 +29,15 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   static const int _lastStep = 5;
 
   int _currentStep = 0;
-  CharacterDraft _draft = const CharacterDraft(
-    gender: 'female',
-    topStyleIndex: -1,
-  );
+  late CharacterDraft _draft;
+
+  @override
+  void initState() {
+    super.initState();
+    _draft =
+        widget.initialDraft ??
+        const CharacterDraft(gender: 'female', topStyleIndex: -1);
+  }
 
   void _next() {
     if (_currentStep < _lastStep) {
@@ -720,7 +729,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
   Widget _buildBottomCta() {
     final isStart = _currentStep == 0;
     final isLast = _currentStep == _lastStep;
-    final label = isLast ? widget.returnButtonLabel : '다음';
+    final label = isLast ? widget.completionButtonLabel : '다음';
 
     return Container(
       padding: const EdgeInsets.all(16),

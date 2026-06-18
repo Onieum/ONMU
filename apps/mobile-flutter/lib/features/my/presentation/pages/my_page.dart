@@ -82,6 +82,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                 sliver: SliverToBoxAdapter(
                   child: _ProfileHero(
                     profile: profile,
+                    publicId: authUser?.publicId,
                     profileImageUrl: authUser?.profileImageUrl,
                     onEdit: _showProfileEditor,
                   ),
@@ -146,6 +147,9 @@ class _MyPageState extends ConsumerState<MyPage> {
       MaterialPageRoute(
         builder: (context) => _ProfileEditPage(
           profile: profile,
+          initialCharacter:
+              ref.read(userCharacterProvider) ??
+              ref.read(characterProfileProvider).value,
           profileImageUrl: ref.read(authUserProvider)?.profileImageUrl,
           onCharacterSaved: _saveCharacterDraft,
           onSave: (result) => _saveProfileEditResult(result, profile),

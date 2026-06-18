@@ -197,13 +197,13 @@ class _SettingsTopBar extends StatelessWidget {
   }
 }
 
-class _SettingsDetailPage extends StatelessWidget {
+class _SettingsDetailPage extends ConsumerWidget {
   const _SettingsDetailPage({required this.type});
 
   final _SettingsDetailType type;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
       body: SafeArea(
@@ -217,7 +217,7 @@ class _SettingsDetailPage extends StatelessWidget {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
-                  child: _buildContent(context),
+                  child: _buildContent(context, ref),
                 ),
               ),
             ],
@@ -227,59 +227,58 @@ class _SettingsDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  Widget _buildContent(BuildContext context, WidgetRef ref) {
+    final authUser = ref.watch(authUserProvider);
+    final profile = ref.watch(myProfileProvider).value ?? _emptyProfile();
+    final email = authUser?.email?.trim();
+    final providerLabel = _loginProviderLabel(authUser?.provider);
+
     return switch (type) {
       _SettingsDetailType.account => Column(
-        children: const [
+        children: [
           _SettingsSection(
             title: '계정 정보',
             rows: [
-              _SettingsValueRow(label: '이메일', value: 'onmu@email.com'),
-              _SettingsValueRow(label: '비밀번호 변경'),
-              _SettingsValueRow(label: '휴대폰 번호', value: '010-1234-5678'),
-              _SettingsValueRow(label: '로그인 방식', value: '일반 로그인'),
+              _SettingsValueRow(
+                label: '이메일',
+                value: email == null || email.isEmpty ? '등록된 이메일 없음' : email,
+              ),
+              const _SettingsValueRow(label: '휴대폰 번호', value: '로그인 정보에 없음'),
+              _SettingsValueRow(label: '로그인 방식', value: providerLabel),
             ],
           ),
-          SizedBox(height: 34),
+          const SizedBox(height: 34),
           _SettingsSection(
             title: '계정 관리',
             rows: [
-              _SettingsIconValueRow(label: '연결된 계정'),
-              _SettingsValueRow(label: '계정 삭제'),
+              _SettingsIconValueRow(label: '연결된 계정', value: providerLabel),
+              const _SettingsValueRow(label: '계정 삭제', value: '현재 계정 1개 연결'),
             ],
           ),
         ],
       ),
       _SettingsDetailType.privacy => Column(
-        children: const [
+        children: [
           _SettingsSection(
             title: '개인정보 설정',
             rows: [
-              _SettingsValueRow(label: '프로필 공개 범위', value: '전체 공개'),
-              _SettingsSwitchRow(
+              _SettingsValueRow(
+                label: '프로필 공개 범위',
+                value: profile.visibility.label,
+              ),
+              const _SettingsSwitchRow(
                 label: '검색 허용',
-                description: 'ONMU ID / 이메일로 검색 허용',
-                initialValue: true,
-              ),
-              _SettingsSwitchRow(
-                label: '활동 상태 표시',
-                description: '다른 사용자에게 내 활동 상태 표시',
-                initialValue: true,
-              ),
-              _SettingsSwitchRow(
-                label: '위치 정보 사용',
-                description: 'ONMU 서비스에서 위치 정보 사용',
+                description: 'ONMU ID로 검색 허용',
                 initialValue: true,
               ),
             ],
           ),
-          SizedBox(height: 34),
-          _SettingsSection(
+          const SizedBox(height: 34),
+          const _SettingsSection(
             title: '보안',
             rows: [
-              _SettingsValueRow(label: '차단한 사용자'),
-              _SettingsValueRow(label: '로그인 기기 관리'),
-              _SettingsValueRow(label: '2단계 인증', value: '사용 안 함'),
+              _SettingsValueRow(label: '로그인 기기 관리', value: '현재 기기'),
+              _SettingsValueRow(label: '2단계 인증', value: '미설정'),
             ],
           ),
         ],
@@ -340,7 +339,6 @@ class _SettingsDetailPage extends StatelessWidget {
           _SettingsSection(
             title: '기타 설정',
             rows: [
-              _SettingsValueRow(label: '기본 지역', value: '서울 성수동'),
               _SettingsValueRow(label: '캐시 삭제', value: '12.5 MB'),
               _SettingsValueRow(label: '앱 정보', value: 'v1.2.0'),
             ],
@@ -372,6 +370,21 @@ class _SettingsDetailPage extends StatelessWidget {
       ),
     };
   }
+}
+
+String _loginProviderLabel(String? provider) {
+  final normalized = provider?.trim().toUpperCase();
+  if (normalized == null || normalized.isEmpty) {
+    return '로그인 정보 없음';
+  }
+  return switch (normalized) {
+    'KAKAO' => '카카오 로그인',
+    'NAVER' => '네이버 로그인',
+    'GOOGLE' => '구글 로그인',
+    'APPLE' => '애플 로그인',
+    'DEV' => '개발 계정',
+    _ => '$provider 로그인',
+  };
 }
 
 class _EditFieldCard extends StatelessWidget {
@@ -834,9 +847,10 @@ class _SettingsValueRow extends StatelessWidget {
 }
 
 class _SettingsIconValueRow extends StatelessWidget {
-  const _SettingsIconValueRow({required this.label});
+  const _SettingsIconValueRow({required this.label, this.value});
 
   final String label;
+  final String? value;
 
   @override
   Widget build(BuildContext context) {
@@ -855,11 +869,21 @@ class _SettingsIconValueRow extends StatelessWidget {
                 ),
               ),
             ),
-            const _ProviderDot(color: Color(0xFFFFD400)),
-            const SizedBox(width: 14),
-            const _ProviderLetter(label: 'G', color: Color(0xFF4285F4)),
-            const SizedBox(width: 14),
-            const Icon(Icons.apple, color: AppColors.textMain, size: 24),
+            if (value != null)
+              Text(
+                value!,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            else ...[
+              const _ProviderDot(color: Color(0xFFFFD400)),
+              const SizedBox(width: 14),
+              const _ProviderLetter(label: 'G', color: Color(0xFF4285F4)),
+              const SizedBox(width: 14),
+              const Icon(Icons.apple, color: AppColors.textMain, size: 24),
+            ],
             const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right_rounded,

@@ -104,28 +104,36 @@ final appRouter = GoRouter(
       path: RoutePaths.onboardingCharacter,
       redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
-        builder: (context, ref, child) => _OnboardingAccessGate(
-          child: CharacterStartPage(
-            onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
-            onCompleted: (draft) async {
-              final router = GoRouter.of(context);
-              try {
-                await ref
-                    .read(onboardingCharacterControllerProvider)
-                    .saveCharacter(draft);
-                router.go(RoutePaths.onboarding);
-              } catch (_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
-                    ),
-                  );
+        builder: (context, ref, child) {
+          final preferenceReady =
+              ref.watch(preferenceProfileProvider) != null ||
+              ref.watch(skippedPreferenceProvider);
+          return _OnboardingAccessGate(
+            child: CharacterStartPage(
+              completionButtonLabel: preferenceReady
+                  ? '홈으로 가기'
+                  : '첫 설정 페이지로 돌아가기',
+              onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
+              onCompleted: (draft) async {
+                final router = GoRouter.of(context);
+                try {
+                  await ref
+                      .read(onboardingCharacterControllerProvider)
+                      .saveCharacter(draft);
+                  router.go(RoutePaths.onboarding);
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
+                      ),
+                    );
+                  }
                 }
-              }
-            },
-          ),
-        ),
+              },
+            ),
+          );
+        },
       ),
     ),
     StatefulShellRoute.indexedStack(
