@@ -14,6 +14,7 @@ void main() {
       stateGenerator: () => 'state-123',
       initialLinkReader: () async => null,
       linkStreamReader: () => links.stream,
+      appResumeReader: () => const Stream.empty(),
       launchAuthUrl: (uri) async {
         launchedUri = uri;
         scheduleMicrotask(() {
@@ -50,6 +51,7 @@ void main() {
       clientId: '',
       initialLinkReader: () async => null,
       linkStreamReader: () => const Stream.empty(),
+      appResumeReader: () => const Stream.empty(),
       launchAuthUrl: (_) async => true,
     );
 
@@ -57,5 +59,33 @@ void main() {
       loader.call(),
       throwsA(isA<NaverSignInMissingClientIdException>()),
     );
+  });
+
+  test('treats app resume without callback as Naver cancellation', () async {
+    final links = StreamController<Uri>();
+    final resumes = StreamController<void>();
+    final loader = NaverOAuthCredentialLoader(
+      clientId: 'client-id',
+      redirectUri:
+          'https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/callback',
+      stateGenerator: () => 'state-123',
+      initialLinkReader: () async => null,
+      linkStreamReader: () => links.stream,
+      appResumeReader: () => resumes.stream,
+      launchAuthUrl: (_) async {
+        scheduleMicrotask(() {
+          resumes.add(null);
+        });
+        return true;
+      },
+      timeout: const Duration(seconds: 1),
+    );
+
+    await expectLater(
+      loader.call(),
+      throwsA(isA<NaverSignInCancelledException>()),
+    );
+    await links.close();
+    await resumes.close();
   });
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/oauth_provider_credential.dart';
@@ -9,6 +10,7 @@ import '../domain/oauth_provider_credential.dart';
 typedef NaverAuthUrlLauncher = Future<bool> Function(Uri uri);
 typedef NaverInitialLinkReader = Future<Uri?> Function();
 typedef NaverLinkStreamReader = Stream<Uri> Function();
+typedef NaverAppResumeReader = Stream<void> Function();
 typedef NaverStateGenerator = String Function();
 
 class NaverOAuthCredentialLoader {
@@ -22,10 +24,12 @@ class NaverOAuthCredentialLoader {
     NaverAuthUrlLauncher? launchAuthUrl,
     NaverInitialLinkReader? initialLinkReader,
     NaverLinkStreamReader? linkStreamReader,
+    NaverAppResumeReader? appResumeReader,
     NaverStateGenerator? stateGenerator,
   }) : _launchAuthUrl = launchAuthUrl ?? _launchExternalUrl,
        _initialLinkReader = initialLinkReader ?? _defaultInitialLinkReader,
        _linkStreamReader = linkStreamReader ?? _defaultLinkStreamReader,
+       _appResumeReader = appResumeReader ?? _defaultAppResumeReader,
        _stateGenerator = stateGenerator ?? _generateState;
 
   static const _defaultClientId = String.fromEnvironment(
@@ -50,6 +54,7 @@ class NaverOAuthCredentialLoader {
   final NaverAuthUrlLauncher _launchAuthUrl;
   final NaverInitialLinkReader _initialLinkReader;
   final NaverLinkStreamReader _linkStreamReader;
+  final NaverAppResumeReader _appResumeReader;
   final NaverStateGenerator _stateGenerator;
 
   Future<OAuthProviderCredential> call() async {
@@ -84,11 +89,14 @@ class NaverOAuthCredentialLoader {
   Future<OAuthProviderCredential> _waitForCallback(String expectedState) async {
     final completer = Completer<OAuthProviderCredential>();
     StreamSubscription<Uri>? subscription;
+    StreamSubscription<void>? resumeSubscription;
+    Timer? resumeCancellationTimer;
 
     void completeFromUri(Uri uri) {
       if (completer.isCompleted || !_isNaverCallback(uri)) {
         return;
       }
+      resumeCancellationTimer?.cancel();
       if (uri.queryParameters['state'] != expectedState) {
         return;
       }
@@ -115,13 +123,25 @@ class NaverOAuthCredentialLoader {
       completeFromUri,
       onError: completer.completeError,
     );
+    resumeSubscription = _appResumeReader().listen((_) {
+      resumeCancellationTimer?.cancel();
+      resumeCancellationTimer = Timer(const Duration(milliseconds: 700), () {
+        if (!completer.isCompleted) {
+          completer.completeError(const NaverSignInCancelledException());
+        }
+      });
+    }, onError: completer.completeError);
 
     final initialLink = await _initialLinkReader();
     if (initialLink != null) {
       completeFromUri(initialLink);
     }
 
-    return completer.future.whenComplete(() => subscription?.cancel());
+    return completer.future.whenComplete(() {
+      resumeCancellationTimer?.cancel();
+      subscription?.cancel();
+      resumeSubscription?.cancel();
+    });
   }
 
   bool _isNaverCallback(Uri uri) {
@@ -140,6 +160,26 @@ class NaverOAuthCredentialLoader {
 
   static Stream<Uri> _defaultLinkStreamReader() {
     return AppLinks().uriLinkStream;
+  }
+
+  static Stream<void> _defaultAppResumeReader() {
+    AppLifecycleListener? listener;
+    late final StreamController<void> controller;
+    controller = StreamController<void>(
+      onListen: () {
+        listener = AppLifecycleListener(
+          onResume: () {
+            if (!controller.isClosed) {
+              controller.add(null);
+            }
+          },
+        );
+      },
+      onCancel: () {
+        listener?.dispose();
+      },
+    );
+    return controller.stream;
   }
 
   static String _generateState() {

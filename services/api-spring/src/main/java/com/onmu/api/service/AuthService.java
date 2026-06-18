@@ -68,6 +68,7 @@ public class AuthService {
         verifiedIdentity.providerSubject()
       )
       .orElseGet(() -> createIdentity(verifiedIdentity));
+    syncDefaultProfileFromProvider(identity.getUser(), verifiedIdentity);
     identity.recordLogin(verifiedIdentity.email());
     userCodeService.ensureActiveCode(identity.getUser());
 
@@ -122,6 +123,28 @@ public class AuthService {
       verifiedIdentity.providerSubject(),
       blankToNull(verifiedIdentity.email())
     ));
+  }
+
+  private void syncDefaultProfileFromProvider(UserEntity user, VerifiedOAuthIdentity verifiedIdentity) {
+    String providerDisplayName = blankToNull(verifiedIdentity.displayName());
+    String nextDisplayName = isDefaultDisplayName(user.getDisplayName()) && providerDisplayName != null
+      ? providerDisplayName
+      : null;
+    String providerProfileImageUrl = blankToNull(verifiedIdentity.profileImageUrl());
+    String nextProfileImageUrl = blankToNull(user.getProfileImageUrl()) == null
+      ? providerProfileImageUrl
+      : null;
+
+    if (nextDisplayName != null || nextProfileImageUrl != null) {
+      user.updateProfile(nextDisplayName, nextProfileImageUrl, null, null, null);
+    }
+  }
+
+  private boolean isDefaultDisplayName(String displayName) {
+    return displayName == null
+      || displayName.isBlank()
+      || "ONMU User".equals(displayName.trim())
+      || "ONMU user".equals(displayName.trim());
   }
 
   private Map<String, Object> issueTokenResponse(

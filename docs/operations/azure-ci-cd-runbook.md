@@ -167,6 +167,11 @@ staging에서 PostgreSQL public access를 유지하는 동안 `postgres_ready`�
 - runtime managed identity에 Blob storage account scope `Storage Blob Data Contributor`
 - presigned URL 유지를 위해 Blob storage account scope `Storage Blob Delegator`
 - Spring API plain env `OBJECT_STORAGE_PROVIDER=azure_blob`와 Blob endpoint/container secret reference 확인
+- OAuth redirect/callback env가 ACA plain value가 아니라 재사용 Key Vault secretRef인지 확인
+  - `KAKAO_OAUTH_REDIRECT_URI` -> `staging-kakao-oauth-redirect-uri`
+  - `KAKAO_OAUTH_MOBILE_CALLBACK_URI` -> `staging-kakao-oauth-mobile-callback-uri`
+  - `NAVER_OAUTH_REDIRECT_URI` -> `staging-naver-oauth-redirect-uri`
+  - `NAVER_OAUTH_MOBILE_CALLBACK_URI` -> `staging-naver-oauth-mobile-callback-uri`
 - `managed_redis_ready` apply와 `staging-redis-url` 수동 갱신이 끝났는지 확인
 - Managed Redis 전환 후 `/readyz` 최종 200을 다시 확인
 

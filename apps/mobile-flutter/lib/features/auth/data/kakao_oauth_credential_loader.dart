@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/oauth_provider_credential.dart';
@@ -9,6 +10,7 @@ import '../domain/oauth_provider_credential.dart';
 typedef KakaoAuthUrlLauncher = Future<bool> Function(Uri uri);
 typedef KakaoInitialLinkReader = Future<Uri?> Function();
 typedef KakaoLinkStreamReader = Stream<Uri> Function();
+typedef KakaoAppResumeReader = Stream<void> Function();
 typedef KakaoStateGenerator = String Function();
 
 class KakaoOAuthCredentialLoader {
@@ -22,10 +24,12 @@ class KakaoOAuthCredentialLoader {
     KakaoAuthUrlLauncher? launchAuthUrl,
     KakaoInitialLinkReader? initialLinkReader,
     KakaoLinkStreamReader? linkStreamReader,
+    KakaoAppResumeReader? appResumeReader,
     KakaoStateGenerator? stateGenerator,
   }) : _launchAuthUrl = launchAuthUrl ?? _launchExternalUrl,
        _initialLinkReader = initialLinkReader ?? _defaultInitialLinkReader,
        _linkStreamReader = linkStreamReader ?? _defaultLinkStreamReader,
+       _appResumeReader = appResumeReader ?? _defaultAppResumeReader,
        _stateGenerator = stateGenerator ?? _generateState;
 
   static const _defaultRestApiKey = String.fromEnvironment(
@@ -56,6 +60,7 @@ class KakaoOAuthCredentialLoader {
   final KakaoAuthUrlLauncher _launchAuthUrl;
   final KakaoInitialLinkReader _initialLinkReader;
   final KakaoLinkStreamReader _linkStreamReader;
+  final KakaoAppResumeReader _appResumeReader;
   final KakaoStateGenerator _stateGenerator;
 
   Future<OAuthProviderCredential> call() async {
@@ -90,11 +95,14 @@ class KakaoOAuthCredentialLoader {
   Future<OAuthProviderCredential> _waitForCallback(String expectedState) async {
     final completer = Completer<OAuthProviderCredential>();
     StreamSubscription<Uri>? subscription;
+    StreamSubscription<void>? resumeSubscription;
+    Timer? resumeCancellationTimer;
 
     void completeFromUri(Uri uri) {
       if (completer.isCompleted || !_isKakaoCallback(uri)) {
         return;
       }
+      resumeCancellationTimer?.cancel();
       if (uri.queryParameters['state'] != expectedState) {
         return;
       }
@@ -121,13 +129,25 @@ class KakaoOAuthCredentialLoader {
       completeFromUri,
       onError: completer.completeError,
     );
+    resumeSubscription = _appResumeReader().listen((_) {
+      resumeCancellationTimer?.cancel();
+      resumeCancellationTimer = Timer(const Duration(milliseconds: 700), () {
+        if (!completer.isCompleted) {
+          completer.completeError(const KakaoSignInCancelledException());
+        }
+      });
+    }, onError: completer.completeError);
 
     final initialLink = await _initialLinkReader();
     if (initialLink != null) {
       completeFromUri(initialLink);
     }
 
-    return completer.future.whenComplete(() => subscription?.cancel());
+    return completer.future.whenComplete(() {
+      resumeCancellationTimer?.cancel();
+      subscription?.cancel();
+      resumeSubscription?.cancel();
+    });
   }
 
   bool _isKakaoCallback(Uri uri) {
@@ -146,6 +166,26 @@ class KakaoOAuthCredentialLoader {
 
   static Stream<Uri> _defaultLinkStreamReader() {
     return AppLinks().uriLinkStream;
+  }
+
+  static Stream<void> _defaultAppResumeReader() {
+    AppLifecycleListener? listener;
+    late final StreamController<void> controller;
+    controller = StreamController<void>(
+      onListen: () {
+        listener = AppLifecycleListener(
+          onResume: () {
+            if (!controller.isClosed) {
+              controller.add(null);
+            }
+          },
+        );
+      },
+      onCancel: () {
+        listener?.dispose();
+      },
+    );
+    return controller.stream;
   }
 
   static String _generateState() {

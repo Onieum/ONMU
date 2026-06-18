@@ -47,7 +47,20 @@ Spring/worker ACA revision이 정상 기동되려면 runtime managed identity에
 
 현재 Terraform wave는 role assignment를 자동으로 만들지 않는 경로를 기본값으로 둔다. 속도 우선 기준에서는 운영자가 수동으로 role을 부여하고, Terraform은 secret reference와 identity wiring만 유지한다.
 
-### 3.3 image 준비
+### 3.3 runtime env secretRef 경계
+
+Staging ACA의 Spring runtime env는 public URI 계열을 포함해 Key Vault secretRef를 기본값으로 둔다. 따라서 OAuth callback 관련 env도 plain env가 아니라 재사용 Key Vault secret name을 통해 연결한다.
+
+필수 OAuth secretRef:
+
+- `KAKAO_OAUTH_REDIRECT_URI` -> `staging-kakao-oauth-redirect-uri`
+- `KAKAO_OAUTH_MOBILE_CALLBACK_URI` -> `staging-kakao-oauth-mobile-callback-uri`
+- `NAVER_OAUTH_REDIRECT_URI` -> `staging-naver-oauth-redirect-uri`
+- `NAVER_OAUTH_MOBILE_CALLBACK_URI` -> `staging-naver-oauth-mobile-callback-uri`
+
+이 값들이 누락되면 Spring fallback callback host가 dev 계열로 돌아가 provider token exchange가 실패할 수 있다. `api_app_ready` 또는 revision restart 전에는 ACA env name이 위 secretRef를 보고 있는지만 확인하고, secret value는 출력하지 않는다.
+
+### 3.4 image 준비
 
 `Build Staging Images` workflow 또는 로컬 Docker build로 아래 이미지를 미리 검증한다.
 
