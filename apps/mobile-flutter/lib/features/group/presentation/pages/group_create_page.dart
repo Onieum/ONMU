@@ -277,9 +277,9 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
 }
 
 _InviteMember _currentMember(AuthUser? user) {
-  final displayName = user?.displayName.trim();
+  final nickname = user?.nickname.trim();
   return _InviteMember(
-    name: displayName == null || displayName.isEmpty ? '나' : displayName,
+    name: nickname == null || nickname.isEmpty ? '나' : nickname,
     profileImageUrl: user?.profileImageUrl ?? '',
     removable: false,
   );

@@ -227,7 +227,7 @@ void main() {
             id: '00000000-0000-0000-0000-000000000001',
             publicId: 'usr_me',
             provider: 'KAKAO',
-            displayName: 'ONMU User',
+            nickname: 'ONMU User',
             onboardingStatus: 'COMPLETED',
           ),
         ),
@@ -252,7 +252,7 @@ void main() {
           ),
         );
 
-    expect(container.read(authUserProvider)?.displayName, '박진희');
+    expect(container.read(authUserProvider)?.nickname, '박진희');
   });
 
   test('온모임 멤버 ViewModel은 초대된 멤버만 초대 후보로 노출한다', () async {
@@ -1844,7 +1844,7 @@ class _TodayPlansPlanRepository implements PlanRepository {
   }) async {
     return PlanParticipantArrival(
       id: 'current-user',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'joined',
       arrivalStatus: status,
       isFallback: false,
@@ -2747,28 +2747,28 @@ class _PlanBoardPlanRepository extends _FakePlanRepository {
     return const [
       PlanParticipantArrival(
         id: 'participant-1',
-        displayName: '민서',
+        nickname: '민서',
         participantStatus: 'joined',
         arrivalStatus: PlanArrivalStatus.none,
         isFallback: false,
       ),
       PlanParticipantArrival(
         id: 'participant-2',
-        displayName: '지훈',
+        nickname: '지훈',
         participantStatus: 'joined',
         arrivalStatus: PlanArrivalStatus.none,
         isFallback: false,
       ),
       PlanParticipantArrival(
         id: 'participant-3',
-        displayName: '하린',
+        nickname: '하린',
         participantStatus: 'invited',
         arrivalStatus: PlanArrivalStatus.none,
         isFallback: false,
       ),
       PlanParticipantArrival(
         id: 'participant-4',
-        displayName: '현우',
+        nickname: '현우',
         participantStatus: 'left',
         arrivalStatus: PlanArrivalStatus.none,
         isFallback: false,
@@ -2824,7 +2824,7 @@ class _FallbackParticipantRepository implements PlanRepository {
   }) async => const [
     PlanParticipantArrival(
       id: 'current-user',
-      displayName: '나',
+      nickname: '나',
       participantStatus: 'joined',
       arrivalStatus: PlanArrivalStatus.none,
       isFallback: true,

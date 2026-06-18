@@ -48,7 +48,7 @@ class NaverUserInfoHttpClientTests {
 
     server.verify();
     assertThat(userInfo.id()).isEqualTo("naver-subject");
-    assertThat(userInfo.displayName()).isEqualTo("네이버 사용자");
+    assertThat(userInfo.providerProfileName()).isEqualTo("네이버 사용자");
     assertThat(userInfo.email()).isEqualTo("naver-user@example.test");
     assertThat(userInfo.profileImageUrl()).isEqualTo("https://example.test/naver.png");
   }

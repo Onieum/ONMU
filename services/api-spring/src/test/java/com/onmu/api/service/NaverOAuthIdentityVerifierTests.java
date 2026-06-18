@@ -33,7 +33,7 @@ class NaverOAuthIdentityVerifierTests {
     assertThat(userInfoClient.requestedToken).isEqualTo("naver-provider-token");
     assertThat(identity.provider()).isEqualTo("NAVER");
     assertThat(identity.providerSubject()).isEqualTo("naver-subject");
-    assertThat(identity.displayName()).isEqualTo("네이버 사용자");
+    assertThat(identity.providerProfileName()).isEqualTo("네이버 사용자");
     assertThat(identity.email()).isEqualTo("naver-user@example.test");
     assertThat(identity.profileImageUrl()).isEqualTo("https://example.test/naver.png");
   }
@@ -122,7 +122,7 @@ class NaverOAuthIdentityVerifierTests {
 
     assertThat(identity.provider()).isEqualTo("NAVER");
     assertThat(identity.providerSubject()).isEqualTo("naver-dev-subject");
-    assertThat(identity.displayName()).isEqualTo("네이버 dev 사용자");
+    assertThat(identity.providerProfileName()).isEqualTo("네이버 dev 사용자");
   }
 
   private NaverOAuthIdentityVerifier newVerifier(

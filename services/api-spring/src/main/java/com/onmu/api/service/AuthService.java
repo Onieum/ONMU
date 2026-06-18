@@ -112,7 +112,7 @@ public class AuthService {
   private AuthIdentityEntity createIdentity(VerifiedOAuthIdentity verifiedIdentity) {
     UserEntity user = userRepository.saveAndFlush(new UserEntity(
       nextPublicId("usr"),
-      displayNameOrDefault(verifiedIdentity.displayName()),
+      nicknameOrDefault(verifiedIdentity.providerProfileName()),
       blankToNull(verifiedIdentity.email()),
       blankToNull(verifiedIdentity.profileImageUrl())
     ));
@@ -126,25 +126,26 @@ public class AuthService {
   }
 
   private void syncDefaultProfileFromProvider(UserEntity user, VerifiedOAuthIdentity verifiedIdentity) {
-    String providerDisplayName = blankToNull(verifiedIdentity.displayName());
-    String nextDisplayName = isDefaultDisplayName(user.getDisplayName()) && providerDisplayName != null
-      ? providerDisplayName
+    String providerNickname = blankToNull(verifiedIdentity.providerProfileName());
+    String nextNickname = isDefaultNickname(user.getNickname()) && providerNickname != null
+      ? providerNickname
       : null;
     String providerProfileImageUrl = blankToNull(verifiedIdentity.profileImageUrl());
     String nextProfileImageUrl = blankToNull(user.getProfileImageUrl()) == null
       ? providerProfileImageUrl
       : null;
 
-    if (nextDisplayName != null || nextProfileImageUrl != null) {
-      user.updateProfile(nextDisplayName, nextProfileImageUrl, null, null, null);
+    if (nextNickname != null || nextProfileImageUrl != null) {
+      user.updateProfile(nextNickname, nextProfileImageUrl, null, null, null);
     }
   }
 
-  private boolean isDefaultDisplayName(String displayName) {
-    return displayName == null
-      || displayName.isBlank()
-      || "ONMU User".equals(displayName.trim())
-      || "ONMU user".equals(displayName.trim());
+  private boolean isDefaultNickname(String nickname) {
+    return nickname == null
+      || nickname.isBlank()
+      || "ONMU User".equals(nickname.trim())
+      || "ONMU user".equals(nickname.trim())
+      || "사용자".equals(nickname.trim());
   }
 
   private Map<String, Object> issueTokenResponse(
@@ -186,15 +187,17 @@ public class AuthService {
       "databaseId",
       user.getId() == null ? null : user.getId().toString()
     );
-    userPayload.put("displayName", user.getDisplayName());
+    userPayload.put("nickname", user.getNickname());
     userPayload.put("profileImageUrl", user.getProfileImageUrl());
     userPayload.put("onboardingStatus", user.getOnboardingStatus());
     response.put("user", userPayload);
     return response;
   }
 
-  private String displayNameOrDefault(String displayName) {
-    return displayName == null || displayName.isBlank() ? "ONMU User" : displayName.trim();
+  private String nicknameOrDefault(String providerProfileName) {
+    return providerProfileName == null || providerProfileName.isBlank()
+      ? "사용자"
+      : providerProfileName.trim();
   }
 
   private String blankToNull(String value) {

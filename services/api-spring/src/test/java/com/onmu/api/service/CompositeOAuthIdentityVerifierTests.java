@@ -55,7 +55,7 @@ class CompositeOAuthIdentityVerifierTests {
     assertThat(verifier.supports("KAKAO")).isFalse();
     assertThat(identity.provider()).isEqualTo("NAVER");
     assertThat(identity.providerSubject()).isEqualTo("naver-dev-subject");
-    assertThat(identity.displayName()).isEqualTo("네이버 사용자");
+    assertThat(identity.providerProfileName()).isEqualTo("네이버 사용자");
   }
 
   @Test

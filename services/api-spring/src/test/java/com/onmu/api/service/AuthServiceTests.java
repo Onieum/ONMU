@@ -128,7 +128,7 @@ class AuthServiceTests {
     assertThat(response).containsEntry("authenticated", true);
     verify(userCodeService).ensureActiveCode(argThat(createdUser ->
       createdUser != null
-        && "New User".equals(createdUser.getDisplayName())
+        && "New User".equals(createdUser.getNickname())
         && "4839201746".matches("\\d{10}")));
   }
 
@@ -175,11 +175,13 @@ class AuthServiceTests {
     Map<String, Object> response = authService.oauthLogin("KAKAO", request, "127.0.0.1", "test-agent");
 
     assertThat(response).containsEntry("authenticated", true);
-    assertThat(user.getDisplayName()).isEqualTo("카카오 사용자");
+    assertThat(user.getNickname()).isEqualTo("카카오 사용자");
     assertThat(user.getProfileImageUrl()).isEqualTo("https://example.test/kakao.png");
     assertThat(response).extracting("user")
       .isInstanceOfSatisfying(Map.class, userPayload ->
-        assertThat(userPayload).containsEntry("displayName", "카카오 사용자"));
+        assertThat(userPayload)
+          .containsEntry("nickname", "카카오 사용자")
+          .doesNotContainKey("displayName"));
   }
 
   @Test
@@ -204,7 +206,7 @@ class AuthServiceTests {
     Map<String, Object> response = authService.oauthLogin("KAKAO", request, "127.0.0.1", "test-agent");
 
     assertThat(response).containsEntry("authenticated", true);
-    assertThat(customUser.getDisplayName()).isEqualTo("건동");
+    assertThat(customUser.getNickname()).isEqualTo("건동");
     assertThat(customUser.getProfileImageUrl()).isEqualTo("https://example.test/me.png");
   }
 

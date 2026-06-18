@@ -95,8 +95,8 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     AuthUser? currentUser,
     PreferenceProfile? preferenceProfile,
   ) {
-    final displayName = currentUser?.displayName.trim();
-    final name = displayName == null || displayName.isEmpty ? '나' : displayName;
+    final nickname = currentUser?.nickname.trim();
+    final name = nickname == null || nickname.isEmpty ? '나' : nickname;
     return [
       PlanMember(
         userId: currentUser?.id ?? '',
@@ -909,10 +909,8 @@ String _formatPlanDateTimeRange(DateTime startsAt, DateTime endsAt) {
 }
 
 Set<String> _memberSelectionTokens(PlanMember member) {
-  return {
-    member.userId.trim(),
-    member.name.trim(),
-  }.where((value) => value.isNotEmpty).toSet();
+  final userId = member.userId.trim();
+  return userId.isEmpty ? const <String>{} : {userId};
 }
 
 List<PreferenceProfile> _participantPreferences(List<PlanMember> members) {

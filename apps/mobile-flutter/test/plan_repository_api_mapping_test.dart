@@ -56,7 +56,7 @@ void main() {
               requestOptions: options,
               data: {
                 'id': 'participant-1',
-                'displayName': '지우',
+                'nickname': '지우',
                 'status': 'joined',
                 'response': 'departed',
               },
@@ -95,7 +95,7 @@ void main() {
                 data: {
                   'id': 'participant-1',
                   'userId': 'user-me',
-                  'displayName': '나',
+                  'nickname': '나',
                   'status': 'left',
                   'response': 'accepted',
                 },
@@ -133,14 +133,10 @@ void main() {
               data: [
                 {
                   'userId': 'user-jiwoo',
-                  'displayName': '지우',
+                  'nickname': '지우',
                   'response': 'arrived',
                 },
-                {
-                  'userId': 'user-minsu',
-                  'displayName': '민수',
-                  'response': 'late',
-                },
+                {'userId': 'user-minsu', 'nickname': '민수', 'response': 'late'},
               ],
             ),
           );
@@ -215,7 +211,7 @@ void main() {
   });
 
   test(
-    'createPlan sends selected participant user ids through Spring API',
+    'createPlan sends selected participant DB UUIDs through Spring API',
     () async {
       final requests = <RequestOptions>[];
       final dio = Dio();
@@ -249,8 +245,18 @@ void main() {
           location: '성수동',
           memo: '',
           members: const [
-            PlanMember(name: '나', userId: 'user-me'),
-            PlanMember(name: '지민', userId: 'user-jimin'),
+            PlanMember(
+              name: 'user-me-public-id',
+              userId: '00000000-0000-0000-0000-000000000001',
+            ),
+            PlanMember(
+              name: '지민',
+              userId: '00000000-0000-0000-0000-000000000002',
+            ),
+            PlanMember(
+              name: '동명이인',
+              userId: '00000000-0000-0000-0000-000000000002',
+            ),
             PlanMember(name: '이름만 있는 멤버'),
           ],
         ),
@@ -259,8 +265,8 @@ void main() {
       expect(requests.single.path, '/api/v1/groups/1/plans');
       expect(requests.single.method, 'POST');
       expect(requests.single.data['participantUserIds'], [
-        'user-me',
-        'user-jimin',
+        '00000000-0000-0000-0000-000000000001',
+        '00000000-0000-0000-0000-000000000002',
       ]);
     },
   );
@@ -278,7 +284,7 @@ void main() {
               data: {
                 'id': 'participant-jimin',
                 'userId': 'user-jimin',
-                'displayName': '지민',
+                'nickname': '지민',
                 'status': 'joined',
                 'response': 'accepted',
                 'profileImageUrl': 'dev/avatars/jimin.png',
@@ -300,7 +306,7 @@ void main() {
     expect(requests.single.method, 'POST');
     expect(requests.single.data, {'userId': 'user-jimin'});
     expect(participant.userId, 'user-jimin');
-    expect(participant.displayName, '지민');
+    expect(participant.nickname, '지민');
     expect(participant.participantStatus, 'joined');
     expect(participant.profileImageUrl, 'dev/avatars/jimin.png');
   });

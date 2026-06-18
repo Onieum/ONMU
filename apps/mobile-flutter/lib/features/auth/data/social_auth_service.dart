@@ -117,7 +117,7 @@ class SocialAuthService {
     return OAuthProviderCredential(
       provider: 'google',
       providerIdToken: idToken,
-      displayName: account.displayName ?? account.email,
+      providerProfileName: account.displayName ?? account.email,
       email: account.email,
       profileImageUrl: account.photoUrl,
     );

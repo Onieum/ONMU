@@ -392,11 +392,7 @@ class ApiGroupRepository implements GroupRepository {
           final name = OnmuJson.readString(
             member,
             'name',
-            OnmuJson.readString(
-              member,
-              'displayName',
-              OnmuJson.readString(member, 'nickname', '참여자'),
-            ),
+            OnmuJson.readString(member, 'nickname', '참여자'),
           );
           return GroupPlanMemberAvatar(
             name: name,
@@ -480,11 +476,7 @@ class ApiGroupRepository implements GroupRepository {
       name: OnmuJson.readString(
         json,
         'name',
-        OnmuJson.readString(
-          json,
-          'displayName',
-          OnmuJson.readString(json, 'nickname', '멤버'),
-        ),
+        OnmuJson.readString(json, 'nickname', '멤버'),
       ),
       note: OnmuJson.readString(json, 'note'),
       statusLabel: OnmuJson.readString(json, 'statusLabel', '참여 중'),
@@ -751,12 +743,8 @@ class ApiGroupRepository implements GroupRepository {
             final map = Map<String, dynamic>.from(voter);
             return OnmuJson.readString(
               map,
-              'displayName',
-              OnmuJson.readString(
-                map,
-                'name',
-                OnmuJson.readString(map, 'nickname'),
-              ),
+              'nickname',
+              OnmuJson.readString(map, 'name', ''),
             );
           }
           return voter.toString();

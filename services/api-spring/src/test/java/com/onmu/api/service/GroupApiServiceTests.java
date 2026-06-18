@@ -223,7 +223,7 @@ class GroupApiServiceTests {
     );
   }
 
-  private UserEntity user(String id, String displayName) {
-    return new UserEntity(UUID.fromString(id), displayName);
+  private UserEntity user(String id, String nickname) {
+    return new UserEntity(UUID.fromString(id), nickname);
   }
 }

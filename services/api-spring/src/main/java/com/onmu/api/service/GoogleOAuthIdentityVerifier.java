@@ -57,7 +57,7 @@ public class GoogleOAuthIdentityVerifier implements OAuthProviderVerifier {
     return new VerifiedOAuthIdentity(
       PROVIDER,
       tokenInfo.subject().trim(),
-      blankToNull(tokenInfo.displayName()),
+      blankToNull(tokenInfo.providerProfileName()),
       blankToNull(tokenInfo.email()),
       blankToNull(tokenInfo.profileImageUrl())
     );

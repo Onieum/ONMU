@@ -22,10 +22,10 @@ class MyProfileController {
         .read(myRepositoryProvider)
         .updateMyProfile(profile);
     final currentUser = _ref.read(authUserProvider);
-    final displayName = updated.realName.trim();
-    if (currentUser != null && displayName.isNotEmpty) {
+    final nickname = updated.realName.trim();
+    if (currentUser != null && nickname.isNotEmpty) {
       _ref.read(authUserProvider.notifier).state = currentUser.copyWith(
-        displayName: displayName,
+        nickname: nickname,
       );
     }
     _ref.invalidate(myProfileProvider);

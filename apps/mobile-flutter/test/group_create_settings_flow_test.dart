@@ -84,7 +84,7 @@ void main() {
           id: '00000000-0000-0000-0000-000000000001',
           publicId: 'usr_me',
           provider: 'KAKAO',
-          displayName: '박진희',
+          nickname: '박진희',
           profileImageUrl: 'https://example.test/me.png',
           onboardingStatus: 'COMPLETED',
         ),

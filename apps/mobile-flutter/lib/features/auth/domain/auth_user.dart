@@ -2,7 +2,7 @@ class AuthUser {
   const AuthUser({
     required this.id,
     required this.provider,
-    required this.displayName,
+    required this.nickname,
     this.publicId,
     this.email,
     this.profileImageUrl,
@@ -12,7 +12,7 @@ class AuthUser {
   final String id;
   final String? publicId;
   final String provider;
-  final String displayName;
+  final String nickname;
   final String? email;
   final String? profileImageUrl;
   final String onboardingStatus;
@@ -23,7 +23,7 @@ class AuthUser {
     String? id,
     String? publicId,
     String? provider,
-    String? displayName,
+    String? nickname,
     String? email,
     String? profileImageUrl,
     String? onboardingStatus,
@@ -32,7 +32,7 @@ class AuthUser {
       id: id ?? this.id,
       publicId: publicId ?? this.publicId,
       provider: provider ?? this.provider,
-      displayName: displayName ?? this.displayName,
+      nickname: nickname ?? this.nickname,
       email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       onboardingStatus: onboardingStatus ?? this.onboardingStatus,
