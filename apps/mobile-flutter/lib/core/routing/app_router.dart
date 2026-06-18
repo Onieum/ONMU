@@ -390,6 +390,8 @@ final appRouter = GoRouter(
                                   PlanSettlementDetailPage(
                                     groupId: state.pathParameters['groupId']!,
                                     planId: state.pathParameters['planId']!,
+                                    settlementId:
+                                        state.pathParameters['settlementId']!,
                                   ),
                             ),
                           ],

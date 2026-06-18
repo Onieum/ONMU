@@ -66,7 +66,7 @@ class _PlanSettlementTargetSelectionPageState
     return Consumer(
       builder: (context, ref, child) {
         final state = ref.watch(
-          settlementViewModelProvider((
+          settlementDraftViewModelProvider((
             groupId: widget.groupId,
             planId: widget.planId,
           )),
@@ -112,6 +112,31 @@ class _PlanSettlementTargetSelectionPageState
               selectedNames: _selectedNames,
               onModeSelected: (mode) => _selectMode(mode, item),
               onParticipantSelected: (name) => _toggleParticipant(name, item),
+              onSave: () async {
+                final targets = item.participants
+                    .where(
+                      (participant) =>
+                          _selectedNames.contains(participant.name),
+                    )
+                    .toList(growable: false);
+                await ref
+                    .read(
+                      settlementDraftViewModelProvider((
+                        groupId: widget.groupId,
+                        planId: widget.planId,
+                      )).notifier,
+                    )
+                    .updateDraftItemTargets(
+                      itemId: item.id,
+                      targetUserIds: targets
+                          .map((participant) => participant.userId)
+                          .where((userId) => userId.isNotEmpty)
+                          .toList(growable: false),
+                      targetNames: targets
+                          .map((participant) => participant.name)
+                          .toList(growable: false),
+                    );
+              },
             );
           },
           loading: () => const OnmuScaffold(
@@ -155,6 +180,7 @@ class _SettlementTargetContent extends StatelessWidget {
     required this.selectedNames,
     required this.onModeSelected,
     required this.onParticipantSelected,
+    required this.onSave,
   });
 
   final String groupId;
@@ -165,6 +191,7 @@ class _SettlementTargetContent extends StatelessWidget {
   final Set<String> selectedNames;
   final ValueChanged<String> onModeSelected;
   final ValueChanged<String> onParticipantSelected;
+  final Future<void> Function() onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -181,8 +208,24 @@ class _SettlementTargetContent extends StatelessWidget {
         icon: Icons.check_circle_outline,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: () =>
-            context.popOrGo(RoutePaths.planSettlementNew(groupId, planId)),
+        onPressed: selectedNames.isEmpty
+            ? null
+            : () async {
+                try {
+                  await onSave();
+                  if (context.mounted) {
+                    context.popOrGo(
+                      RoutePaths.planSettlementNew(groupId, planId),
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('정산 대상자 저장에 실패했어요.')),
+                    );
+                  }
+                }
+              },
       ),
       children: [
         _TargetItemHeader(item: item),

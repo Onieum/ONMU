@@ -2075,6 +2075,27 @@ class _UnusedSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -2095,7 +2116,7 @@ class _UnusedSettlementRepository implements SettlementRepository {
 
 class _ChatSettlementRepository implements SettlementRepository {
   static const _summary = SettlementSummary(
-    id: 301,
+    id: '301',
     planTitle: '테스트 약속',
     totalAmountLabel: '0원',
     createdDateLabel: '',
@@ -2125,6 +2146,23 @@ class _ChatSettlementRepository implements SettlementRepository {
   Future<SettlementSummary> fetchSettlementDraft({
     required Object groupId,
     required Object planId,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
   }) async => _summary;
 
   @override
