@@ -31,6 +31,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   _SocialProvider? _loadingProvider;
   String? _errorMessage;
   StreamSubscription<OAuthProviderCredential?>? _googleAuthSubscription;
+  Timer? _errorMessageTimer;
   bool _redirectScheduled = false;
 
   bool get _isLoading => _loadingProvider != null;
@@ -43,6 +44,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   void dispose() {
+    _errorMessageTimer?.cancel();
     unawaited(_googleAuthSubscription?.cancel());
     super.dispose();
   }
@@ -204,6 +206,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       setState(() {
         _errorMessage = _messageForSignInError(error);
       });
+      _scheduleErrorMessageDismissal();
     } finally {
       if (mounted) {
         setState(() {
@@ -224,13 +227,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     try {
       _googleAuthSubscription = service.googleCredentialEvents().listen(
         (credential) async {
-          if (credential != null && _isLoading) {
-            return;
-          }
-
           try {
             await actions.applyGoogleCredential(credential);
             if (credential != null && mounted) {
+              setState(() {
+                _errorMessage = null;
+                _loadingProvider = null;
+              });
               context.go(RoutePaths.onboarding);
             }
           } catch (error) {
@@ -238,6 +241,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             setState(() {
               _errorMessage = _messageForSignInError(error);
             });
+            _scheduleErrorMessageDismissal();
           }
         },
         onError: (Object error) {
@@ -245,15 +249,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           setState(() {
             _errorMessage = _messageForSignInError(error);
           });
+          _scheduleErrorMessageDismissal();
         },
       );
-      await actions.attemptGoogleLightweightAuthentication();
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _errorMessage = _messageForSignInError(error);
       });
+      _scheduleErrorMessageDismissal();
     }
+  }
+
+  void _scheduleErrorMessageDismissal() {
+    _errorMessageTimer?.cancel();
+    _errorMessageTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || _errorMessage == null) {
+        return;
+      }
+      setState(() {
+        _errorMessage = null;
+      });
+    });
   }
 
   Widget _buildGoogleSignInArea(_LoginLayout layout) {

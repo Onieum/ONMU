@@ -1243,7 +1243,24 @@ public class OnmuApiService {
   }
 
   private String nickname(UserEntity user) {
-    return stringOrDefault(user.getNickname(), "나");
+    return firstNonDefaultText(user.getNickname(), "나");
+  }
+
+  private String firstNonDefaultText(String... candidates) {
+    for (String candidate : candidates) {
+      if (candidate != null && !candidate.isBlank() && !isDefaultOnmuDisplayName(candidate)) {
+        return candidate.trim();
+      }
+    }
+    return "나";
+  }
+
+  private boolean isDefaultOnmuDisplayName(String value) {
+    return value == null
+      || value.isBlank()
+      || "ONMU User".equals(value.trim())
+      || "ONMU user".equals(value.trim())
+      || "사용자".equals(value.trim());
   }
 
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft) {

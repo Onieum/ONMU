@@ -67,7 +67,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('나님'), findsOneWidget);
     expect(find.text('카카오로 시작하기'), findsNothing);
   });
 
@@ -90,7 +91,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 나님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('나님'), findsOneWidget);
     expect(find.text('캐릭터 만들기'), findsNothing);
     expect(find.text('취향 선택'), findsNothing);
   });
@@ -116,7 +118,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('안녕하세요, 나님'), findsOneWidget);
+        expect(find.text('안녕하세요,'), findsOneWidget);
+        expect(find.text('나님'), findsOneWidget);
         expect(find.text('취향 선택'), findsNothing);
         expect(find.text('캐릭터 만들기'), findsNothing);
         expect(tester.takeException(), isNull);
@@ -156,7 +159,8 @@ void main() {
     await tester.tap(find.text('홈으로 가기').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 네이버 친구님'), findsOneWidget);
+    expect(find.text('안녕하세요,'), findsOneWidget);
+    expect(find.text('네이버 친구님'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
     expect(find.text('약속 만들기'), findsNothing);
     expect(find.text('전체 보기'), findsWidgets);
@@ -385,6 +389,28 @@ void main() {
 
     expect(find.text('나'), findsOneWidget);
     expect(find.text('온이음'), findsNothing);
+  });
+
+  testWidgets('my page replaces default profile name with auth display name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'KAKAO',
+          nickname: '카카오 프로필',
+          onboardingStatus: 'COMPLETED',
+        ),
+        myRepository: TestMyRepository(),
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('카카오 프로필'), findsOneWidget);
+    expect(find.text('ONMU User'), findsNothing);
   });
 
   testWidgets('my page profile editor saves display name through repository', (

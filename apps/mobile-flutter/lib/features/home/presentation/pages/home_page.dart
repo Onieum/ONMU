@@ -11,6 +11,7 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
+import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
@@ -22,11 +23,7 @@ import '../widgets/home_recent_record_cards.dart';
 import '../../../preferences/preference_summary_page.dart';
 
 String _resolveNickname(AuthUser? user) {
-  final nickname = user?.nickname.trim();
-  if (nickname == null || nickname.isEmpty) {
-    return '사용자';
-  }
-  return nickname;
+  return resolveOnmuDisplayName([user?.nickname], fallback: '사용자');
 }
 
 class HomePage extends ConsumerStatefulWidget {
@@ -76,7 +73,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final state = ref.watch(homeViewModelProvider);
     final authBootstrap = ref.watch(authBootstrapProvider);
     final authUser =
-        authBootstrap.asData?.value.user ?? ref.watch(authUserProvider);
+        ref.watch(authUserProvider) ?? authBootstrap.asData?.value.user;
     final nickname = _resolveNickname(authUser);
 
     return state.when(
@@ -313,7 +310,11 @@ class _HomeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '안녕하세요, $nickname님',
+                    '안녕하세요,',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  Text(
+                    '$nickname님',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppSpacing.xxs),
