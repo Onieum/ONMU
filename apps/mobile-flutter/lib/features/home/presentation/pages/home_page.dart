@@ -11,6 +11,7 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
+import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
@@ -22,14 +23,7 @@ import '../widgets/home_recent_record_cards.dart';
 import '../../../preferences/preference_summary_page.dart';
 
 String _resolveDisplayName(AuthUser? user) {
-  final displayName = user?.displayName.trim();
-  if (displayName == null || displayName.isEmpty) {
-    return '사용자';
-  }
-  if (displayName.toLowerCase() == 'onmu user') {
-    return '사용자';
-  }
-  return displayName;
+  return resolveOnmuDisplayName([user?.displayName], fallback: '사용자');
 }
 
 class HomePage extends ConsumerStatefulWidget {

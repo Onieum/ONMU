@@ -11,6 +11,7 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/providers/state_providers.dart';
+import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -95,8 +96,9 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     AuthUser? currentUser,
     PreferenceProfile? preferenceProfile,
   ) {
-    final displayName = currentUser?.displayName.trim();
-    final name = displayName == null || displayName.isEmpty ? '나' : displayName;
+    final name = resolveOnmuDisplayName([
+      currentUser?.displayName,
+    ], fallback: '나');
     return [
       PlanMember(
         userId: currentUser?.id ?? '',

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/group_models.dart';
+import '../../../shared/utils/onmu_display_name.dart';
 import '../../../shared/models/vote_models.dart';
 
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
@@ -389,15 +390,11 @@ class ApiGroupRepository implements GroupRepository {
         : OnmuJson.asMapList(json['participants']);
     return rawMembers
         .map((member) {
-          final name = OnmuJson.readString(
-            member,
-            'name',
-            OnmuJson.readString(
-              member,
-              'displayName',
-              OnmuJson.readString(member, 'nickname', '참여자'),
-            ),
-          );
+          final name = resolveOnmuDisplayName([
+            OnmuJson.readString(member, 'name'),
+            OnmuJson.readString(member, 'displayName'),
+            OnmuJson.readString(member, 'nickname'),
+          ], fallback: '참여자');
           return GroupPlanMemberAvatar(
             name: name,
             profileImageUrl: _profileImageUrl(member),
@@ -425,11 +422,10 @@ class ApiGroupRepository implements GroupRepository {
     return GroupMessage(
       id: OnmuJson.readString(json, 'id'),
       cursor: OnmuJson.readString(json, 'cursor'),
-      sender: OnmuJson.readString(
-        json,
-        'senderName',
-        OnmuJson.readString(json, 'sender', 'ONMU'),
-      ),
+      sender: resolveOnmuDisplayName([
+        OnmuJson.readString(json, 'senderName'),
+        OnmuJson.readString(json, 'sender'),
+      ], fallback: 'ONMU'),
       message: _messageText(json),
       timeLabel: localTimeLabel.isEmpty
           ? OnmuJson.readString(json, 'timeLabel')
@@ -477,15 +473,11 @@ class ApiGroupRepository implements GroupRepository {
   GroupMemberProfile _groupMemberProfile(Map<String, dynamic> json) {
     return GroupMemberProfile(
       userId: OnmuJson.readString(json, 'userId'),
-      name: OnmuJson.readString(
-        json,
-        'name',
-        OnmuJson.readString(
-          json,
-          'displayName',
-          OnmuJson.readString(json, 'nickname', '멤버'),
-        ),
-      ),
+      name: resolveOnmuDisplayName([
+        OnmuJson.readString(json, 'name'),
+        OnmuJson.readString(json, 'displayName'),
+        OnmuJson.readString(json, 'nickname'),
+      ], fallback: '멤버'),
       note: OnmuJson.readString(json, 'note'),
       statusLabel: OnmuJson.readString(json, 'statusLabel', '참여 중'),
       invited: OnmuJson.readBool(json, 'invited'),
@@ -749,15 +741,11 @@ class ApiGroupRepository implements GroupRepository {
         .map((voter) {
           if (voter is Map) {
             final map = Map<String, dynamic>.from(voter);
-            return OnmuJson.readString(
-              map,
-              'displayName',
-              OnmuJson.readString(
-                map,
-                'name',
-                OnmuJson.readString(map, 'nickname'),
-              ),
-            );
+            return resolveOnmuDisplayName([
+              OnmuJson.readString(map, 'displayName'),
+              OnmuJson.readString(map, 'name'),
+              OnmuJson.readString(map, 'nickname'),
+            ], fallback: '');
           }
           return voter.toString();
         })

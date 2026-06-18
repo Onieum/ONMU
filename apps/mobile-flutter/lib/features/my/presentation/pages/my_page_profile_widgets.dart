@@ -103,11 +103,9 @@ class _ProfileHero extends StatelessWidget {
     final cleanPublicId = publicId?.trim();
     final cleanRegion = profile.region.trim();
     final cleanIntro = profile.introText.trim();
-    final cleanRealName = profile.realName.trim();
-    final headline =
-        cleanRealName.isEmpty || cleanRealName.toLowerCase() == 'onmu user'
-        ? '사용자'
-        : cleanRealName;
+    final headline = resolveOnmuDisplayName([
+      profile.realName,
+    ], fallback: '사용자');
 
     return _SoftCard(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),

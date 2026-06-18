@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
 
@@ -103,11 +104,10 @@ class ApiFriendRepository implements FriendRepository {
   FriendProfile _friendFromJson(Map<String, dynamic> json) {
     final publicId = OnmuJson.readString(json, 'publicId');
     final userCode = OnmuJson.readString(json, 'userCode', publicId);
-    final name = OnmuJson.readString(
-      json,
-      'nickname',
-      OnmuJson.readString(json, 'displayName', '친구'),
-    );
+    final name = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
+      OnmuJson.readString(json, 'displayName'),
+    ], fallback: '친구');
     final memo = OnmuJson.readString(json, 'memo', userCode);
     return FriendProfile(
       userId: OnmuJson.readString(json, 'userId'),
@@ -132,13 +132,16 @@ class ApiFriendRepository implements FriendRepository {
 
   MyProfile _profileFromJson(Map<String, dynamic> json, FriendProfile friend) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
-    final displayName = OnmuJson.readString(json, 'displayName', friend.name);
+    final displayName = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'displayName'),
+      friend.name,
+    ], fallback: '친구');
     final regionValue = preference['region'];
     final regionVisibility = RegionVisibility.fromJson(
       preference['regionVisibility'],
     );
     return MyProfile(
-      realName: displayName.isEmpty ? friend.name : displayName,
+      realName: displayName,
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''

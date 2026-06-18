@@ -142,6 +142,34 @@ void main() {
     expect(updated.introText, 'hello');
   });
 
+  test('does not treat default ONMU User as a profile real name', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.method, 'GET');
+          expect(options.path, '/api/v1/users/me');
+
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'displayName': 'ONMU User',
+                'preferenceProfile': {'introText': 'hello'},
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiMyRepository(OnmuApiClient(dio));
+
+    final profile = await repository.fetchMyProfile();
+
+    expect(profile.realName, isEmpty);
+    expect(profile.introText, 'hello');
+  });
+
   test('reads legacy string region as display region', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
