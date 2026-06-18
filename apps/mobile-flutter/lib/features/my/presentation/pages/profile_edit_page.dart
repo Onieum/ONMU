@@ -3,12 +3,14 @@ part of 'my_page.dart';
 class _ProfileEditPage extends StatefulWidget {
   const _ProfileEditPage({
     required this.profile,
+    this.initialCharacter,
     this.profileImageUrl,
     required this.onCharacterSaved,
     required this.onSave,
   });
 
   final MyProfile profile;
+  final CharacterDraft? initialCharacter;
   final String? profileImageUrl;
   final Future<void> Function(CharacterDraft) onCharacterSaved;
   final Future<void> Function(_ProfileEditResult) onSave;
@@ -300,9 +302,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       realName: _nameController.text.trim().isEmpty
           ? widget.profile.realName
           : _nameController.text.trim(),
-      introText: _introController.text.trim().isEmpty
-          ? widget.profile.introText
-          : _introController.text.trim(),
+      introText: _introController.text.trim(),
       region: region,
       regionSelection: KoreaRegionSelection.fromDisplayName(region),
       regionVisibility: _regionVisibility,
@@ -364,6 +364,8 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       MaterialPageRoute(
         builder: (context) => CharacterStartPage(
           returnButtonLabel: '프로필 수정으로 돌아가기',
+          completionButtonLabel: '프로필 수정으로 돌아가기',
+          initialDraft: widget.initialCharacter,
           onBackToOnboarding: () {
             Navigator.of(context).pop();
           },
@@ -378,7 +380,6 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       ),
     );
   }
-
 }
 
 class _ProfilePhotoOptionSheet extends StatelessWidget {

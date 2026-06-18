@@ -1,13 +1,23 @@
 import 'korea_region.dart';
 
 enum ProfileVisibility {
-  private('비공개'),
-  friends('친구 공개'),
-  public('모두 공개');
+  private('PRIVATE', '비공개'),
+  friends('FRIENDS', '친구 공개'),
+  public('PUBLIC', '전체 공개');
 
-  const ProfileVisibility(this.label);
+  const ProfileVisibility(this.value, this.label);
 
+  final String value;
   final String label;
+
+  static ProfileVisibility fromJson(Object? value) {
+    final normalized = value?.toString().trim().toUpperCase();
+    return switch (normalized) {
+      'PRIVATE' => ProfileVisibility.private,
+      'PUBLIC' => ProfileVisibility.public,
+      _ => ProfileVisibility.friends,
+    };
+  }
 }
 
 class ProfilePlace {
@@ -34,8 +44,8 @@ class MyProfile {
     required this.favoritePlaces,
     required this.wantToGoPlaces,
     required this.dislikedPlaces,
-    this.introText = '기록하고, 만나고, 추억해요  ♥',
-    this.region = '서울 성동구',
+    this.introText = '',
+    this.region = '',
     this.regionSelection,
     this.regionVisibility = RegionVisibility.private,
     this.favoriteFoodTags = const [],

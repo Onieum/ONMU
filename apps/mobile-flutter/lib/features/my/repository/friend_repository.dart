@@ -139,16 +139,12 @@ class ApiFriendRepository implements FriendRepository {
     );
     return MyProfile(
       realName: displayName.isEmpty ? friend.name : displayName,
-      introText: OnmuJson.readString(
-        preference,
-        'introText',
-        '기록하고, 만나고, 추억해요  ♥',
-      ),
+      introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''
           : KoreaRegionSelection.fromJson(regionValue).displayName,
       regionVisibility: regionVisibility,
-      visibility: ProfileVisibility.friends,
+      visibility: ProfileVisibility.fromJson(preference['profileVisibility']),
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
       preferredTimes: OnmuJson.stringList(preference['preferredTimes']),
