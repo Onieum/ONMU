@@ -46,6 +46,7 @@ enabled_diagnostic_targets = {
   foundation = true
   redis      = false
   front_door = true
+  ai         = false
 }
 EOF
 }
@@ -57,6 +58,7 @@ enabled_diagnostic_targets = {
   foundation = true
   redis      = true
   front_door = true
+  ai         = false
 }
 EOF
 }
@@ -80,6 +82,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -105,6 +108,7 @@ enabled_modules = {
   eventhubs                  = false
   container_apps_environment = false
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = false
   rbac_assignments           = false
 }
@@ -126,6 +130,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = false
   rbac_assignments           = false
 }
@@ -147,6 +152,7 @@ enabled_modules = {
   eventhubs                  = false
   container_apps_environment = false
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = false
   rbac_assignments           = true
 }
@@ -168,6 +174,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -176,6 +183,7 @@ enabled_diagnostic_targets = {
   foundation = true
   redis      = false
   front_door = false
+  ai         = false
 }
 EOF
     ;;
@@ -195,6 +203,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -217,6 +226,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -225,6 +235,7 @@ enabled_diagnostic_targets = {
   foundation = true
   redis      = true
   front_door = true
+  ai         = false
 }
 EOF
     ;;
@@ -266,6 +277,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = false
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -292,6 +304,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -318,6 +331,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -346,11 +360,41 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
 EOF
     append_frontdoor_keepalive_targets
+    ;;
+  ai_foundation)
+    append_placeholder_images
+    cat >> "$output_path" <<'EOF'
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = false
+  redis                      = false
+  storage                    = true
+  cdn                        = false
+  front_door                 = false
+  eventhubs                  = false
+  container_apps_environment = false
+  container_apps             = false
+  ai_foundation              = true
+  diagnostics                = true
+  rbac_assignments           = false
+}
+
+enabled_diagnostic_targets = {
+  foundation = true
+  redis      = false
+  front_door = false
+  ai         = true
+}
+EOF
     ;;
   db_and_app_ready)
     require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
@@ -374,6 +418,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
+  ai_foundation              = false
   diagnostics                = true
   rbac_assignments           = false
 }
