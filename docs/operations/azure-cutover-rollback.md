@@ -13,7 +13,7 @@
 - OAuth provider console 설정 확인
 - mobile build의 API base URL과 공개 OAuth define 확인
 - rollback 담당자와 판단 기준 확정
-- Windows dev backend 또는 이전 Azure deployment가 rollback 기준으로 살아 있음
+- 이전 Azure deployment/revision이 rollback 기준으로 살아 있음. Windows dev backend는 아직 의도적으로 유지 중일 때만 legacy 비교 기준으로 본다.
 - cutover 직전 DB snapshot 또는 logical dump 생성 완료
 - snapshot restore 시 허용 가능한 RPO, 예상 데이터 유실 window, 승인권자 확정
 - 쓰기 트래픽을 받을 수 없는 상태라면 maintenance/read-only 전환 기준 확정
@@ -82,17 +82,17 @@ restore 승인 전 반드시 다음을 확인한다.
 5. public smoke를 다시 실행한다.
 6. 장애 보고에 commit, environment, endpoint status, count, error type만 남긴다.
 
-## 7. Windows dev fallback
+## 7. Legacy Windows dev fallback
 
-Azure cutover 전까지 Windows dev backend는 팀 개발 기준 fallback으로 유지한다.
+현재 팀의 release/pre-prod acceptance는 Azure staging 기준이다. Windows dev backend는 shutdown 전 legacy 회귀 분리나 rollback 비교가 명시적으로 필요할 때만 사용한다. 이 경로가 꺼져 있으면 previous Azure revision 또는 image rollback을 우선한다.
 
-- `https://dev-api.onmu.cloud` public smoke
+- `https://dev-api.onmu.cloud` public smoke. 단, legacy path가 의도적으로 켜져 있을 때만 수행
 - local `127.0.0.1:8080` smoke
 - Docker Postgres/Redis/MinIO 상태
 - tile gateway 상태
 - Cloudflare tunnel 상태
 
-Windows dev fallback은 production traffic 영구 대체가 아니라 cutover rehearsal와 개발 지속을 위한 기준이다.
+Windows dev fallback은 production traffic 영구 대체가 아니며, 현재 staging acceptance나 prod-like 판정의 필수 gate도 아니다.
 
 ## 8. 금지 사항
 

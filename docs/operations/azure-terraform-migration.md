@@ -4,8 +4,9 @@
 
 ## 1. 전환 목표
 
-- 현재 `dev-api.onmu.cloud` Windows backend 운영을 안정화 기준으로 유지한다.
-- Azure staging을 먼저 만들고, smoke와 데이터 이전 절차가 안정화된 뒤 production 목표 구조로 확장한다.
+- 현재 팀 기본 검증 기준은 `staging-api.onmu.cloud` Azure staging이다.
+- Windows dev backend와 `dev-api.onmu.cloud`는 legacy/dev opt-in 또는 shutdown 전 rollback 비교가 필요할 때만 사용한다.
+- Azure staging smoke와 데이터 이전 절차가 안정화된 뒤 production 목표 구조로 확장한다.
 - Terraform은 Azure 리소스와 권한 경계를 재현 가능하게 관리한다.
 - Spring Main API, FastAPI Worker, PostgreSQL/PostGIS, Redis, Blob, Event/Queue, Monitor를 target architecture와 같은 이름/역할로 정렬한다.
 - secret 값은 Key Vault와 CI/CD runtime에만 존재하게 하고, 문서/PR/로그에는 값이 남지 않게 한다.
@@ -14,7 +15,7 @@
 
 | 단계 | 설명 | 성공 기준 |
 | --- | --- | --- |
-| Windows dev 유지 | 현재 팀 개발 API와 tile gateway를 계속 serving | `/healthz`, `/readyz`, no-token `/users/me` 401 |
+| Legacy Windows dev 선택 유지 | shutdown 전 legacy 비교가 필요할 때만 dev API와 tile gateway 확인 | 명시 opt-in한 경우에만 `/healthz`, `/readyz`, no-token `/users/me` 401 |
 | Terraform 문서화 | 리소스/secret/data/runtime/CI/CD/runbook 문서 확정 | 문서 링크와 secret hygiene 검증 |
 | Terraform skeleton | provider, backend, environment variables, module 구조 작성 | `terraform fmt`, `terraform validate`, `plan` 가능 |
 | Azure staging 생성 | 최소 리소스와 staging API 배포 | local/public smoke pass |
@@ -25,7 +26,7 @@
 ## 3. 환경별 기본 전략
 
 - Local: 개발자 PC의 Flutter/Spring/Docker Compose를 유지한다.
-- Windows dev: 팀 공유 dev API, dev DB, dev tile gateway의 기준 환경이다.
+- Windows dev: 팀 표준 acceptance가 아니라 legacy/dev opt-in 환경이다. shutdown 전 회귀 분리나 rollback 비교가 필요할 때만 사용한다.
 - Integration staging: Windows에서 dev와 분리된 연동 검증이 필요한 경우만 유지한다.
 - Azure staging: Terraform 전환의 1차 목표 환경이다.
 - Azure production: staging smoke와 운영 runbook이 안정화된 뒤 승격한다.
@@ -103,7 +104,7 @@ CI/CD는 [Azure CI/CD runbook](./azure-ci-cd-runbook.md)을 따른다.
 - PR 단계: lint/test/build/terraform validate/plan.
 - Protected environment 단계: manual approval 이후 staging/prod apply.
 - Deploy 단계: image build/push, migration job, rollout, smoke.
-- Failure 단계: rollback job 또는 Windows dev 기준 복구 판단.
+- Failure 단계: previous Azure revision/image rollback을 우선 판단한다. Windows dev 기준 복구 판단은 legacy path가 명시적으로 켜져 있을 때만 사용한다.
 - Maven/package 성공은 deploy 성공이 아니며, Spring process startup과 `/readyz`까지 통과해야 한다.
 
 ## 8. Cutover 기준
@@ -112,7 +113,7 @@ Cutover는 [Azure cutover/rollback runbook](./azure-cutover-rollback.md)을 따�
 
 - DNS/edge 변경 전 staging smoke가 모두 통과해야 한다.
 - DB migration 이후 destructive rollback은 금지하고, forward fix 또는 snapshot restore 절차를 별도로 승인한다.
-- Cloudflare tunnel 기반 Windows dev endpoint는 production cutover 전까지 fallback 기준으로 유지한다.
+- Cloudflare tunnel 기반 Windows dev endpoint는 release/pre-prod acceptance 기준이 아니다. legacy 비교가 필요한 기간에만 유지하고, shutdown 후에는 Azure revision/image rollback을 기준으로 한다.
 
 ## 9. 진행 중 금지 사항
 

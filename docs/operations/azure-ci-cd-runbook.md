@@ -201,7 +201,7 @@ Plan summary가 Front Door Standard profile/endpoint/origin group/origin/route �
 - `azurerm_storage_account` update 1: nested public item 허용 또는 tile/static CORS rule 보정
 - 선택적 `azurerm_storage_container` update 1: `tiles` container access를 `blob`으로 전환
 
-기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. Public tile/static은 credential 없이 읽는 자산이므로 Blob origin CORS는 `Access-Control-Allow-Origin: *`를 기본값으로 유지한다. 이유는 Front Door가 Blob origin의 CORS 응답 헤더를 object 단위로 캐시할 수 있어 origin allow-list를 그대로 쓰면 다른 caller origin에 잘못된 ACAO가 재사용될 수 있기 때문이다. smoke는 local Flutter web origin(`localhost`/`127.0.0.1` 5173~5175), `dev-api.onmu.cloud`, `int-api.onmu.cloud`, `staging-api.onmu.cloud` 요청에 대해 wildcard ACAO 또는 동등한 허용 응답이 나오는지 확인하고, exposed headers에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
+기존 Front Door, foundation 리소스, diagnostic setting은 모두 no-op여야 한다. `media` container는 계속 private로 유지한다. Public tile/static은 credential 없이 읽는 자산이므로 Blob origin CORS는 `Access-Control-Allow-Origin: *`를 기본값으로 유지한다. 이유는 Front Door가 Blob origin의 CORS 응답 헤더를 object 단위로 캐시할 수 있어 origin allow-list를 그대로 쓰면 다른 caller origin에 잘못된 ACAO가 재사용될 수 있기 때문이다. release/pre-prod smoke는 local Flutter web origin(`localhost`/`127.0.0.1` 5173~5175)과 `staging-api.onmu.cloud` 요청을 기준으로 본다. `dev-api.onmu.cloud`와 `int-api.onmu.cloud`는 legacy/dev opt-in 경로를 명시 점검할 때만 추가 확인한다. exposed headers에는 `Accept-Ranges`, `Content-Length`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Cache-Control`을 유지한다. 예상 밖 create/delete나 다른 update가 보이면 apply하지 않는다.
 
 ### Staging Front Door Diagnostics
 

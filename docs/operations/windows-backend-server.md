@@ -7,6 +7,7 @@
 - 현재 팀의 기본 배포/검증/모바일 재빌드 기준은 Azure staging입니다.
 - 이 문서는 Windows dev, rollback 비교, provider 문제 분리, legacy 경계 확인이 필요할 때만 봅니다.
 - 일반 팀 검증은 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [Azure staging smoke checklist](./azure-staging-smoke-checklist.md)를 먼저 봅니다.
+- 이 문서의 `dev-api.onmu.cloud`와 Cloudflare Tunnel smoke는 release/pre-prod acceptance gate가 아닙니다. Windows dev 서버를 내리는 단계에서는 이 문서를 shutdown 전 확인/rollback 비교용으로만 사용합니다.
 
 ## 언제 Windows 경로를 쓰는가
 
@@ -838,7 +839,7 @@ Azure/Terraform 전환 문서는 다음을 기준으로 함께 관리합니다.
 - [Azure smoke checklist](./azure-smoke-checklist.md)
 - [Azure cutover/rollback runbook](./azure-cutover-rollback.md)
 
-Windows dev runtime이 최신 `origin/dev`와 다르게 fallback serving 중인 경우에는 Azure staging 승격 기준으로 보지 않습니다. Maven build 성공, Spring process 기동, local/public `/healthz`와 `/readyz`, no-token `/users/me` 401, domain smoke가 모두 통과해야 다음 단계로 진행합니다.
+Windows dev runtime이 최신 `origin/dev`와 다르게 fallback serving 중인 경우에는 legacy 비교 결과로만 기록합니다. Azure staging 승격이나 prod-like 판정은 `staging-api.onmu.cloud` 기준 smoke로만 판단합니다. Windows dev를 명시 opt-in해 확인할 때만 Maven build 성공, Spring process 기동, local/public `/healthz`와 `/readyz`, no-token `/users/me` 401, domain smoke를 점검합니다.
 
 - API와 realtime gateway 또는 worker가 Docker image로 빌드됩니다.
 - `/healthz`, `/readyz`가 있습니다.
