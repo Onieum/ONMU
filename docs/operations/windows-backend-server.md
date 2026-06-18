@@ -8,6 +8,8 @@
 - 이 문서는 Windows dev, rollback 비교, provider 문제 분리, legacy 경계 확인이 필요할 때만 봅니다.
 - 일반 팀 검증은 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [Azure staging smoke checklist](./azure-staging-smoke-checklist.md)를 먼저 봅니다.
 - 이 문서의 `dev-api.onmu.cloud`와 Cloudflare Tunnel smoke는 release/pre-prod acceptance gate가 아닙니다. Windows dev 서버를 내리는 단계에서는 이 문서를 shutdown 전 확인/rollback 비교용으로만 사용합니다.
+- GitHub Actions의 `Legacy Windows backend deploy` workflow는 `push`, `pull_request`, `schedule`로 자동 실행하지 않습니다. 필요할 때만 `workflow_dispatch`로 수동 실행합니다.
+- 2026-06-26 이후 Windows backend-host를 계속 유지할지, workflow와 Cloudflare tunnel 문서를 삭제할지는 별도 정리 PR에서 결정합니다.
 
 ## 언제 Windows 경로를 쓰는가
 
@@ -18,6 +20,7 @@
 | dev 전용 회귀 분리 | 사용 |
 | 로컬 Spring/provider 문제 분리 | 사용 |
 | rollback 비교 또는 legacy tunnel 확인 | 사용 |
+| GitHub Actions 자동 배포 | 사용하지 않음. 수동 `workflow_dispatch`만 허용 |
 
 ## 운영 목표
 

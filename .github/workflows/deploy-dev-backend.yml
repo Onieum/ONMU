@@ -1,12 +1,10 @@
-name: Deploy Windows backend
+name: Legacy Windows backend deploy
 
 on:
-  push:
-    branches: [dev]
   workflow_dispatch:
     inputs:
       environment:
-        description: Windows backend environment to deploy.
+        description: Legacy Windows backend environment to deploy manually.
         required: true
         default: dev
         type: choice
@@ -23,13 +21,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}-backend
+  group: windows-${{ inputs.environment }}-backend
   cancel-in-progress: false
 
 jobs:
   deploy-windows-backend:
-    name: Deploy Windows backend
-    if: github.event_name != 'pull_request'
+    name: Legacy Windows backend deploy
     runs-on: [self-hosted, Windows, onmu-dev-backend]
     timeout-minutes: 20
     steps:
@@ -89,9 +86,9 @@ jobs:
       - name: Deploy Spring backend
         shell: powershell
         env:
-          ONMU_BACKEND_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+          ONMU_BACKEND_ENVIRONMENT: ${{ inputs.environment }}
           ONMU_BACKEND_RUNTIME: spring
-          ONMU_DEPLOY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          ONMU_DEPLOY_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $deployScript = if ($env:ONMU_BACKEND_ENVIRONMENT -eq "integration") {
             ".\scripts\windows\deploy-integration-backend.ps1"

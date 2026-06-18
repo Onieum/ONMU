@@ -259,6 +259,6 @@ Windows 경로를 쓰는 경우:
 - dev 전용 회귀 분리
 - local Spring provider 문제 분리
 - rollback 비교
-- Cloudflare 기반 legacy dev smoke
+- Cloudflare 기반 legacy dev smoke. 단, `Legacy Windows backend deploy` workflow는 자동 실행되지 않으며 수동 `workflow_dispatch`로만 사용한다.
 
 그 외 일반 배포, 팀 모바일 재빌드, staging acceptance는 Azure 기준으로 본다.
