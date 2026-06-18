@@ -1460,24 +1460,42 @@ void main() {
     appRouter.go(RoutePaths.planPlaceSearch(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    expect(find.text('전체'), findsOneWidget);
+    expect(find.text('음식점'), findsOneWidget);
     expect(find.text('한식'), findsWidgets);
+    expect(find.text('양식'), findsOneWidget);
+    expect(find.text('중식'), findsOneWidget);
+    expect(find.text('일식'), findsOneWidget);
+    expect(find.text('아시안식'), findsOneWidget);
     expect(find.text('카페'), findsOneWidget);
-    expect(find.text('전시'), findsOneWidget);
-    expect(find.text('술집'), findsOneWidget);
+    expect(find.text('가볼만한곳'), findsOneWidget);
     expect(
       tester
-          .getRect(find.byKey(const ValueKey('place-category-pill-전체')))
+          .getRect(find.byKey(const ValueKey('place-category-pill-음식점')))
           .height,
       30,
     );
-    final allCategoryText = tester.widget<Text>(find.text('전체'));
-    expect(allCategoryText.style?.height, 1);
+    final foodCategoryText = tester.widget<Text>(find.text('음식점'));
+    expect(foodCategoryText.style?.height, 1);
 
-    await tester.tap(find.text('카페'));
+    await tester.tap(
+      find.byKey(const ValueKey('place-category-pill-가볼만한곳')).hitTestable(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('공원'), findsOneWidget);
+    expect(find.text('해수욕장'), findsOneWidget);
+    expect(find.text('박물관'), findsOneWidget);
+    expect(find.text('미술관'), findsOneWidget);
+    expect(find.text('전망대'), findsOneWidget);
+    expect(find.text('산책로'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('place-category-pill-카페')).hitTestable(),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('장소 후보 ✨'), findsOneWidget);
+    expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     final cafeCandidateName = find.text('무드카페');
     final sheetScrollable = find.descendant(
       of: find.byKey(const ValueKey('place-map-bottom-sheet')),

@@ -99,6 +99,48 @@ class PlaceSearchServiceTests {
   }
 
   @Test
+  void searchKeepsSupplementingProvidersUntilExpandedResultLimitAndCachesResults() {
+    CountingProvider naver = new CountingProvider("naver", true, List.of(
+      result("naver", "naver-1", "네이버 후보 1", "서울 종로구 1", 37.51, 127.01),
+      result("naver", "naver-2", "네이버 후보 2", "서울 종로구 2", 37.52, 127.02),
+      result("naver", "naver-3", "네이버 후보 3", "서울 종로구 3", 37.53, 127.03),
+      result("naver", "naver-4", "네이버 후보 4", "서울 종로구 4", 37.54, 127.04),
+      result("naver", "naver-5", "네이버 후보 5", "서울 종로구 5", 37.55, 127.05)
+    ));
+    CountingProvider kakao = new CountingProvider("kakao", true, List.of(
+      result("kakao", "kakao-1", "카카오 후보 1", "서울 성동구 1", 37.61, 127.11),
+      result("kakao", "kakao-2", "카카오 후보 2", "서울 성동구 2", 37.62, 127.12),
+      result("kakao", "kakao-3", "카카오 후보 3", "서울 성동구 3", 37.63, 127.13),
+      result("kakao", "kakao-4", "카카오 후보 4", "서울 성동구 4", 37.64, 127.14),
+      result("kakao", "kakao-5", "카카오 후보 5", "서울 성동구 5", 37.65, 127.15),
+      result("kakao", "kakao-6", "카카오 후보 6", "서울 성동구 6", 37.66, 127.16),
+      result("kakao", "kakao-7", "카카오 후보 7", "서울 성동구 7", 37.67, 127.17),
+      result("kakao", "kakao-8", "카카오 후보 8", "서울 성동구 8", 37.68, 127.18)
+    ));
+    MemoryCache cache = new MemoryCache();
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(kakao, naver),
+      new DevMockPlaceSearchProvider(),
+      cache,
+      localEnvironment()
+    );
+
+    var firstResults = service.search("성수 맛집", "1", "101");
+    var cachedResults = service.search("성수 맛집", "1", "101");
+
+    assertThat(firstResults).hasSize(12);
+    assertThat(cachedResults).hasSize(12);
+    assertThat(firstResults).isEqualTo(cachedResults);
+    assertThat(firstResults.subList(0, 5))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "naver"));
+    assertThat(firstResults.subList(5, 12))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "kakao"));
+    assertThat(cache.keys()).hasSize(1);
+    assertThat(naver.invocations).isEqualTo(1);
+    assertThat(kakao.invocations).isEqualTo(1);
+  }
+
+  @Test
   void searchCanLimitToRequestedProvider() {
     PlaceSearchService service = new PlaceSearchService(
       List.of(
@@ -395,6 +437,35 @@ class PlaceSearchServiceTests {
     @Override
     public List<PlaceSearchResult> search(PlaceSearchQuery query) {
       throw new IllegalStateException("Forbidden");
+    }
+  }
+
+  private static class CountingProvider implements PlaceSearchProvider {
+    private final String provider;
+    private final boolean available;
+    private final List<PlaceSearchResult> results;
+    private int invocations;
+
+    private CountingProvider(String provider, boolean available, List<PlaceSearchResult> results) {
+      this.provider = provider;
+      this.available = available;
+      this.results = results;
+    }
+
+    @Override
+    public String provider() {
+      return provider;
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      invocations += 1;
+      return results;
     }
   }
 

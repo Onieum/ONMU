@@ -78,6 +78,10 @@ void main() {
       OnmuLatLng(lat: 37.5665, lng: 126.978),
       OnmuLatLng(lat: 37.5651, lng: 126.9895),
     ]);
+    final casingLine = nativeLineCasingOptionsForRoute(const [
+      OnmuLatLng(lat: 37.5665, lng: 126.978),
+      OnmuLatLng(lat: 37.5651, lng: 126.9895),
+    ]);
     final markerBytes = await createNativeMarkerIconBytes(
       order: point.order,
       focused: false,
@@ -89,6 +93,10 @@ void main() {
     expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
     expect(markerBytes, isNotEmpty);
     expect(line?.geometry, hasLength(2));
+    expect(line?.lineColor, '#1D4ED8');
+    expect(line?.lineWidth, greaterThan(6));
+    expect(casingLine?.lineColor, '#FFFFFF');
+    expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
   });
 
   test('does not refit camera when only focused marker changes', () {
