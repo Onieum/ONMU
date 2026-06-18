@@ -199,6 +199,21 @@ jobs:
             -backend-config="key=onmu/staging/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
 
+      - name: Verify AI foundation state before diagnostics
+        if: ${{ inputs.wave == 'ai_diagnostics' }}
+        working-directory: infra/terraform/environments/staging
+        run: |
+          set +e
+          terraform state show 'module.ai_foundation[0].azurerm_machine_learning_workspace.this' >/dev/null 2>&1
+          ml_status=$?
+          terraform state show 'module.ai_foundation[0].azurerm_cognitive_account.vision_openai' >/dev/null 2>&1
+          vision_status=$?
+          set -e
+          if [ "$ml_status" -ne 0 ] || [ "$vision_status" -ne 0 ]; then
+            echo "::error title=AI diagnostics require applied foundation::Run ai_foundation with apply_wave=true first and confirm Staging wave apply succeeded before running ai_diagnostics."
+            exit 1
+          fi
+
       - name: Plan selected staging wave without raw plan output
         id: plan
         working-directory: infra/terraform/environments/staging
@@ -315,6 +330,21 @@ jobs:
             -backend-config="container_name=tfstate" \
             -backend-config="key=onmu/staging/terraform.tfstate" \
             -backend-config="use_azuread_auth=true"
+
+      - name: Verify AI foundation state before diagnostics
+        if: ${{ inputs.wave == 'ai_diagnostics' }}
+        working-directory: infra/terraform/environments/staging
+        run: |
+          set +e
+          terraform state show 'module.ai_foundation[0].azurerm_machine_learning_workspace.this' >/dev/null 2>&1
+          ml_status=$?
+          terraform state show 'module.ai_foundation[0].azurerm_cognitive_account.vision_openai' >/dev/null 2>&1
+          vision_status=$?
+          set -e
+          if [ "$ml_status" -ne 0 ] || [ "$vision_status" -ne 0 ]; then
+            echo "::error title=AI diagnostics require applied foundation::Run ai_foundation with apply_wave=true first and confirm Staging wave apply succeeded before running ai_diagnostics."
+            exit 1
+          fi
 
       - name: Apply selected staging wave after protected approval
         working-directory: infra/terraform/environments/staging
