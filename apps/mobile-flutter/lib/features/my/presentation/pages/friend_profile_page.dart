@@ -20,6 +20,7 @@ class _FriendProfilePage extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: _FriendProfileTopBar(
                     onBack: () => Navigator.of(context).pop(),
+                    onEditMemo: () => _editFriendMemo(context, ref),
                   ),
                 ),
               ),
@@ -88,6 +89,28 @@ class _FriendProfilePage extends ConsumerWidget {
         return;
       }
       _showFriendMessage(context, '친구 삭제에 실패했어요. 다시 시도해주세요.');
+    }
+  }
+
+  Future<void> _editFriendMemo(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final memo = await showDialog<String>(
+      context: context,
+      builder: (context) => _FriendMemoDialog(initialMemo: friend.memo),
+    );
+    if (memo == null) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(myProfileControllerProvider)
+          .updateFriendMemo(friend, memo.characters.take(10).toString());
+      ref.invalidate(friendsProvider);
+      ref.invalidate(friendProfileProvider(friend));
+      messenger.showSnackBar(const SnackBar(content: Text('친구 메모를 저장했어요.')));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('친구 메모 저장에 실패했어요.')));
     }
   }
 
@@ -178,9 +201,13 @@ class _PrivateFriendProfileNotice extends StatelessWidget {
 }
 
 class _FriendProfileTopBar extends StatelessWidget {
-  const _FriendProfileTopBar({required this.onBack});
+  const _FriendProfileTopBar({
+    required this.onBack,
+    required this.onEditMemo,
+  });
 
   final VoidCallback onBack;
+  final VoidCallback onEditMemo;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +216,59 @@ class _FriendProfileTopBar extends StatelessWidget {
         _HeaderIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
           onTap: onBack,
+        ),
+        const Spacer(),
+        _HeaderIconButton(
+          icon: Icons.more_vert_rounded,
+          onTap: onEditMemo,
+        ),
+      ],
+    );
+  }
+}
+
+class _FriendMemoDialog extends StatefulWidget {
+  const _FriendMemoDialog({required this.initialMemo});
+
+  final String initialMemo;
+
+  @override
+  State<_FriendMemoDialog> createState() => _FriendMemoDialogState();
+}
+
+class _FriendMemoDialogState extends State<_FriendMemoDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialMemo.trim());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('친구 메모'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: 10,
+        decoration: const InputDecoration(hintText: '10자 이내 메모'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('저장'),
         ),
       ],
     );
