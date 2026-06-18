@@ -6,6 +6,7 @@ class _ProfileEditPage extends StatefulWidget {
     this.initialCharacter,
     this.profileImageUrl,
     required this.onCharacterSaved,
+    required this.onProfileImageUpload,
     required this.onSave,
   });
 
@@ -13,6 +14,8 @@ class _ProfileEditPage extends StatefulWidget {
   final CharacterDraft? initialCharacter;
   final String? profileImageUrl;
   final Future<void> Function(CharacterDraft) onCharacterSaved;
+  final Future<String> Function(Uint8List bytes, String fileName)
+  onProfileImageUpload;
   final Future<void> Function(_ProfileEditResult) onSave;
 
   @override
@@ -27,6 +30,9 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
   late ProfileVisibility _visibility;
   late RegionVisibility _regionVisibility;
   late List<String> _interests;
+  Uint8List? _profileImageBytes;
+  String? _profileImageFileName;
+  late String _profileImageUrl;
   var _isSaving = false;
 
   @override
@@ -41,6 +47,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     _visibility = widget.profile.visibility;
     _regionVisibility = widget.profile.regionVisibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
+    _profileImageUrl = widget.profileImageUrl?.trim() ?? '';
   }
 
   @override
@@ -79,7 +86,8 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
                             children: [
                               _CharacterPortrait(
                                 size: 132,
-                                profileImageUrl: widget.profileImageUrl,
+                                profileImageUrl: _profileImageUrl,
+                                profileImageBytes: _profileImageBytes,
                               ),
                               Positioned(
                                 right: 4,
@@ -295,22 +303,32 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     if (_isSaving) {
       return;
     }
-    final region = _regionController.text.trim().isEmpty
-        ? widget.profile.region
-        : _regionController.text.trim();
-    final result = _ProfileEditResult(
-      realName: _nameController.text.trim().isEmpty
-          ? widget.profile.realName
-          : _nameController.text.trim(),
-      introText: _introController.text.trim(),
-      region: region,
-      regionSelection: KoreaRegionSelection.fromDisplayName(region),
-      regionVisibility: _regionVisibility,
-      visibility: _visibility,
-      favoriteKeywords: _interests,
-    );
     setState(() => _isSaving = true);
     try {
+      var profileImageUrl = _profileImageUrl;
+      final profileImageBytes = _profileImageBytes;
+      final profileImageFileName = _profileImageFileName;
+      if (profileImageBytes != null && profileImageFileName != null) {
+        profileImageUrl = await widget.onProfileImageUpload(
+          profileImageBytes,
+          profileImageFileName,
+        );
+      }
+      final region = _regionController.text.trim().isEmpty
+          ? widget.profile.region
+          : _regionController.text.trim();
+      final result = _ProfileEditResult(
+        realName: _nameController.text.trim().isEmpty
+            ? widget.profile.realName
+            : _nameController.text.trim(),
+        introText: _introController.text.trim(),
+        profileImageUrl: profileImageUrl,
+        region: region,
+        regionSelection: KoreaRegionSelection.fromDisplayName(region),
+        regionVisibility: _regionVisibility,
+        visibility: _visibility,
+        favoriteKeywords: _interests,
+      );
       await widget.onSave(result);
       if (!mounted) {
         return;
@@ -354,9 +372,42 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     }
 
     switch (selected) {
+      case _ProfilePhotoOption.gallery:
+        await _pickProfileImage(ImageSource.gallery);
+      case _ProfilePhotoOption.camera:
+        await _pickProfileImage(ImageSource.camera);
       case _ProfilePhotoOption.character:
-        _openCharacterEditor();
+        setState(() {
+          _profileImageBytes = null;
+          _profileImageFileName = null;
+          _profileImageUrl = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장된 캐릭터 이미지를 프로필 사진으로 사용할게요.')),
+        );
     }
+  }
+
+  Future<void> _pickProfileImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 86,
+      maxWidth: 1440,
+    );
+    if (!mounted || picked == null) {
+      return;
+    }
+    final bytes = await picked.readAsBytes();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _profileImageBytes = bytes;
+      _profileImageFileName = picked.name.isEmpty
+          ? 'profile-image.jpg'
+          : picked.name;
+      _profileImageUrl = '';
+    });
   }
 
   Future<void> _openCharacterEditor() async {
@@ -404,7 +455,7 @@ class _ProfilePhotoOptionSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'ONMU 캐릭터를 프로필 이미지로 사용해요.',
+              '앨범, 카메라, 저장된 ONMU 캐릭터 중 하나를 선택해요.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textMuted,
                 fontWeight: FontWeight.w700,
@@ -412,9 +463,21 @@ class _ProfilePhotoOptionSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _ProfilePhotoOptionTile(
+              icon: Icons.photo_library_outlined,
+              title: '앨범에서 고르기',
+              subtitle: '기기에 저장된 사진을 프로필 사진으로 써요',
+              option: _ProfilePhotoOption.gallery,
+            ),
+            _ProfilePhotoOptionTile(
+              icon: Icons.photo_camera_outlined,
+              title: '지금 사진 찍기',
+              subtitle: '카메라로 촬영한 사진을 바로 사용해요',
+              option: _ProfilePhotoOption.camera,
+            ),
+            _ProfilePhotoOptionTile(
               icon: Icons.face_retouching_natural_outlined,
               title: '캐릭터 이미지 사용',
-              subtitle: 'ONMU 캐릭터를 프로필 사진으로 써요',
+              subtitle: '마지막으로 저장한 ONMU 캐릭터를 사용해요',
               option: _ProfilePhotoOption.character,
             ),
           ],

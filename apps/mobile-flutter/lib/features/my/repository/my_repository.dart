@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,6 +24,8 @@ abstract interface class MyRepository {
   });
 
   Future<MyProfile> updateOnboardingStatus(String onboardingStatus);
+
+  Future<String> uploadProfileImage(Uint8List bytes, String fileName);
 }
 
 class ApiMyRepository implements MyRepository {
@@ -45,6 +48,7 @@ class ApiMyRepository implements MyRepository {
   }) async {
     final body = {
       'nickname': profile.realName,
+      'profileImageUrl': profile.profileImageUrl,
       'preferenceProfile': _preferenceProfileJson(profile),
     };
     if (onboardingStatus != null) {
@@ -69,6 +73,9 @@ class ApiMyRepository implements MyRepository {
     final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
       realName: nickname,
+      profileImageUrl: _absoluteApiUrl(
+        OnmuJson.readString(json, 'profileImageUrl'),
+      ),
       introText: _readProfileText(preference, 'introText', _defaultIntroText),
       region: regionSelection.displayName,
       regionSelection: regionSelection,
@@ -97,6 +104,20 @@ class ApiMyRepository implements MyRepository {
         preference['preferredWeekdays'],
       ),
     );
+  }
+
+  @override
+  Future<String> uploadProfileImage(Uint8List bytes, String fileName) async {
+    final json = await _client.uploadMultipart(
+      '/api/v1/media/upload',
+      bytes,
+      fileName,
+    );
+    final publicUrl = OnmuJson.readString(json, 'publicUrl');
+    if (publicUrl.isEmpty) {
+      throw StateError('profile_image_upload_public_url_missing');
+    }
+    return _absoluteApiUrl(publicUrl);
   }
 
   Map<String, Object?> _preferenceProfileJson(MyProfile profile) {
@@ -159,6 +180,19 @@ class ApiMyRepository implements MyRepository {
     final trimmed = value.trim();
     return !_looksLikeMojibake(trimmed) &&
         !_looksLikeStructuredJsonText(trimmed);
+  }
+
+  String _absoluteApiUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (!trimmed.startsWith('/')) return trimmed;
+    final baseUrl = _client.baseUrl.endsWith('/')
+        ? _client.baseUrl.substring(0, _client.baseUrl.length - 1)
+        : _client.baseUrl;
+    return '$baseUrl$trimmed';
   }
 
   bool _looksLikeMojibake(String value) {
