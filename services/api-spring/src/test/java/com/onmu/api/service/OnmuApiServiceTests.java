@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityRepository;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ExternalPlaceEntity;
 import com.onmu.api.domain.ExternalPlaceRepository;
 import com.onmu.api.domain.GroupEntity;
@@ -71,6 +72,8 @@ class OnmuApiServiceTests {
   @Mock
   private RefreshTokenRepository refreshTokenRepository;
   @Mock
+  private CharacterProfileRepository characterProfileRepository;
+  @Mock
   private GroupRepository groupRepository;
   @Mock
   private PlanRepository planRepository;
@@ -110,6 +113,7 @@ class OnmuApiServiceTests {
       userRepository,
       authIdentityRepository,
       refreshTokenRepository,
+      characterProfileRepository,
       groupRepository,
       planRepository,
       voteRepository,

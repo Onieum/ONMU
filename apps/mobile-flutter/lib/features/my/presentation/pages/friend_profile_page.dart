@@ -1,13 +1,34 @@
 part of 'my_page.dart';
 
-class _FriendProfilePage extends ConsumerWidget {
+class _FriendProfilePage extends ConsumerStatefulWidget {
   const _FriendProfilePage({required this.friend});
 
   final FriendProfile friend;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(friendProfileProvider(friend));
+  ConsumerState<_FriendProfilePage> createState() => _FriendProfilePageState();
+}
+
+class _FriendProfilePageState extends ConsumerState<_FriendProfilePage> {
+  late String _memo;
+
+  @override
+  void initState() {
+    super.initState();
+    _memo = widget.friend.memo;
+  }
+
+  @override
+  void didUpdateWidget(covariant _FriendProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.friend.publicId != widget.friend.publicId) {
+      _memo = widget.friend.memo;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profileAsync = ref.watch(friendProfileProvider(widget.friend));
 
     return Scaffold(
       backgroundColor: AppColors.bgDefault,
@@ -20,7 +41,7 @@ class _FriendProfilePage extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: _FriendProfileTopBar(
                     onBack: () => Navigator.of(context).pop(),
-                    onEditMemo: () => _editFriendMemo(context, ref),
+                    onEditMemo: () => _editFriendMemo(context),
                   ),
                 ),
               ),
@@ -31,12 +52,12 @@ class _FriendProfilePage extends ConsumerWidget {
                     data: (profile) => Column(
                       children: [
                         _FriendProfileHero(
-                          friend: friend,
+                          friend: widget.friend.copyWith(memo: _memo),
                           profile: profile,
-                          onDelete: () => _deleteFriend(context, ref),
+                          onDelete: () => _deleteFriend(context),
                           onCreatePlan: () => context.go(
                             RoutePaths.groupNew,
-                            extra: [friend.name],
+                            extra: [widget.friend.name],
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -61,7 +82,9 @@ class _FriendProfilePage extends ConsumerWidget {
                       padding: EdgeInsets.symmetric(vertical: 80),
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                    error: (_, _) => _FriendProfileErrorCard(friend: friend),
+                    error: (_, _) => _FriendProfileErrorCard(
+                      friend: widget.friend.copyWith(memo: _memo),
+                    ),
                   ),
                 ),
               ),
@@ -72,13 +95,13 @@ class _FriendProfilePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _deleteFriend(BuildContext context, WidgetRef ref) async {
+  Future<void> _deleteFriend(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
-      await ref.read(friendRepositoryProvider).deleteFriend(friend);
+      await ref.read(friendRepositoryProvider).deleteFriend(widget.friend);
       ref.invalidate(friendsProvider);
-      ref.invalidate(friendProfileProvider(friend));
+      ref.invalidate(friendProfileProvider(widget.friend));
       if (!context.mounted) {
         return;
       }
@@ -92,11 +115,11 @@ class _FriendProfilePage extends ConsumerWidget {
     }
   }
 
-  Future<void> _editFriendMemo(BuildContext context, WidgetRef ref) async {
+  Future<void> _editFriendMemo(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final memo = await showDialog<String>(
       context: context,
-      builder: (context) => _FriendMemoDialog(initialMemo: friend.memo),
+      builder: (context) => _FriendMemoDialog(initialMemo: _memo),
     );
     if (memo == null) {
       return;
@@ -105,9 +128,12 @@ class _FriendProfilePage extends ConsumerWidget {
     try {
       await ref
           .read(myProfileControllerProvider)
-          .updateFriendMemo(friend, memo.characters.take(10).toString());
+          .updateFriendMemo(widget.friend, memo.characters.take(10).toString());
+      if (mounted) {
+        setState(() => _memo = memo.characters.take(10).toString());
+      }
       ref.invalidate(friendsProvider);
-      ref.invalidate(friendProfileProvider(friend));
+      ref.invalidate(friendProfileProvider(widget.friend));
       messenger.showSnackBar(const SnackBar(content: Text('친구 메모를 저장했어요.')));
     } catch (_) {
       messenger.showSnackBar(const SnackBar(content: Text('친구 메모 저장에 실패했어요.')));
@@ -299,6 +325,7 @@ class _FriendProfileHero extends StatelessWidget {
     final character = profile.character ?? _characterForFriend(friend);
     final cleanIntro = profile.introText.trim();
     final cleanRegion = profile.region.trim();
+    final highlightLabels = profile.preferenceHighlights.take(4).toList();
 
     return Column(
       children: [
@@ -333,20 +360,6 @@ class _FriendProfileHero extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    if (cleanIntro.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        cleanIntro,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textMain,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                    ],
                     if (cleanRegion.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Row(
@@ -371,17 +384,42 @@ class _FriendProfileHero extends StatelessWidget {
                         ],
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    if (profile.visibility != ProfileVisibility.private)
-                      _HorizontalChipList(
-                        labels: profile.preferenceHighlights.take(4).toList(),
-                      ),
                   ],
                 ),
               ),
             ],
           ),
         ),
+        if (profile.visibility != ProfileVisibility.private &&
+            highlightLabels.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _HorizontalChipList(labels: highlightLabels),
+            ),
+          ),
+        ],
+        if (cleanIntro.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '"$cleanIntro"',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textMain,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 26),
         Row(
           children: [

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityEntity;
 import com.onmu.api.domain.AuthIdentityRepository;
+import com.onmu.api.domain.CharacterProfileEntity;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ExternalPlaceEntity;
 import com.onmu.api.domain.ExternalPlaceRepository;
 import com.onmu.api.domain.GroupEntity;
@@ -67,6 +69,7 @@ public class OnmuApiService {
   private final UserRepository userRepository;
   private final AuthIdentityRepository authIdentityRepository;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final CharacterProfileRepository characterProfileRepository;
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
   private final VoteRepository voteRepository;
@@ -87,6 +90,7 @@ public class OnmuApiService {
     UserRepository userRepository,
     AuthIdentityRepository authIdentityRepository,
     RefreshTokenRepository refreshTokenRepository,
+    CharacterProfileRepository characterProfileRepository,
     GroupRepository groupRepository,
     PlanRepository planRepository,
     VoteRepository voteRepository,
@@ -106,6 +110,7 @@ public class OnmuApiService {
     this.userRepository = userRepository;
     this.authIdentityRepository = authIdentityRepository;
     this.refreshTokenRepository = refreshTokenRepository;
+    this.characterProfileRepository = characterProfileRepository;
     this.groupRepository = groupRepository;
     this.planRepository = planRepository;
     this.voteRepository = voteRepository;
@@ -139,7 +144,7 @@ public class OnmuApiService {
     value.put("nickname", nickname(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));
-    value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
+    value.put("pixelCharacter", pixelCharacter(user));
     value.put("onboardingStatus", user.getOnboardingStatus());
     return value;
   }
@@ -155,7 +160,7 @@ public class OnmuApiService {
     value.put("email", user.getEmail());
     value.put("profileImageUrl", user.getProfileImageUrl());
     value.put("preferenceProfile", readPreferenceProfile(user.getPreferenceProfile()));
-    value.put("pixelCharacter", readJsonObject(user.getPixelCharacter()));
+    value.put("pixelCharacter", pixelCharacter(user));
     value.put("onboardingStatus", user.getOnboardingStatus());
     value.put("authProvider", identity == null ? "NAVER" : identity.getProvider());
     value.put("authStatus", "authenticated");
@@ -1601,6 +1606,24 @@ public class OnmuApiService {
     } catch (JsonProcessingException exception) {
       return Map.of();
     }
+  }
+
+  private Map<String, Object> pixelCharacter(UserEntity user) {
+    return characterProfileRepository.findByUserId(user.getId())
+      .map(this::characterProfile)
+      .orElseGet(() -> readJsonObject(user.getPixelCharacter()));
+  }
+
+  private Map<String, Object> characterProfile(CharacterProfileEntity character) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("gender", character.getGender());
+    value.put("skinTone", character.getSkinTone());
+    value.put("hairStyle", character.getHairStyle());
+    value.put("hairColor", character.getHairColor());
+    value.put("eyeStyle", character.getEyeStyle());
+    value.put("eyeColor", character.getEyeColor());
+    value.put("clothes", character.getClothes());
+    return value;
   }
 
   private Map<String, Object> readPreferenceProfile(String payload) {
