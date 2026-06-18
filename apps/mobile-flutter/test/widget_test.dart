@@ -391,6 +391,28 @@ void main() {
     expect(find.text('온이음'), findsNothing);
   });
 
+  testWidgets('my page replaces default profile name with auth display name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'KAKAO',
+          displayName: '카카오 프로필',
+          onboardingStatus: 'COMPLETED',
+        ),
+        myRepository: TestMyRepository(),
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('카카오 프로필'), findsOneWidget);
+    expect(find.text('ONMU User'), findsNothing);
+  });
+
   testWidgets('my page profile editor saves display name through repository', (
     tester,
   ) async {

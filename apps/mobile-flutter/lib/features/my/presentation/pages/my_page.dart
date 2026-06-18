@@ -283,13 +283,20 @@ MyProfile _emptyProfile() {
 }
 
 MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
-  if (profile.realName.trim().isNotEmpty) {
+  if (profile.realName.trim().isNotEmpty &&
+      !_isDefaultProfileName(profile.realName)) {
     return profile;
   }
 
   final displayName = user?.displayName.trim();
-  if (displayName == null || displayName.isEmpty) {
+  if (displayName == null ||
+      displayName.isEmpty ||
+      _isDefaultProfileName(displayName)) {
     return profile.copyWith(realName: '사용자');
   }
   return profile.copyWith(realName: displayName);
+}
+
+bool _isDefaultProfileName(String value) {
+  return value.trim().toLowerCase() == 'onmu user';
 }
