@@ -41,7 +41,18 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
-          friend.pixel_character,
+          case
+            when cp.user_id is null then friend.pixel_character
+            else jsonb_build_object(
+              'gender', cp.gender,
+              'skinTone', cp.skin_tone,
+              'hairStyle', cp.hair_style,
+              'hairColor', cp.hair_color,
+              'eyeStyle', cp.eye_style,
+              'eyeColor', cp.eye_color,
+              'clothes', cp.clothes
+            )::text
+          end as pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -53,6 +64,7 @@ public class FriendService {
         from friend_settings fs
         join friendships f on f.id = fs.friendship_id
         join users friend on friend.id = fs.friend_user_id
+        left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
           from user_codes
@@ -117,11 +129,23 @@ public class FriendService {
           coalesce(active_code.code, u.public_id) as user_code,
           u.nickname,
           u.profile_image_url,
-          u.pixel_character,
+          case
+            when cp.user_id is null then u.pixel_character
+            else jsonb_build_object(
+              'gender', cp.gender,
+              'skinTone', cp.skin_tone,
+              'hairStyle', cp.hair_style,
+              'hairColor', cp.hair_color,
+              'eyeStyle', cp.eye_style,
+              'eyeColor', cp.eye_color,
+              'clothes', cp.clothes
+            )::text
+          end as pixel_character,
           '' as memo,
           coalesce(u.preference_profile::jsonb ->> 'introText', '') as intro_text,
           false as favorite
         from users u
+        left join character_profiles cp on cp.user_id = u.id
         left join lateral (
           select code
           from user_codes
@@ -371,7 +395,18 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
-          friend.pixel_character,
+          case
+            when cp.user_id is null then friend.pixel_character
+            else jsonb_build_object(
+              'gender', cp.gender,
+              'skinTone', cp.skin_tone,
+              'hairStyle', cp.hair_style,
+              'hairColor', cp.hair_color,
+              'eyeStyle', cp.eye_style,
+              'eyeColor', cp.eye_color,
+              'clothes', cp.clothes
+            )::text
+          end as pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -383,6 +418,7 @@ public class FriendService {
         from friend_settings fs
         join friendships f on f.id = fs.friendship_id
         join users friend on friend.id = fs.friend_user_id
+        left join character_profiles cp on cp.user_id = friend.id
         left join lateral (
           select code
           from user_codes
