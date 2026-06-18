@@ -696,6 +696,41 @@ void main() {
     await pumpEventQueue();
   });
 
+  test('채팅 ViewModel은 정산 카드 메시지 메타데이터를 유지한다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'settlement-card-1',
+          sender: 'ONMU',
+          message: '성수 브런치 정산이 만들어졌어요.',
+          timeLabel: '14:03',
+          messageType: 'settlement_card',
+          cardType: 'settlement',
+          planId: '101',
+          settlementId: '301',
+          isMine: false,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupChatViewModelProvider('1').future);
+
+    expect(state.messages.single.sender, 'ONMU');
+    expect(state.messages.single.isSettlementCard, isTrue);
+    expect(state.messages.single.planId, '101');
+    expect(state.messages.single.settlementId, '301');
+    expect(state.messages.single.hasSettlementRoute, isTrue);
+  });
+
   test('채팅 ViewModel은 현재 약속의 진행 중 투표가 없으면 투표 카드를 숨긴다', () async {
     final repository = _ChatNoCurrentVoteRepository();
     final container = ProviderContainer(
@@ -2075,6 +2110,27 @@ class _UnusedSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -2095,7 +2151,7 @@ class _UnusedSettlementRepository implements SettlementRepository {
 
 class _ChatSettlementRepository implements SettlementRepository {
   static const _summary = SettlementSummary(
-    id: 301,
+    id: '301',
     planTitle: '테스트 약속',
     totalAmountLabel: '0원',
     createdDateLabel: '',
@@ -2125,6 +2181,23 @@ class _ChatSettlementRepository implements SettlementRepository {
   Future<SettlementSummary> fetchSettlementDraft({
     required Object groupId,
     required Object planId,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
   }) async => _summary;
 
   @override

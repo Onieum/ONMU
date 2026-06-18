@@ -59,8 +59,20 @@ public class ChatActivityEventEntity {
     String payload,
     Instant createdAt
   ) {
+    this(group, null, actorUser, eventType, payload, createdAt);
+  }
+
+  public ChatActivityEventEntity(
+    GroupEntity group,
+    PlanEntity plan,
+    UserEntity actorUser,
+    String eventType,
+    String payload,
+    Instant createdAt
+  ) {
     this.id = UUID.randomUUID();
     this.group = group;
+    this.plan = plan;
     this.actorUser = actorUser;
     this.eventType = eventType;
     this.payload = payload;

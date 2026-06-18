@@ -434,6 +434,10 @@ class ApiGroupRepository implements GroupRepository {
       timeLabel: localTimeLabel.isEmpty
           ? OnmuJson.readString(json, 'timeLabel')
           : localTimeLabel,
+      messageType: OnmuJson.readString(json, 'messageType'),
+      cardType: OnmuJson.readString(json, 'cardType'),
+      planId: OnmuJson.readString(json, 'planId'),
+      settlementId: OnmuJson.readString(json, 'settlementId'),
       isMine: OnmuJson.readBool(json, 'isMine'),
       senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
       attachments: _messageAttachments(json['attachments']),

@@ -4,9 +4,11 @@ class SettlementPayerShare {
   const SettlementPayerShare({
     required this.name,
     required this.amountLabel,
+    this.userId = '',
     this.profileImageUrl = '',
   });
 
+  final String userId;
   final String name;
   final String amountLabel;
   final String profileImageUrl;
@@ -16,20 +18,25 @@ class SettlementPaymentParticipant {
   const SettlementPaymentParticipant({
     required this.name,
     required this.owedAmountLabel,
+    this.userId = '',
     this.included = true,
     this.profileImageUrl = '',
   });
 
+  final String userId;
   final String name;
   final String owedAmountLabel;
   final bool included;
   final String profileImageUrl;
+
+  String get selectionKey => userId.isNotEmpty ? userId : name;
 }
 
 class SettlementPaymentItem {
   const SettlementPaymentItem({
     required this.id,
     required this.title,
+    required this.amount,
     required this.amountLabel,
     required this.payerShares,
     required this.targetLabel,
@@ -37,8 +44,9 @@ class SettlementPaymentItem {
     required this.participants,
   });
 
-  final int id;
+  final String id;
   final String title;
+  final int amount;
   final String amountLabel;
   final List<SettlementPayerShare> payerShares;
   final String targetLabel;
@@ -108,7 +116,7 @@ class SettlementSummary {
     required this.shareMessage,
   });
 
-  final int id;
+  final String id;
   final String planTitle;
   final String totalAmountLabel;
   final String createdDateLabel;

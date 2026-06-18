@@ -758,6 +758,27 @@ class TestSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,

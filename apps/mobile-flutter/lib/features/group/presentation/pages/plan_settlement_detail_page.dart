@@ -21,17 +21,29 @@ class PlanSettlementDetailPage extends ConsumerWidget {
     required this.planId,
     super.key,
     this.preview = false,
+    this.settlementId,
   });
 
   final String groupId;
   final String planId;
   final bool preview;
+  final String? settlementId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(
-      settlementViewModelProvider((groupId: groupId, planId: planId)),
-    );
+    final scope = (groupId: groupId, planId: planId);
+    final id = settlementId;
+    final state = preview
+        ? ref.watch(settlementDraftViewModelProvider(scope))
+        : id == null
+        ? ref.watch(settlementViewModelProvider(scope))
+        : ref.watch(
+            settlementByIdViewModelProvider((
+              groupId: groupId,
+              planId: planId,
+              settlementId: id,
+            )),
+          );
 
     return state.when(
       data: (settlement) => _SettlementShareContent(
@@ -39,6 +51,11 @@ class PlanSettlementDetailPage extends ConsumerWidget {
         planId: planId,
         preview: preview,
         settlement: settlement,
+        onCreate: preview
+            ? () => ref
+                  .read(settlementDraftViewModelProvider(scope).notifier)
+                  .createCurrentDraft()
+            : null,
       ),
       loading: () => OnmuScaffold(
         title: preview ? '정산 미리보기' : '약속 정산',
@@ -63,12 +80,14 @@ class _SettlementShareContent extends StatelessWidget {
     required this.planId,
     required this.preview,
     required this.settlement,
+    this.onCreate,
   });
 
   final String groupId;
   final String planId;
   final bool preview;
   final SettlementSummary settlement;
+  final Future<SettlementSummary> Function()? onCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -102,15 +121,11 @@ class _SettlementShareContent extends StatelessWidget {
                   : Icons.event_note_outlined,
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
-              onPressed: () => context.go(
-                preview
-                    ? RoutePaths.planSettlementDetail(
-                        groupId,
-                        planId,
-                        settlement.id,
-                      )
-                    : RoutePaths.planDetail(groupId, planId),
-              ),
+              onPressed: preview
+                  ? () => _createSettlement(context)
+                  : () {
+                      context.go(RoutePaths.planDetail(groupId, planId));
+                    },
             ),
           ),
         ],
@@ -127,6 +142,27 @@ class _SettlementShareContent extends StatelessWidget {
         _MemberResultCompactCard(results: settlement.memberResults),
       ],
     );
+  }
+
+  Future<void> _createSettlement(BuildContext context) async {
+    final create = onCreate;
+    if (create == null) {
+      return;
+    }
+    try {
+      final created = await create();
+      if (context.mounted) {
+        context.go(
+          RoutePaths.planSettlementDetail(groupId, planId, created.id),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('정산 만들기에 실패했어요.')));
+      }
+    }
   }
 }
 
@@ -190,9 +226,15 @@ class _SettlementHeaderCard extends StatelessWidget {
             children: [
               _MiniSummaryTile(label: '총액', value: settlement.totalAmountLabel),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '결제 항목', value: '2개'),
+              _MiniSummaryTile(
+                label: '결제 항목',
+                value: '${settlement.paymentItems.length}개',
+              ),
               const SizedBox(width: AppSpacing.xs),
-              _MiniSummaryTile(label: '송금', value: '5건'),
+              _MiniSummaryTile(
+                label: '송금',
+                value: '${settlement.transfers.length}건',
+              ),
             ],
           ),
         ],

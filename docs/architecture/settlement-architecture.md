@@ -4,7 +4,7 @@
 
 이 문서는 ONMU 정산 영역을 현재 구현, 목표 아키텍처, Current-to-Target Delta로 나누어 정리한다. 정산은 모임 전체 기능이 아니라 반드시 `groups/{groupId}/plans/{planId}` 하위의 약속 단위 도메인이다. 사용자는 한 약속에서 발생한 결제 항목을 입력하고, 항목별 대상자를 고른 뒤, 미리보기로 송금 방향을 확인하고, 최종 정산 결과를 채팅 카드와 알림으로 공유해야 한다.
 
-현재 구현은 Spring Boot Main API의 REST endpoint, PostgreSQL/Flyway core table, Flutter route/repository/read model이 존재하는 vertical slice다. 다만 Flutter 화면의 저장/생성 action, ChatActivity 카드 append, 사용자별 notification row 생성, 실제 push delivery는 아직 목표 구조와 차이가 있다.
+현재 구현은 Spring Boot Main API의 REST endpoint, PostgreSQL/Flyway core table, Flutter route/repository/ViewModel/screen mutation, ChatActivity 카드 append, 사용자별 notification row 생성까지 연결된 vertical slice다. 다만 실제 push provider delivery, custom split 금액 직접 입력, 송금 확인/분쟁 상태, production-grade idempotency는 아직 목표 구조와 차이가 있다.
 
 구현 근거는 `services/api-spring/src/main/java/com/onmu/api/web/ApiController.java`, `services/api-spring/src/main/java/com/onmu/api/service/SettlementApiService.java`, `services/api-spring/src/main/java/com/onmu/api/domain/Settlement*`, `services/api-spring/src/main/resources/db/migration/V1/V3/V4/V5/V9`, `apps/mobile-flutter/lib/features/settlement/**`, `apps/mobile-flutter/lib/features/group/presentation/pages/plan_settlement_*`, `apps/mobile-flutter/lib/shared/models/settlement_models.dart`를 기준으로 확인했다.
 
@@ -32,7 +32,7 @@
 | Draft 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | `items`를 필수로 받고 draft payload와 `settlement_items`, `settlement_item_targets`를 교체 저장한다. |
 | 항목 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft/item이 있을 때만 대상자를 교체하고 금액을 균등 분배한다. |
 | Preview | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 요청 items만으로 송금 방향을 계산한다. DB write와 outbox write는 하지 않는다. |
-| Create | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 저장하고 outbox event를 기록한다. |
+| Create | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`, ChatActivity 카드, 사용자별 notification row를 저장하고 outbox event를 기록한다. |
 | Result 최신 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` | 최신 settlement가 있으면 결과를 반환하고, 없으면 draft 또는 빈 draft 기반 preview를 반환한다. |
 | Result ID 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | plan 하위 public settlement id로 결과를 조회한다. |
 
@@ -69,18 +69,18 @@ Flutter route는 모두 plan 하위다.
 
 현재 `SettlementRepository`는 draft 조회, preview, create, result 조회 API 메서드를 제공한다. `SettlementDraftItemInput.toJson()`은 `amount`와 `amountWon`을 함께 보내고, `payerUserId`, `targetUserIds`가 있으면 포함한다.
 
-현재 화면 구현은 주로 read model 표시와 route 이동 중심이다. `SettlementViewModel`은 `fetchSettlement`만 호출한다. 대상자 선택 화면의 저장 버튼은 로컬 선택 상태를 API로 저장하지 않고 정산 생성 화면으로 돌아간다. preview 화면의 `정산 만들기` 버튼도 `createSettlement` API를 호출하지 않고 settlement detail route로 이동한다. 따라서 Flutter mutation action은 Target Architecture의 주요 Delta다.
+현재 화면 구현은 draft 편집과 결과 조회 ViewModel을 분리한다. 정산 만들기 화면은 그룹 멤버를 기반으로 결제 항목을 추가하고 `PATCH /settlement-draft`로 저장한다. 대상자 선택 화면은 `PATCH /settlement-draft/items/{itemId}/targets`를 호출한다. preview 화면의 `정산 만들기` 버튼은 `POST /settlements`를 호출한 뒤 생성된 settlement detail route로 이동한다.
 
 ### ChatActivity / Notification 현재 경계
 
-`createSettlement`는 현재 같은 transaction 안에서 다음 outbox를 기록한다.
+`createSettlement`는 현재 같은 transaction 안에서 final settlement 원장, ChatActivity 카드, 사용자별 notification row, outbox를 기록한다.
 
 | Event | aggregate | payload 현재 필드 |
 | --- | --- | --- |
 | `settlement.created` | `settlement` | `groupId`, `planId`, `settlementId` |
-| `notification.requested` | `settlement` | `groupId`, `planId`, `settlementId`, `channel=activity` |
+| `notification.requested` | `notification` | `groupId`, `planId`, `settlementId`, `notificationId`, `notificationType=settlement_created`, `channels=[push]` |
 
-runtime create 경로는 아직 `chat_activity_events` row나 사용자별 `notifications` row를 직접 만들지 않는다. 현재 `notification.requested` payload에는 `notificationId`가 없고 aggregate도 `notification`이 아니므로, 현재 `NotificationDeliveryService` 기준으로 provider delivery 대상 notification을 찾지 못해 `skipped_dev`로 끝날 수 있다. `channel=activity`는 ChatActivity 공유 또는 앱 안 활동 표시 의도를 나타내는 값으로 보고, FCM/APNs provider delivery 대상 이벤트와 분리해야 한다. V9 seed에는 `settlement_created` notification row와 `notificationId`가 들어간 seed outbox가 있지만, 이는 runtime create 경로와 구분해야 한다. 알림 inbox, device registry, provider delivery의 자세한 목표 경계는 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
+runtime create 경로는 `chat_activity_events`에 `messageType=settlement_card`, `cardType=settlement` payload를 append하고, 정산 payer/target 참여자별 `notifications` row를 만든다. `notification.requested`는 실제 notification row의 UUID를 aggregate와 payload에 포함하므로 `NotificationDeliveryService`가 dev-safe `notification_deliveries` projection을 만들 수 있다. 실제 FCM/APNs provider 발송 성공은 별도 provider secret과 device readiness smoke 범위다. 알림 inbox, device registry, provider delivery의 자세한 목표 경계는 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
 
 ## Target Architecture
 
@@ -127,13 +127,13 @@ Realtime Gateway와 Notification Worker는 outbox/queue의 소비자다. 이들�
 
 | 구분 | 현재 | 목표 | 소유 |
 | --- | --- | --- | --- |
-| Flutter draft mutation | 화면 선택 상태가 API 저장으로 이어지지 않음 | ViewModel action이 `PATCH /settlement-draft`, item targets PATCH를 호출 | Flutter |
-| Flutter create mutation | preview 버튼이 route 이동만 수행 | `POST /settlements/preview`, `POST /settlements` 결과와 오류를 ViewModel state로 관리 | Flutter |
+| Flutter draft mutation | 구현됨 | ViewModel action이 `PATCH /settlement-draft`, item targets PATCH를 호출 | Flutter |
+| Flutter create mutation | 구현됨 | preview/detail 화면에서 `POST /settlements` 결과와 오류를 ViewModel state로 관리 | Flutter |
 | Auth viewer | `mySummaryLabel`, `isMe` 계산이 dev seed 첫 사용자 기준 | 인증된 viewer id 기준 계산 | Spring |
 | Payer normalization | payer table 없음, payload payerShares 의존 | `settlement_item_payers` 또는 item-level payer role table 도입 여부 결정 | Spring/Flyway |
-| ChatActivity card | runtime create 경로에서 card append 없음 | `settlement.created` 카드 snapshot을 `chat_activity_events`에 append | Spring |
-| Notification row | runtime create 경로에서 사용자별 `notifications` row 없음 | 참여자별 inbox row 생성 후 `notification.requested` payload에 `notificationId` 포함 | Spring |
-| Outbox delivery | `notification.requested` aggregate가 `settlement`라 provider 대상 탐색 불가 | provider delivery 대상 event는 aggregate `notification` 또는 payload `notificationId` 사용 | Spring/Worker |
+| ChatActivity card | 구현됨 | `settlement.created` 카드 snapshot을 `chat_activity_events`에 append | Spring |
+| Notification row | 구현됨 | 참여자별 inbox row 생성 후 `notification.requested` payload에 `notificationId` 포함 | Spring |
+| Outbox delivery | 구현됨 | provider delivery 대상 event는 aggregate `notification`과 payload `notificationId` 사용 | Spring/Worker |
 | Event stream | Spring scheduled outbox가 일부 event 직접 처리 | Event Hubs 기반 publisher/consumer, checkpoint/replay/idempotency | Spring/Terraform |
 | Amount naming | DB 컬럼이 `amount_cents`지만 원 단위 저장 | 컬럼 rename 또는 문서화된 legacy name 유지 결정 | Spring/Flyway |
 | Observability | dev smoke와 단위 테스트 중심 | create latency, outbox 상태, notification/card 생성 drift 지표 | Observability |
@@ -183,10 +183,10 @@ Realtime Gateway와 Notification Worker는 outbox/queue의 소비자다. 이들�
 | Event | Current | Target |
 | --- | --- | --- |
 | `settlement.created` | create transaction에서 outbox에 기록된다. 현재 consumer 없음으로 `no_consumer`가 될 수 있다. | ChatActivity, notification, analytics fan-out의 domain event로 사용한다. |
-| `notification.requested` | create transaction에서 `aggregateType=settlement`, `channel=activity`로 기록된다. `notificationId`가 없다. | 실제 push/inbox delivery 대상은 `notificationId`를 포함하고 aggregate는 `notification`으로 통일한다. |
-| ChatActivity card | runtime create와 현재 seed 모두 정산 카드 `chat_activity_events` append를 하지 않는다. | create transaction에서 `event_type=settlement.created` 또는 표준 card type으로 append한다. |
-| Notification inbox | V9 seed에 settlement notification row가 있으나 runtime create는 만들지 않는다. | 참여자별 `notifications` row를 만들고 push는 후속 delivery projection으로 분리한다. |
-| Push delivery | 현재 정산 create outbox만으로는 provider delivery 대상 알림을 찾지 못한다. | `notification.requested`에는 실제 `notifications.id`인 `notificationId`를 포함하고, 결과는 `notification_deliveries`에 기록한다. |
+| `notification.requested` | create transaction에서 `aggregateType=notification`, `notificationId` 포함으로 기록된다. | 실제 push provider 발송은 device/provider secret readiness 뒤 검증한다. |
+| ChatActivity card | runtime create에서 정산 카드 `chat_activity_events`를 append한다. | Realtime fan-out과 카드 rendering smoke를 보강한다. |
+| Notification inbox | runtime create에서 참여자별 `notifications` row를 만든다. | 알림 tap, read/read-all, push preference smoke를 보강한다. |
+| Push delivery | `notification.requested`에 실제 `notifications.id`인 `notificationId`를 포함한다. | 결과는 `notification_deliveries`에 기록하며 실제 provider 성공은 별도 smoke로 판정한다. |
 
 목표 transaction 순서:
 
@@ -209,9 +209,9 @@ Realtime Gateway와 Notification Worker는 outbox/queue의 소비자다. 이들�
 | Payer shares | payload `payerShares`/`payerUserId` | 별도 payer table 또는 item payer role 결정 필요 |
 | Targets | `settlement_item_targets` | 동일 |
 | Transfers | `settlement_transfers` | 동일. 실제 송금 완료 확인은 confirmation/status 확장 |
-| Chat card | 현재 정산 card row 없음, runtime gap | `chat_activity_events` append-only stream |
-| In-app notification | seed `notifications`, runtime gap | `notifications` 사용자별 inbox |
-| Push delivery | 현재 정산 create payload로는 delivery 불가 | `notification_deliveries` provider result projection |
+| Chat card | `chat_activity_events` append-only stream | 동일. realtime/card rendering smoke 보강 |
+| In-app notification | `notifications` 사용자별 inbox | 동일. tap/read/read-all smoke 보강 |
+| Push delivery | `notification_deliveries` provider result projection | 실제 provider delivery readiness 보강 |
 
 `payload` JSON에는 화면 fallback에 필요한 `items`, `payerShares`, `shareMessage` 등을 compact snapshot으로 남길 수 있다. 하지만 query, 권한, 정산 계산, migration 검증에 필요한 값은 structured table이 우선이다.
 
@@ -234,9 +234,9 @@ Flutter 금지:
 
 현재 gap:
 
-- `SettlementViewModel`은 조회만 담당한다.
-- target selection 저장과 create CTA가 mutation API를 호출하지 않는다.
-- `SettlementSummary.id`가 int 기반이라 public id가 숫자가 아닐 때의 route/model 전략을 결정해야 한다.
+- custom split은 label과 대상자 선택까지 가능하지만 대상자별 금액 직접 입력 UI는 없다.
+- `SettlementSummary.id`는 Flutter에서 string route id로 다루지만, 기존 seed와 일부 테스트 데이터는 숫자 문자열을 계속 사용한다.
+- 실제 모바일 smoke에서 채팅 카드 tap, 알림 tap, 앱 재시작 뒤 결과 재진입을 staging 기준으로 확인해야 한다.
 
 ## Spring / Worker Boundary
 
@@ -335,9 +335,9 @@ Managed Identity 기준:
 - `amount_cents` 컬럼명을 문자 그대로 해석하면 원 단위 금액을 100분의 1로 오해할 수 있다.
 - `payload` fallback을 canonical로 계속 사용하면 query, 권한, migration 검증이 어려워진다.
 - 이름 fallback을 production에서 허용하면 동명이인 오류와 잘못된 대상자 지정 위험이 커진다.
-- Flutter 화면이 create API를 호출하지 않으면 사용자는 정산을 만든 것처럼 보지만 서버에는 최종 결과가 생기지 않는다.
-- `notification.requested`에 `notificationId`가 없으면 delivery service가 provider 대상 알림을 찾지 못한다.
-- `settlement.created`만 outbox에 남기고 ChatActivity card를 append하지 않으면 채팅 화면의 실행 흐름이 끊긴다.
+- custom split 금액 입력 없이 `custom` label만 노출하면 사용자가 개별 금액 정산으로 오해할 수 있다.
+- `notification.requested`에는 `notificationId`가 포함되지만 실제 provider 발송 성공은 preference/device/provider secret readiness에 의존한다.
+- ChatActivity card row는 생성되지만 realtime/card rendering smoke가 없으면 사용자가 채팅에서 즉시 확인하는 흐름을 놓칠 수 있다.
 - Terraform이 core table DDL을 만들면 Spring Flyway와 schema ownership 충돌이 난다.
 - 실제 결제/송금 연동을 정산 MVP와 섞으면 보안, 법적 책임, PG credential 관리 범위가 급격히 커진다.
 
@@ -351,8 +351,8 @@ Managed Identity 기준:
 | structured table 우선, payload fallback 유지 | 구현됨 | `SettlementApiService` read path | payload 제거/축소 시점 |
 | `payerUserId`, `targetUserIds` 우선 | 구현됨 | service/test 계약 | production에서 이름 fallback 허용 범위 |
 | `amount_cents`는 현재 원 단위 logical amount | 확인됨 | API/test/seed가 원 단위 integer로 사용 | 컬럼명 유지 vs rename |
-| Runtime create의 ChatActivity/Notification row 생성 | 미구현 | outbox만 기록됨 | 어느 PR에서 같은 transaction으로 묶을지 |
-| Flutter mutation ViewModel | 미구현 | 현재 ViewModel은 read-only | action/state 설계 필요 |
+| Runtime create의 ChatActivity/Notification row 생성 | 구현됨 | create transaction에서 card row, notification row, `notificationId` outbox 기록 | provider/device smoke |
+| Flutter mutation ViewModel | 구현됨 | draft 저장, target patch, create action을 ViewModel으로 분리 | custom split 금액 입력 |
 | 실제 결제/송금 연동 | 보류 | 현재 transfer는 projection | PG 도입 여부 |
 
 ## Roadmap
@@ -360,9 +360,9 @@ Managed Identity 기준:
 | Phase | 목표 | 산출물 |
 | --- | --- | --- |
 | Phase 0 | Current-to-Target 문서화 | 이 문서, API/data/architecture 문서 보강 |
-| Phase 1 | Flutter mutation 연결 | draft save, target patch, preview/create ViewModel action과 widget/repository tests |
+| Phase 1 | Flutter mutation 연결 | 구현됨. draft save, target patch, create ViewModel action과 repository tests |
 | Phase 2 | Auth viewer 정합성 | `currentUser()` dev fallback 제거, 인증 사용자 기준 `isMe`/summary 계산 |
-| Phase 3 | Runtime side effect hardening | ChatActivity card append, notification row 생성, `notificationId` payload 통일 |
+| Phase 3 | Runtime side effect hardening | 구현됨. ChatActivity card append, notification row 생성, `notificationId` payload 통일 |
 | Phase 4 | Outbox/Event Hubs 전환 | Event Hubs publisher/consumer, idempotency, checkpoint/replay |
 | Phase 5 | Data model cleanup | payer table 결정, `amount_cents` rename 또는 compatibility 문서화, payload 축소 |
 | Phase 6 | Observability | metrics/log/trace, settlement smoke dashboard |
