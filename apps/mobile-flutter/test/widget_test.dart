@@ -186,11 +186,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    await tester.enterText(find.byType(TextField), '테스트 캐릭터');
-    await tester.tap(find.widgetWithText(ElevatedButton, '다음'));
-    await tester.pumpAndSettle();
-
     expect(find.text('꾸미기 완료!'), findsOneWidget);
+    expect(find.text('캐릭터 이름을 정해 주세요'), findsNothing);
+    expect(find.text('이름을 입력해 주세요'), findsNothing);
 
     await tester.tap(find.widgetWithText(ElevatedButton, '첫 설정 페이지로 돌아가기'));
     await tester.pumpAndSettle();
