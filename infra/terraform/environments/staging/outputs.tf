@@ -75,7 +75,10 @@ output "worker_enabled" {
 }
 
 output "diagnostic_setting_count" {
-  value = try(length(module.diagnostic_settings[0].diagnostic_setting_ids), 0)
+  value = (
+    try(length(module.diagnostic_settings[0].diagnostic_setting_ids), 0) +
+    try(length(module.ai_diagnostic_settings[0].diagnostic_setting_ids), 0)
+  )
 }
 
 output "machine_learning_workspace_name" {

@@ -142,8 +142,7 @@ locals {
   diagnostic_targets = merge(
     var.enabled_diagnostic_targets.foundation ? local.foundation_diagnostic_targets : {},
     var.enabled_diagnostic_targets.redis ? local.redis_diagnostic_targets : {},
-    var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {},
-    var.enabled_diagnostic_targets.ai ? local.ai_diagnostic_targets : {}
+    var.enabled_diagnostic_targets.front_door ? local.frontdoor_diagnostic_targets : {}
   )
 }
 
@@ -480,6 +479,21 @@ module "diagnostic_settings" {
     module.eventhubs,
     module.ai_foundation,
     module.container_apps
+  ]
+}
+
+module "ai_diagnostic_settings" {
+  count = var.enabled_modules.diagnostics && var.enabled_diagnostic_targets.ai ? 1 : 0
+
+  source                     = "../../modules/diagnostic-settings"
+  log_analytics_workspace_id = module.observability[0].log_analytics_workspace_id
+  targets                    = local.ai_diagnostic_targets
+  name_prefix                = "diag-onmu-staging-ai"
+
+  depends_on = [
+    module.observability,
+    module.key_vault,
+    module.ai_foundation
   ]
 }
 
