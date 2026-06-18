@@ -2,6 +2,7 @@ package com.onmu.api.web;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -144,6 +145,23 @@ class SecurityConfigTests {
       .andExpect(jsonPath("$.results[0].provider").value("naver"));
 
     verify(onmuApiService).plan("1", "101", user.getId());
+  }
+
+  @Test
+  void placeSearchStopsBeforeProviderLookupWhenPlanAccessIsRejected() throws Exception {
+    UserEntity user = authenticatedUser();
+    when(onmuApiService.plan("1", "101", user.getId()))
+      .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member"));
+
+    mvc.perform(post("/api/v1/place-search")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"query\":\"홍대 카페\",\"groupId\":\"1\",\"planId\":\"101\"}"))
+      .andExpect(status().isForbidden())
+      .andExpect(status().reason("not_group_member"));
+
+    verify(onmuApiService).plan("1", "101", user.getId());
+    verifyNoInteractions(placeSearchService);
   }
 
   @Test
