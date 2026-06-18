@@ -44,7 +44,7 @@ public class FriendService {
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
-            when fs.memo ~ '^[0-9]{8,12}$' then ''
+            when fs.memo ~ '^[0-9]+$' then ''
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
@@ -370,7 +370,7 @@ public class FriendService {
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
-            when fs.memo ~ '^[0-9]{8,12}$' then ''
+            when fs.memo ~ '^[0-9]+$' then ''
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,

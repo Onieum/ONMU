@@ -77,21 +77,24 @@ class _FriendsTabState extends State<_FriendsTab> {
               ),
             ),
             const SizedBox(width: 10),
-            SizedBox(
-              width: 52,
-              height: 52,
-              child: FilledButton(
-                onPressed: widget.onOpenAddFriend,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryPink,
-                  foregroundColor: AppColors.textInverse,
-                  padding: EdgeInsets.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            Transform.translate(
+              offset: const Offset(0, -3.5),
+              child: SizedBox(
+                width: 54,
+                height: 48,
+                child: FilledButton(
+                  onPressed: widget.onOpenAddFriend,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryPink,
+                    foregroundColor: AppColors.textInverse,
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
+                  child: const Icon(Icons.person_add_alt_1, size: 22),
                 ),
-                child: const Icon(Icons.person_add_alt_1, size: 22),
               ),
             ),
           ],
@@ -835,16 +838,15 @@ class _FavoriteFriendCandidateTile extends StatelessWidget {
 }
 
 class _FriendListTile extends StatelessWidget {
-  const _FriendListTile({
-    required this.friend,
-    required this.onTap,
-  });
+  const _FriendListTile({required this.friend, required this.onTap});
 
   final FriendProfile friend;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final memo = _visibleFriendMemo(friend.memo);
+
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -868,15 +870,17 @@ class _FriendListTile extends StatelessWidget {
                       color: AppColors.textMain,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    friend.memo.trim().characters.take(10).toString(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSub,
+                  if (memo.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      memo,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSub,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -904,4 +908,12 @@ class _FriendListTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _visibleFriendMemo(String memo) {
+  final value = memo.trim();
+  if (value.isEmpty || RegExp(r'^\d+$').hasMatch(value)) {
+    return '';
+  }
+  return value.characters.take(10).toString();
 }
