@@ -146,6 +146,31 @@ Chat UI smoke와 notification E2E는 분리해서 판정한다. Android/iOS에�
 
 Dev-safe 알림 E2E에서는 `provider=dev`, `status=skipped_dev` delivery 기록을 staging pre-push smoke 통과 기준으로 인정한다. `read-all`은 기존 dev/staging 사용자 알림을 함께 읽음 처리할 수 있으므로, 전용 테스트 사용자 또는 synthetic notification fixture가 준비된 경우에만 자동 실행한다.
 
+### 7.1 Notification API count-only helper
+
+반복 가능한 API contract 확인은 Windows PowerShell에서 `scripts/windows/smoke-notification-staging.ps1`를 사용한다. 이 스크립트는 Authorization 값, raw push token, raw request/response body를 출력하지 않고 endpoint별 status/count/boolean만 JSON Lines로 출력한다.
+
+```powershell
+$env:ONMU_STAGING_ACCESS_TOKEN = "<short-lived access token>"
+.\scripts\windows\smoke-notification-staging.ps1
+```
+
+`read-all`은 전용 테스트 사용자 또는 synthetic notification fixture가 준비된 경우에만 명시적으로 켠다.
+
+```powershell
+.\scripts\windows\smoke-notification-staging.ps1 -IncludeReadAll
+```
+
+보고에는 다음 항목만 남긴다.
+
+- notification list count, unread count
+- 단건 read 후 unread count
+- preferences item count
+- push token register/deactivate의 provider/status/registered/tokenLast4 존재 여부
+- `read-all` 실행 여부와 updated count
+
+토큰 값 자체, 알림 본문, 사용자 식별자, Authorization header, raw JSON body는 보고하지 않는다.
+
 ## 8. Mobile flow smoke
 
 Staging API가 ACA에서 기동된 뒤 최소 1회 Android emulator 기준으로 다음 흐름을 묶어서 확인한다. 시간 제약이 있으면 다른 팀원 PC 검증은 생략할 수 있지만, 이 경우 보고서에 단일 emulator 기준임을 명시한다.

@@ -130,4 +130,15 @@ class NotificationPreferenceServiceTests {
       .isInstanceOf(ResponseStatusException.class)
       .hasMessageContaining("unsupported_notification_type");
   }
+
+  @Test
+  void updateRejectsUnsupportedChannel() {
+    when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+    assertThatThrownBy(() -> service.update(user.getId(), new UpdateNotificationPreferencesRequest(List.of(
+      new NotificationPreferenceUpdateRequest("chat_message", "email", true, Map.of())
+    ))))
+      .isInstanceOf(ResponseStatusException.class)
+      .hasMessageContaining("unsupported_notification_channel");
+  }
 }
