@@ -92,10 +92,10 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       merged.add(candidate);
     }
 
-    for (final candidate in savedCandidates) {
+    for (final candidate in searchedCandidates) {
       addCandidate(candidate);
     }
-    for (final candidate in searchedCandidates) {
+    for (final candidate in savedCandidates) {
       addCandidate(candidate);
     }
 
@@ -282,9 +282,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     ),
                   ),
                   DraggableScrollableSheet(
-                    initialChildSize: 0.52,
-                    minChildSize: 0.32,
-                    maxChildSize: 0.94,
+                    initialChildSize: 0.20,
+                    minChildSize: 0.14,
+                    maxChildSize: 0.92,
                     builder: (context, scrollController) {
                       return KeyedSubtree(
                         key: const ValueKey('place-map-bottom-sheet'),
@@ -453,19 +453,23 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       OnmuLatLng(lat: 37.5700, lng: 126.9820),
       OnmuLatLng(lat: 37.5580, lng: 126.9970),
     ];
+    final hasAnyCoordinate = candidates.any(
+      (candidate) => candidate.hasCoordinate,
+    );
     return [
       for (var index = 0; index < candidates.length; index += 1)
-        OnmuMapPoint(
-          id: candidates[index].id.toString(),
-          label: candidates[index].name,
-          coordinate: candidates[index].hasCoordinate
-              ? OnmuLatLng(
-                  lat: candidates[index].latitude!,
-                  lng: candidates[index].longitude!,
-                )
-              : fallback[index % fallback.length],
-          order: index + 1,
-        ),
+        if (!hasAnyCoordinate || candidates[index].hasCoordinate)
+          OnmuMapPoint(
+            id: candidates[index].id.toString(),
+            label: candidates[index].name,
+            coordinate: candidates[index].hasCoordinate
+                ? OnmuLatLng(
+                    lat: candidates[index].latitude!,
+                    lng: candidates[index].longitude!,
+                  )
+                : fallback[index % fallback.length],
+            order: index + 1,
+          ),
     ];
   }
 
