@@ -244,6 +244,107 @@ class ChatMessageBubble extends StatelessWidget {
   }
 }
 
+class ChatActivityCard extends StatelessWidget {
+  const ChatActivityCard({
+    required this.message,
+    required this.onTap,
+    super.key,
+  });
+
+  final GroupMessage message;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (message.normalizedMessageType) {
+      'plan_card' => Icons.event_available_outlined,
+      'vote_card' => Icons.how_to_vote_outlined,
+      'settlement_card' => Icons.receipt_long_outlined,
+      'system' => Icons.campaign_outlined,
+      _ => Icons.chat_bubble_outline,
+    };
+    final messageText = message.message.trim().isEmpty
+        ? '새 활동이 있어요.'
+        : message.message.trim();
+
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 336),
+        child: OnmuCard(
+          onTap: onTap,
+          backgroundColor: AppColors.bgPaper,
+          borderColor: _borderColor,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: AppColors.primaryPink),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      message.activityTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.primaryPink,
+                      ),
+                    ),
+                  ),
+                  if (message.timeLabel.trim().isNotEmpty)
+                    Text(
+                      message.timeLabel,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                messageText,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    message.activityActionLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.primaryPink,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xxs),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: AppColors.primaryPink,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color get _borderColor {
+    return switch (message.normalizedMessageType) {
+      'plan_card' => AppColors.lineWarm,
+      'vote_card' => AppColors.linePink,
+      'settlement_card' => AppColors.lineBrown,
+      'system' => AppColors.lineSoft,
+      _ => AppColors.lineSoft,
+    };
+  }
+}
+
 class _ChatMessageContent extends StatelessWidget {
   const _ChatMessageContent({
     required this.message,

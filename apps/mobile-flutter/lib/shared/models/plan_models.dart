@@ -131,6 +131,30 @@ class VisitPlan {
   final String duration;
 }
 
+class SchedulePlace {
+  const SchedulePlace({
+    required this.id,
+    required this.name,
+    required this.sortOrder,
+    this.groupId = '',
+    this.planId = '',
+    this.candidateId = '',
+    this.startsAt,
+    this.endsAt,
+    this.note = '',
+  });
+
+  final String id;
+  final String groupId;
+  final String planId;
+  final String candidateId;
+  final String name;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final String note;
+  final int sortOrder;
+}
+
 class Plan {
   const Plan({
     required this.id,

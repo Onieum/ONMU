@@ -13,6 +13,21 @@ abstract interface class SettlementRepository {
     required Object planId,
   });
 
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  });
+
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  });
+
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -91,6 +106,41 @@ class ApiSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async {
+    final draft = await _client.patchObject(
+      '/api/v1/groups/$groupId/plans/$planId/settlement-draft',
+      body: {
+        ..._itemsBody(items),
+        if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
+      },
+    );
+    return _settlement(OnmuJson.asMap(draft['preview']));
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) async {
+    final draft = await _client.patchObject(
+      '/api/v1/groups/$groupId/plans/$planId/settlement-draft/items/$itemId/targets',
+      body: {
+        if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds,
+        'targetNames': targetNames,
+      },
+    );
+    return _settlement(OnmuJson.asMap(draft['preview']));
+  }
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -145,15 +195,12 @@ class ApiSettlementRepository implements SettlementRepository {
 
   SettlementSummary _settlement(Map<String, dynamic> json) {
     return SettlementSummary(
-      id: OnmuJson.readInt(json, 'id'),
+      id: _readId(json, 'id'),
       planTitle: OnmuJson.readString(json, 'planTitle', '약속 정산'),
       totalAmountLabel: OnmuJson.readString(json, 'totalAmountLabel', '0원'),
       createdDateLabel: OnmuJson.readString(json, 'createdDateLabel', '미리보기'),
       itemCountLabel: OnmuJson.readString(json, 'itemCountLabel', '결제 항목 0개'),
-      finalSummaryLabel: OnmuJson.readString(
-        json,
-        'finalSummaryLabel',
-      ),
+      finalSummaryLabel: OnmuJson.readString(json, 'finalSummaryLabel'),
       mySummaryLabel: OnmuJson.readString(json, 'mySummaryLabel', '내 정산 없음'),
       paymentItems: OnmuJson.asMapList(
         json['paymentItems'],
@@ -171,12 +218,18 @@ class ApiSettlementRepository implements SettlementRepository {
   SettlementPaymentItem _paymentItem(Map<String, dynamic> json) {
     final splitType = OnmuJson.readString(json, 'splitType', 'equal');
     return SettlementPaymentItem(
-      id: OnmuJson.readInt(json, 'id'),
+      id: _readId(json, 'id'),
       title: OnmuJson.readString(json, 'title', '결제 항목'),
+      amount: OnmuJson.readInt(
+        json,
+        'amountWon',
+        OnmuJson.readInt(json, 'amount'),
+      ),
       amountLabel: OnmuJson.readString(json, 'amountLabel', '0원'),
       payerShares: OnmuJson.asMapList(json['payerShares'])
           .map(
             (payer) => SettlementPayerShare(
+              userId: OnmuJson.readString(payer, 'userId'),
               name: OnmuJson.readString(payer, 'name', '결제자'),
               amountLabel: OnmuJson.readString(payer, 'amountLabel', '0원'),
               profileImageUrl: _profileImageUrl(payer),
@@ -190,6 +243,7 @@ class ApiSettlementRepository implements SettlementRepository {
       participants: OnmuJson.asMapList(json['participants'])
           .map(
             (participant) => SettlementPaymentParticipant(
+              userId: OnmuJson.readString(participant, 'userId'),
               name: OnmuJson.readString(participant, 'name', '참여자'),
               owedAmountLabel: OnmuJson.readString(
                 participant,
@@ -202,6 +256,14 @@ class ApiSettlementRepository implements SettlementRepository {
           )
           .toList(growable: false),
     );
+  }
+
+  String _readId(Map<String, dynamic> json, String key) {
+    final value = OnmuJson.readString(json, key);
+    if (value.isNotEmpty) {
+      return value;
+    }
+    return OnmuJson.readInt(json, key).toString();
   }
 
   SettlementMemberResult _memberResult(Map<String, dynamic> json) {

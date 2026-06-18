@@ -259,6 +259,13 @@ class GroupMessage {
     required this.isMine,
     this.id = '',
     this.cursor = '',
+    this.messageType = '',
+    this.cardType = '',
+    this.targetType = '',
+    this.targetId = '',
+    this.planId = '',
+    this.voteId = '',
+    this.settlementId = '',
     this.sendStatus = GroupMessageSendStatus.sent,
     this.senderProfileImageUrl = '',
     this.attachments = const [],
@@ -269,6 +276,13 @@ class GroupMessage {
   final String sender;
   final String message;
   final String timeLabel;
+  final String messageType;
+  final String cardType;
+  final String targetType;
+  final String targetId;
+  final String planId;
+  final String voteId;
+  final String settlementId;
   final bool isMine;
   final GroupMessageSendStatus sendStatus;
   final String senderProfileImageUrl;
@@ -277,12 +291,66 @@ class GroupMessage {
   bool get canRetry => isMine && sendStatus.isFailed;
   bool get hasAttachments => attachments.isNotEmpty;
 
+  String get normalizedMessageType {
+    final type = messageType.trim().toLowerCase();
+    if (type.isNotEmpty) {
+      return switch (type) {
+        'plan' || 'plan_card' => 'plan_card',
+        'vote' || 'vote_card' => 'vote_card',
+        'settlement' || 'settlement_card' => 'settlement_card',
+        'system' || 'notice' => 'system',
+        _ => 'message',
+      };
+    }
+    return switch (cardType.trim().toLowerCase()) {
+      'plan' || 'plan_card' => 'plan_card',
+      'vote' || 'vote_card' => 'vote_card',
+      'settlement' || 'settlement_card' => 'settlement_card',
+      'system' || 'notice' => 'system',
+      _ => 'message',
+    };
+  }
+
+  bool get isActivity => normalizedMessageType != 'message';
+  bool get isPlanCard => normalizedMessageType == 'plan_card';
+  bool get isVoteCard => normalizedMessageType == 'vote_card';
+  bool get isSettlementCard => normalizedMessageType == 'settlement_card';
+  bool get isSystemActivity => normalizedMessageType == 'system';
+  bool get hasSettlementRoute => planId.isNotEmpty && settlementId.isNotEmpty;
+
+  String get activityTitle {
+    return switch (normalizedMessageType) {
+      'plan_card' => '약속 업데이트',
+      'vote_card' => '투표가 열렸어요',
+      'settlement_card' => '정산이 만들어졌어요',
+      'system' => 'ONMU 알림',
+      _ => '',
+    };
+  }
+
+  String get activityActionLabel {
+    return switch (normalizedMessageType) {
+      'plan_card' => '약속 보기',
+      'vote_card' => '투표 보기',
+      'settlement_card' => '정산 확인하기',
+      'system' => '확인하기',
+      _ => '',
+    };
+  }
+
   GroupMessage copyWith({
     String? id,
     String? cursor,
     String? sender,
     String? message,
     String? timeLabel,
+    String? messageType,
+    String? cardType,
+    String? targetType,
+    String? targetId,
+    String? planId,
+    String? voteId,
+    String? settlementId,
     bool? isMine,
     GroupMessageSendStatus? sendStatus,
     String? senderProfileImageUrl,
@@ -294,6 +362,13 @@ class GroupMessage {
       sender: sender ?? this.sender,
       message: message ?? this.message,
       timeLabel: timeLabel ?? this.timeLabel,
+      messageType: messageType ?? this.messageType,
+      cardType: cardType ?? this.cardType,
+      targetType: targetType ?? this.targetType,
+      targetId: targetId ?? this.targetId,
+      planId: planId ?? this.planId,
+      voteId: voteId ?? this.voteId,
+      settlementId: settlementId ?? this.settlementId,
       isMine: isMine ?? this.isMine,
       sendStatus: sendStatus ?? this.sendStatus,
       senderProfileImageUrl:

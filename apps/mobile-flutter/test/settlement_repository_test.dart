@@ -32,6 +32,30 @@ void main() {
     });
   });
 
+  group('SettlementPaymentParticipant', () {
+    test('uses userId as selection key when display names are duplicated', () {
+      const first = SettlementPaymentParticipant(
+        userId: 'user-first',
+        name: '지민',
+        owedAmountLabel: '6,000원',
+      );
+      const second = SettlementPaymentParticipant(
+        userId: 'user-second',
+        name: '지민',
+        owedAmountLabel: '6,000원',
+      );
+      const fallback = SettlementPaymentParticipant(
+        name: '지민',
+        owedAmountLabel: '6,000원',
+      );
+
+      expect(first.selectionKey, 'user-first');
+      expect(second.selectionKey, 'user-second');
+      expect(first.selectionKey, isNot(second.selectionKey));
+      expect(fallback.selectionKey, '지민');
+    });
+  });
+
   test(
     'does not synthesize summary copy when settlement summary is missing',
     () async {

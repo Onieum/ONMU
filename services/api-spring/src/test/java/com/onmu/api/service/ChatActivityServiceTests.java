@@ -492,7 +492,7 @@ class ChatActivityServiceTests {
       group,
       null,
       "vote.created",
-      "{\"cardType\":\"vote_card\",\"content\":\"\"}",
+      "{\"cardType\":\"vote_card\",\"content\":\"\",\"targetType\":\"PLAN\",\"targetId\":\"101\",\"planId\":\"101\",\"voteId\":\"501\"}",
       Instant.parse("2026-06-09T05:04:00Z")
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
@@ -512,7 +512,36 @@ class ChatActivityServiceTests {
     assertThat(messages.get(1))
       .containsEntry("message", "새 활동이 있어요.")
       .containsEntry("messageType", "vote_card")
-      .containsEntry("cardType", "vote_card");
+      .containsEntry("cardType", "vote_card")
+      .containsEntry("targetType", "PLAN")
+      .containsEntry("targetId", "101")
+      .containsEntry("planId", "101")
+      .containsEntry("voteId", "501");
+  }
+
+  @Test
+  void settlementCardMessagesExposeRoutingMetadata() {
+    ChatActivityEventEntity settlementCard = new ChatActivityEventEntity(
+      group,
+      null,
+      "settlement.created",
+      "{\"senderName\":\"ONMU\",\"messageType\":\"settlement_card\",\"cardType\":\"settlement\",\"message\":\"정산이 만들어졌어요.\",\"planId\":\"101\",\"settlementId\":\"301\"}",
+      Instant.parse("2026-06-09T05:04:00Z")
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(chatActivityEventRepository.findLatestPage(eq(group), any(Pageable.class)))
+      .thenReturn(List.of(settlementCard));
+    stubUnread(0L);
+
+    List<Map<String, Object>> messages = messages(service.messages("1", currentUser.getId(), null, null));
+
+    assertThat(messages.getFirst())
+      .containsEntry("senderName", "ONMU")
+      .containsEntry("messageType", "settlement_card")
+      .containsEntry("cardType", "settlement")
+      .containsEntry("planId", "101")
+      .containsEntry("settlementId", "301");
   }
 
   @Test

@@ -30,4 +30,33 @@ void main() {
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(find.text('방금'), findsOneWidget);
   });
+
+  testWidgets('채팅 activity card는 서버 card event를 timeline 안에 렌더링한다', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChatActivityCard(
+            message: const GroupMessage(
+              sender: 'ONMU',
+              message: '제주도 여행 장소 투표가 열렸어요.',
+              timeLabel: '14:03',
+              isMine: false,
+              messageType: 'vote_card',
+              cardType: 'vote_card',
+              planId: '101',
+              voteId: '501',
+            ),
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('투표가 열렸어요'), findsOneWidget);
+    expect(find.text('제주도 여행 장소 투표가 열렸어요.'), findsOneWidget);
+    expect(find.text('투표 보기'), findsOneWidget);
+    expect(find.byIcon(Icons.how_to_vote_outlined), findsOneWidget);
+  });
 }

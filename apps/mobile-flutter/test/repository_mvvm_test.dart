@@ -22,6 +22,7 @@ import 'package:onmu_mobile/features/place/view_model/place_candidates_view_mode
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_create_view_model.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
+import 'package:onmu_mobile/features/settlement/view_model/settlement_view_model.dart';
 import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
@@ -620,6 +621,26 @@ void main() {
     expect(state.voteDescription, '등록된 투표 후보가 없어요');
   });
 
+  test('정산 ViewModel은 settlementId가 있으면 특정 정산을 조회한다', () async {
+    final repository = _TrackingSettlementRepository();
+    final container = ProviderContainer(
+      overrides: [settlementRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final settlement = await container.read(
+      settlementByIdViewModelProvider((
+        groupId: '1',
+        planId: '101',
+        settlementId: '301',
+      )).future,
+    );
+
+    expect(settlement.id, '301');
+    expect(repository.fetchLatestCalls, isZero);
+    expect(repository.fetchByIdCalls, ['1/101/301']);
+  });
+
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
     final repository = _FakeGroupRepository(
       sentMessage: const GroupMessage(
@@ -694,6 +715,41 @@ void main() {
     plansCompleter.complete(const []);
     votesCompleter.complete(const []);
     await pumpEventQueue();
+  });
+
+  test('채팅 ViewModel은 정산 카드 메시지 메타데이터를 유지한다', () async {
+    final repository = _FakeGroupRepository(
+      initialMessages: const [
+        GroupMessage(
+          id: 'settlement-card-1',
+          sender: 'ONMU',
+          message: '성수 브런치 정산이 만들어졌어요.',
+          timeLabel: '14:03',
+          messageType: 'settlement_card',
+          cardType: 'settlement',
+          planId: '101',
+          settlementId: '301',
+          isMine: false,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupChatViewModelProvider('1').future);
+
+    expect(state.messages.single.sender, 'ONMU');
+    expect(state.messages.single.isSettlementCard, isTrue);
+    expect(state.messages.single.planId, '101');
+    expect(state.messages.single.settlementId, '301');
+    expect(state.messages.single.hasSettlementRoute, isTrue);
   });
 
   test('채팅 ViewModel은 현재 약속의 진행 중 투표가 없으면 투표 카드를 숨긴다', () async {
@@ -2075,6 +2131,27 @@ class _UnusedSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -2095,7 +2172,7 @@ class _UnusedSettlementRepository implements SettlementRepository {
 
 class _ChatSettlementRepository implements SettlementRepository {
   static const _summary = SettlementSummary(
-    id: 301,
+    id: '301',
     planTitle: '테스트 약속',
     totalAmountLabel: '0원',
     createdDateLabel: '',
@@ -2128,6 +2205,23 @@ class _ChatSettlementRepository implements SettlementRepository {
   }) async => _summary;
 
   @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
+  }) async => _summary;
+
+  @override
   Future<SettlementSummary> previewSettlement({
     required Object groupId,
     required Object planId,
@@ -2140,6 +2234,30 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
   }) async => _summary;
+}
+
+class _TrackingSettlementRepository extends _ChatSettlementRepository {
+  final fetchByIdCalls = <String>[];
+  var fetchLatestCalls = 0;
+
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    fetchLatestCalls += 1;
+    return _ChatSettlementRepository._summary;
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    fetchByIdCalls.add('$groupId/$planId/$settlementId');
+    return _ChatSettlementRepository._summary;
+  }
 }
 
 class _VoteCountOnlyGroupRepository extends _EmptyGroupRepository {
@@ -2398,6 +2516,23 @@ class _FakePlaceRepository implements PlaceRepository {
     required Object planId,
     required PlaceCandidate candidate,
   }) async => candidate;
+
+  @override
+  Future<SchedulePlace> createSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required String name,
+    String note = '',
+  }) async => SchedulePlace(
+    id: '701',
+    groupId: groupId.toString(),
+    planId: planId.toString(),
+    candidateId: candidateId.toString(),
+    name: name,
+    note: note,
+    sortOrder: 1,
+  );
 
   @override
   Future<List<PlaceCandidate>> searchPlaces({

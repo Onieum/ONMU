@@ -2,8 +2,14 @@ package com.onmu.api.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onmu.api.domain.ChatActivityEventEntity;
+import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.NotificationEntity;
+import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.SettlementDraftEntity;
@@ -22,6 +28,7 @@ import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -47,6 +54,9 @@ public class SettlementApiService {
   private final SettlementItemRepository settlementItemRepository;
   private final SettlementItemTargetRepository settlementItemTargetRepository;
   private final SettlementTransferRepository settlementTransferRepository;
+  private final ChatActivityEventRepository chatActivityEventRepository;
+  private final GroupMemberRepository groupMemberRepository;
+  private final NotificationRepository notificationRepository;
   private final OutboxService outboxService;
   private final ObjectMapper objectMapper;
 
@@ -59,6 +69,9 @@ public class SettlementApiService {
     SettlementItemRepository settlementItemRepository,
     SettlementItemTargetRepository settlementItemTargetRepository,
     SettlementTransferRepository settlementTransferRepository,
+    ChatActivityEventRepository chatActivityEventRepository,
+    GroupMemberRepository groupMemberRepository,
+    NotificationRepository notificationRepository,
     OutboxService outboxService,
     ObjectMapper objectMapper
   ) {
@@ -70,6 +83,9 @@ public class SettlementApiService {
     this.settlementItemRepository = settlementItemRepository;
     this.settlementItemTargetRepository = settlementItemTargetRepository;
     this.settlementTransferRepository = settlementTransferRepository;
+    this.chatActivityEventRepository = chatActivityEventRepository;
+    this.groupMemberRepository = groupMemberRepository;
+    this.notificationRepository = notificationRepository;
     this.outboxService = outboxService;
     this.objectMapper = objectMapper;
   }
@@ -175,18 +191,116 @@ public class SettlementApiService {
         transfer.fromName() + " -> " + transfer.toName()
       ));
     }
+    createSettlementSideEffects(group, plan, settlement, itemViews, transfers);
     outboxService.record("settlement.created", "settlement", settlement.getId(), Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
       "settlementId", settlement.getPublicId()
     ));
-    outboxService.record("notification.requested", "settlement", settlement.getId(), Map.of(
+    return settlementSummaryCard(settlement.getPublicId(), plan, itemViews, transfers, false);
+  }
+
+  private void createSettlementSideEffects(
+    GroupEntity group,
+    PlanEntity plan,
+    SettlementEntity settlement,
+    List<ItemView> itemViews,
+    List<TransferView> transfers
+  ) {
+    UserEntity actor = currentUser();
+    Map<String, Object> activityPayload = settlementActivityPayload(plan, settlement, itemViews, transfers);
+    chatActivityEventRepository.save(new ChatActivityEventEntity(
+      group,
+      plan,
+      actor,
+      "settlement.created",
+      toJson(activityPayload),
+      Instant.now()
+    ));
+
+    Map<UUID, UserEntity> recipients = settlementRecipients(group, itemViews);
+    if (recipients.isEmpty()) {
+      return;
+    }
+
+    Instant createdAt = Instant.now();
+    String notificationPayload = toJson(Map.of(
       "groupId", group.getPublicId(),
       "planId", plan.getPublicId(),
       "settlementId", settlement.getPublicId(),
-      "channel", "activity"
+      "notificationType", "settlement_created"
     ));
-    return settlementSummaryCard(settlement.getPublicId(), plan, itemViews, transfers, false);
+    for (UserEntity recipient : recipients.values()) {
+      NotificationEntity notification = notificationRepository.save(new NotificationEntity(
+        recipient,
+        group,
+        plan,
+        "settlement_created",
+        plan.getTitle() + " 정산이 만들어졌어요",
+        "약속 정산 결과를 확인해 주세요.",
+        notificationPayload,
+        "queued",
+        null,
+        createdAt
+      ));
+      outboxService.record("notification.requested", "notification", notification.getId(), Map.of(
+        "groupId", group.getPublicId(),
+        "planId", plan.getPublicId(),
+        "settlementId", settlement.getPublicId(),
+        "notificationId", notification.getId().toString(),
+        "notificationType", notification.getNotificationType(),
+        "channels", List.of("push")
+      ));
+    }
+  }
+
+  private Map<String, Object> settlementActivityPayload(
+    PlanEntity plan,
+    SettlementEntity settlement,
+    List<ItemView> itemViews,
+    List<TransferView> transfers
+  ) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("senderName", "ONMU");
+    payload.put("message", plan.getTitle() + " 정산이 만들어졌어요.");
+    payload.put("messageType", "settlement_card");
+    payload.put("cardType", "settlement");
+    payload.put("planId", plan.getPublicId());
+    payload.put("settlementId", settlement.getPublicId());
+    payload.put("itemCount", itemViews.size());
+    payload.put("transferCount", transfers.size());
+    payload.put("totalAmountLabel", amountLabel(itemViews.stream().map(ItemView::amountCents).reduce(0L, Long::sum)));
+    payload.put("source", "spring_api");
+    return payload;
+  }
+
+  private Map<UUID, UserEntity> settlementRecipients(GroupEntity group, List<ItemView> itemViews) {
+    Map<UUID, UserEntity> recipients = new LinkedHashMap<>();
+    for (ItemView itemView : itemViews) {
+      for (PayerShare payerShare : itemView.payerShares()) {
+        putRecipient(recipients, payerShare.user());
+      }
+      for (TargetShare targetShare : itemView.targets()) {
+        putRecipient(recipients, targetShare.user());
+      }
+    }
+    if (!recipients.isEmpty()) {
+      return recipients;
+    }
+    for (GroupMemberEntity member : groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)) {
+      if (member.getLeftAt() == null && !"left".equals(member.getStatus())) {
+        putRecipient(recipients, member.getUser());
+      }
+    }
+    putRecipient(recipients, group.getOwnerUser());
+    return recipients;
+  }
+
+  private void putRecipient(Map<UUID, UserEntity> recipients, UserEntity user) {
+    if (user == null || user.getId() == null) {
+      return;
+    }
+    recipients.putIfAbsent(user.getId(), user);
   }
 
   @Transactional(readOnly = true)

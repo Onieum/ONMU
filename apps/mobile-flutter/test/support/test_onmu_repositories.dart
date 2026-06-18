@@ -61,6 +61,7 @@ ProviderScope onmuTestProviderScope({
   required Widget child,
   AuthUser? user,
   GroupRepository? groupRepository,
+  SettlementRepository? settlementRepository,
   FriendRepository? friendRepository,
   MyRepository? myRepository,
   RecordRepository? recordRepository,
@@ -78,7 +79,7 @@ ProviderScope onmuTestProviderScope({
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
       settlementRepositoryProvider.overrideWithValue(
-        TestSettlementRepository(store),
+        settlementRepository ?? TestSettlementRepository(store),
       ),
       notificationRepositoryProvider.overrideWithValue(
         TestNotificationRepository(store),
@@ -691,6 +692,25 @@ class TestPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<SchedulePlace> createSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required String name,
+    String note = '',
+  }) async {
+    return SchedulePlace(
+      id: '701',
+      groupId: groupId.toString(),
+      planId: planId.toString(),
+      candidateId: candidateId.toString(),
+      name: name,
+      note: note,
+      sortOrder: 1,
+    );
+  }
+
+  @override
   Future<List<PlaceCandidate>> fetchCandidates({
     required Object groupId,
     required Object planId,
@@ -734,6 +754,27 @@ class TestSettlementRepository implements SettlementRepository {
   Future<SettlementSummary> fetchSettlementDraft({
     required Object groupId,
     required Object planId,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraft({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftItemTargets({
+    required Object groupId,
+    required Object planId,
+    required Object itemId,
+    required List<String> targetUserIds,
+    required List<String> targetNames,
   }) async {
     return fetchSettlement(groupId: groupId, planId: planId);
   }
