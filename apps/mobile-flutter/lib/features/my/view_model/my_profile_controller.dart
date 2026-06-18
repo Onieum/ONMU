@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 
 import '../../../shared/models/character_model.dart';
 import '../../../shared/providers/state_providers.dart';
@@ -26,9 +27,14 @@ class MyProfileController {
     if (currentUser != null && nickname.isNotEmpty) {
       _ref.read(authUserProvider.notifier).state = currentUser.copyWith(
         nickname: nickname,
+        profileImageUrl: updated.profileImageUrl,
       );
     }
     _ref.invalidate(myProfileProvider);
+  }
+
+  Future<String> uploadProfileImage(Uint8List bytes, String fileName) {
+    return _ref.read(myRepositoryProvider).uploadProfileImage(bytes, fileName);
   }
 
   Future<void> saveCharacter(CharacterDraft draft) async {

@@ -153,6 +153,11 @@ class TestMyRepository implements MyRepository {
     lastOnboardingStatus = onboardingStatus;
     return _profile;
   }
+
+  @override
+  Future<String> uploadProfileImage(Uint8List bytes, String fileName) async {
+    return 'https://example.test/$fileName';
+  }
 }
 
 class TestFriendRepository implements FriendRepository {

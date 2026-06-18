@@ -230,6 +230,8 @@ class _SettingsDetailPage extends ConsumerWidget {
   Widget _buildContent(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authUserProvider);
     final profile = ref.watch(myProfileProvider).value ?? _emptyProfile();
+    final settings =
+        ref.watch(settingsViewModelProvider).value ?? SettingsState.initial();
     final email = authUser?.email?.trim();
     final providerLabel = _loginProviderLabel(authUser?.provider);
 
@@ -242,17 +244,57 @@ class _SettingsDetailPage extends ConsumerWidget {
               _SettingsValueRow(
                 label: '이메일',
                 value: email == null || email.isEmpty ? '등록된 이메일 없음' : email,
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '이메일',
+                  description: email == null || email.isEmpty
+                      ? '현재 로그인 계정에서 이메일 정보를 제공하지 않았어요.'
+                      : email,
+                ),
               ),
-              const _SettingsValueRow(label: '휴대폰 번호', value: '로그인 정보에 없음'),
-              _SettingsValueRow(label: '로그인 방식', value: providerLabel),
+              _SettingsValueRow(
+                label: '휴대폰 번호',
+                value: '로그인 정보에 없음',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '휴대폰 번호',
+                  description: '현재 로그인 응답에 휴대폰 번호가 포함되어 있지 않아요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '로그인 방식',
+                value: providerLabel,
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '로그인 방식',
+                  description: '현재 계정은 $providerLabel으로 로그인되어 있어요.',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 34),
           _SettingsSection(
             title: '계정 관리',
             rows: [
-              _SettingsIconValueRow(label: '연결된 계정', value: providerLabel),
-              const _SettingsValueRow(label: '계정 삭제', value: '현재 계정 1개 연결'),
+              _SettingsIconValueRow(
+                label: '연결된 계정',
+                value: providerLabel,
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '연결된 계정',
+                  description: '현재 연결된 계정은 $providerLabel 1개예요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '계정 삭제',
+                value: '현재 계정 1개 연결',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '계정 삭제',
+                  description:
+                      '현재 연결된 계정이 1개라 앱에서 바로 삭제할 수 없어요. 추가 계정 연결 후 삭제할 수 있어요.',
+                ),
+              ),
             ],
           ),
         ],
@@ -265,6 +307,7 @@ class _SettingsDetailPage extends ConsumerWidget {
               _SettingsValueRow(
                 label: '프로필 공개 범위',
                 value: profile.visibility.label,
+                onTap: () => _showVisibilitySheet(context, ref, profile),
               ),
               const _SettingsSwitchRow(
                 label: '검색 허용',
@@ -274,17 +317,33 @@ class _SettingsDetailPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 34),
-          const _SettingsSection(
+          _SettingsSection(
             title: '보안',
             rows: [
-              _SettingsValueRow(label: '로그인 기기 관리', value: '현재 기기'),
-              _SettingsValueRow(label: '2단계 인증', value: '미설정'),
+              _SettingsValueRow(
+                label: '로그인 기기 관리',
+                value: '현재 기기',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '로그인 기기 관리',
+                  description: '현재 로그인된 기기에서 이 세션을 사용 중이에요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '2단계 인증',
+                value: '미설정',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '2단계 인증',
+                  description: '현재 계정은 소셜 로그인 기반 인증 상태를 사용하고 있어요.',
+                ),
+              ),
             ],
           ),
         ],
       ),
       _SettingsDetailType.notification => Column(
-        children: const [
+        children: [
           _SettingsSection(
             title: '푸시 알림',
             rows: [
@@ -311,64 +370,359 @@ class _SettingsDetailPage extends ConsumerWidget {
               ),
             ],
           ),
-          SizedBox(height: 34),
+          const SizedBox(height: 34),
           _SettingsSection(
             title: '알림 시간 설정',
             rows: [
-              _SettingsValueRow(label: '조용한 시간', value: '오후 10:00 ~ 오전 8:00'),
+              _SettingsValueRow(
+                label: '조용한 시간',
+                value: settings.quietHours,
+                onTap: () => _showChoiceSheet<String>(
+                  context,
+                  title: '조용한 시간',
+                  selected: settings.quietHours,
+                  options: const [
+                    '오후 10:00 ~ 오전 8:00',
+                    '오후 11:00 ~ 오전 7:00',
+                    '사용 안 함',
+                  ],
+                  labelFor: (value) => value,
+                  onSelected: (value) => ref
+                      .read(settingsViewModelProvider.notifier)
+                      .setQuietHours(value),
+                ),
+              ),
             ],
           ),
         ],
       ),
       _SettingsDetailType.app => Column(
-        children: const [
+        children: [
           _SettingsSection(
             title: '화면 설정',
             rows: [
-              _SettingsValueRow(label: '테마', value: '라이트 모드'),
-              _SettingsSwitchRow(label: '다크 모드', initialValue: false),
-              _SettingsValueRow(label: '글자 크기', value: '보통'),
+              _SettingsValueRow(
+                label: '테마',
+                value: settings.theme,
+                onTap: () => _showChoiceSheet<String>(
+                  context,
+                  title: '테마',
+                  selected: settings.theme,
+                  options: const ['라이트 모드', '시스템 설정 따름'],
+                  labelFor: (value) => value,
+                  onSelected: (value) => ref
+                      .read(settingsViewModelProvider.notifier)
+                      .setTheme(value),
+                ),
+              ),
+              const _SettingsSwitchRow(label: '다크 모드', initialValue: false),
+              _SettingsValueRow(
+                label: '글자 크기',
+                value: settings.fontSize,
+                onTap: () => _showChoiceSheet<String>(
+                  context,
+                  title: '글자 크기',
+                  selected: settings.fontSize,
+                  options: const ['작게', '보통', '크게'],
+                  labelFor: (value) => value,
+                  onSelected: (value) => ref
+                      .read(settingsViewModelProvider.notifier)
+                      .setFontSize(value),
+                ),
+              ),
             ],
           ),
-          SizedBox(height: 34),
+          const SizedBox(height: 34),
           _SettingsSection(
             title: '언어 설정',
-            rows: [_SettingsValueRow(label: '언어', value: '한국어')],
+            rows: [
+              _SettingsValueRow(
+                label: '언어',
+                value: settings.language,
+                onTap: () => _showChoiceSheet<String>(
+                  context,
+                  title: '언어',
+                  selected: settings.language,
+                  options: const ['한국어', 'English'],
+                  labelFor: (value) => value,
+                  onSelected: (value) => ref
+                      .read(settingsViewModelProvider.notifier)
+                      .setLanguage(value),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 34),
+          const SizedBox(height: 34),
           _SettingsSection(
             title: '기타 설정',
             rows: [
-              _SettingsValueRow(label: '캐시 삭제', value: '12.5 MB'),
-              _SettingsValueRow(label: '앱 정보', value: 'v1.2.0'),
+              _SettingsValueRow(
+                label: '캐시 삭제',
+                value: settings.cacheSize,
+                onTap: () => _confirmClearCache(context, ref),
+              ),
+              _SettingsValueRow(
+                label: '앱 정보',
+                value: 'v1.2.0',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '앱 정보',
+                  description: 'ONMU Mobile v1.2.0',
+                ),
+              ),
             ],
           ),
         ],
       ),
       _SettingsDetailType.support => Column(
-        children: const [
+        children: [
           _SettingsSection(
             title: '도움말',
             rows: [
-              _SettingsValueRow(label: '고객센터'),
-              _SettingsValueRow(label: '자주 묻는 질문 (FAQ)'),
-              _SettingsValueRow(label: '문의하기'),
-              _SettingsValueRow(label: '의견 보내기'),
+              _SettingsValueRow(
+                label: '고객센터',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '고객센터',
+                  description: '앱 이용 중 불편한 점은 팀 운영 채널로 문의해 주세요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '자주 묻는 질문 (FAQ)',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '자주 묻는 질문',
+                  description: '계정, 친구 추가, 프로필 공개 범위, 알림 설정을 이 화면에서 확인할 수 있어요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '문의하기',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '문의하기',
+                  description: '오류 화면, 계정 정보, 발생 시간을 함께 전달하면 더 빠르게 확인할 수 있어요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '의견 보내기',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '의견 보내기',
+                  description: 'ONMU에서 개선되면 좋을 점을 팀에 공유해 주세요.',
+                ),
+              ),
             ],
           ),
-          SizedBox(height: 34),
+          const SizedBox(height: 34),
           _SettingsSection(
             title: '이용약관 및 정책',
             rows: [
-              _SettingsValueRow(label: '이용약관'),
-              _SettingsValueRow(label: '개인정보 처리방침'),
-              _SettingsValueRow(label: '위치기반 서비스 이용약관'),
-              _SettingsValueRow(label: '오픈소스 라이선스'),
+              _SettingsValueRow(
+                label: '이용약관',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '이용약관',
+                  description: 'ONMU 서비스 이용과 계정 관리에 관한 기본 약관이에요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '개인정보 처리방침',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '개인정보 처리방침',
+                  description: '프로필, 친구, 취향 정보는 서비스 제공 목적에 맞춰 처리돼요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '위치기반 서비스 이용약관',
+                onTap: () => _showInfoSheet(
+                  context,
+                  title: '위치기반 서비스 이용약관',
+                  description: '위치 정보는 사용자가 공개한 지역 설정과 장소 추천 흐름에 사용돼요.',
+                ),
+              ),
+              _SettingsValueRow(
+                label: '오픈소스 라이선스',
+                onTap: () => showLicensePage(
+                  context: context,
+                  applicationName: 'ONMU',
+                  applicationVersion: '1.2.0',
+                ),
+              ),
             ],
           ),
         ],
       ),
     };
+  }
+
+  Future<void> _showInfoSheet(
+    BuildContext context, {
+    required String title,
+    required String description,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: AppColors.textMain,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                description,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSub,
+                  fontWeight: FontWeight.w700,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showChoiceSheet<T>(
+    BuildContext context, {
+    required String title,
+    required T selected,
+    required List<T> options,
+    required String Function(T value) labelFor,
+    required ValueChanged<T> onSelected,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.titleLarge.copyWith(
+                  color: AppColors.textMain,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 14),
+              for (final option in options)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    labelFor(option),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textMain,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  trailing: option == selected
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: AppColors.primaryPink,
+                        )
+                      : null,
+                  onTap: () {
+                    onSelected(option);
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showVisibilitySheet(
+    BuildContext context,
+    WidgetRef ref,
+    MyProfile profile,
+  ) {
+    return _showChoiceSheet<ProfileVisibility>(
+      context,
+      title: '프로필 공개 범위',
+      selected: profile.visibility,
+      options: ProfileVisibility.values,
+      labelFor: (value) => value.label,
+      onSelected: (value) async {
+        final messenger = ScaffoldMessenger.of(context);
+        try {
+          await ref
+              .read(settingsViewModelProvider.notifier)
+              .updateProfileVisibility(profile, value);
+          messenger.showSnackBar(
+            SnackBar(content: Text('프로필 공개 범위를 ${value.label}(으)로 변경했어요.')),
+          );
+        } catch (_) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('프로필 공개 범위 변경에 실패했어요.')),
+          );
+        }
+      },
+    );
+  }
+
+  Future<void> _confirmClearCache(BuildContext context, WidgetRef ref) async {
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('캐시 삭제'),
+        content: const Text('임시 이미지와 화면 캐시 표시값을 초기화할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldClear != true) {
+      return;
+    }
+    ref.read(settingsViewModelProvider.notifier).clearCache();
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('캐시를 삭제했어요.')));
+    }
   }
 }
 
@@ -610,41 +964,52 @@ class _RegionVisibilitySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          value.isPublic ? Icons.visibility_outlined : Icons.lock_outline,
-          color: AppColors.textSub,
-          size: 20,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            '공개 범위',
-            style: AppTextStyles.labelLarge.copyWith(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w800,
+        Row(
+          children: [
+            Icon(
+              value.isPublic ? Icons.visibility_outlined : Icons.lock_outline,
+              color: AppColors.textSub,
+              size: 20,
             ),
-          ),
-        ),
-        SegmentedButton<RegionVisibility>(
-          showSelectedIcon: false,
-          style: SegmentedButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            selectedBackgroundColor: AppColors.primaryPinkSoft,
-            selectedForegroundColor: AppColors.primaryPurple,
-            foregroundColor: AppColors.textSub,
-            side: const BorderSide(color: AppColors.lineSoft),
-            textStyle: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w800,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '친구에게 지역 공개',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.textMain,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-          segments: const [
-            ButtonSegment(value: RegionVisibility.private, label: Text('비공개')),
-            ButtonSegment(value: RegionVisibility.public, label: Text('공개')),
+            SegmentedButton<RegionVisibility>(
+              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                selectedBackgroundColor: AppColors.primaryPinkSoft,
+                selectedForegroundColor: AppColors.primaryPurple,
+                foregroundColor: AppColors.textSub,
+                side: const BorderSide(color: AppColors.lineSoft),
+                textStyle: AppTextStyles.labelMedium.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              segments: const [
+                ButtonSegment(
+                  value: RegionVisibility.private,
+                  label: Text('비공개'),
+                ),
+                ButtonSegment(
+                  value: RegionVisibility.public,
+                  label: Text('공개'),
+                ),
+              ],
+              selected: {value},
+              onSelectionChanged: (selection) => onChanged(selection.first),
+            ),
           ],
-          selected: {value},
-          onSelectionChanged: (selection) => onChanged(selection.first),
         ),
       ],
     );
@@ -803,15 +1168,16 @@ class _SettingsSection extends StatelessWidget {
 }
 
 class _SettingsValueRow extends StatelessWidget {
-  const _SettingsValueRow({required this.label, this.value});
+  const _SettingsValueRow({required this.label, this.value, this.onTap});
 
   final String label;
   final String? value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
@@ -847,15 +1213,16 @@ class _SettingsValueRow extends StatelessWidget {
 }
 
 class _SettingsIconValueRow extends StatelessWidget {
-  const _SettingsIconValueRow({required this.label, this.value});
+  const _SettingsIconValueRow({required this.label, this.value, this.onTap});
 
   final String label;
   final String? value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
         child: Row(
@@ -1213,6 +1580,7 @@ class _ProfileEditResult {
   const _ProfileEditResult({
     required this.realName,
     required this.introText,
+    required this.profileImageUrl,
     required this.region,
     required this.regionSelection,
     required this.regionVisibility,
@@ -1222,6 +1590,7 @@ class _ProfileEditResult {
 
   final String realName;
   final String introText;
+  final String profileImageUrl;
   final String region;
   final KoreaRegionSelection regionSelection;
   final RegionVisibility regionVisibility;
@@ -1282,4 +1651,4 @@ enum _ProfileDetailSection {
   final String title;
 }
 
-enum _ProfilePhotoOption { character }
+enum _ProfilePhotoOption { gallery, camera, character }
