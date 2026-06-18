@@ -276,6 +276,16 @@ class _FailingNotificationRepository implements NotificationRepository {
   ) async {
     throw Exception('network failed');
   }
+
+  @override
+  Future<void> acceptFriendRequest(String requestId) async {
+    throw Exception('network failed');
+  }
+
+  @override
+  Future<void> declineFriendRequest(String requestId) async {
+    throw Exception('network failed');
+  }
 }
 
 String _localTimeLabel(String value) {
@@ -337,6 +347,12 @@ class _StaticNotificationRepository implements NotificationRepository {
   ) async {
     return NotificationPreferences(items: preferences);
   }
+
+  @override
+  Future<void> acceptFriendRequest(String requestId) async {}
+
+  @override
+  Future<void> declineFriendRequest(String requestId) async {}
 }
 
 class _MutableNotificationRepository implements NotificationRepository {
@@ -410,4 +426,10 @@ class _MutableNotificationRepository implements NotificationRepository {
   ) async {
     return NotificationPreferences(items: preferences);
   }
+
+  @override
+  Future<void> acceptFriendRequest(String requestId) async {}
+
+  @override
+  Future<void> declineFriendRequest(String requestId) async {}
 }

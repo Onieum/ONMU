@@ -7,12 +7,14 @@ class _FriendsTab extends StatefulWidget {
     required this.onOpenAddFriend,
     required this.onFriendTap,
     required this.onToggleFavorite,
+    required this.onUpdateMemo,
   });
 
   final List<FriendProfile> friends;
   final VoidCallback onOpenAddFriend;
   final ValueChanged<FriendProfile> onFriendTap;
   final ValueChanged<FriendProfile> onToggleFavorite;
+  final Future<void> Function(FriendProfile friend, String memo) onUpdateMemo;
 
   @override
   State<_FriendsTab> createState() => _FriendsTabState();
@@ -77,27 +79,21 @@ class _FriendsTabState extends State<_FriendsTab> {
               ),
             ),
             const SizedBox(width: 12),
-            Transform.translate(
-              offset: const Offset(0, -8.5),
-              child: SizedBox(
-                width: 56,
-                height: 40,
-                child: FilledButton(
-                  onPressed: widget.onOpenAddFriend,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
-                    foregroundColor: AppColors.textInverse,
-                    fixedSize: const Size(40, 40),
-                    minimumSize: const Size(40, 40),
-                    maximumSize: const Size(40, 40),
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+            SizedBox(
+              width: 62,
+              height: 56,
+              child: FilledButton(
+                onPressed: widget.onOpenAddFriend,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryPink,
+                  foregroundColor: AppColors.textInverse,
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.person_add_alt_1, size: 25),
                 ),
+                child: const Icon(Icons.person_add_alt_1, size: 25),
               ),
             ),
           ],
@@ -176,11 +172,6 @@ class _FriendsTabState extends State<_FriendsTab> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.textSub,
-                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -188,6 +179,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                 _FriendListTile(
                   friend: friend,
                   onTap: () => widget.onFriendTap(friend),
+                  onUpdateMemo: widget.onUpdateMemo,
                 ),
                 if (friend != _filteredFriends.last)
                   const Divider(height: 1, color: AppColors.lineSoft),
@@ -846,10 +838,15 @@ class _FavoriteFriendCandidateTile extends StatelessWidget {
 }
 
 class _FriendListTile extends StatelessWidget {
-  const _FriendListTile({required this.friend, required this.onTap});
+  const _FriendListTile({
+    required this.friend,
+    required this.onTap,
+    required this.onUpdateMemo,
+  });
 
   final FriendProfile friend;
   final VoidCallback onTap;
+  final Future<void> Function(FriendProfile friend, String memo) onUpdateMemo;
 
   @override
   Widget build(BuildContext context) {
@@ -878,7 +875,9 @@ class _FriendListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    friend.memo,
+                    friend.memo.trim().characters.take(10).toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSub,
                     ),
@@ -889,7 +888,7 @@ class _FriendListTile extends StatelessWidget {
             Expanded(
               flex: 4,
               child: Text(
-                friend.preferenceSummary,
+                friend.introText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
@@ -900,6 +899,17 @@ class _FriendListTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                color: AppColors.textSub,
+                size: 22,
+              ),
+              onPressed: () => _showFriendMemoDialog(context),
+            ),
             const Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textSub,
@@ -909,5 +919,42 @@ class _FriendListTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showFriendMemoDialog(BuildContext context) async {
+    final controller = TextEditingController(text: friend.memo.trim());
+    final messenger = ScaffoldMessenger.of(context);
+    final memo = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('친구 메모'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 10,
+          decoration: const InputDecoration(hintText: '10자 이내 메모'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (memo == null) {
+      return;
+    }
+    try {
+      await onUpdateMemo(friend, memo.characters.take(10).toString());
+      messenger.showSnackBar(const SnackBar(content: Text('친구 메모를 저장했어요.')));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('친구 메모 저장에 실패했어요.')));
+    }
   }
 }

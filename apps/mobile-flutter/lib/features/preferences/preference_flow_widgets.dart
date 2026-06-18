@@ -219,6 +219,9 @@ class _PreferenceBottomCta extends StatelessWidget {
                     backgroundColor: isStart
                         ? AppColors.primaryPink
                         : AppColors.primaryPurple,
+                    textStyle: AppTextStyles.labelSmall.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   child: Text(buttonLabel),
                 ),
@@ -231,8 +234,9 @@ class _PreferenceBottomCta extends StatelessWidget {
               onPressed: onReturnToStart,
               child: Text(
                 '첫 설정 페이지로 돌아가기',
-                style: AppTextStyles.labelLarge.copyWith(
+                style: AppTextStyles.labelSmall.copyWith(
                   color: AppColors.textSub,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
