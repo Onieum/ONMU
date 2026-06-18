@@ -21,6 +21,9 @@ typedef PlaceSearchScope = ({
   String planId,
   String query,
   String? category,
+  double? lat,
+  double? lng,
+  int? radius,
 });
 
 final placeCandidatesViewModelProvider =
@@ -50,6 +53,9 @@ final placeSearchResultsProvider =
             planId: scope.planId,
             query: query,
             category: scope.category,
+            lat: scope.lat,
+            lng: scope.lng,
+            radius: scope.radius,
           );
     });
 

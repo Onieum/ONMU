@@ -175,4 +175,56 @@ void main() {
     expect(saved.priceLabel, '');
     expect(saved.openingLabel, '');
   });
+
+  test('sends map center and radius to place search', () async {
+    final requestedBodies = <Map<String, dynamic>>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'results': [
+                  {
+                    'id': '301',
+                    'name': '성수 지도 카페',
+                    'category': '카페',
+                    'provider': 'NAVER',
+                    'providerPlaceId': 'naver-301',
+                    'lat': 37.544,
+                    'lng': 127.055,
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiPlaceRepository(OnmuApiClient(dio));
+
+    final results = await repository.searchPlaces(
+      groupId: 1,
+      planId: 104,
+      query: '성수 카페',
+      category: '카페',
+      lat: 37.544,
+      lng: 127.055,
+      radius: 1500,
+    );
+
+    expect(requestedBodies.single, {
+      'groupId': '1',
+      'planId': '104',
+      'query': '성수 카페',
+      'lat': 37.544,
+      'lng': 127.055,
+      'radius': 1500,
+      'category': '카페',
+    });
+    expect(results.single.name, '성수 지도 카페');
+  });
 }

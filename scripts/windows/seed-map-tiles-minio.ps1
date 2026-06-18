@@ -244,14 +244,101 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
-        id = "roads"
+        id = "roads-casing"
         type = "line"
         source = "protomaps"
         "source-layer" = "roads"
+        minzoom = 8
+        filter = @("!=", "kind", "path")
         paint = [ordered]@{
-          "line-color" = "#F4A6A2"
-          "line-width" = @("interpolate", @("linear"), @("zoom"), 5, 0.25, 10, 0.9, 14, 2.2)
-          "line-opacity" = 0.78
+          "line-color" = "#FFFFFF"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 8, 0.9, 12, 2.6, 15, 5.4)
+          "line-opacity" = @("interpolate", @("linear"), @("zoom"), 8, 0.3, 12, 0.72, 15, 0.86)
+        }
+      },
+      [ordered]@{
+        id = "roads-major"
+        type = "line"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 5
+        filter = @(
+          "any",
+          @("in", "kind", "highway", "major_road", "trunk", "primary", "secondary"),
+          @("in", "kind_detail", "motorway", "trunk", "primary", "secondary")
+        )
+        paint = [ordered]@{
+          "line-color" = "#E98A86"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 5, 0.35, 10, 1.15, 14, 3.4, 16, 5.8)
+          "line-opacity" = 0.86
+        }
+      },
+      [ordered]@{
+        id = "roads-minor"
+        type = "line"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 11
+        filter = @(
+          "all",
+          @("!=", "kind", "path"),
+          @("!=", "kind", "highway"),
+          @("!=", "kind_detail", "motorway")
+        )
+        paint = [ordered]@{
+          "line-color" = "#F4B7AD"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 11, 0.55, 14, 1.35, 16, 2.6)
+          "line-opacity" = @("interpolate", @("linear"), @("zoom"), 11, 0.45, 14, 0.72)
+        }
+      },
+      [ordered]@{
+        id = "roads-paths"
+        type = "line"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 13
+        filter = @("==", "kind", "path")
+        paint = [ordered]@{
+          "line-color" = "#C9B4A6"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 13, 0.45, 16, 1.2)
+          "line-opacity" = 0.55
+          "line-dasharray" = @(1.2, 1.2)
+        }
+      },
+      [ordered]@{
+        id = "transit-rail"
+        type = "line"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 10
+        filter = @(
+          "any",
+          @("in", "kind", "rail", "railway", "subway", "light_rail"),
+          @("in", "kind_detail", "rail", "subway", "light_rail")
+        )
+        paint = [ordered]@{
+          "line-color" = "#84B6D8"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 10, 0.45, 13, 1.1, 16, 2.0)
+          "line-opacity" = 0.72
+        }
+      },
+      [ordered]@{
+        id = "road-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 13
+        layout = [ordered]@{
+          "symbol-placement" = "line"
+          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
+          "text-font" = @("Open Sans Regular")
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 13, 9, 16, 11)
+          "text-padding" = 2
+        }
+        paint = [ordered]@{
+          "text-color" = "#8A6356"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1
         }
       },
       [ordered]@{
@@ -277,20 +364,70 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
-        id = "places"
+        id = "place-city-labels"
         type = "symbol"
         source = "protomaps"
         "source-layer" = "places"
         minzoom = 5
+        filter = @(
+          "any",
+          @("in", "kind", "country", "region", "county", "locality", "municipality", "city", "town"),
+          @("in", "kind_detail", "city", "town", "locality")
+        )
         layout = [ordered]@{
           "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
           "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 5, 10, 12, 14)
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 5, 10, 10, 13, 14, 15)
+          "text-padding" = 4
         }
         paint = [ordered]@{
           "text-color" = "#4C3A35"
           "text-halo-color" = "#FFF8F0"
           "text-halo-width" = 1.2
+        }
+      },
+      [ordered]@{
+        id = "place-neighborhood-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "places"
+        minzoom = 11
+        filter = @(
+          "any",
+          @("in", "kind", "neighbourhood", "neighborhood", "suburb", "quarter", "village"),
+          @("in", "kind_detail", "neighbourhood", "neighborhood", "suburb", "quarter", "village")
+        )
+        layout = [ordered]@{
+          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
+          "text-font" = @("Open Sans Regular")
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 11, 10, 14, 12)
+          "text-padding" = 4
+        }
+        paint = [ordered]@{
+          "text-color" = "#6D5248"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.1
+        }
+      },
+      [ordered]@{
+        id = "poi-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "pois"
+        minzoom = 14
+        layout = [ordered]@{
+          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
+          "text-font" = @("Open Sans Regular")
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 14, 9, 16, 11)
+          "text-padding" = 4
+          "text-offset" = @(0, 0.4)
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#7A6258"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.1
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 14, 0.58, 16, 0.82)
         }
       }
     )

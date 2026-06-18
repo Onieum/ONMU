@@ -77,19 +77,27 @@ class RouteRecommendation {
     required this.provider,
     required this.stops,
     required this.geometry,
+    required this.legs,
     required this.distanceMeters,
     required this.durationSeconds,
     required this.travelMode,
+    required this.liveProvider,
+    required this.fallbackReason,
     required this.fetchedAt,
   });
 
   final String provider;
   final List<OnmuMapPoint> stops;
   final List<OnmuLatLng> geometry;
+  final List<RouteLeg> legs;
   final int distanceMeters;
   final int durationSeconds;
   final String travelMode;
+  final bool liveProvider;
+  final String fallbackReason;
   final DateTime? fetchedAt;
+
+  bool get isFallback => !liveProvider || provider == 'dev-mock';
 
   factory RouteRecommendation.fromJson(Map<String, dynamic> json) {
     final stops = _asMapList(json['stops']);
@@ -118,9 +126,23 @@ class RouteRecommendation {
               lng: _readDouble(point[0], 126.9780),
             ),
       ],
+      legs: [
+        for (final leg in _asMapList(json['legs']))
+          RouteLeg(
+            order: _readInt(leg['order']),
+            fromStopId: _readString(leg['fromStopId']),
+            toStopId: _readString(leg['toStopId']),
+            fromName: _readString(leg['fromName']),
+            toName: _readString(leg['toName']),
+            distanceMeters: _readNullableInt(leg['distanceMeters']),
+            durationSeconds: _readNullableInt(leg['durationSeconds']),
+          ),
+      ],
       distanceMeters: _readInt(json['distanceMeters'], 0),
       durationSeconds: _readInt(json['durationSeconds'], 0),
       travelMode: _readString(json['travelMode'], 'walk'),
+      liveProvider: _readBool(json['liveProvider'], false),
+      fallbackReason: _readString(json['fallbackReason']),
       fetchedAt: DateTime.tryParse(_readString(json['fetchedAt'])),
     );
   }
@@ -152,10 +174,54 @@ class RouteRecommendation {
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
+  static int? _readNullableInt(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value?.toString() ?? '');
+  }
+
   static double _readDouble(Object? value, [double fallback = 0]) {
     if (value is num) {
       return value.toDouble();
     }
     return double.tryParse(value?.toString() ?? '') ?? fallback;
   }
+
+  static bool _readBool(Object? value, [bool fallback = false]) {
+    if (value is bool) {
+      return value;
+    }
+    final text = value?.toString().toLowerCase();
+    if (text == 'true') {
+      return true;
+    }
+    if (text == 'false') {
+      return false;
+    }
+    return fallback;
+  }
+}
+
+class RouteLeg {
+  const RouteLeg({
+    required this.order,
+    required this.fromStopId,
+    required this.toStopId,
+    required this.fromName,
+    required this.toName,
+    this.distanceMeters,
+    this.durationSeconds,
+  });
+
+  final int order;
+  final String fromStopId;
+  final String toStopId;
+  final String fromName;
+  final String toName;
+  final int? distanceMeters;
+  final int? durationSeconds;
 }

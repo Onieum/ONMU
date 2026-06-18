@@ -24,7 +24,13 @@ class OpenRouteServiceMapperTests {
               "summary": {
                 "distance": 1234.5,
                 "duration": 456.7
-              }
+              },
+              "segments": [
+                {
+                  "distance": 1234.5,
+                  "duration": 456.7
+                }
+              ]
             }
           }
         ]
@@ -45,5 +51,10 @@ class OpenRouteServiceMapperTests {
     assertThat(route.distanceMeters()).isEqualTo(1234.5);
     assertThat(route.durationSeconds()).isEqualTo(456.7);
     assertThat(route.travelMode()).isEqualTo(RouteTravelMode.WALK);
+    assertThat(route.legs()).hasSize(1);
+    assertThat(route.legs().getFirst().fromName()).isEqualTo("Start");
+    assertThat(route.legs().getFirst().toName()).isEqualTo("End");
+    assertThat(route.legs().getFirst().distanceMeters()).isEqualTo(1234.5);
+    assertThat(route.legs().getFirst().durationSeconds()).isEqualTo(456.7);
   }
 }

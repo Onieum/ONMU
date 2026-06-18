@@ -5,8 +5,8 @@ import java.util.List;
 
 public record PlaceSearchRequest(
   @NotBlank String query,
-  String groupId,
-  String planId,
+  @NotBlank String groupId,
+  @NotBlank String planId,
   Double lat,
   Double lng,
   Integer radius,

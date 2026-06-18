@@ -4,10 +4,11 @@ import 'package:onmu_mobile/features/map/model/map_models.dart';
 void main() {
   test('maps route recommendation response geometry as lng lat pairs', () {
     final route = RouteRecommendation.fromJson({
-      'provider': 'dev-mock',
+      'provider': 'openrouteservice',
       'travelMode': 'bike',
       'distanceMeters': 1234,
       'durationSeconds': 300,
+      'liveProvider': true,
       'fetchedAt': '2026-06-10T00:00:00Z',
       'stops': [
         {
@@ -29,12 +30,45 @@ void main() {
         [126.978, 37.5665],
         [126.9895, 37.5651],
       ],
+      'legs': [
+        {
+          'order': 1,
+          'fromStopId': '201',
+          'toStopId': '202',
+          'fromName': 'Start',
+          'toName': 'End',
+          'distanceMeters': 1234,
+          'durationSeconds': 300,
+        },
+      ],
     });
 
-    expect(route.provider, 'dev-mock');
+    expect(route.provider, 'openrouteservice');
     expect(route.travelMode, 'bike');
+    expect(route.liveProvider, isTrue);
+    expect(route.isFallback, isFalse);
+    expect(route.legs.single.fromName, 'Start');
+    expect(route.legs.single.toName, 'End');
+    expect(route.legs.single.distanceMeters, 1234);
+    expect(route.legs.single.durationSeconds, 300);
     expect(route.stops, hasLength(2));
     expect(route.geometry.first.lng, 126.978);
     expect(route.geometry.first.lat, 37.5665);
+  });
+
+  test('maps route fallback reason without treating dev mock as live', () {
+    final route = RouteRecommendation.fromJson({
+      'provider': 'dev-mock',
+      'fallbackReason': 'provider_failure',
+      'liveProvider': false,
+      'distanceMeters': 0,
+      'durationSeconds': 0,
+      'stops': [],
+      'geometry': [],
+    });
+
+    expect(route.isFallback, isTrue);
+    expect(route.fallbackReason, 'provider_failure');
+    expect(route.liveProvider, isFalse);
   });
 }

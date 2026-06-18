@@ -228,6 +228,10 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.zoom = 11,
     this.focusedPointId,
     this.onPointTap,
+    this.onCameraIdle,
+    this.onMyLocationResolved,
+    this.myLocationEnabled = false,
+    this.myLocationRequestSerial = 0,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
     this.debugWebPmtilesProtocolReady,
     super.key,
@@ -239,6 +243,10 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final double zoom;
   final String? focusedPointId;
   final ValueChanged<OnmuMapPoint>? onPointTap;
+  final ValueChanged<OnmuLatLng>? onCameraIdle;
+  final ValueChanged<OnmuLatLng>? onMyLocationResolved;
+  final bool myLocationEnabled;
+  final int myLocationRequestSerial;
   final String fallbackLabel;
   final bool? debugWebPmtilesProtocolReady;
 
@@ -249,6 +257,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
 class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   MapLibreMapController? _mapController;
   bool _styleLoaded = false;
+  bool _myLocationLayerEnabled = false;
+  int _handledMyLocationRequestSerial = 0;
   int _nativeSyncGeneration = 0;
   final Set<String> _registeredNativeMarkerImages = {};
 
@@ -283,6 +293,22 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
           styleLoaded: false,
         ),
       );
+    }
+    if (widget.myLocationRequestSerial > 0 &&
+        widget.myLocationRequestSerial != _handledMyLocationRequestSerial) {
+      _handledMyLocationRequestSerial = widget.myLocationRequestSerial;
+      if (!_myLocationLayerEnabled) {
+        setState(() {
+          _myLocationLayerEnabled = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            unawaited(_focusNativeMyLocation());
+          }
+        });
+      } else {
+        unawaited(_focusNativeMyLocation());
+      }
     }
   }
 
@@ -338,13 +364,18 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
                     ),
                     onMapCreated: _handleMapCreated,
                     onStyleLoadedCallback: _handleStyleLoaded,
+                    onCameraIdle: _handleCameraIdle,
+                    trackCameraPosition: true,
                     compassEnabled: false,
                     logoEnabled: false,
                     attributionButtonPosition:
                         AttributionButtonPosition.bottomLeft,
                     rotateGesturesEnabled: false,
                     tiltGesturesEnabled: false,
-                    myLocationEnabled: false,
+                    myLocationEnabled:
+                        widget.myLocationEnabled || _myLocationLayerEnabled,
+                    myLocationTrackingMode: MyLocationTrackingMode.none,
+                    myLocationRenderMode: MyLocationRenderMode.normal,
                     annotationOrder: const [
                       AnnotationType.line,
                       AnnotationType.symbol,
@@ -405,6 +436,51 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
 
   void _handleSymbolTapped(Symbol symbol) {
     _handleNativePointTap(symbol.data?[mapNativePointDataKey]);
+  }
+
+  void _handleCameraIdle() {
+    _emitCurrentCameraTarget();
+  }
+
+  void _emitCurrentCameraTarget() {
+    if (widget.onCameraIdle == null) {
+      return;
+    }
+    final target = _mapController?.cameraPosition?.target;
+    if (target != null) {
+      widget.onCameraIdle!(
+        OnmuLatLng(lat: target.latitude, lng: target.longitude),
+      );
+      return;
+    }
+    final fallbackCenter = _centerFromData();
+    if (fallbackCenter != null) {
+      widget.onCameraIdle!(fallbackCenter);
+    }
+  }
+
+  Future<void> _focusNativeMyLocation() async {
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+    try {
+      final location = await controller.requestMyLocationLatLng();
+      if (location == null) {
+        return;
+      }
+      final target = OnmuLatLng(
+        lat: location.latitude,
+        lng: location.longitude,
+      );
+      widget.onMyLocationResolved?.call(target);
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(location, 14.8),
+        duration: const Duration(milliseconds: 320),
+      );
+    } catch (_) {
+      // 위치 권한 거부나 플랫폼 위치 미사용 상태에서는 지도를 유지한다.
+    }
   }
 
   void _handleNativePointTap(Object? pointId) {
@@ -468,6 +544,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       if (fitCamera) {
         await _fitNativeCamera(controller);
       }
+      _emitCurrentCameraTarget();
       await _logNativeMarkerScreenSummary(controller);
     } catch (_) {
       // 지도 annotation 동기화 실패는 플랫폼 뷰 수명주기 경쟁일 수 있어 UI를 유지한다.
