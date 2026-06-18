@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
+import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/group/repository/media_repository.dart';
 import 'package:onmu_mobile/features/plan/view_model/plan_detail_view_model.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
@@ -14,6 +16,9 @@ import 'package:onmu_mobile/features/group/view_model/group_members_view_model.d
 import 'package:onmu_mobile/features/group/view_model/group_plan_board_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
+import 'package:onmu_mobile/features/my/domain/my_profile.dart';
+import 'package:onmu_mobile/features/my/repository/my_repository.dart';
+import 'package:onmu_mobile/features/my/view_model/my_profile_controller.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
 import 'package:onmu_mobile/features/ootd/view_model/record_flow_controller.dart';
@@ -198,7 +203,7 @@ void main() {
     expect(state.upcomingPlans.map((plan) => plan.title), ['내일 약속']);
   });
 
-  test('온모임 생성 ViewModel은 기존 모임이 없어도 추천 멤버 없이 열린다', () async {
+  test('온모임 생성 ViewModel은 기존 모임 멤버 추천 없이 친구 후보만 불러온다', () async {
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
@@ -209,8 +214,45 @@ void main() {
 
     final state = await container.read(groupCreateViewModelProvider.future);
 
-    expect(state.recommendedMemberNames, isEmpty);
     expect(state.friendCandidates.map((friend) => friend.name), contains('도윤'));
+  });
+
+  test('프로필 저장 컨트롤러는 인증 사용자 표시 이름도 동기화한다', () async {
+    final repository = TestMyRepository();
+    final container = ProviderContainer(
+      overrides: [
+        myRepositoryProvider.overrideWithValue(repository),
+        authUserProvider.overrideWith(
+          (ref) => const AuthUser(
+            id: '00000000-0000-0000-0000-000000000001',
+            publicId: 'usr_me',
+            provider: 'KAKAO',
+            displayName: 'ONMU User',
+            onboardingStatus: 'COMPLETED',
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(myProfileControllerProvider)
+        .saveProfile(
+          const MyProfile(
+            realName: '박진희',
+            visibility: ProfileVisibility.friends,
+            favoriteKeywords: [],
+            dislikedKeywords: [],
+            preferredTimes: [],
+            availableDays: [],
+            unavailableDates: [],
+            favoritePlaces: [],
+            wantToGoPlaces: [],
+            dislikedPlaces: [],
+          ),
+        );
+
+    expect(container.read(authUserProvider)?.displayName, '박진희');
   });
 
   test('온모임 멤버 ViewModel은 초대된 멤버만 초대 후보로 노출한다', () async {

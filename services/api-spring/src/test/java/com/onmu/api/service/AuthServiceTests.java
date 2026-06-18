@@ -102,6 +102,9 @@ class AuthServiceTests {
     Map<String, Object> response = authService.oauthLogin("NAVER", request, "127.0.0.1", "test-agent");
 
     assertThat(response).containsEntry("authenticated", true);
+    assertThat(response).extracting("user")
+      .isInstanceOfSatisfying(Map.class, userPayload ->
+        assertThat(userPayload).containsKey("databaseId"));
     verify(userCodeService).ensureActiveCode(user);
     verify(refreshTokenRepository).save(any(RefreshTokenEntity.class));
   }

@@ -182,6 +182,10 @@ public class AuthService {
     response.put("tokens", tokens);
     Map<String, Object> userPayload = new LinkedHashMap<>();
     userPayload.put("id", user.getPublicId());
+    userPayload.put(
+      "databaseId",
+      user.getId() == null ? null : user.getId().toString()
+    );
     userPayload.put("displayName", user.getDisplayName());
     userPayload.put("profileImageUrl", user.getProfileImageUrl());
     userPayload.put("onboardingStatus", user.getOnboardingStatus());

@@ -72,6 +72,7 @@ ProviderScope onmuTestProviderScope({
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
+      if (user != null) authUserProvider.overrideWith((ref) => user),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(
         groupRepository ?? TestGroupRepository(store),

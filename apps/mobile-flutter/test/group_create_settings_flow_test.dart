@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:go_router/go_router.dart';
+import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_create_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_list_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_settings_page.dart';
+import 'package:onmu_mobile/features/group/presentation/widgets/group_cards.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 
 import 'support/in_memory_onmu_store.dart';
@@ -71,6 +73,28 @@ void main() {
     expect(find.text('도윤'), findsOneWidget);
     expect(find.text('민서'), findsOneWidget);
     expect(find.text('유나'), findsNothing);
+  });
+
+  testWidgets('group create starts with current user profile as a member', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'usr_me',
+          provider: 'KAKAO',
+          displayName: '박진희',
+          profileImageUrl: 'https://example.test/me.png',
+          onboardingStatus: 'COMPLETED',
+        ),
+        child: const MaterialApp(home: GroupCreatePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('박진희'), findsOneWidget);
+    expect(find.byTooltip('박진희 제거'), findsNothing);
   });
 
   testWidgets('creating group with first plan toggle off opens plan creation', (
@@ -147,11 +171,58 @@ void main() {
 
     await tester.tap(find.text('모임 이름 변경'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).last, '이름 변경 확인');
+    await tester.enterText(find.byType(TextField).first, '이름 변경 확인');
     await tester.tap(find.text('저장').last);
     await tester.pumpAndSettle();
 
     expect(find.text('이름 변경 확인'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('group settings sheet updates name and description together', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testMaterialApp(const GroupSettingsPage(groupId: '1')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('모임 이름 변경'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '소개까지 수정');
+    await tester.enterText(find.byType(TextField).at(1), '새로운 모임 소개');
+    await tester.tap(find.text('저장').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('소개까지 수정'), findsOneWidget);
+    expect(find.text('새로운 모임 소개'), findsOneWidget);
+  });
+
+  testWidgets(
+    'group summary description row does not show fake active status',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GroupSummaryCard(
+              group: const GroupSummary(
+                id: 1,
+                name: '진희가 테스트로 수정',
+                description: '테스트입니다',
+                members: ['박진희'],
+                lastMessage: '',
+                unreadCount: 0,
+                pinnedPlanTitle: '예정된 약속 없음',
+              ),
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('테스트입니다'), findsOneWidget);
+      expect(find.text('진행중'), findsNothing);
+      expect(find.byIcon(Icons.sticky_note_2_outlined), findsOneWidget);
+    },
+  );
 }

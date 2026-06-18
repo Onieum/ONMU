@@ -111,6 +111,7 @@ class _GroupHomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const sideActionWidth = 104.0;
+    final description = group.description.trim();
 
     return Column(
       children: [
@@ -150,6 +151,21 @@ class _GroupHomeHeader extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
+        if (description.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(
+              description,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xs),
         InkWell(
           borderRadius: BorderRadius.circular(AppRadius.pill),
