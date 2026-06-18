@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/api/onmu_media_url.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -20,6 +22,7 @@ import '../../domain/my_profile.dart';
 import '../../repository/friend_repository.dart';
 import '../../repository/my_repository.dart';
 import '../../view_model/my_profile_controller.dart';
+import '../../view_model/settings_view_model.dart';
 
 part 'my_page_profile_widgets.dart';
 part 'my_page_friends.dart';
@@ -84,7 +87,7 @@ class _MyPageState extends ConsumerState<MyPage> {
                   child: _ProfileHero(
                     profile: profile,
                     publicId: authUser?.publicId,
-                    profileImageUrl: authUser?.profileImageUrl,
+                    profileImageUrl: profile.profileImageUrl,
                     onEdit: _showProfileEditor,
                   ),
                 ),
@@ -151,8 +154,9 @@ class _MyPageState extends ConsumerState<MyPage> {
           initialCharacter:
               ref.read(userCharacterProvider) ??
               ref.read(characterProfileProvider).value,
-          profileImageUrl: ref.read(authUserProvider)?.profileImageUrl,
+          profileImageUrl: profile.profileImageUrl,
           onCharacterSaved: _saveCharacterDraft,
+          onProfileImageUpload: _uploadProfileImage,
           onSave: (result) => _saveProfileEditResult(result, profile),
         ),
       ),
@@ -170,6 +174,7 @@ class _MyPageState extends ConsumerState<MyPage> {
     final updatedProfile = latestProfile.copyWith(
       realName: result.realName,
       introText: result.introText,
+      profileImageUrl: result.profileImageUrl,
       region: result.region,
       regionSelection: result.regionSelection,
       regionVisibility: result.regionVisibility,
@@ -181,6 +186,12 @@ class _MyPageState extends ConsumerState<MyPage> {
 
   Future<void> _saveCharacterDraft(CharacterDraft draft) async {
     await ref.read(myProfileControllerProvider).saveCharacter(draft);
+  }
+
+  Future<String> _uploadProfileImage(Uint8List bytes, String fileName) {
+    return ref
+        .read(myProfileControllerProvider)
+        .uploadProfileImage(bytes, fileName);
   }
 
   Future<void> _openProfileSectionEditor(_ProfileEditSection section) async {

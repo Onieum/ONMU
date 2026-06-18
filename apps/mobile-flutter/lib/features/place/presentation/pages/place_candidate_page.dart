@@ -43,6 +43,9 @@ class PlaceCandidatePage extends ConsumerWidget {
         onFavoritePressed: (candidateId) {
           ref.read(provider.notifier).toggleFavorite(candidateId);
         },
+        onRegisterCandidate: (candidate) async {
+          await ref.read(provider.notifier).addCandidateToSchedule(candidate);
+        },
       ),
       loading: () => const OnmuScaffold(
         title: '장소 후보 리스트',
@@ -68,6 +71,7 @@ class _PlaceCandidateContent extends StatefulWidget {
     required this.showVoteResult,
     required this.state,
     required this.onFavoritePressed,
+    required this.onRegisterCandidate,
   });
 
   final String groupId;
@@ -75,6 +79,7 @@ class _PlaceCandidateContent extends StatefulWidget {
   final bool showVoteResult;
   final PlaceCandidatesState state;
   final ValueChanged<int> onFavoritePressed;
+  final Future<void> Function(PlaceCandidate candidate) onRegisterCandidate;
 
   @override
   State<_PlaceCandidateContent> createState() => _PlaceCandidateContentState();
@@ -82,6 +87,7 @@ class _PlaceCandidateContent extends StatefulWidget {
 
 class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
   var _selectedCategory = _allCategory;
+  final _savingCandidateIds = <int>{};
 
   static const _allCategory = '전체';
 
@@ -205,7 +211,9 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
                   visibleCandidates[index].id,
                 ),
               ),
-              onRegisterPressed: () => _goConfirmed(context),
+              saving: _savingCandidateIds.contains(visibleCandidates[index].id),
+              onRegisterPressed: () =>
+                  _registerCandidate(context, visibleCandidates[index]),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -214,7 +222,36 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
     );
   }
 
-  void _goConfirmed(BuildContext context) {
+  Future<void> _registerCandidate(
+    BuildContext context,
+    PlaceCandidate candidate,
+  ) async {
+    if (_savingCandidateIds.contains(candidate.id)) {
+      return;
+    }
+    setState(() {
+      _savingCandidateIds.add(candidate.id);
+    });
+    try {
+      await widget.onRegisterCandidate(candidate);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('일정 장소를 등록하지 못했어요.')));
+      return;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingCandidateIds.remove(candidate.id);
+        });
+      }
+    }
+    if (!context.mounted) {
+      return;
+    }
     context.go(RoutePaths.planItinerary(widget.groupId, widget.planId));
   }
 }
@@ -320,6 +357,7 @@ class _CandidateListCard extends StatelessWidget {
     required this.candidate,
     required this.liked,
     required this.favoriteCount,
+    required this.saving,
     required this.onFavoritePressed,
     required this.onDetailPressed,
     required this.onRegisterPressed,
@@ -329,6 +367,7 @@ class _CandidateListCard extends StatelessWidget {
   final PlaceCandidate candidate;
   final bool liked;
   final int favoriteCount;
+  final bool saving;
   final VoidCallback onFavoritePressed;
   final VoidCallback onDetailPressed;
   final VoidCallback onRegisterPressed;
@@ -417,8 +456,8 @@ class _CandidateListCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: onRegisterPressed,
-                    child: const Text('일정에 등록'),
+                    onPressed: saving ? null : onRegisterPressed,
+                    child: Text(saving ? '등록 중' : '일정에 등록'),
                   ),
                 ),
               ],

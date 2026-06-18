@@ -54,6 +54,7 @@ class MyProfile {
     this.dislikedPlaceTags = const [],
     this.planStyles = const [],
     this.preferredWeekdays = const [],
+    this.profileImageUrl = '',
   });
 
   final String realName;
@@ -76,6 +77,7 @@ class MyProfile {
   final List<String> dislikedPlaceTags;
   final List<String> planStyles;
   final List<String> preferredWeekdays;
+  final String profileImageUrl;
 
   List<String> get preferenceHighlights {
     return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
@@ -106,6 +108,7 @@ class MyProfile {
     List<String>? dislikedPlaceTags,
     List<String>? planStyles,
     List<String>? preferredWeekdays,
+    String? profileImageUrl,
   }) {
     return MyProfile(
       realName: realName ?? this.realName,
@@ -132,6 +135,7 @@ class MyProfile {
       dislikedPlaceTags: dislikedPlaceTags ?? this.dislikedPlaceTags,
       planStyles: planStyles ?? this.planStyles,
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
     );
   }
 }

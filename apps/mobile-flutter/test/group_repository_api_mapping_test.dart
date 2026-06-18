@@ -366,6 +366,49 @@ void main() {
     expect(requestedBodies.single['placeCandidateIds'], ['201']);
   });
 
+  test('submitVote sends selected option id to Spring API', () async {
+    final requestedPaths = <String>[];
+    final requestedBodies = <Map<String, dynamic>>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          requestedBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 501,
+                'title': '제주도 여행 장소 투표',
+                'targetType': 'PLAN',
+                'targetId': '101',
+                'participantCount': 1,
+                'closed': false,
+                'options': [
+                  {
+                    'id': 'vopt-501-1',
+                    'label': '온무식당',
+                    'candidateId': '201',
+                    'responseCount': 1,
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final vote = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).submitVote(groupId: 1, voteId: 501, optionId: 'vopt-501-1');
+
+    expect(requestedPaths.single, '/api/v1/groups/1/votes/501/responses/me');
+    expect(requestedBodies.single, {'optionId': 'vopt-501-1'});
+    expect(vote.participantCount, 1);
+  });
+
   test('maps plan member profile image urls for plan cards', () async {
     final dio = Dio();
     dio.interceptors.add(

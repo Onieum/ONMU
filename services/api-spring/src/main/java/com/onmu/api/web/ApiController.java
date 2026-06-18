@@ -14,6 +14,7 @@ import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
 import com.onmu.api.web.dto.RouteRecommendationRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
@@ -291,6 +292,16 @@ public class ApiController {
     return onmuApiService.vote(groupId, voteId, user.userId());
   }
 
+  @PostMapping("/groups/{groupId}/votes/{voteId}/responses/me")
+  public Map<String, Object> submitMyVoteResponse(
+    @PathVariable String groupId,
+    @PathVariable String voteId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody SubmitVoteResponseRequest request
+  ) {
+    return onmuApiService.submitVoteResponse(groupId, voteId, user.userId(), request);
+  }
+
   @GetMapping("/groups/{groupId}/plans/{planId}/place-candidates")
   public List<Map<String, Object>> placeCandidates(
     @PathVariable String groupId,
@@ -350,6 +361,17 @@ public class ApiController {
     @AuthenticationPrincipal AuthenticatedUser user
   ) {
     return onmuApiService.schedulePlaces(groupId, planId, user.userId());
+  }
+
+  @DeleteMapping("/groups/{groupId}/plans/{planId}/schedule-places/{schedulePlaceId}")
+  public ResponseEntity<Void> deleteSchedulePlace(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String schedulePlaceId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    onmuApiService.deleteSchedulePlace(groupId, planId, schedulePlaceId, user.userId());
+    return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/groups/{groupId}/plans/{planId}/settlement-draft")

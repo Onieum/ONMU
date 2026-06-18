@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../group/view_model/group_home_view_model.dart';
+import '../../group/view_model/group_list_view_model.dart';
 import '../../group/view_model/group_plan_list_view_model.dart';
 import '../../home/view_model/home_view_model.dart';
 import '../../../shared/models/plan_models.dart';
@@ -73,10 +75,10 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       groupId: scope.groupId,
       planId: scope.planId,
     );
-    final displayVisitPlansByDate =
-        visitPlansByDate.isEmpty && plan.visitPlan.isNotEmpty
-        ? [plan.visitPlan]
-        : visitPlansByDate;
+    final displayVisitPlansByDate = _alignVisitPlansByPlanDates(
+      plan: plan,
+      visitPlansByDate: visitPlansByDate,
+    );
 
     return PlanDetailState(
       plan: plan,
@@ -92,6 +94,46 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       participantArrivals: List.unmodifiable(participantArrivals),
       currentTime: DateTime.now(),
     );
+  }
+
+  List<List<VisitPlan>> _alignVisitPlansByPlanDates({
+    required Plan plan,
+    required List<List<VisitPlan>> visitPlansByDate,
+  }) {
+    final count = _planDayCount(plan, visitPlansByDate.length);
+    final result = List.generate(count, (_) => <VisitPlan>[]);
+    final startDate = _dateOnly(
+      plan.startsAt?.toLocal() ?? DateTime.tryParse(plan.dateTime)?.toLocal(),
+    );
+    final flattened = visitPlansByDate.expand((plans) => plans).toList();
+    final hasDatedVisits =
+        startDate != null &&
+        flattened.any((visit) {
+          return visit.startsAt != null;
+        });
+
+    if (hasDatedVisits) {
+      for (final visit in flattened) {
+        final visitDate = _dateOnly(visit.startsAt?.toLocal());
+        final index = visitDate == null
+            ? 0
+            : visitDate.difference(startDate).inDays;
+        if (index < 0 || index >= result.length) {
+          result.first.add(visit);
+          continue;
+        }
+        result[index].add(visit);
+      }
+      return result.map(List<VisitPlan>.unmodifiable).toList(growable: false);
+    }
+
+    for (var index = 0; index < visitPlansByDate.length; index += 1) {
+      if (index >= result.length) {
+        break;
+      }
+      result[index].addAll(visitPlansByDate[index]);
+    }
+    return result.map(List<VisitPlan>.unmodifiable).toList(growable: false);
   }
 
   List<PlanMember> _selectedMembers(
@@ -192,6 +234,8 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
         : await repository.createPlan(input);
 
     ref.invalidate(groupPlanListViewModelProvider(scope.groupId));
+    ref.invalidate(groupHomeViewModelProvider(scope.groupId));
+    ref.invalidate(groupListViewModelProvider);
     ref.invalidate(homeViewModelProvider);
     ref.invalidateSelf();
     return plan;
@@ -209,7 +253,7 @@ List<PlanDateTab> buildPlanDateTabs({
   required Plan plan,
   required int dayCount,
 }) {
-  final count = dayCount <= 0 ? 1 : dayCount;
+  final count = _planDayCount(plan, dayCount);
   final start =
       plan.startsAt?.toLocal() ?? DateTime.tryParse(plan.dateTime)?.toLocal();
   if (start == null) {
@@ -227,6 +271,27 @@ List<PlanDateTab> buildPlanDateTabs({
     for (var index = 0; index < count; index += 1)
       _dateTabFor(start.add(Duration(days: index))),
   ];
+}
+
+int _planDayCount(Plan plan, int fallbackDayCount) {
+  final start =
+      plan.startsAt?.toLocal() ?? DateTime.tryParse(plan.dateTime)?.toLocal();
+  if (start == null) {
+    return fallbackDayCount <= 0 ? 1 : fallbackDayCount;
+  }
+  final end = (plan.endsAt?.toLocal() ?? start);
+  final startDate = _dateOnly(start)!;
+  final endDate = _dateOnly(end)!;
+  final span = endDate.difference(startDate).inDays + 1;
+  final planSpan = span <= 0 ? 1 : span;
+  return planSpan > fallbackDayCount ? planSpan : fallbackDayCount;
+}
+
+DateTime? _dateOnly(DateTime? value) {
+  if (value == null) {
+    return null;
+  }
+  return DateTime(value.year, value.month, value.day);
 }
 
 PlanDateTab _dateTabFor(DateTime date) {

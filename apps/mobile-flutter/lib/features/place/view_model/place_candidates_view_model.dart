@@ -107,6 +107,10 @@ class PlaceCandidatesState {
     return null;
   }
 
+  bool hasCandidate(PlaceCandidate candidate) {
+    return findMatchingCandidate(candidate) != null;
+  }
+
   PlaceCandidatesState toggledFavorite(int candidateId) {
     final nextLikedIds = {...likedCandidateIds};
     if (!nextLikedIds.add(candidateId)) {
@@ -233,22 +237,23 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       candidateId: savedCandidate.id,
       name: savedCandidate.name,
     );
-    ref.invalidate(
-      planDetailViewModelProvider((
-        groupId: scope.groupId,
-        planId: scope.planId,
-      )),
-    );
-    for (final travelMode in const ['walk', 'bike', 'car']) {
-      ref.invalidate(
-        routeRecommendationViewModelProvider((
-          groupId: scope.groupId,
-          planId: scope.planId,
-          travelMode: travelMode,
-        )),
-      );
-    }
+    _invalidatePlanRouteState();
     return schedulePlace;
+  }
+
+  Future<void> deleteSchedulePlace(String schedulePlaceId) async {
+    final normalizedId = schedulePlaceId.trim();
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
+    final repository = ref.read(placeRepositoryProvider);
+    await repository.deleteSchedulePlace(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      schedulePlaceId: normalizedId,
+    );
+    _invalidatePlanRouteState();
   }
 
   Future<int> createPlaceVote({
@@ -284,6 +289,24 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       voteListViewModelProvider((groupId: scope.groupId, planId: scope.planId)),
     );
     return vote.id;
+  }
+
+  void _invalidatePlanRouteState() {
+    ref.invalidate(
+      planDetailViewModelProvider((
+        groupId: scope.groupId,
+        planId: scope.planId,
+      )),
+    );
+    for (final travelMode in const ['walk', 'bike', 'car']) {
+      ref.invalidate(
+        routeRecommendationViewModelProvider((
+          groupId: scope.groupId,
+          planId: scope.planId,
+          travelMode: travelMode,
+        )),
+      );
+    }
   }
 
   Map<int, int> _favoriteCountsFor(List<PlaceCandidate> candidates) {

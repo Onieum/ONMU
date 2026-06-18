@@ -102,6 +102,7 @@ class _ProfileHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final cleanPublicId = publicId?.trim();
     final cleanRegion = profile.region.trim();
+    final displayRegion = cleanRegion.isEmpty ? '지역 미설정' : cleanRegion;
     final cleanIntro = profile.introText.trim();
     final headline = resolveOnmuDisplayName([
       profile.realName,
@@ -141,42 +142,76 @@ class _ProfileHero extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      cleanPublicId == null || cleanPublicId.isEmpty
-                          ? '@ID 준비 중'
-                          : '@$cleanPublicId',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.labelLarge.copyWith(
-                        color: AppColors.primaryPurple,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    if (cleanRegion.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            color: AppColors.textSub,
-                            size: 17,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            cleanPublicId == null || cleanPublicId.isEmpty
+                                ? '@ID 준비 중'
+                                : '@$cleanPublicId',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.labelLarge.copyWith(
+                              color: AppColors.primaryPurple,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
+                            ),
                           ),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              cleanRegion,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSub,
-                                fontWeight: FontWeight.w700,
+                        ),
+                        if (cleanPublicId != null &&
+                            cleanPublicId.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Tooltip(
+                            message: '고유 ID 복사',
+                            child: IconButton(
+                              visualDensity: VisualDensity.compact,
+                              constraints: const BoxConstraints.tightFor(
+                                width: 32,
+                                height: 32,
                               ),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.copy_rounded,
+                                size: 18,
+                                color: AppColors.textSub,
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: cleanPublicId),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('고유 ID를 복사했어요.'),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: AppColors.textSub,
+                          size: 17,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            displayRegion,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSub,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -211,11 +246,13 @@ class _CharacterPortrait extends ConsumerWidget {
     required this.size,
     this.character,
     this.profileImageUrl,
+    this.profileImageBytes,
   });
 
   final double size;
   final CharacterDraft? character;
   final String? profileImageUrl;
+  final Uint8List? profileImageBytes;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -236,6 +273,8 @@ class _CharacterPortrait extends ConsumerWidget {
 
     final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
+    final imageBytes = profileImageBytes;
+
     return Container(
       width: size,
       height: size,
@@ -245,7 +284,9 @@ class _CharacterPortrait extends ConsumerWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.linePink.withOpacity(0.55)),
       ),
-      child: imageUrl.isNotEmpty
+      child: imageBytes != null
+          ? Image.memory(imageBytes, fit: BoxFit.cover)
+          : imageUrl.isNotEmpty
           ? Image.network(
               imageUrl,
               fit: BoxFit.cover,

@@ -19,6 +19,7 @@ void main() {
             expect(options.path, '/api/v1/users/me');
             expect(options.data, {
               'nickname': 'Shinseok',
+              'profileImageUrl': '',
               'onboardingStatus': 'COMPLETED',
               'preferenceProfile': {
                 'favoriteKeywords': ['quiet'],

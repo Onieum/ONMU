@@ -34,6 +34,12 @@ abstract interface class PlaceRepository {
     String note,
   });
 
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  });
+
   Future<List<PlaceCandidate>> searchPlaces({
     required Object groupId,
     required Object planId,
@@ -134,6 +140,17 @@ class ApiPlaceRepository implements PlaceRepository {
       },
     );
     return _schedulePlace(response);
+  }
+
+  @override
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  }) async {
+    await _client.deleteObject(
+      '/api/v1/groups/$groupId/plans/$planId/schedule-places/$schedulePlaceId',
+    );
   }
 
   @override

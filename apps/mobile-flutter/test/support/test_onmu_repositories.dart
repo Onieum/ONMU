@@ -153,6 +153,11 @@ class TestMyRepository implements MyRepository {
     lastOnboardingStatus = onboardingStatus;
     return _profile;
   }
+
+  @override
+  Future<String> uploadProfileImage(Uint8List bytes, String fileName) async {
+    return 'https://example.test/$fileName';
+  }
 }
 
 class TestFriendRepository implements FriendRepository {
@@ -565,6 +570,15 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<VoteCard> submitVote({
+    required Object groupId,
+    required Object voteId,
+    required Object optionId,
+  }) async {
+    return _store.fetchVoteCard(groupId: groupId, voteId: voteId);
+  }
+
+  @override
   Future<Map<int, List<String>>> fetchVoteVoters({
     required Object groupId,
     required Object voteId,
@@ -666,6 +680,33 @@ class TestPlaceRepository implements PlaceRepository {
 
   final InMemoryOnmuStore _store;
 
+  static const _searchOnlyCandidate = PlaceCandidate(
+    id: 204,
+    name: '온무분식',
+    category: '분식',
+    summary: '영업중 · 즉시 방문 가능',
+    score: 86,
+    matchPercent: 81,
+    distanceLabel: '홍대입구역 도보 6분',
+    travelTimeLabel: '도보 6분',
+    priceLabel: '1인 10,000원대',
+    isOpen: true,
+    address: '서울 마포구 잔다리로 12',
+    openingLabel: '오늘 11:00-21:00',
+    sourceLabel: '테스트 검색 결과',
+    riskLabel: '안정',
+    riskTone: 'none',
+    memberFits: [
+      MemberFit(label: 'A', score: 88, note: '가벼운 식사'),
+      MemberFit(label: 'B', score: 82, note: '역 가까움'),
+    ],
+    tags: ['분식', '가벼운식사'],
+    reasons: ['후보 리스트에 아직 없는 검색 결과예요.'],
+    risks: ['운영 리스크 없음'],
+    provider: 'test',
+    providerPlaceId: 'search-only-204',
+  );
+
   @override
   Future<PlaceCandidate> fetchCandidate({
     required Object groupId,
@@ -712,6 +753,13 @@ class TestPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<void> deleteSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+  }) async {}
+
+  @override
   Future<List<PlaceCandidate>> fetchCandidates({
     required Object groupId,
     required Object planId,
@@ -726,7 +774,15 @@ class TestPlaceRepository implements PlaceRepository {
     required String query,
     String? category,
   }) async {
-    return _store.fetchPlaceCandidates(groupId: groupId, planId: planId);
+    final candidates = _store.fetchPlaceCandidates(
+      groupId: groupId,
+      planId: planId,
+    );
+    return [
+      ...candidates,
+      if (category == null || category == _searchOnlyCandidate.category)
+        _searchOnlyCandidate,
+    ];
   }
 
   @override

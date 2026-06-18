@@ -18,10 +18,16 @@ import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
 
 class PlaceMapPage extends ConsumerStatefulWidget {
-  const PlaceMapPage({required this.groupId, required this.planId, super.key});
+  const PlaceMapPage({
+    required this.groupId,
+    required this.planId,
+    super.key,
+    this.initialQuery = '',
+  });
 
   final String groupId;
   final String planId;
+  final String initialQuery;
 
   @override
   ConsumerState<PlaceMapPage> createState() => _PlaceMapPageState();
@@ -36,6 +42,16 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   String _selectedCategory = _allCategory;
   PlaceCandidate? _selectedCandidate;
   final Set<int> _savingCandidateIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final initialQuery = widget.initialQuery.trim();
+    if (initialQuery.isNotEmpty) {
+      _query = initialQuery;
+      _searchActive = true;
+    }
+  }
 
   List<PlaceCandidate> _visibleCandidates(List<PlaceCandidate> candidates) {
     final normalizedQuery = _query.trim().toLowerCase();
@@ -282,6 +298,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                           searchLoading: searchLoading,
                           searchHadError: searchHadError,
                           selectedCandidate: _selectedCandidate,
+                          isAlreadyCandidate: state.hasCandidate,
                           isSavingCandidate: (candidate) =>
                               _savingCandidateIds.contains(candidate.id),
                           onBackToResults: () {
@@ -713,6 +730,7 @@ class _RecommendationSheet extends StatelessWidget {
     required this.searchLoading,
     required this.searchHadError,
     required this.selectedCandidate,
+    required this.isAlreadyCandidate,
     required this.isSavingCandidate,
     required this.onBackToResults,
     required this.onCandidateSelected,
@@ -731,6 +749,7 @@ class _RecommendationSheet extends StatelessWidget {
   final bool searchLoading;
   final bool searchHadError;
   final PlaceCandidate? selectedCandidate;
+  final bool Function(PlaceCandidate candidate) isAlreadyCandidate;
   final bool Function(PlaceCandidate candidate) isSavingCandidate;
   final VoidCallback onBackToResults;
   final ValueChanged<PlaceCandidate> onCandidateSelected;
@@ -774,6 +793,7 @@ class _RecommendationSheet extends StatelessWidget {
             _SelectedPlaceDetailSheet(
               candidate: selectedCandidate!,
               isSaving: isSavingCandidate(selectedCandidate!),
+              alreadyCandidate: isAlreadyCandidate(selectedCandidate!),
               onBackToResults: onBackToResults,
               onRegisterPressed: () => onRegisterPressed(selectedCandidate!),
               onAddCandidatePressed: () =>
@@ -811,6 +831,7 @@ class _RecommendationSheet extends StatelessWidget {
                 photoIndex: index,
                 onTap: () => onCandidateSelected(candidates[index]),
                 isSaving: isSavingCandidate(candidates[index]),
+                alreadyCandidate: isAlreadyCandidate(candidates[index]),
                 onRegisterPressed: () => onRegisterPressed(candidates[index]),
                 onAddCandidatePressed: () =>
                     onAddCandidatePressed(candidates[index]),
@@ -922,6 +943,7 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
   const _SelectedPlaceDetailSheet({
     required this.candidate,
     required this.isSaving,
+    required this.alreadyCandidate,
     required this.onBackToResults,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
@@ -929,6 +951,7 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
 
   final PlaceCandidate candidate;
   final bool isSaving;
+  final bool alreadyCandidate;
   final VoidCallback onBackToResults;
   final VoidCallback onRegisterPressed;
   final VoidCallback onAddCandidatePressed;
@@ -1004,6 +1027,7 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
         _PlaceActionButtons(
           candidateId: candidate.id,
           isSaving: isSaving,
+          alreadyCandidate: alreadyCandidate,
           onAddCandidatePressed: onAddCandidatePressed,
           onRegisterPressed: onRegisterPressed,
         ),
@@ -1050,6 +1074,7 @@ class _RecommendationTile extends StatelessWidget {
     required this.photoIndex,
     required this.onTap,
     required this.isSaving,
+    required this.alreadyCandidate,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
   });
@@ -1058,6 +1083,7 @@ class _RecommendationTile extends StatelessWidget {
   final int photoIndex;
   final VoidCallback onTap;
   final bool isSaving;
+  final bool alreadyCandidate;
   final VoidCallback onRegisterPressed;
   final VoidCallback onAddCandidatePressed;
 
@@ -1144,6 +1170,7 @@ class _RecommendationTile extends StatelessWidget {
           _PlaceActionButtons(
             candidateId: candidate.id,
             isSaving: isSaving,
+            alreadyCandidate: alreadyCandidate,
             onAddCandidatePressed: onAddCandidatePressed,
             onRegisterPressed: onRegisterPressed,
           ),
@@ -1201,6 +1228,7 @@ class _PlaceActionButtons extends StatelessWidget {
   const _PlaceActionButtons({
     required this.candidateId,
     required this.isSaving,
+    required this.alreadyCandidate,
     required this.onAddCandidatePressed,
     required this.onRegisterPressed,
   });
@@ -1209,6 +1237,7 @@ class _PlaceActionButtons extends StatelessWidget {
 
   final int candidateId;
   final bool isSaving;
+  final bool alreadyCandidate;
   final VoidCallback onAddCandidatePressed;
   final VoidCallback onRegisterPressed;
 
@@ -1221,9 +1250,15 @@ class _PlaceActionButtons extends StatelessWidget {
             key: ValueKey('place-action-$candidateId-candidate'),
             height: _buttonHeight,
             child: OnmuSecondaryButton(
-              label: isSaving ? '저장 중' : '후보에 추가',
-              icon: Icons.favorite_border,
-              onPressed: isSaving ? null : onAddCandidatePressed,
+              label: isSaving
+                  ? '저장 중'
+                  : alreadyCandidate
+                  ? '후보에 있음'
+                  : '후보에 추가',
+              icon: alreadyCandidate ? Icons.favorite : Icons.favorite_border,
+              onPressed: isSaving || alreadyCandidate
+                  ? null
+                  : onAddCandidatePressed,
             ),
           ),
         ),
