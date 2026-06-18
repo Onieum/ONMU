@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
 
@@ -69,7 +70,10 @@ class ApiMyRepository implements MyRepository {
 
   MyProfile _profileFromJson(Map<String, dynamic> json) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
-    final nickname = OnmuJson.readString(json, 'nickname');
+    final nickname = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
+      OnmuJson.readString(json, 'displayName'),
+    ], fallback: '');
     final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
       realName: nickname,

@@ -93,8 +93,15 @@ class SocialAuthService {
       throw const GoogleSignInWebButtonRequiredException();
     }
 
-    final account = await _googleSignIn.authenticate();
-    return _credentialFromGoogleAccount(account);
+    final eventCredential = _googleSignIn.authenticationEvents
+        .where((event) => event is GoogleSignInAuthenticationEventSignIn)
+        .cast<GoogleSignInAuthenticationEventSignIn>()
+        .map((event) => _credentialFromGoogleAccount(event.user))
+        .first;
+    final accountCredential = _googleSignIn.authenticate().then(
+      _credentialFromGoogleAccount,
+    );
+    return Future.any([accountCredential, eventCredential]);
   }
 
   Future<OAuthProviderCredential> acquireNaverCredential() {

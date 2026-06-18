@@ -6,6 +6,7 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/providers/state_providers.dart';
+import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../view_model/onboarding_hub_controller.dart';
@@ -29,10 +30,9 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
     final hasPreference = ref.watch(preferenceProfileProvider) != null;
     final skippedCharacter = ref.watch(skippedCharacterProvider);
     final skippedPreference = ref.watch(skippedPreferenceProvider);
-    final rawNickname = user?.nickname.trim();
-    final nickname = rawNickname != null && rawNickname.isNotEmpty
-        ? rawNickname
-        : '카카오 친구';
+    final nickname = resolveOnmuDisplayName([
+      user?.nickname,
+    ], fallback: '카카오 친구');
 
     return Scaffold(
       backgroundColor: AppColors.bgWarm,

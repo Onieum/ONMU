@@ -144,7 +144,15 @@ class AuthActionController {
   Future<void> _applySpringSession(AuthSession session) async {
     await _ref.read(authTokenStoreProvider).save(session.tokens);
     _ref.read(onmuApiClientProvider).setAccessToken(session.tokens.accessToken);
-    _ref.read(authUserProvider.notifier).state = session.user;
+    var user = session.user;
+    try {
+      user =
+          await _ref.read(authRepositoryProvider).fetchCurrentUser() ??
+          session.user;
+    } catch (_) {
+      user = session.user;
+    }
+    _ref.read(authUserProvider.notifier).state = user;
     await _ref
         .read(pushTokenRegistrationCoordinatorProvider)
         .registerCurrentDevice();

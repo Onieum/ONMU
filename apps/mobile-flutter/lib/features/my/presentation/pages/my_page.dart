@@ -9,6 +9,7 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/providers/state_providers.dart';
+import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../../../../shared/widgets/pixel_character.dart';
@@ -294,13 +295,12 @@ MyProfile _emptyProfile() {
 }
 
 MyProfile _profileForAuthUser(MyProfile profile, AuthUser? user) {
-  if (profile.realName.trim().isNotEmpty) {
+  if (profile.realName.trim().isNotEmpty &&
+      !isDefaultOnmuDisplayName(profile.realName)) {
     return profile;
   }
 
-  final nickname = user?.nickname.trim();
-  if (nickname == null || nickname.isEmpty) {
-    return profile.copyWith(realName: '사용자');
-  }
-  return profile.copyWith(realName: nickname);
+  return profile.copyWith(
+    realName: resolveOnmuDisplayName([user?.nickname], fallback: '사용자'),
+  );
 }
