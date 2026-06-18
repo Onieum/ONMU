@@ -12,6 +12,7 @@
 - ACR: `acronmustagingkrc001`
 - ACA app 배포는 아직 `Terraform Staging` workflow의 split wave를 사용한다.
 - image build/push는 `Build Staging Images` workflow로 분리한다.
+- Spring API Container App 생성 이후의 일반 코드 배포는 `Deploy Staging Spring API` workflow로 image rollout과 smoke를 수행한다.
 
 ## 2. wave 순서
 
@@ -67,7 +68,7 @@ Staging ACA의 Spring runtime env는 public URI 계열을 포함해 Key Vault se
 - Spring API image
 - worker image
 
-image ref는 `azure-staging-apply` environment variable에 등록한 뒤 `api_app_ready` 또는 `worker_app_ready`를 실행한다.
+초기 `api_app_ready` 또는 `worker_app_ready` 실행 전에는 image ref를 `azure-staging-apply` environment variable에 등록한다.
 
 예를 들어 workflow가 push한 ref를 운영자가 확인한 뒤 GitHub variable을 갱신한다.
 
@@ -77,6 +78,8 @@ gh variable set STAGING_WORKER_IMAGE --env azure-staging-apply --body "<staging-
 ```
 
 image ref 자체는 secret은 아니지만, 로그/채팅에는 필요 이상으로 오래된 ref와 섞이지 않게 현재 적용 대상만 관리한다.
+
+Spring API Container App이 이미 존재하는 상태에서 Spring 코드만 바뀐 경우에는 `Deploy Staging Spring API` workflow가 image build, ACR push, ACA image update, `/healthz`/`/readyz`/no-token `/api/v1/users/me` smoke, `STAGING_SPRING_API_IMAGE` 갱신을 한 번에 처리한다. 이 workflow는 worker image와 DB migration을 다루지 않는다.
 
 ## 4. 현재 남아 있는 병목
 
@@ -121,10 +124,11 @@ staging은 PostgreSQL public access를 쓰는 동안 ACA environment static IP�
 
 ### 5.2 Spring API
 
-- `Build Staging Images`로 Spring image build, 필요 시 push
-- `STAGING_SPRING_API_IMAGE` 갱신
+- 최초 app 생성이면 `Build Staging Images`로 Spring image build, 필요 시 push
+- 최초 app 생성이면 `STAGING_SPRING_API_IMAGE` 갱신
 - runtime identity의 `AcrPull`, `Key Vault Secrets User` 확인
 - Blob object storage RBAC와 Redis secret sync까지 끝낸 뒤 `wave=api_app_ready`
+- app 생성 이후 일반 코드 배포는 `Deploy Staging Spring API` workflow로 image rollout과 smoke를 수행
 
 ### 5.3 worker
 

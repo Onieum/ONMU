@@ -70,7 +70,9 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `worker_app_ready`: worker Container App만 적용한다.
 - `db_and_app_ready`: 기존 호환용 alias다. 실제 운영 순서는 split wave를 기준으로 본다.
 
-Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 먼저 build하고, 필요 시 protected environment approval 뒤 staging ACR에 push한다. `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
+Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 먼저 build하고, 필요 시 protected environment approval 뒤 staging ACR에 push한다. 최초 `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
+
+Spring API Container App이 이미 생성된 뒤의 일반 코드 변경 배포는 `.github/workflows/deploy-staging-api.yml`을 사용한다. 이 workflow는 Spring API image를 staging ACR에 push하고 기존 ACA Spring API revision의 image만 갱신한 뒤 smoke를 수행한다. Terraform app wave는 인프라 wiring, 최초 app 생성, worker rollout처럼 resource graph 변경이 필요한 경우에 사용한다.
 
 `core_foundation`은 Redis, PostgreSQL, Spring API Container App, worker Container App, CDN/edge, RBAC role assignment, diagnostics, DNS, DB migration, Key Vault secret value 작성을 포함하지 않는다. Terraform은 Blob origin까지만 만든다. Storage account는 nested public item 허용을 켜고, `tiles` container만 public blob access를 허용하며 `media` container는 private로 유지한다. Public tile/static delivery는 Front Door wave에서 검증한다. Edge는 `frontdoor_tile_edge` wave에서 Azure Front Door Standard로 별도 plan/apply한다. staging Front Door route는 Blob account root가 아니라 `tiles` container를 `origin_path=/tiles`로 바라본다. 따라서 edge smoke 전에는 `tiles` container 안에 `manifest.json`, `styles/onmu-light.json`, `pmtiles/korea-dev.pmtiles` 같은 공개 tile object가 실제로 업로드되어 있어야 한다. 기존 staging state가 private `tiles`를 이미 가졌거나 browser CORS가 빠져 있으면 `frontdoor_origin_access` patch wave로 storage account와 `tiles` access/CORS boundary를 보정한다. Diagnostic setting은 신규 resource id가 remote state에 기록된 뒤 별도 diagnostics wave로 붙인다. Front Door wave에서도 이미 적용된 foundation diagnostic target은 no-op로 유지해야 하며 delete되면 안 된다. Redis는 `managed_redis_ready`, `managed_redis_diagnostics` 전용 wave로 분리한다.
 
