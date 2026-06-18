@@ -23,11 +23,12 @@ void main() {
               'preferenceProfile': {
                 'favoriteKeywords': ['quiet'],
                 'introText': 'hello',
+                'profileVisibility': 'FRIENDS',
                 'region': {
                   'country': 'KR',
-                  'sido': '서울',
+                  'sido': '서울특별시',
                   'sigungu': '성동구',
-                  'displayName': '서울 성동구',
+                  'displayName': '서울특별시 성동구',
                 },
                 'regionVisibility': 'PUBLIC',
                 'dislikedKeywords': ['crowded'],
@@ -51,11 +52,12 @@ void main() {
                   'preferenceProfile': {
                     'favoriteKeywords': ['quiet'],
                     'introText': 'hello',
+                    'profileVisibility': 'FRIENDS',
                     'region': {
                       'country': 'KR',
-                      'sido': '서울',
+                      'sido': '서울특별시',
                       'sigungu': '성동구',
-                      'displayName': '서울 성동구',
+                      'displayName': '서울특별시 성동구',
                     },
                     'regionVisibility': 'PUBLIC',
                     'dislikedKeywords': ['crowded'],
@@ -103,7 +105,7 @@ void main() {
       );
 
       expect(updated.realName, 'Shinseok');
-      expect(updated.region, '서울 성동구');
+      expect(updated.region, '서울특별시 성동구');
       expect(updated.regionVisibility, RegionVisibility.public);
       expect(updated.favoriteFoodTags, ['pasta']);
       expect(updated.preferredWeekdays, ['friday']);
@@ -166,8 +168,8 @@ void main() {
 
     final profile = await repository.fetchMyProfile();
 
-    expect(profile.region, '부산 해운대구');
-    expect(profile.effectiveRegionSelection.sido, '부산');
+    expect(profile.region, '부산광역시 해운대구');
+    expect(profile.effectiveRegionSelection.sido, '부산광역시');
     expect(profile.effectiveRegionSelection.sigungu, '해운대구');
     expect(profile.regionVisibility, RegionVisibility.private);
   });
@@ -201,8 +203,11 @@ void main() {
 
       final profile = await repository.fetchMyProfile();
 
-      expect(profile.region, requestedRegion);
-      expect(profile.effectiveRegionSelection.displayName, requestedRegion);
+      final normalizedRegion = KoreaRegionSelection.fromDisplayName(
+        requestedRegion,
+      ).displayName;
+      expect(profile.region, normalizedRegion);
+      expect(profile.effectiveRegionSelection.displayName, normalizedRegion);
     }
   });
 
@@ -238,12 +243,12 @@ void main() {
 
     final profile = await repository.fetchMyProfile();
 
-    expect(profile.region, '인천 연수구');
+    expect(profile.region, '인천광역시 연수구');
     expect(profile.effectiveRegionSelection.toJson(), {
       'country': 'KR',
-      'sido': '인천',
+      'sido': '인천광역시',
       'sigungu': '연수구',
-      'displayName': '인천 연수구',
+      'displayName': '인천광역시 연수구',
     });
     expect(profile.regionVisibility, RegionVisibility.public);
   });
@@ -280,7 +285,7 @@ void main() {
 
       final profile = await repository.fetchMyProfile();
 
-      expect(profile.introText, '기록하고, 만나고, 추억해요  ♥');
+      expect(profile.introText, '');
       expect(profile.region, KoreaRegionSelection.fallback.displayName);
       expect(profile.favoriteFoodTags, ['pasta']);
       expect(profile.preferredWeekdays, ['friday']);

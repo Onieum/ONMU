@@ -28,7 +28,7 @@ abstract interface class MyRepository {
 class ApiMyRepository implements MyRepository {
   ApiMyRepository(this._client);
 
-  static const _defaultIntroText = '기록하고, 만나고, 추억해요  ♥';
+  static const _defaultIntroText = '';
 
   final OnmuApiClient _client;
 
@@ -65,7 +65,7 @@ class ApiMyRepository implements MyRepository {
 
   MyProfile _profileFromJson(Map<String, dynamic> json) {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
-    final displayName = OnmuJson.readString(json, 'displayName', '사용자');
+    final displayName = OnmuJson.readString(json, 'displayName');
     final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
       realName: displayName,
@@ -75,7 +75,7 @@ class ApiMyRepository implements MyRepository {
       regionVisibility: RegionVisibility.fromJson(
         preference['regionVisibility'],
       ),
-      visibility: ProfileVisibility.friends,
+      visibility: ProfileVisibility.fromJson(preference['profileVisibility']),
       favoriteKeywords: _readProfileStringList(preference['favoriteKeywords']),
       dislikedKeywords: _readProfileStringList(preference['dislikedKeywords']),
       preferredTimes: _readProfileStringList(preference['preferredTimes']),
@@ -106,6 +106,7 @@ class ApiMyRepository implements MyRepository {
     return {
       'favoriteKeywords': _safeProfileStringList(profile.favoriteKeywords),
       'introText': _safeProfileText(profile.introText),
+      'profileVisibility': profile.visibility.value,
       'region': regionSelection.toJson(),
       'regionVisibility': profile.regionVisibility.value,
       'dislikedKeywords': _safeProfileStringList(profile.dislikedKeywords),

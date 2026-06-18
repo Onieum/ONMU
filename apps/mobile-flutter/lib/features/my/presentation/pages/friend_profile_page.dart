@@ -39,18 +39,21 @@ class _FriendProfilePage extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        _ProfileTab(
-                          profile: profile,
-                          onKeywordEdit: () {},
-                          onScheduleEdit: () {},
-                          onPlaceEdit: () {},
-                          onDetail: (section) => _openFriendProfileDetail(
-                            context,
-                            section,
-                            profile,
+                        if (profile.visibility == ProfileVisibility.private)
+                          const _PrivateFriendProfileNotice()
+                        else
+                          _ProfileTab(
+                            profile: profile,
+                            onKeywordEdit: () {},
+                            onScheduleEdit: () {},
+                            onPlaceEdit: () {},
+                            onDetail: (section) => _openFriendProfileDetail(
+                              context,
+                              section,
+                              profile,
+                            ),
+                            showActions: false,
                           ),
-                          showActions: false,
-                        ),
                       ],
                     ),
                     loading: () => const Padding(
@@ -143,6 +146,37 @@ class _FriendProfileErrorCard extends StatelessWidget {
   }
 }
 
+class _PrivateFriendProfileNotice extends StatelessWidget {
+  const _PrivateFriendProfileNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return _SoftCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppColors.textSub,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '친구가 프로필 취향 정보를 비공개로 설정했어요.',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSub,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FriendProfileTopBar extends StatelessWidget {
   const _FriendProfileTopBar({required this.onBack});
 
@@ -177,6 +211,8 @@ class _FriendProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final character = _characterForFriend(friend);
+    final cleanIntro = profile.introText.trim();
+    final cleanRegion = profile.region.trim();
 
     return Column(
       children: [
@@ -212,38 +248,48 @@ class _FriendProfileHero extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '기록하고, 만나고, 추억해요  ♥',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textMain,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0,
+                    if (cleanIntro.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        cleanIntro,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textMain,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          color: AppColors.textSub,
-                          size: 19,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '서울 성수동',
-                          style: AppTextStyles.bodyMedium.copyWith(
+                    ],
+                    if (cleanRegion.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
                             color: AppColors.textSub,
-                            fontWeight: FontWeight.w700,
+                            size: 19,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              cleanRegion,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSub,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 14),
-                    _HorizontalChipList(
-                      labels: profile.preferenceHighlights.take(4).toList(),
-                    ),
+                    if (profile.visibility != ProfileVisibility.private)
+                      _HorizontalChipList(
+                        labels: profile.preferenceHighlights.take(4).toList(),
+                      ),
                   ],
                 ),
               ),

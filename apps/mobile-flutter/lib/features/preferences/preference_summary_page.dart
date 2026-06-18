@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_radius.dart';
 import '../../features/preferences/view_model/preference_summary_controller.dart';
 import '../../shared/models/preference_profile.dart';
+import '../../shared/providers/state_providers.dart';
 import '../../shared/widgets/grid_background.dart';
 import '../../shared/widgets/onmu_button.dart';
 
@@ -58,6 +59,9 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final profile = widget.profile;
+    final willCompleteOnboarding =
+        ref.watch(userCharacterProvider) != null ||
+        ref.watch(skippedCharacterProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
@@ -125,7 +129,11 @@ class _PreferenceSummaryPageState extends ConsumerState<PreferenceSummaryPage> {
                                   color: AppColors.bgDefault,
                                 ),
                               )
-                            : const Text('첫 설정 페이지로 돌아가기'),
+                            : Text(
+                                willCompleteOnboarding
+                                    ? '홈으로 가기'
+                                    : '첫 설정 페이지로 돌아가기',
+                              ),
                       ),
                     ),
                   ],
