@@ -96,7 +96,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
       _customEyeColorIndex = r.character.eyeColorIndex;
       _rating = double.tryParse(r.brands['rating'] ?? '5.0') ?? 5.0;
       if (r.timeline.isNotEmpty) {
-        _memoController.text = r.timeline.first.description;
+        if (_selectedMethod == 1) {
+          _descController.text = r.timeline.first.description;
+        } else {
+          _memoController.text = r.timeline.first.description;
+        }
       }
     } else {
       _customHairStyleIndex = widget.userCharacter.hairStyleIndex;
@@ -117,6 +121,12 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
   void _next() {
     if (_isSaving) return;
     if (_currentStep == 4) {
+      if (_selectedMethod == 1 && _descController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('코디 설명을 입력해주세요.')));
+        return;
+      }
       // 4단계 완료 시 AI 분석 중 페이지(5)로 보내고, 2초 후에 완료 페이지(6)로 자동 이동 시뮬레이션!
       setState(() => _currentStep = 5);
       Future.delayed(const Duration(seconds: 2), () {
@@ -144,6 +154,14 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   Future<void> _save() async {
     if (_isSaving) return;
+    final outfitDescription = _descController.text.trim();
+    final memo = _memoController.text.trim();
+    if (_selectedMethod == 1 && outfitDescription.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('코디 설명을 입력해주세요.')));
+      return;
+    }
     final ootdCharacter = widget.userCharacter.copyWith(
       hairStyleIndex: _changeStyle
           ? _customHairStyleIndex
@@ -180,9 +198,11 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
               ? '스타일 컨셉'
               : _locationController.text.trim(),
           category: 'place',
-          description: _memoController.text.trim().isEmpty
+          description: _selectedMethod == 1
+              ? outfitDescription
+              : memo.isEmpty
               ? '즐거운 하루의 기록!'
-              : _memoController.text.trim(),
+              : memo,
         ),
       ],
     );
@@ -1002,6 +1022,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
 
   // 5. OotdAnalysisPage (AI 코디 분석 중)
   Widget _buildAnalysisPage() {
+    final firstAnalysisLabel = _selectedMethod == 0 ? '이미지 분석 중' : '설명 정리 중';
     return Column(
       children: [
         SizedBox(height: 30),
@@ -1035,7 +1056,7 @@ class _OotdRecordScreenState extends State<OotdRecordScreen> {
           ),
           child: Column(
             children: [
-              _buildAnalysisRow('이미지 분석 중', true),
+              _buildAnalysisRow(firstAnalysisLabel, true),
               const Divider(color: AppColors.lineSoft, height: 24),
               _buildAnalysisRow('코디 스타일 분석 중', true),
               const Divider(color: AppColors.lineSoft, height: 24),

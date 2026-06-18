@@ -90,6 +90,8 @@ Flutter는 `GroupChatPage` -> `GroupChatViewModel` -> `GroupRepository` -> `Onmu
 
 `GroupChatSseDecoder`는 SSE comment line을 무시하고 `data:` line을 모아 JSON으로 decode한다. 잘못된 JSON은 stream 전체를 깨지 않고 무시한다.
 
+SCRUM-5 Chat card typing 구현은 Spring response contract와 Flutter timeline UI/navigation을 맞추는 slice다. `messageType`, `cardType`, `targetType`, `targetId`, `planId`, `voteId`, `settlementId` 같은 card metadata를 보존해 plan/vote/settlement activity card를 열 수 있게 한다. Settlement flow는 정산 생성 시 `settlement_card` activity event와 알림 side effect를 생성하며, plan/vote 등 나머지 도메인 producer의 `event_type`별 typed card payload 확대는 후속 범위다.
+
 ### 현재 제외 범위
 
 - Redis/Realtime Gateway/WebSocket 운영 fan-out

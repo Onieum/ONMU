@@ -1220,7 +1220,7 @@ class InMemoryOnmuStore {
     ];
 
     final settlement = SettlementSummary(
-      id: 301,
+      id: '301',
       planTitle: '주말 나들이',
       totalAmountLabel: '186,000원',
       createdDateLabel: '정산일 2025.05.28',
@@ -1229,8 +1229,9 @@ class InMemoryOnmuStore {
       mySummaryLabel: '나는 103,333원을 받아요',
       paymentItems: [
         SettlementPaymentItem(
-          id: 401,
+          id: '401',
           title: '저녁',
+          amount: 124000,
           amountLabel: '124,000원',
           payerShares: [
             SettlementPayerShare(name: '지민', amountLabel: '124,000원'),
@@ -1240,8 +1241,9 @@ class InMemoryOnmuStore {
           participants: allParticipants,
         ),
         SettlementPaymentItem(
-          id: 402,
+          id: '402',
           title: '카페',
+          amount: 62000,
           amountLabel: '62,000원',
           payerShares: [
             SettlementPayerShare(name: '민수', amountLabel: '42,000원'),

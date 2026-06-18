@@ -1,6 +1,8 @@
 package com.onmu.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +12,8 @@ import com.onmu.api.domain.PlaceCandidateEntity;
 import com.onmu.api.domain.PlaceCandidateRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceEntity;
+import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.route.DevMockRouteProvider;
 import com.onmu.api.route.OpenRouteServiceMapper;
 import com.onmu.api.route.OpenRouteServiceProvider;
@@ -34,6 +38,8 @@ class RouteRecommendationServiceTests {
   private PlanRepository planRepository;
   @Mock
   private PlaceCandidateRepository placeCandidateRepository;
+  @Mock
+  private SchedulePlaceRepository schedulePlaceRepository;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
   private GroupEntity group;
@@ -45,6 +51,7 @@ class RouteRecommendationServiceTests {
     plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "draft");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
   }
 
   @Test
@@ -84,6 +91,55 @@ class RouteRecommendationServiceTests {
   }
 
   @Test
+  void prefersSchedulePlacesOverCandidatePoolForRouteStops() {
+    PlaceCandidateEntity scheduledCandidate = new PlaceCandidateEntity(
+      "301",
+      group,
+      plan,
+      "Scheduled cafe",
+      "cafe",
+      "Seoul",
+      "{\"lat\":37.5,\"lng\":127.0}"
+    );
+    PlaceCandidateEntity secondScheduledCandidate = new PlaceCandidateEntity(
+      "302",
+      group,
+      plan,
+      "Scheduled park",
+      "park",
+      "Seoul",
+      "{\"lat\":37.6,\"lng\":127.1}"
+    );
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of(
+      new SchedulePlaceEntity("701", group, plan, scheduledCandidate, "Scheduled cafe", null, 1),
+      new SchedulePlaceEntity("702", group, plan, secondScheduledCandidate, "Scheduled park", null, 2)
+    ));
+    RouteRecommendationService service = serviceWith("test-ors-key", new FakeRouteHttpClient());
+
+    Map<String, Object> route = service.recommend("1", "101", "walk");
+
+    List<?> stops = (List<?>) route.get("stops");
+    assertThat(stops).hasSize(2);
+    assertThat(((Map<?, ?>) stops.get(0)).get("id")).isEqualTo("701");
+    assertThat(((Map<?, ?>) stops.get(1)).get("id")).isEqualTo("702");
+  }
+
+  @Test
+  void doesNotFallbackToCandidatePoolWhenSchedulePlacesHaveNoRouteableCoordinates() {
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of(
+      new SchedulePlaceEntity("701", group, plan, null, "Direct place", null, 1)
+    ));
+    RouteRecommendationService service = serviceWith("test-ors-key", new FakeRouteHttpClient());
+
+    Map<String, Object> route = service.recommend("1", "101", "walk");
+
+    assertThat(route)
+      .containsEntry("provider", "dev-mock")
+      .containsEntry("travelMode", "walk");
+    verify(placeCandidateRepository, never()).findByPlanOrderByCreatedAtAsc(plan);
+  }
+
+  @Test
   void fallsBackToDevMockWhenCandidateCoordinatesAreMissing() {
     when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(
       new PlaceCandidateEntity("201", group, plan, "No coordinate", "cafe", "Seoul", "{}")
@@ -98,11 +154,42 @@ class RouteRecommendationServiceTests {
     assertThat((List<?>) route.get("stops")).hasSizeGreaterThanOrEqualTo(2);
   }
 
+  @Test
+  void doesNotCacheDevMockFallbackWhenLiveRouteProviderFails() {
+    RecordingRouteCache cache = new RecordingRouteCache();
+    when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(candidatesWithCoordinates());
+    RouteRecommendationService service = serviceWith("test-ors-key", new FailingRouteHttpClient(), cache);
+
+    Map<String, Object> route = service.recommend("1", "101", "walk");
+
+    assertThat(route).containsEntry("provider", "dev-mock");
+    assertThat(cache.putCount).isZero();
+  }
+
+  @Test
+  void separatesRouteCacheKeyByProviderAvailability() {
+    RecordingRouteCache unavailableCache = new RecordingRouteCache();
+    RecordingRouteCache availableCache = new RecordingRouteCache();
+    when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(candidatesWithCoordinates());
+
+    serviceWith("", new FakeRouteHttpClient(), unavailableCache).recommend("1", "101", "walk");
+    serviceWith("test-ors-key", new FakeRouteHttpClient(), availableCache).recommend("1", "101", "walk");
+
+    assertThat(unavailableCache.lastKey).isNotBlank();
+    assertThat(availableCache.lastKey).isNotBlank();
+    assertThat(unavailableCache.lastKey).isNotEqualTo(availableCache.lastKey);
+  }
+
   private RouteRecommendationService serviceWith(String apiKey, RouteHttpClient httpClient) {
+    return serviceWith(apiKey, httpClient, new NoopRouteCache());
+  }
+
+  private RouteRecommendationService serviceWith(String apiKey, RouteHttpClient httpClient, RouteRecommendationCache cache) {
     return new RouteRecommendationService(
       groupRepository,
       planRepository,
       placeCandidateRepository,
+      schedulePlaceRepository,
       new OpenRouteServiceProvider(
         httpClient,
         new OpenRouteServiceMapper(objectMapper),
@@ -110,7 +197,7 @@ class RouteRecommendationServiceTests {
         "https://routes.example.test"
       ),
       new DevMockRouteProvider(),
-      new NoopRouteCache(),
+      cache,
       objectMapper
     );
   }
@@ -153,6 +240,13 @@ class RouteRecommendationServiceTests {
     }
   }
 
+  private static final class FailingRouteHttpClient implements RouteHttpClient {
+    @Override
+    public String post(URI uri, Map<String, String> headers, Map<String, Object> body) {
+      throw new IllegalStateException("synthetic route provider failure");
+    }
+  }
+
   private static final class NoopRouteCache implements RouteRecommendationCache {
     @Override
     public Optional<Map<String, Object>> get(String key) {
@@ -161,6 +255,23 @@ class RouteRecommendationServiceTests {
 
     @Override
     public void put(String key, Map<String, Object> route) {
+    }
+  }
+
+  private static final class RecordingRouteCache implements RouteRecommendationCache {
+    private int putCount;
+    private String lastKey;
+
+    @Override
+    public Optional<Map<String, Object>> get(String key) {
+      this.lastKey = key;
+      return Optional.empty();
+    }
+
+    @Override
+    public void put(String key, Map<String, Object> route) {
+      this.putCount += 1;
+      this.lastKey = key;
     }
   }
 }

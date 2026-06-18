@@ -313,12 +313,25 @@ public class ChatActivityService {
     response.put("attachments", attachments);
     response.put("messageType", messageType);
     response.put("cardType", textValue(payload.get("cardType")));
+    response.put("targetType", textValue(payload.get("targetType")));
+    response.put("targetId", textValue(payload.get("targetId")));
+    response.put("planId", planId(event, payload));
+    response.put("voteId", textValue(payload.get("voteId")));
+    response.put("settlementId", textValue(payload.get("settlementId")));
     response.put("createdAt", event.getCreatedAt().toString());
     response.put("cursor", cursorFor(event));
     response.put("timeLabel", TIME_LABEL_FORMATTER.format(event.getCreatedAt()));
     response.put("isMine", actorUser != null && actorUser.getId().equals(currentUserId));
     response.put("sendStatus", "sent");
     return response;
+  }
+
+  private String planId(ChatActivityEventEntity event, Map<String, Object> payload) {
+    String payloadPlanId = textValue(payload.get("planId"));
+    if (payloadPlanId != null && !payloadPlanId.isBlank()) {
+      return payloadPlanId;
+    }
+    return event.getPlan() == null ? null : event.getPlan().getPublicId();
   }
 
   private long unreadCount(GroupEntity group, UUID currentUserId) {

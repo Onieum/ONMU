@@ -295,17 +295,75 @@ class _ThreadContent extends StatelessWidget {
           _UnreadDivider(count: state.unreadCount),
           const SizedBox(height: AppSpacing.md),
         ],
-        for (final message in state.messages.where(
-          (message) => message.sender != 'ONMU',
-        )) ...[
-          ChatMessageBubble(
-            message: message,
-            onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
-          ),
+        for (final message in state.messages) ...[
+          if (message.isActivity)
+            ChatActivityCard(
+              message: message,
+              onTap: () => _openActivityMessage(context, message),
+            )
+          else
+            ChatMessageBubble(
+              message: message,
+              onRetry: message.canRetry
+                  ? () => onRetryMessage(message.id)
+                  : null,
+            ),
           const SizedBox(height: AppSpacing.sm),
         ],
       ],
     );
+  }
+
+  void _openActivityMessage(BuildContext context, GroupMessage message) {
+    final groupId = state.group.id;
+    if (message.isPlanCard) {
+      final planId = _planIdFor(message);
+      context.push(
+        planId == null
+            ? RoutePaths.planNew(groupId)
+            : RoutePaths.planDetail(groupId, planId),
+      );
+      return;
+    }
+    if (message.isVoteCard) {
+      final voteId = message.voteId.trim();
+      context.push(
+        voteId.isEmpty
+            ? RoutePaths.groupVotes(groupId)
+            : RoutePaths.groupVote(groupId, voteId),
+      );
+      return;
+    }
+    if (message.isSettlementCard) {
+      final planId = _planIdFor(message);
+      final settlementId = message.settlementId.trim();
+      context.push(
+        planId != null && settlementId.isNotEmpty
+            ? RoutePaths.planSettlementDetail(groupId, planId, settlementId)
+            : planId != null
+            ? RoutePaths.planSettlementNew(groupId, planId)
+            : RoutePaths.planNew(groupId),
+      );
+      return;
+    }
+    if (message.isSystemActivity) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이 알림은 채팅 안에서 확인했어요.')));
+      return;
+    }
+  }
+
+  String? _planIdFor(GroupMessage message) {
+    final planId = message.planId.trim();
+    if (planId.isNotEmpty) {
+      return planId;
+    }
+    if (message.targetType.trim().toUpperCase() != 'PLAN') {
+      return null;
+    }
+    final targetId = message.targetId.trim();
+    return targetId.isEmpty ? null : targetId;
   }
 
   Future<void> _showChatActions(BuildContext context) async {

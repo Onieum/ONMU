@@ -32,8 +32,7 @@ class _FriendProfilePage extends ConsumerWidget {
                         _FriendProfileHero(
                           friend: friend,
                           profile: profile,
-                          onDelete: () =>
-                              _showFriendMessage(context, '친구 삭제 기능을 준비 중이에요.'),
+                          onDelete: () => _deleteFriend(context, ref),
                           onCreatePlan: () => context.go(
                             RoutePaths.groupNew,
                             extra: [friend.name],
@@ -67,6 +66,26 @@ class _FriendProfilePage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteFriend(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      await ref.read(friendRepositoryProvider).deleteFriend(friend);
+      ref.invalidate(friendsProvider);
+      ref.invalidate(friendProfileProvider(friend));
+      if (!context.mounted) {
+        return;
+      }
+      navigator.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('친구를 삭제했어요.')));
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      _showFriendMessage(context, '친구 삭제에 실패했어요. 다시 시도해주세요.');
+    }
   }
 
   void _showFriendMessage(BuildContext context, String message) {

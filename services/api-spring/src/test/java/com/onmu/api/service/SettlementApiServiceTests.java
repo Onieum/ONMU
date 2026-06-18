@@ -11,8 +11,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onmu.api.domain.ChatActivityEventEntity;
+import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
+import com.onmu.api.domain.NotificationEntity;
+import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.SettlementDraftRepository;
@@ -61,6 +66,12 @@ class SettlementApiServiceTests {
   @Mock
   private SettlementTransferRepository settlementTransferRepository;
   @Mock
+  private ChatActivityEventRepository chatActivityEventRepository;
+  @Mock
+  private GroupMemberRepository groupMemberRepository;
+  @Mock
+  private NotificationRepository notificationRepository;
+  @Mock
   private OutboxService outboxService;
 
   private SettlementApiService service;
@@ -81,6 +92,9 @@ class SettlementApiServiceTests {
       settlementItemRepository,
       settlementItemTargetRepository,
       settlementTransferRepository,
+      chatActivityEventRepository,
+      groupMemberRepository,
+      notificationRepository,
       outboxService,
       new ObjectMapper()
     );
@@ -139,6 +153,9 @@ class SettlementApiServiceTests {
       .thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementTransferRepository.save(any(SettlementTransferEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationRepository.save(any(NotificationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     MapLike created = new MapLike(service.createSettlement("1", "101", request()));
 
@@ -148,10 +165,18 @@ class SettlementApiServiceTests {
     verify(settlementItemRepository).save(any(SettlementItemEntity.class));
     verify(settlementItemTargetRepository, times(2)).save(any(SettlementItemTargetEntity.class));
     verify(settlementTransferRepository).save(any(SettlementTransferEntity.class));
+    verify(chatActivityEventRepository).save(argThat(event -> "settlement.created".equals(event.getEventType())
+      && event.getPlan() == plan));
+    verify(notificationRepository, times(2)).save(argThat(notification ->
+      "settlement_created".equals(notification.getNotificationType())
+        && notification.getPlan() == plan
+        && "queued".equals(notification.getStatus())));
     verify(outboxService).record(eq("settlement.created"), eq("settlement"), any(),
       argThat(payload -> "302".equals(payload.get("settlementId"))));
-    verify(outboxService).record(eq("notification.requested"), eq("settlement"), any(),
-      argThat(payload -> "activity".equals(payload.get("channel"))));
+    verify(outboxService, times(2)).record(eq("notification.requested"), eq("notification"), any(),
+      argThat(payload -> "302".equals(payload.get("settlementId"))
+        && payload.containsKey("notificationId")
+        && "settlement_created".equals(payload.get("notificationType"))));
   }
 
   @Test
