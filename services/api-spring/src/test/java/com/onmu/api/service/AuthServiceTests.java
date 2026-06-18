@@ -185,6 +185,34 @@ class AuthServiceTests {
   }
 
   @Test
+  void existingOAuthUserWithKoreanDefaultNameIsUpdatedFromVerifiedProviderProfile() {
+    UserEntity defaultUser = new UserEntity("usr_kakao_default", "사용자", "user@example.test", null);
+    OAuthLoginRequest request = new OAuthLoginRequest("kakao-auth-code", null, null, null, null, null, "state-123");
+    AuthIdentityEntity identity = new AuthIdentityEntity("aid_kakao", defaultUser, "KAKAO", "kakao-subject", null);
+    when(oAuthIdentityVerifier.verify("KAKAO", request))
+      .thenReturn(new VerifiedOAuthIdentity(
+        "KAKAO",
+        "kakao-subject",
+        "Kakao User",
+        "kakao@example.test",
+        "https://example.test/kakao.png"
+      ));
+    when(authIdentityRepository.findByProviderAndProviderSubjectAndDeletedAtIsNull("KAKAO", "kakao-subject"))
+      .thenReturn(Optional.of(identity));
+    when(accessTokenIssuer.issue(defaultUser))
+      .thenReturn(new IssuedAccessToken("access-token", Instant.parse("2026-07-01T00:00:00Z")));
+    when(refreshTokenRepository.save(any(RefreshTokenEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> response = authService.oauthLogin("KAKAO", request, "127.0.0.1", "test-agent");
+
+    assertThat(response).containsEntry("authenticated", true);
+    assertThat(defaultUser.getNickname()).isEqualTo("Kakao User");
+    assertThat(response).extracting("user")
+      .isInstanceOfSatisfying(Map.class, userPayload ->
+        assertThat(userPayload).containsEntry("nickname", "Kakao User"));
+  }
+
+  @Test
   void existingOAuthUserWithCustomNameIsNotOverwrittenByProviderProfile() {
     UserEntity customUser = new UserEntity("usr_custom", "건동", "user@example.test", "https://example.test/me.png");
     OAuthLoginRequest request = new OAuthLoginRequest("kakao-auth-code", null, null, null, null, null, "state-123");

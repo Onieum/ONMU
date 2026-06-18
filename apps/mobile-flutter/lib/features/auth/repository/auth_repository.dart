@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
+import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
@@ -62,6 +63,7 @@ AuthUser authUserFromJson(
 }) {
   final databaseId = OnmuJson.readString(json, 'databaseId');
   final publicId = OnmuJson.readString(json, 'id');
+  final displayName = OnmuJson.readString(json, 'displayName');
   final nickname = OnmuJson.readString(json, 'nickname');
   final name = OnmuJson.readString(json, 'name');
   final username = OnmuJson.readString(json, 'username');
@@ -69,11 +71,12 @@ AuthUser authUserFromJson(
     id: databaseId.isNotEmpty ? databaseId : publicId,
     publicId: publicId.isEmpty ? null : publicId,
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
-    nickname: [
+    nickname: resolveOnmuDisplayName([
       nickname,
+      displayName,
       name,
       username,
-    ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => '사용자'),
+    ], fallback: '사용자'),
     email: OnmuJson.readString(json, 'email'),
     profileImageUrl: resolveOnmuMediaUrl(
       OnmuJson.readString(json, 'profileImageUrl'),

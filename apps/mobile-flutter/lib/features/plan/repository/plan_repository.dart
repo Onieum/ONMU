@@ -4,6 +4,7 @@ import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/preference_profile.dart';
+import '../../../shared/utils/onmu_display_name.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
   return ApiPlanRepository(ref.watch(onmuApiClientProvider));
@@ -216,7 +217,10 @@ class ApiPlanRepository implements PlanRepository {
     return PlanParticipantArrival(
       id: OnmuJson.readString(json, 'id'),
       userId: OnmuJson.readString(json, 'userId'),
-      nickname: OnmuJson.readString(json, 'nickname', '참여자'),
+      nickname: resolveOnmuDisplayName([
+        OnmuJson.readString(json, 'nickname'),
+        OnmuJson.readString(json, 'displayName'),
+      ], fallback: '참여자'),
       participantStatus: OnmuJson.readString(json, 'status', 'joined'),
       arrivalStatus: PlanArrivalStatus.fromApi(
         OnmuJson.readString(json, 'response'),
@@ -233,11 +237,11 @@ class ApiPlanRepository implements PlanRepository {
         : OnmuJson.asMapList(json['participants']);
     return rawMembers
         .map((member) {
-          final name = OnmuJson.readString(
-            member,
-            'name',
-            OnmuJson.readString(member, 'nickname', '참여자'),
-          );
+          final name = resolveOnmuDisplayName([
+            OnmuJson.readString(member, 'name'),
+            OnmuJson.readString(member, 'displayName'),
+            OnmuJson.readString(member, 'nickname'),
+          ], fallback: '참여자');
           return PlanMember(
             name: name,
             message: OnmuJson.readString(member, 'message'),

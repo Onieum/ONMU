@@ -104,9 +104,9 @@ class _ProfileHero extends StatelessWidget {
     final cleanRegion = profile.region.trim();
     final displayRegion = cleanRegion.isEmpty ? '지역 미설정' : cleanRegion;
     final cleanIntro = profile.introText.trim();
-    final headline = profile.realName.trim().isEmpty
-        ? 'ONMU User'
-        : profile.realName.trim();
+    final headline = resolveOnmuDisplayName([
+      profile.realName,
+    ], fallback: '사용자');
 
     return _SoftCard(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
