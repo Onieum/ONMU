@@ -207,6 +207,11 @@ jobs:
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           TF_VAR_postgres_administrator_password: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
         run: |
+          target_args=()
+          if [ "${{ inputs.wave }}" = "ai_foundation" ]; then
+            target_args=(-target=module.ai_foundation)
+            echo "Using targeted Terraform plan for ai_foundation to avoid unrelated staging resource changes."
+          fi
           set +e
           terraform plan \
             -input=false \
@@ -214,6 +219,7 @@ jobs:
             -detailed-exitcode \
             -out "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" \
             -var-file="${{ steps.wave_vars.outputs.path }}" \
+            "${target_args[@]}" \
             > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
           status=$?
           set -e
@@ -317,12 +323,18 @@ jobs:
           TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           TF_VAR_postgres_administrator_password: ${{ secrets.STAGING_POSTGRES_ADMINISTRATOR_PASSWORD }}
         run: |
+          target_args=()
+          if [ "${{ inputs.wave }}" = "ai_foundation" ]; then
+            target_args=(-target=module.ai_foundation)
+            echo "Using targeted Terraform plan for ai_foundation to avoid unrelated staging resource changes."
+          fi
           set +e
           terraform plan \
             -input=false \
             -no-color \
             -out "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}.tfplan" \
             -var-file="${{ steps.wave_vars.outputs.path }}" \
+            "${target_args[@]}" \
             > "$RUNNER_TEMP/onmu-staging-${{ inputs.wave }}-plan.log" 2>&1
           plan_status=$?
           set -e
