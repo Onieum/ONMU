@@ -30,7 +30,6 @@ import com.onmu.api.domain.VoteOptionRepository;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
 import com.onmu.api.web.dto.AddPlanParticipantRequest;
-import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
@@ -119,12 +118,6 @@ public class OnmuApiService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> userMe() {
-    UserEntity user = currentUser();
-    return userMe(user);
-  }
-
-  @Transactional(readOnly = true)
   public Map<String, Object> userMe(java.util.UUID userId) {
     return userMe(userOrThrow(userId));
   }
@@ -185,10 +178,10 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public Map<String, Object> homeSummary(java.util.UUID userId) {
     UserEntity viewer = userOrThrow(userId);
-    List<GroupEntity> groups = groupRepository.findAllByOrderByCreatedAtAsc();
-    GroupEntity firstGroup = groups.stream().findFirst().orElseThrow(this::noSeedData);
-    List<PlanEntity> plans = participatingPlans(firstGroup, viewer);
-    List<VoteEntity> votes = voteRepository.findByGroupOrderByCreatedAtAsc(firstGroup);
+    List<GroupEntity> groups = groupRepository.findVisibleForUserOrderByCreatedAtAsc(viewer.getId());
+    GroupEntity firstGroup = groups.stream().findFirst().orElse(null);
+    List<PlanEntity> plans = firstGroup == null ? List.of() : participatingPlans(firstGroup, viewer);
+    List<VoteEntity> votes = firstGroup == null ? List.of() : voteRepository.findByGroupOrderByCreatedAtAsc(firstGroup);
 
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("service", "onmu-api-spring");
@@ -199,20 +192,6 @@ public class OnmuApiService {
     value.put("activeVotes", votes.stream().map(this::voteCard).toList());
     value.put("nextPlan", plans.stream().findFirst().map(this::planCard).orElse(null));
     return value;
-  }
-
-  @Transactional(readOnly = true)
-  public List<Map<String, Object>> groups() {
-    return groupRepository.findAllByOrderByCreatedAtAsc().stream().map(this::groupCard).toList();
-  }
-
-  @Transactional
-  public Map<String, Object> createGroup(CreateGroupRequest request) {
-    String publicId = nextPublicId(groupRepository.findAllByOrderByCreatedAtAsc().stream()
-      .map(GroupEntity::getPublicId)
-      .toList(), 1);
-    GroupEntity group = groupRepository.save(new GroupEntity(publicId, request.name().trim(), currentUser()));
-    return groupCard(group);
   }
 
   @Transactional(readOnly = true)
@@ -227,11 +206,11 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> groupSummary(String groupId, java.util.UUID userId) {
-    GroupEntity group = groupOrThrow(groupId);
+    GroupAccess access = memberGroup(groupId, userId);
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("group", groupCard(group));
-    value.put("plans", plans(group.getPublicId(), userId));
-    value.put("votes", votes(group.getPublicId()));
+    value.put("group", groupCard(access.group()));
+    value.put("plans", plans(access.group().getPublicId(), userId));
+    value.put("votes", votes(access.group().getPublicId(), userId, null, null));
     return value;
   }
 
@@ -243,9 +222,8 @@ public class OnmuApiService {
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> plans(String groupId, java.util.UUID userId) {
-    GroupEntity group = groupOrThrow(groupId);
-    UserEntity user = userOrThrow(userId);
-    return participatingPlans(group, user).stream().map(this::planCard).toList();
+    GroupAccess access = memberGroup(groupId, userId);
+    return participatingPlans(access.group(), access.user()).stream().map(this::planCard).toList();
   }
 
   private List<PlanEntity> participatingPlans(GroupEntity group, UserEntity user) {
@@ -261,17 +239,12 @@ public class OnmuApiService {
   }
 
   @Transactional
-  public Map<String, Object> createPlan(String groupId, CreatePlanRequest request) {
-    return createPlan(groupId, currentUser(), request);
-  }
-
-  @Transactional
   public Map<String, Object> createPlan(String groupId, java.util.UUID userId, CreatePlanRequest request) {
-    return createPlan(groupId, userOrThrow(userId), request);
+    GroupAccess access = memberGroup(groupId, userId);
+    return createPlan(access.group(), access.user(), request);
   }
 
-  private Map<String, Object> createPlan(String groupId, UserEntity creator, CreatePlanRequest request) {
-    GroupEntity group = groupOrThrow(groupId);
+  private Map<String, Object> createPlan(GroupEntity group, UserEntity creator, CreatePlanRequest request) {
     String publicId = nextPublicId(planRepository.findAll().stream()
       .map(PlanEntity::getPublicId)
       .toList(), 101);
@@ -323,9 +296,30 @@ public class OnmuApiService {
     return planCard(planOrThrow(groupOrThrow(groupId), planId));
   }
 
+  @Transactional(readOnly = true)
+  public Map<String, Object> plan(String groupId, String planId, java.util.UUID userId) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    return planCard(planOrThrow(group, planId));
+  }
+
   @Transactional
   public Map<String, Object> updatePlan(String groupId, String planId, UpdatePlanRequest request) {
     GroupEntity group = groupOrThrow(groupId);
+    return updatePlan(group, planId, request);
+  }
+
+  @Transactional
+  public Map<String, Object> updatePlan(
+    String groupId,
+    String planId,
+    java.util.UUID userId,
+    UpdatePlanRequest request
+  ) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    return updatePlan(group, planId, request);
+  }
+
+  private Map<String, Object> updatePlan(GroupEntity group, String planId, UpdatePlanRequest request) {
     PlanEntity plan = planOrThrow(group, planId);
     UpdatePlanRequest safeRequest = request == null
       ? new UpdatePlanRequest(null, null, null, null, null, null)
@@ -354,20 +348,22 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public List<Map<String, Object>> planParticipants(String groupId, String planId) {
     PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+    return planParticipants(plan);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> planParticipants(String groupId, String planId, java.util.UUID userId) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    PlanEntity plan = planOrThrow(group, planId);
+    return planParticipants(plan);
+  }
+
+  private List<Map<String, Object>> planParticipants(PlanEntity plan) {
     List<PlanParticipantEntity> participants = planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan);
     return participants.stream()
       .filter(this::isActivePlanParticipant)
       .map(this::participantCard)
       .toList();
-  }
-
-  @Transactional
-  public Map<String, Object> upsertMyPlanParticipant(
-    String groupId,
-    String planId,
-    UpsertPlanParticipantRequest request
-  ) {
-    return upsertMyPlanParticipant(groupId, planId, currentUser(), request);
   }
 
   @Transactional
@@ -458,6 +454,21 @@ public class OnmuApiService {
   @Transactional(readOnly = true)
   public List<Map<String, Object>> votes(String groupId, String targetType, String targetId) {
     GroupEntity group = groupOrThrow(groupId);
+    return votes(group, targetType, targetId);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> votes(
+    String groupId,
+    java.util.UUID userId,
+    String targetType,
+    String targetId
+  ) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    return votes(group, targetType, targetId);
+  }
+
+  private List<Map<String, Object>> votes(GroupEntity group, String targetType, String targetId) {
     String normalizedTargetType = blankToNull(targetType);
     String normalizedTargetId = blankToNull(targetId);
     return voteRepository.findByGroupOrderByCreatedAtAsc(group).stream()
@@ -469,7 +480,15 @@ public class OnmuApiService {
 
   @Transactional
   public Map<String, Object> createVote(String groupId, CreateVoteRequest request) {
-    GroupEntity group = groupOrThrow(groupId);
+    return createVote(groupOrThrow(groupId), request);
+  }
+
+  @Transactional
+  public Map<String, Object> createVote(String groupId, java.util.UUID userId, CreateVoteRequest request) {
+    return createVote(memberGroup(groupId, userId).group(), request);
+  }
+
+  private Map<String, Object> createVote(GroupEntity group, CreateVoteRequest request) {
     String publicId = nextPublicId(voteRepository.findAll().stream()
       .map(VoteEntity::getPublicId)
       .toList(), 501);
@@ -513,27 +532,41 @@ public class OnmuApiService {
   }
 
   @Transactional(readOnly = true)
-  public List<Map<String, Object>> placeCandidates(String groupId, String planId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
-    UserEntity user = currentUser();
+  public Map<String, Object> vote(String groupId, String voteId, java.util.UUID userId) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    return voteCard(voteOrThrow(group, voteId));
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> placeCandidates(String groupId, String planId, java.util.UUID userId) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
     return placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan).stream()
-      .map(candidate -> placeCandidateCard(candidate, user))
+      .map(candidate -> placeCandidateCard(candidate, access.user()))
       .toList();
   }
 
   @Transactional(readOnly = true)
-  public Map<String, Object> placeCandidate(String groupId, String planId, String candidateId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
-    return placeCandidateCard(placeCandidateOrThrow(plan, candidateId), currentUser());
+  public Map<String, Object> placeCandidate(
+    String groupId,
+    String planId,
+    String candidateId,
+    java.util.UUID userId
+  ) {
+    GroupAccess access = memberGroup(groupId, userId);
+    PlanEntity plan = planOrThrow(access.group(), planId);
+    return placeCandidateCard(placeCandidateOrThrow(plan, candidateId), access.user());
   }
 
   @Transactional
   public Map<String, Object> createPlaceCandidate(
     String groupId,
     String planId,
+    java.util.UUID userId,
     CreatePlaceCandidateRequest request
   ) {
-    GroupEntity group = groupOrThrow(groupId);
+    GroupAccess access = memberGroup(groupId, userId);
+    GroupEntity group = access.group();
     PlanEntity plan = planOrThrow(group, planId);
     String publicId = nextPublicId(placeCandidateRepository.findAll().stream()
       .map(PlaceCandidateEntity::getPublicId)
@@ -556,7 +589,7 @@ public class OnmuApiService {
       "candidateId", candidate.getPublicId(),
       "name", candidate.getName()
     ));
-    return placeCandidateCard(candidate, currentUser());
+    return placeCandidateCard(candidate, access.user());
   }
 
   @Transactional
@@ -564,12 +597,14 @@ public class OnmuApiService {
     String groupId,
     String planId,
     String candidateId,
+    java.util.UUID userId,
     UpsertPlaceCandidateHeartRequest request
   ) {
-    GroupEntity group = groupOrThrow(groupId);
+    GroupAccess access = memberGroup(groupId, userId);
+    GroupEntity group = access.group();
     PlanEntity plan = planOrThrow(group, planId);
     PlaceCandidateEntity candidate = placeCandidateOrThrow(plan, candidateId);
-    UserEntity user = currentUser();
+    UserEntity user = access.user();
     boolean hearted = request == null || request.hearted() == null || request.hearted();
     var existingHeart = placeCandidateHeartRepository.findByCandidateAndUser(candidate, user);
     if (hearted && existingHeart.isEmpty()) {
@@ -592,9 +627,10 @@ public class OnmuApiService {
   public Map<String, Object> createSchedulePlace(
     String groupId,
     String planId,
+    java.util.UUID userId,
     CreateSchedulePlaceRequest request
   ) {
-    GroupEntity group = groupOrThrow(groupId);
+    GroupEntity group = memberGroup(groupId, userId).group();
     PlanEntity plan = planOrThrow(group, planId);
     PlaceCandidateEntity candidate = request.candidateId() == null || request.candidateId().isBlank()
       ? null
@@ -634,8 +670,9 @@ public class OnmuApiService {
   }
 
   @Transactional(readOnly = true)
-  public List<Map<String, Object>> schedulePlaces(String groupId, String planId) {
-    PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
+  public List<Map<String, Object>> schedulePlaces(String groupId, String planId, java.util.UUID userId) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    PlanEntity plan = planOrThrow(group, planId);
     return schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan).stream()
       .map(schedulePlace -> schedulePlaceCard(plan.getGroup(), plan, schedulePlace))
       .toList();
@@ -716,10 +753,6 @@ public class OnmuApiService {
       .orElseGet(() -> settlementSummaryCard("draft", plan, readObject(defaultSettlementPayload(plan)), true));
   }
 
-  private UserEntity currentUser() {
-    return userRepository.findFirstByOrderByCreatedAtAsc().orElseThrow(this::noSeedData);
-  }
-
   private UserEntity userOrThrow(java.util.UUID userId) {
     return userRepository.findByIdAndDeletedAtIsNull(userId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
@@ -736,6 +769,15 @@ public class OnmuApiService {
   private GroupEntity groupOrThrow(String groupId) {
     return groupRepository.findByPublicId(groupId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+  }
+
+  private GroupAccess memberGroup(String groupId, java.util.UUID userId) {
+    UserEntity user = userOrThrow(userId);
+    GroupEntity group = groupOrThrow(groupId);
+    if (user.getId() == null || !groupRepository.isUserMember(group.getPublicId(), user.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+    return new GroupAccess(group, user);
   }
 
   private PlanEntity planOrThrow(GroupEntity group, String planId) {
@@ -1523,7 +1565,6 @@ public class OnmuApiService {
     }
   }
 
-  private ResponseStatusException noSeedData() {
-    return new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing");
+  private record GroupAccess(GroupEntity group, UserEntity user) {
   }
 }

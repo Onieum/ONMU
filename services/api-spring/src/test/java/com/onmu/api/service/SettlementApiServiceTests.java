@@ -104,7 +104,8 @@ class SettlementApiServiceTests {
     jimin = user("user-jimin", "지민");
     minsu = user("user-minsu", "민수");
 
-    lenient().when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(me));
+    lenient().when(userRepository.findByIdAndDeletedAtIsNull(me.getId())).thenReturn(Optional.of(me));
+    lenient().when(groupRepository.isUserMember("1", me.getId())).thenReturn(true);
     lenient().when(userRepository.findByPublicIdIn(any())).thenAnswer(invocation -> {
       Collection<?> userIds = invocation.getArgument(0);
       if (userIds == null) {
@@ -130,7 +131,7 @@ class SettlementApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
 
-    MapLike preview = new MapLike(service.previewSettlement("1", "101", request()));
+    MapLike preview = new MapLike(service.previewSettlement("1", "101", me.getId(), request()));
 
     assertThat(preview.value("preview")).isEqualTo(true);
     assertThat(preview.value("totalAmountLabel")).isEqualTo("12,000원");
@@ -139,6 +140,20 @@ class SettlementApiServiceTests {
     assertThat(preview.firstTransfer().get("amountLabel")).isEqualTo("6,000원");
     verifyNoInteractions(settlementRepository, settlementItemRepository, settlementItemTargetRepository,
       settlementTransferRepository, outboxService);
+  }
+
+  @Test
+  void previewSettlementRejectsNonGroupMember() {
+    when(userRepository.findByIdAndDeletedAtIsNull(me.getId())).thenReturn(Optional.of(me));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", me.getId())).thenReturn(false);
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        service.previewSettlement("1", "101", me.getId(), request()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(exception.getReason()).isEqualTo("not_group_member");
+      });
   }
 
   @Test
@@ -157,7 +172,7 @@ class SettlementApiServiceTests {
       .thenAnswer(invocation -> invocation.getArgument(0));
     when(notificationRepository.save(any(NotificationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    MapLike created = new MapLike(service.createSettlement("1", "101", request()));
+    MapLike created = new MapLike(service.createSettlement("1", "101", me.getId(), request()));
 
     assertThat(created.value("id")).isEqualTo("302");
     assertThat(created.value("preview")).isEqualTo(false);
@@ -184,7 +199,7 @@ class SettlementApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
 
-    MapLike preview = new MapLike(service.previewSettlement("1", "101", new SettlementPreviewRequest(List.of(
+    MapLike preview = new MapLike(service.previewSettlement("1", "101", me.getId(), new SettlementPreviewRequest(List.of(
       new SettlementDraftItemRequest(
         "401",
         "커피",
@@ -209,7 +224,7 @@ class SettlementApiServiceTests {
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(userRepository.findByDisplayNameIn(any())).thenReturn(List.of(jimin, anotherJimin));
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.previewSettlement("1", "101", nameFallbackRequest()))
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.previewSettlement("1", "101", me.getId(), nameFallbackRequest()))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(exception.getReason()).isEqualTo("ambiguous_settlement_member_name");
@@ -245,7 +260,7 @@ class SettlementApiServiceTests {
       .thenReturn(List.of(jiminTarget, minsuTarget));
     when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(transfer));
 
-    MapLike result = new MapLike(service.settlementById("1", "101", "302"));
+    MapLike result = new MapLike(service.settlementById("1", "101", "302", me.getId()));
 
     assertThat(result.value("id")).isEqualTo("302");
     assertThat(result.firstPaymentItem().get("id")).isEqualTo("403");
@@ -255,7 +270,8 @@ class SettlementApiServiceTests {
 
   @Test
   void settlementByIdUsesPayloadPayerSharesBeforeTopLevelPayer() {
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(jimin));
+    when(userRepository.findByIdAndDeletedAtIsNull(jimin.getId())).thenReturn(Optional.of(jimin));
+    when(groupRepository.isUserMember("1", jimin.getId())).thenReturn(true);
     SettlementEntity settlement = new SettlementEntity(
       "303",
       group,
@@ -285,7 +301,7 @@ class SettlementApiServiceTests {
       .thenReturn(List.of(jiminTarget, minsuTarget, meTarget));
     when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of());
 
-    MapLike result = new MapLike(service.settlementById("1", "101", "303"));
+    MapLike result = new MapLike(service.settlementById("1", "101", "303", jimin.getId()));
 
     assertThat(result.payerShares()).hasSize(2);
     assertThat(result.payerShares().get(0).get("name")).isEqualTo("민수");

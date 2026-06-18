@@ -36,7 +36,9 @@ class CharacterServiceTests {
     service = new CharacterService(characterProfileRepository, userRepository);
     user = org.mockito.Mockito.mock(UserEntity.class);
     when(user.getId()).thenReturn(UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    when(userRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.of(user));
+    org.mockito.Mockito.lenient()
+      .when(userRepository.findByIdAndDeletedAtIsNull(user.getId()))
+      .thenReturn(Optional.of(user));
   }
 
   @Test
@@ -46,7 +48,7 @@ class CharacterServiceTests {
     );
     when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(entity));
 
-    var response = service.getMyCharacter();
+    var response = service.getMyCharacter(user.getId());
 
     assertThat(response.userId()).isEqualTo(user.getId());
     assertThat(response.gender()).isEqualTo("female");
@@ -63,7 +65,7 @@ class CharacterServiceTests {
     when(characterProfileRepository.save(any(CharacterProfileEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var response = service.saveMyCharacter(request);
+    var response = service.saveMyCharacter(user.getId(), request);
 
     assertThat(response.userId()).isEqualTo(user.getId());
     assertThat(response.gender()).isEqualTo("female");
@@ -79,7 +81,7 @@ class CharacterServiceTests {
     when(characterProfileRepository.save(any(CharacterProfileEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var response = service.generateCharacter(request);
+    var response = service.generateCharacter(user.getId(), request);
 
     assertThat(response.hairStyle()).isEqualTo("neat_parted");
     assertThat(response.eyeColor()).isEqualTo("dark_gray");
@@ -92,7 +94,7 @@ class CharacterServiceTests {
     when(characterProfileRepository.save(any(CharacterProfileEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var response = service.updateSkipStatus(request);
+    var response = service.updateSkipStatus(user.getId(), request);
 
     assertThat(response.skipped()).isTrue();
   }
