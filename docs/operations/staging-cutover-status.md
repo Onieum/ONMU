@@ -44,6 +44,7 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 | `Build Staging Images` 실행 | 가능 | 가능 | 가능 |
 | `Terraform Staging` plan-only | 가능 | 가능 | 가능 |
 | `Terraform Staging` apply | 아니오, approval 필요 | approval 후 가능 | 가능 |
+| `Legacy Windows backend deploy` 실행 | 아니오, 기본 사용 안 함 | rollback/dev 분리 때만 승인 | 가능 |
 | Key Vault secret 값 쓰기 | 아니오 | 아니오 | 가능 |
 | revision restart | 제한적, 운영 합의 필요 | 승인 후 가능 | 가능 |
 | DNS/custom domain/provider console 변경 | 아니오 | 아니오 | 가능 |
@@ -57,6 +58,9 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 - `Terraform Staging`
   - `backend_smoke`
   - `wave` plan/apply
+- `Legacy Windows backend deploy`
+  - legacy Windows dev/integration runtime만 수동 배포
+  - staging acceptance 또는 release/pre-prod gate로 사용하지 않음
 
 ### 5.2 protected approval이 필요한 것
 
@@ -96,7 +100,8 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 
 - `onmu-dev-kv-27db5e`가 현재 runtime 표준 secret source다.
 - `kvonmustagingkrc001`는 존재하지만 현재 앱 runtime의 기본 secret source로 보지 않는다.
-- Windows dev backend는 staging 표준 경로가 아니다.
+- Windows dev backend는 staging 표준 경로가 아니다. GitHub Actions도 자동 deploy를 하지 않고 수동 legacy workflow로만 남긴다.
+- 2026-06-26 이후 Windows backend workflow, Cloudflare tunnel, `dev-api.onmu.cloud` 문서의 유지/삭제를 별도 PR로 판단한다.
 - production 전용 environment, stronger rollback discipline, private networking hardening은 기존 production 로드맵에서 후속으로 다시 합류한다.
 
 ## 8. 지금부터의 기준
