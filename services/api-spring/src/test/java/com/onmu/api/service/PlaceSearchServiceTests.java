@@ -115,7 +115,14 @@ class PlaceSearchServiceTests {
       result("kakao", "kakao-5", "카카오 후보 5", "서울 성동구 5", 37.65, 127.15),
       result("kakao", "kakao-6", "카카오 후보 6", "서울 성동구 6", 37.66, 127.16),
       result("kakao", "kakao-7", "카카오 후보 7", "서울 성동구 7", 37.67, 127.17),
-      result("kakao", "kakao-8", "카카오 후보 8", "서울 성동구 8", 37.68, 127.18)
+      result("kakao", "kakao-8", "카카오 후보 8", "서울 성동구 8", 37.68, 127.18),
+      result("kakao", "kakao-9", "카카오 후보 9", "서울 성동구 9", 37.69, 127.19),
+      result("kakao", "kakao-10", "카카오 후보 10", "서울 성동구 10", 37.70, 127.20),
+      result("kakao", "kakao-11", "카카오 후보 11", "서울 성동구 11", 37.71, 127.21),
+      result("kakao", "kakao-12", "카카오 후보 12", "서울 성동구 12", 37.72, 127.22),
+      result("kakao", "kakao-13", "카카오 후보 13", "서울 성동구 13", 37.73, 127.23),
+      result("kakao", "kakao-14", "카카오 후보 14", "서울 성동구 14", 37.74, 127.24),
+      result("kakao", "kakao-15", "카카오 후보 15", "서울 성동구 15", 37.75, 127.25)
     ));
     MemoryCache cache = new MemoryCache();
     PlaceSearchService service = new PlaceSearchService(
@@ -128,12 +135,12 @@ class PlaceSearchServiceTests {
     var firstResults = service.search("성수 맛집", "1", "101");
     var cachedResults = service.search("성수 맛집", "1", "101");
 
-    assertThat(firstResults).hasSize(12);
-    assertThat(cachedResults).hasSize(12);
+    assertThat(firstResults).hasSize(20);
+    assertThat(cachedResults).hasSize(20);
     assertThat(firstResults).isEqualTo(cachedResults);
     assertThat(firstResults.subList(0, 5))
       .allSatisfy(result -> assertThat(result).containsEntry("provider", "naver"));
-    assertThat(firstResults.subList(5, 12))
+    assertThat(firstResults.subList(5, 20))
       .allSatisfy(result -> assertThat(result).containsEntry("provider", "kakao"));
     assertThat(cache.keys()).hasSize(1);
     assertThat(naver.invocations).isEqualTo(1);

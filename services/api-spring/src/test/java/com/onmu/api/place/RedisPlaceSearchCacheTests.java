@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,21 +36,23 @@ class RedisPlaceSearchCacheTests {
     when(provider.getIfAvailable()).thenReturn(redisTemplate);
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     RedisPlaceSearchCache cache = new RedisPlaceSearchCache(objectMapper, provider);
-    List<Map<String, Object>> results = List.of(
-      Map.of(
-        "id", "naver-1",
-        "name", "후보 1",
-        "provider", "naver",
-        "lat", 37.51,
-        "lng", 127.01
-      )
-    );
+    List<Map<String, Object>> results = IntStream.rangeClosed(1, 20)
+      .mapToObj(index -> Map.<String, Object>of(
+        "id", "place-" + index,
+        "name", "후보 " + index,
+        "provider", index <= 5 ? "naver" : "kakao",
+        "lat", 37.50 + index / 100.0,
+        "lng", 127.00 + index / 100.0
+      ))
+      .toList();
 
     cache.put(CACHE_KEY, results);
 
     ArgumentCaptor<String> json = ArgumentCaptor.forClass(String.class);
     verify(valueOperations).set(eq(CACHE_KEY), json.capture(), eq(Duration.ofMinutes(10)));
-    assertThat(objectMapper.readValue(json.getValue(), RESULT_TYPE)).isEqualTo(results);
+    List<Map<String, Object>> storedResults = objectMapper.readValue(json.getValue(), RESULT_TYPE);
+    assertThat(storedResults).hasSize(20);
+    assertThat(storedResults).isEqualTo(results);
   }
 
   @Test

@@ -27,7 +27,7 @@ import org.springframework.web.client.RestClientResponseException;
 @Service
 public class PlaceSearchService {
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaceSearchService.class);
-  private static final int RESULT_LIMIT = 12;
+  private static final int RESULT_LIMIT = 20;
   private static final List<String> PROVIDER_ORDER = List.of("naver", "kakao");
   private static final String FALLBACK_PROPERTY = "onmu.place.dev-mock-fallback-enabled";
   private static final String FALLBACK_ENV = "ONMU_PLACE_DEV_MOCK_FALLBACK_ENABLED";
