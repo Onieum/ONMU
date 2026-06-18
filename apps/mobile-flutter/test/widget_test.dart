@@ -27,6 +27,7 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
+import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 
 import 'support/in_memory_onmu_store.dart';
@@ -1757,6 +1758,36 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
+  testWidgets('group chat settlement activity card opens specific settlement', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+    final settlementRepository = _TrackingWidgetSettlementRepository(store);
+
+    appRouter.go(RoutePaths.splash);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        groupRepository: _SettlementActivityGroupRepository(store),
+        settlementRepository: settlementRepository,
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('제주도 여행 정산이 공유됐어요.'), findsOneWidget);
+
+    await tester.tap(find.text('정산 확인하기'));
+    await tester.pumpAndSettle();
+
+    expect(settlementRepository.fetchLatestCalls, isZero);
+    expect(settlementRepository.fetchByIdCalls, ['1/101/301']);
+    expect(find.text('특정 정산'), findsOneWidget);
+    expect(find.text('내 정산 결과'), findsOneWidget);
+  });
+
   testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
@@ -1838,6 +1869,85 @@ class _NoAuxGroupRepository extends TestGroupRepository {
     String? targetType,
     Object? targetId,
   }) async => [];
+}
+
+class _SettlementActivityGroupRepository extends _NoAuxGroupRepository {
+  _SettlementActivityGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'activity-settlement-301',
+          sender: 'ONMU',
+          message: '제주도 여행 정산이 공유됐어요.',
+          timeLabel: '14:10',
+          isMine: false,
+          messageType: 'settlement_card',
+          cardType: 'settlement_card',
+          targetType: 'PLAN',
+          targetId: '101',
+          planId: '101',
+          settlementId: '301',
+        ),
+      ],
+    );
+  }
+}
+
+class _TrackingWidgetSettlementRepository extends TestSettlementRepository {
+  _TrackingWidgetSettlementRepository(super.store);
+
+  final fetchByIdCalls = <String>[];
+  var fetchLatestCalls = 0;
+
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    fetchLatestCalls += 1;
+    return const SettlementSummary(
+      id: '999',
+      planTitle: '최신 정산',
+      totalAmountLabel: '0원',
+      createdDateLabel: '',
+      itemCountLabel: '결제 항목 0개',
+      finalSummaryLabel: '정산 없음',
+      mySummaryLabel: '정산 없음',
+      paymentItems: [],
+      memberResults: [],
+      transfers: [],
+      shareMessage: '',
+    );
+  }
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    fetchByIdCalls.add('$groupId/$planId/$settlementId');
+    return const SettlementSummary(
+      id: '301',
+      planTitle: '특정 정산',
+      totalAmountLabel: '42,000원',
+      createdDateLabel: '',
+      itemCountLabel: '결제 항목 1개',
+      finalSummaryLabel: '1건 송금',
+      mySummaryLabel: '나는 0원 정산',
+      paymentItems: [],
+      memberResults: [],
+      transfers: [],
+      shareMessage: '',
+    );
+  }
 }
 
 class _EmptyPlaceRepository implements PlaceRepository {

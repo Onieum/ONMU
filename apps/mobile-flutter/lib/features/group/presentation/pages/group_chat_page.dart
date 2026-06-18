@@ -295,23 +295,13 @@ class _ThreadContent extends StatelessWidget {
           _UnreadDivider(count: state.unreadCount),
           const SizedBox(height: AppSpacing.md),
         ],
-        for (final message in state.messages.where(
-          (message) => message.sender != 'ONMU' || message.isSettlementCard,
-        )) ...[
-          if (message.isSettlementCard)
-            _SettlementActivityCard(
+        for (final message in state.messages) ...[
+          if (message.isActivity)
+            ChatActivityCard(
               message: message,
-              onTap: message.hasSettlementRoute
-                  ? () => context.push(
-                      RoutePaths.planSettlementDetail(
-                        group.id,
-                        message.planId,
-                        message.settlementId,
-                      ),
-                    )
-                  : null,
+              onTap: () => _openActivityMessage(context, message),
             )
-          else if (message.sender != 'ONMU')
+          else
             ChatMessageBubble(
               message: message,
               onRetry: message.canRetry
@@ -322,6 +312,58 @@ class _ThreadContent extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  void _openActivityMessage(BuildContext context, GroupMessage message) {
+    final groupId = state.group.id;
+    if (message.isPlanCard) {
+      final planId = _planIdFor(message);
+      context.push(
+        planId == null
+            ? RoutePaths.planNew(groupId)
+            : RoutePaths.planDetail(groupId, planId),
+      );
+      return;
+    }
+    if (message.isVoteCard) {
+      final voteId = message.voteId.trim();
+      context.push(
+        voteId.isEmpty
+            ? RoutePaths.groupVotes(groupId)
+            : RoutePaths.groupVote(groupId, voteId),
+      );
+      return;
+    }
+    if (message.isSettlementCard) {
+      final planId = _planIdFor(message);
+      final settlementId = message.settlementId.trim();
+      context.push(
+        planId != null && settlementId.isNotEmpty
+            ? RoutePaths.planSettlementDetail(groupId, planId, settlementId)
+            : planId != null
+            ? RoutePaths.planSettlementNew(groupId, planId)
+            : RoutePaths.planNew(groupId),
+      );
+      return;
+    }
+    if (message.isSystemActivity) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이 알림은 채팅 안에서 확인했어요.')));
+      return;
+    }
+  }
+
+  String? _planIdFor(GroupMessage message) {
+    final planId = message.planId.trim();
+    if (planId.isNotEmpty) {
+      return planId;
+    }
+    if (message.targetType.trim().toUpperCase() != 'PLAN') {
+      return null;
+    }
+    final targetId = message.targetId.trim();
+    return targetId.isEmpty ? null : targetId;
   }
 
   Future<void> _showChatActions(BuildContext context) async {
@@ -708,79 +750,6 @@ class _SettlementNoticeCard extends StatelessWidget {
                 ),
                 onPressed: onTap,
                 icon: const Icon(Icons.payments_outlined, size: 16),
-                label: const Text('정산 확인하기'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettlementActivityCard extends StatelessWidget {
-  const _SettlementActivityCard({required this.message, required this.onTap});
-
-  final GroupMessage message;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final description = message.message.trim().isEmpty
-        ? '정산 결과를 확인해 주세요.'
-        : message.message.trim();
-
-    return Align(
-      alignment: Alignment.center,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 336),
-        child: OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.lineWarm,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.payments_outlined,
-                    size: 18,
-                    color: AppColors.primaryPink,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    'ONMU 정산',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.primaryPink,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(description, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '정산 상세에서 참여자별 금액과 송금 내역을 확인할 수 있어요.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryPink,
-                  foregroundColor: AppColors.textInverse,
-                  minimumSize: const Size.fromHeight(36),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                ),
-                onPressed: onTap,
-                icon: const Icon(Icons.receipt_long_outlined, size: 16),
                 label: const Text('정산 확인하기'),
               ),
             ],
