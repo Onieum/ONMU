@@ -227,8 +227,8 @@ class TestFriendRepository implements FriendRepository {
       publicId: publicId,
       userCode: publicId,
       name: publicId,
-      preferenceSummary: memo ?? '친구 요청 대기 중',
-      isFriend: false,
+      preferenceSummary: '',
+      isFriend: true,
       memo: memo ?? '',
     );
   }
@@ -439,6 +439,12 @@ class TestAuthRepository implements AuthRepository {
       ),
     );
   }
+
+  @override
+  Future<void> logout(String? refreshToken) async {}
+
+  @override
+  Future<void> withdraw() async {}
 }
 
 class TestGroupRepository implements GroupRepository {

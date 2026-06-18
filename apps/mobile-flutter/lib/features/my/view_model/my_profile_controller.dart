@@ -72,6 +72,7 @@ class MyProfileController {
   Future<void> addFriend(String publicId) async {
     try {
       await _ref.read(friendRepositoryProvider).addFriend(publicId);
+      _ref.invalidate(friendsProvider);
     } on DioException catch (error) {
       throw FriendAddException.fromDio(error);
     }
@@ -90,7 +91,7 @@ class FriendAddException implements Exception {
       return const FriendAddException('없는 고유 ID예요.');
     }
     if (statusCode == 409 || reason.contains('already_friend')) {
-      return const FriendAddException('이미 친구이거나 요청을 보낸 사용자예요.');
+      return const FriendAddException('이미 친구예요.');
     }
     if (statusCode == 403 || reason.contains('search_not_allowed')) {
       return const FriendAddException('상대가 친구 추가를 허용하지 않았어요.');
@@ -98,6 +99,6 @@ class FriendAddException implements Exception {
     if (statusCode == 400 || reason.contains('cannot_add_self')) {
       return const FriendAddException('내 고유 ID는 친구로 추가할 수 없어요.');
     }
-    return const FriendAddException('친구 요청에 실패했어요. 다시 시도해주세요.');
+    return const FriendAddException('친구 등록에 실패했어요. 다시 시도해주세요.');
   }
 }

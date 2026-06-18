@@ -1,3 +1,4 @@
+import '../../../shared/models/character_model.dart';
 import 'korea_region.dart';
 
 enum ProfileVisibility {
@@ -56,6 +57,7 @@ class MyProfile {
     this.preferredWeekdays = const [],
     this.profileImageUrl = '',
     this.searchAllowed = true,
+    this.character,
   });
 
   final String realName;
@@ -80,6 +82,7 @@ class MyProfile {
   final List<String> preferredWeekdays;
   final String profileImageUrl;
   final bool searchAllowed;
+  final CharacterDraft? character;
 
   List<String> get preferenceHighlights {
     return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
@@ -112,6 +115,7 @@ class MyProfile {
     List<String>? preferredWeekdays,
     String? profileImageUrl,
     bool? searchAllowed,
+    CharacterDraft? character,
   }) {
     return MyProfile(
       realName: realName ?? this.realName,
@@ -140,6 +144,7 @@ class MyProfile {
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       searchAllowed: searchAllowed ?? this.searchAllowed,
+      character: character ?? this.character,
     );
   }
 }
@@ -156,6 +161,7 @@ class FriendProfile {
     this.memo = '',
     this.profileImageUrl = '',
     this.introText = '',
+    this.character,
   });
 
   final String userId;
@@ -168,6 +174,7 @@ class FriendProfile {
   final String memo;
   final String profileImageUrl;
   final String introText;
+  final CharacterDraft? character;
 
   String get memoOrCode {
     final cleanMemo = memo.trim();
@@ -186,6 +193,7 @@ class FriendProfile {
     bool? isFavorite,
     String? memo,
     String? introText,
+    CharacterDraft? character,
   }) {
     return FriendProfile(
       userId: userId,
@@ -198,6 +206,7 @@ class FriendProfile {
       memo: memo ?? this.memo,
       profileImageUrl: profileImageUrl,
       introText: introText ?? this.introText,
+      character: character ?? this.character,
     );
   }
 }

@@ -145,7 +145,10 @@ class _FriendProfileErrorCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          _CharacterPortrait(size: 84, character: _characterForFriend(friend)),
+          _CharacterPortrait(
+            size: 84,
+            character: friend.character ?? _characterForFriend(friend),
+          ),
           const SizedBox(height: 14),
           Text(
             friend.name,
@@ -201,10 +204,7 @@ class _PrivateFriendProfileNotice extends StatelessWidget {
 }
 
 class _FriendProfileTopBar extends StatelessWidget {
-  const _FriendProfileTopBar({
-    required this.onBack,
-    required this.onEditMemo,
-  });
+  const _FriendProfileTopBar({required this.onBack, required this.onEditMemo});
 
   final VoidCallback onBack;
   final VoidCallback onEditMemo;
@@ -218,9 +218,15 @@ class _FriendProfileTopBar extends StatelessWidget {
           onTap: onBack,
         ),
         const Spacer(),
-        _HeaderIconButton(
-          icon: Icons.more_vert_rounded,
-          onTap: onEditMemo,
+        TextButton(
+          onPressed: onEditMemo,
+          child: Text(
+            '메모 수정',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: AppColors.primaryPink,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ),
       ],
     );
@@ -290,7 +296,7 @@ class _FriendProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final character = _characterForFriend(friend);
+    final character = profile.character ?? _characterForFriend(friend);
     final cleanIntro = profile.introText.trim();
     final cleanRegion = profile.region.trim();
 

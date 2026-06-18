@@ -286,9 +286,7 @@ class _MyPageState extends ConsumerState<MyPage> {
       if (!mounted) {
         return;
       }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('친구 요청을 보냈어요. 상대가 수락하면 친구가 돼요.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('친구로 등록했어요.')));
     } on FriendAddException catch (error) {
       if (!mounted) {
         return;
@@ -299,7 +297,7 @@ class _MyPageState extends ConsumerState<MyPage> {
         return;
       }
       messenger.showSnackBar(
-        const SnackBar(content: Text('친구 요청에 실패했어요. 다시 시도해주세요.')),
+        const SnackBar(content: Text('친구 등록에 실패했어요. 다시 시도해주세요.')),
       );
     }
   }

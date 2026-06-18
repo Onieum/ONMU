@@ -27,7 +27,7 @@ class ApiCharacterRepository implements CharacterRepository {
   Future<CharacterDraft?> fetchMyCharacter() async {
     try {
       final json = await _client.getObject('/api/v1/users/me/character');
-      return _fromJson(json);
+      return CharacterDraft.fromApiJson(json);
     } on DioException catch (error) {
       if (error.response?.statusCode == 404) {
         return null;
@@ -50,31 +50,8 @@ class ApiCharacterRepository implements CharacterRepository {
         'clothes': _indexedValue('top', draft.topStyleIndex),
       },
     );
-    return _fromJson(json).copyWith(nickname: draft.nickname);
-  }
-
-  CharacterDraft _fromJson(Map<String, dynamic> json) {
-    return CharacterDraft(
-      gender: OnmuJson.readString(json, 'gender', 'female'),
-      skinToneIndex: _readIndexedValue(json['skinTone'], 'skin'),
-      hairStyleIndex: _readIndexedValue(json['hairStyle'], 'hair_style'),
-      hairColorIndex: _readIndexedValue(json['hairColor'], 'hair_color'),
-      eyeShapeIndex: _readIndexedValue(json['eyeStyle'], 'eye_style'),
-      eyeColorIndex: _readIndexedValue(json['eyeColor'], 'eye_color'),
-      topStyleIndex: _readIndexedValue(json['clothes'], 'top', fallback: -1),
-    );
+    return CharacterDraft.fromApiJson(json, nickname: draft.nickname);
   }
 
   String _indexedValue(String prefix, int index) => '${prefix}_$index';
-
-  int _readIndexedValue(Object? value, String prefix, {int fallback = 0}) {
-    final text = value?.toString() ?? '';
-    final match = RegExp(
-      '^${RegExp.escape(prefix)}_(-?\\d+)\$',
-    ).firstMatch(text);
-    if (match != null) {
-      return int.tryParse(match.group(1) ?? '') ?? fallback;
-    }
-    return fallback;
-  }
 }

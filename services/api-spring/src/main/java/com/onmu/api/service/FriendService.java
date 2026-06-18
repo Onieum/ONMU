@@ -41,6 +41,7 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
+          friend.pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -116,6 +117,7 @@ public class FriendService {
           coalesce(active_code.code, u.public_id) as user_code,
           u.nickname,
           u.profile_image_url,
+          u.pixel_character,
           '' as memo,
           coalesce(u.preference_profile::jsonb ->> 'introText', '') as intro_text,
           false as favorite
@@ -178,11 +180,31 @@ public class FriendService {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "already_friend");
     }
 
-    Integer pendingCount = jdbcTemplate.queryForObject(
+    UUID friendshipId = jdbcTemplate.queryForObject(
       """
-        select count(*)
-        from friend_requests
-        where (
+        insert into friendships (user_low_id, user_high_id, status, source, accepted_request_id)
+        values (?, ?, 'active', 'user_code', null)
+        on conflict (user_low_id, user_high_id)
+        do update set status = 'active',
+          source = 'user_code',
+          accepted_request_id = null,
+          deleted_at = null,
+          updated_at = now()
+        returning id
+      """,
+      UUID.class,
+      lowId,
+      highId
+    );
+    upsertSetting(friendshipId, user.getId(), friend.getId(), request.memo() == null ? null : request.memo().trim());
+    upsertSetting(friendshipId, friend.getId(), user.getId(), null);
+    jdbcTemplate.update(
+      """
+        update friend_requests
+        set status = 'accepted',
+          responded_at = now()
+        where status = 'pending'
+          and (
             (
               requester_user_id = ?
               and target_user_id = ?
@@ -192,31 +214,13 @@ public class FriendService {
               and target_user_id = ?
             )
           )
-          and status = 'pending'
       """,
-      Integer.class,
       user.getId(),
       friend.getId(),
       friend.getId(),
       user.getId()
     );
-    if (pendingCount != null && pendingCount > 0) {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, "friend_request_pending");
-    }
-
-    UUID requestId = jdbcTemplate.queryForObject(
-      """
-        insert into friend_requests (requester_user_id, target_user_id, request_channel, status, message)
-        values (?, ?, 'user_code', 'pending', ?)
-        returning id
-      """,
-      UUID.class,
-      user.getId(),
-      friend.getId(),
-      request.memo() == null ? null : request.memo().trim()
-    );
-    createFriendRequestNotification(requestId, user, friend);
-    return pendingFriendResponse(friend);
+    return friend(user.getId(), friend.getId());
   }
 
   @Transactional
@@ -367,6 +371,7 @@ public class FriendService {
           coalesce(active_code.code, friend.public_id) as user_code,
           friend.nickname,
           friend.profile_image_url,
+          friend.pixel_character,
           case
             when fs.memo = coalesce(active_code.code, friend.public_id) then ''
             when fs.memo = friend.public_id then ''
@@ -464,36 +469,6 @@ public class FriendService {
     }
   }
 
-  private FriendResponse pendingFriendResponse(UserEntity friend) {
-    return new FriendResponse(
-      friend.getId().toString(),
-      friend.getPublicId(),
-      friend.getPublicId(),
-      friend.getNickname(),
-      friend.getProfileImageUrl(),
-      "",
-      introText(friend),
-      false
-    );
-  }
-
-  private void createFriendRequestNotification(UUID requestId, UserEntity requester, UserEntity target) {
-    jdbcTemplate.update(
-      """
-        insert into notifications (user_id, notification_type, title, body, payload, status)
-        values (?, 'friend_request', ?, ?, ?::jsonb, 'queued')
-      """,
-      target.getId(),
-      "친구 요청이 도착했어요",
-      requester.getNickname() + "님이 친구 요청을 보냈어요.",
-      jsonPayload(Map.of(
-        "friendRequestId", requestId.toString(),
-        "requesterUserId", requester.getPublicId(),
-        "requesterName", requester.getNickname()
-      ))
-    );
-  }
-
   private void markFriendRequestNotificationsRead(UUID requestId) {
     jdbcTemplate.update(
       """
@@ -507,29 +482,6 @@ public class FriendService {
     );
   }
 
-  private String jsonPayload(Map<String, String> payload) {
-    try {
-      return objectMapper.writeValueAsString(payload);
-    } catch (Exception ignored) {
-      return "{}";
-    }
-  }
-
-  private String introText(UserEntity user) {
-    try {
-      Map<String, Object> profile = objectMapper.readValue(
-        user.getPreferenceProfile() == null || user.getPreferenceProfile().isBlank()
-          ? "{}"
-          : user.getPreferenceProfile(),
-        new TypeReference<Map<String, Object>>() {}
-      );
-      Object value = profile.get("introText");
-      return value == null ? "" : value.toString();
-    } catch (Exception ignored) {
-      return "";
-    }
-  }
-
   private FriendResponse friendResponse(ResultSet rs, int rowNum) throws SQLException {
     return new FriendResponse(
       rs.getString("user_id"),
@@ -537,10 +489,22 @@ public class FriendService {
       rs.getString("user_code"),
       rs.getString("nickname"),
       rs.getString("profile_image_url"),
+      readJsonObject(rs.getString("pixel_character")),
       rs.getString("memo"),
       rs.getString("intro_text"),
       rs.getBoolean("favorite")
     );
+  }
+
+  private Map<String, Object> readJsonObject(String value) {
+    try {
+      if (value == null || value.isBlank()) {
+        return Map.of();
+      }
+      return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {});
+    } catch (Exception ignored) {
+      return Map.of();
+    }
   }
 
   private String blankToNull(String value) {

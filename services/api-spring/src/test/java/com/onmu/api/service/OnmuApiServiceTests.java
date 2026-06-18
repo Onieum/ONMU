@@ -23,6 +23,7 @@ import com.onmu.api.domain.PlanParticipantEntity;
 import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanEntity;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.RefreshTokenRepository;
 import com.onmu.api.domain.SchedulePlaceEntity;
 import com.onmu.api.domain.SchedulePlaceRepository;
 import com.onmu.api.domain.SettlementDraftRepository;
@@ -68,6 +69,8 @@ class OnmuApiServiceTests {
   @Mock
   private AuthIdentityRepository authIdentityRepository;
   @Mock
+  private RefreshTokenRepository refreshTokenRepository;
+  @Mock
   private GroupRepository groupRepository;
   @Mock
   private PlanRepository planRepository;
@@ -106,6 +109,7 @@ class OnmuApiServiceTests {
     service = new OnmuApiService(
       userRepository,
       authIdentityRepository,
+      refreshTokenRepository,
       groupRepository,
       planRepository,
       voteRepository,
