@@ -1,6 +1,6 @@
 part of 'my_page.dart';
 
-class _ProfileEditPage extends StatefulWidget {
+class _ProfileEditPage extends ConsumerStatefulWidget {
   const _ProfileEditPage({
     required this.profile,
     this.initialCharacter,
@@ -19,21 +19,24 @@ class _ProfileEditPage extends StatefulWidget {
   final Future<void> Function(_ProfileEditResult) onSave;
 
   @override
-  State<_ProfileEditPage> createState() => _ProfileEditPageState();
+  ConsumerState<_ProfileEditPage> createState() => _ProfileEditPageState();
 }
 
-class _ProfileEditPageState extends State<_ProfileEditPage> {
+class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _introController;
   late final TextEditingController _regionController;
   late final TextEditingController _interestController;
+  final _characterCaptureKey = GlobalKey();
   late ProfileVisibility _visibility;
   late RegionVisibility _regionVisibility;
   late List<String> _interests;
+  CharacterDraft? _characterDraft;
   Uint8List? _profileImageBytes;
   String? _profileImageFileName;
   late String _profileImageUrl;
   late bool _useDefaultProfileImage;
+  var _useCharacterAsProfileImage = false;
   var _isSaving = false;
 
   @override
@@ -48,6 +51,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     _visibility = widget.profile.visibility;
     _regionVisibility = widget.profile.regionVisibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
+    _characterDraft = widget.initialCharacter;
     _profileImageUrl = widget.profileImageUrl?.trim() ?? '';
     _useDefaultProfileImage = widget.profile.useDefaultProfileImage;
   }
@@ -63,238 +67,260 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final activeCharacter = _watchedActiveCharacter;
     return PopScope(
       canPop: !_isSaving,
       child: Scaffold(
         backgroundColor: AppColors.bgDefault,
         body: SafeArea(
           child: GridBackground(
-            child: Column(
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                _EditPageTopBar(
-                  title: '프로필 수정',
-                  onBack: _isSaving ? () {} : () => Navigator.of(context).pop(),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                    child: Column(
-                      children: [
-                        InkWell(
-                          onTap: _showProfilePhotoOptions,
-                          borderRadius: BorderRadius.circular(999),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              _CharacterPortrait(
-                                size: 132,
-                                profileImageUrl: _profileImageUrl,
-                                profileImageBytes: _profileImageBytes,
-                                fallbackToViewerCharacter:
-                                    !_useDefaultProfileImage,
-                              ),
-                              Positioned(
-                                right: 4,
-                                bottom: 10,
-                                child: Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryPink,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.bgDefault,
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.photo_camera_outlined,
-                                    color: AppColors.textInverse,
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          onPressed: _showProfilePhotoOptions,
-                          icon: const Icon(
-                            Icons.add_a_photo_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('프로필 사진 변경'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primaryPurple,
-                            textStyle: AppTextStyles.labelLarge.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _openCharacterEditor,
-                          icon: const Icon(
-                            Icons.face_retouching_natural_outlined,
-                          ),
-                          label: const Text('캐릭터 수정'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primaryPurple,
-                            side: const BorderSide(color: AppColors.linePink),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        _EditFieldCard(
-                          icon: Icons.badge_outlined,
-                          label: '이름',
-                          child: _CountedTextField(
-                            controller: _nameController,
-                            maxLength: 10,
-                            maxLines: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _EditFieldCard(
-                          icon: Icons.edit_outlined,
-                          label: '소개',
-                          child: _CountedTextField(
-                            controller: _introController,
-                            maxLength: 50,
-                            maxLines: 4,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _EditFieldCard(
-                          icon: Icons.location_on_outlined,
-                          label: '현재 거주지역',
-                          subLabel: '지역 설정하기',
-                          child: Column(
-                            children: [
-                              _RegionSelector(controller: _regionController),
-                              const SizedBox(height: 12),
-                              _RegionVisibilitySelector(
-                                value: _regionVisibility,
-                                onChanged: (value) {
-                                  setState(() => _regionVisibility = value);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _EditFieldCard(
-                          icon: Icons.favorite_border,
-                          label: '관심사',
-                          subLabel: '(최대 5개)',
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    for (final interest in _interests)
-                                      _RemovableInterestChip(
-                                        label: interest,
-                                        onRemove: () {
-                                          setState(
-                                            () => _interests.remove(interest),
-                                          );
-                                        },
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
+                Column(
+                  children: [
+                    _EditPageTopBar(
+                      title: '프로필 수정',
+                      onBack: _isSaving
+                          ? () {}
+                          : () => Navigator.of(context).pop(),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                        child: Column(
+                          children: [
+                            InkWell(
+                              onTap: _showProfilePhotoOptions,
+                              borderRadius: BorderRadius.circular(999),
+                              child: Stack(
+                                clipBehavior: Clip.none,
                                 children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _interestController,
-                                      enabled: _interests.length < 5,
-                                      textInputAction: TextInputAction.done,
-                                      onSubmitted: (_) => _addInterest(),
-                                      decoration: InputDecoration(
-                                        hintText: _interests.length < 5
-                                            ? '관심사 입력'
-                                            : '관심사는 최대 5개까지 가능해요',
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 14,
-                                              vertical: 12,
-                                            ),
-                                      ),
-                                    ),
+                                  _CharacterPortrait(
+                                    size: 132,
+                                    character: _useDefaultProfileImage
+                                        ? null
+                                        : activeCharacter,
+                                    profileImageUrl: _profileImageUrl,
+                                    profileImageBytes: _profileImageBytes,
+                                    fallbackToViewerCharacter:
+                                        !_useDefaultProfileImage,
                                   ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    height: 46,
-                                    child: FilledButton(
-                                      onPressed: _interests.length < 5
-                                          ? _addInterest
-                                          : null,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: AppColors.primaryPink,
-                                        foregroundColor: AppColors.textInverse,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
+                                  Positioned(
+                                    right: 4,
+                                    bottom: 10,
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppColors.bgDefault,
+                                          width: 3,
                                         ),
                                       ),
-                                      child: Text(
-                                        '추가',
-                                        style: AppTextStyles.labelLarge
-                                            .copyWith(
-                                              color: AppColors.textInverse,
-                                              fontWeight: FontWeight.w900,
-                                            ),
+                                      child: const Icon(
+                                        Icons.photo_camera_outlined,
+                                        color: AppColors.textInverse,
+                                        size: 22,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 58,
-                          child: FilledButton.icon(
-                            onPressed: _isSaving ? null : _save,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primaryPink,
-                              foregroundColor: AppColors.textInverse,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              onPressed: _showProfilePhotoOptions,
+                              icon: const Icon(
+                                Icons.add_a_photo_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('프로필 사진 변경'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primaryPurple,
+                                textStyle: AppTextStyles.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
-                            icon: const Icon(Icons.save_outlined),
-                            label: Text(
-                              _isSaving ? '저장 중' : '저장하기',
-                              style: AppTextStyles.titleMedium.copyWith(
-                                color: AppColors.textInverse,
+                            OutlinedButton.icon(
+                              onPressed: _openCharacterEditor,
+                              icon: const Icon(
+                                Icons.face_retouching_natural_outlined,
+                              ),
+                              label: const Text('캐릭터 수정'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.primaryPurple,
+                                side: const BorderSide(
+                                  color: AppColors.linePink,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 12,
+                                ),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 24),
+                            _EditFieldCard(
+                              icon: Icons.badge_outlined,
+                              label: '이름',
+                              child: _CountedTextField(
+                                controller: _nameController,
+                                maxLength: 10,
+                                maxLines: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _EditFieldCard(
+                              icon: Icons.edit_outlined,
+                              label: '소개',
+                              child: _CountedTextField(
+                                controller: _introController,
+                                maxLength: 50,
+                                maxLines: 4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _EditFieldCard(
+                              icon: Icons.location_on_outlined,
+                              label: '현재 거주지역',
+                              subLabel: '지역 설정하기',
+                              child: Column(
+                                children: [
+                                  _RegionSelector(
+                                    controller: _regionController,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _RegionVisibilitySelector(
+                                    value: _regionVisibility,
+                                    onChanged: (value) {
+                                      setState(() => _regionVisibility = value);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _EditFieldCard(
+                              icon: Icons.favorite_border,
+                              label: '관심사',
+                              subLabel: '(최대 5개)',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final interest in _interests)
+                                          _RemovableInterestChip(
+                                            label: interest,
+                                            onRemove: () {
+                                              setState(
+                                                () =>
+                                                    _interests.remove(interest),
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _interestController,
+                                          enabled: _interests.length < 5,
+                                          textInputAction: TextInputAction.done,
+                                          onSubmitted: (_) => _addInterest(),
+                                          decoration: InputDecoration(
+                                            hintText: _interests.length < 5
+                                                ? '관심사 입력'
+                                                : '관심사는 최대 5개까지 가능해요',
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 12,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 46,
+                                        child: FilledButton(
+                                          onPressed: _interests.length < 5
+                                              ? _addInterest
+                                              : null,
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor:
+                                                AppColors.primaryPink,
+                                            foregroundColor:
+                                                AppColors.textInverse,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '추가',
+                                            style: AppTextStyles.labelLarge
+                                                .copyWith(
+                                                  color: AppColors.textInverse,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 58,
+                              child: FilledButton.icon(
+                                onPressed: _isSaving ? null : _save,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.primaryPink,
+                                  foregroundColor: AppColors.textInverse,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.save_outlined),
+                                label: Text(
+                                  _isSaving ? '저장 중' : '저장하기',
+                                  style: AppTextStyles.titleMedium.copyWith(
+                                    color: AppColors.textInverse,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
+                if (_useCharacterAsProfileImage && activeCharacter != null)
+                  _CharacterProfileImageCapture(
+                    captureKey: _characterCaptureKey,
+                    character: activeCharacter,
+                  ),
               ],
             ),
           ),
@@ -302,6 +328,16 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       ),
     );
   }
+
+  CharacterDraft? get _watchedActiveCharacter =>
+      _characterDraft ??
+      ref.watch(userCharacterProvider) ??
+      ref.watch(characterProfileProvider).value;
+
+  CharacterDraft? get _readActiveCharacter =>
+      _characterDraft ??
+      ref.read(userCharacterProvider) ??
+      ref.read(characterProfileProvider).value;
 
   Future<void> _save() async {
     if (_isSaving) {
@@ -312,7 +348,13 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       var profileImageUrl = _profileImageUrl;
       final profileImageBytes = _profileImageBytes;
       final profileImageFileName = _profileImageFileName;
-      if (profileImageBytes != null && profileImageFileName != null) {
+      if (_useCharacterAsProfileImage) {
+        final bytes = await _captureCharacterProfileImageBytes();
+        profileImageUrl = await widget.onProfileImageUpload(
+          bytes,
+          'profile-character-${DateTime.now().millisecondsSinceEpoch}.png',
+        );
+      } else if (profileImageBytes != null && profileImageFileName != null) {
         profileImageUrl = await widget.onProfileImageUpload(
           profileImageBytes,
           profileImageFileName,
@@ -382,7 +424,14 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       case _ProfilePhotoOption.camera:
         await _pickProfileImage(ImageSource.camera);
       case _ProfilePhotoOption.character:
+        if (_readActiveCharacter == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('저장된 캐릭터가 없어요. 캐릭터를 먼저 만들어주세요.')),
+          );
+          return;
+        }
         setState(() {
+          _useCharacterAsProfileImage = true;
           _profileImageBytes = null;
           _profileImageFileName = null;
           _profileImageUrl = '';
@@ -393,6 +442,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
         );
       case _ProfilePhotoOption.defaultImage:
         setState(() {
+          _useCharacterAsProfileImage = false;
           _profileImageBytes = null;
           _profileImageFileName = null;
           _profileImageUrl = '';
@@ -418,6 +468,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
       return;
     }
     setState(() {
+      _useCharacterAsProfileImage = false;
       _profileImageBytes = bytes;
       _profileImageFileName = picked.name.isEmpty
           ? 'profile-image.jpg'
@@ -433,17 +484,95 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
         builder: (context) => CharacterStartPage(
           returnButtonLabel: '프로필 수정으로 돌아가기',
           completionButtonLabel: '프로필 수정으로 돌아가기',
-          initialDraft: widget.initialCharacter,
+          initialDraft: _readActiveCharacter,
           onBackToOnboarding: () {
             Navigator.of(context).pop();
           },
           onCompleted: (draft) async {
             await widget.onCharacterSaved(draft);
+            if (mounted) {
+              setState(() => _characterDraft = draft);
+            }
             if (!context.mounted) {
               return;
             }
             Navigator.of(context).pop();
           },
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List> _captureCharacterProfileImageBytes() async {
+    final character = _readActiveCharacter;
+    if (character == null) {
+      throw StateError('profile_character_missing');
+    }
+
+    await _precacheCharacterAssets(character);
+    await WidgetsBinding.instance.endOfFrame;
+    final renderObject = _characterCaptureKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) {
+      throw StateError('profile_character_capture_boundary_missing');
+    }
+    if (renderObject.debugNeedsPaint) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    final image = await renderObject.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    final bytes = byteData?.buffer.asUint8List();
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError('profile_character_capture_empty');
+    }
+    return bytes;
+  }
+
+  Future<void> _precacheCharacterAssets(CharacterDraft character) async {
+    for (final assetPath in PixelCharacterWidget.assetPathsFor(character)) {
+      try {
+        await precacheImage(AssetImage(assetPath), context);
+      } catch (_) {
+        // 캐릭터 위젯도 누락 asset은 빈 레이어로 처리하므로 저장 흐름을 막지 않는다.
+      }
+    }
+  }
+}
+
+class _CharacterProfileImageCapture extends StatelessWidget {
+  const _CharacterProfileImageCapture({
+    required this.captureKey,
+    required this.character,
+  });
+
+  final GlobalKey captureKey;
+  final CharacterDraft character;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: -320,
+      top: -320,
+      child: ExcludeSemantics(
+        child: IgnorePointer(
+          child: RepaintBoundary(
+            key: captureKey,
+            child: SizedBox.square(
+              dimension: 256,
+              child: Center(
+                child: Transform.translate(
+                  offset: const Offset(0, 22),
+                  child: PixelCharacterWidget(
+                    character: character,
+                    size: 210,
+                    showShadow: false,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

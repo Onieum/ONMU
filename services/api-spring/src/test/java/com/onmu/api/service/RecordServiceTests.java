@@ -84,7 +84,7 @@ class RecordServiceTests {
     org.mockito.Mockito.lenient().when(user.getId()).thenReturn(java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"));
     org.mockito.Mockito.lenient().when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
     group = new GroupEntity("1", "ONMU 개발 모임", user);
-    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "confirmed");
+    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "scheduled");
   }
 
   @Test

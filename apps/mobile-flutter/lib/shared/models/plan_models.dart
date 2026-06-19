@@ -1,3 +1,4 @@
+import 'character_model.dart';
 import 'preference_profile.dart';
 
 class PlanMember {
@@ -8,7 +9,9 @@ class PlanMember {
     this.selected = true,
     this.userId = '',
     this.profileImageUrl = '',
+    this.character,
     this.preferenceProfile,
+    this.fallbackToViewerCharacter = false,
   });
 
   final String userId;
@@ -17,7 +20,9 @@ class PlanMember {
   final String badge;
   final bool selected;
   final String profileImageUrl;
+  final CharacterDraft? character;
   final PreferenceProfile? preferenceProfile;
+  final bool fallbackToViewerCharacter;
 }
 
 enum PlanArrivalStatus {
@@ -58,6 +63,7 @@ class PlanParticipantArrival {
     required this.arrivalStatus,
     required this.isFallback,
     this.profileImageUrl = '',
+    this.character,
     this.preferenceProfile,
   });
 
@@ -68,6 +74,7 @@ class PlanParticipantArrival {
   final PlanArrivalStatus arrivalStatus;
   final bool isFallback;
   final String profileImageUrl;
+  final CharacterDraft? character;
   final PreferenceProfile? preferenceProfile;
 }
 

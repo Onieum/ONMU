@@ -266,7 +266,7 @@ public class RouteRecommendationService {
     value.put("travelMode", travelMode.apiValue());
     value.put("routeProviderAvailable", routeProviderAvailable);
     value.put("stops", stops.stream()
-      .map(stop -> List.of(stop.id(), stop.latitude(), stop.longitude()))
+      .map(stop -> List.of(stop.id(), stop.name(), stop.latitude(), stop.longitude()))
       .toList());
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");

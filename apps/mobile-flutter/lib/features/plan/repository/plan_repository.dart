@@ -4,6 +4,7 @@ import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/preference_profile.dart';
+import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
@@ -93,7 +94,6 @@ class ApiPlanRepository implements PlanRepository {
         'endsAt': _startsAtOrNull(input.endsAt),
         'placeName': input.location.trim(),
         'memo': input.memo.trim(),
-        'status': 'draft',
       },
     );
     return _plan(plan);
@@ -171,7 +171,7 @@ class ApiPlanRepository implements PlanRepository {
       title: title,
       dateTime: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       location: location,
-      status: OnmuJson.readString(json, 'status', '예정'),
+      status: _canonicalPlanStatus(OnmuJson.readString(json, 'status')),
       memo: OnmuJson.readString(json, 'memo'),
       members: _planMembers(json),
       timeCandidates: const [],
@@ -179,6 +179,15 @@ class ApiPlanRepository implements PlanRepository {
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
     );
+  }
+
+  String _canonicalPlanStatus(String value) {
+    final normalized = value.trim().toLowerCase();
+    return switch (normalized) {
+      '' => 'scheduled',
+      'scheduled' || 'active' || 'completed' || 'cancelled' => normalized,
+      _ => 'unknown',
+    };
   }
 
   SchedulePlace _schedulePlace(Map<String, dynamic> json) {
@@ -214,19 +223,23 @@ class ApiPlanRepository implements PlanRepository {
   }
 
   PlanParticipantArrival _participantArrival(Map<String, dynamic> json) {
+    final nickname = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
+    ], fallback: '참여자');
     return PlanParticipantArrival(
       id: OnmuJson.readString(json, 'id'),
       userId: OnmuJson.readString(json, 'userId'),
-      nickname: resolveOnmuDisplayName([
-        OnmuJson.readString(json, 'nickname'),
-        OnmuJson.readString(json, 'displayName'),
-      ], fallback: '참여자'),
+      nickname: nickname,
       participantStatus: OnmuJson.readString(json, 'status', 'joined'),
       arrivalStatus: PlanArrivalStatus.fromApi(
         OnmuJson.readString(json, 'response'),
       ),
       isFallback: OnmuJson.readBool(json, 'fallback'),
       profileImageUrl: _profileImageUrl(json),
+      character: characterDraftFromJson(
+        json['pixelCharacter'],
+        nickname: nickname,
+      ),
       preferenceProfile: _preferenceProfile(json),
     );
   }
@@ -239,7 +252,6 @@ class ApiPlanRepository implements PlanRepository {
         .map((member) {
           final name = resolveOnmuDisplayName([
             OnmuJson.readString(member, 'name'),
-            OnmuJson.readString(member, 'displayName'),
             OnmuJson.readString(member, 'nickname'),
           ], fallback: '참여자');
           return PlanMember(
@@ -253,6 +265,10 @@ class ApiPlanRepository implements PlanRepository {
             selected: OnmuJson.readBool(member, 'selected', true),
             userId: OnmuJson.readString(member, 'userId'),
             profileImageUrl: _profileImageUrl(member),
+            character: characterDraftFromJson(
+              member['pixelCharacter'],
+              nickname: name,
+            ),
             preferenceProfile: _preferenceProfile(member),
           );
         })

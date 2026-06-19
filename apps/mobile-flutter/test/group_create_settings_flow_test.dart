@@ -252,4 +252,40 @@ void main() {
       expect(find.byIcon(Icons.sticky_note_2_outlined), findsOneWidget);
     },
   );
+
+  testWidgets('group summary card renders member profile images', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GroupSummaryCard(
+            group: const GroupSummary(
+              id: 1,
+              name: '프로필 모임',
+              description: '',
+              members: ['박진희'],
+              memberAvatars: [
+                GroupPlanMemberAvatar(
+                  name: '박진희',
+                  profileImageUrl: 'https://example.test/profile.png',
+                ),
+              ],
+              lastMessage: '',
+              unreadCount: 0,
+              pinnedPlanTitle: '예정된 약속 없음',
+            ),
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.image, isA<NetworkImage>());
+    expect(
+      (image.image as NetworkImage).url,
+      'https://example.test/profile.png',
+    );
+  });
 }

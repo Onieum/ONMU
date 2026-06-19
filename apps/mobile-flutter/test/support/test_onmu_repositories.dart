@@ -506,6 +506,21 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return _store
+        .fetchMembers(groupId)
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,
@@ -861,9 +876,26 @@ class TestPlaceRepository implements PlaceRepository {
       planId: planId,
     );
     return [
-      ...candidates,
+      ...candidates.where((candidate) => _matchesCategory(candidate, category)),
       if (_matchesSearchOnlyCategory(category)) _searchOnlyCandidate,
     ];
+  }
+
+  bool _matchesCategory(PlaceCandidate candidate, String? category) {
+    final normalized = category?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return true;
+    }
+    final values = [
+      candidate.category.trim(),
+      ...candidate.tags.map((tag) => tag.trim()),
+    ];
+    if (normalized == '음식점') {
+      return values.any(
+        const {'음식점', '한식', '양식', '중식', '일식', '아시안식', '분식'}.contains,
+      );
+    }
+    return values.contains(normalized);
   }
 
   bool _matchesSearchOnlyCategory(String? category) {

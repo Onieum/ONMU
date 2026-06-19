@@ -72,6 +72,7 @@ public class OnmuApiService {
   private final RefreshTokenRepository refreshTokenRepository;
   private final CharacterProfileRepository characterProfileRepository;
   private final GroupRepository groupRepository;
+  private final GroupReadModelMapper groupReadModelMapper;
   private final PlanRepository planRepository;
   private final VoteRepository voteRepository;
   private final ExternalPlaceRepository externalPlaceRepository;
@@ -93,6 +94,7 @@ public class OnmuApiService {
     RefreshTokenRepository refreshTokenRepository,
     CharacterProfileRepository characterProfileRepository,
     GroupRepository groupRepository,
+    GroupReadModelMapper groupReadModelMapper,
     PlanRepository planRepository,
     VoteRepository voteRepository,
     ExternalPlaceRepository externalPlaceRepository,
@@ -113,6 +115,7 @@ public class OnmuApiService {
     this.refreshTokenRepository = refreshTokenRepository;
     this.characterProfileRepository = characterProfileRepository;
     this.groupRepository = groupRepository;
+    this.groupReadModelMapper = groupReadModelMapper;
     this.planRepository = planRepository;
     this.voteRepository = voteRepository;
     this.externalPlaceRepository = externalPlaceRepository;
@@ -208,7 +211,7 @@ public class OnmuApiService {
     value.put("service", "onmu-api-spring");
     value.put("env", "local");
     value.put("viewer", userMe(viewer));
-    value.put("groups", groups.stream().map(this::groupCard).toList());
+    value.put("groups", groups.stream().map(groupReadModelMapper::groupCard).toList());
     value.put("upcomingPlans", plans.stream().map(this::planCard).toList());
     value.put("activeVotes", votes.stream().map(this::voteCard).toList());
     value.put("nextPlan", plans.stream().findFirst().map(this::planCard).orElse(null));
@@ -219,7 +222,7 @@ public class OnmuApiService {
   public Map<String, Object> groupSummary(String groupId) {
     GroupEntity group = groupOrThrow(groupId);
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("group", groupCard(group));
+    value.put("group", groupReadModelMapper.groupCard(group));
     value.put("plans", plans(group.getPublicId()));
     value.put("votes", votes(group.getPublicId()));
     return value;
@@ -229,7 +232,7 @@ public class OnmuApiService {
   public Map<String, Object> groupSummary(String groupId, java.util.UUID userId) {
     GroupAccess access = memberGroup(groupId, userId);
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("group", groupCard(access.group()));
+    value.put("group", groupReadModelMapper.groupCard(access.group()));
     value.put("plans", plans(access.group().getPublicId(), userId));
     value.put("votes", votes(access.group().getPublicId(), userId, null, null));
     return value;
@@ -277,7 +280,7 @@ public class OnmuApiService {
       request.title().trim(),
       startsAt,
       endsAt,
-      "draft",
+      PlanEntity.DEFAULT_STATUS,
       blankToNull(request.memo()),
       blankToNull(request.placeName())
     ));
@@ -353,7 +356,7 @@ public class OnmuApiService {
     Instant endsAt = safeRequest.endsAt() == null ? plan.getEndsAt() : parseNullableInstant(safeRequest.endsAt());
     String status = safeRequest.status() == null || safeRequest.status().isBlank()
       ? plan.getStatus()
-      : safeRequest.status().trim();
+      : validatedPlanStatus(safeRequest.status());
     String description = safeRequest.memo() == null ? plan.getDescription() : blankToNull(safeRequest.memo());
     String locationNote = safeRequest.placeName() == null ? plan.getLocationNote() : blankToNull(safeRequest.placeName());
     plan.update(title, startsAt, endsAt, status, description, locationNote);
@@ -377,6 +380,28 @@ public class OnmuApiService {
     GroupEntity group = memberGroup(groupId, userId).group();
     PlanEntity plan = planOrThrow(group, planId);
     return planParticipants(plan);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> planParticipantCandidates(
+    String groupId,
+    java.util.UUID userId,
+    List<String> userIds
+  ) {
+    GroupAccess access = memberGroup(groupId, userId);
+    return compactStrings(userIds).stream()
+      .distinct()
+      .map(this::userOrThrow)
+      .peek(candidate -> {
+        if (
+          candidate.getId() == null
+            || !groupRepository.isUserMember(access.group().getPublicId(), candidate.getId())
+        ) {
+          throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+        }
+      })
+      .map(this::planParticipantCandidateCard)
+      .toList();
   }
 
   private List<Map<String, Object>> planParticipants(PlanEntity plan) {
@@ -922,16 +947,6 @@ public class OnmuApiService {
     }
   }
 
-  private Map<String, Object> groupCard(GroupEntity group) {
-    Map<String, Object> value = new LinkedHashMap<>();
-    value.put("id", group.getPublicId());
-    value.put("name", group.getName());
-    value.put("memberCount", 1);
-    value.put("memberCountLabel", "1명");
-    value.put("role", "owner");
-    return value;
-  }
-
   private Map<String, Object> planCard(PlanEntity plan) {
     List<Map<String, Object>> participants = activeParticipantCards(plan);
     Map<String, Object> value = new LinkedHashMap<>();
@@ -942,6 +957,7 @@ public class OnmuApiService {
     value.put("endsAt", plan.getEndsAt() == null ? null : plan.getEndsAt().toString());
     value.put("dateLabel", plan.getStartsAt() == null ? "일정 미정" : DATE_LABEL.format(plan.getStartsAt()));
     value.put("status", plan.getStatus());
+    value.put("statusLabel", planStatusLabel(plan.getStatus()));
     value.put("placeName", stringOrDefault(plan.getLocationNote(), "장소 미정"));
     value.put("memo", stringOrDefault(plan.getDescription(), ""));
     value.put("participants", participants);
@@ -949,6 +965,24 @@ public class OnmuApiService {
     value.put("memberCount", participants.size());
     value.put("memberCountLabel", participants.size() + "명");
     return value;
+  }
+
+  private String planStatusLabel(String status) {
+    return switch (PlanEntity.normalizeStatus(status)) {
+      case "active" -> "진행 중";
+      case "completed" -> "완료";
+      case "cancelled" -> "취소됨";
+      case "scheduled" -> "예정";
+      default -> "확인 필요";
+    };
+  }
+
+  private String validatedPlanStatus(String status) {
+    try {
+      return PlanEntity.normalizeStatus(status);
+    } catch (IllegalArgumentException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_plan_status");
+    }
   }
 
   private Map<String, Object> voteCard(VoteEntity vote) {
@@ -1251,11 +1285,26 @@ public class OnmuApiService {
     value.put("userId", user.getId().toString());
     value.put("nickname", nickname(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("pixelCharacter", pixelCharacter(user));
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     value.put("status", participant.getStatus());
     value.put("response", participant.getResponse());
     value.put("joinedAt", participant.getJoinedAt() == null ? null : participant.getJoinedAt().toString());
     value.put("fallback", false);
+    return value;
+  }
+
+  private Map<String, Object> planParticipantCandidateCard(UserEntity user) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("userId", user.getId() == null ? "" : user.getId().toString());
+    value.put("name", nickname(user));
+    value.put("nickname", nickname(user));
+    value.put("message", "");
+    value.put("badge", "추가 가능");
+    value.put("selected", true);
+    value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("pixelCharacter", pixelCharacter(user));
+    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     return value;
   }
 
@@ -1281,6 +1330,7 @@ public class OnmuApiService {
     value.put("selected", true);
     value.put("userId", participant.get("userId"));
     value.put("profileImageUrl", participant.get("profileImageUrl"));
+    value.put("pixelCharacter", participant.get("pixelCharacter"));
     value.put("preferenceProfile", participant.get("preferenceProfile"));
     return value;
   }

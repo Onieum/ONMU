@@ -21,27 +21,21 @@ class PixelCharacterWidget extends StatelessWidget {
     this.showHair = true,
   });
 
+  static List<String> assetPathsFor(CharacterDraft character) {
+    final assets = _PixelCharacterAssets(character);
+    return [
+      assets.bodyPath,
+      assets.clothesPath,
+      assets.eyePath,
+      assets.hairSilhouettePath,
+      assets.hairOutlinePath,
+      assets.mouthPath,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final genderPath = character.gender == 'female' ? 'female' : 'male';
-    final bodyPrefix = character.gender == 'female'
-        ? 'girl_skin_base_0'
-        : 'boy_skin_base_0';
-    final skinAssetIndex = character.skinToneIndex.clamp(0, 4).toInt() + 1;
-    final bodyPath =
-        'assets/images/character/$genderPath/body/$bodyPrefix$skinAssetIndex.PNG';
-
-    final eyePrefix = character.gender == 'female' ? 'girl_eye_0' : 'boy_eye_0';
-    final eyePath = _eyePath(genderPath, eyePrefix);
-    const mouthPath = 'assets/images/character/mouth.png';
-
-    final hairPrefix = character.gender == 'female'
-        ? 'hair_girl_0'
-        : 'hair_boy_0';
-    final hairSilhouettePath =
-        'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}_silhouette.PNG';
-    final hairOutlinePath =
-        'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}.PNG';
+    final assets = _PixelCharacterAssets(character);
     final hairColor = Color(
       int.parse(
         CharacterDraft.hairColors[character.hairColorIndex].replaceAll(
@@ -50,11 +44,6 @@ class PixelCharacterWidget extends StatelessWidget {
         ),
       ),
     );
-
-    final clothesPrefix = character.gender == 'female' ? 'girl' : 'boy';
-    final clothesPath = character.topStyleIndex == -1
-        ? 'assets/images/character/$genderPath/clothes/${clothesPrefix}_base_clothes.PNG'
-        : 'assets/images/character/$genderPath/clothes/${clothesPrefix}_clothes_0${character.topStyleIndex + 1}.PNG';
 
     return SizedBox(
       width: size,
@@ -76,36 +65,26 @@ class PixelCharacterWidget extends StatelessWidget {
                 ),
               ),
             ),
-          if (showBody) _asset(bodyPath),
-          if (showClothes) _asset(clothesPath),
-          if (showEyes) _asset(eyePath),
+          if (showBody) _asset(assets.bodyPath),
+          if (showClothes) _asset(assets.clothesPath),
+          if (showEyes) _asset(assets.eyePath),
           if (showHair)
             _asset(
-              hairSilhouettePath,
+              assets.hairSilhouettePath,
               color: hairColor,
               colorBlendMode: BlendMode.srcIn,
             ),
-          if (showHair) _asset(hairOutlinePath),
+          if (showHair) _asset(assets.hairOutlinePath),
           if (showEyes)
             character.gender == 'female'
                 ? Transform.translate(
                     offset: Offset(-size * (16 / 1920), -size * (16 / 1920)),
-                    child: _asset(mouthPath),
+                    child: _asset(assets.mouthPath),
                   )
-                : _asset(mouthPath),
+                : _asset(assets.mouthPath),
         ],
       ),
     );
-  }
-
-  String _eyePath(String genderPath, String eyePrefix) {
-    if (character.gender == 'female' && character.eyeShapeIndex == 2) {
-      return 'assets/images/character/female/eyes/girl_eye_03.PNG';
-    }
-
-    final colorName =
-        CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
-    return 'assets/images/character/$genderPath/eyes/$eyePrefix${character.eyeShapeIndex + 1}_$colorName.PNG';
   }
 
   Widget _asset(String path, {Color? color, BlendMode? colorBlendMode}) {
@@ -120,5 +99,55 @@ class PixelCharacterWidget extends StatelessWidget {
       colorBlendMode: colorBlendMode,
       errorBuilder: (context, error, stackTrace) => const SizedBox(),
     );
+  }
+}
+
+class _PixelCharacterAssets {
+  _PixelCharacterAssets(this.character);
+
+  final CharacterDraft character;
+
+  String get genderPath => character.gender == 'female' ? 'female' : 'male';
+
+  String get bodyPath {
+    final bodyPrefix = character.gender == 'female'
+        ? 'girl_skin_base_0'
+        : 'boy_skin_base_0';
+    final skinAssetIndex = character.skinToneIndex.clamp(0, 4).toInt() + 1;
+    return 'assets/images/character/$genderPath/body/$bodyPrefix$skinAssetIndex.PNG';
+  }
+
+  String get eyePath {
+    final eyePrefix = character.gender == 'female' ? 'girl_eye_0' : 'boy_eye_0';
+    if (character.gender == 'female' && character.eyeShapeIndex == 2) {
+      return 'assets/images/character/female/eyes/girl_eye_03.PNG';
+    }
+
+    final colorName =
+        CharacterDraft.eyeColorEnglishNames[character.eyeColorIndex];
+    return 'assets/images/character/$genderPath/eyes/$eyePrefix${character.eyeShapeIndex + 1}_$colorName.PNG';
+  }
+
+  String get mouthPath => 'assets/images/character/mouth.png';
+
+  String get hairSilhouettePath {
+    final hairPrefix = character.gender == 'female'
+        ? 'hair_girl_0'
+        : 'hair_boy_0';
+    return 'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}_silhouette.PNG';
+  }
+
+  String get hairOutlinePath {
+    final hairPrefix = character.gender == 'female'
+        ? 'hair_girl_0'
+        : 'hair_boy_0';
+    return 'assets/images/character/$genderPath/hair/$hairPrefix${character.hairStyleIndex + 1}.PNG';
+  }
+
+  String get clothesPath {
+    final clothesPrefix = character.gender == 'female' ? 'girl' : 'boy';
+    return character.topStyleIndex == -1
+        ? 'assets/images/character/$genderPath/clothes/${clothesPrefix}_base_clothes.PNG'
+        : 'assets/images/character/$genderPath/clothes/${clothesPrefix}_clothes_0${character.topStyleIndex + 1}.PNG';
   }
 }

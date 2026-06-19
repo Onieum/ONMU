@@ -83,7 +83,6 @@ AuthUser authUserFromJson(
 }) {
   final databaseId = OnmuJson.readString(json, 'databaseId');
   final publicId = OnmuJson.readString(json, 'id');
-  final displayName = OnmuJson.readString(json, 'displayName');
   final nickname = OnmuJson.readString(json, 'nickname');
   final name = OnmuJson.readString(json, 'name');
   final username = OnmuJson.readString(json, 'username');
@@ -93,7 +92,6 @@ AuthUser authUserFromJson(
     provider: OnmuJson.readString(json, 'authProvider', 'dev'),
     nickname: resolveOnmuDisplayName([
       nickname,
-      displayName,
       name,
       username,
     ], fallback: '사용자'),

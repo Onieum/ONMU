@@ -13,6 +13,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "plans")
 public class PlanEntity {
+  public static final String DEFAULT_STATUS = "scheduled";
+
   @Id
   private UUID id;
 
@@ -67,7 +69,7 @@ public class PlanEntity {
     this.title = title;
     this.startsAt = startsAt;
     this.endsAt = endsAt;
-    this.status = status;
+    this.status = normalizeStatus(status);
     this.description = description;
     this.locationNote = locationNote;
   }
@@ -76,7 +78,7 @@ public class PlanEntity {
     this.title = title;
     this.startsAt = startsAt;
     this.endsAt = endsAt;
-    this.status = status;
+    this.status = normalizeStatus(status);
     this.description = description;
     this.locationNote = locationNote;
   }
@@ -114,10 +116,21 @@ public class PlanEntity {
   }
 
   public String getStatus() {
-    return status;
+    return normalizeStatus(status);
   }
 
   public Instant getCreatedAt() {
     return createdAt;
+  }
+
+  public static String normalizeStatus(String status) {
+    if (status == null || status.isBlank()) {
+      return DEFAULT_STATUS;
+    }
+    String normalized = status.trim().toLowerCase();
+    return switch (normalized) {
+      case "scheduled", "active", "completed", "cancelled" -> normalized;
+      default -> throw new IllegalArgumentException("invalid_plan_status");
+    };
   }
 }

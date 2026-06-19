@@ -11,12 +11,14 @@ final groupHomeViewModelProvider =
 class GroupHomeState {
   const GroupHomeState({
     required this.group,
+    required this.ongoingPlan,
     required this.upcomingPlan,
     required this.recentMemories,
     required this.recentMessage,
   });
 
   final GroupSummary group;
+  final GroupPlanSummary? ongoingPlan;
   final GroupPlanSummary? upcomingPlan;
   final List<GroupMemoryRecord> recentMemories;
   final GroupMessage? recentMessage;
@@ -41,9 +43,10 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
 
     return GroupHomeState(
       group: group,
+      ongoingPlan: _currentOngoingPlan(plans),
       upcomingPlan: _nearestUpcomingPlan(plans),
       recentMemories: List.unmodifiable(memories.take(4)),
-      recentMessage: messages.isEmpty ? null : messages.first,
+      recentMessage: messages.isEmpty ? null : messages.last,
     );
   }
 
@@ -55,10 +58,21 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
     }
   }
 
+  GroupPlanSummary? _currentOngoingPlan(List<GroupPlanSummary> plans) {
+    final now = DateTime.now().toLocal();
+    final ongoing = plans.where((plan) => plan.isOngoingAt(now)).toList()
+      ..sort(GroupPlanSummary.compareUpcoming);
+
+    return ongoing.firstOrNull;
+  }
+
   GroupPlanSummary? _nearestUpcomingPlan(List<GroupPlanSummary> plans) {
     final now = DateTime.now().toLocal();
-    final upcoming = plans.where((plan) => plan.isUpcomingFrom(now)).toList()
-      ..sort(GroupPlanSummary.compareUpcoming);
+    final upcoming =
+        plans
+            .where((plan) => !plan.isOngoingAt(now) && plan.isUpcomingFrom(now))
+            .toList()
+          ..sort(GroupPlanSummary.compareUpcoming);
 
     return upcoming.firstOrNull;
   }

@@ -22,7 +22,7 @@ void main() {
                   'endsAt': '2026-06-24T07:00:00Z',
                   'placeName': '수원',
                   'memo': '오늘약속테스트',
-                  'status': 'draft',
+                  'status': 'scheduled',
                 },
               ),
             );
@@ -34,6 +34,7 @@ void main() {
       final plan = await repository.fetchPlan(groupId: 1, planId: 104);
 
       expect(plan.location, '수원');
+      expect(plan.status, 'scheduled');
       expect(plan.visitPlan, isEmpty);
     },
   );
@@ -205,7 +206,7 @@ void main() {
                 'title': '수정된 약속',
                 'dateLabel': '2026-06-12T10:00:00Z',
                 'placeName': '성수동',
-                'status': 'draft',
+                'status': 'scheduled',
                 'memo': '메모',
               },
             ),
@@ -236,7 +237,6 @@ void main() {
       'endsAt': '2026-06-12T12:00:00.000Z',
       'placeName': '성수동',
       'memo': '메모',
-      'status': 'draft',
     });
     expect(plan.title, '수정된 약속');
     expect(plan.location, '성수동');
@@ -260,7 +260,7 @@ void main() {
                   'title': '참여자 포함 약속',
                   'dateLabel': '2026-06-12T10:00:00Z',
                   'placeName': '성수동',
-                  'status': 'draft',
+                  'status': 'scheduled',
                 },
               ),
             );
@@ -321,6 +321,14 @@ void main() {
                 'status': 'joined',
                 'response': 'accepted',
                 'profileImageUrl': 'dev/avatars/jimin.png',
+                'pixelCharacter': {
+                  'skinTone': 'skin_3',
+                  'hairStyle': 'hair_style_4',
+                  'hairColor': 'hair_color_2',
+                  'eyeStyle': 'eye_style_1',
+                  'eyeColor': 'eye_color_5',
+                  'clothes': 'top_6',
+                },
               },
             ),
           );
@@ -342,6 +350,12 @@ void main() {
     expect(participant.nickname, '지민');
     expect(participant.participantStatus, 'joined');
     expect(participant.profileImageUrl, 'dev/avatars/jimin.png');
+    expect(participant.character?.skinToneIndex, 3);
+    expect(participant.character?.hairStyleIndex, 4);
+    expect(participant.character?.hairColorIndex, 2);
+    expect(participant.character?.eyeShapeIndex, 1);
+    expect(participant.character?.eyeColorIndex, 5);
+    expect(participant.character?.topStyleIndex, 6);
   });
 
   test(

@@ -19,6 +19,7 @@
 - [ ] API 계약 테스트 통과
 - [ ] `GET /api/v1/home/summary`, `GET /groups/{groupId}/summary`, `GET /plans`, `GET /plans/{planId}`, `GET /participants`, `GET /votes`, `GET /votes/{voteId}` smoke 통과
 - [ ] 약속 생성 시 `participantUserIds` 추가 참여자 count와 participant `preferenceProfile` presence 확인
+- [ ] 약속 생성 전 선택 후보 보강 `GET /groups/{groupId}/plans/participant-candidates?userIds=<db-user-uuid>`가 대상 멤버의 `preferenceProfile`을 반환하고, `/groups/{groupId}/members`는 lightweight 목록 계약을 유지함
 - [ ] 약속 수정 시 명시 상태 변경 없이 status가 draft로 회귀하지 않음
 - [ ] `plan.created`, `plan.updated`, `plan.participant_added`, `vote.created` outbox event count/status 확인
 - [ ] 실시간 reconnect/resync 테스트 완료

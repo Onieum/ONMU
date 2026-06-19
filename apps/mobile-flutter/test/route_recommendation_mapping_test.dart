@@ -71,4 +71,27 @@ void main() {
     expect(route.fallbackReason, 'provider_failure');
     expect(route.liveProvider, isFalse);
   });
+
+  test('drops route coordinates that native maps cannot animate', () {
+    final route = RouteRecommendation.fromJson({
+      'provider': 'openrouteservice',
+      'liveProvider': true,
+      'stops': [
+        {'id': 'bad-nan', 'name': 'NaN Place', 'lat': 'NaN', 'lng': 126.978},
+        {'id': 'bad-range', 'name': 'Range Place', 'lat': 91, 'lng': 126.978},
+        {'id': 'ok', 'name': 'Valid Place', 'lat': 37.5665, 'lng': 126.978},
+      ],
+      'geometry': [
+        ['Infinity', 37.5665],
+        [126.978, 91],
+        [126.978, 37.5665],
+      ],
+    });
+
+    expect(route.stops, hasLength(1));
+    expect(route.stops.single.id, 'ok');
+    expect(route.geometry, hasLength(1));
+    expect(route.geometry.single.lat, 37.5665);
+    expect(route.geometry.single.lng, 126.978);
+  });
 }

@@ -228,9 +228,9 @@ class _SettingsHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayMembers = group.members.isEmpty
-        ? const ['온']
-        : group.members.take(3).toList(growable: false);
+    final displayMembers = group.displayMemberAvatars.isEmpty
+        ? const [GroupPlanMemberAvatar(name: '온')]
+        : group.displayMemberAvatars.take(3).toList(growable: false);
 
     return OnmuCard(
       backgroundColor: AppColors.bgPaper,
@@ -257,7 +257,10 @@ class _SettingsHeroCard extends StatelessWidget {
                       Positioned(
                         left: _avatarLeftOffset(index, displayMembers.length),
                         child: PixelAvatar(
-                          label: displayMembers[index],
+                          label: displayMembers[index].name,
+                          profileImageUrl:
+                              displayMembers[index].profileImageUrl,
+                          character: displayMembers[index].character,
                           size: index == 1 ? 46 : 42,
                         ),
                       ),

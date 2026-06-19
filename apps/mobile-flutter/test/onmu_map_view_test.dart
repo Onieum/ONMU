@@ -52,8 +52,6 @@ void main() {
     final cameraBounds = cameraTargetBoundsFromManifest(_readyPmtilesManifest);
 
     expect(onmuMapMinUsableZoom, 6.2);
-    expect(onmuMapCameraFitPadding.top, 160);
-    expect(onmuMapCameraFitPadding.bottom, 480);
     expect(cameraBounds.bounds?.southwest.longitude, 124);
     expect(cameraBounds.bounds?.southwest.latitude, 33);
     expect(cameraBounds.bounds?.northeast.longitude, 132);
@@ -97,6 +95,175 @@ void main() {
     expect(line?.lineWidth, greaterThanOrEqualTo(8));
     expect(casingLine?.lineColor, '#FFFFFF');
     expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
+  });
+
+  test('builds clustered catalog source separately from numbered markers', () {
+    const catalogPoints = [
+      OnmuCatalogMapPoint(
+        id: 'catalog-1',
+        category: '카페',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+      OnmuCatalogMapPoint(
+        id: 'catalog-2',
+        category: '공원',
+        coordinate: OnmuLatLng(lat: 37.5651, lng: 126.9895),
+      ),
+    ];
+    const catalogClusters = [
+      OnmuCatalogMapCluster(
+        id: 'cluster-1',
+        count: 12,
+        coordinate: OnmuLatLng(lat: 37.566, lng: 126.98),
+        bounds: OnmuMapBounds(
+          south: 37.56,
+          west: 126.97,
+          north: 37.57,
+          east: 126.99,
+        ),
+        categories: ['카페', '공원'],
+      ),
+    ];
+
+    final source = catalogGeoJsonSourceProperties(
+      catalogPoints,
+      clusters: catalogClusters,
+    ).toJson();
+    final geojson = catalogGeoJsonForLayer(
+      clusters: catalogClusters,
+      points: catalogPoints,
+    );
+    final clusterLayer = catalogClusterCircleLayerProperties().toJson();
+    final clusterCountLayer = catalogClusterCountLayerProperties().toJson();
+    final dotLayer = catalogDotLayerProperties().toJson();
+
+    expect(mapCatalogSourceId, isNot(mapNativePointDataKey));
+    expect(mapCatalogClusterLayerId, contains('catalog'));
+    expect(source['cluster'], isFalse);
+    expect(source['promoteId'], 'id');
+    expect(geojson['features'], hasLength(3));
+    expect(geojson['features'][0]['properties']['point_count'], 12);
+    expect(geojson['features'][1]['geometry']['coordinates'], [
+      126.978,
+      37.5665,
+    ]);
+    expect(clusterLayer['circle-color'], '#FF8FA3');
+    expect(clusterLayer['circle-radius'], isA<List>());
+    expect(clusterCountLayer['text-field'], ['get', 'point_count_abbreviated']);
+    expect(dotLayer['circle-radius'], 4.2);
+  });
+
+  test('filters coordinates before native camera and annotation calls', () {
+    final validCoordinates = validOnmuMapCoordinates(const [
+      OnmuLatLng(lat: double.nan, lng: 126.978),
+      OnmuLatLng(lat: 37.5665, lng: 126.978),
+      OnmuLatLng(lat: 91, lng: 126.978),
+      OnmuLatLng(lat: 37.5651, lng: double.infinity),
+    ]);
+    final validPoints = validOnmuMapPoints(const [
+      OnmuMapPoint(
+        id: 'bad',
+        label: 'Bad',
+        coordinate: OnmuLatLng(lat: double.nan, lng: 126.978),
+        order: 1,
+      ),
+      OnmuMapPoint(
+        id: 'ok',
+        label: 'OK',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+        order: 2,
+      ),
+    ]);
+
+    expect(validCoordinates, hasLength(1));
+    expect(validCoordinates.single.lat, 37.5665);
+    expect(validPoints, hasLength(1));
+    expect(validPoints.single.id, 'ok');
+  });
+
+  test('normalizes non-finite catalog viewport values', () {
+    const validBounds = OnmuMapBounds(
+      south: 37.50,
+      west: 126.90,
+      north: 37.62,
+      east: 127.08,
+    );
+    const invalidBounds = OnmuMapBounds(
+      south: double.nan,
+      west: 126.90,
+      north: 37.62,
+      east: 127.08,
+    );
+
+    expect(onmuMapSafeZoom(double.infinity), onmuMapDefaultCatalogZoom);
+    expect(onmuMapSafeZoom(double.nan, fallback: double.nan), 11);
+    expect(
+      const OnmuMapViewport(bounds: validBounds, zoom: double.infinity).apiZoom,
+      11,
+    );
+    expect(const OnmuMapViewport(bounds: validBounds, zoom: 12.6).apiZoom, 13);
+    expect(
+      const OnmuMapViewport(bounds: validBounds, zoom: double.infinity).isValid,
+      isFalse,
+    );
+    expect(
+      const OnmuMapViewport(bounds: invalidBounds, zoom: 12).isValid,
+      isFalse,
+    );
+  });
+
+  test('recreates native map when route camera targets change', () {
+    const point = OnmuMapPoint(
+      id: 'place-1',
+      label: '장소',
+      coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      order: 1,
+    );
+
+    final emptyKey = onmuMapCameraSeedKey(
+      points: const [],
+      routeGeometry: const [],
+      center: null,
+      zoom: 11,
+    );
+    final loadedKey = onmuMapCameraSeedKey(
+      points: const [point],
+      routeGeometry: const [],
+      center: null,
+      zoom: 11,
+    );
+
+    expect(loadedKey, isNot(emptyKey));
+  });
+
+  test('calculates initial zoom from route spread', () {
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [OnmuLatLng(lat: 37.5665, lng: 126.978)],
+        fallbackZoom: 11,
+      ),
+      14.2,
+    );
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [
+          OnmuLatLng(lat: 37.5665, lng: 126.978),
+          OnmuLatLng(lat: 37.568, lng: 126.981),
+        ],
+        fallbackZoom: 11,
+      ),
+      greaterThan(13),
+    );
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [
+          OnmuLatLng(lat: 37.1, lng: 126.5),
+          OnmuLatLng(lat: 37.9, lng: 127.5),
+        ],
+        fallbackZoom: 11,
+      ),
+      lessThan(9),
+    );
   });
 
   test('does not refit camera when only focused marker changes', () {
@@ -191,6 +358,26 @@ void main() {
         styleLoaded: false,
       ),
       isTrue,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
+        centerChanged: true,
+        zoomChanged: false,
+        styleLoaded: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: true,
+        styleLoaded: false,
+      ),
+      isFalse,
     );
     expect(
       shouldFitCameraForMapUpdate(

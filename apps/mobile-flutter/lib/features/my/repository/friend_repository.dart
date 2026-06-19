@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
-import '../../../shared/models/character_model.dart';
+import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
@@ -108,7 +108,6 @@ class ApiFriendRepository implements FriendRepository {
     final userCode = OnmuJson.readString(json, 'userCode', publicId);
     final name = resolveOnmuDisplayName([
       OnmuJson.readString(json, 'nickname'),
-      OnmuJson.readString(json, 'displayName'),
       OnmuJson.readString(json, 'name'),
     ], fallback: '친구');
     final memo = _cleanFriendMemo(
@@ -134,7 +133,7 @@ class ApiFriendRepository implements FriendRepository {
       useDefaultProfileImage: useDefaultProfileImage,
       character: useDefaultProfileImage
           ? null
-          : _characterFromJson(json['pixelCharacter'], name),
+          : characterDraftFromJson(json['pixelCharacter'], nickname: name),
       profileImageUrl: _mediaUrl(
         OnmuJson.readString(
           json,
@@ -169,7 +168,6 @@ class ApiFriendRepository implements FriendRepository {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final nickname = resolveOnmuDisplayName([
       OnmuJson.readString(json, 'nickname'),
-      OnmuJson.readString(json, 'displayName'),
       friend.name,
     ], fallback: '친구');
     final regionValue = preference['region'];
@@ -184,7 +182,7 @@ class ApiFriendRepository implements FriendRepository {
       realName: nickname,
       character: useDefaultProfileImage
           ? null
-          : _characterFromJson(json['pixelCharacter'], nickname),
+          : characterDraftFromJson(json['pixelCharacter'], nickname: nickname),
       profileImageUrl: _mediaUrl(OnmuJson.readString(json, 'profileImageUrl')),
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
@@ -208,14 +206,6 @@ class ApiFriendRepository implements FriendRepository {
       planStyles: OnmuJson.stringList(preference['planStyles']),
       preferredWeekdays: OnmuJson.stringList(preference['preferredWeekdays']),
     );
-  }
-
-  CharacterDraft? _characterFromJson(Object? value, String nickname) {
-    final json = OnmuJson.asMap(value);
-    if (json.isEmpty) {
-      return null;
-    }
-    return CharacterDraft.fromApiJson(json, nickname: nickname);
   }
 
   String _mediaUrl(String value) {

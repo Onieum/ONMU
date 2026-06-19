@@ -29,6 +29,7 @@ import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
+import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
 
 import 'support/in_memory_onmu_store.dart';
 import 'support/test_onmu_repositories.dart';
@@ -42,9 +43,12 @@ String _weekdayLabel(DateTime date) {
   return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
 }
 
-Widget _testOnmuApp() {
+Widget _testOnmuApp({GroupRepository? groupRepository}) {
   appRouter.go(RoutePaths.splash);
-  return onmuTestProviderScope(child: const app.OnmuMaterialApp());
+  return onmuTestProviderScope(
+    groupRepository: groupRepository,
+    child: const app.OnmuMaterialApp(),
+  );
 }
 
 void main() {
@@ -791,7 +795,38 @@ void main() {
 
     expect(find.text('서버 단일 멤버 모임'), findsOneWidget);
     expect(find.text('멤버 1명'), findsOneWidget);
+    expect(find.text('다가오는 약속이 없어요.'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsOneWidget);
+    expect(find.text('기록을 만들면 이곳에 표시돼요.'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('group home shows ongoing plan above upcoming section', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _OngoingPlanGroupRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupHomePage(groupId: '4'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 진행 중'), findsOneWidget);
+    expect(find.text('지금 진행 중인 약속'), findsOneWidget);
+    expect(find.text('내일 약속'), findsOneWidget);
+
+    final ongoingTop = tester.getTopLeft(find.text('지금 진행 중인 약속')).dy;
+    final upcomingTop = tester.getTopLeft(find.text('다가오는 약속')).dy;
+
+    expect(ongoingTop, lessThan(upcomingTop));
   });
 
   testWidgets('group home create fab opens plan creation', (tester) async {
@@ -966,7 +1001,9 @@ void main() {
     expect(find.text('장소 동선'), findsWidgets);
   });
 
-  testWidgets('draft plan can open the shared candidate list', (tester) async {
+  testWidgets('scheduled plan can open the shared candidate list', (
+    tester,
+  ) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
@@ -1090,6 +1127,12 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+
+    await tester.tap(find.text('온모임').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '수정 완료'), findsNothing);
   });
 
   testWidgets('new plan selected members can remove added members', (
@@ -1113,6 +1156,25 @@ void main() {
 
     expect(find.byTooltip('민수 제거'), findsNothing);
   });
+
+  testWidgets(
+    'new plan member add sheet shows candidate avatar and neutral status',
+    (tester) async {
+      await tester.pumpWidget(_testOnmuApp());
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+      appRouter.go(RoutePaths.planNew(_groupId));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('참여 멤버 추가'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('참여 멤버 추가'), findsOneWidget);
+      expect(find.text('추가 가능'), findsWidgets);
+      expect(find.text('참여 중'), findsNothing);
+      expect(find.byType(PixelAvatar), findsAtLeastNWidgets(2));
+    },
+  );
 
   testWidgets('canonical plan edit route opens the edit screen', (
     tester,
@@ -1427,8 +1489,14 @@ void main() {
 
       expect(find.byType(TextFormField), findsOneWidget);
       expect(find.text('장소 상세'), findsWidgets);
-      expect(find.text('리뷰 키워드'), findsOneWidget);
+      expect(find.text('분류 키워드'), findsOneWidget);
       expect(find.text('참여자 선호'), findsOneWidget);
+      expect(find.text('출처'), findsNothing);
+      expect(find.text('제공'), findsNothing);
+      expect(find.textContaining('Kakao'), findsNothing);
+      expect(find.textContaining('Naver'), findsNothing);
+      expect(find.textContaining('Google'), findsNothing);
+      expect(find.textContaining('함께 정하고 있어요'), findsNothing);
       expect(find.byKey(const ValueKey('focused-place-pin-1')), findsOneWidget);
     },
   );
@@ -1486,13 +1554,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('음식점'), findsOneWidget);
-    expect(find.text('한식'), findsWidgets);
-    expect(find.text('양식'), findsOneWidget);
-    expect(find.text('중식'), findsOneWidget);
-    expect(find.text('일식'), findsOneWidget);
-    expect(find.text('아시안식'), findsOneWidget);
     expect(find.text('카페'), findsOneWidget);
     expect(find.text('가볼만한곳'), findsOneWidget);
+    expect(find.text('현 지도에서 검색'), findsNothing);
+    expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     expect(
       tester
           .getRect(find.byKey(const ValueKey('place-category-pill-음식점')))
@@ -1502,23 +1567,89 @@ void main() {
     final foodCategoryText = tester.widget<Text>(find.text('음식점'));
     expect(foodCategoryText.style?.height, 1);
 
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-한식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-양식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-중식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-일식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-아시안식')),
+      findsOneWidget,
+    );
+
     await tester.tap(
       find.byKey(const ValueKey('place-category-pill-가볼만한곳')).hitTestable(),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('공원'), findsOneWidget);
-    expect(find.text('해수욕장'), findsOneWidget);
-    expect(find.text('박물관'), findsOneWidget);
-    expect(find.text('미술관'), findsOneWidget);
-    expect(find.text('전망대'), findsOneWidget);
-    expect(find.text('산책로'), findsOneWidget);
+    expect(find.byKey(const ValueKey('place-category-pill-공원')), findsNothing);
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-공원')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-해수욕장')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-박물관')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-미술관')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-전망대')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-산책로')),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('place-category-pill-카페')).hitTestable(),
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const ValueKey('place-category-pill-디저트')), findsNothing);
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-디저트')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-베이커리')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-브런치')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-커피')),
+      findsOneWidget,
+    );
     expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     final cafeCandidateName = find.text('무드카페');
@@ -1592,6 +1723,11 @@ void main() {
     expect(find.textContaining('운영 리스크'), findsNothing);
     expect(find.text('리스크'), findsNothing);
     expect(find.textContaining('점'), findsNothing);
+    expect(find.text('출처'), findsNothing);
+    expect(find.text('제공'), findsNothing);
+    expect(find.textContaining('Kakao Places'), findsNothing);
+    expect(find.textContaining('Naver Places'), findsNothing);
+    expect(find.textContaining('Google Places'), findsNothing);
     expect(find.textContaining('Kakao'), findsNothing);
     expect(find.textContaining('Naver'), findsNothing);
     expect(find.text('지도앱'), findsNothing);
@@ -1759,7 +1895,11 @@ void main() {
   });
 
   testWidgets('group chat vote notice opens vote detail', (tester) async {
-    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpWidget(
+      _testOnmuApp(
+        groupRepository: _ChatVoteGroupRepository(InMemoryOnmuStore.seeded()),
+      ),
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -1947,6 +2087,29 @@ void main() {
     expect(find.text('보드게임 모임 장소'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsNothing);
   });
+}
+
+class _ChatVoteGroupRepository extends TestGroupRepository {
+  _ChatVoteGroupRepository(super.store);
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 101,
+        title: '제주도 여행',
+        dateLabel: '6월 7일',
+        startsAt: DateTime.now().add(const Duration(days: 1)),
+        placeName: '제주도 일대',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 6,
+        extraMemberCount: 2,
+        iconKind: 'water',
+        isPast: false,
+      ),
+    ];
+  }
 }
 
 class _NoAuxGroupRepository extends TestGroupRepository {
@@ -2162,7 +2325,7 @@ class _CandidatePlanRepository implements PlanRepository {
     title: '장소 후보 테스트',
     dateTime: '일정 미정',
     location: '성수동',
-    status: 'draft',
+    status: 'scheduled',
     memo: '',
     members: [],
     timeCandidates: [],
@@ -2272,6 +2435,20 @@ class _SingleMemberGroupRepository implements GroupRepository {
   ];
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,
@@ -2363,6 +2540,42 @@ class _SingleMemberGroupRepository implements GroupRepository {
     required Object memoryId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _OngoingPlanGroupRepository extends _SingleMemberGroupRepository {
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    final now = DateTime.now();
+    return [
+      GroupPlanSummary(
+        id: 401,
+        title: '지금 진행 중인 약속',
+        dateLabel: '오늘',
+        startsAt: now.subtract(const Duration(hours: 1)),
+        endsAt: now.add(const Duration(hours: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 402,
+        title: '내일 약속',
+        dateLabel: '내일',
+        startsAt: now.add(const Duration(days: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+    ];
   }
 }
 

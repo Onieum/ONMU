@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/group_home_view_model.dart';
@@ -50,6 +51,7 @@ class _GroupHomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = state.group;
+    final ongoingPlan = state.ongoingPlan;
     final upcomingPlan = state.upcomingPlan;
 
     return OnmuScaffold(
@@ -67,6 +69,15 @@ class _GroupHomeContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _GroupTabs(group: group),
         const SizedBox(height: AppSpacing.md),
+        if (ongoingPlan != null) ...[
+          _UpcomingPlanCard(
+            plan: ongoingPlan,
+            statusLabel: '약속 진행 중',
+            onTap: () =>
+                context.push(RoutePaths.planDetail(group.id, ongoingPlan.id)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         _SectionHeader(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
@@ -78,7 +89,9 @@ class _GroupHomeContent extends StatelessWidget {
             plan: upcomingPlan,
             onTap: () =>
                 context.push(RoutePaths.planDetail(group.id, upcomingPlan.id)),
-          ),
+          )
+        else
+          const OnmuEmptyStateCard(title: '다가오는 약속이 없어요.'),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
           title: '최근 기록',
@@ -223,6 +236,7 @@ class _HeaderAvatarCluster extends StatelessWidget {
                 child: PixelAvatar(
                   label: displayMembers[index].name,
                   profileImageUrl: displayMembers[index].profileImageUrl,
+                  character: displayMembers[index].character,
                   size: index == 1 ? 46 : 42,
                 ),
               ),
@@ -343,10 +357,15 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _UpcomingPlanCard extends StatelessWidget {
-  const _UpcomingPlanCard({required this.plan, required this.onTap});
+  const _UpcomingPlanCard({
+    required this.plan,
+    required this.onTap,
+    this.statusLabel,
+  });
 
   final GroupPlanSummary plan;
   final VoidCallback onTap;
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -370,8 +389,15 @@ class _UpcomingPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(label: plan.displayStatusLabel, selected: true),
-                    const SizedBox(width: AppSpacing.xs),
+                    if ((statusLabel ?? plan.displayStatusLabel)
+                        .trim()
+                        .isNotEmpty) ...[
+                      OnmuChip(
+                        label: statusLabel ?? plan.displayStatusLabel,
+                        selected: true,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                    ],
                     Expanded(
                       child: Text(
                         plan.title,
@@ -383,11 +409,42 @@ class _UpcomingPlanCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${plan.displayDateTimeLabel} · ${plan.placeName}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Flexible(
+                      flex: 0,
+                      child: Text(
+                        plan.displayDateTimeLabel,
+                        style: Theme.of(context).textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      ' · ',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 15,
+                      color: AppColors.textSub,
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Expanded(
+                      child: Text(
+                        plan.placeName.trim().isEmpty
+                            ? '장소 미정'
+                            : plan.placeName,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Row(
@@ -396,6 +453,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                       PixelAvatar(
                         label: member.name,
                         profileImageUrl: member.profileImageUrl,
+                        character: member.character,
                         size: 22,
                       ),
                       const SizedBox(width: AppSpacing.xxs),
@@ -426,6 +484,14 @@ class _RecentMemoryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (memories.isEmpty) {
+      return const OnmuEmptyStateCard(
+        title: '최근 기록이 없어요.',
+        description: '기록을 만들면 이곳에 표시돼요.',
+        icon: Icons.photo_library_outlined,
+      );
+    }
+
     final iconStyles = [
       (Icons.park_outlined, AppColors.accentGreen),
       (Icons.water, AppColors.accentBlue),
@@ -557,7 +623,11 @@ class _RecentChatPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
           children: [
-            PixelAvatar(label: preview.sender, size: 42),
+            PixelAvatar(
+              label: preview.sender,
+              profileImageUrl: preview.senderProfileImageUrl,
+              size: 42,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(

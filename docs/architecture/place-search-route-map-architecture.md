@@ -30,6 +30,7 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 | 기능 | API | 현재 구현 |
 | --- | --- | --- |
 | 장소 검색 | `POST /api/v1/place-search` | `PlaceSearchService`가 Naver, Kakao, `onmu_catalog` provider를 선택하고 Redis cache와 dev mock fallback을 적용한다. |
+| 지도 catalog points/clusters | `POST /api/v1/map-points` | `external_places.provider='ONMU_CATALOG'` catalog를 PostGIS bbox와 zoom별 grid cluster/point로 반환한다. 하단 top20 검색 결과와 분리한다. |
 | 동선 추천 | `POST /api/v1/routes/recommend` | `RouteRecommendationService`가 후보 좌표로 OpenRouteService를 호출하거나 deterministic `dev-mock` geometry를 반환한다. |
 | 후보 리스트 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates` | plan별 후보를 조회하고 heart count, 내 heart 상태, external place snapshot 필드를 포함한다. |
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` | 검색 결과 또는 수동 입력을 후보로 저장하고 external place snapshot을 연결할 수 있다. |
@@ -70,7 +71,11 @@ provider별 현재 경계:
 - 가볼만한곳: Kakao Local API 승인 전에도 안정적인 결과 수를 확보하기 위해 `onmu_catalog`를 1차 provider로 사용한다. catalog는 `관광명소`, `문화공간`, `행사` category와 `공원`, `해수욕장`, `박물관`, `미술관`, `전시`, `전망대`, `산책로` 같은 tag/summary를 사용해 필터링한다.
 - Kakao provider는 승인/availability가 확인될 때만 보조 provider로 참여한다.
 
-`CuratedPlaceSearchProvider`는 PostGIS 없이 숫자 lat/lng로 Haversine distance를 계산한다. `lat`, `lng`, `radius`가 들어오면 반경 내 row만 반환하고, PostGIS spatial query/index는 후속 고도화 단계로 남긴다.
+`CuratedPlaceSearchProvider`는 top20 장소 검색 supplement 목적을 유지한다. 지도 context용 catalog 노출은 `MapCatalogService`가 맡고, `external_places.place_point`/`place_geog` generated column과 GiST index를 사용한다. 낮은 zoom은 `ST_SnapToGrid` 기반 cluster count를 반환하고, 높은 zoom은 작은 catalog point를 반환한다.
+
+`POST /api/v1/map-points` cache key는 bounds, zoom, category, filter, query, catalog provider availability signature, PostGIS schema version을 포함한다. Redis 장애나 JSON decode 실패는 API 실패로 전파하지 않고 DB query 결과를 반환한다.
+
+Staging 배포 전에는 PostgreSQL Flexible Server에서 `postgis` extension이 allowlist에 있고 Flyway 앱 계정으로 `create extension if not exists postgis`를 실행할 수 있는지 preflight로 확인한다. 이 권한이 미확정이면 migration 적용을 운영 gate로 막고, DBA/운영 계정이 extension을 선생성한 뒤 Flyway schema/index migration을 재실행한다.
 
 ### Route Recommendation Flow
 

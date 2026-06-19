@@ -13,7 +13,8 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_plan_status_chip.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
+import '../../../../shared/widgets/onmu_plan_thumbnail.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
@@ -146,7 +147,10 @@ class _HomeContent extends ConsumerWidget {
         const _SectionTitle(title: '오늘의 약속'),
         const SizedBox(height: AppSpacing.sm),
         if (todayPlans.isEmpty)
-          const _EmptyTodayPlanCard()
+          const OnmuEmptyStateCard(
+            title: '오늘 남은 약속이 없어요',
+            icon: Icons.event_busy_outlined,
+          )
         else
           _TodayPlansGrid(groupId: groupId, plans: todayPlans),
         const SizedBox(height: AppSpacing.xxl),
@@ -157,7 +161,7 @@ class _HomeContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (upcomingPlans.isEmpty)
-          const _EmptyUpcomingPlanCard()
+          const OnmuEmptyStateCard(title: '다가오는 약속이 없어요.')
         else
           for (final plan in upcomingPlans.take(2)) ...[
             OnmuUpcomingPlanCard(
@@ -178,46 +182,6 @@ class _HomeContent extends ConsumerWidget {
           _RecentRecordsPreview(records: recentRecords),
         ],
       ],
-    );
-  }
-}
-
-class _EmptyTodayPlanCard extends StatelessWidget {
-  const _EmptyTodayPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
-          const SizedBox(height: AppSpacing.sm),
-          Text('오늘 남은 약속이 없어요', style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyUpcomingPlanCard extends StatelessWidget {
-  const _EmptyUpcomingPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Text(
-        '다가오는 약속이 없어요.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-      ),
     );
   }
 }
@@ -303,6 +267,7 @@ class _HomeHeader extends StatelessWidget {
               label: avatarLabel,
               size: 64,
               profileImageUrl: profileImageUrl,
+              fallbackToViewerCharacter: true,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -508,60 +473,68 @@ class _TodayPlanCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              OnmuPlanStatusChip(
-                status: plan.progressStatus,
-                label: plan.displayStatusLabel,
-              ),
-              const Spacer(),
-              Text(
-                _todayTimeLabel(plan),
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
+          OnmuPlanThumbnail(
+            iconKind: plan.iconKind,
+            imageUrl: plan.thumbnailImageUrl,
+            size: 86,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            plan.title,
-            style: Theme.of(context).textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            plan.placeName.trim().isEmpty ? '장소 미정' : plan.placeName,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              for (final member in avatarMembers)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: PixelAvatar(
-                    label: member.name,
-                    size: 28,
-                    profileImageUrl: member.profileImageUrl,
-                  ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          plan.title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _TodayPlanTimeLabel(label: _todayTimeLabel(plan)),
+                  ],
                 ),
-              if (plan.extraMemberCount > 0)
-                Text(
-                  '+${plan.extraMemberCount}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: AppColors.textSub,
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Expanded(
+                      child: Text(
+                        plan.placeName.trim().isEmpty
+                            ? '장소 미정'
+                            : plan.placeName,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSub,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-            ],
+                const Spacer(),
+                _TodayPlanParticipants(
+                  members: avatarMembers,
+                  extraMemberCount: plan.extraMemberCount,
+                  summaryLabel: plan.participantSummaryLabel,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -569,7 +542,7 @@ class _TodayPlanCard extends StatelessWidget {
   }
 
   String _todayTimeLabel(GroupPlanSummary plan) {
-    return plan.displayTimeRangeLabel;
+    return plan.displayTimeRangeLabelFor(DateTime.now());
   }
 
   List<GroupPlanMemberAvatar> _avatarMembers(GroupPlanSummary plan) {
@@ -582,6 +555,90 @@ class _TodayPlanCard extends StatelessWidget {
       plan.memberCount.clamp(0, 4).toInt(),
       (index) => GroupPlanMemberAvatar(name: '참여자 ${index + 1}'),
       growable: false,
+    );
+  }
+}
+
+class _TodayPlanTimeLabel extends StatelessWidget {
+  const _TodayPlanTimeLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgWarm,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
+          maxLines: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayPlanParticipants extends StatelessWidget {
+  const _TodayPlanParticipants({
+    required this.members,
+    required this.extraMemberCount,
+    required this.summaryLabel,
+  });
+
+  final List<GroupPlanMemberAvatar> members;
+  final int extraMemberCount;
+  final String summaryLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleMembers = members.take(3).toList(growable: false);
+
+    return Row(
+      children: [
+        for (final member in visibleMembers)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: PixelAvatar(
+              label: member.name,
+              size: 28,
+              profileImageUrl: member.profileImageUrl,
+              character: member.character,
+            ),
+          ),
+        if (extraMemberCount > 0) ...[
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            '+$extraMemberCount',
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+          ),
+        ],
+        if (summaryLabel.trim().isNotEmpty) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              summaryLabel,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

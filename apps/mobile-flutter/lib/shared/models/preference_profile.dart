@@ -59,7 +59,10 @@ class PreferenceProfile {
       otherFavoritePlace: _readString(json['otherFavoritePlace']),
       otherDislikedPlace: _readString(json['otherDislikedPlace']),
       planStyles: _readStringList(json['planStyles']),
-      preferredWeekdays: _readStringList(json['preferredWeekdays']),
+      preferredWeekdays: _readFirstStringList([
+        json['preferredWeekdays'],
+        json['preferredDays'],
+      ]),
       preferredTimes: _readStringList(json['preferredTimes']),
       unavailableDates: _readStringList(json['unavailableDates']),
     );
@@ -103,6 +106,16 @@ List<String> _readStringList(Object? value) {
         .map((item) => item.toString().trim())
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
+  }
+  return const [];
+}
+
+List<String> _readFirstStringList(List<Object?> values) {
+  for (final value in values) {
+    final parsed = _readStringList(value);
+    if (parsed.isNotEmpty) {
+      return parsed;
+    }
   }
   return const [];
 }

@@ -98,7 +98,7 @@ Spring container는 다음 env var name을 기준으로 한다.
 - `GET /api/v1/home/summary`는 viewer 기준 홈 read model의 canonical 후보이며, Flutter가 group/plans 조합 fallback을 쓰는지 구분해서 보고한다.
 - `plans`와 `plan_participants`는 약속과 참여자의 source of truth다.
 - `votes`, `vote_options`, `vote_responses`는 투표와 응답 집계의 source of truth다.
-- 생성 화면의 후보 멤버가 시간 추천/경고에 쓰이려면 candidate 응답과 Flutter mapper에 `preferenceProfile` presence가 있어야 한다.
+- 생성 화면의 후보 멤버가 시간 추천/경고에 쓰이려면 `GET /api/v1/groups/{groupId}/plans/participant-candidates`가 실제 선택된 userIds에 대해서만 `preferenceProfile`을 반환하고 Flutter mapper가 이를 `PlanMember`로 전달해야 한다. `GET /groups/{groupId}/members`는 lightweight 목록 계약으로 유지한다.
 - 일반 약속 수정은 명시 status 변경이 없으면 기존 status를 보존한다. 상태 변경은 별도 action 또는 명시 UX로 분리한다.
 - 투표 상세는 option별 `responseCount`, `progress`, voter preview 또는 별도 voters projection 중 하나를 안정적으로 제공해야 한다.
 - 홈 summary, 약속 상세, 투표 상세는 write 이후 재조회에서 새 상태를 반영해야 한다.

@@ -12,10 +12,12 @@ import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
+import '../../../../shared/utils/onmu_plan_date_time_format.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/plan_create_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_member_avatar_row.dart';
@@ -106,6 +108,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         selected: true,
         profileImageUrl: currentUser?.profileImageUrl ?? '',
         preferenceProfile: preferenceProfile,
+        fallbackToViewerCharacter: true,
       ),
     ];
   }
@@ -120,7 +123,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     );
   }
 
-  void _addCreateMember(PlanMember member) {
+  Future<void> _addCreateMember(PlanMember member) async {
     final current = _createSelectedMembers ?? const <PlanMember>[];
     final memberTokens = _memberSelectionTokens(member);
     final alreadySelected = current.any(
@@ -131,8 +134,24 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     if (alreadySelected) {
       return;
     }
+    final enriched = await ref
+        .read(planCreateControllerProvider)
+        .enrichParticipantCandidate(groupId: widget.groupId, member: member);
+    if (!mounted) {
+      return;
+    }
     setState(() {
-      _createSelectedMembers = List.unmodifiable([...current, member]);
+      final nextCurrent = _createSelectedMembers ?? const <PlanMember>[];
+      final nextTokens = _memberSelectionTokens(enriched);
+      final nextAlreadySelected = nextCurrent.any(
+        (selected) => _memberSelectionTokens(
+          selected,
+        ).intersection(nextTokens).isNotEmpty,
+      );
+      if (nextAlreadySelected) {
+        return;
+      }
+      _createSelectedMembers = List.unmodifiable([...nextCurrent, enriched]);
     });
   }
 
@@ -203,6 +222,14 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
       return false;
     }
     return true;
+  }
+
+  void _goHomeAfterEditingPlan() {
+    final router = GoRouter.of(context);
+    router.go(RoutePaths.groupDetail(widget.groupId));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.go(RoutePaths.home);
+    });
   }
 
   void _scrollToDateTimeSection() {
@@ -393,7 +420,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                   if (!context.mounted) {
                     return;
                   }
-                  context.go(RoutePaths.home);
+                  _goHomeAfterEditingPlan();
                 },
         );
       },
@@ -631,7 +658,7 @@ class _DateTimeRangeField extends StatelessWidget {
                 Text('선택한 일정', style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  _formatPlanDateTimeRange(startsAt, endsAt),
+                  formatOnmuPlanDateTimeRange(startsAt, endsAt),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
@@ -811,6 +838,12 @@ class _MemberPickerRow extends StatelessWidget {
                         final member = available[index];
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
+                          leading: PixelAvatar(
+                            label: member.name,
+                            profileImageUrl: member.profileImageUrl,
+                            character: member.character,
+                            size: 44,
+                          ),
                           title: Text(member.name),
                           subtitle: Text(member.badge),
                           trailing: const Icon(Icons.add_circle_outline),
@@ -872,40 +905,6 @@ DateTime? _parsePlanDateTime(String value) {
   }
 
   return DateTime(now.year, month, day, hour, minute).toUtc();
-}
-
-String _formatPlanDate(DateTime date) {
-  final localDate = date.toLocal();
-  final weekday = const [
-    '월',
-    '화',
-    '수',
-    '목',
-    '금',
-    '토',
-    '일',
-  ][localDate.weekday - 1];
-  return '${localDate.month}월 ${localDate.day}일 ($weekday)';
-}
-
-String _formatPlanTime(DateTime date) {
-  final localDate = date.toLocal();
-  final hour = localDate.hour.toString().padLeft(2, '0');
-  final minute = localDate.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
-}
-
-String _formatPlanDateTimeRange(DateTime startsAt, DateTime endsAt) {
-  final localStart = startsAt.toLocal();
-  final localEnd = endsAt.toLocal();
-  final startLabel =
-      '${_formatPlanDate(localStart)} · ${_formatPlanTime(localStart)}';
-  if (localStart.year == localEnd.year &&
-      localStart.month == localEnd.month &&
-      localStart.day == localEnd.day) {
-    return '$startLabel ~ ${_formatPlanTime(localEnd)}';
-  }
-  return '$startLabel ~ ${_formatPlanDate(localEnd)} ${_formatPlanTime(localEnd)}';
 }
 
 Set<String> _memberSelectionTokens(PlanMember member) {

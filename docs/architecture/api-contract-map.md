@@ -36,7 +36,7 @@ Auth / Session / OAuth와 User / Profile / Character / Friends의 상세 Current
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
 
-`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`, `userCode`를 포함할 수 있다. `userCode`는 현재 숫자 10자리 active code 형식을 기준으로 한다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다. 친구 상세 또는 공개 프로필은 `regionVisibility`와 viewer 권한에 맞춰 지역 field를 제한해야 한다.
+`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`, `userCode`를 포함할 수 있다. `userCode`는 현재 숫자 10자리 active code 형식을 기준으로 한다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 표시 이름은 `nickname`으로만 저장한다. 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다. 친구 상세 또는 공개 프로필은 `regionVisibility`와 viewer 권한에 맞춰 지역 field를 제한해야 한다.
 
 Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 
@@ -100,14 +100,17 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 참여자 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
+| 생성 후보 보강 | `GET /api/v1/groups/{groupId}/plans/participant-candidates?userIds=<db-user-uuid>` |
 
 약속 생성 요청은 `participantUserIds`로 초기 참여자 public id 목록을 전달할 수 있다. 서버는 생성자를 항상 참여자로 포함하고, 추가 참여자는 해당 모임의 멤버인 경우에만 허용한다.
 
 약속 참여자 추가는 모임 멤버가 같은 모임 안의 다른 멤버를 약속에 추가하는 흐름을 지원한다. 요청 body는 `userId`를 사용한다. 약속 나가기 또는 내 참여 취소는 본인만 수행할 수 있으며, 타인의 참여 취소는 이 계약에 포함하지 않는다.
 
-약속 생성 화면에서 추가 멤버의 선호/비선호 시간을 추천과 저장 경고에 쓰려면 후보 멤버 API 응답과 Flutter mapper가 `preferenceProfile`을 전달해야 한다. 약속 참여자 목록 API는 participant `preferenceProfile`을 포함하는 방향이지만, 모임 멤버 candidate 경로는 별도 확인 대상이다.
+`GET /api/v1/groups/{groupId}/members`는 모임원 목록/초대 화면용 lightweight 계약이다. 약속에 참여하지 않을 수 있는 모임원 전체의 `preferenceProfile`을 이 응답에서 미리 싣지 않는다. 약속 생성 화면에서 사용자가 실제 참여 후보로 선택한 멤버의 선호/비선호 시간을 추천과 저장 경고에 쓰려면 `GET /api/v1/groups/{groupId}/plans/participant-candidates`를 `userIds` query로 호출한다. 서버는 요청자와 대상 userId가 모두 같은 모임 멤버인지 확인한 뒤 `userId`, `nickname`, `profileImageUrl`, `preferenceProfile`을 반환한다.
 
-일반 약속 수정은 명시적인 상태 변경 action이 아닌 한 기존 status를 보존해야 한다. Flutter request body가 항상 `status=draft`를 보내면 예정/진행 중 약속이 수정 후 draft로 회귀할 수 있으므로, 상태 변경 UX와 일반 수정 UX를 분리한다.
+약속 날짜 추천 UX는 단일 날짜와 다중 날짜 범위를 분리한다. 시작/종료 날짜가 같은 경우 `추천 날짜` 칩은 선택 가능한 날짜 후보로 동작한다. 시작/종료 날짜가 다른 경우 추천 날짜는 `선택 범위의 추천 방문일`로 표시하며, 이미 선택된 범위 안에서 실제 방문 가능성이 높은 날짜를 읽기 전용으로 보여 준다. 시간 추천은 다중 범위에서도 시작 날짜 기준으로 계산하고, 날짜별 상세 방문 시간은 일정 장소/동선 단계에서 별도로 다룬다.
+
+약속 상태 contract는 `scheduled`, `active`, `completed`, `cancelled` 네 값만 허용한다. 새 약속의 기본 상태는 `scheduled`이며 표시명은 `예정`이다. 일반 약속 수정은 명시적인 상태 변경 action이 아닌 한 status를 보내지 않고 일정/장소/메모만 갱신한다. 서버는 허용되지 않은 status 입력을 `400 invalid_plan_status`로 거절하고, DB는 같은 허용 목록 check constraint를 가진다.
 
 ## Place
 
@@ -118,6 +121,7 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` |
 | 내 후보 하트 설정 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` |
 | 장소 검색 | `POST /api/v1/place-search` |
+| 지도 catalog points/clusters | `POST /api/v1/map-points` |
 | 동선 추천 | `POST /api/v1/routes/recommend` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
 | 일정 등록 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
@@ -125,6 +129,48 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
 
 장소 검색 응답은 기존 `query`, `canonical`, `results` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`를 유지하고, 외부 provider 연결을 위해 `provider`, `providerPlaceId`, `roadAddress`, `latitude`, `longitude`, `sourceUrl`, `providerLink`, `fetchedAt`을 추가할 수 있다. UI에서는 product 기준에 따라 provider 출처를 직접 노출하지 않는다.
+
+지도 catalog API는 하단 top20 장소 검색 결과와 분리한다. `POST /api/v1/map-points`는 같은 `groupId`, `planId` membership guard를 거친 뒤 정적 catalog를 지도 context용 cluster/dot으로 반환한다. 낮은 zoom에서는 `clusters[]`, 높은 zoom(현재 15 이상)에서는 `points[]`만 채운다. 이 응답을 top20 숫자 marker나 후보 검색 결과로 사용하지 않는다.
+
+Request:
+
+```json
+{
+  "groupId": "1",
+  "planId": "101",
+  "bounds": { "south": 37.50, "west": 126.90, "north": 37.62, "east": 127.08 },
+  "zoom": 12,
+  "category": "카페",
+  "filter": "all",
+  "query": "성수"
+}
+```
+
+Response:
+
+```json
+{
+  "canonical": true,
+  "mode": "clusters",
+  "zoom": 12,
+  "bounds": { "south": 37.50, "west": 126.90, "north": 37.62, "east": 127.08 },
+  "clusters": [
+    {
+      "id": "cluster:1",
+      "type": "cluster",
+      "count": 24,
+      "lat": 37.55,
+      "lng": 127.02,
+      "bounds": { "south": 37.54, "west": 127.01, "north": 37.56, "east": 127.03 },
+      "categories": ["카페"]
+    }
+  ],
+  "points": [],
+  "cluster_count": 1,
+  "point_count": 0,
+  "schema_version": "external_places_postgis_v1"
+}
+```
 
 동선 추천은 `POST /api/v1/routes/recommend`를 canonical로 둔다. 요청은 `groupId`, `planId`, `travelMode`(`car`, `walk`, `bike`)를 받고, 응답은 `provider`, `stops`, `geometry`(`[lng, lat]` LineString points), `distanceMeters`, `durationSeconds`, `travelMode`, `fetchedAt`을 포함한다. OpenRouteService credential이 없으면 provider를 `dev-mock`으로 명시한 deterministic geometry를 반환해 Flutter MapLibre UI smoke를 막지 않는다.
 

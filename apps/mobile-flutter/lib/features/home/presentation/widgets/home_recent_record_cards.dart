@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 
 class HomeRecentRecordCard extends StatelessWidget {
   const HomeRecentRecordCard({required this.record, super.key, this.onTap});
@@ -82,25 +83,10 @@ class HomeRecentRecordsEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.photo_library_outlined, color: AppColors.textMuted),
-          const SizedBox(height: AppSpacing.sm),
-          Text('최근 기록이 없어요.', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '기록을 만들면 이곳에 표시돼요.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
-          ),
-        ],
-      ),
+    return const OnmuEmptyStateCard(
+      title: '최근 기록이 없어요.',
+      description: '기록을 만들면 이곳에 표시돼요.',
+      icon: Icons.photo_library_outlined,
     );
   }
 }

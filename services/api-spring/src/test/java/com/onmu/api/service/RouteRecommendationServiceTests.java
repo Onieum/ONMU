@@ -53,7 +53,7 @@ class RouteRecommendationServiceTests {
   @BeforeEach
   void setUp() {
     group = new GroupEntity("1", "ONMU", null);
-    plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "draft");
+    plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "scheduled");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     lenient().when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     lenient().when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
@@ -199,6 +199,49 @@ class RouteRecommendationServiceTests {
     assertThat(unavailableCache.lastKey).isNotBlank();
     assertThat(availableCache.lastKey).isNotBlank();
     assertThat(unavailableCache.lastKey).isNotEqualTo(availableCache.lastKey);
+  }
+
+  @Test
+  void separatesRouteCacheKeyByStopDisplayName() {
+    RecordingRouteCache cache = new RecordingRouteCache();
+    PlaceCandidateEntity firstCandidate = new PlaceCandidateEntity(
+      "301",
+      group,
+      plan,
+      "First",
+      "cafe",
+      "Seoul",
+      "{\"lat\":37.5,\"lng\":127.0}"
+    );
+    PlaceCandidateEntity secondCandidate = new PlaceCandidateEntity(
+      "302",
+      group,
+      plan,
+      "Second",
+      "park",
+      "Seoul",
+      "{\"lat\":37.6,\"lng\":127.1}"
+    );
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(
+      List.of(
+        new SchedulePlaceEntity("701", group, plan, firstCandidate, "Before name", null, 1),
+        new SchedulePlaceEntity("702", group, plan, secondCandidate, "Second", null, 2)
+      ),
+      List.of(
+        new SchedulePlaceEntity("701", group, plan, firstCandidate, "After name", null, 1),
+        new SchedulePlaceEntity("702", group, plan, secondCandidate, "Second", null, 2)
+      )
+    );
+    RouteRecommendationService service = serviceWith("test-ors-key", new FakeRouteHttpClient(), cache);
+
+    service.recommend("1", "101", "walk");
+    String firstKey = cache.lastKey;
+    service.recommend("1", "101", "walk");
+    String secondKey = cache.lastKey;
+
+    assertThat(firstKey).isNotBlank();
+    assertThat(secondKey).isNotBlank();
+    assertThat(firstKey).isNotEqualTo(secondKey);
   }
 
   @Test

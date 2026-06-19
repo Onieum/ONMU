@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -187,6 +188,8 @@ class _DetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final detailRows = _detailRows(candidate);
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
@@ -201,53 +204,160 @@ class _DetailSheet extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             candidate.name,
-            style: Theme.of(context).textTheme.headlineSmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.12,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             candidate.categoryDistanceLabel,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.labelLarge,
           ),
           if (candidate.displayAddress.isNotEmpty)
             Text(
               candidate.displayAddress,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: const [
-              OnmuChip(label: '전화'),
-              OnmuChip(label: '인스타'),
-            ],
-          ),
-          const Divider(height: AppSpacing.xl),
+          if (detailRows.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _PlaceDetailFacts(rows: detailRows),
+          ],
           if (candidate.openingLabel.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
             _InfoBlock(
               title: candidate.openingLabel,
               body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
               trailing: candidate.isOpen ? '영업중' : '확인 필요',
             ),
-            const Divider(height: AppSpacing.xl),
           ],
-          Text('리뷰 키워드', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              for (final tag in candidate.tags)
-                OnmuChip(label: tag, selected: true),
-            ],
-          ),
-          const Divider(height: AppSpacing.xl),
-          Text('참여자 선호', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.sm),
-          MemberPreferenceList(candidate: candidate),
+          if (candidate.tags.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('분류 키워드', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xxs,
+              children: [
+                for (final tag in candidate.tags.take(4))
+                  OnmuChip(label: tag, selected: true),
+              ],
+            ),
+          ],
+          if (candidate.memberFits.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('참여자 선호', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.xs),
+            MemberPreferenceList(candidate: candidate),
+          ],
+          if (candidate.sourceUrl.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _ExternalPlaceLinkButton(sourceUrl: candidate.sourceUrl),
+          ],
         ],
       ),
     );
+  }
+
+  List<_PlaceDetailFact> _detailRows(PlaceCandidate candidate) {
+    return [
+      if (candidate.roadAddress.trim().isNotEmpty &&
+          candidate.roadAddress.trim() != candidate.displayAddress.trim())
+        _PlaceDetailFact(label: '도로명', value: candidate.roadAddress.trim()),
+    ];
+  }
+}
+
+class _PlaceDetailFact {
+  const _PlaceDetailFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class _PlaceDetailFacts extends StatelessWidget {
+  const _PlaceDetailFacts({required this.rows});
+
+  final List<_PlaceDetailFact> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final row in rows) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 48,
+                child: Text(
+                  row.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  row.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    height: 1.16,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (row != rows.last) const SizedBox(height: AppSpacing.xxs),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExternalPlaceLinkButton extends StatelessWidget {
+  const _ExternalPlaceLinkButton({required this.sourceUrl});
+
+  final String sourceUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => _launchSource(context),
+        icon: const Icon(Icons.open_in_new, size: 16),
+        label: const Text('외부 상세 보기'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryPink,
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: Theme.of(context).textTheme.labelMedium,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchSource(BuildContext context) async {
+    final uri = Uri.tryParse(sourceUrl.trim());
+    if (uri == null || !uri.hasScheme) {
+      _showLaunchFailure(context);
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      _showLaunchFailure(context);
+    }
+  }
+
+  void _showLaunchFailure(BuildContext context) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('외부 상세 페이지를 열 수 없어요.')));
   }
 }
 
