@@ -324,7 +324,7 @@ String _routeFallbackLabel(RouteRecommendation route) {
 }
 
 String _legLabel(RouteRecommendation route, List<OnmuMapPoint> stops) {
-  if (route.legs.isNotEmpty) {
+  if (_routeLegsStartFromVisibleStops(route, stops)) {
     return '${route.legs.length}구간';
   }
   final stopLegCount = stops.length - 1;
@@ -363,11 +363,25 @@ String _routeLegPreviewLabel(
     if (durationSeconds > 0) _durationLabel(durationSeconds),
     if (distanceMeters > 0) _distanceLabel(distanceMeters),
   ];
-  final remainingLegCount = route.legs.isNotEmpty
+  final remainingLegCount = _routeLegsStartFromVisibleStops(route, stops)
       ? route.legs.length - 1
       : stops.length - 2;
   final suffix = remainingLegCount > 0 ? ' 외 $remainingLegCount구간' : '';
   return '${labels.join(' · ')}$suffix';
+}
+
+bool _routeLegsStartFromVisibleStops(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  if (route.legs.isEmpty || stops.length < 2) {
+    return false;
+  }
+  final firstLeg = route.legs.first;
+  return _normalizePlaceName(firstLeg.fromName) ==
+          _normalizePlaceName(stops.first.label) &&
+      _normalizePlaceName(firstLeg.toName) ==
+          _normalizePlaceName(stops[1].label);
 }
 
 String _durationLabel(int seconds) {
