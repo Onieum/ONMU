@@ -92,6 +92,48 @@ void main() {
     expect(find.text('방문 지도'), findsNothing);
   });
 
+  testWidgets('visit time edit picker is constrained to plan date range', (
+    tester,
+  ) async {
+    final planStart = DateTime(2026, 6, 18, 10);
+    final planEnd = DateTime(2026, 6, 20, 12);
+    await tester.pumpWidget(
+      _planDetailTestApp(
+        _PlanDetailTestRepository(
+          planStartsAt: planStart,
+          planEndsAt: planEnd,
+          visitPlansByDate: [
+            [
+              VisitPlan(
+                id: '701',
+                time: '11:00',
+                endTime: '12:00',
+                place: '테스트 카페',
+                kind: '카페',
+                duration: '1시간',
+                startsAt: DateTime(2026, 6, 18, 11),
+                endsAt: DateTime(2026, 6, 18, 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('테스트 카페'), 320);
+    await tester.tap(find.byTooltip('일정 더보기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('시간 수정'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('방문 날짜'), findsOneWidget);
+    expect(find.text('6/18 목'), findsOneWidget);
+    expect(find.text('6/19 금'), findsOneWidget);
+    expect(find.text('6/20 토'), findsOneWidget);
+    expect(find.text('6/21 일'), findsNothing);
+  });
+
   testWidgets('participant leave action is available only from more menu', (
     tester,
   ) async {

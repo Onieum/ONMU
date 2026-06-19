@@ -11,11 +11,11 @@ import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/utils/onmu_plan_date_time_format.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../map/view_model/route_recommendation_view_model.dart';
+import '../../../place/presentation/widgets/plan_visit_time_picker.dart';
 import '../../../place/view_model/place_candidates_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_date_tabs.dart';
@@ -169,6 +169,8 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         _TimelineCard(
           groupId: widget.groupId,
           planId: widget.planId,
+          planStartsAt: widget.detail.plan.startsAt,
+          planEndsAt: widget.detail.plan.endsAt,
           visitPlan: selectedVisitPlan,
         ),
         const SizedBox(height: AppSpacing.md),
@@ -373,6 +375,8 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         _TimelineCard(
           groupId: widget.groupId,
           planId: widget.planId,
+          planStartsAt: widget.detail.plan.startsAt,
+          planEndsAt: widget.detail.plan.endsAt,
           visitPlan: selectedVisitPlan,
         ),
         const SizedBox(height: AppSpacing.md),
@@ -719,11 +723,15 @@ class _TimelineCard extends ConsumerWidget {
   const _TimelineCard({
     required this.groupId,
     required this.planId,
+    required this.planStartsAt,
+    required this.planEndsAt,
     required this.visitPlan,
   });
 
   final String groupId;
   final String planId;
+  final DateTime? planStartsAt;
+  final DateTime? planEndsAt;
   final List<VisitPlan> visitPlan;
 
   @override
@@ -768,9 +776,11 @@ class _TimelineCard extends ConsumerWidget {
     VisitPlan plan,
   ) async {
     final initialStart = _initialVisitStart(plan);
-    final picked = await OnmuDateTimeRangePicker.show(
+    final picked = await PlanVisitTimePicker.show(
       context: context,
       title: '방문 시간 수정',
+      planStartsAt: planStartsAt,
+      planEndsAt: planEndsAt,
       initialStart: initialStart,
       initialEnd: _initialVisitEnd(plan, initialStart),
     );

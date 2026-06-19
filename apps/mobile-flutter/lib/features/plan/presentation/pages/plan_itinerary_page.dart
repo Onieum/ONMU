@@ -11,8 +11,8 @@ import '../../../../features/map/view_model/route_recommendation_view_model.dart
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
-import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
+import '../../../place/presentation/widgets/plan_visit_time_picker.dart';
 import '../../../place/view_model/place_candidates_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_date_tabs.dart';
@@ -127,7 +127,7 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                     groupId: widget.groupId,
                     planId: widget.planId,
                     visitPlan: selectedVisitPlan,
-                    onEditTime: _editSchedulePlaceTime,
+                    onEditTime: (plan) => _editSchedulePlaceTime(state, plan),
                     onDelete: _deleteSchedulePlace,
                   ),
                 ],
@@ -170,11 +170,16 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
         .deleteSchedulePlace(plan.id);
   }
 
-  Future<bool> _editSchedulePlaceTime(VisitPlan plan) async {
+  Future<bool> _editSchedulePlaceTime(
+    PlanDetailState state,
+    VisitPlan plan,
+  ) async {
     final initialStart = _initialVisitStart(plan);
-    final picked = await OnmuDateTimeRangePicker.show(
+    final picked = await PlanVisitTimePicker.show(
       context: context,
       title: '방문 시간 수정',
+      planStartsAt: state.plan.startsAt,
+      planEndsAt: state.plan.endsAt,
       initialStart: initialStart,
       initialEnd: _initialVisitEnd(plan, initialStart),
     );

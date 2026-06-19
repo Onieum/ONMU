@@ -728,6 +728,9 @@ public class OnmuApiService {
     if (placeName == null || placeName.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "blank_schedule_place_name");
     }
+    Instant startsAt = parseNullableInstant(request.startsAt());
+    Instant endsAt = parseNullableInstant(request.endsAt());
+    validateSchedulePlaceVisitTime(plan, startsAt, endsAt);
     String publicId = nextPublicId(schedulePlaceRepository.findAll().stream()
       .map(SchedulePlaceEntity::getPublicId)
       .toList(), 701);
@@ -738,8 +741,8 @@ public class OnmuApiService {
       plan,
       candidate,
       placeName,
-      parseNullableInstant(request.startsAt()),
-      parseNullableInstant(request.endsAt()),
+      startsAt,
+      endsAt,
       sortOrder,
       blankToNull(request.note())
     ));
@@ -776,9 +779,12 @@ public class OnmuApiService {
     GroupEntity group = memberGroup(groupId, userId).group();
     PlanEntity plan = planOrThrow(group, planId);
     SchedulePlaceEntity schedulePlace = schedulePlaceOrThrow(plan, schedulePlaceId);
+    Instant startsAt = request == null ? null : parseNullableInstant(request.startsAt());
+    Instant endsAt = request == null ? null : parseNullableInstant(request.endsAt());
+    validateSchedulePlaceVisitTime(plan, startsAt, endsAt);
     schedulePlace.updateVisitTime(
-      request == null ? null : parseNullableInstant(request.startsAt()),
-      request == null ? null : parseNullableInstant(request.endsAt()),
+      startsAt,
+      endsAt,
       request == null ? null : blankToNull(request.note())
     );
     schedulePlaceRepository.save(schedulePlace);
@@ -939,6 +945,23 @@ public class OnmuApiService {
   private SchedulePlaceEntity schedulePlaceOrThrow(PlanEntity plan, String schedulePlaceId) {
     return schedulePlaceRepository.findByPlanAndPublicId(plan, schedulePlaceId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "schedule_place_not_found"));
+  }
+
+  private void validateSchedulePlaceVisitTime(PlanEntity plan, Instant startsAt, Instant endsAt) {
+    if (startsAt == null && endsAt == null) {
+      return;
+    }
+    if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_schedule_place_time_range");
+    }
+    Instant planStartsAt = plan.getStartsAt();
+    if (planStartsAt != null && startsAt.isBefore(planStartsAt)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "schedule_place_time_out_of_plan_range");
+    }
+    Instant planEndsAt = plan.getEndsAt();
+    if (planEndsAt != null && endsAt.isAfter(planEndsAt)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "schedule_place_time_out_of_plan_range");
+    }
   }
 
   private void requireSettlementItems(List<SettlementDraftItemRequest> items) {
