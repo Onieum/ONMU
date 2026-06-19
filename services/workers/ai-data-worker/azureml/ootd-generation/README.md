@@ -53,6 +53,9 @@ Vision settings are separate and are not required for this endpoint scaffold:
 
 ```text
 staging-vision-api-key
+staging-vision-api-version
+staging-vision-deployment-name
+staging-vision-endpoint-url
 ```
 
 ## Deploy
