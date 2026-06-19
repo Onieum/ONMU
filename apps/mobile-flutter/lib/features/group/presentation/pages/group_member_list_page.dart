@@ -469,6 +469,7 @@ class _SelectedInviteStrip extends StatelessWidget {
                     label: friend.name,
                     size: 28,
                     profileImageUrl: friend.profileImageUrl,
+                    character: friend.character,
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
@@ -515,6 +516,7 @@ class _InviteCandidateRow extends StatelessWidget {
               label: profile.name,
               size: 48,
               profileImageUrl: profile.profileImageUrl,
+              character: profile.character,
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(

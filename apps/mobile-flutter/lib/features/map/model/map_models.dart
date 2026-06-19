@@ -5,6 +5,15 @@ class OnmuLatLng {
   final double lng;
 }
 
+bool isValidOnmuLatLng(OnmuLatLng coordinate) {
+  return coordinate.lat.isFinite &&
+      coordinate.lng.isFinite &&
+      coordinate.lat >= -90 &&
+      coordinate.lat <= 90 &&
+      coordinate.lng >= -180 &&
+      coordinate.lng <= 180;
+}
+
 class OnmuMapPoint {
   const OnmuMapPoint({
     required this.id,
@@ -101,31 +110,21 @@ class RouteRecommendation {
 
   factory RouteRecommendation.fromJson(Map<String, dynamic> json) {
     final stops = _asMapList(json['stops']);
-    final geometry = json['geometry'] is List
+    final rawGeometry = json['geometry'] is List
         ? json['geometry'] as List
         : const [];
+    final parsedStops = [
+      for (var index = 0; index < stops.length; index += 1)
+        _readStopPoint(stops[index], index),
+    ].whereType<OnmuMapPoint>().toList(growable: false);
+    final geometry = rawGeometry
+        .map(_readGeometryPoint)
+        .whereType<OnmuLatLng>()
+        .toList(growable: false);
     return RouteRecommendation(
       provider: _readString(json['provider'], 'dev-mock'),
-      stops: [
-        for (var index = 0; index < stops.length; index += 1)
-          OnmuMapPoint(
-            id: _readString(stops[index]['id'], 'stop-$index'),
-            label: _readString(stops[index]['name'], 'Stop ${index + 1}'),
-            coordinate: OnmuLatLng(
-              lat: _readDouble(stops[index]['lat'], 37.5665),
-              lng: _readDouble(stops[index]['lng'], 126.9780),
-            ),
-            order: _readInt(stops[index]['order'], index + 1),
-          ),
-      ],
-      geometry: [
-        for (final point in geometry)
-          if (point is List && point.length >= 2)
-            OnmuLatLng(
-              lat: _readDouble(point[1], 37.5665),
-              lng: _readDouble(point[0], 126.9780),
-            ),
-      ],
+      stops: parsedStops,
+      geometry: geometry,
       legs: [
         for (final leg in _asMapList(json['legs']))
           RouteLeg(
@@ -184,11 +183,48 @@ class RouteRecommendation {
     return int.tryParse(value?.toString() ?? '');
   }
 
-  static double _readDouble(Object? value, [double fallback = 0]) {
-    if (value is num) {
-      return value.toDouble();
+  static OnmuMapPoint? _readStopPoint(Map<String, dynamic> json, int index) {
+    final lat = _readFiniteDouble(json['lat']);
+    final lng = _readFiniteDouble(json['lng']);
+    if (lat == null || lng == null) {
+      return null;
     }
-    return double.tryParse(value?.toString() ?? '') ?? fallback;
+
+    final coordinate = OnmuLatLng(lat: lat, lng: lng);
+    if (!isValidOnmuLatLng(coordinate)) {
+      return null;
+    }
+
+    return OnmuMapPoint(
+      id: _readString(json['id'], 'stop-$index'),
+      label: _readString(json['name'], 'Stop ${index + 1}'),
+      coordinate: coordinate,
+      order: _readInt(json['order'], index + 1),
+    );
+  }
+
+  static OnmuLatLng? _readGeometryPoint(Object? point) {
+    if (point is! List || point.length < 2) {
+      return null;
+    }
+    final lng = _readFiniteDouble(point[0]);
+    final lat = _readFiniteDouble(point[1]);
+    if (lat == null || lng == null) {
+      return null;
+    }
+
+    final coordinate = OnmuLatLng(lat: lat, lng: lng);
+    return isValidOnmuLatLng(coordinate) ? coordinate : null;
+  }
+
+  static double? _readFiniteDouble(Object? value) {
+    final parsed = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '');
+    if (parsed == null || !parsed.isFinite) {
+      return null;
+    }
+    return parsed;
   }
 
   static bool _readBool(Object? value, [bool fallback = false]) {

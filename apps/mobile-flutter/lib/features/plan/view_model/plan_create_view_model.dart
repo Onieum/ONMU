@@ -24,9 +24,10 @@ final groupPlanMemberOptionsProvider =
               userId: member.userId,
               name: member.name,
               message: member.note,
-              badge: member.statusLabel,
+              badge: '추가 가능',
               selected: true,
               profileImageUrl: member.profileImageUrl,
+              preferenceProfile: member.preferenceProfile,
             ),
           )
           .toList(growable: false);
@@ -45,5 +46,36 @@ class PlanCreateController {
     _ref.invalidate(groupListViewModelProvider);
     _ref.invalidate(homeViewModelProvider);
     return plan;
+  }
+
+  Future<PlanMember> enrichParticipantCandidate({
+    required String groupId,
+    required PlanMember member,
+  }) async {
+    final userId = member.userId.trim();
+    if (userId.isEmpty || member.preferenceProfile != null) {
+      return member;
+    }
+    final candidates = await _ref
+        .read(groupRepositoryProvider)
+        .fetchPlanParticipantCandidates(groupId: groupId, userIds: [userId]);
+    final enriched = candidates.where((candidate) {
+      return candidate.userId.trim() == userId;
+    }).firstOrNull;
+    if (enriched == null) {
+      return member;
+    }
+    return PlanMember(
+      userId: enriched.userId,
+      name: enriched.name,
+      message: member.message.isNotEmpty ? member.message : enriched.note,
+      badge: member.badge,
+      selected: member.selected,
+      profileImageUrl: enriched.profileImageUrl.isNotEmpty
+          ? enriched.profileImageUrl
+          : member.profileImageUrl,
+      preferenceProfile: enriched.preferenceProfile,
+      fallbackToViewerCharacter: member.fallbackToViewerCharacter,
+    );
   }
 }

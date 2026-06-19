@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_plan_thumbnail.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/group_plan_list_view_model.dart';
@@ -75,8 +76,11 @@ class _GroupPlanListContentState extends State<_GroupPlanListContent> {
 
   @override
   Widget build(BuildContext context) {
+    final ongoing = _visiblePlans(widget.state.ongoingPlans);
     final upcoming = _visiblePlans(widget.state.upcomingPlans);
     final past = _visiblePlans(widget.state.pastPlans);
+    final showOngoing =
+        _filter == _PlanListFilter.all || _filter == _PlanListFilter.ongoing;
     final showUpcoming =
         _filter == _PlanListFilter.all || _filter == _PlanListFilter.upcoming;
     final showPast =
@@ -100,7 +104,23 @@ class _GroupPlanListContentState extends State<_GroupPlanListContent> {
       ),
       useWarmBackground: false,
       children: [
+        if (showOngoing && ongoing.isNotEmpty) ...[
+          _PlanSectionTitle(title: '진행 중인 약속', count: ongoing.length),
+          const SizedBox(height: AppSpacing.sm),
+          for (final plan in ongoing) ...[
+            _PlanSummaryCard(
+              plan: plan,
+              members: widget.state.members,
+              statusLabel: '약속 진행 중',
+              onTap: () =>
+                  context.push(RoutePaths.planDetail(widget.groupId, plan.id)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
         if (showUpcoming) ...[
+          if (showOngoing && ongoing.isNotEmpty)
+            const SizedBox(height: AppSpacing.md),
           _PlanSectionTitle(
             title: '다가오는 약속',
             count: upcoming.length,
@@ -195,6 +215,7 @@ class _PlanSectionTitle extends StatelessWidget {
 
 enum _PlanListFilter {
   all('전체'),
+  ongoing('진행중'),
   upcoming('다가오는 약속'),
   past('지난 약속');
 
@@ -340,11 +361,13 @@ class _PlanSummaryCard extends StatelessWidget {
     required this.plan,
     required this.members,
     required this.onTap,
+    this.statusLabel,
   });
 
   final GroupPlanSummary plan;
   final List<GroupMemberProfile> members;
   final VoidCallback onTap;
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -355,7 +378,10 @@ class _PlanSummaryCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PlanThumb(kind: plan.iconKind),
+          OnmuPlanThumbnail(
+            iconKind: plan.iconKind,
+            imageUrl: plan.thumbnailImageUrl,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -411,10 +437,13 @@ class _PlanSummaryCard extends StatelessWidget {
                     if (plan.extraMemberCount > 0)
                       OnmuChip(label: '+${plan.extraMemberCount}'),
                     const Spacer(),
-                    OnmuChip(
-                      label: plan.displayStatusLabel,
-                      selected: !plan.isPast,
-                    ),
+                    if ((statusLabel ?? plan.displayStatusLabel)
+                        .trim()
+                        .isNotEmpty)
+                      OnmuChip(
+                        label: statusLabel ?? plan.displayStatusLabel,
+                        selected: !plan.isPast,
+                      ),
                   ],
                 ),
               ],
@@ -428,36 +457,4 @@ class _PlanSummaryCard extends StatelessWidget {
 
 void _showPlanListSnack(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-}
-
-class _PlanThumb extends StatelessWidget {
-  const _PlanThumb({required this.kind});
-
-  final String kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = switch (kind) {
-      'coffee' => Icons.local_cafe_outlined,
-      'park' => Icons.park_outlined,
-      _ => Icons.water,
-    };
-    final color = switch (kind) {
-      'coffee' => AppColors.accentBrown,
-      'park' => AppColors.accentGreen,
-      _ => AppColors.accentBlue,
-    };
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: SizedBox.square(
-        dimension: 82,
-        child: Icon(icon, color: color, size: 34),
-      ),
-    );
-  }
 }

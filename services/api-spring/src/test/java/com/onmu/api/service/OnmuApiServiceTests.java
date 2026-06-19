@@ -15,6 +15,7 @@ import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ExternalPlaceEntity;
 import com.onmu.api.domain.ExternalPlaceRepository;
 import com.onmu.api.domain.GroupEntity;
+import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.PlaceCandidateEntity;
 import com.onmu.api.domain.PlaceCandidateHeartEntity;
@@ -77,6 +78,8 @@ class OnmuApiServiceTests {
   @Mock
   private GroupRepository groupRepository;
   @Mock
+  private GroupMemberRepository groupMemberRepository;
+  @Mock
   private PlanRepository planRepository;
   @Mock
   private VoteRepository voteRepository;
@@ -116,6 +119,7 @@ class OnmuApiServiceTests {
       refreshTokenRepository,
       characterProfileRepository,
       groupRepository,
+      new GroupReadModelMapper(groupMemberRepository),
       planRepository,
       voteRepository,
       externalPlaceRepository,
@@ -133,7 +137,7 @@ class OnmuApiServiceTests {
     );
     org.mockito.Mockito.lenient().when(userCodeService.findActiveCode(any())).thenReturn(Optional.empty());
     group = new GroupEntity("1", "ONMU 개발 모임", null);
-    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "confirmed");
+    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "scheduled");
     vote = new VoteEntity("501", group, "PLAN", "101", "PLACE", "장소 후보 선호 투표", "{\"options\":[\"카페\",\"식당\"]}");
   }
 
@@ -184,6 +188,31 @@ class OnmuApiServiceTests {
     assertThat(summary.get("upcomingPlans")).isEqualTo(List.of());
     assertThat(summary.get("activeVotes")).isEqualTo(List.of());
     assertThat(summary).containsEntry("nextPlan", null);
+  }
+
+  @Test
+  void groupSummaryIncludesCanonicalMemberProfileImages() {
+    UserEntity owner = user("00000000-0000-0000-0000-000000000001", "박진희");
+    owner.updateProfile(null, "dev/avatars/jinhee.png", null, null, null);
+    GroupEntity ownedGroup = new GroupEntity("7", "프로필 이미지 모임", owner);
+    when(groupRepository.findByPublicId("7")).thenReturn(Optional.of(ownedGroup));
+    when(planRepository.findByGroupOrderByStartsAtAsc(ownedGroup)).thenReturn(List.of());
+    when(voteRepository.findByGroupOrderByCreatedAtAsc(ownedGroup)).thenReturn(List.of());
+
+    Map<String, Object> summary = service.groupSummary("7");
+
+    assertThat(summary.get("group"))
+      .isInstanceOfSatisfying(Map.class, groupValue -> {
+        assertThat(groupValue).containsEntry("memberCount", 1);
+        assertThat(groupValue.get("memberProfiles"))
+          .isInstanceOfSatisfying(List.class, profiles -> {
+            assertThat(profiles).hasSize(1);
+            Map<?, ?> profile = (Map<?, ?>) profiles.getFirst();
+            assertThat(profile.get("name")).isEqualTo("박진희");
+            assertThat(profile.get("nickname")).isEqualTo("박진희");
+            assertThat(profile.get("profileImageUrl")).isEqualTo("dev/avatars/jinhee.png");
+          });
+      });
   }
 
   @Test
@@ -355,7 +384,7 @@ class OnmuApiServiceTests {
     var updated = service.updatePlan(
       "1",
       "101",
-      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "2026-06-13T03:00:00Z", "draft", "성수동", "업데이트 메모")
+      new UpdatePlanRequest("업데이트 약속", "2026-06-13T01:00:00Z", "2026-06-13T03:00:00Z", null, "성수동", "업데이트 메모")
     );
 
     assertThat(updated)
@@ -363,17 +392,35 @@ class OnmuApiServiceTests {
       .containsEntry("title", "업데이트 약속")
       .containsEntry("startsAt", "2026-06-13T01:00:00Z")
       .containsEntry("endsAt", "2026-06-13T03:00:00Z")
-      .containsEntry("status", "draft")
+      .containsEntry("status", "scheduled")
       .containsEntry("placeName", "성수동")
       .containsEntry("memo", "업데이트 메모");
+    assertThat(plan.getStatus()).isEqualTo("scheduled");
     verify(outboxService).record(
       eq("plan.updated"),
       eq("plan"),
       any(),
       argThat(payload -> "1".equals(payload.get("groupId"))
         && "101".equals(payload.get("planId"))
-        && "업데이트 약속".equals(payload.get("title")))
+        && "업데이트 약속".equals(payload.get("title"))
+        && "scheduled".equals(payload.get("status")))
     );
+  }
+
+  @Test
+  void updatePlanRejectsUnknownStatus() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+
+    assertThatThrownBy(() -> service.updatePlan(
+      "1",
+      "101",
+      new UpdatePlanRequest("업데이트 약속", null, null, "invalid", null, null)
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("invalid_plan_status");
+      });
   }
 
   @Test
@@ -381,7 +428,7 @@ class OnmuApiServiceTests {
     UserEntity jimin = user("00000000-0000-0000-0000-000000000001", "지민");
     jimin.updateProfile(
       null,
-      null,
+      "dev/avatars/jimin.png",
       "{\"preferredTimes\":[\"evening\"],\"unavailableDates\":[\"2026-06-17\"]}",
       null,
       null
@@ -405,6 +452,7 @@ class OnmuApiServiceTests {
         assertThat(participant.get("nickname")).isEqualTo("지민");
         assertThat(participant.get("status")).isEqualTo("joined");
         assertThat(participant.get("fallback")).isEqualTo(false);
+        assertThat(participant.get("profileImageUrl")).isEqualTo("dev/avatars/jimin.png");
         assertThat(participant.get("preferenceProfile"))
           .isInstanceOfSatisfying(Map.class, profile ->
             assertThat(profile).containsEntry("preferredTimes", List.of("evening")));
@@ -415,10 +463,46 @@ class OnmuApiServiceTests {
         Map<?, ?> member = (Map<?, ?>) members.getFirst();
         assertThat(member.get("name")).isEqualTo("지민");
         assertThat(member.get("selected")).isEqualTo(true);
+        assertThat(member.get("profileImageUrl")).isEqualTo("dev/avatars/jimin.png");
         assertThat(member.get("preferenceProfile"))
           .isInstanceOfSatisfying(Map.class, profile ->
             assertThat(profile).containsEntry("unavailableDates", List.of("2026-06-17")));
       });
+  }
+
+  @Test
+  void planParticipantCandidatesIncludePreferenceOnlyForRequestedGroupMembers() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    UserEntity chando = user("00000000-0000-0000-0000-000000000002", "찬도치");
+    chando.updateProfile(
+      null,
+      null,
+      "{\"preferredWeekdays\":[\"SATURDAY\"],\"preferredTimes\":[\"afternoon\"]}",
+      null,
+      null
+    );
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(userRepository.findByIdAndDeletedAtIsNull(chando.getId())).thenReturn(Optional.of(chando));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(true);
+    when(groupRepository.isUserMember("1", chando.getId())).thenReturn(true);
+
+    List<Map<String, Object>> candidates = service.planParticipantCandidates(
+      "1",
+      viewer.getId(),
+      List.of(chando.getId().toString(), chando.getId().toString(), " ")
+    );
+
+    assertThat(candidates).hasSize(1);
+    assertThat(candidates.getFirst())
+      .containsEntry("userId", chando.getId().toString())
+      .containsEntry("nickname", "찬도치")
+      .containsEntry("profileImageUrl", chando.getProfileImageUrl());
+    assertThat(candidates.getFirst().get("preferenceProfile"))
+      .isInstanceOfSatisfying(Map.class, profile ->
+        assertThat(profile)
+          .containsEntry("preferredWeekdays", List.of("SATURDAY"))
+          .containsEntry("preferredTimes", List.of("afternoon")));
   }
 
   @Test
@@ -430,7 +514,7 @@ class OnmuApiServiceTests {
       group,
       "다른 멤버 약속",
       Instant.parse("2026-06-13T01:00:00Z"),
-      "draft"
+      "scheduled"
     );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
@@ -454,7 +538,7 @@ class OnmuApiServiceTests {
       group,
       "다른 멤버 약속",
       Instant.parse("2026-06-13T01:00:00Z"),
-      "draft"
+      "scheduled"
     );
     PlanParticipantEntity viewerParticipant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
@@ -491,7 +575,11 @@ class OnmuApiServiceTests {
       "생성 메모"
     ));
 
-    assertThat(created).containsEntry("id", "102").containsEntry("title", "새 약속");
+    assertThat(created)
+      .containsEntry("id", "102")
+      .containsEntry("title", "새 약속")
+      .containsEntry("status", "scheduled")
+      .containsEntry("statusLabel", "예정");
     verify(planParticipantRepository).save(argThat(participant ->
       participant.getUser().equals(creator)
         && "joined".equals(participant.getStatus())

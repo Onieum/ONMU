@@ -45,7 +45,13 @@ class GroupApiServiceTests {
 
   @BeforeEach
   void setUp() {
-    service = new GroupApiService(userRepository, groupRepository, groupMemberRepository, outboxService);
+    service = new GroupApiService(
+      userRepository,
+      groupRepository,
+      groupMemberRepository,
+      new GroupReadModelMapper(groupMemberRepository),
+      outboxService
+    );
     currentUser = user("00000000-0000-0000-0000-000000000001", "ONMU Dev User");
     group = new GroupEntity("1", "ONMU 개발 모임", currentUser);
   }

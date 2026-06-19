@@ -276,7 +276,7 @@ class _VoteSummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              _ParticipantStack(names: vote.participants),
+              _ParticipantStack(avatars: vote.displayParticipantAvatars),
               const Spacer(),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
@@ -406,21 +406,25 @@ class _VoteOptionProgress extends StatelessWidget {
 }
 
 class _ParticipantStack extends StatelessWidget {
-  const _ParticipantStack({required this.names});
+  const _ParticipantStack({required this.avatars});
 
-  final List<String> names;
+  final List<VoteParticipantAvatar> avatars;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 30,
-      width: 24 + names.take(4).length * 18,
+      width: 24 + avatars.take(4).length * 18,
       child: Stack(
         children: [
-          for (var index = 0; index < names.take(4).length; index += 1)
+          for (var index = 0; index < avatars.take(4).length; index += 1)
             Positioned(
               left: index * 18,
-              child: PixelAvatar(label: names[index], size: 30),
+              child: PixelAvatar(
+                label: avatars[index].name,
+                profileImageUrl: avatars[index].profileImageUrl,
+                size: 30,
+              ),
             ),
         ],
       ),

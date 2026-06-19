@@ -98,6 +98,12 @@ class GroupListViewModel extends AsyncNotifier<GroupListState> {
     }
     if (plans.isNotEmpty) {
       final now = DateTime.now().toLocal();
+      final ongoing = plans.where((plan) => plan.isOngoingAt(now)).toList()
+        ..sort(GroupPlanSummary.compareUpcoming);
+      if (ongoing.isNotEmpty) {
+        return '약속 진행 중';
+      }
+
       final upcoming = plans.where((plan) => plan.isUpcomingFrom(now)).toList()
         ..sort(GroupPlanSummary.compareUpcoming);
       if (upcoming.isNotEmpty) {

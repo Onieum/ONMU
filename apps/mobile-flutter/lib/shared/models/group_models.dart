@@ -1,5 +1,7 @@
 import 'vote_models.dart';
 
+import 'preference_profile.dart';
+
 class GroupSummary {
   const GroupSummary({
     required this.id,
@@ -20,6 +22,15 @@ class GroupSummary {
   final String lastMessage;
   final int unreadCount;
   final String pinnedPlanTitle;
+
+  List<GroupPlanMemberAvatar> get displayMemberAvatars {
+    if (memberAvatars.isNotEmpty) {
+      return memberAvatars;
+    }
+    return members
+        .map((name) => GroupPlanMemberAvatar(name: name))
+        .toList(growable: false);
+  }
 
   GroupSummary copyWith({
     int? id,
@@ -64,7 +75,9 @@ class GroupPinnedPlan {
   PlanProgressStatus get progressStatus =>
       PlanProgressStatus.fromApi(statusLabel);
 
-  String get displayStatusLabel => progressStatus.label;
+  bool get hasDisplayStatus => progressStatus.isDisplayable;
+
+  String get displayStatusLabel => hasDisplayStatus ? progressStatus.label : '';
 }
 
 class GroupPlanSummary {
@@ -80,6 +93,7 @@ class GroupPlanSummary {
     required this.iconKind,
     required this.isPast,
     this.memberAvatars = const [],
+    this.thumbnailImageUrl = '',
     this.startsAt,
     this.endsAt,
   });
@@ -97,13 +111,19 @@ class GroupPlanSummary {
   final String iconKind;
   final bool isPast;
   final List<GroupPlanMemberAvatar> memberAvatars;
+  final String thumbnailImageUrl;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
     return PlanProgressStatus.fromApi(source);
   }
 
-  String get displayStatusLabel => progressStatus.label;
+  bool get hasDisplayStatus => progressStatus.isDisplayable;
+
+  String get displayStatusLabel => hasDisplayStatus ? progressStatus.label : '';
+
+  String get participantSummaryLabel =>
+      memberCount > 0 ? '$memberCount명 참여' : '';
 
   String get displayDateTimeLabel {
     final startsAtLocal = startsAt?.toLocal();
@@ -128,6 +148,30 @@ class GroupPlanSummary {
     return '${_formatTime(startsAtLocal)}~${_formatTime(endsAtLocal)}';
   }
 
+  String displayTimeRangeLabelFor(DateTime targetDate) {
+    final startsAtLocal = startsAt?.toLocal();
+    if (startsAtLocal == null) {
+      return '시간 미정';
+    }
+
+    final endsAtLocal = endsAt?.toLocal();
+    if (endsAtLocal == null || _isSameLocalDate(startsAtLocal, endsAtLocal)) {
+      return displayTimeRangeLabel;
+    }
+
+    final targetLocalDate = targetDate.toLocal();
+    if (_isSameLocalDate(targetLocalDate, startsAtLocal)) {
+      return '${_formatTime(startsAtLocal)}~';
+    }
+    if (_isSameLocalDate(targetLocalDate, endsAtLocal)) {
+      return '~${_formatTime(endsAtLocal)}';
+    }
+    if (_isBetweenLocalDates(targetLocalDate, startsAtLocal, endsAtLocal)) {
+      return '하루종일';
+    }
+    return displayTimeRangeLabel;
+  }
+
   bool isUpcomingFrom(DateTime now) {
     final startsAtLocal = startsAt?.toLocal();
     return !isPast &&
@@ -142,17 +186,26 @@ class GroupPlanSummary {
     }
 
     final localNow = now.toLocal();
-    final isToday =
-        startsAtLocal.year == localNow.year &&
-        startsAtLocal.month == localNow.month &&
-        startsAtLocal.day == localNow.day;
-    if (!isToday) {
+    final endsAtLocal =
+        endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
+    if (!_isLocalDateInRange(localNow, startsAtLocal, endsAtLocal)) {
+      return false;
+    }
+    return localNow.isBefore(endsAtLocal);
+  }
+
+  bool isOngoingAt(DateTime now) {
+    final startsAtLocal = startsAt?.toLocal();
+    if (isPast ||
+        startsAtLocal == null ||
+        !progressStatus.isUpcomingCandidate) {
       return false;
     }
 
+    final localNow = now.toLocal();
     final endsAtLocal =
         endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
-    return localNow.isBefore(endsAtLocal);
+    return !localNow.isBefore(startsAtLocal) && localNow.isBefore(endsAtLocal);
   }
 
   static int compareUpcoming(GroupPlanSummary left, GroupPlanSummary right) {
@@ -176,19 +229,42 @@ class GroupPlanSummary {
     final minute = dateTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
+
+  bool _isSameLocalDate(DateTime left, DateTime right) {
+    final leftLocal = left.toLocal();
+    final rightLocal = right.toLocal();
+    return leftLocal.year == rightLocal.year &&
+        leftLocal.month == rightLocal.month &&
+        leftLocal.day == rightLocal.day;
+  }
+
+  bool _isBetweenLocalDates(DateTime target, DateTime start, DateTime end) {
+    final targetDate = DateTime(target.year, target.month, target.day);
+    final startDate = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    return targetDate.isAfter(startDate) && targetDate.isBefore(endDate);
+  }
+
+  bool _isLocalDateInRange(DateTime target, DateTime start, DateTime end) {
+    final targetDate = DateTime(target.year, target.month, target.day);
+    final startDate = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    return !targetDate.isBefore(startDate) && !targetDate.isAfter(endDate);
+  }
 }
 
 enum PlanProgressStatus {
-  draft('초안'),
   scheduled('예정'),
   active('진행 중'),
   completed('완료'),
   cancelled('취소됨'),
-  unknown('확인 필요');
+  unknown('');
 
   const PlanProgressStatus(this.label);
 
   final String label;
+
+  bool get isDisplayable => this != PlanProgressStatus.unknown;
 
   bool get isUpcomingCandidate {
     return switch (this) {
@@ -203,24 +279,10 @@ enum PlanProgressStatus {
       '',
     );
     return switch (normalized) {
-      'draft' || '초안' => PlanProgressStatus.draft,
-      'scheduled' ||
-      'planned' ||
-      'upcoming' ||
-      '예정' => PlanProgressStatus.scheduled,
-      'active' ||
-      'ongoing' ||
-      'inprogress' ||
-      '진행중' => PlanProgressStatus.active,
-      'completed' ||
-      'complete' ||
-      'done' ||
-      '완료' => PlanProgressStatus.completed,
-      'cancelled' ||
-      'canceled' ||
-      'cancel' ||
-      '취소' ||
-      '취소됨' => PlanProgressStatus.cancelled,
+      'scheduled' || '예정' => PlanProgressStatus.scheduled,
+      'active' || '진행중' => PlanProgressStatus.active,
+      'completed' || '완료' => PlanProgressStatus.completed,
+      'cancelled' || '취소됨' => PlanProgressStatus.cancelled,
       _ => PlanProgressStatus.unknown,
     };
   }
@@ -503,6 +565,7 @@ class GroupMemberProfile {
     required this.statusLabel,
     this.invited = false,
     this.profileImageUrl = '',
+    this.preferenceProfile,
   });
 
   final String userId;
@@ -511,6 +574,7 @@ class GroupMemberProfile {
   final String statusLabel;
   final bool invited;
   final String profileImageUrl;
+  final PreferenceProfile? preferenceProfile;
 }
 
 class GroupCreateInput {

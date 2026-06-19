@@ -136,6 +136,7 @@ class _FriendPickerTile extends StatelessWidget {
             label: friend.name,
             size: 44,
             profileImageUrl: friend.profileImageUrl,
+            character: friend.character,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

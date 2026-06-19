@@ -89,4 +89,37 @@ void main() {
       expect(settlement.displayFinalSummaryLabel, '정산 요약 없음');
     },
   );
+
+  test('maps preview settlement flag from Spring response', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 'draft',
+                'planTitle': '성수 브런치',
+                'totalAmountLabel': '0원',
+                'createdDateLabel': '미리보기',
+                'itemCountLabel': '결제 항목 0개',
+                'paymentItems': [],
+                'memberResults': [],
+                'transfers': [],
+                'preview': true,
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final settlement = await ApiSettlementRepository(
+      OnmuApiClient(dio),
+    ).fetchSettlement(groupId: 1, planId: 101);
+
+    expect(settlement.preview, isTrue);
+    expect(settlement.isCreated, isFalse);
+  });
 }

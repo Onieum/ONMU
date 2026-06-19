@@ -45,11 +45,14 @@ class GroupChatState {
 
   GroupChatState copyWith({
     GroupPinnedPlan? pinnedPlan,
+    bool clearPinnedPlan = false,
     List<GroupMessage>? messages,
     VoteCard? vote,
+    bool clearVote = false,
     int? voteId,
     int? planId,
     SettlementSummary? settlement,
+    bool clearSettlement = false,
     String? sendErrorMessage,
     bool clearSendErrorMessage = false,
     String? nextCursor,
@@ -60,12 +63,12 @@ class GroupChatState {
   }) {
     return GroupChatState(
       group: group,
-      pinnedPlan: pinnedPlan ?? this.pinnedPlan,
+      pinnedPlan: clearPinnedPlan ? null : pinnedPlan ?? this.pinnedPlan,
       messages: messages ?? this.messages,
-      vote: vote ?? this.vote,
+      vote: clearVote ? null : vote ?? this.vote,
       voteId: voteId ?? this.voteId,
       planId: planId ?? this.planId,
-      settlement: settlement ?? this.settlement,
+      settlement: clearSettlement ? null : settlement ?? this.settlement,
       sendErrorMessage: clearSendErrorMessage
           ? null
           : sendErrorMessage ?? this.sendErrorMessage,
@@ -119,14 +122,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     GroupRepository groupRepository,
     SettlementRepository settlementRepository,
   ) async {
-    GroupPinnedPlan? pinnedPlan;
     List<GroupPlanSummary> plans = const [];
-
-    try {
-      pinnedPlan = await groupRepository.fetchPinnedPlan(groupId);
-    } catch (_) {
-      // 보조 카드 실패는 메시지와 입력창 표시를 막지 않는다.
-    }
 
     try {
       plans = await groupRepository.fetchPlans(groupId);
@@ -134,7 +130,11 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       // 약속 목록 실패는 채팅 본문 표시와 독립적으로 처리한다.
     }
 
-    final planId = pinnedPlan?.id ?? (plans.isEmpty ? 0 : plans.first.id);
+    final selectedPlan = _selectNearestUpcomingPlan(plans, DateTime.now());
+    final selectedPinnedPlan = selectedPlan == null
+        ? null
+        : _pinnedPlanFor(selectedPlan);
+    final planId = selectedPlan?.id ?? 0;
     List<VoteSummary> votes = const [];
     try {
       if (planId > 0) {
@@ -167,10 +167,13 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
 
     if (planId > 0) {
       try {
-        settlement = await settlementRepository.fetchSettlement(
+        final fetchedSettlement = await settlementRepository.fetchSettlement(
           groupId: groupId,
           planId: planId,
         );
+        if (fetchedSettlement.isCreated) {
+          settlement = fetchedSettlement;
+        }
       } catch (_) {
         // 정산 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
       }
@@ -185,12 +188,38 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
     state = AsyncData(
       latest.copyWith(
-        pinnedPlan: pinnedPlan,
+        clearPinnedPlan: selectedPinnedPlan == null,
+        pinnedPlan: selectedPinnedPlan,
         planId: planId,
+        clearVote: vote == null,
         vote: vote,
         voteId: vote == null ? 0 : voteId,
+        clearSettlement: settlement == null,
         settlement: settlement,
       ),
+    );
+  }
+
+  GroupPlanSummary? _selectNearestUpcomingPlan(
+    List<GroupPlanSummary> plans,
+    DateTime now,
+  ) {
+    final upcomingPlans =
+        plans.where((plan) => plan.isUpcomingFrom(now)).toList(growable: false)
+          ..sort(GroupPlanSummary.compareUpcoming);
+    return upcomingPlans.isEmpty ? null : upcomingPlans.first;
+  }
+
+  GroupPinnedPlan _pinnedPlanFor(GroupPlanSummary plan) {
+    return GroupPinnedPlan(
+      id: plan.id,
+      title: plan.title,
+      dateLabel: plan.displayDateTimeLabel,
+      placeName: plan.placeName,
+      statusLabel: plan.statusType.trim().isNotEmpty
+          ? plan.statusType
+          : plan.statusLabel,
+      voteSummary: '',
     );
   }
 

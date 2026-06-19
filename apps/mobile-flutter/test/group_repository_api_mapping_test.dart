@@ -245,6 +245,12 @@ void main() {
                     'targetType': 'PLAN',
                     'targetId': '101',
                     'participantCount': 4,
+                    'participants': [
+                      {
+                        'nickname': '지우',
+                        'profileImageUrl': 'dev/avatars/jiwoo.png',
+                      },
+                    ],
                     'closed': false,
                     'options': [
                       {
@@ -274,6 +280,11 @@ void main() {
       expect(votes.single.participantCountLabel, '4명 참여');
       expect(votes.single.targetType, 'PLAN');
       expect(votes.single.targetId, '101');
+      expect(votes.single.participantAvatars.single.name, '지우');
+      expect(
+        votes.single.participantAvatars.single.profileImageUrl,
+        'dev/avatars/jiwoo.png',
+      );
       expect(votes.single.options.single.countLabel, '3표');
       expect(votes.single.options.single.progress, 0.75);
     },
@@ -493,6 +504,41 @@ void main() {
       'dev/avatars/jiwoo.png',
       'https://example.test/minsu.png',
     ]);
+  });
+
+  test('maps plan thumbnail image url for plan cards', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 101,
+                  'title': '성수 브런치',
+                  'dateLabel': '오늘 12:00',
+                  'placeName': '성수동',
+                  'status': 'scheduled',
+                  'memberCount': 1,
+                  'thumbnailImageUrl':
+                      '/api/v1/media/public?key=dev%2Fplaces%2Fcoffee.jpg',
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(
+      plans.single.thumbnailImageUrl,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Fplaces%2Fcoffee.jpg',
+    );
   });
 
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
@@ -833,10 +879,17 @@ void main() {
 
   test('plan status API enum values are displayed in Korean', () {
     expect(PlanProgressStatus.fromApi('completed').label, '완료');
-    expect(PlanProgressStatus.fromApi('draft').label, '초안');
     expect(PlanProgressStatus.fromApi('active').label, '진행 중');
     expect(PlanProgressStatus.fromApi('scheduled').label, '예정');
     expect(PlanProgressStatus.fromApi('진행중').label, '진행 중');
+  });
+
+  test('unknown plan status is not user-displayable', () {
+    final status = PlanProgressStatus.fromApi('invalid');
+
+    expect(status, PlanProgressStatus.unknown);
+    expect(status.isDisplayable, isFalse);
+    expect(status.label, isEmpty);
   });
 
   test('group plan summary exposes centralized Korean display status', () {
@@ -854,7 +907,61 @@ void main() {
     );
 
     expect(plan.progressStatus, PlanProgressStatus.completed);
+    expect(plan.hasDisplayStatus, isTrue);
     expect(plan.displayStatusLabel, '완료');
+  });
+
+  test('group plan summary hides unknown display status', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'invalid',
+      statusType: 'invalid',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.progressStatus, PlanProgressStatus.unknown);
+    expect(plan.hasDisplayStatus, isFalse);
+    expect(plan.displayStatusLabel, isEmpty);
+  });
+
+  test('group plan summary exposes participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, '2명 참여');
+  });
+
+  test('group plan summary hides empty participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 0,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, isEmpty);
   });
 
   test('group plan summary display date includes time from startsAt', () {
@@ -875,6 +982,48 @@ void main() {
 
     expect(plan.displayDateTimeLabel, '5월 10일 13:30');
     expect(plan.displayTimeRangeLabel, '13:30~15:00');
+  });
+
+  test('multi-day plan exposes date-scoped time labels for today cards', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '제주 여행',
+      dateLabel: '6월 19일',
+      startsAt: DateTime(2026, 6, 19, 11),
+      endsAt: DateTime(2026, 6, 21, 15),
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 19)), '11:00~');
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 20)), '하루종일');
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 21)), '~15:00');
+  });
+
+  test('multi-day plan remains a today plan on middle and end dates', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '제주 여행',
+      dateLabel: '6월 19일',
+      startsAt: DateTime(2026, 6, 19, 11),
+      endsAt: DateTime(2026, 6, 21, 15),
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 20, 12)), isTrue);
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 21, 14, 59)), isTrue);
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 21, 15)), isFalse);
   });
 
   test(
@@ -918,6 +1067,66 @@ void main() {
       expect(members.last.name, '민수');
       expect(members.last.statusLabel, '초대 중');
       expect(members.last.invited, isTrue);
+    },
+  );
+
+  test(
+    'fetchPlanParticipantCandidates loads preference only for selected member ids',
+    () async {
+      final requestedPaths = <Uri>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedPaths.add(options.uri);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'userId': '00000000-0000-0000-0000-000000000011',
+                    'nickname': '찬도치',
+                    'profileImageUrl': 'https://cdn.example/avatar.png',
+                    'preferenceProfile': {
+                      'preferredWeekdays': ['SATURDAY'],
+                      'preferredTimes': ['afternoon'],
+                    },
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final candidates = await repository.fetchPlanParticipantCandidates(
+        groupId: 1,
+        userIds: const [
+          '00000000-0000-0000-0000-000000000011',
+          '00000000-0000-0000-0000-000000000011',
+          '',
+        ],
+      );
+
+      expect(
+        requestedPaths.single.path,
+        '/api/v1/groups/1/plans/participant-candidates',
+      );
+      expect(requestedPaths.single.queryParametersAll['userIds'], [
+        '00000000-0000-0000-0000-000000000011',
+      ]);
+      expect(candidates.single.name, '찬도치');
+      expect(
+        candidates.single.profileImageUrl,
+        'https://cdn.example/avatar.png',
+      );
+      expect(candidates.single.preferenceProfile?.preferredWeekdays, [
+        'SATURDAY',
+      ]);
+      expect(candidates.single.preferenceProfile?.preferredTimes, [
+        'afternoon',
+      ]);
     },
   );
 

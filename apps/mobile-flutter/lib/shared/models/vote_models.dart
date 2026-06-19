@@ -12,6 +12,7 @@ class VoteSummary {
     required this.closed,
     required this.joinedByMe,
     required this.actionLabel,
+    this.participantAvatars = const [],
     this.targetType = '',
     this.targetId = '',
   });
@@ -23,6 +24,7 @@ class VoteSummary {
   final String planLabel;
   final String planMeta;
   final List<String> participants;
+  final List<VoteParticipantAvatar> participantAvatars;
   final int participantCount;
   final List<VoteOptionSummary> options;
   final bool closed;
@@ -33,6 +35,15 @@ class VoteSummary {
 
   String get participantCountLabel => '$participantCount명 참여';
 
+  List<VoteParticipantAvatar> get displayParticipantAvatars {
+    if (participantAvatars.isNotEmpty) {
+      return participantAvatars;
+    }
+    return participants
+        .map((name) => VoteParticipantAvatar(name: name))
+        .toList(growable: false);
+  }
+
   String get displayDescription {
     final trimmed = description.trim();
     if (trimmed.isNotEmpty) {
@@ -40,6 +51,13 @@ class VoteSummary {
     }
     return '등록된 투표 후보가 없어요';
   }
+}
+
+class VoteParticipantAvatar {
+  const VoteParticipantAvatar({required this.name, this.profileImageUrl = ''});
+
+  final String name;
+  final String profileImageUrl;
 }
 
 class VoteOptionSummary {
