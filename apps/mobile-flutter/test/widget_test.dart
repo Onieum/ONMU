@@ -1429,6 +1429,11 @@ void main() {
       expect(find.text('장소 상세'), findsWidgets);
       expect(find.text('분류 키워드'), findsOneWidget);
       expect(find.text('참여자 선호'), findsOneWidget);
+      expect(find.text('출처'), findsNothing);
+      expect(find.text('제공'), findsNothing);
+      expect(find.textContaining('Kakao'), findsNothing);
+      expect(find.textContaining('Naver'), findsNothing);
+      expect(find.textContaining('Google'), findsNothing);
       expect(find.textContaining('함께 정하고 있어요'), findsNothing);
       expect(find.byKey(const ValueKey('focused-place-pin-1')), findsOneWidget);
     },
@@ -1656,6 +1661,11 @@ void main() {
     expect(find.textContaining('운영 리스크'), findsNothing);
     expect(find.text('리스크'), findsNothing);
     expect(find.textContaining('점'), findsNothing);
+    expect(find.text('출처'), findsNothing);
+    expect(find.text('제공'), findsNothing);
+    expect(find.textContaining('Kakao Places'), findsNothing);
+    expect(find.textContaining('Naver Places'), findsNothing);
+    expect(find.textContaining('Google Places'), findsNothing);
     expect(find.textContaining('Kakao'), findsNothing);
     expect(find.textContaining('Naver'), findsNothing);
     expect(find.text('지도앱'), findsNothing);

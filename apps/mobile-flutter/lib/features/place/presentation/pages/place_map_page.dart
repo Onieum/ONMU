@@ -1937,23 +1937,7 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
       if (candidate.roadAddress.trim().isNotEmpty &&
           candidate.roadAddress.trim() != candidate.displayAddress.trim())
         _PlaceDetailFact(label: '도로명', value: candidate.roadAddress.trim()),
-      if (candidate.sourceLabel.trim().isNotEmpty)
-        _PlaceDetailFact(label: '출처', value: candidate.sourceLabel.trim()),
-      if (_providerLabel(candidate.provider).isNotEmpty)
-        _PlaceDetailFact(
-          label: '제공',
-          value: _providerLabel(candidate.provider),
-        ),
     ];
-  }
-
-  String _providerLabel(String provider) {
-    return switch (provider.trim().toLowerCase()) {
-      'naver' => 'Naver',
-      'kakao' => 'Kakao',
-      'onmu_catalog' => 'ONMU catalog',
-      final value => value,
-    };
   }
 }
 
