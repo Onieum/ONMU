@@ -24,7 +24,7 @@ final groupPlanMemberOptionsProvider =
               userId: member.userId,
               name: member.name,
               message: member.note,
-              badge: member.statusLabel,
+              badge: '추가 가능',
               selected: true,
               profileImageUrl: member.profileImageUrl,
             ),

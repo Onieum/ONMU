@@ -29,6 +29,7 @@ import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
+import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
 
 import 'support/in_memory_onmu_store.dart';
 import 'support/test_onmu_repositories.dart';
@@ -42,9 +43,12 @@ String _weekdayLabel(DateTime date) {
   return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
 }
 
-Widget _testOnmuApp() {
+Widget _testOnmuApp({GroupRepository? groupRepository}) {
   appRouter.go(RoutePaths.splash);
-  return onmuTestProviderScope(child: const app.OnmuMaterialApp());
+  return onmuTestProviderScope(
+    groupRepository: groupRepository,
+    child: const app.OnmuMaterialApp(),
+  );
 }
 
 void main() {
@@ -1111,6 +1115,25 @@ void main() {
     expect(find.byTooltip('민수 제거'), findsNothing);
   });
 
+  testWidgets(
+    'new plan member add sheet shows candidate avatar and neutral status',
+    (tester) async {
+      await tester.pumpWidget(_testOnmuApp());
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+      appRouter.go(RoutePaths.planNew(_groupId));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('참여 멤버 추가'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('참여 멤버 추가'), findsOneWidget);
+      expect(find.text('추가 가능'), findsWidgets);
+      expect(find.text('참여 중'), findsNothing);
+      expect(find.byType(PixelAvatar), findsAtLeastNWidgets(2));
+    },
+  );
+
   testWidgets('canonical plan edit route opens the edit screen', (
     tester,
   ) async {
@@ -1750,7 +1773,11 @@ void main() {
   });
 
   testWidgets('group chat vote notice opens vote detail', (tester) async {
-    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpWidget(
+      _testOnmuApp(
+        groupRepository: _ChatVoteGroupRepository(InMemoryOnmuStore.seeded()),
+      ),
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -1938,6 +1965,29 @@ void main() {
     expect(find.text('보드게임 모임 장소'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsNothing);
   });
+}
+
+class _ChatVoteGroupRepository extends TestGroupRepository {
+  _ChatVoteGroupRepository(super.store);
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 101,
+        title: '제주도 여행',
+        dateLabel: '6월 7일',
+        startsAt: DateTime.now().add(const Duration(days: 1)),
+        placeName: '제주도 일대',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 6,
+        extraMemberCount: 2,
+        iconKind: 'water',
+        isPast: false,
+      ),
+    ];
+  }
 }
 
 class _NoAuxGroupRepository extends TestGroupRepository {

@@ -16,6 +16,7 @@ import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/plan_create_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_member_avatar_row.dart';
@@ -106,6 +107,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         selected: true,
         profileImageUrl: currentUser?.profileImageUrl ?? '',
         preferenceProfile: preferenceProfile,
+        fallbackToViewerCharacter: true,
       ),
     ];
   }
@@ -811,6 +813,11 @@ class _MemberPickerRow extends StatelessWidget {
                         final member = available[index];
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
+                          leading: PixelAvatar(
+                            label: member.name,
+                            profileImageUrl: member.profileImageUrl,
+                            size: 44,
+                          ),
                           title: Text(member.name),
                           subtitle: Text(member.badge),
                           trailing: const Icon(Icons.add_circle_outline),

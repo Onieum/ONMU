@@ -50,10 +50,14 @@ void main() {
 
   test('builds camera bounds from manifest bounds', () {
     final cameraBounds = cameraTargetBoundsFromManifest(_readyPmtilesManifest);
+    final compactPadding = onmuMapCameraFitPaddingFor(const Size(320, 280));
+    final fullPadding = onmuMapCameraFitPaddingFor(const Size(390, 760));
 
     expect(onmuMapMinUsableZoom, 6.2);
-    expect(onmuMapCameraFitPadding.top, 160);
-    expect(onmuMapCameraFitPadding.bottom, 480);
+    expect(compactPadding.top, lessThan(100));
+    expect(compactPadding.bottom, lessThan(120));
+    expect(fullPadding.top, greaterThan(compactPadding.top));
+    expect(fullPadding.bottom, greaterThan(compactPadding.bottom));
     expect(cameraBounds.bounds?.southwest.longitude, 124);
     expect(cameraBounds.bounds?.southwest.latitude, 33);
     expect(cameraBounds.bounds?.northeast.longitude, 132);
@@ -318,44 +322,45 @@ void main() {
     },
   );
 
-  testWidgets('reports unavailable current location without native controller', (
-    tester,
-  ) async {
-    var unavailableCount = 0;
+  testWidgets(
+    'reports unavailable current location without native controller',
+    (tester) async {
+      var unavailableCount = 0;
 
-    Widget buildMap({required int requestSerial}) {
-      return ProviderScope(
-        overrides: [
-          tileManifestRepositoryProvider.overrideWithValue(
-            const _FailingTileManifestRepository(),
-          ),
-        ],
-        child: MaterialApp(
-          home: SizedBox(
-            width: 320,
-            height: 240,
-            child: OnmuMapView(
-              fallbackLabel: '지도 fallback',
-              points: const [],
-              myLocationRequestSerial: requestSerial,
-              onMyLocationUnavailable: () {
-                unavailableCount += 1;
-              },
+      Widget buildMap({required int requestSerial}) {
+        return ProviderScope(
+          overrides: [
+            tileManifestRepositoryProvider.overrideWithValue(
+              const _FailingTileManifestRepository(),
+            ),
+          ],
+          child: MaterialApp(
+            home: SizedBox(
+              width: 320,
+              height: 240,
+              child: OnmuMapView(
+                fallbackLabel: '지도 fallback',
+                points: const [],
+                myLocationRequestSerial: requestSerial,
+                onMyLocationUnavailable: () {
+                  unavailableCount += 1;
+                },
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    await tester.pumpWidget(buildMap(requestSerial: 0));
-    await tester.pump();
+      await tester.pumpWidget(buildMap(requestSerial: 0));
+      await tester.pump();
 
-    await tester.pumpWidget(buildMap(requestSerial: 1));
-    await tester.pump();
-    await tester.pump();
+      await tester.pumpWidget(buildMap(requestSerial: 1));
+      await tester.pump();
+      await tester.pump();
 
-    expect(unavailableCount, 1);
-  });
+      expect(unavailableCount, 1);
+    },
+  );
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {

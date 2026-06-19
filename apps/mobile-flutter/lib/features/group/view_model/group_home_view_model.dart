@@ -43,7 +43,7 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
       group: group,
       upcomingPlan: _nearestUpcomingPlan(plans),
       recentMemories: List.unmodifiable(memories.take(4)),
-      recentMessage: messages.isEmpty ? null : messages.first,
+      recentMessage: messages.isEmpty ? null : messages.last,
     );
   }
 

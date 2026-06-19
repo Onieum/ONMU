@@ -149,6 +149,44 @@ void main() {
     expect(find.text('실제 경로 계산 실패'), findsNothing);
     expect(find.text('동선 계산 중'), findsNothing);
   });
+
+  testWidgets(
+    'itinerary summary follows visible visit places when route legs are stale',
+    (tester) async {
+      await tester.pumpWidget(
+        _planItineraryTestApp(
+          planRepository: _PlanDetailTestRepository(
+            visitPlansByDate: const [
+              [
+                VisitPlan(
+                  time: '10:00',
+                  endTime: '11:00',
+                  place: '퍼스트커피랩행궁',
+                  kind: '카페',
+                  duration: '1시간',
+                ),
+                VisitPlan(
+                  time: '11:10',
+                  endTime: '12:00',
+                  place: '렉스프레소뮤지엄 행궁',
+                  kind: '카페',
+                  duration: '50분',
+                ),
+              ],
+            ],
+          ),
+          routeRepository: const _StaleLegRouteRepository(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('5분 · 350m · 1구간'), findsOneWidget);
+      expect(find.text('퍼스트커피랩행궁 → 렉스프레소뮤지엄 행궁 · 5분 · 350m'), findsOneWidget);
+      expect(find.textContaining('퍼스트커피랩행궁 → 퍼스트커피랩행궁'), findsNothing);
+      expect(find.textContaining('외 1구간'), findsNothing);
+    },
+  );
 }
 
 Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
@@ -544,6 +582,65 @@ class _SuccessfulRouteRepository implements RouteRepository {
           'toName': '테스트 식당',
           'distanceMeters': 1500,
           'durationSeconds': 600,
+        },
+      ],
+    });
+  }
+}
+
+class _StaleLegRouteRepository implements RouteRepository {
+  const _StaleLegRouteRepository();
+
+  @override
+  Future<RouteRecommendation> recommend({
+    required Object groupId,
+    required Object planId,
+    required String travelMode,
+  }) async {
+    return RouteRecommendation.fromJson({
+      'provider': 'openrouteservice',
+      'travelMode': travelMode,
+      'liveProvider': true,
+      'distanceMeters': 350,
+      'durationSeconds': 300,
+      'stops': [
+        {
+          'id': 'stop-1',
+          'name': '퍼스트커피랩행궁',
+          'lat': 37.2859,
+          'lng': 127.0143,
+          'order': 1,
+        },
+        {
+          'id': 'stop-2',
+          'name': '렉스프레소뮤지엄 행궁',
+          'lat': 37.2863,
+          'lng': 127.0158,
+          'order': 2,
+        },
+      ],
+      'geometry': [
+        [127.0143, 37.2859],
+        [127.0158, 37.2863],
+      ],
+      'legs': [
+        {
+          'order': 1,
+          'fromStopId': 'stop-1',
+          'toStopId': 'stop-1',
+          'fromName': '퍼스트커피랩행궁',
+          'toName': '퍼스트커피랩행궁',
+          'distanceMeters': 0,
+          'durationSeconds': 0,
+        },
+        {
+          'order': 2,
+          'fromStopId': 'stop-1',
+          'toStopId': 'stop-2',
+          'fromName': '퍼스트커피랩행궁',
+          'toName': '렉스프레소뮤지엄 행궁',
+          'distanceMeters': 350,
+          'durationSeconds': 300,
         },
       ],
     });

@@ -32,7 +32,7 @@ class GroupSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _AvatarCluster(members: group.members),
+              _AvatarCluster(members: group.displayMemberAvatars),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -598,7 +598,7 @@ class FinalSettlementResultRow extends StatelessWidget {
 class _AvatarCluster extends StatelessWidget {
   const _AvatarCluster({required this.members});
 
-  final List<String> members;
+  final List<GroupPlanMemberAvatar> members;
 
   @override
   Widget build(BuildContext context) {
@@ -611,7 +611,11 @@ class _AvatarCluster extends StatelessWidget {
           for (var index = 0; index < members.take(3).length; index += 1)
             Positioned(
               left: index * 18,
-              child: PixelAvatar(label: members[index], size: 34),
+              child: PixelAvatar(
+                label: members[index].name,
+                profileImageUrl: members[index].profileImageUrl,
+                size: 34,
+              ),
             ),
         ],
       ),

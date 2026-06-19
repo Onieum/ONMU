@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2026년 6월'), findsOneWidget);
-    expect(find.byIcon(Icons.star_rounded), findsWidgets);
+    expect(_calendarStarIcons(), findsNothing);
     expect(find.byType(OnmuSlidingTimePicker), findsOneWidget);
     expect(find.text('시작 시간'), findsOneWidget);
     expect(find.text('종료 시간'), findsNothing);
@@ -90,7 +90,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2026년 6월'), findsOneWidget);
-    expect(find.byIcon(Icons.star_rounded), findsWidgets);
+    expect(_calendarStarIcons(), findsNothing);
     expect(find.byType(OnmuSlidingTimePicker), findsOneWidget);
     expect(find.text('시작 시간'), findsNothing);
     expect(find.text('종료 시간'), findsOneWidget);
@@ -187,6 +187,48 @@ void main() {
 
     expect(find.text('일반 추천'), findsNWidgets(4));
   });
+
+  testWidgets('recommended dates are shown separately from time slots', (
+    tester,
+  ) async {
+    await _pumpRangePicker(
+      tester,
+      participantPreferences: [
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일', '토요일', '일요일'],
+          preferredTimes: ['점심'],
+        ),
+      ],
+    );
+    await _openRangePicker(tester);
+
+    expect(find.text('추천 날짜'), findsOneWidget);
+    expect(find.text('선택한 날짜의 추천 시간대'), findsOneWidget);
+    expect(find.text('추천/비추천 시간대'), findsNothing);
+    expect(find.textContaining('6월 19일 (금)'), findsOneWidget);
+    expect(find.textContaining('6월 15일 (월)\n'), findsNothing);
+  });
+
+  test('recommended dates come from participant weekday preference', () {
+    final dates = onmuRecommendedDatesForRangePicker(
+      anchor: DateTime(2026, 6, 19),
+      participantPreferences: [
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일'],
+          preferredTimes: ['점심'],
+        ),
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일'],
+          preferredTimes: ['오후'],
+          unavailableDates: ['2026-06-26'],
+        ),
+      ],
+    );
+
+    expect(dates.map((date) => date.day), contains(19));
+    expect(dates.map((date) => date.day), isNot(contains(20)));
+    expect(dates.map((date) => date.day), isNot(contains(26)));
+  });
 }
 
 Future<void> _pumpRangePicker(
@@ -232,6 +274,13 @@ Finder _calendarDay(String day) {
   return find.descendant(
     of: find.byType(OnmuCalendarDatePicker),
     matching: find.text(day),
+  );
+}
+
+Finder _calendarStarIcons() {
+  return find.descendant(
+    of: find.byType(OnmuCalendarDatePicker),
+    matching: find.byIcon(Icons.star_rounded),
   );
 }
 

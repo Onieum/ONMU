@@ -202,6 +202,49 @@ class RouteRecommendationServiceTests {
   }
 
   @Test
+  void separatesRouteCacheKeyByStopDisplayName() {
+    RecordingRouteCache cache = new RecordingRouteCache();
+    PlaceCandidateEntity firstCandidate = new PlaceCandidateEntity(
+      "301",
+      group,
+      plan,
+      "First",
+      "cafe",
+      "Seoul",
+      "{\"lat\":37.5,\"lng\":127.0}"
+    );
+    PlaceCandidateEntity secondCandidate = new PlaceCandidateEntity(
+      "302",
+      group,
+      plan,
+      "Second",
+      "park",
+      "Seoul",
+      "{\"lat\":37.6,\"lng\":127.1}"
+    );
+    when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(
+      List.of(
+        new SchedulePlaceEntity("701", group, plan, firstCandidate, "Before name", null, 1),
+        new SchedulePlaceEntity("702", group, plan, secondCandidate, "Second", null, 2)
+      ),
+      List.of(
+        new SchedulePlaceEntity("701", group, plan, firstCandidate, "After name", null, 1),
+        new SchedulePlaceEntity("702", group, plan, secondCandidate, "Second", null, 2)
+      )
+    );
+    RouteRecommendationService service = serviceWith("test-ors-key", new FakeRouteHttpClient(), cache);
+
+    service.recommend("1", "101", "walk");
+    String firstKey = cache.lastKey;
+    service.recommend("1", "101", "walk");
+    String secondKey = cache.lastKey;
+
+    assertThat(firstKey).isNotBlank();
+    assertThat(secondKey).isNotBlank();
+    assertThat(firstKey).isNotEqualTo(secondKey);
+  }
+
+  @Test
   void rejectsNonGroupMemberWhenUserIdIsProvided() {
     UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000099");
     when(groupRepository.isUserMember("1", userId)).thenReturn(false);

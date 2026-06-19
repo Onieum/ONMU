@@ -32,12 +32,19 @@ const String mapNativePointDataKey = 'onmuPointId';
 const double onmuMapMinUsableZoom = 6.2;
 
 @visibleForTesting
-const EdgeInsets onmuMapCameraFitPadding = EdgeInsets.fromLTRB(
-  56,
-  160,
-  56,
-  480,
-);
+EdgeInsets onmuMapCameraFitPaddingFor(Size viewport) {
+  final width = viewport.width.isFinite ? viewport.width : 0;
+  final height = viewport.height.isFinite ? viewport.height : 0;
+  final horizontal = width <= 0 ? 48.0 : width * 0.12;
+  final top = height <= 0 ? 96.0 : height * 0.24;
+  final bottom = height <= 0 ? 120.0 : height * 0.32;
+  return EdgeInsets.fromLTRB(
+    horizontal.clamp(24.0, 56.0).toDouble(),
+    top.clamp(40.0, 160.0).toDouble(),
+    horizontal.clamp(24.0, 56.0).toDouble(),
+    bottom.clamp(72.0, 240.0).toDouble(),
+  );
+}
 
 @visibleForTesting
 const EdgeInsets onmuMapMarkerScreenSafetyPadding = EdgeInsets.fromLTRB(
@@ -678,16 +685,20 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     final maxLng = coordinates.map((value) => value.lng).reduce(math.max);
     final latPadding = math.max((maxLat - minLat).abs() * 0.16, 0.0015);
     final lngPadding = math.max((maxLng - minLng).abs() * 0.16, 0.0015);
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final cameraPadding = onmuMapCameraFitPaddingFor(
+      renderBox?.size ?? MediaQuery.sizeOf(context),
+    );
     await controller.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(minLat - latPadding, minLng - lngPadding),
           northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
         ),
-        left: onmuMapCameraFitPadding.left,
-        top: onmuMapCameraFitPadding.top,
-        right: onmuMapCameraFitPadding.right,
-        bottom: onmuMapCameraFitPadding.bottom,
+        left: cameraPadding.left,
+        top: cameraPadding.top,
+        right: cameraPadding.right,
+        bottom: cameraPadding.bottom,
       ),
       duration: const Duration(milliseconds: 350),
     );

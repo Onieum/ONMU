@@ -21,6 +21,15 @@ class GroupSummary {
   final int unreadCount;
   final String pinnedPlanTitle;
 
+  List<GroupPlanMemberAvatar> get displayMemberAvatars {
+    if (memberAvatars.isNotEmpty) {
+      return memberAvatars;
+    }
+    return members
+        .map((name) => GroupPlanMemberAvatar(name: name))
+        .toList(growable: false);
+  }
+
   GroupSummary copyWith({
     int? id,
     String? name,
@@ -179,7 +188,7 @@ class GroupPlanSummary {
 }
 
 enum PlanProgressStatus {
-  draft('초안'),
+  draft('조율 중'),
   scheduled('예정'),
   active('진행 중'),
   completed('완료'),

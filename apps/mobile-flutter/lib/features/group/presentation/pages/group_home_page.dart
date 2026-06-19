@@ -557,7 +557,11 @@ class _RecentChatPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
           children: [
-            PixelAvatar(label: preview.sender, size: 42),
+            PixelAvatar(
+              label: preview.sender,
+              profileImageUrl: preview.senderProfileImageUrl,
+              size: 42,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(

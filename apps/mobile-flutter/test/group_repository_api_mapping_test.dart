@@ -245,6 +245,12 @@ void main() {
                     'targetType': 'PLAN',
                     'targetId': '101',
                     'participantCount': 4,
+                    'participants': [
+                      {
+                        'nickname': '지우',
+                        'profileImageUrl': 'dev/avatars/jiwoo.png',
+                      },
+                    ],
                     'closed': false,
                     'options': [
                       {
@@ -274,6 +280,11 @@ void main() {
       expect(votes.single.participantCountLabel, '4명 참여');
       expect(votes.single.targetType, 'PLAN');
       expect(votes.single.targetId, '101');
+      expect(votes.single.participantAvatars.single.name, '지우');
+      expect(
+        votes.single.participantAvatars.single.profileImageUrl,
+        'dev/avatars/jiwoo.png',
+      );
       expect(votes.single.options.single.countLabel, '3표');
       expect(votes.single.options.single.progress, 0.75);
     },
@@ -833,7 +844,7 @@ void main() {
 
   test('plan status API enum values are displayed in Korean', () {
     expect(PlanProgressStatus.fromApi('completed').label, '완료');
-    expect(PlanProgressStatus.fromApi('draft').label, '초안');
+    expect(PlanProgressStatus.fromApi('draft').label, '조율 중');
     expect(PlanProgressStatus.fromApi('active').label, '진행 중');
     expect(PlanProgressStatus.fromApi('scheduled').label, '예정');
     expect(PlanProgressStatus.fromApi('진행중').label, '진행 중');

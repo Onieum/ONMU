@@ -303,6 +303,7 @@ class _HomeHeader extends StatelessWidget {
               label: avatarLabel,
               size: 64,
               profileImageUrl: profileImageUrl,
+              fallbackToViewerCharacter: true,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(

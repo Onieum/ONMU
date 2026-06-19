@@ -683,6 +683,12 @@ class ApiGroupRepository implements GroupRepository {
     final closed = OnmuJson.readBool(json, 'closed');
     final targetId = OnmuJson.readString(json, 'targetId');
     final myOptionId = _myVoteOptionId(json, optionSummaries);
+    final participantAvatars = _voteParticipantAvatars(json);
+    final participants = participantAvatars.isNotEmpty
+        ? participantAvatars
+              .map((avatar) => avatar.name)
+              .toList(growable: false)
+        : OnmuJson.stringList(json['participants']);
     return VoteSummary(
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '투표'),
@@ -690,7 +696,8 @@ class ApiGroupRepository implements GroupRepository {
       description: options.join(', '),
       planLabel: targetId.isEmpty ? '모임 투표' : '약속 $targetId',
       planMeta: OnmuJson.readString(json, 'voteType', 'PLACE'),
-      participants: OnmuJson.stringList(json['participants']),
+      participants: participants,
+      participantAvatars: participantAvatars,
       participantCount: OnmuJson.readInt(json, 'participantCount'),
       options: optionSummaries,
       closed: closed,
@@ -699,6 +706,41 @@ class ApiGroupRepository implements GroupRepository {
       targetType: OnmuJson.readString(json, 'targetType'),
       targetId: targetId,
     );
+  }
+
+  List<VoteParticipantAvatar> _voteParticipantAvatars(
+    Map<String, dynamic> json,
+  ) {
+    final profileMaps = OnmuJson.asMapList(json['participantProfiles']);
+    final source = profileMaps.isNotEmpty ? profileMaps : json['participants'];
+    if (source is! List) {
+      return const [];
+    }
+
+    return source
+        .map((participant) {
+          if (participant is Map) {
+            final map = Map<String, dynamic>.from(participant);
+            final name = resolveOnmuDisplayName([
+              OnmuJson.readString(map, 'nickname'),
+              OnmuJson.readString(map, 'name'),
+            ], fallback: '');
+            if (name.trim().isEmpty) {
+              return null;
+            }
+            return VoteParticipantAvatar(
+              name: name.trim(),
+              profileImageUrl: _profileImageUrl(map),
+            );
+          }
+          final name = participant.toString().trim();
+          if (name.isEmpty) {
+            return null;
+          }
+          return VoteParticipantAvatar(name: name);
+        })
+        .whereType<VoteParticipantAvatar>()
+        .toList(growable: false);
   }
 
   List<VoteOptionSummary> _voteOptionSummaries(Map<String, dynamic> json) {

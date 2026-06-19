@@ -69,19 +69,28 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
   _DateFieldTarget? _expandedDateTarget;
   final _startCalendarKey = GlobalKey();
   final _endCalendarKey = GlobalKey();
+  late final DateTime _recommendationAnchor;
 
   @override
   void initState() {
     super.initState();
     _start = _roundedToFiveMinutes(widget.initialStart);
     _end = _normalizedEnd(_start, widget.initialEnd);
+    final today = _today();
+    _recommendationAnchor = _dateOnly(_start).isBefore(today)
+        ? today
+        : _dateOnly(_start);
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final recommendedDates = onmuRecommendedDatesForRangePicker(
+      anchor: _recommendationAnchor,
+      participantPreferences: widget.participantPreferences,
+    );
     final recommendationResult = _timeRecommendationResult(
-      anchor: _start,
+      selectedDate: _start,
       participantPreferences: widget.participantPreferences,
     );
 
@@ -130,6 +139,16 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    if (recommendedDates.isNotEmpty) ...[
+                      _RecommendedDateSection(
+                        recommendedDates: recommendedDates,
+                        selectedDate: _start,
+                        onDateSelected: (date) => setState(() {
+                          _updateStartDate(date);
+                        }),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     _DateSummaryField(
                       label: '시작 날짜',
                       value: _formatDate(_start),
@@ -145,8 +164,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           selectedDate: _start,
                           minimumDate: _today(),
                           maximumDate: _today().add(const Duration(days: 365)),
-                          highlightedDates:
-                              recommendationResult.highlightedDates,
+                          highlightedDates: recommendedDates,
                           onDateChanged: (date) => setState(() {
                             _updateStartDate(date);
                           }),
@@ -182,8 +200,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           selectedDate: _end,
                           minimumDate: _start,
                           maximumDate: _start.add(const Duration(days: 365)),
-                          highlightedDates:
-                              recommendationResult.highlightedDates,
+                          highlightedDates: recommendedDates,
                           onDateChanged: (date) => setState(() {
                             _updateEndDate(date);
                           }),
@@ -205,7 +222,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                     ],
                     const SizedBox(height: AppSpacing.lg),
                     Text(
-                      '추천/비추천 시간대',
+                      '선택한 날짜의 추천 시간대',
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -316,6 +333,91 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
 }
 
 enum _DateFieldTarget { start, end }
+
+class _RecommendedDateSection extends StatelessWidget {
+  const _RecommendedDateSection({
+    required this.recommendedDates,
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  final List<DateTime> recommendedDates;
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(icon: Icons.star_border_rounded, title: '추천 날짜'),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final date in recommendedDates)
+              _RecommendedDateChip(
+                date: date,
+                selected: _sameDate(selectedDate, date),
+                onTap: () => onDateSelected(date),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RecommendedDateChip extends StatelessWidget {
+  const _RecommendedDateChip({
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.primaryPink : AppColors.accentGreen;
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: selected ? 0.16 : 0.1),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: color),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today_outlined, size: 16, color: color),
+                const SizedBox(width: AppSpacing.xxs),
+                Text(
+                  _formatDate(date),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _DateSummaryField extends StatelessWidget {
   const _DateSummaryField({
@@ -493,7 +595,7 @@ class _TimeRecommendationTile extends StatelessWidget {
           SizedBox(
             width: 108,
             child: Text(
-              '${_formatDate(recommendation.start)}\n${_formatClock(recommendation.hour, recommendation.minute)} ~ ${_formatClock(recommendation.end.hour, recommendation.end.minute)}',
+              '${_formatClock(recommendation.hour, recommendation.minute)} ~ ${_formatClock(recommendation.end.hour, recommendation.end.minute)}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
@@ -610,14 +712,9 @@ class _TimeRecommendation {
 }
 
 class _TimeRecommendationResult {
-  const _TimeRecommendationResult({
-    required this.recommendations,
-    required this.highlightedDates,
-    this.notice,
-  });
+  const _TimeRecommendationResult({required this.recommendations, this.notice});
 
   final List<_TimeRecommendation> recommendations;
-  final List<DateTime> highlightedDates;
   final String? notice;
 }
 
@@ -653,62 +750,120 @@ DateTime _today() {
   return DateTime(now.year, now.month, now.day);
 }
 
-_TimeRecommendationResult _timeRecommendationResult({
+DateTime _dateOnly(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+@visibleForTesting
+List<DateTime> onmuRecommendedDatesForRangePicker({
   required DateTime anchor,
+  required List<PreferenceProfile> participantPreferences,
+  int dayCount = 30,
+}) {
+  final profiles = participantPreferences
+      .where(
+        (profile) =>
+            profile.preferredWeekdays.isNotEmpty ||
+            profile.unavailableDates.isNotEmpty,
+      )
+      .toList(growable: false);
+  if (profiles.isEmpty || dayCount <= 0) {
+    return const [];
+  }
+
+  final anchorDate = _dateOnly(anchor);
+  final candidates = <_DateRecommendation>[];
+  for (var dayOffset = 0; dayOffset < dayCount; dayOffset += 1) {
+    final date = anchorDate.add(Duration(days: dayOffset));
+    final unavailableCount = participantPreferences
+        .where((profile) => _profileUnavailableOn(profile, date))
+        .length;
+    if (unavailableCount >= participantPreferences.length) {
+      continue;
+    }
+    final preferredCount = participantPreferences
+        .where((profile) => _profileExplicitlyPrefersWeekday(profile, date))
+        .length;
+    if (preferredCount == 0) {
+      continue;
+    }
+    candidates.add(
+      _DateRecommendation(
+        date: date,
+        preferredCount: preferredCount,
+        unavailableCount: unavailableCount,
+      ),
+    );
+  }
+
+  candidates.sort((a, b) {
+    final unavailableCompare = a.unavailableCount.compareTo(b.unavailableCount);
+    if (unavailableCompare != 0) {
+      return unavailableCompare;
+    }
+    final preferredCompare = b.preferredCount.compareTo(a.preferredCount);
+    if (preferredCompare != 0) {
+      return preferredCompare;
+    }
+    return a.date.compareTo(b.date);
+  });
+
+  return _uniqueDates(candidates.take(4).map((candidate) => candidate.date));
+}
+
+_TimeRecommendationResult _timeRecommendationResult({
+  required DateTime selectedDate,
   required List<PreferenceProfile> participantPreferences,
 }) {
   final preferenceProfiles = participantPreferences
       .where((profile) => _hasPreferredTimeData(profile))
       .toList(growable: false);
   if (preferenceProfiles.isEmpty) {
-    return _fallbackTimeRecommendationResult(anchor);
+    return _fallbackTimeRecommendationResult(selectedDate);
   }
 
   final slotStarts = _preferredSlotStarts(preferenceProfiles);
   if (slotStarts.isEmpty) {
-    return _fallbackTimeRecommendationResult(anchor);
+    return _fallbackTimeRecommendationResult(selectedDate);
   }
 
-  final anchorDate = DateTime(anchor.year, anchor.month, anchor.day);
+  final date = _dateOnly(selectedDate);
   final recommendations = <_TimeRecommendation>[];
-  for (var dayOffset = 0; dayOffset < 14; dayOffset += 1) {
-    final date = anchorDate.add(Duration(days: dayOffset));
-    for (final slotStart in slotStarts) {
-      final preferredCount = preferenceProfiles
-          .where((profile) => _profilePrefersSlot(profile, date, slotStart))
-          .length;
-      if (preferredCount == 0) {
-        continue;
-      }
-      final unavailableCount = participantPreferences
-          .where((profile) => _profileUnavailableOn(profile, date))
-          .length;
-      if (unavailableCount == participantPreferences.length) {
-        continue;
-      }
-      final everyonePreferred =
-          preferredCount == preferenceProfiles.length && unavailableCount == 0;
-      recommendations.add(
-        _TimeRecommendation(
-          start: DateTime(
-            date.year,
-            date.month,
-            date.day,
-            slotStart.hour,
-            slotStart.minute,
-          ),
-          duration: const Duration(hours: 2),
-          label: everyonePreferred ? '모두가 선호한 시간대예요.' : '선호가 가장 많이 겹치는 시간대예요.',
-          preferredCount: preferredCount,
-          unavailableCount: unavailableCount,
-          isRecommended: everyonePreferred,
-        ),
-      );
+  for (final slotStart in slotStarts) {
+    final preferredCount = preferenceProfiles
+        .where((profile) => _profilePrefersSlot(profile, date, slotStart))
+        .length;
+    if (preferredCount == 0) {
+      continue;
     }
+    final unavailableCount = participantPreferences
+        .where((profile) => _profileUnavailableOn(profile, date))
+        .length;
+    if (unavailableCount == participantPreferences.length) {
+      continue;
+    }
+    final everyonePreferred =
+        preferredCount == preferenceProfiles.length && unavailableCount == 0;
+    recommendations.add(
+      _TimeRecommendation(
+        start: DateTime(
+          date.year,
+          date.month,
+          date.day,
+          slotStart.hour,
+          slotStart.minute,
+        ),
+        duration: const Duration(hours: 2),
+        label: everyonePreferred ? '모두가 선호한 시간대예요.' : '선호가 가장 많이 겹치는 시간대예요.',
+        preferredCount: preferredCount,
+        unavailableCount: unavailableCount,
+        isRecommended: everyonePreferred,
+      ),
+    );
   }
 
   if (recommendations.isEmpty) {
-    return _fallbackTimeRecommendationResult(anchor);
+    return _fallbackTimeRecommendationResult(selectedDate);
   }
 
   recommendations.sort((a, b) {
@@ -735,9 +890,6 @@ _TimeRecommendationResult _timeRecommendationResult({
   );
   return _TimeRecommendationResult(
     recommendations: selectedRecommendations,
-    highlightedDates: _uniqueDates(
-      selectedRecommendations.map((recommendation) => recommendation.start),
-    ),
     notice: hasEveryonePreferred ? null : '모두가 가능한 시간대가 없었음',
   );
 }
@@ -762,12 +914,7 @@ _TimeRecommendationResult _fallbackTimeRecommendationResult(DateTime anchor) {
       label: '퇴근 후 저녁 약속에 맞아요.',
     ),
   ];
-  return _TimeRecommendationResult(
-    recommendations: recommendations,
-    highlightedDates: _uniqueDates(
-      recommendations.map((recommendation) => recommendation.start),
-    ),
-  );
+  return _TimeRecommendationResult(recommendations: recommendations);
 }
 
 _TimeRecommendation _fallbackTimeRecommendation({
@@ -833,6 +980,16 @@ bool _profilePrefersWeekday(PreferenceProfile profile, int weekday) {
     return true;
   }
   return weekdays.contains(weekday);
+}
+
+bool _profileExplicitlyPrefersWeekday(
+  PreferenceProfile profile,
+  DateTime date,
+) {
+  return profile.preferredWeekdays
+      .map(_weekdayNumberFromPreference)
+      .whereType<int>()
+      .contains(date.weekday);
 }
 
 bool _profileUnavailableOn(PreferenceProfile profile, DateTime date) {
@@ -928,6 +1085,18 @@ List<DateTime> _uniqueDates(Iterable<DateTime> values) {
     }
   }
   return dates;
+}
+
+class _DateRecommendation {
+  const _DateRecommendation({
+    required this.date,
+    required this.preferredCount,
+    required this.unavailableCount,
+  });
+
+  final DateTime date;
+  final int preferredCount;
+  final int unavailableCount;
 }
 
 bool _sameDate(DateTime a, DateTime b) {
