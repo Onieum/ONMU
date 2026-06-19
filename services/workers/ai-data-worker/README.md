@@ -18,8 +18,17 @@ The current OOTD path supports:
 - Azure ML dry-run call when these env vars are present:
   - `ONMU_AZUREML_ENDPOINT_URL`
   - `ONMU_AZUREML_ENDPOINT_KEY`
+- Azure OpenAI Vision outfit analysis for photo mode when these env vars are present:
+  - `ONMU_VISION_ENDPOINT_URL`
+  - `ONMU_VISION_DEPLOYMENT_NAME`
+  - `ONMU_VISION_API_KEY`
+  - `ONMU_VISION_API_VERSION`
 
-Photo mode expects a Vision AI outfit descriptor before calling Azure ML. Until Vision AI is connected, the worker uses a placeholder descriptor only for dry-run plumbing tests.
+Photo mode first tries to turn the outfit photo into a detailed fashion
+descriptor with Azure OpenAI Vision. The worker accepts either
+`outfitPhotoImageBase64` or `outfitPhotoMedia.publicUrl` as the image source.
+If Vision configuration or an accessible image source is missing, the worker
+falls back to a placeholder descriptor only for dry-run plumbing tests.
 
 ## Migration ownership
 
@@ -63,9 +72,9 @@ The smoke script does not print endpoint keys. It writes the returned dry-run im
 
 1. Event Hubs consumer adapter.
 2. Worker-side job status persistence.
-3. Blob read/write integration.
-4. Vision AI descriptor adapter.
-5. Spring internal callback for completed/failed jobs.
-6. Idempotent job handling tests.
+3. Blob read/write integration for private media URLs.
+4. Spring internal callback for completed/failed jobs.
+5. Idempotent job handling tests.
+6. Worker-side persistence for Vision prompt/response metadata.
 
 Do not commit secret values or generated Azure ML deployment files.
