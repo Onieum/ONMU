@@ -61,7 +61,7 @@ class GroupPlanBoardState {
     if (voteStatus != null && voteStatus.isNotEmpty) {
       return voteStatus;
     }
-    return currentPlan?.displayStatusLabel ?? '확인 필요';
+    return currentPlan?.displayStatusLabel ?? '';
   }
 
   String get voteDescription {

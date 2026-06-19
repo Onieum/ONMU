@@ -59,13 +59,14 @@ class OnmuUpcomingPlanCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            flex: 0,
-            child: OnmuPlanStatusChip(
-              status: plan.progressStatus,
-              label: plan.displayStatusLabel,
+          if (plan.hasDisplayStatus)
+            Flexible(
+              flex: 0,
+              child: OnmuPlanStatusChip(
+                status: plan.progressStatus,
+                label: plan.displayStatusLabel,
+              ),
             ),
-          ),
         ],
       ),
     );

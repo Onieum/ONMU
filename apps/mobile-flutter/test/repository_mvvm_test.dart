@@ -364,7 +364,7 @@ void main() {
     final state = await container.read(groupHomeViewModelProvider('9').future);
 
     expect(state.upcomingPlan?.title, '내일 약속');
-    expect(state.upcomingPlan?.displayStatusLabel, '조율 중');
+    expect(state.upcomingPlan?.displayStatusLabel, '예정');
   });
 
   test('온모임 약속 목록 ViewModel은 진행중 약속을 지난 약속과 분리한다', () async {
@@ -575,6 +575,27 @@ void main() {
     expect(state.selectedMembers.every((member) => member.selected), isTrue);
     expect(state.visitPlanForDate(0).first.place, '다운타우너 성수');
     expect(state.visitPlanForDate(1).first.place, '협재 해수욕장');
+  });
+
+  test('약속 상세 ViewModel은 참가자 응답으로 멤버 프로필 이미지를 보강한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        planRepositoryProvider.overrideWithValue(
+          _PlanMemberProfileImageMergeRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      planDetailViewModelProvider((groupId: '1', planId: '101')).future,
+    );
+
+    expect(state.selectedMembers.single.name, '박진희');
+    expect(
+      state.selectedMembers.single.profileImageUrl,
+      'https://cdn.onmu.test/jinhee.png',
+    );
   });
 
   test('약속 상세 ViewModel은 방문 장소가 없는 날도 약속 기간 날짜 탭을 만든다', () async {
@@ -1105,8 +1126,8 @@ void main() {
             dateLabel: '6월 19일',
             startsAt: DateTime.utc(2099, 6, 19, 5),
             placeName: '수원',
-            statusLabel: 'draft',
-            statusType: 'draft',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
             memberCount: 1,
             extraMemberCount: 0,
             iconKind: 'calendar',
@@ -1189,8 +1210,8 @@ void main() {
             dateLabel: '6월 20일',
             startsAt: now.add(const Duration(hours: 2)),
             placeName: '행궁동',
-            statusLabel: 'draft',
-            statusType: 'draft',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
             memberCount: 1,
             extraMemberCount: 0,
             iconKind: 'calendar',
@@ -2519,8 +2540,8 @@ class _UpcomingOrderRepository extends _EmptyGroupRepository {
       dateLabel: '다음 주 오후 7:00',
       startsAt: _today.add(const Duration(days: 7, hours: 19)),
       placeName: '성수',
-      statusLabel: 'draft',
-      statusType: 'draft',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
       memberCount: 1,
       extraMemberCount: 0,
       iconKind: 'coffee',
@@ -2560,8 +2581,8 @@ class _UpcomingOrderRepository extends _EmptyGroupRepository {
       dateLabel: '일정 미정',
       startsAt: null,
       placeName: '장소 미정',
-      statusLabel: 'draft',
-      statusType: 'draft',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
       memberCount: 1,
       extraMemberCount: 0,
       iconKind: 'coffee',
@@ -2581,7 +2602,7 @@ class _UpcomingOrderPlanRepository extends _TodayPlansPlanRepository {
       title: '내일 약속',
       dateTime: '내일 오후 2:00',
       location: '한남',
-      status: 'draft',
+      status: 'scheduled',
       memo: '',
       members: const [],
       timeCandidates: const [],
@@ -2641,8 +2662,8 @@ class _NoActivePlanRepository extends _EmptyGroupRepository {
       dateLabel: '내일 오후 2:00',
       startsAt: _today.add(const Duration(days: 1, hours: 14)),
       placeName: '한남',
-      statusLabel: 'draft',
-      statusType: 'draft',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
       memberCount: 1,
       extraMemberCount: 0,
       iconKind: 'food',
@@ -2724,7 +2745,7 @@ class _RecordingPlanCreateRepository extends _UnusedPlanRepository {
       title: input.title,
       dateTime: input.dateTime,
       location: input.location,
-      status: 'draft',
+      status: 'scheduled',
       memo: input.memo,
       members: input.members,
       timeCandidates: const [],
@@ -3432,7 +3453,7 @@ class _FakePlanRepository implements PlanRepository {
     title: '테스트 약속',
     dateTime: '일정 미정',
     location: '서울시 테스트구',
-    status: 'draft',
+    status: 'scheduled',
     memo: '',
     members: [],
     timeCandidates: [],
@@ -3503,6 +3524,91 @@ class _FakePlanRepository implements PlanRepository {
   }
 }
 
+class _PlanMemberProfileImageMergeRepository implements PlanRepository {
+  @override
+  Future<Plan> fetchPlan({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const Plan(
+      id: 101,
+      title: '프로필 이미지 보강 약속',
+      dateTime: '일정 미정',
+      location: '수원',
+      status: 'scheduled',
+      memo: '',
+      members: [PlanMember(userId: 'user-jinhee', name: '박진희', selected: true)],
+      timeCandidates: [],
+      visitPlan: [],
+    );
+  }
+
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [
+      PlanParticipantArrival(
+        id: 'participant-jinhee',
+        userId: 'user-jinhee',
+        nickname: '박진희',
+        participantStatus: 'joined',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+        profileImageUrl: 'https://cdn.onmu.test/jinhee.png',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<List<VisitPlan>>> fetchVisitPlansByDate({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<Plan> createPlan(PlanCreateInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Plan> updatePlan({
+    required Object planId,
+    required PlanCreateInput input,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> updateMyArrivalStatus({
+    required Object groupId,
+    required Object planId,
+    required PlanArrivalStatus status,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> leaveAsCurrentUser({
+    required Object groupId,
+    required Object planId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanParticipantArrival> addParticipant({
+    required Object groupId,
+    required Object planId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 class _LongRangePlanRepository implements PlanRepository {
   @override
   Future<Plan> fetchPlan({
@@ -3514,7 +3620,7 @@ class _LongRangePlanRepository implements PlanRepository {
       title: '샘플약속-진희',
       dateTime: '6/19 금',
       location: '수원',
-      status: 'draft',
+      status: 'scheduled',
       memo: '',
       members: const [],
       timeCandidates: const [],
@@ -3631,7 +3737,7 @@ class _FallbackParticipantRepository implements PlanRepository {
     title: '참여자 없는 약속',
     dateTime: '일정 미정',
     location: '서울',
-    status: 'draft',
+    status: 'scheduled',
     memo: '',
     members: [],
     timeCandidates: [],

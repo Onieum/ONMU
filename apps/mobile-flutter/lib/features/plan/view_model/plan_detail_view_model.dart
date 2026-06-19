@@ -144,9 +144,6 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
         .where((member) => member.selected)
         .toList(growable: false);
     final selectedMembers = [...planMembers];
-    final selectedNames = {
-      for (final member in selectedMembers) member.name.trim(),
-    };
 
     for (final participant in participantArrivals) {
       if (participant.isFallback) {
@@ -157,10 +154,17 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
         continue;
       }
       final name = participant.nickname.trim();
-      if (name.isEmpty || selectedNames.contains(name)) {
+      if (name.isEmpty) {
         continue;
       }
-      selectedNames.add(name);
+      final existingIndex = _matchingMemberIndex(selectedMembers, participant);
+      if (existingIndex >= 0) {
+        selectedMembers[existingIndex] = _mergeParticipantProfile(
+          selectedMembers[existingIndex],
+          participant,
+        );
+        continue;
+      }
       selectedMembers.add(
         PlanMember(
           userId: participant.userId,
@@ -175,6 +179,54 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
     }
 
     return selectedMembers;
+  }
+
+  int _matchingMemberIndex(
+    List<PlanMember> members,
+    PlanParticipantArrival participant,
+  ) {
+    final participantUserId = participant.userId.trim();
+    if (participantUserId.isNotEmpty) {
+      final index = members.indexWhere(
+        (member) => member.userId.trim() == participantUserId,
+      );
+      if (index >= 0) {
+        return index;
+      }
+    }
+
+    final participantName = _memberNameKey(participant.nickname);
+    if (participantName.isEmpty) {
+      return -1;
+    }
+    return members.indexWhere(
+      (member) => _memberNameKey(member.name) == participantName,
+    );
+  }
+
+  PlanMember _mergeParticipantProfile(
+    PlanMember member,
+    PlanParticipantArrival participant,
+  ) {
+    return PlanMember(
+      userId: member.userId.trim().isNotEmpty
+          ? member.userId
+          : participant.userId,
+      name: member.name,
+      message: member.message,
+      badge: member.badge,
+      selected: member.selected,
+      profileImageUrl: member.profileImageUrl.trim().isNotEmpty
+          ? member.profileImageUrl
+          : participant.profileImageUrl,
+      preferenceProfile:
+          member.preferenceProfile ?? participant.preferenceProfile,
+      fallbackToViewerCharacter: member.fallbackToViewerCharacter,
+    );
+  }
+
+  String _memberNameKey(String value) {
+    return value.trim().toLowerCase();
   }
 
   Future<void> updateMyArrivalStatus(PlanArrivalStatus status) async {

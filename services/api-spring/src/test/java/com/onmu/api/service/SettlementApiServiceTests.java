@@ -99,7 +99,7 @@ class SettlementApiServiceTests {
       new ObjectMapper()
     );
     group = new GroupEntity("1", "ONMU 개발 모임", null);
-    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "confirmed");
+    plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "scheduled");
     me = user("user-me", "나");
     jimin = user("user-jimin", "지민");
     minsu = user("user-minsu", "민수");

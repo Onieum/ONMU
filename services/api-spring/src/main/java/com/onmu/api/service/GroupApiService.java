@@ -8,8 +8,6 @@ import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.AddGroupMemberRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,22 +18,23 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class GroupApiService {
-  private static final String DEFAULT_GROUP_DESCRIPTION = "ONMU 모임";
-
   private final UserRepository userRepository;
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
+  private final GroupReadModelMapper groupReadModelMapper;
   private final OutboxService outboxService;
 
   public GroupApiService(
     UserRepository userRepository,
     GroupRepository groupRepository,
     GroupMemberRepository groupMemberRepository,
+    GroupReadModelMapper groupReadModelMapper,
     OutboxService outboxService
   ) {
     this.userRepository = userRepository;
     this.groupRepository = groupRepository;
     this.groupMemberRepository = groupMemberRepository;
+    this.groupReadModelMapper = groupReadModelMapper;
     this.outboxService = outboxService;
   }
 
@@ -43,7 +42,7 @@ public class GroupApiService {
   public List<Map<String, Object>> groups(UUID userId) {
     UserEntity user = user(userId);
     return groupRepository.findVisibleForUserOrderByCreatedAtAsc(user.getId()).stream()
-      .map(this::groupCard)
+      .map(groupReadModelMapper::groupCard)
       .toList();
   }
 
@@ -51,12 +50,7 @@ public class GroupApiService {
   public Map<String, Object> groupDetail(String groupId, UUID userId) {
     UserEntity user = user(userId);
     GroupEntity group = memberGroup(groupId, user);
-    List<Map<String, Object>> memberProfiles = membersFor(group, true);
-    List<String> memberNames = memberProfiles.stream()
-      .map(member -> String.valueOf(member.get("name")))
-      .toList();
-
-    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
+    return groupReadModelMapper.groupCard(group);
   }
 
   @Transactional
@@ -76,21 +70,17 @@ public class GroupApiService {
       Map.of(
         "groupId", group.getPublicId(),
         "name", group.getName(),
-        "description", safeDescription(group)
+        "description", groupReadModelMapper.safeDescription(group)
       )
     );
 
-    List<Map<String, Object>> memberProfiles = membersFor(group, true);
-    List<String> memberNames = memberProfiles.stream()
-      .map(member -> String.valueOf(member.get("name")))
-      .toList();
-    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
+    return groupReadModelMapper.groupCard(group);
   }
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> members(String groupId, UUID userId) {
     UserEntity user = user(userId);
-    return membersFor(memberGroup(groupId, user), true);
+    return groupReadModelMapper.membersFor(memberGroup(groupId, user), true);
   }
 
   @Transactional
@@ -119,7 +109,7 @@ public class GroupApiService {
         "userId", targetUser.getId() == null ? "" : targetUser.getId().toString()
       )
     );
-    return memberProfile(membership);
+    return groupReadModelMapper.memberProfile(membership);
   }
 
   @Transactional
@@ -164,81 +154,17 @@ public class GroupApiService {
       Map.of(
         "groupId", group.getPublicId(),
         "name", group.getName(),
-        "description", safeDescription(group),
+        "description", groupReadModelMapper.safeDescription(group),
         "ownerUserId", user.getId() == null ? "" : user.getId().toString()
       )
     );
 
-    return groupCard(group, 1, List.of(nickname(user)), List.of(userProfile(user, "owner", "active")));
-  }
-
-  private Map<String, Object> groupCard(GroupEntity group) {
-    List<Map<String, Object>> memberProfiles = membersFor(group, true);
-    List<String> memberNames = memberProfiles.stream()
-      .map(member -> String.valueOf(member.get("name")))
-      .toList();
-    return groupCard(group, memberProfiles.size(), memberNames, memberProfiles);
-  }
-
-  private List<Map<String, Object>> membersFor(GroupEntity group, boolean fallbackToOwner) {
-    List<GroupMemberEntity> memberships = groupMemberRepository.findByGroupOrderByJoinedAtAsc(group);
-    List<GroupMemberEntity> visibleMemberships = memberships.stream()
-      .filter(membership -> !"left".equals(membership.getStatus()))
-      .sorted(Comparator.comparingInt(this::memberStatusOrder))
-      .toList();
-    if (!visibleMemberships.isEmpty()) {
-      return visibleMemberships.stream().map(this::memberProfile).toList();
-    }
-    if (!memberships.isEmpty()) {
-      return List.of();
-    }
-    if (!fallbackToOwner) {
-      return List.of();
-    }
-
-    UserEntity fallbackUser = group.getOwnerUser();
-    return List.of(userProfile(fallbackUser, "owner", "active"));
-  }
-
-  private Map<String, Object> memberProfile(GroupMemberEntity member) {
-    return userProfile(member.getUser(), member.getRole(), member.getStatus(), memberName(member));
-  }
-
-  private Map<String, Object> userProfile(UserEntity user, String role, String status) {
-    return userProfile(user, role, status, nickname(user));
-  }
-
-  private Map<String, Object> userProfile(UserEntity user, String role, String status, String name) {
-    Map<String, Object> value = new LinkedHashMap<>();
-    value.put("userId", user == null || user.getId() == null ? "" : user.getId().toString());
-    value.put("name", name);
-    value.put("nickname", nickname(user));
-    value.put("note", roleNote(role));
-    value.put("statusLabel", statusLabel(status));
-    value.put("invited", isInvited(status));
-    value.put("profileImageUrl", user == null ? null : user.getProfileImageUrl());
-    return value;
-  }
-
-  private Map<String, Object> groupCard(
-    GroupEntity group,
-    int memberCount,
-    List<String> members,
-    List<Map<String, Object>> memberProfiles
-  ) {
-    Map<String, Object> value = new LinkedHashMap<>();
-    value.put("id", group.getPublicId());
-    value.put("name", group.getName());
-    value.put("description", safeDescription(group));
-    value.put("members", members);
-    value.put("memberProfiles", memberProfiles);
-    value.put("memberCount", memberCount);
-    value.put("memberCountLabel", memberCount + "명");
-    value.put("role", "모임장");
-    value.put("lastMessage", "");
-    value.put("unreadCount", 0);
-    value.put("pinnedPlanTitle", "");
-    return value;
+    return groupReadModelMapper.groupCard(
+      group,
+      1,
+      List.of(nickname(user)),
+      List.of(groupReadModelMapper.userProfile(user, "owner", "active"))
+    );
   }
 
   private GroupEntity group(String groupId) {
@@ -267,20 +193,6 @@ public class GroupApiService {
     }
   }
 
-  private String safeDescription(GroupEntity group) {
-    if (group.getDescription() == null || group.getDescription().isBlank()) {
-      return DEFAULT_GROUP_DESCRIPTION;
-    }
-    return group.getDescription();
-  }
-
-  private String memberName(GroupMemberEntity member) {
-    if (member.getNameOverride() != null && !member.getNameOverride().isBlank()) {
-      return member.getNameOverride();
-    }
-    return nickname(member.getUser());
-  }
-
   private String nickname(UserEntity user) {
     if (user == null) {
       return "ONMU 사용자";
@@ -289,34 +201,6 @@ public class GroupApiService {
       return user.getNickname();
     }
     return "ONMU 사용자";
-  }
-
-  private String roleNote(String role) {
-    if ("owner".equals(role)) {
-      return "모임장";
-    }
-    return "멤버";
-  }
-
-  private String statusLabel(String status) {
-    return switch (status) {
-      case "pending", "invited" -> "초대 중";
-      case "left" -> "나감";
-      default -> "참여 중";
-    };
-  }
-
-  private boolean isInvited(String status) {
-    return "pending".equals(status) || "invited".equals(status);
-  }
-
-  private int memberStatusOrder(GroupMemberEntity member) {
-    return switch (member.getStatus()) {
-      case "active" -> 0;
-      case "pending", "invited" -> 1;
-      case "left" -> 2;
-      default -> 3;
-    };
   }
 
   private String nextPublicId(List<String> values) {

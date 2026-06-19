@@ -489,10 +489,11 @@ class _TodayPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuPlanStatusChip(
-                      status: plan.progressStatus,
-                      label: plan.displayStatusLabel,
-                    ),
+                    if (plan.hasDisplayStatus)
+                      OnmuPlanStatusChip(
+                        status: plan.progressStatus,
+                        label: plan.displayStatusLabel,
+                      ),
                     const Spacer(),
                     Text(
                       _todayTimeLabel(plan),
@@ -548,7 +549,7 @@ class _TodayPlanCard extends StatelessWidget {
   }
 
   String _todayTimeLabel(GroupPlanSummary plan) {
-    return plan.displayTimeRangeLabel;
+    return plan.displayTimeRangeLabelFor(DateTime.now());
   }
 
   List<GroupPlanMemberAvatar> _avatarMembers(GroupPlanSummary plan) {

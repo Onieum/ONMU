@@ -178,8 +178,10 @@ class PinnedPlanCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              OnmuChip(label: plan.displayStatusLabel, selected: true),
-              const SizedBox(width: AppSpacing.xs),
+              if (plan.hasDisplayStatus) ...[
+                OnmuChip(label: plan.displayStatusLabel, selected: true),
+                const SizedBox(width: AppSpacing.xs),
+              ],
               Expanded(
                 child: Text(
                   plan.voteSummary,

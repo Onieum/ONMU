@@ -66,7 +66,7 @@ Flutter는 Riverpod ViewModel과 Repository 경계를 사용한다.
 | --- | --- | --- | --- |
 | 생성 화면 추가 멤버 선호도 | 약속 참여자 API와 `PlanMember`는 `preferenceProfile`을 다루지만, 생성 화면 후보 멤버는 lightweight `GET /groups/{groupId}/members`에서 온다. | 전체 모임원의 preference를 미리 가져오면 약속에 참여하지 않을 멤버까지 불필요하게 조회한다. | 사용자가 실제 참여 후보로 선택한 userId만 `GET /groups/{groupId}/plans/participant-candidates`로 보강하고 Flutter mapper까지 연결한다. |
 | 투표 상세 후보별 결과 | `GroupRepository.fetchVoteVoters()`가 빈 map을 반환한다. | 투표 생성/목록은 동작해도 상세의 후보별 투표자/표 수 표시가 0표 또는 empty state로 보일 수 있다. | vote detail 응답에 option별 `responseCount`, `progress`, voter preview 또는 별도 voters API를 정한다. |
-| 약속 수정 status | Flutter `updatePlan()`이 항상 `status=draft`를 보낸다. Spring은 `status`가 오면 기존 상태 대신 반영한다. | 예정/진행 중 약속이 수정 후 draft로 회귀할 수 있다. | 일반 수정 body에서 `status`를 제거하고, 상태 변경은 별도 action 또는 명시 UX로 분리한다. |
+| 약속 수정 status | 약속 상태 contract는 `scheduled`, `active`, `completed`, `cancelled` 네 값만 허용한다. 일반 수정 UX는 상태를 보내지 않고 일정/장소/메모만 갱신한다. | 허용되지 않은 상태값이 들어오면 화면별 표시가 흔들릴 수 있다. | Spring은 허용되지 않은 status 입력을 `400 invalid_plan_status`로 거절하고 DB check constraint로 막는다. |
 | 생성 화면 MVVM 경계 | 생성 모드는 View에서 repository를 직접 호출하고, 비선호 시간 판단과 저장 경고도 View 내부에 있다. 수정 모드는 ViewModel을 사용한다. | 생성/수정 흐름 불일치, 테스트 어려움, 참여자 선호도 보강 시 회귀 위험이 커진다. | `PlanCreateViewModel` 또는 기존 ViewModel 확장으로 생성/수정 저장, optimistic state, rollback, provider invalidation을 모은다. |
 | 홈 read model | Flutter 홈은 `GET /home/summary` 대신 groups/plans 조합을 사용하고 `activePlan`, `settlementId`는 null이다. | Azure staging에서 서버 home summary, 권한, 정렬, activeVotes/nextPlan 정책이 앱에서 충분히 검증되지 않는다. | Flutter가 `HomeSummary`를 우선 소비하고, 임시 fallback만 group/plans 조합으로 둔다. |
 | 도메인 side effect smoke | Spring write path는 `plan.created`, `plan.updated`, `plan.participant_added`, `vote.created` outbox를 기록하지만 Azure smoke가 이를 충분히 요구하지 않았다. | 도메인 transaction은 성공했지만 ChatActivity/notification/worker 후속 이벤트가 누락되는 문제를 놓칠 수 있다. | Azure smoke와 release checklist에 event count/status/field presence 검증을 추가한다. |
@@ -166,7 +166,7 @@ flowchart LR
 | 유지 | ViewModel/Repository 경계와 API DTO mapping | Flutter |
 | 보강 | Flutter 홈이 서버 `HomeSummary`를 직접 소비하도록 repository 경계 추가 | Flutter/Spring |
 | 보강 | 생성 화면 후보 멤버의 `preferenceProfile` 전달 경로 추가 | Spring/Flutter |
-| 보강 | 약속 수정 body에서 의도하지 않은 `status=draft` 회귀 제거 | Flutter/Spring |
+| 보강 | 약속 수정 body에서 status 제거, 약속 status 허용 목록을 4개 값으로 제한 | Flutter/Spring |
 | 보강 | 약속 생성/수정 저장 흐름을 ViewModel 경계로 일원화 | Flutter |
 | 보강 | 투표 응답 create/update API와 Flutter voting action 연결 | Spring/Flutter |
 | 보강 | 투표 상세의 option별 count/progress/voter preview 연결 | Spring/Flutter |
@@ -405,7 +405,7 @@ Smoke 후보:
 2. Flutter 홈이 서버 home summary를 소비하는지, 또는 fallback을 쓰는지 smoke 결과에 표시한다.
 3. `POST /groups/{groupId}/plans`가 `participantUserIds` 포함 요청을 받고, 생성자와 대상 참여자를 반환한다.
 4. 생성 직후 `GET /plans/{planId}/participants`가 active participant만 반환하고 각 participant의 `preferenceProfile` presence를 확인한다.
-5. 일반 약속 수정은 명시 상태 변경이 없으면 기존 status를 유지한다.
+5. 일반 약속 수정은 명시 상태 변경이 없으면 status를 보내지 않는다. 서버와 DB는 `scheduled`, `active`, `completed`, `cancelled`만 허용한다.
 6. 장소 후보를 만든 뒤 `POST /groups/{groupId}/votes`에 `placeCandidateIds`를 넣으면 option object가 후보 정보와 함께 반환된다.
 7. `GET /votes/{voteId}`에서 option count, `responseCount`, `progress` 또는 voters projection presence를 확인한다.
 8. `plan.created`, `plan.updated`, `plan.participant_added`, `vote.created` outbox count/status를 확인한다.
@@ -417,7 +417,7 @@ Smoke 후보:
 | --- | --- | --- |
 | 홈이 클라이언트 조합 read model에 머무름 | 권한/정렬/성능 정책이 화면마다 달라질 수 있음 | `HomeSummary` canonical 계약으로 이동 |
 | 생성 화면 후보 멤버에 선호도 없음 | 추가 참여자 기반 시간 추천/경고가 현재 사용자 중심으로 축소될 수 있음 | 실제 선택된 userId만 plan participant candidate API로 `preferenceProfile` 보강 |
-| 약속 수정 body가 status를 강제 | 약속 상태가 의도치 않게 draft로 회귀할 수 있음 | 상태 변경 action과 일반 수정 action 분리 |
+| 약속 수정 body가 status를 강제 | 약속 상태가 의도치 않게 변경될 수 있음 | 상태 변경 action과 일반 수정 action 분리, 서버/DB 허용 목록 검증 |
 | 생성 화면 View가 API 호출을 직접 수행 | 생성/수정 흐름과 테스트 경계가 달라짐 | 저장/검증/rollback을 ViewModel로 이동 |
 | `plan_participants.response` 의미 혼합 | 참석 응답과 도착 상태가 충돌할 수 있음 | 컬럼/테이블 분리 decision 필요 |
 | 투표 응답 API 부재 | 투표 생성 후 실제 참여 UX가 완성되지 않음 | `responses/me` 계약 우선 구현 |
@@ -439,7 +439,7 @@ Smoke 후보:
 | 단계 | 내용 |
 | --- | --- |
 | 1 | 데이터 사전 상태와 실제 Flyway 구현 상태 정합화 |
-| 2 | 생성 화면 후보 멤버 `preferenceProfile` 연결과 약속 수정 status 회귀 제거 |
+| 2 | 생성 화면 후보 멤버 `preferenceProfile` 연결과 약속 수정 status 회귀 제거, 약속 status contract 축소 |
 | 3 | PlanCreatePage 생성 저장 흐름을 ViewModel으로 이동 |
 | 4 | Flutter 홈을 `GET /home/summary` 소비 구조로 전환 |
 | 5 | 투표 상세 count/voter projection과 응답 저장 UX 구현 |

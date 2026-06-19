@@ -388,11 +388,15 @@ class _UpcomingPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(
-                      label: statusLabel ?? plan.displayStatusLabel,
-                      selected: true,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
+                    if ((statusLabel ?? plan.displayStatusLabel)
+                        .trim()
+                        .isNotEmpty) ...[
+                      OnmuChip(
+                        label: statusLabel ?? plan.displayStatusLabel,
+                        selected: true,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                    ],
                     Expanded(
                       child: Text(
                         plan.title,

@@ -207,7 +207,7 @@ class _CandidatePlanRepository implements PlanRepository {
     title: '장소 후보 테스트',
     dateTime: '일정 미정',
     location: '성수동',
-    status: 'draft',
+    status: 'scheduled',
     memo: '',
     members: [],
     timeCandidates: [],
