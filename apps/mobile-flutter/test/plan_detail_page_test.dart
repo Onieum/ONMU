@@ -395,6 +395,14 @@ class _PlanDetailGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,

@@ -120,9 +120,7 @@ void main() {
     );
   });
 
-  testWidgets('종료 시간을 직접 조정하면 추천 시간대 선택 상태가 해제되고 선택 결과에 반영된다', (
-    tester,
-  ) async {
+  testWidgets('종료 시간을 직접 조정하면 추천 시간대 선택 상태가 해제되고 선택 결과에 반영된다', (tester) async {
     final picked = <OnmuDateTimeRange>[];
 
     await _pumpRangePicker(
@@ -252,6 +250,7 @@ void main() {
   ) async {
     await _pumpRangePicker(
       tester,
+      initialEnd: DateTime(2026, 6, 15, 16),
       participantPreferences: [
         PreferenceProfile.empty().copyWith(
           preferredWeekdays: ['금요일', '토요일', '일요일'],
@@ -267,6 +266,38 @@ void main() {
     expect(find.textContaining('6월 19일 (금)'), findsOneWidget);
     expect(find.textContaining('6월 15일 (월)\n'), findsNothing);
   });
+
+  testWidgets(
+    'multi-day range shows in-range recommendation dates as read-only visit days',
+    (tester) async {
+      await _pumpRangePicker(
+        tester,
+        initialStart: DateTime(2026, 6, 20, 14),
+        initialEnd: DateTime(2026, 6, 22, 16),
+        participantPreferences: [
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['금요일', '토요일', '일요일'],
+            preferredTimes: ['점심'],
+          ),
+        ],
+      );
+      await _openRangePicker(tester);
+
+      expect(find.text('추천 날짜'), findsNothing);
+      expect(find.text('선택 범위의 추천 방문일'), findsOneWidget);
+      expect(find.text('시작 날짜의 추천 시간대'), findsOneWidget);
+      expect(find.text('선택한 날짜의 추천 시간대'), findsNothing);
+      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
+      expect(find.text('6월 21일 (일)'), findsOneWidget);
+      expect(find.text('6월 26일 (금)'), findsNothing);
+
+      await tester.tap(find.text('6월 21일 (일)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
+      expect(find.text('6월 21일 (일)'), findsOneWidget);
+    },
+  );
 
   test('recommended dates come from participant weekday preference', () {
     final dates = onmuRecommendedDatesForRangePicker(

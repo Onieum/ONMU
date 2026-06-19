@@ -422,6 +422,41 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void planParticipantCandidatesIncludePreferenceOnlyForRequestedGroupMembers() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    UserEntity chando = user("00000000-0000-0000-0000-000000000002", "찬도치");
+    chando.updateProfile(
+      null,
+      null,
+      "{\"preferredWeekdays\":[\"SATURDAY\"],\"preferredTimes\":[\"afternoon\"]}",
+      null,
+      null
+    );
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(userRepository.findByIdAndDeletedAtIsNull(chando.getId())).thenReturn(Optional.of(chando));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(true);
+    when(groupRepository.isUserMember("1", chando.getId())).thenReturn(true);
+
+    List<Map<String, Object>> candidates = service.planParticipantCandidates(
+      "1",
+      viewer.getId(),
+      List.of(chando.getId().toString(), chando.getId().toString(), " ")
+    );
+
+    assertThat(candidates).hasSize(1);
+    assertThat(candidates.getFirst())
+      .containsEntry("userId", chando.getId().toString())
+      .containsEntry("nickname", "찬도치")
+      .containsEntry("profileImageUrl", chando.getProfileImageUrl());
+    assertThat(candidates.getFirst().get("preferenceProfile"))
+      .isInstanceOfSatisfying(Map.class, profile ->
+        assertThat(profile)
+          .containsEntry("preferredWeekdays", List.of("SATURDAY"))
+          .containsEntry("preferredTimes", List.of("afternoon")));
+  }
+
+  @Test
   void planListUsesAuthenticatedParticipantScope() {
     UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
     PlanParticipantEntity participant = new PlanParticipantEntity(plan, viewer, "joined", "accepted");

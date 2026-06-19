@@ -933,6 +933,66 @@ void main() {
   );
 
   test(
+    'fetchPlanParticipantCandidates loads preference only for selected member ids',
+    () async {
+      final requestedPaths = <Uri>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedPaths.add(options.uri);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: [
+                  {
+                    'userId': '00000000-0000-0000-0000-000000000011',
+                    'nickname': '찬도치',
+                    'profileImageUrl': 'https://cdn.example/avatar.png',
+                    'preferenceProfile': {
+                      'preferredWeekdays': ['SATURDAY'],
+                      'preferredTimes': ['afternoon'],
+                    },
+                  },
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final candidates = await repository.fetchPlanParticipantCandidates(
+        groupId: 1,
+        userIds: const [
+          '00000000-0000-0000-0000-000000000011',
+          '00000000-0000-0000-0000-000000000011',
+          '',
+        ],
+      );
+
+      expect(
+        requestedPaths.single.path,
+        '/api/v1/groups/1/plans/participant-candidates',
+      );
+      expect(requestedPaths.single.queryParametersAll['userIds'], [
+        '00000000-0000-0000-0000-000000000011',
+      ]);
+      expect(candidates.single.name, '찬도치');
+      expect(
+        candidates.single.profileImageUrl,
+        'https://cdn.example/avatar.png',
+      );
+      expect(candidates.single.preferenceProfile?.preferredWeekdays, [
+        'SATURDAY',
+      ]);
+      expect(candidates.single.preferenceProfile?.preferredTimes, [
+        'afternoon',
+      ]);
+    },
+  );
+
+  test(
     'maps group memories from Spring API response with absolute media urls',
     () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));

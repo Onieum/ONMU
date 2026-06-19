@@ -379,6 +379,28 @@ public class OnmuApiService {
     return planParticipants(plan);
   }
 
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> planParticipantCandidates(
+    String groupId,
+    java.util.UUID userId,
+    List<String> userIds
+  ) {
+    GroupAccess access = memberGroup(groupId, userId);
+    return compactStrings(userIds).stream()
+      .distinct()
+      .map(this::userOrThrow)
+      .peek(candidate -> {
+        if (
+          candidate.getId() == null
+            || !groupRepository.isUserMember(access.group().getPublicId(), candidate.getId())
+        ) {
+          throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+        }
+      })
+      .map(this::planParticipantCandidateCard)
+      .toList();
+  }
+
   private List<Map<String, Object>> planParticipants(PlanEntity plan) {
     List<PlanParticipantEntity> participants = planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan);
     return participants.stream()
@@ -1256,6 +1278,19 @@ public class OnmuApiService {
     value.put("response", participant.getResponse());
     value.put("joinedAt", participant.getJoinedAt() == null ? null : participant.getJoinedAt().toString());
     value.put("fallback", false);
+    return value;
+  }
+
+  private Map<String, Object> planParticipantCandidateCard(UserEntity user) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("userId", user.getId() == null ? "" : user.getId().toString());
+    value.put("name", nickname(user));
+    value.put("nickname", nickname(user));
+    value.put("message", "");
+    value.put("badge", "추가 가능");
+    value.put("selected", true);
+    value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     return value;
   }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/group_models.dart';
+import '../../../shared/models/preference_profile.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../../../shared/models/vote_models.dart';
 
@@ -31,6 +32,11 @@ abstract interface class GroupRepository {
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId);
 
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId);
+
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  });
 
   Future<GroupMemberProfile> addMember({
     required Object groupId,
@@ -159,6 +165,30 @@ class ApiGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
     final members = await _client.getList('/api/v1/groups/$groupId/members');
+    return members.map(_groupMemberProfile).toList(growable: false);
+  }
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalizedUserIds.isEmpty) {
+      return const [];
+    }
+    final query = normalizedUserIds
+        .map((id) => 'userIds=${Uri.encodeQueryComponent(id)}')
+        .join('&');
+    final path = Uri(
+      path: '/api/v1/groups/$groupId/plans/participant-candidates',
+      query: query,
+    ).toString();
+    final members = await _client.getList(path);
     return members.map(_groupMemberProfile).toList(growable: false);
   }
 
@@ -535,7 +565,15 @@ class ApiGroupRepository implements GroupRepository {
       statusLabel: OnmuJson.readString(json, 'statusLabel', '참여 중'),
       invited: OnmuJson.readBool(json, 'invited'),
       profileImageUrl: _profileImageUrl(json),
+      preferenceProfile: _preferenceProfile(json),
     );
+  }
+
+  PreferenceProfile? _preferenceProfile(Map<String, dynamic> json) {
+    final preferenceJson = OnmuJson.asMap(json['preferenceProfile']);
+    return preferenceJson.isEmpty
+        ? null
+        : PreferenceProfile.fromJson(preferenceJson);
   }
 
   GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {

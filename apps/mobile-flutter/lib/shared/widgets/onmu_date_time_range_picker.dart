@@ -89,6 +89,10 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
       anchor: _recommendationAnchor,
       participantPreferences: widget.participantPreferences,
     );
+    final multiDayRange = !_sameDate(_start, _end);
+    final visibleRecommendedDates = multiDayRange
+        ? _recommendedDatesInRange(recommendedDates, start: _start, end: _end)
+        : recommendedDates;
     final recommendationResult = _timeRecommendationResult(
       selectedDate: _start,
       participantPreferences: widget.participantPreferences,
@@ -139,13 +143,16 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    if (recommendedDates.isNotEmpty) ...[
+                    if (visibleRecommendedDates.isNotEmpty) ...[
                       _RecommendedDateSection(
-                        recommendedDates: recommendedDates,
+                        title: multiDayRange ? '선택 범위의 추천 방문일' : '추천 날짜',
+                        recommendedDates: visibleRecommendedDates,
                         selectedDate: _start,
-                        onDateSelected: (date) => setState(() {
-                          _updateStartDate(date);
-                        }),
+                        onDateSelected: multiDayRange
+                            ? null
+                            : (date) => setState(() {
+                                _updateStartDate(date);
+                              }),
                       ),
                       const SizedBox(height: AppSpacing.md),
                     ],
@@ -200,7 +207,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                           selectedDate: _end,
                           minimumDate: _start,
                           maximumDate: _start.add(const Duration(days: 365)),
-                          highlightedDates: recommendedDates,
+                          highlightedDates: const [],
                           onDateChanged: (date) => setState(() {
                             _updateEndDate(date);
                           }),
@@ -222,7 +229,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                     ],
                     const SizedBox(height: AppSpacing.lg),
                     Text(
-                      '선택한 날짜의 추천 시간대',
+                      multiDayRange ? '시작 날짜의 추천 시간대' : '선택한 날짜의 추천 시간대',
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -336,21 +343,23 @@ enum _DateFieldTarget { start, end }
 
 class _RecommendedDateSection extends StatelessWidget {
   const _RecommendedDateSection({
+    required this.title,
     required this.recommendedDates,
     required this.selectedDate,
     required this.onDateSelected,
   });
 
+  final String title;
   final List<DateTime> recommendedDates;
   final DateTime selectedDate;
-  final ValueChanged<DateTime> onDateSelected;
+  final ValueChanged<DateTime>? onDateSelected;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHeader(icon: Icons.star_border_rounded, title: '추천 날짜'),
+        _SectionHeader(icon: Icons.star_border_rounded, title: title),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.xs,
@@ -359,8 +368,11 @@ class _RecommendedDateSection extends StatelessWidget {
             for (final date in recommendedDates)
               _RecommendedDateChip(
                 date: date,
-                selected: _sameDate(selectedDate, date),
-                onTap: () => onDateSelected(date),
+                selected:
+                    onDateSelected != null && _sameDate(selectedDate, date),
+                onTap: onDateSelected == null
+                    ? null
+                    : () => onDateSelected!(date),
               ),
           ],
         ),
@@ -378,42 +390,46 @@ class _RecommendedDateChip extends StatelessWidget {
 
   final DateTime date;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = selected ? AppColors.primaryPink : AppColors.accentGreen;
+    final child = DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: selected ? 0.16 : 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: color),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 16, color: color),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              _formatDate(date),
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (onTap == null) {
+      return child;
+    }
     return Material(
       color: AppColors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.pill),
         onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: selected ? 0.16 : 0.1),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: color),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.calendar_today_outlined, size: 16, color: color),
-                const SizedBox(width: AppSpacing.xxs),
-                Text(
-                  _formatDate(date),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(color: color),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: child,
       ),
     );
   }
@@ -755,6 +771,21 @@ DateTime _today() {
 
 DateTime _dateOnly(DateTime value) {
   return DateTime(value.year, value.month, value.day);
+}
+
+List<DateTime> _recommendedDatesInRange(
+  List<DateTime> dates, {
+  required DateTime start,
+  required DateTime end,
+}) {
+  final startDate = _dateOnly(start);
+  final endDate = _dateOnly(end);
+  return dates
+      .where((date) {
+        final current = _dateOnly(date);
+        return !current.isBefore(startDate) && !current.isAfter(endDate);
+      })
+      .toList(growable: false);
 }
 
 @visibleForTesting

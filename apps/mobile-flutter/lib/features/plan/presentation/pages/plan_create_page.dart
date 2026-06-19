@@ -122,7 +122,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     );
   }
 
-  void _addCreateMember(PlanMember member) {
+  Future<void> _addCreateMember(PlanMember member) async {
     final current = _createSelectedMembers ?? const <PlanMember>[];
     final memberTokens = _memberSelectionTokens(member);
     final alreadySelected = current.any(
@@ -133,8 +133,24 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     if (alreadySelected) {
       return;
     }
+    final enriched = await ref
+        .read(planCreateControllerProvider)
+        .enrichParticipantCandidate(groupId: widget.groupId, member: member);
+    if (!mounted) {
+      return;
+    }
     setState(() {
-      _createSelectedMembers = List.unmodifiable([...current, member]);
+      final nextCurrent = _createSelectedMembers ?? const <PlanMember>[];
+      final nextTokens = _memberSelectionTokens(enriched);
+      final nextAlreadySelected = nextCurrent.any(
+        (selected) => _memberSelectionTokens(
+          selected,
+        ).intersection(nextTokens).isNotEmpty,
+      );
+      if (nextAlreadySelected) {
+        return;
+      }
+      _createSelectedMembers = List.unmodifiable([...nextCurrent, enriched]);
     });
   }
 

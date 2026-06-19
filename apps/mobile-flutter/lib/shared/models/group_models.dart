@@ -1,5 +1,7 @@
 import 'vote_models.dart';
 
+import 'preference_profile.dart';
+
 class GroupSummary {
   const GroupSummary({
     required this.id,
@@ -512,6 +514,7 @@ class GroupMemberProfile {
     required this.statusLabel,
     this.invited = false,
     this.profileImageUrl = '',
+    this.preferenceProfile,
   });
 
   final String userId;
@@ -520,6 +523,7 @@ class GroupMemberProfile {
   final String statusLabel;
   final bool invited;
   final String profileImageUrl;
+  final PreferenceProfile? preferenceProfile;
 }
 
 class GroupCreateInput {

@@ -33,6 +33,7 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 
@@ -412,6 +413,29 @@ void main() {
     expect(options.single.name, '찬도치');
     expect(options.single.badge, '추가 가능');
     expect(options.single.profileImageUrl, 'https://example.test/chando.png');
+  });
+
+  test('약속 생성 controller는 선택한 후보 멤버만 선호도 정보를 보강한다', () async {
+    final repository = _PlanMemberPreferenceRepository();
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final enriched = await container
+        .read(planCreateControllerProvider)
+        .enrichParticipantCandidate(
+          groupId: '1',
+          member: const PlanMember(
+            userId: 'user-chando',
+            name: '찬도치',
+            badge: '추가 가능',
+          ),
+        );
+
+    expect(repository.requestedUserIds, ['user-chando']);
+    expect(enriched.preferenceProfile?.preferredWeekdays, ['SATURDAY']);
+    expect(enriched.preferenceProfile?.preferredTimes, ['afternoon']);
   });
 
   test('온모임 목록 ViewModel은 다가오는 약속 기준으로 카드 약속 제목을 보강한다', () async {
@@ -1689,6 +1713,20 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,
@@ -1943,6 +1981,20 @@ class _EmptyGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
 
   @override
   Future<GroupMemberProfile> addMember({
@@ -2720,6 +2772,30 @@ class _PlanMemberOptionStatusRepository extends _FakeGroupRepository {
         note: '참여 풀',
         statusLabel: '참여 중',
         profileImageUrl: 'https://example.test/chando.png',
+      ),
+    ];
+  }
+}
+
+class _PlanMemberPreferenceRepository extends _FakeGroupRepository {
+  final requestedUserIds = <String>[];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    requestedUserIds.addAll(userIds);
+    return [
+      GroupMemberProfile(
+        userId: 'user-chando',
+        name: '찬도치',
+        note: '참여 풀',
+        statusLabel: '참여 중',
+        preferenceProfile: PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['SATURDAY'],
+          preferredTimes: ['afternoon'],
+        ),
       ),
     ];
   }
