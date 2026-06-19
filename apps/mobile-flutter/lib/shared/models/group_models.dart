@@ -122,6 +122,9 @@ class GroupPlanSummary {
 
   String get displayStatusLabel => hasDisplayStatus ? progressStatus.label : '';
 
+  String get participantSummaryLabel =>
+      memberCount > 0 ? '$memberCount명 참여' : '';
+
   String get displayDateTimeLabel {
     final startsAtLocal = startsAt?.toLocal();
     if (startsAtLocal == null) {

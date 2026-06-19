@@ -930,6 +930,40 @@ void main() {
     expect(plan.displayStatusLabel, isEmpty);
   });
 
+  test('group plan summary exposes participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, '2명 참여');
+  });
+
+  test('group plan summary hides empty participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 0,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, isEmpty);
+  });
+
   test('group plan summary display date includes time from startsAt', () {
     final plan = GroupPlanSummary(
       id: 1,
