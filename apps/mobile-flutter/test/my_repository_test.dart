@@ -26,6 +26,7 @@ void main() {
                 'introText': 'hello',
                 'profileVisibility': 'FRIENDS',
                 'searchAllowed': true,
+                'useDefaultProfileImage': false,
                 'region': {
                   'country': 'KR',
                   'sido': '서울특별시',

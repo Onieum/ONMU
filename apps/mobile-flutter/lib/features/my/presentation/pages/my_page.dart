@@ -180,6 +180,7 @@ class _MyPageState extends ConsumerState<MyPage> {
       realName: result.realName,
       introText: result.introText,
       profileImageUrl: result.profileImageUrl,
+      useDefaultProfileImage: result.useDefaultProfileImage,
       region: result.region,
       regionSelection: result.regionSelection,
       regionVisibility: result.regionVisibility,

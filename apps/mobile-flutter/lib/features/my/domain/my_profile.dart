@@ -57,6 +57,7 @@ class MyProfile {
     this.preferredWeekdays = const [],
     this.profileImageUrl = '',
     this.searchAllowed = true,
+    this.useDefaultProfileImage = false,
     this.character,
   });
 
@@ -82,6 +83,7 @@ class MyProfile {
   final List<String> preferredWeekdays;
   final String profileImageUrl;
   final bool searchAllowed;
+  final bool useDefaultProfileImage;
   final CharacterDraft? character;
 
   List<String> get preferenceHighlights {
@@ -115,6 +117,7 @@ class MyProfile {
     List<String>? preferredWeekdays,
     String? profileImageUrl,
     bool? searchAllowed,
+    bool? useDefaultProfileImage,
     CharacterDraft? character,
   }) {
     return MyProfile(
@@ -144,6 +147,8 @@ class MyProfile {
       preferredWeekdays: preferredWeekdays ?? this.preferredWeekdays,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       searchAllowed: searchAllowed ?? this.searchAllowed,
+      useDefaultProfileImage:
+          useDefaultProfileImage ?? this.useDefaultProfileImage,
       character: character ?? this.character,
     );
   }
@@ -161,6 +166,7 @@ class FriendProfile {
     this.memo = '',
     this.profileImageUrl = '',
     this.introText = '',
+    this.useDefaultProfileImage = false,
     this.character,
   });
 
@@ -174,6 +180,7 @@ class FriendProfile {
   final String memo;
   final String profileImageUrl;
   final String introText;
+  final bool useDefaultProfileImage;
   final CharacterDraft? character;
 
   String get memoOrCode {
@@ -193,6 +200,7 @@ class FriendProfile {
     bool? isFavorite,
     String? memo,
     String? introText,
+    bool? useDefaultProfileImage,
     CharacterDraft? character,
   }) {
     return FriendProfile(
@@ -206,6 +214,8 @@ class FriendProfile {
       memo: memo ?? this.memo,
       profileImageUrl: profileImageUrl,
       introText: introText ?? this.introText,
+      useDefaultProfileImage:
+          useDefaultProfileImage ?? this.useDefaultProfileImage,
       character: character ?? this.character,
     );
   }
