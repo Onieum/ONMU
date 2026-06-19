@@ -5,6 +5,7 @@ import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
 import com.onmu.api.service.RouteRecommendationService;
 import com.onmu.api.service.SettlementApiService;
+import com.onmu.api.web.dto.AddGroupMemberRequest;
 import com.onmu.api.web.dto.AddPlanParticipantRequest;
 import com.onmu.api.web.dto.CreateGroupRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
@@ -17,6 +18,7 @@ import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpdateSchedulePlaceRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
@@ -126,6 +128,16 @@ public class ApiController {
     @AuthenticationPrincipal AuthenticatedUser user
   ) {
     return groupApiService.members(groupId, user.userId());
+  }
+
+  @PostMapping("/groups/{groupId}/members")
+  public ResponseEntity<Map<String, Object>> addGroupMember(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @RequestBody(required = false) AddGroupMemberRequest request
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+      .body(groupApiService.addMember(groupId, user.userId(), request));
   }
 
   @DeleteMapping("/groups/{groupId}/members/me")
@@ -370,6 +382,17 @@ public class ApiController {
     @AuthenticationPrincipal AuthenticatedUser user
   ) {
     return onmuApiService.schedulePlaces(groupId, planId, user.userId());
+  }
+
+  @PatchMapping("/groups/{groupId}/plans/{planId}/schedule-places/{schedulePlaceId}")
+  public Map<String, Object> updateSchedulePlace(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String schedulePlaceId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @RequestBody(required = false) UpdateSchedulePlaceRequest request
+  ) {
+    return onmuApiService.updateSchedulePlace(groupId, planId, schedulePlaceId, user.userId(), request);
   }
 
   @DeleteMapping("/groups/{groupId}/plans/{planId}/schedule-places/{schedulePlaceId}")

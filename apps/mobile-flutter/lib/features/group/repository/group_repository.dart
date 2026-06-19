@@ -32,6 +32,11 @@ abstract interface class GroupRepository {
 
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId);
 
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  });
+
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId);
 
   Future<List<GroupMessage>> fetchMessages(Object groupId);
@@ -155,6 +160,18 @@ class ApiGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
     final members = await _client.getList('/api/v1/groups/$groupId/members');
     return members.map(_groupMemberProfile).toList(growable: false);
+  }
+
+  @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async {
+    final member = await _client.postObject(
+      '/api/v1/groups/$groupId/members',
+      body: {'userId': userId.trim()},
+    );
+    return _groupMemberProfile(member);
   }
 
   @override
