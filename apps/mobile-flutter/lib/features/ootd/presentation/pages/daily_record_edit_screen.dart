@@ -62,7 +62,10 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
 
       _photos.clear();
       for (final photoState in state.photos) {
-        final photo = _EditablePhoto(originalUrl: photoState.originalUrl);
+        final photo = _EditablePhoto(
+          originalUrl: photoState.originalUrl,
+          originalStorageKey: photoState.originalStorageKey,
+        );
         photo.controller.text = photoState.description;
         _photos.add(photo);
       }
@@ -153,6 +156,7 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
       _photos[index].imageBytes = bytes;
       _photos[index].fileName = picked.name;
       _photos[index].originalUrl = null;
+      _photos[index].originalStorageKey = null;
     });
   }
 
@@ -222,6 +226,7 @@ class _DailyRecordEditScreenState extends ConsumerState<DailyRecordEditScreen> {
                   .map(
                     (photo) => DailyRecordEditPhotoInput(
                       originalUrl: photo.originalUrl,
+                      originalStorageKey: photo.originalStorageKey,
                       imageBytes: photo.imageBytes,
                       fileName: photo.fileName,
                       description: photo.controller.text,
@@ -693,9 +698,10 @@ class _EditablePhoto {
   Uint8List? imageBytes;
   String? fileName;
   String? originalUrl;
+  String? originalStorageKey;
   final TextEditingController controller = TextEditingController();
 
-  _EditablePhoto({this.originalUrl});
+  _EditablePhoto({this.originalUrl, this.originalStorageKey});
 
   bool get hasImage =>
       imageBytes != null || (originalUrl != null && originalUrl!.isNotEmpty);
@@ -704,6 +710,7 @@ class _EditablePhoto {
     imageBytes = null;
     fileName = null;
     originalUrl = null;
+    originalStorageKey = null;
   }
 
   void dispose() {

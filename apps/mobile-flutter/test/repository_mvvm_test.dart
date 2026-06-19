@@ -529,7 +529,8 @@ void main() {
 
     expect(repository.createdRecords.single, same(draft));
     expect(repository.uploadedFiles.single, 'daily.jpg');
-    expect(uploadedUrl, 'https://cdn.onmu.test/daily.jpg');
+    expect(uploadedUrl.storageKey, 'records/media/daily.jpg');
+    expect(uploadedUrl.publicUrl, 'https://cdn.onmu.test/daily.jpg');
     expect(missingDelete, RecordMutationResult.missingId);
     expect(completedDelete, RecordMutationResult.completed);
     expect(repository.deletedIds, ['record-created']);
@@ -2348,9 +2349,37 @@ class _RecordingRecordRepository implements RecordRepository {
   }
 
   @override
-  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) async {
     uploadedFiles.add(fileName);
-    return 'https://cdn.onmu.test/$fileName';
+    return UploadedMedia(
+      storageKey: 'records/media/$fileName',
+      publicUrl: 'https://cdn.onmu.test/$fileName',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  }) async {
+    return OotdAvatarGenerationJob(
+      jobId: 'job-recording',
+      status: 'COMPLETED',
+      recordId: recordId,
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId) async {
+    return OotdAvatarGenerationJob(
+      jobId: jobId,
+      status: 'COMPLETED',
+      recordId: 'record-created',
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
   }
 }
 
