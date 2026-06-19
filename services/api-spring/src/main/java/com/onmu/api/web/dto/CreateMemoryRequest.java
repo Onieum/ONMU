@@ -11,6 +11,7 @@ public record CreateMemoryRequest(
   @NotBlank String date, // yyyy-MM-dd
   List<String> tags,
   List<String> imageUrls,
+  List<RecordMediaInput> media,
   @NotBlank String visibility, // PRIVATE, GROUP_ONLY, PARTICIPANT_ONLY, PUBLIC
   
   // Custom character overrides for OOTD

@@ -1489,8 +1489,14 @@ void main() {
 
       expect(find.byType(TextFormField), findsOneWidget);
       expect(find.text('장소 상세'), findsWidgets);
-      expect(find.text('리뷰 키워드'), findsOneWidget);
+      expect(find.text('분류 키워드'), findsOneWidget);
       expect(find.text('참여자 선호'), findsOneWidget);
+      expect(find.text('출처'), findsNothing);
+      expect(find.text('제공'), findsNothing);
+      expect(find.textContaining('Kakao'), findsNothing);
+      expect(find.textContaining('Naver'), findsNothing);
+      expect(find.textContaining('Google'), findsNothing);
+      expect(find.textContaining('함께 정하고 있어요'), findsNothing);
       expect(find.byKey(const ValueKey('focused-place-pin-1')), findsOneWidget);
     },
   );
@@ -1548,13 +1554,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('음식점'), findsOneWidget);
-    expect(find.text('한식'), findsWidgets);
-    expect(find.text('양식'), findsOneWidget);
-    expect(find.text('중식'), findsOneWidget);
-    expect(find.text('일식'), findsOneWidget);
-    expect(find.text('아시안식'), findsOneWidget);
     expect(find.text('카페'), findsOneWidget);
     expect(find.text('가볼만한곳'), findsOneWidget);
+    expect(find.text('현 지도에서 검색'), findsNothing);
+    expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     expect(
       tester
           .getRect(find.byKey(const ValueKey('place-category-pill-음식점')))
@@ -1564,23 +1567,89 @@ void main() {
     final foodCategoryText = tester.widget<Text>(find.text('음식점'));
     expect(foodCategoryText.style?.height, 1);
 
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-한식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-양식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-중식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-일식')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-아시안식')),
+      findsOneWidget,
+    );
+
     await tester.tap(
       find.byKey(const ValueKey('place-category-pill-가볼만한곳')).hitTestable(),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('공원'), findsOneWidget);
-    expect(find.text('해수욕장'), findsOneWidget);
-    expect(find.text('박물관'), findsOneWidget);
-    expect(find.text('미술관'), findsOneWidget);
-    expect(find.text('전망대'), findsOneWidget);
-    expect(find.text('산책로'), findsOneWidget);
+    expect(find.byKey(const ValueKey('place-category-pill-공원')), findsNothing);
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-공원')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-해수욕장')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-박물관')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-미술관')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-전망대')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-산책로')),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('place-category-pill-카페')).hitTestable(),
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const ValueKey('place-category-pill-디저트')), findsNothing);
+    await tester.tap(find.byTooltip('세부 필터 열기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('place-category-pill-디저트')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-베이커리')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-브런치')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('place-category-pill-커피')),
+      findsOneWidget,
+    );
     expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     final cafeCandidateName = find.text('무드카페');
@@ -1654,6 +1723,11 @@ void main() {
     expect(find.textContaining('운영 리스크'), findsNothing);
     expect(find.text('리스크'), findsNothing);
     expect(find.textContaining('점'), findsNothing);
+    expect(find.text('출처'), findsNothing);
+    expect(find.text('제공'), findsNothing);
+    expect(find.textContaining('Kakao Places'), findsNothing);
+    expect(find.textContaining('Naver Places'), findsNothing);
+    expect(find.textContaining('Google Places'), findsNothing);
     expect(find.textContaining('Kakao'), findsNothing);
     expect(find.textContaining('Naver'), findsNothing);
     expect(find.text('지도앱'), findsNothing);

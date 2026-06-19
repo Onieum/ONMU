@@ -126,11 +126,35 @@ Protomaps basemap 계층 이름을 기준으로 작성했으므로, 실제 PMTil
 
 현재 모바일 지도 UX는 후보 marker와 경로 line이 앱에서 강조되고, basemap은 길 찾기 맥락을 보조하는 역할이다. `seed-map-tiles-minio.ps1`가 생성하는 `onmu-light` style은 지도 앱에 가까운 읽기감을 위해 다음 계층을 분리한다.
 
+- 모든 label은 `name:ko -> name -> name:en` 순서로 표시명을 고르고, `Noto Sans Regular` fontstack을 사용한다. 기존 `Open Sans Regular`는 한글 glyph 범위가 비어 있어 Android에서 지명/도로명/POI가 거의 보이지 않을 수 있다.
+- `places` layer는 도시/지역 label과 동네 label을 분리한다. 실제 Korea dev PMTiles는 `macrohood`, `locality`, `neighbourhood` 값을 많이 포함하므로 동네 label filter에 `macrohood`를 포함한다.
+- `roads` layer는 PMTiles `kind` 값 편차 때문에 base line layer에는 filter를 두지 않는다. `road-labels`는 별도 symbol layer로 두고, 건물/경계선보다 뒤에 그려 도로명 label이 덮이지 않게 한다.
+- `water` layer는 하천 line label과 수역 area label을 분리한다.
 - `landuse-park`: 공원, 숲, 잔디, 정원 계열을 기존 landuse보다 녹색 계열로 분리한다.
+- `park-mountain-labels`: 공원, 숲, 자연보호, 산/봉우리 계열 POI label을 일반 POI보다 먼저 표시한다.
 - `transit-station-labels`: 지하철역, 철도역, 버스 정류장 계열 POI label을 일반 POI보다 먼저 표시한다.
 - `poi-labels`: 일반 POI label은 낮은 opacity와 작은 글자 크기로 유지해 후보 번호 marker와 route line을 가리지 않게 한다.
 
 이 변경은 style JSON 생성 로직만 바꾼다. 실제 Azure Blob/Front Door object 반영은 Android 지도 smoke와 rollback 기준을 확인한 뒤 별도 운영 단계에서 수행한다.
+
+### Glyph endpoint 운영 gate
+
+Android native MapLibre는 style의 `glyphs` URL에서 실제 glyph PBF를 받아야 label을 그린다. HTTP status만으로 성공을 판정하지 않는다.
+
+- `fonts.openmaptiles.org`의 `Noto Sans CJK KR Regular` 경로는 일부 Hangul range 요청에서 HTTP 200을 반환하지만 body가 HTML이다. Android MapLibre는 이를 PBF로 decode하다가 `unknown pbf field type exception`을 내므로 사용하지 않는다.
+- `https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf`는 Android smoke에서 `Noto Sans Regular` 한글 label 렌더링이 확인된 endpoint다. 다만 이는 검증 근거 또는 임시 fallback으로만 보고, 최종 staging/prod-like runtime 의존성으로 고정하지 않는다.
+- 최종 권장 경로는 ONMU tile storage와 Front Door 아래에 검증된 glyph PBF를 호스팅하고, style의 `glyphs`를 예를 들어 `https://<onmu-tile-host>/fonts/{fontstack}/{range}.pbf` 형태로 돌리는 것이다.
+- 이번 PR 범위에서 glyph 파일 복제까지 수행하지 않는다면, staging style 업로드 전 운영 gate로 `ONMU_TILE_GLYPHS_URL_TEMPLATE` 또는 `-GlyphsUrlTemplate` 값을 ONMU-hosted glyph endpoint로 전환하고 Android label smoke를 다시 통과시켜야 한다.
+
+`seed-map-tiles-minio.ps1`의 기본 glyph template은 현재 Android smoke가 통과한 external endpoint를 사용한다. 운영 전환 시에는 다음처럼 명시적으로 override한다.
+
+```powershell
+.\scripts\windows\seed-map-tiles-minio.ps1 `
+  -PmtilesSourceUrl $env:ONMU_PMTILES_SOURCE_URL `
+  -GlyphsUrlTemplate "https://tiles.onmu.cloud/fonts/{fontstack}/{range}.pbf"
+```
+
+dry-run 출력의 style object metadata에는 생성된 `glyphsUrlTemplate`과 `fontstack`이 포함된다. 검증 로그에는 URL template과 status만 남기고 glyph PBF body, provider raw body, secret 값은 출력하지 않는다.
 
 style 생성 구조만 확인하려면 업로드 없이 dry-run을 먼저 실행한다.
 
@@ -185,6 +209,7 @@ curl.exe -i "https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/pmti
 | `ONMU_TILE_PUBLIC_MANIFEST_URL` | 공개 manifest URL |
 | `ONMU_TILE_PUBLIC_BASE_URL` | 공개 tile object base URL |
 | `ONMU_TILE_STYLE_TILESET_URL` | style JSON에 넣을 `pmtiles://` URL override |
+| `ONMU_TILE_GLYPHS_URL_TEMPLATE` | style JSON에 넣을 glyph PBF URL template. `{fontstack}`과 `{range}` placeholder를 포함해야 한다. |
 | `ONMU_TILE_CACHE_CONTROL` | object cache-control |
 
 MinIO 접속은 기존 `OBJECT_STORAGE_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`를 사용한다. credential 값은 출력하지 않는다.

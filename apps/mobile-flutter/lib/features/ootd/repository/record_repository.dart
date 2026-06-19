@@ -25,7 +25,16 @@ abstract interface class RecordRepository {
 
   Future<void> deleteRecord(String id);
 
-  Future<String> uploadMedia(Uint8List bytes, String fileName);
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName);
+
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  });
+
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId);
 }
 
 class ApiRecordRepository implements RecordRepository {
@@ -69,17 +78,56 @@ class ApiRecordRepository implements RecordRepository {
   }
 
   @override
-  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) async {
     final json = await _client.uploadMultipart(
       '/api/v1/media/upload',
       bytes,
       fileName,
     );
+    final storageKey = OnmuJson.readString(json, 'storageKey');
     final publicUrl = OnmuJson.readString(json, 'publicUrl');
+    if (storageKey.isEmpty) {
+      throw StateError('media_upload_storage_key_missing');
+    }
     if (publicUrl.isEmpty) {
       throw StateError('media_upload_public_url_missing');
     }
-    return _absoluteApiUrl(publicUrl);
+    return UploadedMedia(
+      storageKey: storageKey,
+      publicUrl: _absoluteApiUrl(publicUrl),
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  }) async {
+    final body = <String, Object?>{
+      'recordId': recordId,
+      'inputType': inputType,
+    };
+    if (outfitPhotoMediaId != null) {
+      body['outfitPhotoMediaId'] = outfitPhotoMediaId;
+    }
+    if (outfitDescription != null) {
+      body['outfitDescription'] = outfitDescription;
+    }
+    final json = await _client.postObject(
+      '/api/v1/ootd/avatar-generations',
+      body: body,
+    );
+    return _avatarGenerationJob(json);
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId) async {
+    final json = await _client.getObject(
+      '/api/v1/ootd/avatar-generations/$jobId',
+    );
+    return _avatarGenerationJob(json);
   }
 
   Map<String, Object?> _toMemoryBody(OotdRecord record) {
@@ -90,6 +138,23 @@ class ApiRecordRepository implements RecordRepository {
         : record.imagePath == null
         ? const <String>[]
         : <String>[record.imagePath!];
+    final media = record.media
+        .asMap()
+        .entries
+        .map(
+          (entry) => {
+            'mediaType': entry.value.mediaType,
+            'storageKey': entry.value.storageKey,
+            'publicUrl': entry.value.publicUrl,
+            'width': entry.value.width,
+            'height': entry.value.height,
+            'durationSeconds': entry.value.durationSeconds,
+            'sortOrder': entry.value.sortOrder == 0
+                ? entry.key
+                : entry.value.sortOrder,
+          },
+        )
+        .toList(growable: false);
     return {
       'type': isDaily ? 'DAILY' : 'OOTD',
       'title': _recordTitle(record),
@@ -97,6 +162,7 @@ class ApiRecordRepository implements RecordRepository {
       'date': _dateOnly(record.date),
       'tags': record.moodTags,
       'imageUrls': imageUrls,
+      if (media.isNotEmpty) 'media': media,
       'visibility': record.isPublic ? 'PUBLIC' : 'PRIVATE',
       'hairStyle': 'hair_style_${record.character.hairStyleIndex}',
       'hairColor': 'hair_color_${record.character.hairColorIndex}',
@@ -108,9 +174,12 @@ class ApiRecordRepository implements RecordRepository {
   OotdRecord _fromMemory(Map<String, dynamic> json) {
     final type = OnmuJson.readString(json, 'type', 'OOTD').toUpperCase();
     final tags = OnmuJson.stringList(json['tags']);
-    final imageUrls = OnmuJson.stringList(
-      json['imageUrls'],
-    ).map(_absoluteApiUrl).toList(growable: false);
+    final media = _mediaList(json['media']);
+    final imageUrls = media.isNotEmpty
+        ? media.map((item) => item.publicUrl).toList(growable: false)
+        : OnmuJson.stringList(
+            json['imageUrls'],
+          ).map(_absoluteApiUrl).toList(growable: false);
     final payload = OnmuJson.asMap(json['payload']);
     final payloadBrands = OnmuJson.asMap(payload['brands']);
     final snapshot = OnmuJson.asMap(json['characterSnapshot']);
@@ -142,6 +211,7 @@ class ApiRecordRepository implements RecordRepository {
       isDaily,
       date,
       imageUrls,
+      media,
     );
     final brands = <String, String>{
       for (final entry in payloadBrands.entries)
@@ -166,6 +236,7 @@ class ApiRecordRepository implements RecordRepository {
       date: date,
       imagePath: imageUrls.isEmpty ? null : imageUrls.first,
       imageUrls: imageUrls,
+      media: media,
       character: character,
       moodTags: tags,
       brands: brands,
@@ -190,6 +261,8 @@ class ApiRecordRepository implements RecordRepository {
               'category': item.category,
               'description': item.description,
               if (item.imageUrl != null) 'imageUrl': item.imageUrl,
+              if (item.mediaStorageKey != null)
+                'mediaStorageKey': item.mediaStorageKey,
             },
           )
           .toList(growable: false),
@@ -202,6 +275,7 @@ class ApiRecordRepository implements RecordRepository {
     bool isDaily,
     DateTime date,
     List<String> imageUrls,
+    List<UploadedMedia> media,
   ) {
     final rawTimeline = payload['timeline'];
     if (rawTimeline is List && rawTimeline.isNotEmpty) {
@@ -215,7 +289,7 @@ class ApiRecordRepository implements RecordRepository {
               placeName: OnmuJson.readString(
                 item,
                 'placeName',
-                '사진 기록 ${entry.key + 1}',
+                'Photo record ${entry.key + 1}',
               ),
               category: OnmuJson.readString(item, 'category', 'photo'),
               description: OnmuJson.readString(item, 'description'),
@@ -226,6 +300,11 @@ class ApiRecordRepository implements RecordRepository {
                   entry.key < imageUrls.length ? imageUrls[entry.key] : '',
                 ),
               ),
+              mediaStorageKey: OnmuJson.readString(
+                item,
+                'mediaStorageKey',
+                entry.key < media.length ? media[entry.key].storageKey : '',
+              ),
             );
           })
           .toList(growable: false);
@@ -235,18 +314,21 @@ class ApiRecordRepository implements RecordRepository {
         .entries
         .map(
           (entry) => TimelineItem(
-            time: '사진 ${entry.key + 1}',
-            placeName: '추가한 사진',
+            time: 'Photo ${entry.key + 1}',
+            placeName: 'Added photo',
             category: 'photo',
-            description: '사진에 대한 코멘트를 남기지 않았어요.',
+            description: 'No photo comment was written.',
             imageUrl: entry.value,
+            mediaStorageKey: entry.key < media.length
+                ? media[entry.key].storageKey
+                : null,
           ),
         )
         .toList(growable: true);
     photoItems.add(
       TimelineItem(
         time: _dateOnly(date),
-        placeName: isDaily ? '하루 일과' : 'OOTD',
+        placeName: isDaily ? 'Daily record' : 'OOTD',
         category: isDaily ? 'daily' : 'ootd',
         description: memo,
       ),
@@ -270,6 +352,44 @@ class ApiRecordRepository implements RecordRepository {
       return record.timeline.first.description;
     }
     return '';
+  }
+
+  List<UploadedMedia> _mediaList(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .map(OnmuJson.asMap)
+        .map((item) {
+          final storageKey = OnmuJson.readString(item, 'storageKey');
+          final publicUrl = OnmuJson.readString(item, 'publicUrl');
+          if (storageKey.isEmpty || publicUrl.isEmpty) return null;
+          return UploadedMedia(
+            id: OnmuJson.readString(item, 'id').isEmpty
+                ? null
+                : OnmuJson.readString(item, 'id'),
+            storageKey: storageKey,
+            publicUrl: _absoluteApiUrl(publicUrl),
+            mediaType: OnmuJson.readString(item, 'mediaType', 'IMAGE'),
+            width: _nullableInt(item['width']),
+            height: _nullableInt(item['height']),
+            durationSeconds: _nullableDouble(item['durationSeconds']),
+            sortOrder: OnmuJson.readInt(item, 'sortOrder'),
+          );
+        })
+        .whereType<UploadedMedia>()
+        .toList(growable: false);
+  }
+
+  int? _nullableInt(Object? value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  double? _nullableDouble(Object? value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   String _dateOnly(DateTime date) {
@@ -305,5 +425,24 @@ class ApiRecordRepository implements RecordRepository {
   String? _nullableImageUrl(String url) {
     final normalized = _absoluteApiUrl(url);
     return normalized.isEmpty ? null : normalized;
+  }
+
+  OotdAvatarGenerationJob _avatarGenerationJob(Map<String, dynamic> json) {
+    final createdAt = DateTime.tryParse(OnmuJson.readString(json, 'createdAt'));
+    final updatedAt = DateTime.tryParse(OnmuJson.readString(json, 'updatedAt'));
+    final generatedImageUrl = OnmuJson.readString(json, 'generatedImageUrl');
+    final errorCode = OnmuJson.readString(json, 'errorCode');
+    return OotdAvatarGenerationJob(
+      jobId: OnmuJson.readString(json, 'jobId'),
+      status: OnmuJson.readString(json, 'status', 'PENDING'),
+      recordId: OnmuJson.readString(json, 'recordId'),
+      generatedImageUrl: generatedImageUrl.isEmpty
+          ? null
+          : _absoluteApiUrl(generatedImageUrl),
+      errorCode: errorCode.isEmpty ? null : errorCode,
+      retryable: OnmuJson.readBool(json, 'retryable'),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 }
