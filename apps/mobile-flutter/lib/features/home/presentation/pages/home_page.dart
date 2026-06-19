@@ -13,6 +13,7 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -146,7 +147,10 @@ class _HomeContent extends ConsumerWidget {
         const _SectionTitle(title: '오늘의 약속'),
         const SizedBox(height: AppSpacing.sm),
         if (todayPlans.isEmpty)
-          const _EmptyTodayPlanCard()
+          const OnmuEmptyStateCard(
+            title: '오늘 남은 약속이 없어요',
+            icon: Icons.event_busy_outlined,
+          )
         else
           _TodayPlansGrid(groupId: groupId, plans: todayPlans),
         const SizedBox(height: AppSpacing.xxl),
@@ -157,7 +161,7 @@ class _HomeContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (upcomingPlans.isEmpty)
-          const _EmptyUpcomingPlanCard()
+          const OnmuEmptyStateCard(title: '다가오는 약속이 없어요.')
         else
           for (final plan in upcomingPlans.take(2)) ...[
             OnmuUpcomingPlanCard(
@@ -178,46 +182,6 @@ class _HomeContent extends ConsumerWidget {
           _RecentRecordsPreview(records: recentRecords),
         ],
       ],
-    );
-  }
-}
-
-class _EmptyTodayPlanCard extends StatelessWidget {
-  const _EmptyTodayPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
-          const SizedBox(height: AppSpacing.sm),
-          Text('오늘 남은 약속이 없어요', style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyUpcomingPlanCard extends StatelessWidget {
-  const _EmptyUpcomingPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Text(
-        '다가오는 약속이 없어요.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-      ),
     );
   }
 }

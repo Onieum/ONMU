@@ -795,6 +795,9 @@ void main() {
 
     expect(find.text('서버 단일 멤버 모임'), findsOneWidget);
     expect(find.text('멤버 1명'), findsOneWidget);
+    expect(find.text('다가오는 약속이 없어요.'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsOneWidget);
+    expect(find.text('기록을 만들면 이곳에 표시돼요.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

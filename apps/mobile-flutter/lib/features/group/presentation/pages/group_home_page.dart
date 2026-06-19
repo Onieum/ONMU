@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/group_home_view_model.dart';
@@ -78,7 +79,9 @@ class _GroupHomeContent extends StatelessWidget {
             plan: upcomingPlan,
             onTap: () =>
                 context.push(RoutePaths.planDetail(group.id, upcomingPlan.id)),
-          ),
+          )
+        else
+          const OnmuEmptyStateCard(title: '다가오는 약속이 없어요.'),
         const SizedBox(height: AppSpacing.lg),
         _SectionHeader(
           title: '최근 기록',
@@ -426,6 +429,14 @@ class _RecentMemoryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (memories.isEmpty) {
+      return const OnmuEmptyStateCard(
+        title: '최근 기록이 없어요.',
+        description: '기록을 만들면 이곳에 표시돼요.',
+        icon: Icons.photo_library_outlined,
+      );
+    }
+
     final iconStyles = [
       (Icons.park_outlined, AppColors.accentGreen),
       (Icons.water, AppColors.accentBlue),
