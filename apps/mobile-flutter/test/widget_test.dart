@@ -948,6 +948,9 @@ void main() {
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -360));
+    await tester.pumpAndSettle();
+
     final dateTabs = find.byWidgetPredicate((widget) {
       return widget is Text &&
           RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
@@ -1351,7 +1354,8 @@ void main() {
     expect(find.text('장소 동선'), findsWidgets);
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
-    expect(find.text('장소 검색하기'), findsOneWidget);
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
   });
 
   testWidgets('place map hides comparison source and score labels', (
@@ -1421,7 +1425,7 @@ void main() {
       await tester.tap(candidateName);
       await tester.pumpAndSettle();
 
-      expect(find.text('장소 검색하기'), findsOneWidget);
+      expect(find.byType(TextFormField), findsOneWidget);
       expect(find.text('장소 상세'), findsWidgets);
       expect(find.text('리뷰 키워드'), findsOneWidget);
       expect(find.text('참여자 선호'), findsOneWidget);
@@ -1439,6 +1443,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('장소 옵션'), findsNothing);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     await tester.tap(find.byType(TextFormField));
     await tester.pumpAndSettle();
 
@@ -1449,7 +1454,7 @@ void main() {
     expect(searchField.decoration?.disabledBorder, InputBorder.none);
     expect(searchField.decoration?.errorBorder, InputBorder.none);
     expect(searchField.decoration?.focusedErrorBorder, InputBorder.none);
-    expect(find.text('장소 검색하기'), findsOneWidget);
+    expect(find.byTooltip('뒤로'), findsOneWidget);
     expect(find.text('장소 후보 ✨'), findsOneWidget);
     expect(find.text('지도 화면에서 이어서 장소를 찾아요'), findsNothing);
     final candidateAction = find.byKey(
@@ -1615,6 +1620,9 @@ void main() {
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -360));
+    await tester.pumpAndSettle();
+
     final dateTabs = find.byWidgetPredicate((widget) {
       return widget is Text &&
           RegExp(r'^\d{1,2}/\d{1,2} [월화수목금토일]$').hasMatch(widget.data ?? '');
@@ -1746,7 +1754,8 @@ void main() {
     await tester.tap(find.text('장소 후보 찾기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 검색하기'), findsOneWidget);
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
   });
 
   testWidgets('group chat vote notice opens vote detail', (tester) async {
