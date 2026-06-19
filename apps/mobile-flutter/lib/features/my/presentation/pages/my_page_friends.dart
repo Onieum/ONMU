@@ -245,6 +245,8 @@ class _KeywordPreferenceCard extends StatelessWidget {
             title: '음식/메뉴 취향',
             actionLabel: showAction ? '편집' : null,
             onAction: showAction ? onEdit : null,
+            detailLabel: onDetail == null ? null : '상세 >',
+            onDetail: onDetail,
           ),
           const SizedBox(height: 18),
           _InfoRow(
@@ -254,10 +256,8 @@ class _KeywordPreferenceCard extends StatelessWidget {
               children: [
                 for (final keyword in profile.favoriteFoodTags.take(5))
                   _KeywordChip(label: keyword, selected: true),
-                const _MoreKeywordChip(selected: true),
               ],
             ),
-            onTap: onDetail,
           ),
           const Divider(height: 1, color: AppColors.lineSoft),
           _InfoRow(
@@ -268,10 +268,8 @@ class _KeywordPreferenceCard extends StatelessWidget {
               children: [
                 for (final keyword in profile.dislikedFoodTags.take(4))
                   _KeywordChip(label: keyword, selected: false),
-                const _MoreKeywordChip(selected: false),
               ],
             ),
-            onTap: onDetail,
           ),
         ],
       ),
@@ -331,45 +329,21 @@ class _KeywordChip extends StatelessWidget {
   }
 }
 
-class _MoreKeywordChip extends StatelessWidget {
-  const _MoreKeywordChip({required this.selected});
-
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: selected
-            ? AppColors.primaryPinkSoft.withOpacity(0.24)
-            : AppColors.bgPaper,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? AppColors.linePink : AppColors.lineWarm,
-        ),
-      ),
-      child: Icon(
-        Icons.more_horiz_rounded,
-        color: selected ? AppColors.primaryPurple : AppColors.textSub,
-      ),
-    );
-  }
-}
-
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.title,
     required this.children,
     this.actionLabel,
     this.onAction,
+    this.detailLabel,
+    this.onDetail,
   });
 
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? detailLabel;
+  final VoidCallback? onDetail;
   final List<Widget> children;
 
   @override
@@ -383,6 +357,8 @@ class _SectionCard extends StatelessWidget {
             title: title,
             actionLabel: actionLabel,
             onAction: onAction,
+            detailLabel: detailLabel,
+            onDetail: onDetail,
           ),
           const SizedBox(height: 8),
           for (final child in children) ...[
@@ -397,11 +373,19 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.actionLabel, this.onAction});
+  const _SectionTitle({
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+    this.detailLabel,
+    this.onDetail,
+  });
 
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? detailLabel;
+  final VoidCallback? onDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -427,6 +411,16 @@ class _SectionTitle extends StatelessWidget {
               ),
             ),
           ),
+        if (detailLabel != null)
+          TextButton(
+            onPressed: onDetail,
+            child: Text(
+              detailLabel!,
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSub,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -436,7 +430,6 @@ class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.icon,
     required this.label,
-    this.onTap,
     this.iconColor = AppColors.primaryPink,
     this.trailingWidget,
   });
@@ -445,45 +438,35 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final Color iconColor;
   final Widget? trailingWidget;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: iconColor, size: 23),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textMain,
-                      fontWeight: FontWeight.w800,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: iconColor, size: 23),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textMain,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                if (onTap != null)
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textSub,
-                    size: 25,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.only(left: 37),
-              child: trailingWidget ?? const SizedBox.shrink(),
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(left: 37),
+            child: trailingWidget ?? const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
@@ -515,10 +498,12 @@ class _PlacePreferenceCard extends StatelessWidget {
             title: title,
             actionLabel: showAction && onEdit != null ? '편집' : null,
             onAction: showAction ? onEdit : null,
+            detailLabel: onDetail == null ? null : '상세 >',
+            onDetail: onDetail,
           ),
           const SizedBox(height: 12),
           for (final row in rows) ...[
-            _PlacePreferenceRow(data: row, onTap: onDetail),
+            _PlacePreferenceRow(data: row),
             if (row != rows.last) const SizedBox(height: 16),
           ],
         ],
@@ -528,52 +513,40 @@ class _PlacePreferenceCard extends StatelessWidget {
 }
 
 class _PlacePreferenceRow extends StatelessWidget {
-  const _PlacePreferenceRow({required this.data, required this.onTap});
+  const _PlacePreferenceRow({required this.data});
 
   final _PlacePreferenceRowData data;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: data.iconColor.withOpacity(0.16),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(data.icon, color: data.iconColor, size: 21),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: data.iconColor.withOpacity(0.16),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 14),
-            SizedBox(
-              width: 112,
-              child: Text(
-                data.label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textMain,
-                  fontWeight: FontWeight.w800,
-                ),
+            child: Icon(data.icon, color: data.iconColor, size: 21),
+          ),
+          const SizedBox(width: 14),
+          SizedBox(
+            width: 112,
+            child: Text(
+              data.label,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textMain,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            Expanded(
-              child: _HorizontalChipList(labels: data.places.take(5).toList()),
-            ),
-            const SizedBox(width: 8),
-            if (onTap != null)
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSub,
-                size: 26,
-              ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: _HorizontalChipList(labels: data.places.take(5).toList()),
+          ),
+        ],
       ),
     );
   }

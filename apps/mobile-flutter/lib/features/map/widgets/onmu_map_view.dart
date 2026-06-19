@@ -32,6 +32,22 @@ const String mapNativePointDataKey = 'onmuPointId';
 const double onmuMapMinUsableZoom = 6.2;
 
 @visibleForTesting
+const EdgeInsets onmuMapCameraFitPadding = EdgeInsets.fromLTRB(
+  56,
+  160,
+  56,
+  480,
+);
+
+@visibleForTesting
+const EdgeInsets onmuMapMarkerScreenSafetyPadding = EdgeInsets.fromLTRB(
+  0,
+  160,
+  0,
+  240,
+);
+
+@visibleForTesting
 String nativeMarkerIconImageName({required int order, required bool focused}) {
   final state = focused ? 'focused' : 'normal';
   return 'onmu-map-marker-$state-$order';
@@ -114,9 +130,9 @@ LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
     geometry: safeRouteGeometry
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
-    lineColor: '#1D4ED8',
-    lineWidth: 6.5,
-    lineOpacity: 0.94,
+    lineColor: '#2563EB',
+    lineWidth: 8.0,
+    lineOpacity: 0.98,
     lineJoin: 'round',
   );
 }
@@ -132,8 +148,8 @@ LineOptions? nativeLineCasingOptionsForRoute(List<OnmuLatLng> routeGeometry) {
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
     lineColor: '#FFFFFF',
-    lineWidth: 10.5,
-    lineOpacity: 0.92,
+    lineWidth: 13.0,
+    lineOpacity: 0.96,
     lineJoin: 'round',
   );
 }
@@ -317,6 +333,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.onMyLocationUnavailable,
     this.myLocationEnabled = false,
     this.myLocationRequestSerial = 0,
+    this.cameraFitPadding = onmuMapCameraFitPadding,
+    this.markerScreenSafetyPadding = onmuMapMarkerScreenSafetyPadding,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
     this.debugWebPmtilesProtocolReady,
     super.key,
@@ -333,6 +351,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final VoidCallback? onMyLocationUnavailable;
   final bool myLocationEnabled;
   final int myLocationRequestSerial;
+  final EdgeInsets cameraFitPadding;
+  final EdgeInsets markerScreenSafetyPadding;
   final String fallbackLabel;
   final bool? debugWebPmtilesProtocolReady;
 
@@ -357,9 +377,9 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       center: oldWidget.center,
       zoom: onmuMapInitialZoomForCoordinates(
         coordinates: [
-          ...validOnmuMapPoints(oldWidget.points).map(
-            (point) => point.coordinate,
-          ),
+          ...validOnmuMapPoints(
+            oldWidget.points,
+          ).map((point) => point.coordinate),
           ...validOnmuMapCoordinates(oldWidget.routeGeometry),
         ],
         fallbackZoom: oldWidget.zoom,
@@ -371,9 +391,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       center: widget.center,
       zoom: onmuMapInitialZoomForCoordinates(
         coordinates: [
-          ...validOnmuMapPoints(widget.points).map(
-            (point) => point.coordinate,
-          ),
+          ...validOnmuMapPoints(widget.points).map((point) => point.coordinate),
           ...validOnmuMapCoordinates(widget.routeGeometry),
         ],
         fallbackZoom: widget.zoom,
@@ -721,7 +739,6 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       }
     }
   }
-
 
   OnmuLatLng? _centerFromData() {
     final values = validOnmuMapCoordinates([

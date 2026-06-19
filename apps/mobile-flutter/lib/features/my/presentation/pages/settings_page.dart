@@ -1657,6 +1657,7 @@ class _ProfileEditResult {
     required this.realName,
     required this.introText,
     required this.profileImageUrl,
+    required this.useDefaultProfileImage,
     required this.region,
     required this.regionSelection,
     required this.regionVisibility,
@@ -1667,6 +1668,7 @@ class _ProfileEditResult {
   final String realName;
   final String introText;
   final String profileImageUrl;
+  final bool useDefaultProfileImage;
   final String region;
   final KoreaRegionSelection regionSelection;
   final RegionVisibility regionVisibility;
@@ -1727,4 +1729,4 @@ enum _ProfileDetailSection {
   final String title;
 }
 
-enum _ProfilePhotoOption { gallery, camera, character }
+enum _ProfilePhotoOption { gallery, camera, character, defaultImage }

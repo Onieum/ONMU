@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/character_model.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
@@ -116,6 +117,10 @@ class ApiFriendRepository implements FriendRepository {
       userCode: userCode,
     );
     final introText = OnmuJson.readString(json, 'introText');
+    final useDefaultProfileImage = OnmuJson.readBool(
+      json,
+      'useDefaultProfileImage',
+    );
     return FriendProfile(
       userId: OnmuJson.readString(json, 'userId'),
       publicId: publicId,
@@ -126,14 +131,19 @@ class ApiFriendRepository implements FriendRepository {
       isFavorite: OnmuJson.readBool(json, 'favorite'),
       memo: memo,
       introText: introText,
-      character: _characterFromJson(json['pixelCharacter'], name),
-      profileImageUrl: OnmuJson.readString(
-        json,
-        'profileImageUrl',
+      useDefaultProfileImage: useDefaultProfileImage,
+      character: useDefaultProfileImage
+          ? null
+          : _characterFromJson(json['pixelCharacter'], name),
+      profileImageUrl: _mediaUrl(
         OnmuJson.readString(
           json,
-          'profilePhotoUrl',
-          OnmuJson.readString(json, 'avatarUrl'),
+          'profileImageUrl',
+          OnmuJson.readString(
+            json,
+            'profilePhotoUrl',
+            OnmuJson.readString(json, 'avatarUrl'),
+          ),
         ),
       ),
     );
@@ -166,15 +176,23 @@ class ApiFriendRepository implements FriendRepository {
     final regionVisibility = RegionVisibility.fromJson(
       preference['regionVisibility'],
     );
+    final useDefaultProfileImage = OnmuJson.readBool(
+      preference,
+      'useDefaultProfileImage',
+    );
     return MyProfile(
       realName: nickname,
-      character: _characterFromJson(json['pixelCharacter'], nickname),
+      character: useDefaultProfileImage
+          ? null
+          : _characterFromJson(json['pixelCharacter'], nickname),
+      profileImageUrl: _mediaUrl(OnmuJson.readString(json, 'profileImageUrl')),
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''
           : KoreaRegionSelection.fromJson(regionValue).displayName,
       regionVisibility: regionVisibility,
       visibility: ProfileVisibility.fromJson(preference['profileVisibility']),
+      useDefaultProfileImage: useDefaultProfileImage,
       favoriteKeywords: OnmuJson.stringList(preference['favoriteKeywords']),
       dislikedKeywords: OnmuJson.stringList(preference['dislikedKeywords']),
       preferredTimes: OnmuJson.stringList(preference['preferredTimes']),
@@ -198,5 +216,9 @@ class ApiFriendRepository implements FriendRepository {
       return null;
     }
     return CharacterDraft.fromApiJson(json, nickname: nickname);
+  }
+
+  String _mediaUrl(String value) {
+    return resolveOnmuMediaUrl(value, baseUrl: _client.baseUrl);
   }
 }

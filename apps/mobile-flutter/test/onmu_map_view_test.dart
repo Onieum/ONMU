@@ -91,8 +91,8 @@ void main() {
     expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
     expect(markerBytes, isNotEmpty);
     expect(line?.geometry, hasLength(2));
-    expect(line?.lineColor, '#1D4ED8');
-    expect(line?.lineWidth, greaterThan(6));
+    expect(line?.lineColor, '#2563EB');
+    expect(line?.lineWidth, greaterThanOrEqualTo(8));
     expect(casingLine?.lineColor, '#FFFFFF');
     expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
   });

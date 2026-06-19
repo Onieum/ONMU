@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -15,11 +18,18 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
-import '../../../../shared/widgets/onmu_top_bar.dart';
 import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
 
-enum _MyLocationRequestState { idle, requesting, resolved, denied, unavailable }
+enum _MyLocationRequestState {
+  idle,
+  requesting,
+  resolved,
+  denied,
+  serviceDisabled,
+  timeout,
+  unavailable,
+}
 
 class PlaceMapPage extends ConsumerStatefulWidget {
   const PlaceMapPage({
@@ -66,10 +76,12 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   PlaceCandidate? _selectedCandidate;
   OnmuLatLng? _lastCameraCenter;
   OnmuLatLng? _mapSearchCenter;
-  final ScrollController _recommendationScrollController = ScrollController();
+  final DraggableScrollableController _recommendationSheetController =
+      DraggableScrollableController();
   _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
   int _myLocationRequestSerial = 0;
   int? _pendingMyLocationSerial;
+  double _recommendationSheetSize = _RecommendationSheet.initialSheetSize;
   final Set<int> _savingCandidateIds = {};
 
   @override
@@ -84,7 +96,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
 
   @override
   void dispose() {
-    _recommendationScrollController.dispose();
+    _recommendationSheetController.dispose();
     super.dispose();
   }
 
@@ -230,6 +242,59 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       return;
     }
 
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!mounted) {
+      return;
+    }
+    if (!serviceEnabled) {
+      setState(() {
+        _myLocationState = _MyLocationRequestState.serviceDisabled;
+        _pendingMyLocationSerial = null;
+      });
+      _showMapSnackBar('기기 위치 서비스가 꺼져 있어요. 위치 서비스를 켠 뒤 다시 눌러 주세요.');
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      final center = OnmuLatLng(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+      _handleMyLocationResolved(center);
+      setState(() {
+        _myLocationRequestSerial += 1;
+        _pendingMyLocationSerial = null;
+      });
+      return;
+    } on TimeoutException {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _myLocationState = _MyLocationRequestState.timeout;
+        _pendingMyLocationSerial = null;
+      });
+      _showMapSnackBar('현재 위치 확인 시간이 초과됐어요. 기기 위치를 확인하고 다시 시도해 주세요.');
+      return;
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _myLocationState = _MyLocationRequestState.unavailable;
+      });
+      _showMapSnackBar('현재 위치를 가져오지 못했어요. 기기 위치 설정을 확인해 주세요.');
+    }
+
     final serial = _myLocationRequestSerial + 1;
     setState(() {
       _myLocationRequestSerial = serial;
@@ -305,6 +370,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       _MyLocationRequestState.requesting => '현재 위치 확인 중',
       _MyLocationRequestState.resolved => '현재 위치 기준으로 다시 이동',
       _MyLocationRequestState.denied => '위치 권한 다시 요청',
+      _MyLocationRequestState.serviceDisabled => '위치 서비스 확인',
+      _MyLocationRequestState.timeout => '현재 위치 다시 확인',
       _MyLocationRequestState.unavailable => '현재 위치 다시 확인',
       _ => '현재 위치로 이동',
     };
@@ -314,6 +381,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     return switch (_myLocationState) {
       _MyLocationRequestState.resolved => Icons.near_me,
       _MyLocationRequestState.denied => Icons.location_disabled_outlined,
+      _MyLocationRequestState.serviceDisabled => Icons.location_off_outlined,
+      _MyLocationRequestState.timeout => Icons.location_searching,
       _MyLocationRequestState.unavailable => Icons.location_searching,
       _ => Icons.my_location,
     };
@@ -323,6 +392,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     return switch (_myLocationState) {
       _MyLocationRequestState.requesting => '위치 확인 중',
       _MyLocationRequestState.denied => '위치 권한 필요',
+      _MyLocationRequestState.serviceDisabled => '위치 서비스 꺼짐',
+      _MyLocationRequestState.timeout => '위치 확인 시간 초과',
       _MyLocationRequestState.unavailable => '위치 확인 실패',
       _ => null,
     };
@@ -441,6 +512,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 
   Widget _buildContent(BuildContext context, PlaceCandidatesState state) {
+    final screenSize = MediaQuery.sizeOf(context);
     final localVisibleCandidates = _visibleCandidates(state.candidates);
     final autoSearch = _query.trim().isEmpty;
     final effectiveQuery = autoSearch ? _defaultSearchQuery(state) : _query;
@@ -471,191 +543,204 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         localVisibleCandidates;
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
-    final recommendationPanelHeight = (MediaQuery.sizeOf(context).height * 0.28)
-        .clamp(176.0, 292.0)
-        .toDouble();
+    final mapCenter = _mapSearchCenter ?? _lastCameraCenter;
+    final sheetBottomPadding =
+        (screenSize.height * _recommendationSheetSize + 80).clamp(220.0, 680.0);
+    final mapCameraFitPadding = EdgeInsets.fromLTRB(
+      56,
+      188,
+      56,
+      sheetBottomPadding,
+    );
+    final markerSafetyPadding = EdgeInsets.fromLTRB(
+      0,
+      188,
+      0,
+      (screenSize.height * _recommendationSheetSize).clamp(160.0, 560.0),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bgGrid,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            OnmuTopBar(
-              title: '장소 검색하기',
-              showBackButton: true,
-              onBack: () => context.popOrGo(
-                RoutePaths.planDetail(widget.groupId, widget.planId),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _SearchBar(
-                    query: _query,
-                    onTap: _activateSearch,
-                    onChanged: (value) {
-                      setState(() {
-                        _query = value;
-                        _searchActive = true;
-                        _selectedCandidate = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _CategoryPills(
-                    categories: _primaryCategories,
-                    selectedCategory: _selectedPrimaryCategory,
-                    onSelected: (category) {
-                      setState(() {
-                        _selectedPrimaryCategory = category;
-                        _selectedCategoryFilter = null;
-                        _searchActive = true;
-                        _selectedCandidate = null;
-                      });
-                    },
-                  ),
-                  if (activeCategoryFilters.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    _CategoryPills(
-                      categories: activeCategoryFilters,
-                      selectedCategory: _selectedCategoryFilter ?? '',
-                      onSelected: (category) {
-                        setState(() {
-                          _selectedCategoryFilter =
-                              _selectedCategoryFilter == category
-                              ? null
-                              : category;
-                          _searchActive = true;
-                          _selectedCandidate = null;
-                        });
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      _MapAreaSearchButton(
-                        enabled: _lastCameraCenter != null,
-                        active: _mapSearchCenter != null,
-                        onPressed: _searchVisibleMapArea,
-                      ),
-                      const Spacer(),
-                      IconButton.filledTonal(
-                        tooltip: '필터',
-                        onPressed: _activateSearch,
-                        icon: const Icon(Icons.tune),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      IconButton.filledTonal(
-                        tooltip: _myLocationTooltip,
-                        onPressed:
-                            _myLocationState ==
-                                _MyLocationRequestState.requesting
-                            ? null
-                            : _requestCurrentLocation,
-                        icon:
-                            _myLocationState ==
-                                _MyLocationRequestState.requesting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(_myLocationIcon),
-                      ),
-                    ],
-                  ),
-                  if (_myLocationStatusLabel case final statusLabel?) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _MapStatusPill(label: statusLabel),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Expanded(
-              child: OnmuMapView(
-                points: _mapPointsFor(visibleCandidates),
-                fallbackLabel: _mapFallbackLabel(
-                  visibleCandidates,
-                  searchLoading: searchLoading,
-                  searchHadError: searchHadError,
-                ),
-                focusedPointId: _selectedCandidate?.id.toString(),
-                onCameraIdle: _handleCameraIdle,
-                onMyLocationResolved: _handleMyLocationResolved,
-                onMyLocationUnavailable: _handleMyLocationUnavailable,
-                myLocationRequestSerial: _myLocationRequestSerial,
-                onPointTap: (point) {
-                  final selected = _candidateByPointId(
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: OnmuMapView(
+                  points: _mapPointsFor(visibleCandidates),
+                  fallbackLabel: _mapFallbackLabel(
                     visibleCandidates,
-                    point.id,
-                  );
-                  if (selected != null) {
-                    setState(() => _selectedCandidate = selected);
-                  }
-                },
+                    searchLoading: searchLoading,
+                    searchHadError: searchHadError,
+                  ),
+                  center: mapCenter,
+                  zoom: mapSearchCenter == null ? 11 : 14.8,
+                  cameraFitPadding: mapCameraFitPadding,
+                  markerScreenSafetyPadding: markerSafetyPadding,
+                  focusedPointId: _selectedCandidate?.id.toString(),
+                  onCameraIdle: _handleCameraIdle,
+                  onMyLocationResolved: _handleMyLocationResolved,
+                  onMyLocationUnavailable: _handleMyLocationUnavailable,
+                  myLocationRequestSerial: _myLocationRequestSerial,
+                  onPointTap: (point) {
+                    final selected = _candidateByPointId(
+                      visibleCandidates,
+                      point.id,
+                    );
+                    if (selected != null) {
+                      setState(() => _selectedCandidate = selected);
+                      _openRecommendationSheet(
+                        _RecommendationSheet.initialSheetSize,
+                      );
+                    }
+                  },
+                ),
               ),
             ),
-            SizedBox(
-              height: recommendationPanelHeight,
-              child: KeyedSubtree(
-                key: const ValueKey('place-map-bottom-sheet'),
-                child: _RecommendationSheet(
-                  controller: _recommendationScrollController,
-                  candidates: visibleCandidates,
-                  searchActive: searchActive,
-                  autoSearch: autoSearch,
-                  query: effectiveQuery,
-                  selectedCategory: _selectedSearchCategory,
-                  searchLoading: searchLoading,
-                  searchHadError: searchHadError,
-                  mapScopedSearch: _mapSearchCenter != null,
-                  searchRadiusMeters: _mapSearchRadiusMeters,
-                  selectedCandidate: _selectedCandidate,
-                  isAlreadyCandidate: state.hasCandidate,
-                  isSavingCandidate: (candidate) =>
-                      _savingCandidateIds.contains(candidate.id),
-                  onBackToResults: () {
-                    setState(() {
-                      _selectedCandidate = null;
-                    });
-                  },
-                  onCandidateSelected: (candidate) {
-                    setState(() {
-                      _selectedCandidate = candidate;
-                    });
-                  },
-                  onRegisterPressed: (candidate) =>
-                      _saveSchedulePlaceAndNavigate(candidate, context, state),
-                  onAddCandidatePressed: (candidate) =>
-                      _saveCandidateAndNavigate(
-                        candidate,
-                        context,
-                        message: '후보에 추가되었어요!',
-                        targetPath: RoutePaths.planPlaceCandidates(
-                          widget.groupId,
-                          widget.planId,
-                        ),
-                      ),
+            Positioned(
+              left: AppSpacing.lg,
+              right: AppSpacing.lg,
+              top: 0,
+              child: _MapSearchOverlay(
+                query: _query,
+                primaryCategories: _primaryCategories,
+                activeCategoryFilters: activeCategoryFilters,
+                selectedPrimaryCategory: _selectedPrimaryCategory,
+                selectedCategoryFilter: _selectedCategoryFilter,
+                myLocationState: _myLocationState,
+                myLocationTooltip: _myLocationTooltip,
+                myLocationIcon: _myLocationIcon,
+                myLocationStatusLabel: _myLocationStatusLabel,
+                mapAreaSearchEnabled: _lastCameraCenter != null,
+                mapAreaSearchActive: _mapSearchCenter != null,
+                onBack: () => context.popOrGo(
+                  RoutePaths.planDetail(widget.groupId, widget.planId),
                 ),
+                onSearchTap: _activateSearch,
+                onSearchChanged: (value) {
+                  setState(() {
+                    _query = value;
+                    _searchActive = true;
+                    _selectedCandidate = null;
+                  });
+                },
+                onPrimaryCategorySelected: (category) {
+                  setState(() {
+                    _selectedPrimaryCategory = category;
+                    _selectedCategoryFilter = null;
+                    _searchActive = true;
+                    _selectedCandidate = null;
+                  });
+                },
+                onCategoryFilterSelected: (category) {
+                  setState(() {
+                    _selectedCategoryFilter =
+                        _selectedCategoryFilter == category ? null : category;
+                    _searchActive = true;
+                    _selectedCandidate = null;
+                  });
+                },
+                onMapAreaSearchPressed: _searchVisibleMapArea,
+                onCurrentLocationPressed:
+                    _myLocationState == _MyLocationRequestState.requesting
+                    ? null
+                    : _requestCurrentLocation,
+              ),
+            ),
+            NotificationListener<DraggableScrollableNotification>(
+              onNotification: (notification) {
+                if ((_recommendationSheetSize - notification.extent).abs() >
+                    0.015) {
+                  setState(() {
+                    _recommendationSheetSize = notification.extent;
+                  });
+                }
+                return false;
+              },
+              child: DraggableScrollableSheet(
+                key: const ValueKey('place-map-bottom-sheet'),
+                controller: _recommendationSheetController,
+                minChildSize: _RecommendationSheet.minSheetSize,
+                initialChildSize: _RecommendationSheet.initialSheetSize,
+                maxChildSize: _RecommendationSheet.maxSheetSize,
+                snap: true,
+                snapSizes: const [
+                  _RecommendationSheet.minSheetSize,
+                  _RecommendationSheet.initialSheetSize,
+                  _RecommendationSheet.maxSheetSize,
+                ],
+                builder: (context, scrollController) {
+                  return _RecommendationSheet(
+                    controller: scrollController,
+                    candidates: visibleCandidates,
+                    searchActive: searchActive,
+                    autoSearch: autoSearch,
+                    query: effectiveQuery,
+                    selectedCategory: _selectedSearchCategory,
+                    searchLoading: searchLoading,
+                    searchHadError: searchHadError,
+                    mapScopedSearch: _mapSearchCenter != null,
+                    searchRadiusMeters: _mapSearchRadiusMeters,
+                    selectedCandidate: _selectedCandidate,
+                    isAlreadyCandidate: state.hasCandidate,
+                    isSavingCandidate: (candidate) =>
+                        _savingCandidateIds.contains(candidate.id),
+                    onBackToResults: () {
+                      setState(() {
+                        _selectedCandidate = null;
+                      });
+                      _openRecommendationSheet(
+                        _RecommendationSheet.initialSheetSize,
+                      );
+                    },
+                    onCandidateSelected: (candidate) {
+                      setState(() {
+                        _selectedCandidate = candidate;
+                      });
+                      _openRecommendationSheet(
+                        _RecommendationSheet.maxSheetSize,
+                      );
+                    },
+                    onRegisterPressed: (candidate) =>
+                        _saveSchedulePlaceAndNavigate(
+                          candidate,
+                          context,
+                          state,
+                        ),
+                    onAddCandidatePressed: (candidate) =>
+                        _saveCandidateAndNavigate(
+                          candidate,
+                          context,
+                          message: '후보에 추가되었어요!',
+                          targetPath: RoutePaths.planPlaceCandidates(
+                            widget.groupId,
+                            widget.planId,
+                          ),
+                        ),
+                  );
+                },
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _openRecommendationSheet(double size) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_recommendationSheetController.isAttached) {
+        return;
+      }
+      unawaited(
+        _recommendationSheetController.animateTo(
+          size,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
   }
 
   Future<void> _saveCandidateAndNavigate(
@@ -848,53 +933,206 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 }
 
+class _MapSearchOverlay extends StatelessWidget {
+  const _MapSearchOverlay({
+    required this.query,
+    required this.primaryCategories,
+    required this.activeCategoryFilters,
+    required this.selectedPrimaryCategory,
+    required this.selectedCategoryFilter,
+    required this.myLocationState,
+    required this.myLocationTooltip,
+    required this.myLocationIcon,
+    required this.myLocationStatusLabel,
+    required this.mapAreaSearchEnabled,
+    required this.mapAreaSearchActive,
+    required this.onBack,
+    required this.onSearchTap,
+    required this.onSearchChanged,
+    required this.onPrimaryCategorySelected,
+    required this.onCategoryFilterSelected,
+    required this.onMapAreaSearchPressed,
+    required this.onCurrentLocationPressed,
+  });
+
+  final String query;
+  final List<String> primaryCategories;
+  final List<String> activeCategoryFilters;
+  final String selectedPrimaryCategory;
+  final String? selectedCategoryFilter;
+  final _MyLocationRequestState myLocationState;
+  final String myLocationTooltip;
+  final IconData myLocationIcon;
+  final String? myLocationStatusLabel;
+  final bool mapAreaSearchEnabled;
+  final bool mapAreaSearchActive;
+  final VoidCallback onBack;
+  final VoidCallback onSearchTap;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onPrimaryCategorySelected;
+  final ValueChanged<String> onCategoryFilterSelected;
+  final VoidCallback onMapAreaSearchPressed;
+  final VoidCallback? onCurrentLocationPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SearchBar(
+          query: query,
+          onBack: onBack,
+          onTap: onSearchTap,
+          onChanged: onSearchChanged,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _CategoryPills(
+          categories: primaryCategories,
+          selectedCategory: selectedPrimaryCategory,
+          onSelected: onPrimaryCategorySelected,
+        ),
+        if (activeCategoryFilters.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _CategoryPills(
+            categories: activeCategoryFilters,
+            selectedCategory: selectedCategoryFilter ?? '',
+            onSelected: onCategoryFilterSelected,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            _MapAreaSearchButton(
+              enabled: mapAreaSearchEnabled,
+              active: mapAreaSearchActive,
+              onPressed: onMapAreaSearchPressed,
+            ),
+            const Spacer(),
+            _FloatingMapIconButton(
+              tooltip: '필터',
+              onPressed: onSearchTap,
+              child: const Icon(Icons.tune),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            _FloatingMapIconButton(
+              tooltip: myLocationTooltip,
+              onPressed: onCurrentLocationPressed,
+              child: myLocationState == _MyLocationRequestState.requesting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(myLocationIcon),
+            ),
+          ],
+        ),
+        if (myLocationStatusLabel case final statusLabel?) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _MapStatusPill(label: statusLabel),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SearchBar extends StatelessWidget {
   const _SearchBar({
     required this.query,
+    required this.onBack,
     required this.onTap,
     required this.onChanged,
   });
 
   final String query;
+  final VoidCallback onBack;
   final VoidCallback onTap;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: AppColors.textSub),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: TextFormField(
-              initialValue: query,
-              onTap: onTap,
-              onChanged: onChanged,
-              decoration: InputDecoration(
-                hintText: '장소 검색 (카페, 식당, 관광지)',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                hintStyle: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-              ),
-              style: Theme.of(context).textTheme.bodyMedium,
+    return Row(
+      children: [
+        _FloatingMapIconButton(
+          tooltip: '뒤로',
+          onPressed: onBack,
+          child: const Icon(Icons.arrow_back_ios_new),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: OnmuCard(
+            backgroundColor: AppColors.bgDefault.withValues(alpha: 0.94),
+            borderColor: AppColors.lineSoft,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: AppColors.textSub),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: query,
+                    onTap: onTap,
+                    onChanged: onChanged,
+                    decoration: InputDecoration(
+                      hintText: '장소 검색 (카페, 식당, 관광지)',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      hintStyle: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textSub),
+                    ),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FloatingMapIconButton extends StatelessWidget {
+  const _FloatingMapIconButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.bgDefault.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      elevation: 3,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        color: AppColors.textMain,
+        disabledColor: AppColors.textMuted,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+        ),
+        icon: child,
       ),
     );
   }
@@ -1190,6 +1428,9 @@ class _RecommendationSheet extends StatelessWidget {
     required this.onAddCandidatePressed,
   });
 
+  static const minSheetSize = 0.16;
+  static const initialSheetSize = 0.34;
+  static const maxSheetSize = 0.82;
   static const _bottomNavigationSafePadding = 32.0;
 
   final ScrollController controller;

@@ -10,6 +10,22 @@ import '../../../shared/models/plan_models.dart';
 import '../../../shared/widgets/onmu_card.dart';
 import '../../../shared/widgets/onmu_chip.dart';
 
+const double _routePreviewMapHeight = 340;
+
+const EdgeInsets _routePreviewCameraFitPadding = EdgeInsets.fromLTRB(
+  48,
+  88,
+  48,
+  104,
+);
+
+const EdgeInsets _routePreviewMarkerScreenSafetyPadding = EdgeInsets.fromLTRB(
+  0,
+  72,
+  0,
+  72,
+);
+
 class PlanRouteMapCard extends StatelessWidget {
   const PlanRouteMapCard({
     required this.routeState,
@@ -17,7 +33,7 @@ class PlanRouteMapCard extends StatelessWidget {
     required this.travelMode,
     this.onTravelModeChanged,
     this.showTravelModeControls = true,
-    this.height = 280,
+    this.height = _routePreviewMapHeight,
     super.key,
   });
 
@@ -34,82 +50,104 @@ class PlanRouteMapCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       backgroundColor: AppColors.bgGrid,
       borderColor: AppColors.lineSoft,
-      child: SizedBox(
-        height: height,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: routeState.when(
-                data: (route) {
-                  final stops = _routeStopsForVisitPlan(route, visitPlan);
-                  return OnmuMapView(
-                    points: stops,
-                    routeGeometry: stops.length >= 2
-                        ? route.geometry
-                        : const [],
-                    zoom: _mapZoomFor(stops),
-                    fallbackLabel: '장소 동선',
-                  );
-                },
-                loading: () =>
-                    const OnmuMapView(points: [], fallbackLabel: '동선 계산 중입니다.'),
-                error: (error, stackTrace) => const OnmuMapView(
-                  points: [],
-                  fallbackLabel: '동선 지도를 불러오지 못했어요',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: height,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: routeState.when(
+                    data: (route) {
+                      final stops = _routeStopsForVisitPlan(route, visitPlan);
+                      return OnmuMapView(
+                        key: const ValueKey('plan-itinerary-route-map'),
+                        points: stops,
+                        routeGeometry: stops.length >= 2
+                            ? route.geometry
+                            : const [],
+                        zoom: _mapZoomFor(stops),
+                        cameraFitPadding: _routePreviewCameraFitPadding,
+                        markerScreenSafetyPadding:
+                            _routePreviewMarkerScreenSafetyPadding,
+                        fallbackLabel: '장소 동선',
+                      );
+                    },
+                    loading: () => const OnmuMapView(
+                      key: ValueKey('plan-itinerary-route-map'),
+                      points: [],
+                      cameraFitPadding: _routePreviewCameraFitPadding,
+                      markerScreenSafetyPadding:
+                          _routePreviewMarkerScreenSafetyPadding,
+                      fallbackLabel: '동선 계산 중입니다.',
+                    ),
+                    error: (error, stackTrace) => const OnmuMapView(
+                      key: ValueKey('plan-itinerary-route-map'),
+                      points: [],
+                      cameraFitPadding: _routePreviewCameraFitPadding,
+                      markerScreenSafetyPadding:
+                          _routePreviewMarkerScreenSafetyPadding,
+                      fallbackLabel: '동선 지도를 불러오지 못했어요',
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: AppSpacing.sm,
-              top: AppSpacing.sm,
-              child: const _RouteStatusPill(label: '장소 동선'),
-            ),
-            if (showTravelModeControls && onTravelModeChanged != null)
-              Positioned(
-                top: AppSpacing.sm,
-                right: AppSpacing.sm,
-                child: Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
-                    _TravelModeChip(
-                      label: '도보',
-                      mode: 'walk',
-                      selectedMode: travelMode,
-                      onSelected: onTravelModeChanged!,
-                    ),
-                    _TravelModeChip(
-                      label: '자전거',
-                      mode: 'bike',
-                      selectedMode: travelMode,
-                      onSelected: onTravelModeChanged!,
-                    ),
-                    _TravelModeChip(
-                      label: '차량',
-                      mode: 'car',
-                      selectedMode: travelMode,
-                      onSelected: onTravelModeChanged!,
-                    ),
-                  ],
+                Positioned(
+                  left: AppSpacing.sm,
+                  top: AppSpacing.sm,
+                  child: const _RouteStatusPill(label: '장소 동선'),
                 ),
-              ),
-            Positioned(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
-              child: routeState.when(
-                data: (route) {
-                  final stops = _routeStopsForVisitPlan(route, visitPlan);
-                  return stops.length >= 2
-                      ? _RouteSummaryPill(route: route, stops: stops)
-                      : _RouteStatusPill(label: _routeStatusLabel(stops));
-                },
-                loading: () => const _RouteStatusPill(label: '동선 계산 중'),
-                error: (error, stackTrace) =>
-                    const _RouteStatusPill(label: '동선을 계산하지 못했어요'),
-              ),
+                if (showTravelModeControls && onTravelModeChanged != null)
+                  Positioned(
+                    top: AppSpacing.sm,
+                    right: AppSpacing.sm,
+                    child: Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        _TravelModeChip(
+                          label: '도보',
+                          mode: 'walk',
+                          selectedMode: travelMode,
+                          onSelected: onTravelModeChanged!,
+                        ),
+                        _TravelModeChip(
+                          label: '자전거',
+                          mode: 'bike',
+                          selectedMode: travelMode,
+                          onSelected: onTravelModeChanged!,
+                        ),
+                        _TravelModeChip(
+                          label: '차량',
+                          mode: 'car',
+                          selectedMode: travelMode,
+                          onSelected: onTravelModeChanged!,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              AppSpacing.xs,
+              AppSpacing.sm,
+              AppSpacing.sm,
+            ),
+            child: routeState.when(
+              data: (route) {
+                final stops = _routeStopsForVisitPlan(route, visitPlan);
+                return stops.length >= 2
+                    ? _RouteSummaryPill(route: route, stops: stops)
+                    : _RouteStatusPill(label: _routeStatusLabel(stops));
+              },
+              loading: () => const _RouteStatusPill(label: '동선 계산 중'),
+              error: (error, stackTrace) =>
+                  const _RouteStatusPill(label: '동선을 계산하지 못했어요'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -286,6 +324,9 @@ String _routeFallbackLabel(RouteRecommendation route) {
 }
 
 String _legLabel(RouteRecommendation route, List<OnmuMapPoint> stops) {
+  if (route.legs.isNotEmpty) {
+    return '${route.legs.length}구간';
+  }
   final stopLegCount = stops.length - 1;
   if (stopLegCount > 0) {
     return '$stopLegCount구간';
@@ -322,7 +363,9 @@ String _routeLegPreviewLabel(
     if (durationSeconds > 0) _durationLabel(durationSeconds),
     if (distanceMeters > 0) _distanceLabel(distanceMeters),
   ];
-  final remainingLegCount = stops.length - 2;
+  final remainingLegCount = route.legs.isNotEmpty
+      ? route.legs.length - 1
+      : stops.length - 2;
   final suffix = remainingLegCount > 0 ? ' 외 $remainingLegCount구간' : '';
   return '${labels.join(' · ')}$suffix';
 }

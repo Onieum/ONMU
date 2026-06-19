@@ -60,6 +60,7 @@ public class FriendService {
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          coalesce((friend.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           coalesce(fs.is_favorite, false) as favorite
         from friendships f
         join users friend on friend.id = case
@@ -155,6 +156,7 @@ public class FriendService {
           end as pixel_character,
           '' as memo,
           coalesce(u.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          coalesce((u.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           false as favorite
         from users u
         left join character_profiles cp on cp.user_id = u.id
@@ -421,6 +423,7 @@ public class FriendService {
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          coalesce((friend.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           coalesce(fs.is_favorite, false) as favorite
         from friendships f
         join users friend on friend.id = ?
@@ -564,6 +567,7 @@ public class FriendService {
       readJsonObject(rs.getString("pixel_character")),
       rs.getString("memo"),
       rs.getString("intro_text"),
+      rs.getBoolean("use_default_profile_image"),
       rs.getBoolean("favorite")
     );
   }

@@ -121,7 +121,11 @@ class _ProfileHero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CharacterPortrait(size: 88, profileImageUrl: profileImageUrl),
+              _CharacterPortrait(
+                size: 88,
+                profileImageUrl: profileImageUrl,
+                fallbackToViewerCharacter: !profile.useDefaultProfileImage,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -267,7 +271,7 @@ class _CharacterPortrait extends ConsumerWidget {
         character ??
         (fallbackToViewerCharacter
             ? ref.watch(userCharacterProvider) ??
-                ref.watch(characterProfileProvider).value
+                  ref.watch(characterProfileProvider).value
             : null);
 
     final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
@@ -451,6 +455,10 @@ class _ProfileTab extends StatelessWidget {
           title: '약속 스타일',
           actionLabel: showActions ? '편집' : null,
           onAction: showActions ? onScheduleEdit : null,
+          detailLabel: onDetail == null ? null : '상세 >',
+          onDetail: onDetail == null
+              ? null
+              : () => onDetail!(_ProfileDetailSection.schedule),
           children: [
             _InfoRow(
               icon: Icons.handshake_outlined,
@@ -461,9 +469,6 @@ class _ProfileTab extends StatelessWidget {
                     _KeywordChip(label: style, selected: true),
                 ],
               ),
-              onTap: onDetail == null
-                  ? null
-                  : () => onDetail!(_ProfileDetailSection.schedule),
             ),
             _InfoRow(
               icon: Icons.calendar_month_rounded,
@@ -474,9 +479,6 @@ class _ProfileTab extends StatelessWidget {
                     _OutlinedToken(label: day),
                 ],
               ),
-              onTap: onDetail == null
-                  ? null
-                  : () => onDetail!(_ProfileDetailSection.schedule),
             ),
             _InfoRow(
               icon: Icons.schedule_rounded,
@@ -487,9 +489,6 @@ class _ProfileTab extends StatelessWidget {
                     _OutlinedToken(label: time),
                 ],
               ),
-              onTap: onDetail == null
-                  ? null
-                  : () => onDetail!(_ProfileDetailSection.schedule),
             ),
             _InfoRow(
               icon: Icons.event_busy_rounded,
@@ -500,9 +499,6 @@ class _ProfileTab extends StatelessWidget {
                     _OutlinedToken(label: date),
                 ],
               ),
-              onTap: onDetail == null
-                  ? null
-                  : () => onDetail!(_ProfileDetailSection.schedule),
             ),
           ],
         ),
