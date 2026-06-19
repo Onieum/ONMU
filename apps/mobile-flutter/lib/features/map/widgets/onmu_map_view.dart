@@ -29,6 +29,18 @@ bool shouldUseOnmuMapLibre({
 const String mapNativePointDataKey = 'onmuPointId';
 
 @visibleForTesting
+const String mapCatalogSourceId = 'onmu-catalog-context-source';
+
+@visibleForTesting
+const String mapCatalogClusterLayerId = 'onmu-catalog-clusters';
+
+@visibleForTesting
+const String mapCatalogClusterCountLayerId = 'onmu-catalog-cluster-count';
+
+@visibleForTesting
+const String mapCatalogDotLayerId = 'onmu-catalog-dots';
+
+@visibleForTesting
 const double onmuMapMinUsableZoom = 6.2;
 
 @visibleForTesting
@@ -216,6 +228,110 @@ bool _sameCoordinate(OnmuLatLng previous, OnmuLatLng next) {
 }
 
 @visibleForTesting
+bool haveSameCatalogLayerPoints(
+  List<OnmuCatalogMapPoint> previous,
+  List<OnmuCatalogMapPoint> next,
+) {
+  if (previous.length != next.length) {
+    return false;
+  }
+  for (var i = 0; i < previous.length; i += 1) {
+    final previousPoint = previous[i];
+    final nextPoint = next[i];
+    if (previousPoint.id != nextPoint.id ||
+        previousPoint.category != nextPoint.category ||
+        !_sameCoordinate(previousPoint.coordinate, nextPoint.coordinate)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@visibleForTesting
+Map<String, dynamic> catalogGeoJsonForPoints(List<OnmuCatalogMapPoint> points) {
+  return {
+    'type': 'FeatureCollection',
+    'features': [
+      for (final point in points)
+        {
+          'type': 'Feature',
+          'id': point.id,
+          'properties': {
+            'id': point.id,
+            if (point.category.trim().isNotEmpty)
+              'category': point.category.trim(),
+          },
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [point.coordinate.lng, point.coordinate.lat],
+          },
+        },
+    ],
+  };
+}
+
+@visibleForTesting
+GeojsonSourceProperties catalogGeoJsonSourceProperties(
+  List<OnmuCatalogMapPoint> points,
+) {
+  return GeojsonSourceProperties(
+    data: catalogGeoJsonForPoints(points),
+    cluster: true,
+    clusterRadius: 56,
+    clusterMaxZoom: 13,
+    promoteId: 'id',
+  );
+}
+
+@visibleForTesting
+CircleLayerProperties catalogClusterCircleLayerProperties() {
+  return const CircleLayerProperties(
+    circleColor: '#FF8FA3',
+    circleOpacity: 0.82,
+    circleStrokeColor: '#FFFFFF',
+    circleStrokeWidth: 3,
+    circleRadius: [
+      'step',
+      ['get', 'point_count'],
+      18,
+      10,
+      22,
+      50,
+      28,
+    ],
+  );
+}
+
+@visibleForTesting
+SymbolLayerProperties catalogClusterCountLayerProperties() {
+  return const SymbolLayerProperties(
+    textField: ['get', 'point_count_abbreviated'],
+    textColor: '#FFFFFF',
+    textSize: 12,
+    textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+    textAllowOverlap: true,
+    textIgnorePlacement: true,
+  );
+}
+
+@visibleForTesting
+CircleLayerProperties catalogDotLayerProperties() {
+  return const CircleLayerProperties(
+    circleColor: '#E86D75',
+    circleOpacity: 0.72,
+    circleRadius: 4.2,
+    circleStrokeColor: '#FFFFFF',
+    circleStrokeWidth: 1.6,
+  );
+}
+
+const _catalogClusterFilter = ['has', 'point_count'];
+const _catalogUnclusteredFilter = [
+  '!',
+  ['has', 'point_count'],
+];
+
+@visibleForTesting
 CameraTargetBounds cameraTargetBoundsFromManifest(TileManifest? manifest) {
   final bounds = manifest?.bounds;
   if (bounds == null || bounds.length < 4) {
@@ -239,6 +355,7 @@ CameraTargetBounds cameraTargetBoundsFromManifest(TileManifest? manifest) {
 class OnmuMapView extends ConsumerStatefulWidget {
   const OnmuMapView({
     required this.points,
+    this.catalogPoints = const [],
     this.routeGeometry = const [],
     this.center,
     this.zoom = 11,
@@ -257,6 +374,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
   });
 
   final List<OnmuMapPoint> points;
+  final List<OnmuCatalogMapPoint> catalogPoints;
   final List<OnmuLatLng> routeGeometry;
   final OnmuLatLng? center;
   final double zoom;
@@ -279,6 +397,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
 class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   MapLibreMapController? _mapController;
   bool _styleLoaded = false;
+  bool _catalogSourceAdded = false;
   bool _myLocationLayerEnabled = false;
   int _handledMyLocationRequestSerial = 0;
   int _nativeSyncGeneration = 0;
@@ -295,6 +414,10 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       oldWidget.routeGeometry,
       widget.routeGeometry,
     );
+    final catalogPointsChanged = !haveSameCatalogLayerPoints(
+      oldWidget.catalogPoints,
+      widget.catalogPoints,
+    );
     final centerChanged = !haveSameOptionalCameraTarget(
       oldWidget.center,
       widget.center,
@@ -303,6 +426,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     final focusChanged = oldWidget.focusedPointId != widget.focusedPointId;
     if (pointsChanged ||
         routeGeometryChanged ||
+        catalogPointsChanged ||
         centerChanged ||
         zoomChanged ||
         focusChanged) {
@@ -387,6 +511,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
                     ),
                     onMapCreated: _handleMapCreated,
                     onStyleLoadedCallback: _handleStyleLoaded,
+                    onMapClick: _handleMapClick,
                     onCameraIdle: _handleCameraIdle,
                     trackCameraPosition: true,
                     compassEnabled: false,
@@ -437,6 +562,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
 
   void _handleStyleLoaded() {
     _styleLoaded = true;
+    _catalogSourceAdded = false;
     _registeredNativeMarkerImages.clear();
     unawaited(_configureNativeMarkerSymbolsAndSync());
   }
@@ -455,6 +581,66 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       // 일부 플랫폼은 style 초기화 직후 placement 옵션 반영이 늦을 수 있다.
     }
     await _syncNativeMap(fitCamera: true);
+  }
+
+  void _handleMapClick(math.Point<double> point, LatLng coordinates) {
+    unawaited(_zoomIntoCatalogCluster(point: point, fallback: coordinates));
+  }
+
+  Future<void> _zoomIntoCatalogCluster({
+    required math.Point<double> point,
+    required LatLng fallback,
+  }) async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded || widget.catalogPoints.isEmpty) {
+      return;
+    }
+    try {
+      final features = await controller.queryRenderedFeatures(point, const [
+        mapCatalogClusterLayerId,
+      ], null);
+      if (features.isEmpty) {
+        return;
+      }
+      final target = _latLngFromRenderedFeature(features.first) ?? fallback;
+      final currentZoom = controller.cameraPosition?.zoom ?? widget.zoom;
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          target,
+          math.min(18, math.max(currentZoom + 1.8, 12.6)),
+        ),
+        duration: const Duration(milliseconds: 320),
+      );
+    } catch (_) {
+      // Cluster hit-test 실패는 지도 상호작용 자체를 막지 않는다.
+    }
+  }
+
+  LatLng? _latLngFromRenderedFeature(Object? feature) {
+    if (feature is! Map) {
+      return null;
+    }
+    final geometry = feature['geometry'];
+    if (geometry is! Map) {
+      return null;
+    }
+    final coordinates = geometry['coordinates'];
+    if (coordinates is! List || coordinates.length < 2) {
+      return null;
+    }
+    final lng = _readDouble(coordinates[0]);
+    final lat = _readDouble(coordinates[1]);
+    if (lat == null || lng == null) {
+      return null;
+    }
+    return LatLng(lat, lng);
+  }
+
+  double? _readDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value?.toString() ?? '');
   }
 
   void _handleSymbolTapped(Symbol symbol) {
@@ -535,6 +721,10 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       if (!mounted || generation != _nativeSyncGeneration) {
         return;
       }
+      await _syncCatalogNativeLayer(controller);
+      if (!mounted || generation != _nativeSyncGeneration) {
+        return;
+      }
       await _ensureNativeMarkerImages(controller);
       if (!mounted || generation != _nativeSyncGeneration) {
         return;
@@ -583,6 +773,40 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     } catch (_) {
       // 지도 annotation 동기화 실패는 플랫폼 뷰 수명주기 경쟁일 수 있어 UI를 유지한다.
     }
+  }
+
+  Future<void> _syncCatalogNativeLayer(MapLibreMapController controller) async {
+    final geojson = catalogGeoJsonForPoints(widget.catalogPoints);
+    if (!_catalogSourceAdded) {
+      await controller.addSource(
+        mapCatalogSourceId,
+        catalogGeoJsonSourceProperties(widget.catalogPoints),
+      );
+      await controller.addLayer(
+        mapCatalogSourceId,
+        mapCatalogClusterLayerId,
+        catalogClusterCircleLayerProperties(),
+        filter: _catalogClusterFilter,
+        enableInteraction: false,
+      );
+      await controller.addLayer(
+        mapCatalogSourceId,
+        mapCatalogClusterCountLayerId,
+        catalogClusterCountLayerProperties(),
+        filter: _catalogClusterFilter,
+        enableInteraction: false,
+      );
+      await controller.addLayer(
+        mapCatalogSourceId,
+        mapCatalogDotLayerId,
+        catalogDotLayerProperties(),
+        filter: _catalogUnclusteredFilter,
+        enableInteraction: false,
+      );
+      _catalogSourceAdded = true;
+      return;
+    }
+    await controller.setGeoJsonSource(mapCatalogSourceId, geojson);
   }
 
   Future<void> _logNativeMarkerScreenSummary(

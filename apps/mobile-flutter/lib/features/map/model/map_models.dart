@@ -19,6 +19,18 @@ class OnmuMapPoint {
   final int order;
 }
 
+class OnmuCatalogMapPoint {
+  const OnmuCatalogMapPoint({
+    required this.id,
+    required this.coordinate,
+    this.category = '',
+  });
+
+  final String id;
+  final OnmuLatLng coordinate;
+  final String category;
+}
+
 class TileManifest {
   const TileManifest({
     required this.styleUrl,
