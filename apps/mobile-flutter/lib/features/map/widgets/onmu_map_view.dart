@@ -160,11 +160,7 @@ bool shouldFitCameraForMapUpdate({
   required bool zoomChanged,
   required bool styleLoaded,
 }) {
-  return pointsChanged ||
-      routeGeometryChanged ||
-      centerChanged ||
-      zoomChanged ||
-      styleLoaded;
+  return pointsChanged || routeGeometryChanged || styleLoaded;
 }
 
 @visibleForTesting

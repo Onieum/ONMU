@@ -196,6 +196,26 @@ void main() {
       shouldFitCameraForMapUpdate(
         pointsChanged: false,
         routeGeometryChanged: false,
+        centerChanged: true,
+        zoomChanged: false,
+        styleLoaded: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: true,
+        styleLoaded: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
         centerChanged: false,
         zoomChanged: false,
         styleLoaded: true,
