@@ -122,6 +122,16 @@ Protomaps basemap 계층 이름을 기준으로 작성했으므로, 실제 PMTil
 - 한강/팔당호 주변: 큰 수역은 사라지지 않고 하천은 과하게 두껍지 않아야 한다.
 - 해안/만 주변: `ocean`/`bay`가 배경과 구분되어야 한다.
 
+### POI와 녹지 label 밀도
+
+현재 모바일 지도 UX는 후보 marker와 경로 line이 앱에서 강조되고, basemap은 길 찾기 맥락을 보조하는 역할이다. `seed-map-tiles-minio.ps1`가 생성하는 `onmu-light` style은 지도 앱에 가까운 읽기감을 위해 다음 계층을 분리한다.
+
+- `landuse-park`: 공원, 숲, 잔디, 정원 계열을 기존 landuse보다 녹색 계열로 분리한다.
+- `transit-station-labels`: 지하철역, 철도역, 버스 정류장 계열 POI label을 일반 POI보다 먼저 표시한다.
+- `poi-labels`: 일반 POI label은 낮은 opacity와 작은 글자 크기로 유지해 후보 번호 marker와 route line을 가리지 않게 한다.
+
+이 변경은 style JSON 생성 로직만 바꾼다. 실제 Azure Blob/Front Door object 반영은 Android 지도 smoke와 rollback 기준을 확인한 뒤 별도 운영 단계에서 수행한다.
+
 style 생성 구조만 확인하려면 업로드 없이 dry-run을 먼저 실행한다.
 
 ```powershell

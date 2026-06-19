@@ -129,9 +129,25 @@ LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
     geometry: routeGeometry
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
-    lineColor: '#FF8FA3',
-    lineWidth: 4,
-    lineOpacity: 0.84,
+    lineColor: '#1D4ED8',
+    lineWidth: 6.5,
+    lineOpacity: 0.94,
+    lineJoin: 'round',
+  );
+}
+
+@visibleForTesting
+LineOptions? nativeLineCasingOptionsForRoute(List<OnmuLatLng> routeGeometry) {
+  if (routeGeometry.length < 2) {
+    return null;
+  }
+  return LineOptions(
+    geometry: routeGeometry
+        .map((point) => LatLng(point.lat, point.lng))
+        .toList(growable: false),
+    lineColor: '#FFFFFF',
+    lineWidth: 10.5,
+    lineOpacity: 0.92,
     lineJoin: 'round',
   );
 }
@@ -230,6 +246,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.onPointTap,
     this.onCameraIdle,
     this.onMyLocationResolved,
+    this.onMyLocationUnavailable,
     this.myLocationEnabled = false,
     this.myLocationRequestSerial = 0,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
@@ -245,6 +262,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final ValueChanged<OnmuMapPoint>? onPointTap;
   final ValueChanged<OnmuLatLng>? onCameraIdle;
   final ValueChanged<OnmuLatLng>? onMyLocationResolved;
+  final VoidCallback? onMyLocationUnavailable;
   final bool myLocationEnabled;
   final int myLocationRequestSerial;
   final String fallbackLabel;
@@ -351,6 +369,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
             child: useMapLibre
                 ? MapLibreMap(
                     styleString: styleUrl,
+                    translucentTextureSurface: true,
                     initialCameraPosition: CameraPosition(
                       target: LatLng(mapCenter.lat, mapCenter.lng),
                       zoom: math.max(widget.zoom, onmuMapMinUsableZoom),
@@ -462,11 +481,13 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   Future<void> _focusNativeMyLocation() async {
     final controller = _mapController;
     if (controller == null) {
+      widget.onMyLocationUnavailable?.call();
       return;
     }
     try {
       final location = await controller.requestMyLocationLatLng();
       if (location == null) {
+        widget.onMyLocationUnavailable?.call();
         return;
       }
       final target = OnmuLatLng(
@@ -479,6 +500,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         duration: const Duration(milliseconds: 320),
       );
     } catch (_) {
+      widget.onMyLocationUnavailable?.call();
       // 위치 권한 거부나 플랫폼 위치 미사용 상태에서는 지도를 유지한다.
     }
   }
@@ -514,6 +536,14 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         return;
       }
 
+      final lineCasingOptions = nativeLineCasingOptionsForRoute(
+        widget.routeGeometry,
+      );
+      if (lineCasingOptions != null) {
+        await controller.addLine(lineCasingOptions, const {
+          'type': 'route-casing',
+        });
+      }
       final lineOptions = nativeLineOptionsForRoute(widget.routeGeometry);
       if (lineOptions != null) {
         await controller.addLine(lineOptions, const {'type': 'route'});
@@ -873,15 +903,26 @@ class _Projection {
   late double maxLng;
 
   Offset offsetFor(OnmuLatLng coordinate) {
-    const padding = 42.0;
-    final width = math.max(1.0, size.width - padding * 2);
-    final height = math.max(1.0, size.height - padding * 2);
-    final x = padding + ((coordinate.lng - minLng) / (maxLng - minLng)) * width;
+    const preferredPadding = 42.0;
+    final horizontalPadding = math.min(
+      preferredPadding,
+      math.max(0.0, size.width / 2 - 1),
+    );
+    final verticalPadding = math.min(
+      preferredPadding,
+      math.max(0.0, size.height / 2 - 1),
+    );
+    final width = math.max(1.0, size.width - horizontalPadding * 2);
+    final height = math.max(1.0, size.height - verticalPadding * 2);
+    final x =
+        horizontalPadding +
+        ((coordinate.lng - minLng) / (maxLng - minLng)) * width;
     final y =
-        padding + ((maxLat - coordinate.lat) / (maxLat - minLat)) * height;
+        verticalPadding +
+        ((maxLat - coordinate.lat) / (maxLat - minLat)) * height;
     return Offset(
-      x.clamp(padding, size.width - padding).toDouble(),
-      y.clamp(padding, size.height - padding).toDouble(),
+      x.clamp(horizontalPadding, size.width - horizontalPadding).toDouble(),
+      y.clamp(verticalPadding, size.height - verticalPadding).toDouble(),
     );
   }
 }
@@ -896,17 +937,24 @@ class _RouteOverlayPainter extends CustomPainter {
     if (offsets.length < 2) {
       return;
     }
-    final paint = Paint()
-      ..color = AppColors.primaryPink
+    final casingPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.92)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = 4;
+      ..strokeWidth = 10;
+    final routePaint = Paint()
+      ..color = const Color(0xFF1D4ED8)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = 6;
     final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
     for (final offset in offsets.skip(1)) {
       path.lineTo(offset.dx, offset.dy);
     }
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, casingPaint);
+    canvas.drawPath(path, routePaint);
   }
 
   @override
