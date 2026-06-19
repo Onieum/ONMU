@@ -9,6 +9,8 @@ import 'package:onmu_mobile/shared/widgets/onmu_date_time_range_picker.dart';
 
 void main() {
   testWidgets('단일 날짜와 시간 선택은 ONMU 캘린더와 슬라이딩 시간 선택을 사용한다', (tester) async {
+    final initialDateTime = DateTime.now().add(const Duration(days: 2));
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.lightTheme,
@@ -20,7 +22,12 @@ void main() {
                   onPressed: () {
                     OnmuDateTimePicker.show(
                       context: context,
-                      initialDateTime: DateTime(2026, 6, 12, 14),
+                      initialDateTime: DateTime(
+                        initialDateTime.year,
+                        initialDateTime.month,
+                        initialDateTime.day,
+                        14,
+                      ),
                     );
                   },
                   child: const Text('단일 열기'),
@@ -36,13 +43,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CupertinoDatePicker), findsNothing);
-    expect(find.text('2026년 6월'), findsOneWidget);
+    expect(
+      find.text('${initialDateTime.year}년 ${initialDateTime.month}월'),
+      findsOneWidget,
+    );
     expect(find.text('시간 선택'), findsOneWidget);
     expect(find.text('14:00'), findsOneWidget);
     expect(find.byType(OnmuSlidingTimePicker), findsOneWidget);
     expect(find.byType(ListWheelScrollView), findsWidgets);
     expect(find.text('시간을 위아래로 밀어서 조정'), findsOneWidget);
     expect(find.byType(OnmuTimeChipPicker), findsNothing);
+  });
+
+  testWidgets('슬라이딩 시간 선택은 주어진 시간 범위 밖의 wheel 값을 보여주지 않는다', (tester) async {
+    var selected = DateTime(2026, 6, 19, 14);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return Scaffold(
+              body: OnmuSlidingTimePicker(
+                title: '방문 시작 시간',
+                selectedDateTime: selected,
+                minimumDateTime: DateTime(2026, 6, 19, 14),
+                maximumDateTime: DateTime(2026, 6, 19, 16),
+                sliderKey: const ValueKey('bounded-visit-time'),
+                onChanged: (value) => setState(() => selected = value),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('14:00'), findsOneWidget);
+    expect(find.text('04'), findsNothing);
+
+    await tester.drag(
+      find.byKey(const ValueKey('bounded-visit-time-hour')),
+      const Offset(0, 460),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('04'), findsNothing);
+    expect(selected.hour, greaterThanOrEqualTo(14));
+    expect(selected.hour, lessThanOrEqualTo(16));
   });
 
   testWidgets('범위 선택 시트는 시작/종료 날짜와 시간을 접은 상태로 먼저 보여준다', (tester) async {

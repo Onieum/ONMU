@@ -219,27 +219,27 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
   @override
   void initState() {
     super.initState();
+    final options = _timePickerOptions(widget.selectedDateTime);
     _hourController = FixedExtentScrollController(
-      initialItem: widget.selectedDateTime.hour,
+      initialItem: options.selectedHourIndex,
     );
     _minuteController = FixedExtentScrollController(
-      initialItem: _minuteIndex(widget.selectedDateTime.minute),
+      initialItem: options.selectedMinuteIndex,
     );
   }
 
   @override
   void didUpdateWidget(covariant OnmuSlidingTimePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedDateTime.hour != oldWidget.selectedDateTime.hour &&
-        _hourController.hasClients) {
-      _jumpToItemAfterBuild(_hourController, widget.selectedDateTime.hour);
+    final options = _timePickerOptions(widget.selectedDateTime);
+    if (_hourController.hasClients &&
+        _hourController.selectedItem != options.selectedHourIndex) {
+      _jumpToItemAfterBuild(_hourController, options.selectedHourIndex);
     }
 
-    final nextMinuteIndex = _minuteIndex(widget.selectedDateTime.minute);
-    final previousMinuteIndex = _minuteIndex(oldWidget.selectedDateTime.minute);
-    if (nextMinuteIndex != previousMinuteIndex &&
-        _minuteController.hasClients) {
-      _jumpToItemAfterBuild(_minuteController, nextMinuteIndex);
+    if (_minuteController.hasClients &&
+        _minuteController.selectedItem != options.selectedMinuteIndex) {
+      _jumpToItemAfterBuild(_minuteController, options.selectedMinuteIndex);
     }
   }
 
@@ -252,13 +252,9 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
 
   @override
   Widget build(BuildContext context) {
+    final options = _timePickerOptions(widget.selectedDateTime);
     final selectedStep = _timeStep(
-      widget.selectedDateTime,
-      widget.minuteInterval,
-    );
-    final minutes = _minuteValues(widget.minuteInterval);
-    final selectedMinute = _minuteFromIndex(
-      _minuteIndex(widget.selectedDateTime.minute),
+      options.selectedDateTime,
       widget.minuteInterval,
     );
 
@@ -306,11 +302,13 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
                         key: _wheelKey('hour'),
                         controller: _hourController,
                         itemExtent: _hourItemExtent,
-                        itemCount: 24,
-                        selectedValue: widget.selectedDateTime.hour,
-                        labelFor: (index) => index.toString().padLeft(2, '0'),
+                        itemCount: options.hours.length,
+                        selectedValue: options.selectedHour,
+                        labelFor: (index) =>
+                            options.hours[index].toString().padLeft(2, '0'),
                         semanticSuffix: '시',
-                        onSelectedItemChanged: (hour) => _emit(hour: hour),
+                        onSelectedItemChanged: (index) =>
+                            _emit(hour: options.hours[index]),
                       ),
                     ),
                     Text(
@@ -324,13 +322,13 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
                         key: _wheelKey('minute'),
                         controller: _minuteController,
                         itemExtent: _minuteItemExtent,
-                        itemCount: minutes.length,
-                        selectedValue: selectedMinute,
+                        itemCount: options.minutes.length,
+                        selectedValue: options.selectedMinute,
                         labelFor: (index) =>
-                            minutes[index].toString().padLeft(2, '0'),
+                            options.minutes[index].toString().padLeft(2, '0'),
                         semanticSuffix: '분',
                         onSelectedItemChanged: (index) =>
-                            _emit(minute: minutes[index]),
+                            _emit(minute: options.minutes[index]),
                       ),
                     ),
                   ],
@@ -387,21 +385,104 @@ class _OnmuSlidingTimePickerState extends State<OnmuSlidingTimePicker> {
     if (_syncingWheelPosition) {
       return;
     }
+    final options = _timePickerOptions(widget.selectedDateTime);
     final next = DateTime(
-      widget.selectedDateTime.year,
-      widget.selectedDateTime.month,
-      widget.selectedDateTime.day,
-      hour ?? widget.selectedDateTime.hour,
-      minute ??
-          _minuteFromIndex(
-            _minuteIndex(widget.selectedDateTime.minute),
-            widget.minuteInterval,
-          ),
+      options.selectedDateTime.year,
+      options.selectedDateTime.month,
+      options.selectedDateTime.day,
+      hour ?? options.selectedHour,
+      minute ?? options.selectedMinute,
     );
-    widget.onChanged(
-      _clampDateTime(next, widget.minimumDateTime, widget.maximumDateTime),
+    widget.onChanged(_timePickerOptions(next).selectedDateTime);
+  }
+
+  _BoundedTimePickerOptions _timePickerOptions(DateTime value) {
+    final minimum = widget.minimumDateTime?.toLocal();
+    final maximum = widget.maximumDateTime?.toLocal();
+    final clamped = _clampDateTime(value.toLocal(), minimum, maximum);
+    final date = DateTime(clamped.year, clamped.month, clamped.day);
+    final slots =
+        <DateTime>[
+              for (var hour = 0; hour < 24; hour += 1)
+                for (final minute in _minuteValues(widget.minuteInterval))
+                  DateTime(date.year, date.month, date.day, hour, minute),
+            ]
+            .where((candidate) {
+              if (minimum != null && candidate.isBefore(minimum)) {
+                return false;
+              }
+              if (maximum != null && candidate.isAfter(maximum)) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false);
+
+    if (slots.isEmpty) {
+      final selectedMinute = _minuteFromIndex(
+        _minuteIndex(clamped.minute),
+        widget.minuteInterval,
+      );
+      final selectedDateTime = DateTime(
+        clamped.year,
+        clamped.month,
+        clamped.day,
+        clamped.hour,
+        selectedMinute,
+      );
+      return _BoundedTimePickerOptions(
+        selectedDateTime: selectedDateTime,
+        hours: [selectedDateTime.hour],
+        minutes: [selectedDateTime.minute],
+      );
+    }
+
+    final roundedMinute = _minuteFromIndex(
+      _minuteIndex(clamped.minute),
+      widget.minuteInterval,
+    );
+    final rounded = DateTime(
+      clamped.year,
+      clamped.month,
+      clamped.day,
+      clamped.hour,
+      roundedMinute,
+    );
+    final selected = _nearestSlot(rounded, slots);
+    final hours = slots.map((slot) => slot.hour).toSet().toList()..sort();
+    final minutes =
+        slots
+            .where((slot) => slot.hour == selected.hour)
+            .map((slot) => slot.minute)
+            .toSet()
+            .toList()
+          ..sort();
+
+    return _BoundedTimePickerOptions(
+      selectedDateTime: selected,
+      hours: hours,
+      minutes: minutes,
     );
   }
+}
+
+class _BoundedTimePickerOptions {
+  const _BoundedTimePickerOptions({
+    required this.selectedDateTime,
+    required this.hours,
+    required this.minutes,
+  });
+
+  final DateTime selectedDateTime;
+  final List<int> hours;
+  final List<int> minutes;
+
+  int get selectedHour => selectedDateTime.hour;
+  int get selectedMinute => selectedDateTime.minute;
+  int get selectedHourIndex =>
+      hours.indexOf(selectedHour).clamp(0, hours.length - 1);
+  int get selectedMinuteIndex =>
+      minutes.indexOf(selectedMinute).clamp(0, minutes.length - 1);
 }
 
 class _TimeWheel extends StatelessWidget {
@@ -925,6 +1006,20 @@ DateTime _clampDateTime(
 
 List<int> _minuteValues(int minuteInterval) {
   return [for (var minute = 0; minute < 60; minute += minuteInterval) minute];
+}
+
+DateTime _nearestSlot(DateTime value, List<DateTime> slots) {
+  if (value.isBefore(slots.first)) {
+    return slots.first;
+  }
+  if (value.isAfter(slots.last)) {
+    return slots.last;
+  }
+  return slots.reduce((nearest, candidate) {
+    final nearestDelta = nearest.difference(value).abs();
+    final candidateDelta = candidate.difference(value).abs();
+    return candidateDelta < nearestDelta ? candidate : nearest;
+  });
 }
 
 int _minuteFromIndex(int index, int minuteInterval) {

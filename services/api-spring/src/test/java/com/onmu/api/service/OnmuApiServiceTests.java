@@ -1421,6 +1421,38 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void creatingSchedulePlaceRejectsVisitTimeOutsidePlanRange() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlanEntity rangedPlan = new PlanEntity(
+      "101",
+      group,
+      "ONMU API 계약 검증",
+      Instant.parse("2026-06-12T01:00:00Z"),
+      Instant.parse("2026-06-12T08:00:00Z"),
+      "scheduled",
+      null,
+      null
+    );
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, rangedPlan, "온무식당", "한식", "서울", "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(rangedPlan));
+    when(placeCandidateRepository.findByPlanAndPublicId(rangedPlan, "201")).thenReturn(Optional.of(candidate));
+
+    assertThatThrownBy(() -> service.createSchedulePlace(
+      "1",
+      "101",
+      user.getId(),
+      new CreateSchedulePlaceRequest("201", null, "2026-06-12T00:30:00Z", "2026-06-12T02:00:00Z", null)
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("schedule_place_time_out_of_plan_range");
+      });
+  }
+
+  @Test
   void updatingSchedulePlaceChangesVisitTimeAndRecordsOutboxEvent() {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     SchedulePlaceEntity schedulePlace = new SchedulePlaceEntity(
@@ -1462,6 +1494,49 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "701".equals(payload.get("schedulePlaceId")))
     );
+  }
+
+  @Test
+  void updatingSchedulePlaceRejectsVisitTimeOutsidePlanRange() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlanEntity rangedPlan = new PlanEntity(
+      "101",
+      group,
+      "ONMU API 계약 검증",
+      Instant.parse("2026-06-12T01:00:00Z"),
+      Instant.parse("2026-06-12T08:00:00Z"),
+      "scheduled",
+      null,
+      null
+    );
+    SchedulePlaceEntity schedulePlace = new SchedulePlaceEntity(
+      "701",
+      group,
+      rangedPlan,
+      null,
+      "온무식당",
+      Instant.parse("2026-06-12T02:00:00Z"),
+      Instant.parse("2026-06-12T03:00:00Z"),
+      1,
+      null
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(rangedPlan));
+    when(schedulePlaceRepository.findByPlanAndPublicId(rangedPlan, "701")).thenReturn(Optional.of(schedulePlace));
+
+    assertThatThrownBy(() -> service.updateSchedulePlace(
+      "1",
+      "101",
+      "701",
+      user.getId(),
+      new UpdateSchedulePlaceRequest("2026-06-12T07:30:00Z", "2026-06-12T08:30:00Z", null)
+    ))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("schedule_place_time_out_of_plan_range");
+      });
   }
 
   @Test

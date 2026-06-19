@@ -106,6 +106,8 @@ Staging 배포 전에는 PostgreSQL Flexible Server에서 `postgis` extension이
 
 `schedule_places`는 `candidateId`가 있으면 후보와 연결하고, 없으면 직접 장소명으로 등록한다. 이 구조는 "후보에 넣어야만 일정에 등록할 수 있다"는 제약을 피하기 위한 현재 구현이다.
 
+방문 시각은 약속 기간 안에서만 저장할 수 있다. `startsAt`과 `endsAt`이 모두 비어 있으면 방문 시간 미정 상태로 허용하고, 둘 중 하나만 있거나 `endsAt <= startsAt`이면 `400 invalid_schedule_place_time_range`로 거절한다. 둘 다 있으면 `plans.starts_at <= schedule_places.starts_at`이고, `plans.ends_at`이 있는 경우 `schedule_places.ends_at <= plans.ends_at`이어야 한다. 이 범위를 벗어나면 `400 schedule_place_time_out_of_plan_range`로 거절한다. Flutter 방문 시간 피커도 같은 범위만 선택 가능하게 제한한다.
+
 ### Flutter Surface
 
 Flutter route와 repository는 운영 API 이름을 따른다.
