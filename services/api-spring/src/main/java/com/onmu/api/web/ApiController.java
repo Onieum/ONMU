@@ -1,5 +1,6 @@
 package com.onmu.api.web;
 
+import com.onmu.api.map.MapCatalogService;
 import com.onmu.api.service.GroupApiService;
 import com.onmu.api.service.OnmuApiService;
 import com.onmu.api.service.PlaceSearchService;
@@ -12,6 +13,7 @@ import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
+import com.onmu.api.web.dto.MapPointsRequest;
 import com.onmu.api.web.dto.PlaceSearchRequest;
 import com.onmu.api.web.dto.RouteRecommendationRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
@@ -50,12 +52,14 @@ import com.onmu.api.security.AuthenticatedUser;
 public class ApiController {
   private final GroupApiService groupApiService;
   private final OnmuApiService onmuApiService;
+  private final MapCatalogService mapCatalogService;
   private final PlaceSearchService placeSearchService;
   private final RouteRecommendationService routeRecommendationService;
   private final SettlementApiService settlementApiService;
 
   public ApiController(
     OnmuApiService onmuApiService,
+    MapCatalogService mapCatalogService,
     PlaceSearchService placeSearchService,
     RouteRecommendationService routeRecommendationService,
     SettlementApiService settlementApiService,
@@ -63,6 +67,7 @@ public class ApiController {
   ) {
     this.groupApiService = groupApiService;
     this.onmuApiService = onmuApiService;
+    this.mapCatalogService = mapCatalogService;
     this.placeSearchService = placeSearchService;
     this.routeRecommendationService = routeRecommendationService;
     this.settlementApiService = settlementApiService;
@@ -275,6 +280,15 @@ public class ApiController {
     return results.stream()
       .filter(result -> result.get("lat") instanceof Number && result.get("lng") instanceof Number)
       .count();
+  }
+
+  @PostMapping("/map-points")
+  public Map<String, Object> mapPoints(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @Valid @RequestBody MapPointsRequest request
+  ) {
+    onmuApiService.plan(request.groupId(), request.planId(), user.userId());
+    return mapCatalogService.mapPoints(request);
   }
 
   @PostMapping("/routes/recommend")
