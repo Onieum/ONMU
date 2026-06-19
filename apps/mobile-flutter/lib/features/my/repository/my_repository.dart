@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
-import '../../../shared/models/character_model.dart';
+import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
@@ -73,7 +73,6 @@ class ApiMyRepository implements MyRepository {
     final preference = OnmuJson.asMap(json['preferenceProfile']);
     final nickname = resolveOnmuDisplayName([
       OnmuJson.readString(json, 'nickname'),
-      OnmuJson.readString(json, 'displayName'),
     ], fallback: '');
     final regionSelection = _safeRegionSelection(preference['region']);
     return MyProfile(
@@ -81,7 +80,10 @@ class ApiMyRepository implements MyRepository {
       profileImageUrl: _absoluteApiUrl(
         OnmuJson.readString(json, 'profileImageUrl'),
       ),
-      character: _characterFromJson(json['pixelCharacter'], nickname),
+      character: characterDraftFromJson(
+        json['pixelCharacter'],
+        nickname: nickname,
+      ),
       introText: _readProfileText(preference, 'introText', _defaultIntroText),
       region: regionSelection.displayName,
       regionSelection: regionSelection,
@@ -129,14 +131,6 @@ class ApiMyRepository implements MyRepository {
       throw StateError('profile_image_upload_public_url_missing');
     }
     return _absoluteApiUrl(publicUrl);
-  }
-
-  CharacterDraft? _characterFromJson(Object? value, String nickname) {
-    final json = OnmuJson.asMap(value);
-    if (json.isEmpty) {
-      return null;
-    }
-    return CharacterDraft.fromApiJson(json, nickname: nickname);
   }
 
   Map<String, Object?> _preferenceProfileJson(MyProfile profile) {

@@ -236,6 +236,7 @@ class _HeaderAvatarCluster extends StatelessWidget {
                 child: PixelAvatar(
                   label: displayMembers[index].name,
                   profileImageUrl: displayMembers[index].profileImageUrl,
+                  character: displayMembers[index].character,
                   size: index == 1 ? 46 : 42,
                 ),
               ),
@@ -452,6 +453,7 @@ class _UpcomingPlanCard extends StatelessWidget {
                       PixelAvatar(
                         label: member.name,
                         profileImageUrl: member.profileImageUrl,
+                        character: member.character,
                         size: 22,
                       ),
                       const SizedBox(width: AppSpacing.xxs),

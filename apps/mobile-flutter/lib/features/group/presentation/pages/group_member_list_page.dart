@@ -372,6 +372,7 @@ class _MemberRow extends StatelessWidget {
             label: profile.name,
             size: 48,
             profileImageUrl: profile.profileImageUrl,
+            character: profile.character,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

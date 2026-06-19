@@ -523,6 +523,14 @@ void main() {
                     {
                       'nickname': '지우',
                       'profileImageUrl': 'dev/avatars/jiwoo.png',
+                      'pixelCharacter': {
+                        'skinTone': 'skin_2',
+                        'hairStyle': 'hair_style_3',
+                        'hairColor': 'hair_color_1',
+                        'eyeStyle': 'eye_style_1',
+                        'eyeColor': 'eye_color_2',
+                        'clothes': 'top_4',
+                      },
                     },
                     {
                       'name': '민수',
@@ -548,6 +556,12 @@ void main() {
       'dev/avatars/jiwoo.png',
       'https://example.test/minsu.png',
     ]);
+    expect(plans.single.memberAvatars.first.character?.skinToneIndex, 2);
+    expect(plans.single.memberAvatars.first.character?.hairStyleIndex, 3);
+    expect(plans.single.memberAvatars.first.character?.hairColorIndex, 1);
+    expect(plans.single.memberAvatars.first.character?.eyeShapeIndex, 1);
+    expect(plans.single.memberAvatars.first.character?.eyeColorIndex, 2);
+    expect(plans.single.memberAvatars.first.character?.topStyleIndex, 4);
   });
 
   test('maps plan thumbnail image url for plan cards', () async {
