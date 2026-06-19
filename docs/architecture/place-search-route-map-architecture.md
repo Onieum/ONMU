@@ -62,6 +62,8 @@ provider별 현재 경계:
 | Kakao Keyword Search | `KakaoKeywordSearchProvider` | `KAKAO_REST_API_KEY` | Kakao OAuth 공개 REST API key와 같은 env를 공유하지만 Flutter가 Local API를 직접 호출하지 않는다. |
 | Dev mock | `DevMockPlaceSearchProvider` | 없음 | local/dev/test 또는 명시 fallback에서 deterministic 결과를 제공한다. |
 
+현재 `ONMU_CATALOG` 같은 DB-backed curated provider는 아직 구현되어 있지 않다. `external_places`에는 후보/일정 장소로 선택된 최소 snapshot이 저장되지만, DB에 직접 적재된 catalog row를 `POST /api/v1/place-search` 결과로 반환하려면 별도 provider 구현과 provider 순서 변경이 필요하다.
+
 ### Route Recommendation Flow
 
 `RouteRecommendationService`의 현재 흐름:
@@ -137,6 +139,7 @@ flowchart LR
     worker["FastAPI AI/Data Worker"]
     openai["Azure OpenAI"]
     search["Naver/Kakao Place APIs"]
+    catalog["ONMU curated catalog"]
     routeProvider["OpenRouteService or target route provider"]
     blob["Azure Blob Storage"]
     cdn["CDN / Front Door"]
@@ -149,6 +152,8 @@ flowchart LR
     api --> postgres
     api --> redis
     api --> search
+    api --> catalog
+    catalog --> postgres
     api --> routeProvider
     api --> outbox
     outbox --> worker
@@ -159,7 +164,7 @@ flowchart LR
     worker --> monitor
 ```
 
-목표 구조에서도 Spring Boot Main API는 인증/권한, provider 호출, 후보 저장, 일정 등록, route provider 호출, outbox 기록을 소유한다. Flutter는 Spring public API와 tile manifest URL만 사용한다. FastAPI Worker는 후보 추천 설명, AI 보조 문장 생성, 장기 분석성 작업을 맡되 core domain table을 직접 수정하지 않는다.
+목표 구조에서도 Spring Boot Main API는 인증/권한, provider 호출, 후보 저장, 일정 등록, route provider 호출, outbox 기록을 소유한다. Flutter는 Spring public API와 tile manifest URL만 사용한다. FastAPI Worker는 후보 추천 설명, AI 보조 문장 생성, 장기 분석성 작업을 맡되 core domain table을 직접 수정하지 않는다. `ONMU_CATALOG`는 외부 provider가 아니라 PostgreSQL `external_places`를 읽는 server-side curated provider로 둔다.
 
 PostgreSQL은 `external_places`, `place_candidates`, `place_candidate_hearts`, `schedule_places`, vote tables의 source of truth다. PostGIS는 target에서 거리/반경/nearby query와 route stop 정렬을 고도화하는 확장이다. Redis는 `place-search:*`, `route-recommendation:*` 같은 짧은 TTL cache와 실시간/presence 보조에만 사용한다.
 
@@ -177,6 +182,7 @@ PostgreSQL은 `external_places`, `place_candidates`, `place_candidate_hearts`, `
 
 - 지도 타일 target edge는 Azure Blob Storage + CDN, Azure Front Door, 또는 Static Website + CDN 중 선택한다.
 - route provider는 현재 OpenRouteService를 기준으로 하되 운영 비용/약관/국내 품질을 보고 Naver/Kakao/ORS 병행 여부를 결정한다.
+- Kakao Local API 심사 지연 또는 반려가 반복되는 동안 staging/demo 검색 안정성을 위해 `ONMU_CATALOG` DB-backed provider를 추가한다. 기본 시현 순서는 `curated -> naver -> kakao(optional)`로 두되, provider명은 사용자-facing UI에 직접 노출하지 않는다.
 - PostGIS generated geography column 또는 별도 spatial index를 `external_places`와 `place_candidates`에 추가할 수 있다.
 - 장소 추천 설명은 rule-based explanation을 먼저 제공하고, 이후 FastAPI Worker/Azure OpenAI가 자연어 설명을 생성한다.
 - Azure AI Search는 장소 자체 검색보다 기록/취향/RAG 확장에 먼저 쓰는 후보로 둔다.
@@ -216,6 +222,7 @@ tile asset의 source of truth는 앱 bundle이 아니라 public manifest다. 따
 | 유지 | Redis short TTL cache, PostgreSQL minimal snapshot 원칙 | Spring/Flyway |
 | 보강 | group/plan membership 권한을 place-search/route recommendation에도 일관 적용 | Spring |
 | 보강 | `ExternalPlaceEntity.providerPayload`에 raw provider body가 장기 축적되지 않도록 저장 필드/retention 확정 | Spring/Data |
+| 보강 | `external_places.provider='ONMU_CATALOG'` row를 읽는 curated place provider와 provider 순서 | Spring |
 | 보강 | PostGIS 좌표 column/index와 nearby/radius query | Flyway/PostGIS |
 | 보강 | Android MapLibre/PMTiles native 경로의 실제 emulator smoke | Flutter |
 | 추가 | Azure Blob/CDN 기반 tile manifest/style/PMTiles 운영과 rollback automation | Terraform/Runtime |
@@ -341,6 +348,8 @@ Response:
 
 PostgreSQL에는 사용자가 후보 또는 일정 장소로 명시적으로 선택한 최소 snapshot만 남긴다. provider 검색 결과 전체와 raw response body는 장기 원장처럼 축적하지 않는다. 약관상 저장 가능한 필드와 보관 기간은 provider별로 별도 결정한다.
 
+시현 안정화를 위한 curated catalog는 같은 `external_places` 테이블에 `provider='ONMU_CATALOG'`로 저장할 수 있다. 이 row는 외부 provider raw body가 아니라 ONMU가 직접 검수한 장소 이름, 카테고리, 주소, 좌표, 공개 URL, 추천 태그/이유 metadata만 담는다. `provider_payload`에는 `importBatchId`, `sourceProject`, `sourceSnapshotId`, `region`, `tags`, `purposeTags`, `preferenceTags`, `summary`, `reasons` 같은 운영 metadata를 저장하고, 사용자 개인 정보나 provider raw response body는 저장하지 않는다.
+
 Target에서는 PostGIS를 `external_places` 또는 후보 좌표에 붙여 radius query, nearby ranking, 거리 계산을 DB에서 안정적으로 수행할 수 있게 한다. 이 schema 변경은 Terraform이 아니라 Spring Flyway가 소유한다.
 
 ## Flutter Boundary
@@ -462,6 +471,7 @@ Target metric 후보:
 | Risk | 영향 | 완화 |
 | --- | --- | --- |
 | Kakao Local API 권한/심사 지연 | provider 병행 검색 불완전 | Naver 우선, Kakao availability와 console 상태를 runtime smoke에서 분리 보고 |
+| Kakao Local API 심사 지연 중 검색 품질 저하 | 시현에서 장소 후보 수와 추천 설명이 부족 | `ONMU_CATALOG` curated provider를 staging/demo fallback으로 추가하고 LALA-next 후보 데이터와 ONMU 수동 큐레이션을 검수 후 적재 |
 | provider 결과가 cache에 고착 | 실제 provider 복구 후에도 dev-mock 표시 | available provider 목록과 fallback 상태를 cache key에 포함하고 실패 fallback cache를 제한 |
 | Naver/Kakao 좌표 체계 차이 | 지도 핀/동선 오류 | mapper test와 coordinate_count smoke, PostGIS validation |
 | provider명 UI 노출 | 제품 기준 위반 | Flutter widget test에서 `Kakao`, `Naver`, `Provider` 노출 금지 확인 |
@@ -483,6 +493,7 @@ Target metric 후보:
 | Route recommendation canonical API는 `POST /api/v1/routes/recommend` | 확정 | API contract map과 Spring/Flutter repository 구현 |
 | Redis는 장소 검색/route 결과 TTL cache | 확정 | source of truth는 PostgreSQL |
 | Map tile은 manifest pointer로 접근 | 확정 | PMTiles object URL 하드코딩과 앱 재배포 없는 rollback을 피함 |
+| staging/demo curated catalog는 `ONMU_CATALOG` provider row로 분리 | 후보 | Kakao 심사 지연과 Naver 결과 수 제한을 완화하되 external provider raw body 저장은 피함 |
 | 추천 설명은 rule-based MVP 먼저, AI는 후속 | 후보 | 결정 대신 보조 설명이라는 제품 원칙 |
 | Android native PMTiles protocol 최종 전략 | 미결정 | 현재 fallback overlay가 안정화 장치, 실제 native 전략은 후속 검증 필요 |
 
@@ -493,10 +504,11 @@ Target metric 후보:
 | Phase 1 | 현재 API/Flutter 연결 안정화 | place-search, candidate add, schedule add, heart, route recommendation smoke |
 | Phase 2 | Android 지도 실제 화면 안정화 | MapLibre/PMTiles protocol 또는 fallback 전략 확정, blank map 회귀 방지 |
 | Phase 3 | Provider 운영 안정화 | Naver/Kakao availability, fallback/cache metric, Kakao 권한 상태 분리 |
-| Phase 4 | 후보 추천 설명 MVP | provider 결과 + 사용자/모임 취향 + 거리/카테고리/영업정보 기반 rule-based reasons |
-| Phase 5 | PostGIS 고도화 | spatial column/index, nearby/radius query, route stop quality 보강 |
-| Phase 6 | Azure tile/route/provider 운영 전환 | Blob/CDN, Redis, Key Vault reference, App Insights, Event Hubs 연결 |
-| Phase 7 | AI 보조 설명 | FastAPI Worker + Azure OpenAI로 설명 생성, Spring read model 합성 |
+| Phase 4 | Curated catalog fallback | `ONMU_CATALOG` 직접 적재 runbook, DB-backed provider, LALA-next 후보 데이터 변환, ONMU 수동 큐레이션 |
+| Phase 5 | 후보 추천 설명 MVP | provider 결과 + 사용자/모임 취향 + 거리/카테고리/영업정보 기반 rule-based reasons |
+| Phase 6 | PostGIS 고도화 | spatial column/index, nearby/radius query, route stop quality 보강 |
+| Phase 7 | Azure tile/route/provider 운영 전환 | Blob/CDN, Redis, Key Vault reference, App Insights, Event Hubs 연결 |
+| Phase 8 | AI 보조 설명 | FastAPI Worker + Azure OpenAI로 설명 생성, Spring read model 합성 |
 
 ## Non-goals
 

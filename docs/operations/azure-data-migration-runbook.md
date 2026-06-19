@@ -48,7 +48,7 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 | staging DB 초기화 | 새 database 생성, schema drop/recreate, dump restore | 팀 공유 staging은 승인 없이 drop 금지 |
 | Flyway baseline | clean DB full migration, baseline 후 migrate | Azure staging 1차는 clean DB full migration을 우선 검증 |
 | checksum mismatch | 기존 migration 수정 금지, 새 V번호 migration으로 forward fix | checksum mismatch가 나면 배포 중단 후 원인 분석 |
-| seed/test data | Flyway seed, Spring script, 별도 import | production seed와 demo/test data를 분리 |
+| seed/test data | Flyway seed, Spring script, 별도 import | production seed와 demo/test data를 분리. demo catalog direct import는 [Azure staging data rehearsal plan](./azure-staging-data-rehearsal.md)의 승인/rollback 기준을 따른다. |
 | 실패 rollback | migration 전이면 deploy 중단, migration 후면 forward fix 우선 | snapshot restore는 별도 승인 |
 
 rehearsal 결과는 migration version, table count, row count, duration, error type 중심으로 기록한다. 사용자 raw value, secret, connection string, token은 기록하지 않는다.
