@@ -36,6 +36,27 @@ void main() {
     expect(find.text('6/7 토'), findsNothing);
   });
 
+  testWidgets('plan detail shows full schedule before participants', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _planDetailTestApp(
+        _PlanDetailTestRepository(
+          planStartsAt: DateTime(2026, 6, 18, 10),
+          planEndsAt: DateTime(2026, 6, 19, 12),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 일정'), findsOneWidget);
+    expect(find.text('6월 18일 (목) · 10:00 ~ 6월 19일 (금) 12:00'), findsOneWidget);
+
+    final scheduleTop = tester.getTopLeft(find.text('약속 일정')).dy;
+    final participantTop = tester.getTopLeft(find.text('참여자 1명')).dy;
+    expect(scheduleTop, lessThan(participantTop));
+  });
+
   testWidgets('empty memo card uses full plan detail content width', (
     tester,
   ) async {
@@ -149,6 +170,44 @@ void main() {
     expect(find.text('실제 경로 계산 실패'), findsNothing);
     expect(find.text('동선 계산 중'), findsNothing);
   });
+
+  testWidgets(
+    'itinerary summary follows visible visit places when route legs are stale',
+    (tester) async {
+      await tester.pumpWidget(
+        _planItineraryTestApp(
+          planRepository: _PlanDetailTestRepository(
+            visitPlansByDate: const [
+              [
+                VisitPlan(
+                  time: '10:00',
+                  endTime: '11:00',
+                  place: '퍼스트커피랩행궁',
+                  kind: '카페',
+                  duration: '1시간',
+                ),
+                VisitPlan(
+                  time: '11:10',
+                  endTime: '12:00',
+                  place: '렉스프레소뮤지엄 행궁',
+                  kind: '카페',
+                  duration: '50분',
+                ),
+              ],
+            ],
+          ),
+          routeRepository: const _StaleLegRouteRepository(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('5분 · 350m · 1구간'), findsOneWidget);
+      expect(find.text('퍼스트커피랩행궁 → 렉스프레소뮤지엄 행궁 · 5분 · 350m'), findsOneWidget);
+      expect(find.textContaining('퍼스트커피랩행궁 → 퍼스트커피랩행궁'), findsNothing);
+      expect(find.textContaining('외 1구간'), findsNothing);
+    },
+  );
 }
 
 Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
@@ -202,6 +261,8 @@ class _PlanDetailTestRepository implements PlanRepository {
   _PlanDetailTestRepository({
     bool currentUserParticipating = false,
     List<List<VisitPlan>>? visitPlansByDate,
+    DateTime? planStartsAt,
+    this.planEndsAt,
   }) : _visitPlansByDate =
            visitPlansByDate ??
            const [
@@ -215,6 +276,7 @@ class _PlanDetailTestRepository implements PlanRepository {
                ),
              ],
            ],
+       _planStartsAt = planStartsAt ?? DateTime(2026, 6, 18, 10),
        _currentParticipant = currentUserParticipating
            ? const PlanParticipantArrival(
                id: 'participant-me',
@@ -230,13 +292,15 @@ class _PlanDetailTestRepository implements PlanRepository {
   var leaveCount = 0;
   PlanParticipantArrival? _currentParticipant;
   final List<List<VisitPlan>> _visitPlansByDate;
+  final DateTime _planStartsAt;
+  final DateTime? planEndsAt;
 
   @override
   Future<Plan> fetchPlan({
     required Object groupId,
     required Object planId,
   }) async {
-    return _testPlan(startsAt: DateTime(2026, 6, 18, 10));
+    return _testPlan(startsAt: _planStartsAt, endsAt: planEndsAt);
   }
 
   @override
@@ -322,7 +386,7 @@ class _PlanDetailTestRepository implements PlanRepository {
   }
 }
 
-Plan _testPlan({DateTime? startsAt}) {
+Plan _testPlan({DateTime? startsAt, DateTime? endsAt}) {
   return Plan(
     id: 101,
     title: '테스트 약속',
@@ -344,6 +408,7 @@ Plan _testPlan({DateTime? startsAt}) {
       ),
     ],
     startsAt: startsAt,
+    endsAt: endsAt,
   );
 }
 
@@ -354,6 +419,14 @@ class _PlanDetailGroupRepository implements GroupRepository {
       GroupMemberProfile(name: '나', note: '현재 사용자', statusLabel: '참여 중'),
       GroupMemberProfile(name: '지우', note: '모임 멤버', statusLabel: '참여 중'),
     ];
+  }
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) {
+    throw UnimplementedError();
   }
 
   @override
@@ -544,6 +617,65 @@ class _SuccessfulRouteRepository implements RouteRepository {
           'toName': '테스트 식당',
           'distanceMeters': 1500,
           'durationSeconds': 600,
+        },
+      ],
+    });
+  }
+}
+
+class _StaleLegRouteRepository implements RouteRepository {
+  const _StaleLegRouteRepository();
+
+  @override
+  Future<RouteRecommendation> recommend({
+    required Object groupId,
+    required Object planId,
+    required String travelMode,
+  }) async {
+    return RouteRecommendation.fromJson({
+      'provider': 'openrouteservice',
+      'travelMode': travelMode,
+      'liveProvider': true,
+      'distanceMeters': 350,
+      'durationSeconds': 300,
+      'stops': [
+        {
+          'id': 'stop-1',
+          'name': '퍼스트커피랩행궁',
+          'lat': 37.2859,
+          'lng': 127.0143,
+          'order': 1,
+        },
+        {
+          'id': 'stop-2',
+          'name': '렉스프레소뮤지엄 행궁',
+          'lat': 37.2863,
+          'lng': 127.0158,
+          'order': 2,
+        },
+      ],
+      'geometry': [
+        [127.0143, 37.2859],
+        [127.0158, 37.2863],
+      ],
+      'legs': [
+        {
+          'order': 1,
+          'fromStopId': 'stop-1',
+          'toStopId': 'stop-1',
+          'fromName': '퍼스트커피랩행궁',
+          'toName': '퍼스트커피랩행궁',
+          'distanceMeters': 0,
+          'durationSeconds': 0,
+        },
+        {
+          'order': 2,
+          'fromStopId': 'stop-1',
+          'toStopId': 'stop-2',
+          'fromName': '퍼스트커피랩행궁',
+          'toName': '렉스프레소뮤지엄 행궁',
+          'distanceMeters': 350,
+          'durationSeconds': 300,
         },
       ],
     });

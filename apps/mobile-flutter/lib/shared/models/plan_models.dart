@@ -9,6 +9,7 @@ class PlanMember {
     this.userId = '',
     this.profileImageUrl = '',
     this.preferenceProfile,
+    this.fallbackToViewerCharacter = false,
   });
 
   final String userId;
@@ -18,6 +19,7 @@ class PlanMember {
   final bool selected;
   final String profileImageUrl;
   final PreferenceProfile? preferenceProfile;
+  final bool fallbackToViewerCharacter;
 }
 
 enum PlanArrivalStatus {

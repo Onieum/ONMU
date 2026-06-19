@@ -179,6 +179,15 @@ public class ApiController {
     return ResponseEntity.status(HttpStatus.CREATED).body(onmuApiService.createPlan(groupId, user.userId(), request));
   }
 
+  @GetMapping("/groups/{groupId}/plans/participant-candidates")
+  public List<Map<String, Object>> planParticipantCandidates(
+    @PathVariable String groupId,
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @RequestParam(name = "userIds", required = false) List<String> userIds
+  ) {
+    return onmuApiService.planParticipantCandidates(groupId, user.userId(), userIds);
+  }
+
   @GetMapping("/groups/{groupId}/plans/{planId}")
   public Map<String, Object> plan(
     @PathVariable String groupId,

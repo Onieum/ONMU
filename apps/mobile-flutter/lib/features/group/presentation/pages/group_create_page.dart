@@ -410,6 +410,7 @@ class _InviteAvatar extends StatelessWidget {
                     child: PixelAvatar(
                       label: member.name,
                       profileImageUrl: member.profileImageUrl,
+                      fallbackToViewerCharacter: !member.removable,
                       size: 50,
                     ),
                   ),

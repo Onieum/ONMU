@@ -100,12 +100,15 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 참여자 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/participants` |
 | 내 참여 응답 변경 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` |
+| 생성 후보 보강 | `GET /api/v1/groups/{groupId}/plans/participant-candidates?userIds=<db-user-uuid>` |
 
 약속 생성 요청은 `participantUserIds`로 초기 참여자 public id 목록을 전달할 수 있다. 서버는 생성자를 항상 참여자로 포함하고, 추가 참여자는 해당 모임의 멤버인 경우에만 허용한다.
 
 약속 참여자 추가는 모임 멤버가 같은 모임 안의 다른 멤버를 약속에 추가하는 흐름을 지원한다. 요청 body는 `userId`를 사용한다. 약속 나가기 또는 내 참여 취소는 본인만 수행할 수 있으며, 타인의 참여 취소는 이 계약에 포함하지 않는다.
 
-약속 생성 화면에서 추가 멤버의 선호/비선호 시간을 추천과 저장 경고에 쓰려면 후보 멤버 API 응답과 Flutter mapper가 `preferenceProfile`을 전달해야 한다. 약속 참여자 목록 API는 participant `preferenceProfile`을 포함하는 방향이지만, 모임 멤버 candidate 경로는 별도 확인 대상이다.
+`GET /api/v1/groups/{groupId}/members`는 모임원 목록/초대 화면용 lightweight 계약이다. 약속에 참여하지 않을 수 있는 모임원 전체의 `preferenceProfile`을 이 응답에서 미리 싣지 않는다. 약속 생성 화면에서 사용자가 실제 참여 후보로 선택한 멤버의 선호/비선호 시간을 추천과 저장 경고에 쓰려면 `GET /api/v1/groups/{groupId}/plans/participant-candidates`를 `userIds` query로 호출한다. 서버는 요청자와 대상 userId가 모두 같은 모임 멤버인지 확인한 뒤 `userId`, `nickname`, `profileImageUrl`, `preferenceProfile`을 반환한다.
+
+약속 날짜 추천 UX는 단일 날짜와 다중 날짜 범위를 분리한다. 시작/종료 날짜가 같은 경우 `추천 날짜` 칩은 선택 가능한 날짜 후보로 동작한다. 시작/종료 날짜가 다른 경우 추천 날짜는 `선택 범위의 추천 방문일`로 표시하며, 이미 선택된 범위 안에서 실제 방문 가능성이 높은 날짜를 읽기 전용으로 보여 준다. 시간 추천은 다중 범위에서도 시작 날짜 기준으로 계산하고, 날짜별 상세 방문 시간은 일정 장소/동선 단계에서 별도로 다룬다.
 
 일반 약속 수정은 명시적인 상태 변경 action이 아닌 한 기존 status를 보존해야 한다. Flutter request body가 항상 `status=draft`를 보내면 예정/진행 중 약속이 수정 후 draft로 회귀할 수 있으므로, 상태 변경 UX와 일반 수정 UX를 분리한다.
 

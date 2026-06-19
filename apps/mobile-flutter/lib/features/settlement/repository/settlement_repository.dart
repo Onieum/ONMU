@@ -212,6 +212,7 @@ class ApiSettlementRepository implements SettlementRepository {
         json['transfers'],
       ).map(_transfer).toList(growable: false),
       shareMessage: OnmuJson.readString(json, 'shareMessage', '약속 정산입니다.'),
+      preview: OnmuJson.readBool(json, 'preview'),
     );
   }
 

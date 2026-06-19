@@ -114,6 +114,7 @@ class SettlementSummary {
     required this.memberResults,
     required this.transfers,
     required this.shareMessage,
+    this.preview = false,
   });
 
   final String id;
@@ -127,6 +128,12 @@ class SettlementSummary {
   final List<SettlementMemberResult> memberResults;
   final List<SettlementTransferSummary> transfers;
   final String shareMessage;
+  final bool preview;
+
+  bool get isCreated {
+    final normalizedId = id.trim().toLowerCase();
+    return !preview && normalizedId.isNotEmpty && normalizedId != 'draft';
+  }
 
   String get displayFinalSummaryLabel {
     final trimmed = finalSummaryLabel.trim();

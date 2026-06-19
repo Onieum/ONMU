@@ -134,11 +134,12 @@ SymbolOptions nativeSymbolOptionsForPoint({
 
 @visibleForTesting
 LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
-  if (routeGeometry.length < 2) {
+  final safeRouteGeometry = validOnmuMapCoordinates(routeGeometry);
+  if (safeRouteGeometry.length < 2) {
     return null;
   }
   return LineOptions(
-    geometry: routeGeometry
+    geometry: safeRouteGeometry
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
     lineColor: '#2563EB',
@@ -150,11 +151,12 @@ LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
 
 @visibleForTesting
 LineOptions? nativeLineCasingOptionsForRoute(List<OnmuLatLng> routeGeometry) {
-  if (routeGeometry.length < 2) {
+  final safeRouteGeometry = validOnmuMapCoordinates(routeGeometry);
+  if (safeRouteGeometry.length < 2) {
     return null;
   }
   return LineOptions(
-    geometry: routeGeometry
+    geometry: safeRouteGeometry
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
     lineColor: '#FFFFFF',
@@ -383,6 +385,88 @@ const _catalogUnclusteredFilter = [
 ];
 
 @visibleForTesting
+List<OnmuLatLng> validOnmuMapCoordinates(Iterable<OnmuLatLng> coordinates) {
+  return coordinates.where(isValidOnmuLatLng).toList(growable: false);
+}
+
+@visibleForTesting
+List<OnmuMapPoint> validOnmuMapPoints(Iterable<OnmuMapPoint> points) {
+  return points
+      .where((point) => isValidOnmuLatLng(point.coordinate))
+      .toList(growable: false);
+}
+
+@visibleForTesting
+String onmuMapCameraSeedKey({
+  required Iterable<OnmuMapPoint> points,
+  required Iterable<OnmuLatLng> routeGeometry,
+  required OnmuLatLng? center,
+  required double zoom,
+}) {
+  final coordinates = [
+    ...validOnmuMapPoints(points).map((point) => point.coordinate),
+    ...validOnmuMapCoordinates(routeGeometry),
+    if (center != null && isValidOnmuLatLng(center)) center,
+  ];
+  final coordinateKey = coordinates
+      .map(
+        (coordinate) =>
+            '${coordinate.lat.toStringAsFixed(6)},'
+            '${coordinate.lng.toStringAsFixed(6)}',
+      )
+      .join('|');
+  return '${zoom.toStringAsFixed(2)}:$coordinateKey';
+}
+
+@visibleForTesting
+double onmuMapInitialZoomForCoordinates({
+  required Iterable<OnmuLatLng> coordinates,
+  required double fallbackZoom,
+}) {
+  final safeCoordinates = validOnmuMapCoordinates(coordinates);
+  if (safeCoordinates.isEmpty) {
+    return fallbackZoom;
+  }
+  if (safeCoordinates.length == 1) {
+    return 14.2;
+  }
+
+  final minLat = safeCoordinates.map((value) => value.lat).reduce(math.min);
+  final maxLat = safeCoordinates.map((value) => value.lat).reduce(math.max);
+  final minLng = safeCoordinates.map((value) => value.lng).reduce(math.min);
+  final maxLng = safeCoordinates.map((value) => value.lng).reduce(math.max);
+  final spread = math.max((maxLat - minLat).abs(), (maxLng - minLng).abs());
+  if (!spread.isFinite) {
+    return fallbackZoom;
+  }
+  if (spread <= 0.004) {
+    return 14.0;
+  }
+  if (spread <= 0.01) {
+    return 13.5;
+  }
+  if (spread <= 0.03) {
+    return 12.6;
+  }
+  if (spread <= 0.08) {
+    return 11.5;
+  }
+  if (spread <= 0.2) {
+    return 10.4;
+  }
+  if (spread <= 0.5) {
+    return 9.2;
+  }
+  if (spread <= 1.0) {
+    return 8.2;
+  }
+  if (spread <= 2.0) {
+    return 7.2;
+  }
+  return onmuMapMinUsableZoom;
+}
+
+@visibleForTesting
 CameraTargetBounds cameraTargetBoundsFromManifest(TileManifest? manifest) {
   final bounds = manifest?.bounds;
   if (bounds == null || bounds.length < 4) {
@@ -461,6 +545,37 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   @override
   void didUpdateWidget(covariant OnmuMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final oldCameraSeedKey = onmuMapCameraSeedKey(
+      points: oldWidget.points,
+      routeGeometry: oldWidget.routeGeometry,
+      center: oldWidget.center,
+      zoom: onmuMapInitialZoomForCoordinates(
+        coordinates: [
+          ...validOnmuMapPoints(
+            oldWidget.points,
+          ).map((point) => point.coordinate),
+          ...validOnmuMapCoordinates(oldWidget.routeGeometry),
+        ],
+        fallbackZoom: oldWidget.zoom,
+      ),
+    );
+    final nextCameraSeedKey = onmuMapCameraSeedKey(
+      points: widget.points,
+      routeGeometry: widget.routeGeometry,
+      center: widget.center,
+      zoom: onmuMapInitialZoomForCoordinates(
+        coordinates: [
+          ...validOnmuMapPoints(widget.points).map((point) => point.coordinate),
+          ...validOnmuMapCoordinates(widget.routeGeometry),
+        ],
+        fallbackZoom: widget.zoom,
+      ),
+    );
+    if (oldCameraSeedKey != nextCameraSeedKey) {
+      _styleLoaded = false;
+      _registeredNativeMarkerImages.clear();
+      _nativeSyncGeneration += 1;
+    }
     final pointsChanged = !haveSameMapPointCameraTargets(
       oldWidget.points,
       widget.points,
@@ -525,6 +640,8 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       controller.onSymbolTapped.remove(_handleSymbolTapped);
     }
     _mapController = null;
+    _styleLoaded = false;
+    _nativeSyncGeneration += 1;
     super.dispose();
   }
 
@@ -532,11 +649,30 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   Widget build(BuildContext context) {
     final manifestState = ref.watch(tileManifestProvider);
     final manifest = manifestState.asData?.value;
+    final safePoints = validOnmuMapPoints(widget.points);
+    final safeRouteGeometry = validOnmuMapCoordinates(widget.routeGeometry);
+    final mapDataCoordinates = [
+      ...safePoints.map((point) => point.coordinate),
+      ...safeRouteGeometry,
+    ];
     final mapCenter =
         widget.center ??
         _centerFromData() ??
         manifest?.center ??
         const OnmuLatLng(lat: 36.5, lng: 127.8);
+    final initialZoom = math.max(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: mapDataCoordinates,
+        fallbackZoom: widget.zoom,
+      ),
+      onmuMapMinUsableZoom,
+    );
+    final cameraSeedKey = onmuMapCameraSeedKey(
+      points: safePoints,
+      routeGeometry: safeRouteGeometry,
+      center: widget.center,
+      zoom: initialZoom,
+    );
     final styleUrl = manifest?.styleUrl ?? '';
     final webBootstrapReady =
         widget.debugWebPmtilesProtocolReady ?? isOnmuMapWebBootstrapReady;
@@ -556,11 +692,12 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
           Positioned.fill(
             child: useMapLibre
                 ? MapLibreMap(
+                    key: ValueKey(cameraSeedKey),
                     styleString: styleUrl,
                     translucentTextureSurface: true,
                     initialCameraPosition: CameraPosition(
                       target: LatLng(mapCenter.lat, mapCenter.lng),
-                      zoom: math.max(widget.zoom, onmuMapMinUsableZoom),
+                      zoom: initialZoom,
                     ),
                     cameraTargetBounds: cameraTargetBoundsFromManifest(
                       manifest,
@@ -871,6 +1008,8 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     if (controller == null || !_styleLoaded) {
       return;
     }
+    final points = validOnmuMapPoints(widget.points);
+    final routeGeometry = validOnmuMapCoordinates(widget.routeGeometry);
     final generation = ++_nativeSyncGeneration;
     try {
       await controller.clearSymbols();
@@ -888,22 +1027,20 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         return;
       }
 
-      final lineCasingOptions = nativeLineCasingOptionsForRoute(
-        widget.routeGeometry,
-      );
+      final lineCasingOptions = nativeLineCasingOptionsForRoute(routeGeometry);
       if (lineCasingOptions != null) {
         await controller.addLine(lineCasingOptions, const {
           'type': 'route-casing',
         });
       }
-      final lineOptions = nativeLineOptionsForRoute(widget.routeGeometry);
+      final lineOptions = nativeLineOptionsForRoute(routeGeometry);
       if (lineOptions != null) {
         await controller.addLine(lineOptions, const {'type': 'route'});
       }
 
       final symbolOptions = <SymbolOptions>[];
       final pointData = <Map<String, dynamic>>[];
-      for (final point in widget.points) {
+      for (final point in points) {
         final focused = widget.focusedPointId == point.id;
         symbolOptions.add(
           nativeSymbolOptionsForPoint(point: point, focused: focused),
@@ -914,17 +1051,14 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         await controller.addSymbols(symbolOptions, pointData);
       }
       debugPrint(
-        'ONMU_MAP_NATIVE_SYNC points=${widget.points.length} '
+        'ONMU_MAP_NATIVE_SYNC points=${points.length} '
         'symbols=${symbolOptions.length} '
         'images=${_registeredNativeMarkerImages.length} '
-        'fitCamera=$fitCamera',
+        'fitCameraRequest=$fitCamera runtimeFit=false',
       );
 
       if (!mounted || generation != _nativeSyncGeneration) {
         return;
-      }
-      if (fitCamera) {
-        await _fitNativeCamera(controller);
       }
       _emitCurrentCameraTarget();
       unawaited(_emitCurrentViewport());
@@ -1029,7 +1163,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   Future<void> _ensureNativeMarkerImages(
     MapLibreMapController controller,
   ) async {
-    for (final point in widget.points) {
+    for (final point in validOnmuMapPoints(widget.points)) {
       for (final focused in const [false, true]) {
         final imageName = nativeMarkerIconImageName(
           order: point.order,
@@ -1048,49 +1182,11 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     }
   }
 
-  Future<void> _fitNativeCamera(MapLibreMapController controller) async {
-    final coordinates = [
-      ...widget.points.map((point) => point.coordinate),
-      ...widget.routeGeometry,
-    ];
-    if (coordinates.isEmpty) {
-      return;
-    }
-    if (coordinates.length == 1) {
-      final target = coordinates.first;
-      await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(LatLng(target.lat, target.lng), 14.2),
-        duration: const Duration(milliseconds: 350),
-      );
-      return;
-    }
-
-    final minLat = coordinates.map((value) => value.lat).reduce(math.min);
-    final maxLat = coordinates.map((value) => value.lat).reduce(math.max);
-    final minLng = coordinates.map((value) => value.lng).reduce(math.min);
-    final maxLng = coordinates.map((value) => value.lng).reduce(math.max);
-    final latPadding = math.max((maxLat - minLat).abs() * 0.16, 0.0015);
-    final lngPadding = math.max((maxLng - minLng).abs() * 0.16, 0.0015);
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat - latPadding, minLng - lngPadding),
-          northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
-        ),
-        left: widget.cameraFitPadding.left,
-        top: widget.cameraFitPadding.top,
-        right: widget.cameraFitPadding.right,
-        bottom: widget.cameraFitPadding.bottom,
-      ),
-      duration: const Duration(milliseconds: 350),
-    );
-  }
-
   OnmuLatLng? _centerFromData() {
-    final values = [
+    final values = validOnmuMapCoordinates([
       ...widget.points.map((point) => point.coordinate),
       ...widget.routeGeometry,
-    ];
+    ]);
     if (values.isEmpty) {
       return null;
     }
@@ -1164,29 +1260,31 @@ class _ProjectedMapOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final safePoints = validOnmuMapPoints(points);
+        final safeRouteGeometry = validOnmuMapCoordinates(routeGeometry);
         final projection = _Projection(
           size: Size(constraints.maxWidth, constraints.maxHeight),
           coordinates: [
-            ...points.map((point) => point.coordinate),
-            ...routeGeometry,
+            ...safePoints.map((point) => point.coordinate),
+            ...safeRouteGeometry,
             center,
           ],
         );
         return Stack(
           children: [
-            if (routeGeometry.length >= 2)
+            if (safeRouteGeometry.length >= 2)
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
                     painter: _RouteOverlayPainter(
-                      offsets: routeGeometry
+                      offsets: safeRouteGeometry
                           .map(projection.offsetFor)
                           .toList(growable: false),
                     ),
                   ),
                 ),
               ),
-            for (final point in points)
+            for (final point in safePoints)
               _PositionedMapPin(
                 point: point,
                 offset: projection.offsetFor(point.coordinate),
@@ -1272,9 +1370,10 @@ class _PositionedMapPin extends StatelessWidget {
 
 class _Projection {
   _Projection({required this.size, required List<OnmuLatLng> coordinates}) {
-    final safeCoordinates = coordinates.isEmpty
+    final validCoordinates = validOnmuMapCoordinates(coordinates);
+    final safeCoordinates = validCoordinates.isEmpty
         ? const [OnmuLatLng(lat: 36.5, lng: 127.8)]
-        : coordinates;
+        : validCoordinates;
     minLat = safeCoordinates.map((value) => value.lat).reduce(math.min);
     maxLat = safeCoordinates.map((value) => value.lat).reduce(math.max);
     minLng = safeCoordinates.map((value) => value.lng).reduce(math.min);
