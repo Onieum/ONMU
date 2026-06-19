@@ -129,9 +129,9 @@ LineOptions? nativeLineOptionsForRoute(List<OnmuLatLng> routeGeometry) {
     geometry: routeGeometry
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
-    lineColor: '#1D4ED8',
-    lineWidth: 6.5,
-    lineOpacity: 0.94,
+    lineColor: '#2563EB',
+    lineWidth: 8.0,
+    lineOpacity: 0.98,
     lineJoin: 'round',
   );
 }
@@ -146,8 +146,8 @@ LineOptions? nativeLineCasingOptionsForRoute(List<OnmuLatLng> routeGeometry) {
         .map((point) => LatLng(point.lat, point.lng))
         .toList(growable: false),
     lineColor: '#FFFFFF',
-    lineWidth: 10.5,
-    lineOpacity: 0.92,
+    lineWidth: 13.0,
+    lineOpacity: 0.96,
     lineJoin: 'round',
   );
 }
@@ -249,6 +249,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.onMyLocationUnavailable,
     this.myLocationEnabled = false,
     this.myLocationRequestSerial = 0,
+    this.cameraFitPadding = onmuMapCameraFitPadding,
+    this.markerScreenSafetyPadding = onmuMapMarkerScreenSafetyPadding,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
     this.debugWebPmtilesProtocolReady,
     super.key,
@@ -265,6 +267,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final VoidCallback? onMyLocationUnavailable;
   final bool myLocationEnabled;
   final int myLocationRequestSerial;
+  final EdgeInsets cameraFitPadding;
+  final EdgeInsets markerScreenSafetyPadding;
   final String fallbackLabel;
   final bool? debugWebPmtilesProtocolReady;
 
@@ -603,9 +607,9 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     var visibleSafeArea = 0;
     var offscreen = 0;
     final searchBottom =
-        onmuMapMarkerScreenSafetyPadding.top * devicePixelRatio;
+        widget.markerScreenSafetyPadding.top * devicePixelRatio;
     final sheetTop =
-        (size.height - onmuMapMarkerScreenSafetyPadding.bottom) *
+        (size.height - widget.markerScreenSafetyPadding.bottom) *
         devicePixelRatio;
     for (final location in locations) {
       final x = location.x.toDouble();
@@ -684,10 +688,10 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
           southwest: LatLng(minLat - latPadding, minLng - lngPadding),
           northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
         ),
-        left: onmuMapCameraFitPadding.left,
-        top: onmuMapCameraFitPadding.top,
-        right: onmuMapCameraFitPadding.right,
-        bottom: onmuMapCameraFitPadding.bottom,
+        left: widget.cameraFitPadding.left,
+        top: widget.cameraFitPadding.top,
+        right: widget.cameraFitPadding.right,
+        bottom: widget.cameraFitPadding.bottom,
       ),
       duration: const Duration(milliseconds: 350),
     );
