@@ -99,6 +99,62 @@ void main() {
     expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
   });
 
+  test('builds clustered catalog source separately from numbered markers', () {
+    const catalogPoints = [
+      OnmuCatalogMapPoint(
+        id: 'catalog-1',
+        category: '카페',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+      OnmuCatalogMapPoint(
+        id: 'catalog-2',
+        category: '공원',
+        coordinate: OnmuLatLng(lat: 37.5651, lng: 126.9895),
+      ),
+    ];
+    const catalogClusters = [
+      OnmuCatalogMapCluster(
+        id: 'cluster-1',
+        count: 12,
+        coordinate: OnmuLatLng(lat: 37.566, lng: 126.98),
+        bounds: OnmuMapBounds(
+          south: 37.56,
+          west: 126.97,
+          north: 37.57,
+          east: 126.99,
+        ),
+        categories: ['카페', '공원'],
+      ),
+    ];
+
+    final source = catalogGeoJsonSourceProperties(
+      catalogPoints,
+      clusters: catalogClusters,
+    ).toJson();
+    final geojson = catalogGeoJsonForLayer(
+      clusters: catalogClusters,
+      points: catalogPoints,
+    );
+    final clusterLayer = catalogClusterCircleLayerProperties().toJson();
+    final clusterCountLayer = catalogClusterCountLayerProperties().toJson();
+    final dotLayer = catalogDotLayerProperties().toJson();
+
+    expect(mapCatalogSourceId, isNot(mapNativePointDataKey));
+    expect(mapCatalogClusterLayerId, contains('catalog'));
+    expect(source['cluster'], isFalse);
+    expect(source['promoteId'], 'id');
+    expect(geojson['features'], hasLength(3));
+    expect(geojson['features'][0]['properties']['point_count'], 12);
+    expect(geojson['features'][1]['geometry']['coordinates'], [
+      126.978,
+      37.5665,
+    ]);
+    expect(clusterLayer['circle-color'], '#FF8FA3');
+    expect(clusterLayer['circle-radius'], isA<List>());
+    expect(clusterCountLayer['text-field'], ['get', 'point_count_abbreviated']);
+    expect(dotLayer['circle-radius'], 4.2);
+  });
+
   test('does not refit camera when only focused marker changes', () {
     final oldPoints = [
       const OnmuMapPoint(

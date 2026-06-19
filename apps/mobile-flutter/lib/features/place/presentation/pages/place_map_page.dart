@@ -12,6 +12,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../features/map/model/map_models.dart';
+import '../../../../features/map/view_model/map_catalog_view_model.dart';
 import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
@@ -29,6 +30,40 @@ enum _MyLocationRequestState {
   serviceDisabled,
   timeout,
   unavailable,
+}
+
+List<PlaceCandidate> activePlaceResultsForMap(List<PlaceCandidate> candidates) {
+  return candidates.take(20).toList(growable: false);
+}
+
+List<OnmuMapPoint> mapPointsForPlaceCandidates(
+  List<PlaceCandidate> candidates,
+) {
+  const fallback = [
+    OnmuLatLng(lat: 37.5665, lng: 126.9780),
+    OnmuLatLng(lat: 37.5651, lng: 126.9895),
+    OnmuLatLng(lat: 37.5326, lng: 126.9904),
+    OnmuLatLng(lat: 37.5700, lng: 126.9820),
+    OnmuLatLng(lat: 37.5580, lng: 126.9970),
+  ];
+  final hasAnyCoordinate = candidates.any(
+    (candidate) => candidate.hasCoordinate,
+  );
+  return [
+    for (var index = 0; index < candidates.length; index += 1)
+      if (!hasAnyCoordinate || candidates[index].hasCoordinate)
+        OnmuMapPoint(
+          id: candidates[index].id.toString(),
+          label: candidates[index].name,
+          coordinate: candidates[index].hasCoordinate
+              ? OnmuLatLng(
+                  lat: candidates[index].latitude!,
+                  lng: candidates[index].longitude!,
+                )
+              : fallback[index % fallback.length],
+          order: index + 1,
+        ),
+  ];
 }
 
 class PlaceMapPage extends ConsumerStatefulWidget {
@@ -74,8 +109,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   String _selectedPrimaryCategory = _foodCategory;
   String? _selectedCategoryFilter;
   PlaceCandidate? _selectedCandidate;
+  int? _focusedCandidateId;
   OnmuLatLng? _lastCameraCenter;
   OnmuLatLng? _mapSearchCenter;
+  OnmuMapViewport? _catalogViewport;
+  Timer? _catalogViewportDebounce;
   final DraggableScrollableController _recommendationSheetController =
       DraggableScrollableController();
   _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
@@ -83,10 +121,15 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   int? _pendingMyLocationSerial;
   double _recommendationSheetSize = _RecommendationSheet.initialSheetSize;
   final Set<int> _savingCandidateIds = {};
+  final Map<int, GlobalKey> _candidateTileKeys = {};
 
   @override
   void initState() {
     super.initState();
+    _catalogViewport = _initialCatalogViewport(
+      const OnmuLatLng(lat: 37.5665, lng: 126.9780),
+      11,
+    );
     final initialQuery = widget.initialQuery.trim();
     if (initialQuery.isNotEmpty) {
       _query = initialQuery;
@@ -96,6 +139,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
 
   @override
   void dispose() {
+    _catalogViewportDebounce?.cancel();
     _recommendationSheetController.dispose();
     super.dispose();
   }
@@ -198,6 +242,51 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     });
   }
 
+  void _handleViewportIdle(OnmuMapViewport viewport) {
+    if (_sameCatalogViewport(_catalogViewport, viewport)) {
+      return;
+    }
+    _catalogViewportDebounce?.cancel();
+    _catalogViewportDebounce = Timer(const Duration(milliseconds: 420), () {
+      if (!mounted) {
+        return;
+      }
+      if (_sameCatalogViewport(_catalogViewport, viewport)) {
+        return;
+      }
+      setState(() {
+        _catalogViewport = viewport;
+      });
+    });
+  }
+
+  bool _sameCatalogViewport(OnmuMapViewport? previous, OnmuMapViewport next) {
+    if (previous == null || previous.apiZoom != next.apiZoom) {
+      return false;
+    }
+    const threshold = 0.0005;
+    return (previous.bounds.south - next.bounds.south).abs() < threshold &&
+        (previous.bounds.west - next.bounds.west).abs() < threshold &&
+        (previous.bounds.north - next.bounds.north).abs() < threshold &&
+        (previous.bounds.east - next.bounds.east).abs() < threshold;
+  }
+
+  OnmuMapViewport _initialCatalogViewport(OnmuLatLng center, double zoom) {
+    final zoomLevel = zoom.round().clamp(0, 22).toInt();
+    final span = 18 / (1 << zoomLevel);
+    final latSpan = span.clamp(0.002, 1.5);
+    final lngSpan = (span * 1.2).clamp(0.002, 1.8);
+    return OnmuMapViewport(
+      bounds: OnmuMapBounds(
+        south: (center.lat - latSpan).clamp(-90.0, 90.0).toDouble(),
+        west: (center.lng - lngSpan).clamp(-180.0, 180.0).toDouble(),
+        north: (center.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
+        east: (center.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
+      ),
+      zoom: zoom,
+    );
+  }
+
   void _searchVisibleMapArea() {
     final center = _lastCameraCenter;
     if (center == null) {
@@ -207,6 +296,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       _mapSearchCenter = center;
       _searchActive = true;
       _selectedCandidate = null;
+      _focusedCandidateId = null;
     });
   }
 
@@ -319,6 +409,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       _mapSearchCenter = center;
       _searchActive = true;
       _selectedCandidate = null;
+      _focusedCandidateId = null;
       _myLocationState = _MyLocationRequestState.resolved;
       _pendingMyLocationSerial = null;
     });
@@ -544,6 +635,28 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
     final mapCenter = _mapSearchCenter ?? _lastCameraCenter;
+    final mapZoom = mapSearchCenter == null ? 11.0 : 14.8;
+    final catalogViewport =
+        _catalogViewport ??
+        _initialCatalogViewport(
+          mapCenter ?? const OnmuLatLng(lat: 37.5665, lng: 126.9780),
+          mapZoom,
+        );
+    final catalogState = ref.watch(
+      mapCatalogProvider((
+        groupId: widget.groupId,
+        planId: widget.planId,
+        viewport: catalogViewport,
+        category: _selectedSearchCategory,
+        filter: _selectedCategoryFilter ?? 'all',
+        query: _query.trim().isEmpty ? null : _query.trim(),
+      )),
+    );
+    final catalogData = catalogState.maybeWhen(
+      data: (data) => data,
+      orElse: () => OnmuCatalogMapData.empty(catalogViewport),
+    );
+    final activeResultCandidates = activePlaceResultsForMap(visibleCandidates);
     final sheetBottomPadding =
         (screenSize.height * _recommendationSheetSize + 80).clamp(220.0, 680.0);
     final mapCameraFitPadding = EdgeInsets.fromLTRB(
@@ -568,32 +681,28 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 child: OnmuMapView(
-                  points: _mapPointsFor(visibleCandidates),
+                  points: mapPointsForPlaceCandidates(activeResultCandidates),
+                  catalogClusters: catalogData.clusters,
+                  catalogPoints: catalogData.points,
                   fallbackLabel: _mapFallbackLabel(
-                    visibleCandidates,
+                    activeResultCandidates,
                     searchLoading: searchLoading,
                     searchHadError: searchHadError,
                   ),
                   center: mapCenter,
-                  zoom: mapSearchCenter == null ? 11 : 14.8,
+                  zoom: mapZoom,
                   cameraFitPadding: mapCameraFitPadding,
                   markerScreenSafetyPadding: markerSafetyPadding,
-                  focusedPointId: _selectedCandidate?.id.toString(),
+                  focusedPointId:
+                      (_selectedCandidate?.id ?? _focusedCandidateId)
+                          ?.toString(),
                   onCameraIdle: _handleCameraIdle,
+                  onViewportIdle: _handleViewportIdle,
                   onMyLocationResolved: _handleMyLocationResolved,
                   onMyLocationUnavailable: _handleMyLocationUnavailable,
                   myLocationRequestSerial: _myLocationRequestSerial,
                   onPointTap: (point) {
-                    final selected = _candidateByPointId(
-                      visibleCandidates,
-                      point.id,
-                    );
-                    if (selected != null) {
-                      setState(() => _selectedCandidate = selected);
-                      _openRecommendationSheet(
-                        _RecommendationSheet.initialSheetSize,
-                      );
-                    }
+                    _focusActiveResultFromMap(activeResultCandidates, point.id);
                   },
                 ),
               ),
@@ -623,6 +732,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     _query = value;
                     _searchActive = true;
                     _selectedCandidate = null;
+                    _focusedCandidateId = null;
                   });
                 },
                 onPrimaryCategorySelected: (category) {
@@ -631,6 +741,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     _selectedCategoryFilter = null;
                     _searchActive = true;
                     _selectedCandidate = null;
+                    _focusedCandidateId = null;
                   });
                 },
                 onCategoryFilterSelected: (category) {
@@ -639,6 +750,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                         _selectedCategoryFilter == category ? null : category;
                     _searchActive = true;
                     _selectedCandidate = null;
+                    _focusedCandidateId = null;
                   });
                 },
                 onMapAreaSearchPressed: _searchVisibleMapArea,
@@ -673,7 +785,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                 builder: (context, scrollController) {
                   return _RecommendationSheet(
                     controller: scrollController,
-                    candidates: visibleCandidates,
+                    candidates: activeResultCandidates,
                     searchActive: searchActive,
                     autoSearch: autoSearch,
                     query: effectiveQuery,
@@ -697,6 +809,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     onCandidateSelected: (candidate) {
                       setState(() {
                         _selectedCandidate = candidate;
+                        _focusedCandidateId = candidate.id;
                       });
                       _openRecommendationSheet(
                         _RecommendationSheet.maxSheetSize,
@@ -718,6 +831,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                             widget.planId,
                           ),
                         ),
+                    tileKeyFor: _tileKeyFor,
                   );
                 },
               ),
@@ -887,32 +1001,40 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     return null;
   }
 
-  List<OnmuMapPoint> _mapPointsFor(List<PlaceCandidate> candidates) {
-    const fallback = [
-      OnmuLatLng(lat: 37.5665, lng: 126.9780),
-      OnmuLatLng(lat: 37.5651, lng: 126.9895),
-      OnmuLatLng(lat: 37.5326, lng: 126.9904),
-      OnmuLatLng(lat: 37.5700, lng: 126.9820),
-      OnmuLatLng(lat: 37.5580, lng: 126.9970),
-    ];
-    final hasAnyCoordinate = candidates.any(
-      (candidate) => candidate.hasCoordinate,
-    );
-    return [
-      for (var index = 0; index < candidates.length; index += 1)
-        if (!hasAnyCoordinate || candidates[index].hasCoordinate)
-          OnmuMapPoint(
-            id: candidates[index].id.toString(),
-            label: candidates[index].name,
-            coordinate: candidates[index].hasCoordinate
-                ? OnmuLatLng(
-                    lat: candidates[index].latitude!,
-                    lng: candidates[index].longitude!,
-                  )
-                : fallback[index % fallback.length],
-            order: index + 1,
-          ),
-    ];
+  void _focusActiveResultFromMap(
+    List<PlaceCandidate> candidates,
+    String pointId,
+  ) {
+    final selected = _candidateByPointId(candidates, pointId);
+    if (selected == null) {
+      return;
+    }
+    setState(() {
+      _focusedCandidateId = selected.id;
+      _selectedCandidate = null;
+    });
+    _openRecommendationSheet(_RecommendationSheet.maxSheetSize);
+    _scrollCandidateCardIntoView(selected);
+  }
+
+  GlobalKey _tileKeyFor(PlaceCandidate candidate) {
+    return _candidateTileKeys.putIfAbsent(candidate.id, GlobalKey.new);
+  }
+
+  void _scrollCandidateCardIntoView(PlaceCandidate candidate) {
+    final key = _tileKeyFor(candidate);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = key.currentContext;
+      if (context == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    });
   }
 
   String _mapFallbackLabel(
@@ -1426,6 +1548,7 @@ class _RecommendationSheet extends StatelessWidget {
     required this.onCandidateSelected,
     required this.onRegisterPressed,
     required this.onAddCandidatePressed,
+    required this.tileKeyFor,
   });
 
   static const minSheetSize = 0.16;
@@ -1450,6 +1573,7 @@ class _RecommendationSheet extends StatelessWidget {
   final ValueChanged<PlaceCandidate> onCandidateSelected;
   final ValueChanged<PlaceCandidate> onRegisterPressed;
   final ValueChanged<PlaceCandidate> onAddCandidatePressed;
+  final GlobalKey Function(PlaceCandidate candidate) tileKeyFor;
 
   @override
   Widget build(BuildContext context) {
@@ -1531,6 +1655,7 @@ class _RecommendationSheet extends StatelessWidget {
             ],
             for (var index = 0; index < candidates.length; index += 1) ...[
               _RecommendationTile(
+                key: tileKeyFor(candidates[index]),
                 candidate: candidates[index],
                 photoIndex: index,
                 onTap: () => onCandidateSelected(candidates[index]),
@@ -1770,6 +1895,7 @@ class _InfoBlock extends StatelessWidget {
 
 class _RecommendationTile extends StatelessWidget {
   const _RecommendationTile({
+    super.key,
     required this.candidate,
     required this.photoIndex,
     required this.onTap,
