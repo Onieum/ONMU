@@ -4,6 +4,7 @@ import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/preference_profile.dart';
+import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
@@ -222,19 +223,23 @@ class ApiPlanRepository implements PlanRepository {
   }
 
   PlanParticipantArrival _participantArrival(Map<String, dynamic> json) {
+    final nickname = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'nickname'),
+    ], fallback: '참여자');
     return PlanParticipantArrival(
       id: OnmuJson.readString(json, 'id'),
       userId: OnmuJson.readString(json, 'userId'),
-      nickname: resolveOnmuDisplayName([
-        OnmuJson.readString(json, 'nickname'),
-        OnmuJson.readString(json, 'displayName'),
-      ], fallback: '참여자'),
+      nickname: nickname,
       participantStatus: OnmuJson.readString(json, 'status', 'joined'),
       arrivalStatus: PlanArrivalStatus.fromApi(
         OnmuJson.readString(json, 'response'),
       ),
       isFallback: OnmuJson.readBool(json, 'fallback'),
       profileImageUrl: _profileImageUrl(json),
+      character: characterDraftFromJson(
+        json['pixelCharacter'],
+        nickname: nickname,
+      ),
       preferenceProfile: _preferenceProfile(json),
     );
   }
@@ -247,7 +252,6 @@ class ApiPlanRepository implements PlanRepository {
         .map((member) {
           final name = resolveOnmuDisplayName([
             OnmuJson.readString(member, 'name'),
-            OnmuJson.readString(member, 'displayName'),
             OnmuJson.readString(member, 'nickname'),
           ], fallback: '참여자');
           return PlanMember(
@@ -261,6 +265,10 @@ class ApiPlanRepository implements PlanRepository {
             selected: OnmuJson.readBool(member, 'selected', true),
             userId: OnmuJson.readString(member, 'userId'),
             profileImageUrl: _profileImageUrl(member),
+            character: characterDraftFromJson(
+              member['pixelCharacter'],
+              nickname: name,
+            ),
             preferenceProfile: _preferenceProfile(member),
           );
         })

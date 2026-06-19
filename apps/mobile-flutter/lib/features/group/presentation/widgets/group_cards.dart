@@ -616,6 +616,7 @@ class _AvatarCluster extends StatelessWidget {
               child: PixelAvatar(
                 label: members[index].name,
                 profileImageUrl: members[index].profileImageUrl,
+                character: members[index].character,
                 size: 34,
               ),
             ),

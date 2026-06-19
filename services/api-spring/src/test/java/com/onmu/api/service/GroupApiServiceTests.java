@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.onmu.api.domain.CharacterProfileEntity;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupMemberEntity;
 import com.onmu.api.domain.GroupMemberRepository;
@@ -37,6 +39,8 @@ class GroupApiServiceTests {
   @Mock
   private GroupMemberRepository groupMemberRepository;
   @Mock
+  private CharacterProfileRepository characterProfileRepository;
+  @Mock
   private OutboxService outboxService;
 
   private GroupApiService service;
@@ -49,7 +53,11 @@ class GroupApiServiceTests {
       userRepository,
       groupRepository,
       groupMemberRepository,
-      new GroupReadModelMapper(groupMemberRepository),
+      new GroupReadModelMapper(
+        groupMemberRepository,
+        characterProfileRepository,
+        new com.fasterxml.jackson.databind.ObjectMapper()
+      ),
       outboxService
     );
     currentUser = user("00000000-0000-0000-0000-000000000001", "ONMU Dev User");
@@ -155,11 +163,22 @@ class GroupApiServiceTests {
       "지민"
     );
     user.updateProfile(null, "dev/avatars/jimin.png", null, null, null);
+    CharacterProfileEntity character = new CharacterProfileEntity(
+      user.getId(),
+      "female",
+      "skin_2",
+      "hair_style_3",
+      "hair_color_1",
+      "eye_style_1",
+      "eye_color_2",
+      "top_4"
+    );
     GroupMemberEntity membership = new GroupMemberEntity(group, user, "member", "active");
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(groupMemberRepository.findByGroupOrderByJoinedAtAsc(group)).thenReturn(List.of(membership));
+    when(characterProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(character));
 
     List<Map<String, Object>> members = service.members("1", currentUser.getId());
 
@@ -167,7 +186,10 @@ class GroupApiServiceTests {
       .satisfies(member -> assertThat(member)
         .containsEntry("userId", user.getId().toString())
         .containsEntry("name", "지민")
-        .containsEntry("profileImageUrl", "dev/avatars/jimin.png"));
+        .containsEntry("profileImageUrl", "dev/avatars/jimin.png")
+        .extractingByKey("pixelCharacter")
+        .isInstanceOfSatisfying(Map.class, profile ->
+          assertThat(profile).containsEntry("hairStyle", "hair_style_3")));
   }
 
   @Test

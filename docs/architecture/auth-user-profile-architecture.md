@@ -90,7 +90,6 @@ Flutter는 `features/auth` 아래에서 provider별 로딩과 Spring exchange를
 {
   "id": "usr_xxx",
   "databaseId": "uuid",
-  "displayName": "사용자",
   "nickname": "nickname",
   "email": "user@example.com",
   "profileImageUrl": "https://...",
@@ -113,7 +112,7 @@ Flutter는 `features/auth` 아래에서 provider별 로딩과 Spring exchange를
 
 | 필드 | 저장 위치 | 현재 사용처 |
 | --- | --- | --- |
-| `displayName` | `users.display_name` | 마이페이지, 현재 사용자 표시 |
+| `nickname` | `users.nickname` | 마이페이지, 현재 사용자 표시 |
 | `profileImageUrl` | `users.profile_image_url` | 프로필 표시 |
 | `preferenceProfile` | `users.preference_profile` JSONB | 취향 선택, 지역 설정, 지역 공개 범위 |
 | `pixelCharacter` | `users.pixel_character` JSONB | 캐릭터 표시 호환 |
@@ -253,7 +252,7 @@ Response 예시:
   "refreshTokenExpiresAt": "2026-07-15T00:00:00Z",
   "user": {
     "id": "usr_xxx",
-    "displayName": "사용자",
+    "nickname": "사용자",
     "provider": "GOOGLE",
     "onboardingStatus": "PENDING"
   }
@@ -292,7 +291,7 @@ Public/idempotent logout route다. body에 refresh token이 있으면 해당 tok
 
 ```json
 {
-  "displayName": "강신석",
+  "nickname": "강신석",
   "preferenceProfile": {
     "preferredDays": ["FRIDAY", "SATURDAY"],
     "region": {

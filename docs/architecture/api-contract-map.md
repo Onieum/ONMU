@@ -36,7 +36,7 @@ Auth / Session / OAuth와 User / Profile / Character / Friends의 상세 Current
 | Push token 등록 | `POST /api/v1/devices/push-token` |
 | Push token 비활성화 | `DELETE /api/v1/devices/push-token` |
 
-`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `displayName`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`, `userCode`를 포함할 수 있다. `userCode`는 현재 숫자 10자리 active code 형식을 기준으로 한다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다. 친구 상세 또는 공개 프로필은 `regionVisibility`와 viewer 권한에 맞춰 지역 field를 제한해야 한다.
+`GET /api/v1/users/me`는 현재 사용자 private profile surface다. 응답은 `id`, `databaseId`, `nickname`, `email`, `profileImageUrl`, `preferenceProfile`, `pixelCharacter`, `onboardingStatus`, `authProvider`, `authStatus`, `tokenContract`, `userCode`를 포함할 수 있다. `userCode`는 현재 숫자 10자리 active code 형식을 기준으로 한다. `PATCH /api/v1/users/me`는 authenticated principal의 사용자만 수정하며, 표시 이름은 `nickname`으로만 저장한다. 취향/지역/지역 공개 범위는 `preferenceProfile` 안에 저장한다. 지역 설정은 현재 온보딩 완료 조건에 포함하지 않는다. 친구 상세 또는 공개 프로필은 `regionVisibility`와 viewer 권한에 맞춰 지역 field를 제한해야 한다.
 
 Push token API는 로그인된 현재 사용자 기기만 대상으로 한다. 요청 body의 `provider`는 `fcm`, `apns`, `dev` 중 하나이며, `token`은 URL query가 아니라 JSON body로만 전달한다. 응답은 `deviceId`, `provider`, `platform`, `status`, `registered`, `tokenLast4`, `updatedAt`만 반환하고 token 원문은 반환하지 않는다. 현재 Flutter token source는 실제 FCM/APNs provider와 연결되지 않은 dev-safe readiness 경계일 수 있으며, 실제 provider token source와 provider delivery는 별도 보안/인프라 slice에서 켠다. 실제 FCM/APNs provider secret과 JWT signing secret은 모바일 bundle에 넣지 않는다.
 

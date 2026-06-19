@@ -841,6 +841,7 @@ class _MemberPickerRow extends StatelessWidget {
                           leading: PixelAvatar(
                             label: member.name,
                             profileImageUrl: member.profileImageUrl,
+                            character: member.character,
                             size: 44,
                           ),
                           title: Text(member.name),

@@ -74,6 +74,7 @@ class PlanCreateController {
       profileImageUrl: enriched.profileImageUrl.isNotEmpty
           ? enriched.profileImageUrl
           : member.profileImageUrl,
+      character: enriched.character ?? member.character,
       preferenceProfile: enriched.preferenceProfile,
       fallbackToViewerCharacter: member.fallbackToViewerCharacter,
     );

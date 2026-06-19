@@ -236,12 +236,13 @@ flowchart LR
 ```json
 {
   "id": "<plan_participants uuid>",
-  "userId": "<users.public_id>",
-  "displayName": "참여자",
+  "userId": "<users.id uuid>",
+  "nickname": "참여자",
   "status": "joined",
   "response": "accepted",
   "joinedAt": "2026-06-15T00:00:00Z",
   "profileImageUrl": "",
+  "pixelCharacter": {},
   "preferenceProfile": {}
 }
 ```

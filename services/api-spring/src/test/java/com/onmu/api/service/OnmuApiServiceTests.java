@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityRepository;
+import com.onmu.api.domain.CharacterProfileEntity;
 import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ExternalPlaceEntity;
 import com.onmu.api.domain.ExternalPlaceRepository;
@@ -119,7 +120,11 @@ class OnmuApiServiceTests {
       refreshTokenRepository,
       characterProfileRepository,
       groupRepository,
-      new GroupReadModelMapper(groupMemberRepository),
+      new GroupReadModelMapper(
+        groupMemberRepository,
+        characterProfileRepository,
+        new ObjectMapper()
+      ),
       planRepository,
       voteRepository,
       externalPlaceRepository,
@@ -436,9 +441,20 @@ class OnmuApiServiceTests {
     UserEntity minsu = user("00000000-0000-0000-0000-000000000002", "민수");
     PlanParticipantEntity joined = new PlanParticipantEntity(plan, jimin, "joined", "accepted");
     PlanParticipantEntity left = new PlanParticipantEntity(plan, minsu, "left", "accepted");
+    CharacterProfileEntity jiminCharacter = new CharacterProfileEntity(
+      jimin.getId(),
+      "female",
+      "skin_2",
+      "hair_style_3",
+      "hair_color_1",
+      "eye_style_1",
+      "eye_color_2",
+      "top_4"
+    );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(joined, left));
+    when(characterProfileRepository.findByUserId(jimin.getId())).thenReturn(Optional.of(jiminCharacter));
 
     var detail = service.plan("1", "101");
 
@@ -453,6 +469,9 @@ class OnmuApiServiceTests {
         assertThat(participant.get("status")).isEqualTo("joined");
         assertThat(participant.get("fallback")).isEqualTo(false);
         assertThat(participant.get("profileImageUrl")).isEqualTo("dev/avatars/jimin.png");
+        assertThat(participant.get("pixelCharacter"))
+          .isInstanceOfSatisfying(Map.class, character ->
+            assertThat(character).containsEntry("hairStyle", "hair_style_3"));
         assertThat(participant.get("preferenceProfile"))
           .isInstanceOfSatisfying(Map.class, profile ->
             assertThat(profile).containsEntry("preferredTimes", List.of("evening")));
@@ -464,6 +483,9 @@ class OnmuApiServiceTests {
         assertThat(member.get("name")).isEqualTo("지민");
         assertThat(member.get("selected")).isEqualTo(true);
         assertThat(member.get("profileImageUrl")).isEqualTo("dev/avatars/jimin.png");
+        assertThat(member.get("pixelCharacter"))
+          .isInstanceOfSatisfying(Map.class, character ->
+            assertThat(character).containsEntry("hairStyle", "hair_style_3"));
         assertThat(member.get("preferenceProfile"))
           .isInstanceOfSatisfying(Map.class, profile ->
             assertThat(profile).containsEntry("unavailableDates", List.of("2026-06-17")));

@@ -1,6 +1,6 @@
-import 'vote_models.dart';
-
+import 'character_model.dart';
 import 'preference_profile.dart';
+import 'vote_models.dart';
 
 class GroupSummary {
   const GroupSummary({
@@ -307,10 +307,15 @@ enum GroupMessageSendStatus {
 }
 
 class GroupPlanMemberAvatar {
-  const GroupPlanMemberAvatar({required this.name, this.profileImageUrl = ''});
+  const GroupPlanMemberAvatar({
+    required this.name,
+    this.profileImageUrl = '',
+    this.character,
+  });
 
   final String name;
   final String profileImageUrl;
+  final CharacterDraft? character;
 }
 
 class GroupMessage {
@@ -565,6 +570,7 @@ class GroupMemberProfile {
     required this.statusLabel,
     this.invited = false,
     this.profileImageUrl = '',
+    this.character,
     this.preferenceProfile,
   });
 
@@ -574,6 +580,7 @@ class GroupMemberProfile {
   final String statusLabel;
   final bool invited;
   final String profileImageUrl;
+  final CharacterDraft? character;
   final PreferenceProfile? preferenceProfile;
 }
 
