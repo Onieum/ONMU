@@ -12,6 +12,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../features/map/model/map_models.dart';
+import '../../../../features/map/view_model/map_catalog_view_model.dart';
 import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
@@ -33,23 +34,6 @@ enum _MyLocationRequestState {
 
 List<PlaceCandidate> activePlaceResultsForMap(List<PlaceCandidate> candidates) {
   return candidates.take(20).toList(growable: false);
-}
-
-List<OnmuCatalogMapPoint> catalogPointsForPlaceCandidates(
-  List<PlaceCandidate> candidates,
-) {
-  return [
-    for (final candidate in candidates)
-      if (candidate.hasCoordinate)
-        OnmuCatalogMapPoint(
-          id: candidate.id.toString(),
-          category: candidate.category,
-          coordinate: OnmuLatLng(
-            lat: candidate.latitude!,
-            lng: candidate.longitude!,
-          ),
-        ),
-  ];
 }
 
 List<OnmuMapPoint> mapPointsForPlaceCandidates(
@@ -128,6 +112,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   int? _focusedCandidateId;
   OnmuLatLng? _lastCameraCenter;
   OnmuLatLng? _mapSearchCenter;
+  OnmuMapViewport? _catalogViewport;
+  Timer? _catalogViewportDebounce;
   final DraggableScrollableController _recommendationSheetController =
       DraggableScrollableController();
   _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
@@ -140,6 +126,10 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   @override
   void initState() {
     super.initState();
+    _catalogViewport = _initialCatalogViewport(
+      const OnmuLatLng(lat: 37.5665, lng: 126.9780),
+      11,
+    );
     final initialQuery = widget.initialQuery.trim();
     if (initialQuery.isNotEmpty) {
       _query = initialQuery;
@@ -149,6 +139,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
 
   @override
   void dispose() {
+    _catalogViewportDebounce?.cancel();
     _recommendationSheetController.dispose();
     super.dispose();
   }
@@ -249,6 +240,51 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     setState(() {
       _lastCameraCenter = center;
     });
+  }
+
+  void _handleViewportIdle(OnmuMapViewport viewport) {
+    if (_sameCatalogViewport(_catalogViewport, viewport)) {
+      return;
+    }
+    _catalogViewportDebounce?.cancel();
+    _catalogViewportDebounce = Timer(const Duration(milliseconds: 420), () {
+      if (!mounted) {
+        return;
+      }
+      if (_sameCatalogViewport(_catalogViewport, viewport)) {
+        return;
+      }
+      setState(() {
+        _catalogViewport = viewport;
+      });
+    });
+  }
+
+  bool _sameCatalogViewport(OnmuMapViewport? previous, OnmuMapViewport next) {
+    if (previous == null || previous.apiZoom != next.apiZoom) {
+      return false;
+    }
+    const threshold = 0.0005;
+    return (previous.bounds.south - next.bounds.south).abs() < threshold &&
+        (previous.bounds.west - next.bounds.west).abs() < threshold &&
+        (previous.bounds.north - next.bounds.north).abs() < threshold &&
+        (previous.bounds.east - next.bounds.east).abs() < threshold;
+  }
+
+  OnmuMapViewport _initialCatalogViewport(OnmuLatLng center, double zoom) {
+    final zoomLevel = zoom.round().clamp(0, 22).toInt();
+    final span = 18 / (1 << zoomLevel);
+    final latSpan = span.clamp(0.002, 1.5);
+    final lngSpan = (span * 1.2).clamp(0.002, 1.8);
+    return OnmuMapViewport(
+      bounds: OnmuMapBounds(
+        south: (center.lat - latSpan).clamp(-90.0, 90.0).toDouble(),
+        west: (center.lng - lngSpan).clamp(-180.0, 180.0).toDouble(),
+        north: (center.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
+        east: (center.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
+      ),
+      zoom: zoom,
+    );
   }
 
   void _searchVisibleMapArea() {
@@ -596,11 +632,31 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
           orElse: () => localVisibleCandidates,
         ) ??
         localVisibleCandidates;
-    final activeResultCandidates = activePlaceResultsForMap(visibleCandidates);
-    final catalogPoints = catalogPointsForPlaceCandidates(visibleCandidates);
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
     final mapCenter = _mapSearchCenter ?? _lastCameraCenter;
+    final mapZoom = mapSearchCenter == null ? 11.0 : 14.8;
+    final catalogViewport =
+        _catalogViewport ??
+        _initialCatalogViewport(
+          mapCenter ?? const OnmuLatLng(lat: 37.5665, lng: 126.9780),
+          mapZoom,
+        );
+    final catalogState = ref.watch(
+      mapCatalogProvider((
+        groupId: widget.groupId,
+        planId: widget.planId,
+        viewport: catalogViewport,
+        category: _selectedSearchCategory,
+        filter: _selectedCategoryFilter ?? 'all',
+        query: _query.trim().isEmpty ? null : _query.trim(),
+      )),
+    );
+    final catalogData = catalogState.maybeWhen(
+      data: (data) => data,
+      orElse: () => OnmuCatalogMapData.empty(catalogViewport),
+    );
+    final activeResultCandidates = activePlaceResultsForMap(visibleCandidates);
     final sheetBottomPadding =
         (screenSize.height * _recommendationSheetSize + 80).clamp(220.0, 680.0);
     final mapCameraFitPadding = EdgeInsets.fromLTRB(
@@ -626,20 +682,22 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 child: OnmuMapView(
                   points: mapPointsForPlaceCandidates(activeResultCandidates),
-                  catalogPoints: catalogPoints,
+                  catalogClusters: catalogData.clusters,
+                  catalogPoints: catalogData.points,
                   fallbackLabel: _mapFallbackLabel(
                     activeResultCandidates,
                     searchLoading: searchLoading,
                     searchHadError: searchHadError,
                   ),
                   center: mapCenter,
-                  zoom: mapSearchCenter == null ? 11 : 14.8,
+                  zoom: mapZoom,
                   cameraFitPadding: mapCameraFitPadding,
                   markerScreenSafetyPadding: markerSafetyPadding,
                   focusedPointId:
                       (_selectedCandidate?.id ?? _focusedCandidateId)
                           ?.toString(),
                   onCameraIdle: _handleCameraIdle,
+                  onViewportIdle: _handleViewportIdle,
                   onMyLocationResolved: _handleMyLocationResolved,
                   onMyLocationUnavailable: _handleMyLocationUnavailable,
                   myLocationRequestSerial: _myLocationRequestSerial,

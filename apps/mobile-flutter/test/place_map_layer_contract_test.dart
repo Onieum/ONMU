@@ -3,7 +3,7 @@ import 'package:onmu_mobile/features/place/presentation/pages/place_map_page.dar
 import 'package:onmu_mobile/shared/models/place_models.dart';
 
 void main() {
-  test('keeps active result markers to top 20 while catalog keeps context', () {
+  test('keeps active result markers to top 20', () {
     final candidates = [
       for (var index = 0; index < 24; index += 1)
         _candidate(
@@ -15,29 +15,21 @@ void main() {
 
     final activeResults = activePlaceResultsForMap(candidates);
     final activeMarkers = mapPointsForPlaceCandidates(activeResults);
-    final catalogPoints = catalogPointsForPlaceCandidates(candidates);
 
     expect(activeResults, hasLength(20));
     expect(activeMarkers, hasLength(20));
     expect(activeMarkers.first.order, 1);
     expect(activeMarkers.last.order, 20);
-    expect(catalogPoints, hasLength(24));
-    expect(catalogPoints.last.id, '24');
   });
 
-  test(
-    'does not add catalog dots for fallback-only active marker coordinates',
-    () {
-      final candidates = [_candidate(id: 1), _candidate(id: 2)];
+  test('active result markers can still use fallback coordinates in tests', () {
+    final candidates = [_candidate(id: 1), _candidate(id: 2)];
 
-      final activeMarkers = mapPointsForPlaceCandidates(candidates);
-      final catalogPoints = catalogPointsForPlaceCandidates(candidates);
+    final activeMarkers = mapPointsForPlaceCandidates(candidates);
 
-      expect(activeMarkers, hasLength(2));
-      expect(activeMarkers.first.order, 1);
-      expect(catalogPoints, isEmpty);
-    },
-  );
+    expect(activeMarkers, hasLength(2));
+    expect(activeMarkers.first.order, 1);
+  });
 }
 
 PlaceCandidate _candidate({required int id, double? lat, double? lng}) {

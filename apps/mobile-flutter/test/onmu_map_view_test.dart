@@ -112,20 +112,40 @@ void main() {
         coordinate: OnmuLatLng(lat: 37.5651, lng: 126.9895),
       ),
     ];
+    const catalogClusters = [
+      OnmuCatalogMapCluster(
+        id: 'cluster-1',
+        count: 12,
+        coordinate: OnmuLatLng(lat: 37.566, lng: 126.98),
+        bounds: OnmuMapBounds(
+          south: 37.56,
+          west: 126.97,
+          north: 37.57,
+          east: 126.99,
+        ),
+        categories: ['카페', '공원'],
+      ),
+    ];
 
-    final source = catalogGeoJsonSourceProperties(catalogPoints).toJson();
-    final geojson = catalogGeoJsonForPoints(catalogPoints);
+    final source = catalogGeoJsonSourceProperties(
+      catalogPoints,
+      clusters: catalogClusters,
+    ).toJson();
+    final geojson = catalogGeoJsonForLayer(
+      clusters: catalogClusters,
+      points: catalogPoints,
+    );
     final clusterLayer = catalogClusterCircleLayerProperties().toJson();
     final clusterCountLayer = catalogClusterCountLayerProperties().toJson();
     final dotLayer = catalogDotLayerProperties().toJson();
 
     expect(mapCatalogSourceId, isNot(mapNativePointDataKey));
     expect(mapCatalogClusterLayerId, contains('catalog'));
-    expect(source['cluster'], isTrue);
-    expect(source['clusterMaxZoom'], 13);
+    expect(source['cluster'], isFalse);
     expect(source['promoteId'], 'id');
-    expect(geojson['features'], hasLength(2));
-    expect(geojson['features'][0]['geometry']['coordinates'], [
+    expect(geojson['features'], hasLength(3));
+    expect(geojson['features'][0]['properties']['point_count'], 12);
+    expect(geojson['features'][1]['geometry']['coordinates'], [
       126.978,
       37.5665,
     ]);

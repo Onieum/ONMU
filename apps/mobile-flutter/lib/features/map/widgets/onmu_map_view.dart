@@ -240,6 +240,7 @@ bool haveSameCatalogLayerPoints(
     final nextPoint = next[i];
     if (previousPoint.id != nextPoint.id ||
         previousPoint.category != nextPoint.category ||
+        previousPoint.providerPlaceId != nextPoint.providerPlaceId ||
         !_sameCoordinate(previousPoint.coordinate, nextPoint.coordinate)) {
       return false;
     }
@@ -248,16 +249,63 @@ bool haveSameCatalogLayerPoints(
 }
 
 @visibleForTesting
-Map<String, dynamic> catalogGeoJsonForPoints(List<OnmuCatalogMapPoint> points) {
+bool haveSameCatalogLayerClusters(
+  List<OnmuCatalogMapCluster> previous,
+  List<OnmuCatalogMapCluster> next,
+) {
+  if (previous.length != next.length) {
+    return false;
+  }
+  for (var i = 0; i < previous.length; i += 1) {
+    final previousCluster = previous[i];
+    final nextCluster = next[i];
+    if (previousCluster.id != nextCluster.id ||
+        previousCluster.count != nextCluster.count ||
+        !_sameCoordinate(previousCluster.coordinate, nextCluster.coordinate)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@visibleForTesting
+Map<String, dynamic> catalogGeoJsonForLayer({
+  required List<OnmuCatalogMapCluster> clusters,
+  required List<OnmuCatalogMapPoint> points,
+}) {
   return {
     'type': 'FeatureCollection',
     'features': [
+      for (final cluster in clusters)
+        {
+          'type': 'Feature',
+          'id': cluster.id,
+          'properties': {
+            'id': cluster.id,
+            'type': 'cluster',
+            'point_count': cluster.count,
+            'point_count_abbreviated': _abbreviatedCount(cluster.count),
+            'south': cluster.bounds.south,
+            'west': cluster.bounds.west,
+            'north': cluster.bounds.north,
+            'east': cluster.bounds.east,
+            if (cluster.categories.isNotEmpty)
+              'categories': cluster.categories.join(','),
+          },
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [cluster.coordinate.lng, cluster.coordinate.lat],
+          },
+        },
       for (final point in points)
         {
           'type': 'Feature',
           'id': point.id,
           'properties': {
             'id': point.id,
+            'type': 'point',
+            if (point.providerPlaceId.trim().isNotEmpty)
+              'providerPlaceId': point.providerPlaceId.trim(),
             if (point.category.trim().isNotEmpty)
               'category': point.category.trim(),
           },
@@ -272,15 +320,22 @@ Map<String, dynamic> catalogGeoJsonForPoints(List<OnmuCatalogMapPoint> points) {
 
 @visibleForTesting
 GeojsonSourceProperties catalogGeoJsonSourceProperties(
-  List<OnmuCatalogMapPoint> points,
-) {
+  List<OnmuCatalogMapPoint> points, {
+  List<OnmuCatalogMapCluster> clusters = const [],
+}) {
   return GeojsonSourceProperties(
-    data: catalogGeoJsonForPoints(points),
-    cluster: true,
-    clusterRadius: 56,
-    clusterMaxZoom: 13,
+    data: catalogGeoJsonForLayer(clusters: clusters, points: points),
+    cluster: false,
     promoteId: 'id',
   );
+}
+
+String _abbreviatedCount(int count) {
+  if (count >= 1000) {
+    final value = count / 1000;
+    return '${value.toStringAsFixed(value >= 10 ? 0 : 1)}k';
+  }
+  return count.toString();
 }
 
 @visibleForTesting
@@ -355,6 +410,7 @@ CameraTargetBounds cameraTargetBoundsFromManifest(TileManifest? manifest) {
 class OnmuMapView extends ConsumerStatefulWidget {
   const OnmuMapView({
     required this.points,
+    this.catalogClusters = const [],
     this.catalogPoints = const [],
     this.routeGeometry = const [],
     this.center,
@@ -362,6 +418,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.focusedPointId,
     this.onPointTap,
     this.onCameraIdle,
+    this.onViewportIdle,
     this.onMyLocationResolved,
     this.onMyLocationUnavailable,
     this.myLocationEnabled = false,
@@ -374,6 +431,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
   });
 
   final List<OnmuMapPoint> points;
+  final List<OnmuCatalogMapCluster> catalogClusters;
   final List<OnmuCatalogMapPoint> catalogPoints;
   final List<OnmuLatLng> routeGeometry;
   final OnmuLatLng? center;
@@ -381,6 +439,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final String? focusedPointId;
   final ValueChanged<OnmuMapPoint>? onPointTap;
   final ValueChanged<OnmuLatLng>? onCameraIdle;
+  final ValueChanged<OnmuMapViewport>? onViewportIdle;
   final ValueChanged<OnmuLatLng>? onMyLocationResolved;
   final VoidCallback? onMyLocationUnavailable;
   final bool myLocationEnabled;
@@ -418,6 +477,10 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       oldWidget.catalogPoints,
       widget.catalogPoints,
     );
+    final catalogClustersChanged = !haveSameCatalogLayerClusters(
+      oldWidget.catalogClusters,
+      widget.catalogClusters,
+    );
     final centerChanged = !haveSameOptionalCameraTarget(
       oldWidget.center,
       widget.center,
@@ -427,6 +490,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     if (pointsChanged ||
         routeGeometryChanged ||
         catalogPointsChanged ||
+        catalogClustersChanged ||
         centerChanged ||
         zoomChanged ||
         focusChanged) {
@@ -592,7 +656,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     required LatLng fallback,
   }) async {
     final controller = _mapController;
-    if (controller == null || !_styleLoaded || widget.catalogPoints.isEmpty) {
+    if (controller == null || !_styleLoaded || widget.catalogClusters.isEmpty) {
       return;
     }
     try {
@@ -600,6 +664,20 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         mapCatalogClusterLayerId,
       ], null);
       if (features.isEmpty) {
+        return;
+      }
+      final clusterBounds = _boundsFromRenderedFeature(features.first);
+      if (clusterBounds != null) {
+        await controller.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            clusterBounds,
+            left: 48,
+            top: 160,
+            right: 48,
+            bottom: 320,
+          ),
+          duration: const Duration(milliseconds: 320),
+        );
         return;
       }
       final target = _latLngFromRenderedFeature(features.first) ?? fallback;
@@ -636,6 +714,34 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     return LatLng(lat, lng);
   }
 
+  LatLngBounds? _boundsFromRenderedFeature(Object? feature) {
+    if (feature is! Map) {
+      return null;
+    }
+    final properties = _asMap(feature['properties']);
+    final south = _readDouble(properties['south']);
+    final west = _readDouble(properties['west']);
+    final north = _readDouble(properties['north']);
+    final east = _readDouble(properties['east']);
+    if (south == null || west == null || north == null || east == null) {
+      return null;
+    }
+    if (south >= north || west >= east) {
+      return null;
+    }
+    return LatLngBounds(
+      southwest: LatLng(south, west),
+      northeast: LatLng(north, east),
+    );
+  }
+
+  Map<String, dynamic> _asMap(Object? value) {
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const {};
+  }
+
   double? _readDouble(Object? value) {
     if (value is num) {
       return value.toDouble();
@@ -649,6 +755,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
 
   void _handleCameraIdle() {
     _emitCurrentCameraTarget();
+    unawaited(_emitCurrentViewport());
   }
 
   void _emitCurrentCameraTarget() {
@@ -666,6 +773,61 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     if (fallbackCenter != null) {
       widget.onCameraIdle!(fallbackCenter);
     }
+  }
+
+  Future<void> _emitCurrentViewport() async {
+    if (widget.onViewportIdle == null) {
+      return;
+    }
+    final controller = _mapController;
+    if (controller == null) {
+      final center = _centerFromData() ?? widget.center;
+      if (center != null) {
+        widget.onViewportIdle!(_approximateViewport(center, widget.zoom));
+      }
+      return;
+    }
+    try {
+      final visible = await controller.getVisibleRegion();
+      final zoom = controller.cameraPosition?.zoom ?? widget.zoom;
+      widget.onViewportIdle!(
+        OnmuMapViewport(
+          bounds: OnmuMapBounds(
+            south: visible.southwest.latitude,
+            west: visible.southwest.longitude,
+            north: visible.northeast.latitude,
+            east: visible.northeast.longitude,
+          ),
+          zoom: zoom,
+        ),
+      );
+    } catch (_) {
+      final target = controller.cameraPosition?.target;
+      if (target == null) {
+        return;
+      }
+      widget.onViewportIdle!(
+        _approximateViewport(
+          OnmuLatLng(lat: target.latitude, lng: target.longitude),
+          controller.cameraPosition?.zoom ?? widget.zoom,
+        ),
+      );
+    }
+  }
+
+  OnmuMapViewport _approximateViewport(OnmuLatLng center, double zoom) {
+    final span = math.max(0.002, 18 / math.pow(2, zoom));
+    final latSpan = span;
+    final lngSpan = span * 1.2;
+    return OnmuMapViewport(
+      bounds: OnmuMapBounds(
+        south: (center.lat - latSpan).clamp(-90.0, 90.0).toDouble(),
+        west: (center.lng - lngSpan).clamp(-180.0, 180.0).toDouble(),
+        north: (center.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
+        east: (center.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
+      ),
+      zoom: zoom,
+    );
   }
 
   Future<void> _focusNativeMyLocation() async {
@@ -769,6 +931,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
         await _fitNativeCamera(controller);
       }
       _emitCurrentCameraTarget();
+      unawaited(_emitCurrentViewport());
       await _logNativeMarkerScreenSummary(controller);
     } catch (_) {
       // 지도 annotation 동기화 실패는 플랫폼 뷰 수명주기 경쟁일 수 있어 UI를 유지한다.
@@ -776,11 +939,17 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   }
 
   Future<void> _syncCatalogNativeLayer(MapLibreMapController controller) async {
-    final geojson = catalogGeoJsonForPoints(widget.catalogPoints);
+    final geojson = catalogGeoJsonForLayer(
+      clusters: widget.catalogClusters,
+      points: widget.catalogPoints,
+    );
     if (!_catalogSourceAdded) {
       await controller.addSource(
         mapCatalogSourceId,
-        catalogGeoJsonSourceProperties(widget.catalogPoints),
+        catalogGeoJsonSourceProperties(
+          widget.catalogPoints,
+          clusters: widget.catalogClusters,
+        ),
       );
       await controller.addLayer(
         mapCatalogSourceId,
