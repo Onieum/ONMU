@@ -84,6 +84,12 @@ public class SchedulePlaceEntity {
     this(publicId, group, plan, placeCandidate, name, startsAt, null, sortOrder, null);
   }
 
+  public void updateVisitTime(Instant startsAt, Instant endsAt, String note) {
+    this.startsAt = startsAt;
+    this.endsAt = endsAt;
+    this.note = note;
+  }
+
   public UUID getId() {
     return id;
   }

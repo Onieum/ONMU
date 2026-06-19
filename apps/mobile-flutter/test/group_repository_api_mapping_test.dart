@@ -85,6 +85,45 @@ void main() {
     expect(group.description, '새 소개');
   });
 
+  test('addMember posts DB userId and maps returned member profile', () async {
+    final requests = <RequestOptions>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requests.add(options);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              statusCode: 201,
+              data: {
+                'userId': '00000000-0000-0000-0000-000000000002',
+                'nickname': '박진희',
+                'note': '멤버',
+                'statusLabel': '참여 중',
+                'profileImageUrl': 'https://cdn.onmu.test/profile.png',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final member = await repository.addMember(
+      groupId: 4,
+      userId: '00000000-0000-0000-0000-000000000002',
+    );
+
+    expect(requests.single.path, '/api/v1/groups/4/members');
+    expect(requests.single.method, 'POST');
+    expect(requests.single.data, {
+      'userId': '00000000-0000-0000-0000-000000000002',
+    });
+    expect(member.userId, '00000000-0000-0000-0000-000000000002');
+    expect(member.name, '박진희');
+  });
+
   test(
     'does not synthesize Spring API copy for missing group fields',
     () async {

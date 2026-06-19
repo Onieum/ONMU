@@ -40,6 +40,8 @@ void main() {
       planId: 104,
       candidateId: 204,
       name: '성수 테스트 카페',
+      startsAt: DateTime.utc(2026, 6, 19, 5),
+      endsAt: DateTime.utc(2026, 6, 19, 6),
       note: '점심',
     );
 
@@ -47,6 +49,8 @@ void main() {
     expect(requestedBodies.single, {
       'candidateId': '204',
       'name': '성수 테스트 카페',
+      'startsAt': '2026-06-19T05:00:00.000Z',
+      'endsAt': '2026-06-19T06:00:00.000Z',
       'note': '점심',
     });
     expect(saved.id, '701');
@@ -54,6 +58,103 @@ void main() {
     expect(saved.name, '성수 테스트 카페');
     expect(saved.sortOrder, 1);
   });
+
+  test(
+    'updates schedule place visit time through the Spring API contract',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': '701',
+                  'groupId': '1',
+                  'planId': '104',
+                  'candidateId': '204',
+                  'name': '성수 테스트 카페',
+                  'startsAt': '2026-06-19T07:00:00Z',
+                  'endsAt': '2026-06-19T08:00:00Z',
+                  'sortOrder': 1,
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiPlaceRepository(OnmuApiClient(dio));
+
+      final updated = await repository.updateSchedulePlace(
+        groupId: 1,
+        planId: 104,
+        schedulePlaceId: '701',
+        startsAt: DateTime.utc(2026, 6, 19, 7),
+        endsAt: DateTime.utc(2026, 6, 19, 8),
+      );
+
+      expect(
+        requests.single.path,
+        '/api/v1/groups/1/plans/104/schedule-places/701',
+      );
+      expect(requests.single.method, 'PATCH');
+      expect(requests.single.data, {
+        'startsAt': '2026-06-19T07:00:00.000Z',
+        'endsAt': '2026-06-19T08:00:00.000Z',
+      });
+      expect(updated.startsAt, DateTime.parse('2026-06-19T07:00:00Z'));
+      expect(updated.endsAt, DateTime.parse('2026-06-19T08:00:00Z'));
+    },
+  );
+
+  test(
+    'updates candidate heart state through the Spring API contract',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': '204',
+                  'name': '성수 테스트 카페',
+                  'category': '카페',
+                  'summary': '하트 상태',
+                  'address': '서울 성동구 테스트로 1',
+                  'heartCount': 1,
+                  'myHearted': true,
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiPlaceRepository(OnmuApiClient(dio));
+
+      final updated = await repository.setCandidateHeart(
+        groupId: 1,
+        planId: 104,
+        candidateId: 204,
+        hearted: true,
+      );
+
+      expect(
+        requests.single.path,
+        '/api/v1/groups/1/plans/104/place-candidates/204/heart',
+      );
+      expect(requests.single.method, 'PUT');
+      expect(requests.single.data, {'hearted': true});
+      expect(updated.heartCount, 1);
+      expect(updated.heartedByMe, isTrue);
+    },
+  );
 
   test('deletes a schedule place through the Spring API contract', () async {
     final requests = <RequestOptions>[];

@@ -6,6 +6,7 @@ import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.web.dto.AddGroupMemberRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -90,6 +91,35 @@ public class GroupApiService {
   public List<Map<String, Object>> members(String groupId, UUID userId) {
     UserEntity user = user(userId);
     return membersFor(memberGroup(groupId, user), true);
+  }
+
+  @Transactional
+  public Map<String, Object> addMember(String groupId, UUID userId, AddGroupMemberRequest request) {
+    if (request == null || request.userId() == null || request.userId().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_user_id");
+    }
+    UserEntity currentUser = user(userId);
+    GroupEntity group = memberGroup(groupId, currentUser);
+    UserEntity targetUser = user(parseUserId(request.userId()));
+    GroupMemberEntity membership = groupMemberRepository.findByGroupAndUser(group, targetUser)
+      .map(existing -> {
+        if ("left".equals(existing.getStatus())) {
+          existing.markActive();
+          return groupMemberRepository.save(existing);
+        }
+        return existing;
+      })
+      .orElseGet(() -> groupMemberRepository.save(new GroupMemberEntity(group, targetUser, "member", "active")));
+    outboxService.record(
+      "group.member_added",
+      "group",
+      group.getId(),
+      Map.of(
+        "groupId", group.getPublicId(),
+        "userId", targetUser.getId() == null ? "" : targetUser.getId().toString()
+      )
+    );
+    return memberProfile(membership);
   }
 
   @Transactional
@@ -227,6 +257,14 @@ public class GroupApiService {
   private UserEntity user(UUID userId) {
     return userRepository.findByIdAndDeletedAtIsNull(userId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
+  }
+
+  private UUID parseUserId(String value) {
+    try {
+      return UUID.fromString(value.trim());
+    } catch (IllegalArgumentException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_user_id");
+    }
   }
 
   private String safeDescription(GroupEntity group) {

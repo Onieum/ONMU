@@ -496,6 +496,19 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async {
+    return GroupMemberProfile(
+      userId: userId,
+      name: '초대 친구',
+      note: '멤버',
+      statusLabel: '참여 중',
+    );
+  }
+
+  @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
     return _store.fetchMessages(groupId);
   }
@@ -751,6 +764,8 @@ class TestPlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note = '',
   }) async {
     return SchedulePlace(
@@ -759,8 +774,50 @@ class TestPlaceRepository implements PlaceRepository {
       planId: planId.toString(),
       candidateId: candidateId.toString(),
       name: name,
+      startsAt: startsAt,
+      endsAt: endsAt,
       note: note,
       sortOrder: 1,
+    );
+  }
+
+  @override
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async {
+    return SchedulePlace(
+      id: schedulePlaceId.toString(),
+      groupId: groupId.toString(),
+      planId: planId.toString(),
+      candidateId: '',
+      name: '수정 장소',
+      startsAt: startsAt,
+      endsAt: endsAt,
+      note: note,
+      sortOrder: 1,
+    );
+  }
+
+  @override
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  }) async {
+    final candidate = await fetchCandidate(
+      groupId: groupId,
+      planId: planId,
+      candidateId: candidateId,
+    );
+    return candidate.copyWith(
+      heartedByMe: hearted,
+      heartCount: hearted ? 1 : 0,
     );
   }
 

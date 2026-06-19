@@ -26,11 +26,29 @@ abstract interface class PlaceRepository {
     required PlaceCandidate candidate,
   });
 
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  });
+
   Future<SchedulePlace> createSchedulePlace({
     required Object groupId,
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note,
+  });
+
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note,
   });
 
@@ -127,11 +145,27 @@ class ApiPlaceRepository implements PlaceRepository {
   }
 
   @override
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  }) async {
+    final response = await _client.putObject(
+      '/api/v1/groups/$groupId/plans/$planId/place-candidates/$candidateId/heart',
+      body: {'hearted': hearted},
+    );
+    return _candidate(response);
+  }
+
+  @override
   Future<SchedulePlace> createSchedulePlace({
     required Object groupId,
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note = '',
   }) async {
     final response = await _client.postObject(
@@ -139,6 +173,28 @@ class ApiPlaceRepository implements PlaceRepository {
       body: {
         'candidateId': candidateId.toString(),
         'name': name.trim(),
+        if (startsAt != null) 'startsAt': startsAt.toUtc().toIso8601String(),
+        if (endsAt != null) 'endsAt': endsAt.toUtc().toIso8601String(),
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    return _schedulePlace(response);
+  }
+
+  @override
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async {
+    final response = await _client.patchObject(
+      '/api/v1/groups/$groupId/plans/$planId/schedule-places/$schedulePlaceId',
+      body: {
+        'startsAt': startsAt?.toUtc().toIso8601String(),
+        'endsAt': endsAt?.toUtc().toIso8601String(),
         if (note.trim().isNotEmpty) 'note': note.trim(),
       },
     );
@@ -256,6 +312,20 @@ class ApiPlaceRepository implements PlaceRepository {
           _readNullableDouble(json, 'lng') ??
           _readNullableDouble(json, 'longitude'),
       fetchedAt: DateTime.tryParse(OnmuJson.readString(json, 'fetchedAt')),
+      heartCount: OnmuJson.readInt(
+        json,
+        'heartCount',
+        OnmuJson.readInt(json, 'favoriteCount'),
+      ),
+      heartedByMe: OnmuJson.readBool(
+        json,
+        'myHearted',
+        OnmuJson.readBool(
+          json,
+          'heartedByMe',
+          OnmuJson.readBool(json, 'likedByMe'),
+        ),
+      ),
     );
   }
 

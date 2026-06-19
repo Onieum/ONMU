@@ -944,7 +944,7 @@ void main() {
     final secondTabText = tester.widget<Text>(dateTabs.at(1));
 
     expect(secondTabText.style?.color, AppColors.primaryPink);
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.text('장소 동선'), findsWidgets);
   });
 
   testWidgets('draft plan can open the shared candidate list', (tester) async {
@@ -965,11 +965,11 @@ void main() {
     expect(find.text('지각'), findsNothing);
     await tester.scrollUntilVisible(find.text('일정 타임라인'), 160);
     expect(find.text('일정 타임라인'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('다운타우너 성수'), 160);
     expect(find.text('다운타우너 성수'), findsOneWidget);
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('장소 동선').first, 160);
     expect(find.text('방문 지도'), findsNothing);
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.text('장소 동선'), findsWidgets);
     expect(find.text('1'), findsWidgets);
     expect(find.text('2'), findsWidgets);
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
@@ -1129,7 +1129,7 @@ void main() {
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.text('장소 동선'), findsWidgets);
   });
 
   testWidgets('place candidate list is plan-scoped and supports actions', (
@@ -1328,7 +1328,11 @@ void main() {
     await tester.tap(scheduleAction);
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.text('방문 시간 설정'), findsOneWidget);
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('장소 동선'), findsWidgets);
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
     expect(find.text('장소 검색하기'), findsOneWidget);
@@ -2047,6 +2051,8 @@ class _EmptyPlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note = '',
   }) async => SchedulePlace(
     id: '701',
@@ -2054,9 +2060,41 @@ class _EmptyPlaceRepository implements PlaceRepository {
     planId: planId.toString(),
     candidateId: candidateId.toString(),
     name: name,
+    startsAt: startsAt,
+    endsAt: endsAt,
     note: note,
     sortOrder: 1,
   );
+
+  @override
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async => SchedulePlace(
+    id: schedulePlaceId.toString(),
+    groupId: groupId.toString(),
+    planId: planId.toString(),
+    candidateId: '',
+    name: '수정 장소',
+    startsAt: startsAt,
+    endsAt: endsAt,
+    note: note,
+    sortOrder: 1,
+  );
+
+  @override
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> deleteSchedulePlace({
@@ -2207,6 +2245,17 @@ class _SingleMemberGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => const [
     GroupMemberProfile(name: '지우', note: '서버 멤버', statusLabel: '참여 중'),
   ];
+
+  @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async => GroupMemberProfile(
+    userId: userId,
+    name: '초대 친구',
+    note: '멤버',
+    statusLabel: '참여 중',
+  );
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async =>

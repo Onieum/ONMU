@@ -206,7 +206,7 @@ class ApiPlanRepository implements PlanRepository {
       time: _timeLabel(place.startsAt),
       endTime: _timeLabel(place.endsAt),
       place: place.name,
-      kind: '일정 장소',
+      kind: '',
       duration: place.note.trim(),
       startsAt: place.startsAt,
       endsAt: place.endsAt,

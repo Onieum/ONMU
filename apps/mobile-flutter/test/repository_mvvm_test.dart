@@ -255,20 +255,19 @@ void main() {
     expect(container.read(authUserProvider)?.nickname, '박진희');
   });
 
-  test('온모임 멤버 ViewModel은 초대된 멤버만 초대 후보로 노출한다', () async {
+  test('온모임 멤버 ViewModel은 서버 멤버 목록만 상태로 노출한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
 
     final state = await container.read(
       groupMembersViewModelProvider('1').future,
     );
-    final candidateNames = state.inviteCandidates.map(
-      (profile) => profile.name,
-    );
 
     expect(state.members.map((profile) => profile.name), contains('소연'));
-    expect(candidateNames, ['재훈', '은지', '태호']);
-    expect(candidateNames, isNot(contains('소연')));
+    expect(
+      state.members.map((profile) => profile.name),
+      isNot(contains('가짜 친구')),
+    );
   });
 
   test('온모임 홈 ViewModel은 요청한 groupId 범위의 상태를 만든다', () async {
@@ -448,7 +447,7 @@ void main() {
     );
   });
 
-  test('장소 후보 ViewModel은 후보 좋아요 상태를 repository 데이터와 분리해 관리한다', () async {
+  test('장소 후보 ViewModel은 서버 하트 상태와 count를 그대로 사용한다', () async {
     final container = ProviderContainer(
       overrides: [
         placeRepositoryProvider.overrideWithValue(_FakePlaceRepository()),
@@ -465,13 +464,13 @@ void main() {
     expect(initial.candidates.single.id, 9901);
     expect(initial.planLocation, '서울시 테스트구');
     expect(initial.isLiked(9901), isFalse);
-    expect(initial.favoriteCountFor(9901), 3);
+    expect(initial.favoriteCountFor(9901), 0);
 
-    container.read(provider.notifier).toggleFavorite(9901);
+    await container.read(provider.notifier).toggleFavorite(9901);
 
     final updated = container.read(provider).requireValue;
     expect(updated.isLiked(9901), isTrue);
-    expect(updated.favoriteCountFor(9901), 4);
+    expect(updated.favoriteCountFor(9901), 1);
   });
 
   test('약속 생성 Controller는 새 약속 저장을 repository에 위임한다', () async {
@@ -1431,6 +1430,17 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async => GroupMemberProfile(
+    userId: userId,
+    name: '초대 친구',
+    note: '멤버',
+    statusLabel: '참여 중',
+  );
+
+  @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async {
     if (throwOnFetchMessages) {
       throw StateError('messages failed');
@@ -1657,6 +1667,17 @@ class _EmptyGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async => GroupMemberProfile(
+    userId: userId,
+    name: '초대 친구',
+    note: '멤버',
+    statusLabel: '참여 중',
+  );
+
+  @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
 
   @override
@@ -1840,6 +1861,17 @@ class _SparseGroupListRepository extends _EmptyGroupRepository {
       ),
     ];
   }
+
+  @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async => GroupMemberProfile(
+    userId: userId,
+    name: '초대 친구',
+    note: '멤버',
+    statusLabel: '참여 중',
+  );
 
   static final _defaultPlans = [
     GroupPlanSummary(
@@ -2730,6 +2762,8 @@ class _FakePlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note = '',
   }) async => SchedulePlace(
     id: '701',
@@ -2737,9 +2771,40 @@ class _FakePlaceRepository implements PlaceRepository {
     planId: planId.toString(),
     candidateId: candidateId.toString(),
     name: name,
+    startsAt: startsAt,
+    endsAt: endsAt,
     note: note,
     sortOrder: 1,
   );
+
+  @override
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async => SchedulePlace(
+    id: schedulePlaceId.toString(),
+    groupId: groupId.toString(),
+    planId: planId.toString(),
+    candidateId: '',
+    name: '수정 장소',
+    startsAt: startsAt,
+    endsAt: endsAt,
+    note: note,
+    sortOrder: 1,
+  );
+
+  @override
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  }) async =>
+      _candidate.copyWith(heartedByMe: hearted, heartCount: hearted ? 1 : 0);
 
   @override
   Future<void> deleteSchedulePlace({

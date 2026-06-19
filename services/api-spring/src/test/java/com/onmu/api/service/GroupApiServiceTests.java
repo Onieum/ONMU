@@ -14,6 +14,7 @@ import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.web.dto.AddGroupMemberRequest;
 import com.onmu.api.web.dto.UpdateGroupRequest;
 import java.util.List;
 import java.util.Map;
@@ -161,6 +162,40 @@ class GroupApiServiceTests {
         .containsEntry("userId", user.getId().toString())
         .containsEntry("name", "지민")
         .containsEntry("profileImageUrl", "dev/avatars/jimin.png"));
+  }
+
+  @Test
+  void addMemberAddsTargetUserByDbUuidAndRecordsOutboxEvent() {
+    UserEntity targetUser = user("00000000-0000-0000-0000-000000000002", "박진희");
+    when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByIdAndDeletedAtIsNull(targetUser.getId())).thenReturn(Optional.of(targetUser));
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
+    when(groupMemberRepository.findByGroupAndUser(group, targetUser)).thenReturn(Optional.empty());
+    when(groupMemberRepository.save(any(GroupMemberEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Map<String, Object> member = service.addMember(
+      "1",
+      currentUser.getId(),
+      new AddGroupMemberRequest(targetUser.getId().toString())
+    );
+
+    assertThat(member)
+      .containsEntry("userId", targetUser.getId().toString())
+      .containsEntry("name", "박진희")
+      .containsEntry("statusLabel", "참여 중");
+    verify(groupMemberRepository).save(argThat(membership ->
+      targetUser.equals(membership.getUser()) &&
+        "member".equals(membership.getRole()) &&
+        "active".equals(membership.getStatus())
+    ));
+    verify(outboxService).record(
+      eq("group.member_added"),
+      eq("group"),
+      eq(group.getId()),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && targetUser.getId().toString().equals(payload.get("userId")))
+    );
   }
 
   @Test

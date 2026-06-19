@@ -14,6 +14,7 @@ import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
 import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
@@ -637,7 +638,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     });
                   },
                   onRegisterPressed: (candidate) =>
-                      _saveSchedulePlaceAndNavigate(candidate, context),
+                      _saveSchedulePlaceAndNavigate(candidate, context, state),
                   onAddCandidatePressed: (candidate) =>
                       _saveCandidateAndNavigate(
                         candidate,
@@ -711,8 +712,18 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   Future<void> _saveSchedulePlaceAndNavigate(
     PlaceCandidate candidate,
     BuildContext context,
+    PlaceCandidatesState state,
   ) async {
     if (_savingCandidateIds.contains(candidate.id)) {
+      return;
+    }
+    final picked = await OnmuDateTimeRangePicker.show(
+      context: context,
+      title: '방문 시간 설정',
+      initialStart: _initialVisitStart(state),
+      initialEnd: _initialVisitEnd(state),
+    );
+    if (picked == null) {
       return;
     }
 
@@ -728,7 +739,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
               planId: widget.planId,
             )).notifier,
           )
-          .addCandidateToSchedule(candidate);
+          .addCandidateToSchedule(
+            candidate,
+            startsAt: picked.start,
+            endsAt: picked.end,
+          );
       if (!mounted || !context.mounted) {
         return;
       }
@@ -752,6 +767,27 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         });
       }
     }
+  }
+
+  DateTime _initialVisitStart(PlaceCandidatesState state) {
+    final planStart = state.planStartsAt?.toLocal();
+    if (planStart != null && planStart.isAfter(DateTime.now())) {
+      return planStart;
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  }
+
+  DateTime _initialVisitEnd(PlaceCandidatesState state) {
+    final start = _initialVisitStart(state);
+    final defaultEnd = start.add(const Duration(hours: 1));
+    final planEnd = state.planEndsAt?.toLocal();
+    if (planEnd != null &&
+        planEnd.isAfter(start) &&
+        planEnd.isBefore(defaultEnd)) {
+      return planEnd;
+    }
+    return defaultEnd;
   }
 
   PlaceCandidate? _candidateByPointId(

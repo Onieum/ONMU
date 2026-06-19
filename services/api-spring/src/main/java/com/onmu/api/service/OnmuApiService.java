@@ -42,6 +42,7 @@ import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpdateSchedulePlaceRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
@@ -740,6 +741,31 @@ public class OnmuApiService {
   }
 
   @Transactional
+  public Map<String, Object> updateSchedulePlace(
+    String groupId,
+    String planId,
+    String schedulePlaceId,
+    java.util.UUID userId,
+    UpdateSchedulePlaceRequest request
+  ) {
+    GroupEntity group = memberGroup(groupId, userId).group();
+    PlanEntity plan = planOrThrow(group, planId);
+    SchedulePlaceEntity schedulePlace = schedulePlaceOrThrow(plan, schedulePlaceId);
+    schedulePlace.updateVisitTime(
+      request == null ? null : parseNullableInstant(request.startsAt()),
+      request == null ? null : parseNullableInstant(request.endsAt()),
+      request == null ? null : blankToNull(request.note())
+    );
+    schedulePlaceRepository.save(schedulePlace);
+    outboxService.record("schedule_place.updated", "schedule_place", schedulePlace.getId(), Map.of(
+      "groupId", group.getPublicId(),
+      "planId", plan.getPublicId(),
+      "schedulePlaceId", schedulePlace.getPublicId()
+    ));
+    return schedulePlaceCard(group, plan, schedulePlace);
+  }
+
+  @Transactional
   public void deleteSchedulePlace(
     String groupId,
     String planId,
@@ -1128,9 +1154,7 @@ public class OnmuApiService {
   }
 
   private int candidateHeartCount(PlaceCandidateEntity candidate) {
-    Map<String, Object> payload = readObject(candidate.getPayload());
-    int payloadFavoriteCount = intOrDefault(payload.get("favoriteCount"), 0);
-    return Math.max(payloadFavoriteCount, Math.toIntExact(placeCandidateHeartRepository.countByCandidate(candidate)));
+    return Math.toIntExact(placeCandidateHeartRepository.countByCandidate(candidate));
   }
 
   private Map<String, Object> schedulePlaceCard(GroupEntity group, PlanEntity plan, SchedulePlaceEntity schedulePlace) {

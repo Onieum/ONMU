@@ -10,12 +10,16 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../map/view_model/route_recommendation_view_model.dart';
+import '../../../place/view_model/place_candidates_view_model.dart';
 import '../../view_model/plan_detail_view_model.dart';
 import '../../widgets/plan_date_tabs.dart';
 import '../../widgets/plan_member_avatar_row.dart';
+import '../../widgets/plan_route_map_card.dart';
 
 class PlanDetailPage extends ConsumerWidget {
   const PlanDetailPage({
@@ -153,9 +157,17 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         const SizedBox(height: AppSpacing.md),
         Text('일정 타임라인', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
-        _PlanItineraryPreviewSection(visitPlan: selectedVisitPlan),
+        _PlanItineraryPreviewSection(
+          groupId: widget.groupId,
+          planId: widget.planId,
+          visitPlan: selectedVisitPlan,
+        ),
         const SizedBox(height: AppSpacing.md),
-        _TimelineCard(visitPlan: selectedVisitPlan),
+        _TimelineCard(
+          groupId: widget.groupId,
+          planId: widget.planId,
+          visitPlan: selectedVisitPlan,
+        ),
         const SizedBox(height: AppSpacing.md),
         _PlanMemoSection(memo: widget.detail.plan.memo),
       ],
@@ -347,9 +359,17 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        _PlanItineraryPreviewSection(visitPlan: selectedVisitPlan),
+        _PlanItineraryPreviewSection(
+          groupId: widget.groupId,
+          planId: widget.planId,
+          visitPlan: selectedVisitPlan,
+        ),
         const SizedBox(height: AppSpacing.md),
-        _TimelineCard(visitPlan: selectedVisitPlan),
+        _TimelineCard(
+          groupId: widget.groupId,
+          planId: widget.planId,
+          visitPlan: selectedVisitPlan,
+        ),
         const SizedBox(height: AppSpacing.md),
         _PlanMemoSection(memo: widget.detail.plan.memo),
       ],
@@ -571,190 +591,32 @@ Future<void> _leavePlan(
   ).showSnackBar(const SnackBar(content: Text('약속에서 나갔어요.')));
 }
 
-class _PlanItineraryPreviewSection extends StatelessWidget {
-  const _PlanItineraryPreviewSection({required this.visitPlan});
+class _PlanItineraryPreviewSection extends ConsumerWidget {
+  const _PlanItineraryPreviewSection({
+    required this.groupId,
+    required this.planId,
+    required this.visitPlan,
+  });
 
+  final String groupId;
+  final String planId;
   final List<VisitPlan> visitPlan;
 
   @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      padding: EdgeInsets.zero,
-      backgroundColor: AppColors.bgGrid,
-      borderColor: AppColors.lineSoft,
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: Stack(
-          children: [
-            const Positioned.fill(child: _MapFrameBackground()),
-            Positioned(
-              left: AppSpacing.sm,
-              top: AppSpacing.sm,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.bgDefault,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: AppColors.lineSoft),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  child: Text(
-                    '장소 동선',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
-                  ),
-                ),
-              ),
-            ),
-            if (visitPlan.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Text(
-                    '방문 장소가 정해지면 지도 미리보기를 보여드릴게요.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-                  ),
-                ),
-              )
-            else
-              for (var index = 0; index < visitPlan.length; index += 1)
-                _MapMarker(
-                  order: index + 1,
-                  place: visitPlan[index].place,
-                  alignment: _markerAlignment(index, visitPlan.length),
-                ),
-          ],
-        ),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final routeState = ref.watch(
+      routeRecommendationViewModelProvider((
+        groupId: groupId,
+        planId: planId,
+        travelMode: 'walk',
+      )),
     );
-  }
-
-  Alignment _markerAlignment(int index, int count) {
-    if (count <= 1) {
-      return const Alignment(0, 0.1);
-    }
-
-    final progress = index / (count - 1);
-    final x = -0.72 + (progress * 1.44);
-    final wave = index.isEven ? -0.28 : 0.3;
-    return Alignment(x, wave);
-  }
-}
-
-class _MapFrameBackground extends StatelessWidget {
-  const _MapFrameBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _MapFramePainter());
-  }
-}
-
-class _MapFramePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pathPaint = Paint()
-      ..color = AppColors.lineBrown.withValues(alpha: 0.45)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    final gridPaint = Paint()
-      ..color = AppColors.lineSoft.withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    for (var x = size.width / 4; x < size.width; x += size.width / 4) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (var y = size.height / 3; y < size.height; y += size.height / 3) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    final route = Path()
-      ..moveTo(size.width * 0.14, size.height * 0.62)
-      ..cubicTo(
-        size.width * 0.32,
-        size.height * 0.24,
-        size.width * 0.54,
-        size.height * 0.78,
-        size.width * 0.72,
-        size.height * 0.42,
-      )
-      ..cubicTo(
-        size.width * 0.82,
-        size.height * 0.24,
-        size.width * 0.88,
-        size.height * 0.62,
-        size.width * 0.92,
-        size.height * 0.5,
-      );
-    canvas.drawPath(route, pathPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _MapMarker extends StatelessWidget {
-  const _MapMarker({
-    required this.order,
-    required this.place,
-    required this.alignment,
-  });
-
-  final int order;
-  final String place;
-  final Alignment alignment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: alignment,
-      child: Tooltip(
-        message: place,
-        child: SizedBox(
-          width: 72,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPink,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: AppColors.bgDefault, width: 2),
-                ),
-                child: SizedBox.square(
-                  dimension: 28,
-                  child: Center(
-                    child: Text(
-                      '$order',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.textInverse,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                place,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: AppColors.textMain),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return PlanRouteMapCard(
+      routeState: routeState,
+      visitPlan: visitPlan,
+      travelMode: 'walk',
+      showTravelModeControls: false,
+      height: 240,
     );
   }
 }
@@ -791,13 +653,19 @@ class _PlanMemoSection extends StatelessWidget {
   }
 }
 
-class _TimelineCard extends StatelessWidget {
-  const _TimelineCard({required this.visitPlan});
+class _TimelineCard extends ConsumerWidget {
+  const _TimelineCard({
+    required this.groupId,
+    required this.planId,
+    required this.visitPlan,
+  });
 
+  final String groupId;
+  final String planId;
   final List<VisitPlan> visitPlan;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       child: Column(
@@ -811,22 +679,143 @@ class _TimelineCard extends StatelessWidget {
             )
           else
             for (var index = 0; index < visitPlan.length; index += 1)
-              _TimelineItem(order: index + 1, plan: visitPlan[index]),
+              _TimelineItem(
+                order: index + 1,
+                plan: visitPlan[index],
+                onTap: () => _openPlaceSearch(context, visitPlan[index]),
+                onEditTime: visitPlan[index].id.trim().isEmpty
+                    ? null
+                    : () => _editVisitTime(context, ref, visitPlan[index]),
+                onDelete: visitPlan[index].id.trim().isEmpty
+                    ? null
+                    : () => _deleteVisitPlan(context, ref, visitPlan[index]),
+              ),
         ],
       ),
     );
   }
+
+  void _openPlaceSearch(BuildContext context, VisitPlan plan) {
+    final query = Uri.encodeComponent(plan.place.trim());
+    context.push('${RoutePaths.planPlaceSearch(groupId, planId)}?query=$query');
+  }
+
+  Future<void> _editVisitTime(
+    BuildContext context,
+    WidgetRef ref,
+    VisitPlan plan,
+  ) async {
+    final initialStart = _initialVisitStart(plan);
+    final picked = await OnmuDateTimeRangePicker.show(
+      context: context,
+      title: '방문 시간 수정',
+      initialStart: initialStart,
+      initialEnd: _initialVisitEnd(plan, initialStart),
+    );
+    if (picked == null) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(
+            placeCandidatesViewModelProvider((
+              groupId: groupId,
+              planId: planId,
+            )).notifier,
+          )
+          .updateSchedulePlaceTime(
+            schedulePlaceId: plan.id,
+            startsAt: picked.start,
+            endsAt: picked.end,
+            note: plan.duration,
+          );
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('방문 시간을 수정하지 못했어요.')));
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('방문 시간을 수정했어요.')));
+  }
+
+  Future<void> _deleteVisitPlan(
+    BuildContext context,
+    WidgetRef ref,
+    VisitPlan plan,
+  ) async {
+    try {
+      await ref
+          .read(
+            placeCandidatesViewModelProvider((
+              groupId: groupId,
+              planId: planId,
+            )).notifier,
+          )
+          .deleteSchedulePlace(plan.id);
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('방문 장소를 삭제하지 못했어요.')));
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('방문 장소를 삭제했어요.')));
+  }
+
+  DateTime _initialVisitStart(VisitPlan plan) {
+    final existing = plan.startsAt?.toLocal();
+    if (existing != null) {
+      return existing;
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  }
+
+  DateTime _initialVisitEnd(VisitPlan plan, DateTime start) {
+    final existing = plan.endsAt?.toLocal();
+    if (existing != null && existing.isAfter(start)) {
+      return existing;
+    }
+    return start.add(const Duration(hours: 1));
+  }
 }
 
+enum _TimelinePlaceAction { editTime, delete }
+
 class _TimelineItem extends StatelessWidget {
-  const _TimelineItem({required this.order, required this.plan});
+  const _TimelineItem({
+    required this.order,
+    required this.plan,
+    required this.onTap,
+    required this.onEditTime,
+    required this.onDelete,
+  });
 
   final int order;
   final VisitPlan plan;
+  final VoidCallback onTap;
+  final VoidCallback? onEditTime;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final metaLabel = _visitPlanMetaLabel(plan);
+    final metaLabel = _visitTimeRangeLabel(plan);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
@@ -865,6 +854,7 @@ class _TimelineItem extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: OnmuCard(
+              onTap: onTap,
               backgroundColor: AppColors.bgPaper,
               borderColor: AppColors.lineSoft,
               padding: const EdgeInsets.all(AppSpacing.sm),
@@ -878,20 +868,39 @@ class _TimelineItem extends StatelessWidget {
                           plan.place,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        if (metaLabel.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            metaLabel,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          metaLabel.isEmpty ? '방문 시간 미정' : metaLabel,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
-                  IconButton(
+                  PopupMenuButton<_TimelinePlaceAction>(
                     tooltip: '일정 더보기',
-                    onPressed: () {},
                     icon: const Icon(Icons.more_horiz),
+                    onSelected: (action) {
+                      switch (action) {
+                        case _TimelinePlaceAction.editTime:
+                          onEditTime?.call();
+                          break;
+                        case _TimelinePlaceAction.delete:
+                          onDelete?.call();
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: _TimelinePlaceAction.editTime,
+                        enabled: onEditTime != null,
+                        child: const Text('시간 수정'),
+                      ),
+                      PopupMenuItem(
+                        value: _TimelinePlaceAction.delete,
+                        enabled: onDelete != null,
+                        child: const Text('삭제하기'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -903,14 +912,14 @@ class _TimelineItem extends StatelessWidget {
   }
 }
 
-String _visitPlanMetaLabel(VisitPlan plan) {
-  final kind = plan.kind.trim();
-  final duration = plan.duration.trim();
-  if (kind.isEmpty) {
-    return duration;
+String _visitTimeRangeLabel(VisitPlan plan) {
+  final start = plan.time.trim();
+  final end = plan.endTime.trim();
+  if (start.isEmpty) {
+    return end;
   }
-  if (duration.isEmpty) {
-    return kind;
+  if (end.isEmpty) {
+    return start;
   }
-  return '$kind · $duration';
+  return '$start ~ $end';
 }
