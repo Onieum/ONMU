@@ -173,7 +173,9 @@ class _FriendProfileErrorCard extends StatelessWidget {
         children: [
           _CharacterPortrait(
             size: 84,
-            character: friend.character ?? _characterForFriend(friend),
+            character: friend.character,
+            profileImageUrl: friend.profileImageUrl,
+            fallbackToViewerCharacter: false,
           ),
           const SizedBox(height: 14),
           Text(
@@ -322,7 +324,7 @@ class _FriendProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final character = profile.character ?? _characterForFriend(friend);
+    final character = profile.character;
     final cleanIntro = profile.introText.trim();
     final cleanRegion = profile.region.trim();
     final highlightLabels = profile.preferenceHighlights.take(4).toList();
@@ -338,6 +340,7 @@ class _FriendProfileHero extends StatelessWidget {
                 size: 116,
                 character: character,
                 profileImageUrl: friend.profileImageUrl,
+                fallbackToViewerCharacter: false,
               ),
               const SizedBox(width: 18),
               Expanded(
@@ -468,29 +471,6 @@ class _FriendProfileHero extends StatelessWidget {
       ],
     );
   }
-}
-
-CharacterDraft _characterForFriend(FriendProfile friend) {
-  final source = [
-    friend.publicId,
-    friend.userCode,
-    friend.name,
-  ].firstWhere((value) => value.trim().isNotEmpty, orElse: () => 'friend');
-  final seed = source.runes.fold<int>(
-    0,
-    (value, codePoint) => (value * 31 + codePoint) & 0x7fffffff,
-  );
-
-  return CharacterDraft(
-    gender: seed.isEven ? 'female' : 'male',
-    nickname: friend.name,
-    skinToneIndex: seed % CharacterDraft.skinTones.length,
-    eyeShapeIndex: (seed ~/ 3) % 3,
-    eyeColorIndex: (seed ~/ 5) % CharacterDraft.eyeColors.length,
-    hairColorIndex: (seed ~/ 7) % CharacterDraft.hairColors.length,
-    hairStyleIndex: (seed ~/ 11) % 4,
-    topStyleIndex: (seed ~/ 13) % 3,
-  );
 }
 
 class _FriendAddSheet extends ConsumerStatefulWidget {

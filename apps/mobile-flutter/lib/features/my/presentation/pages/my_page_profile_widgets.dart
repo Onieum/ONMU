@@ -252,29 +252,23 @@ class _CharacterPortrait extends ConsumerWidget {
     this.character,
     this.profileImageUrl,
     this.profileImageBytes,
+    this.fallbackToViewerCharacter = true,
   });
 
   final double size;
   final CharacterDraft? character;
   final String? profileImageUrl;
   final Uint8List? profileImageBytes;
+  final bool fallbackToViewerCharacter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draft =
         character ??
-        ref.watch(userCharacterProvider) ??
-        ref.watch(characterProfileProvider).value ??
-        const CharacterDraft(
-          gender: 'female',
-          nickname: '온이음',
-          skinToneIndex: 0,
-          eyeShapeIndex: 0,
-          eyeColorIndex: 1,
-          hairColorIndex: 1,
-          hairStyleIndex: 0,
-          topStyleIndex: 0,
-        );
+        (fallbackToViewerCharacter
+            ? ref.watch(userCharacterProvider) ??
+                ref.watch(characterProfileProvider).value
+            : null);
 
     final imageUrl = resolveOnmuMediaUrl(profileImageUrl);
 
@@ -307,10 +301,19 @@ class _CharacterPortraitFallback extends StatelessWidget {
   const _CharacterPortraitFallback({required this.size, required this.draft});
 
   final double size;
-  final CharacterDraft draft;
+  final CharacterDraft? draft;
 
   @override
   Widget build(BuildContext context) {
+    final character = draft;
+    if (character == null) {
+      return Icon(
+        Icons.person_rounded,
+        size: size * 0.56,
+        color: AppColors.primaryPink.withOpacity(0.72),
+      );
+    }
+
     return OverflowBox(
       minWidth: 0,
       minHeight: 0,
@@ -319,7 +322,7 @@ class _CharacterPortraitFallback extends StatelessWidget {
       child: Transform.translate(
         offset: Offset(0, size * 0.08),
         child: PixelCharacterWidget(
-          character: draft,
+          character: character,
           size: size * 1.1,
           showShadow: false,
         ),

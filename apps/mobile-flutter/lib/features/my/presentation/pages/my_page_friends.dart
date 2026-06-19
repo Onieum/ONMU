@@ -610,8 +610,9 @@ class _FavoriteFriend extends StatelessWidget {
                   opacity: 1,
                   child: _CharacterPortrait(
                     size: 54,
-                    character: friend.character ?? _characterForFriend(friend),
+                    character: friend.character,
                     profileImageUrl: friend.profileImageUrl,
+                    fallbackToViewerCharacter: false,
                   ),
                 ),
                 Positioned(
@@ -813,7 +814,9 @@ class _FavoriteFriendCandidateTile extends StatelessWidget {
           children: [
             _CharacterPortrait(
               size: 46,
-              character: friend.character ?? _characterForFriend(friend),
+              character: friend.character,
+              profileImageUrl: friend.profileImageUrl,
+              fallbackToViewerCharacter: false,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -855,8 +858,9 @@ class _FriendListTile extends StatelessWidget {
           children: [
             _CharacterPortrait(
               size: 52,
-              character: friend.character ?? _characterForFriend(friend),
+              character: friend.character,
               profileImageUrl: friend.profileImageUrl,
+              fallbackToViewerCharacter: false,
             ),
             const SizedBox(width: 14),
             Expanded(

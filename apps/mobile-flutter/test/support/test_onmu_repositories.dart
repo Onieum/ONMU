@@ -162,35 +162,7 @@ class TestMyRepository implements MyRepository {
 
 class TestFriendRepository implements FriendRepository {
   TestFriendRepository({List<FriendProfile>? friends})
-    : _friends = friends ?? _defaultFriends;
-
-  static const _defaultFriends = [
-    FriendProfile(
-      publicId: 'friend-doyun',
-      userCode: 'doyun',
-      name: '도윤',
-      preferenceSummary: '러닝크루 친구',
-      isFriend: true,
-      isFavorite: true,
-      memo: '러닝크루 친구',
-    ),
-    FriendProfile(
-      publicId: 'friend-minseo',
-      userCode: 'minseo',
-      name: '민서',
-      preferenceSummary: '보드게임 모임 친구',
-      isFriend: true,
-      memo: '보드게임 모임 친구',
-    ),
-    FriendProfile(
-      publicId: 'friend-seoyun',
-      userCode: 'seoyun',
-      name: '서윤',
-      preferenceSummary: '러닝크루 친구',
-      isFriend: true,
-      memo: '러닝크루 친구',
-    ),
-  ];
+    : _friends = friends ?? const [];
 
   final List<FriendProfile> _friends;
 
