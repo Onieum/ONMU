@@ -79,12 +79,13 @@ class _VoteListContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = state.group;
+    final now = DateTime.now();
     final ongoingVotes = state.votes
-        .where((vote) => !vote.closed)
+        .where((vote) => !vote.isClosedAt(now))
         .where((vote) => selectedFilter.matches(vote))
         .toList();
     final closedVotes = state.votes
-        .where((vote) => vote.closed)
+        .where((vote) => vote.isClosedAt(now))
         .where((vote) => selectedFilter.matches(vote))
         .toList();
 
@@ -246,9 +247,9 @@ class _VoteSummaryCard extends StatelessWidget {
                           ),
                         ),
                         OnmuChip(
-                          label: vote.statusLabel,
+                          label: vote.displayStatusLabel,
                           selected: true,
-                          icon: vote.closed
+                          icon: vote.isClosedAt(DateTime.now())
                               ? Icons.check_circle_outline
                               : Icons.hourglass_bottom_outlined,
                         ),
@@ -465,7 +466,7 @@ class _ClosedVoteRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          OnmuChip(label: vote.statusLabel),
+          OnmuChip(label: vote.displayStatusLabel),
         ],
       ),
     );

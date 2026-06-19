@@ -15,6 +15,7 @@ class VoteSummary {
     this.participantAvatars = const [],
     this.targetType = '',
     this.targetId = '',
+    this.deadlineAt,
   });
 
   final int id;
@@ -32,8 +33,17 @@ class VoteSummary {
   final String actionLabel;
   final String targetType;
   final String targetId;
+  final DateTime? deadlineAt;
 
   String get participantCountLabel => '$participantCount명 참여';
+
+  String get displayStatusLabel =>
+      isClosedAt(DateTime.now()) ? '마감' : _openStatusLabel(statusLabel);
+
+  bool isClosedAt(DateTime now) {
+    final deadline = deadlineAt?.toLocal();
+    return closed || (deadline != null && !now.toLocal().isBefore(deadline));
+  }
 
   List<VoteParticipantAvatar> get displayParticipantAvatars {
     if (participantAvatars.isNotEmpty) {
@@ -50,6 +60,16 @@ class VoteSummary {
       return trimmed;
     }
     return '등록된 투표 후보가 없어요';
+  }
+
+  String _openStatusLabel(String value) {
+    final trimmed = value.trim();
+    final normalized = trimmed.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+    return switch (normalized) {
+      'open' || 'opened' || 'ongoing' || 'active' || 'inprogress' => '진행 중',
+      'closed' || 'close' || 'completed' || 'complete' || 'done' => '마감',
+      _ => trimmed.isEmpty ? '진행 중' : trimmed,
+    };
   }
 }
 

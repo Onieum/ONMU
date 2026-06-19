@@ -18,9 +18,9 @@ import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
-import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
+import '../widgets/plan_visit_time_picker.dart';
 
 enum _MyLocationRequestState {
   idle,
@@ -964,9 +964,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     if (_savingCandidateIds.contains(candidate.id)) {
       return;
     }
-    final picked = await OnmuDateTimeRangePicker.show(
+    final picked = await PlanVisitTimePicker.show(
       context: context,
       title: '방문 시간 설정',
+      planStartsAt: state.planStartsAt,
+      planEndsAt: state.planEndsAt,
       initialStart: _initialVisitStart(state),
       initialEnd: _initialVisitEnd(state),
     );

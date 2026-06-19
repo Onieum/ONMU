@@ -530,6 +530,7 @@ class VoteCard {
     this.targetId = '',
     this.options = const [],
     this.myOptionId = '',
+    this.deadlineAt,
   });
 
   final String title;
@@ -541,6 +542,7 @@ class VoteCard {
   final String targetId;
   final List<VoteOptionSummary> options;
   final String myOptionId;
+  final DateTime? deadlineAt;
 
   String get participantCountLabel => '$participantCount명 참여';
 
@@ -552,6 +554,9 @@ class VoteCard {
   }
 
   String get displayStatusLabel {
+    if (isClosedAt(DateTime.now())) {
+      return '마감';
+    }
     final trimmed = statusLabel.trim();
     final normalized = trimmed.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
     return switch (normalized) {
@@ -559,6 +564,22 @@ class VoteCard {
       'closed' || 'close' || 'completed' || 'complete' || 'done' => '마감',
       _ => trimmed.isEmpty ? '확인 필요' : trimmed,
     };
+  }
+
+  bool isClosedAt(DateTime now) {
+    final normalized = statusLabel.trim().toLowerCase().replaceAll(
+      RegExp(r'[\s_-]'),
+      '',
+    );
+    if (normalized == 'closed' ||
+        normalized == 'close' ||
+        normalized == 'completed' ||
+        normalized == 'complete' ||
+        normalized == 'done') {
+      return true;
+    }
+    final deadline = deadlineAt?.toLocal();
+    return deadline != null && !now.toLocal().isBefore(deadline);
   }
 }
 

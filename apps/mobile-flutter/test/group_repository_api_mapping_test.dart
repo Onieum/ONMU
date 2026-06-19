@@ -190,6 +190,47 @@ void main() {
     },
   );
 
+  test('fetchVotes treats expired deadline as closed vote', () async {
+    final expiredDeadline = DateTime.now()
+        .subtract(const Duration(minutes: 1))
+        .toUtc()
+        .toIso8601String();
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 501,
+                  'title': '마감 지난 장소 투표',
+                  'targetType': 'PLAN',
+                  'targetId': '101',
+                  'participantCount': 4,
+                  'closed': false,
+                  'deadlineAt': expiredDeadline,
+                  'options': [
+                    {'label': '온무식당'},
+                  ],
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final votes = await ApiGroupRepository(
+      OnmuApiClient(dio),
+    ).fetchVotes(1, targetType: 'PLAN', targetId: 101);
+
+    expect(votes.single.closed, isTrue);
+    expect(votes.single.statusLabel, '마감');
+    expect(votes.single.actionLabel, '결과 보기');
+  });
+
   test('maps group member profiles into group summary avatars', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
@@ -414,6 +455,9 @@ void main() {
     );
 
     expect(requestedBodies.single['placeCandidateIds'], ['201']);
+    final deadlineAt = requestedBodies.single['deadlineAt'] as String?;
+    expect(deadlineAt, isNotNull);
+    expect(DateTime.parse(deadlineAt!).toLocal(), DateTime(2026, 6, 20, 18));
   });
 
   test('submitVote sends selected option id to Spring API', () async {
