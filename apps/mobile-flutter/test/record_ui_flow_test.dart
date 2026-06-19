@@ -77,15 +77,11 @@ void main() {
 
   testWidgets('OOTD 사진 입력 안내는 전체 코디 1장 기준으로 표시한다', (tester) async {
     await tester.pumpWidget(_recordApp(_ootdRecordScreen()));
-    await tester.tap(find.text('시작하기'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('전체 코디가 보이는 사진 1장을 선택하거나\n여기로 드래그 해주세요\n(JPG, PNG)'),
-      findsOneWidget,
-    );
+    expect(find.text('사진 선택하기'), findsOneWidget);
+    expect(find.text('상의, 하의, 신발이 보이는 사진 1장'), findsOneWidget);
     expect(find.textContaining('최대 10장'), findsNothing);
   });
 
@@ -137,8 +133,10 @@ DailyRecordScreen _dailyRecordScreen() {
     userCharacter: _character,
     recordDate: DateTime(2026, 6, 17),
     onSave: (record) async => record,
-    onUploadMedia: (Uint8List bytes, String fileName) async =>
-        'https://cdn.onmu.test/$fileName',
+    onUploadMedia: (Uint8List bytes, String fileName) async => UploadedMedia(
+      storageKey: 'records/media/$fileName',
+      publicUrl: 'https://cdn.onmu.test/$fileName',
+    ),
     onCreateOotd: () async => null,
   );
 }

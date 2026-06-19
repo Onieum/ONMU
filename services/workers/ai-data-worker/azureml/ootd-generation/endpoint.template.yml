@@ -1,0 +1,10 @@
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineEndpoint.schema.json
+name: __ENDPOINT_NAME__
+auth_mode: key
+description: ONMU staging OOTD avatar generation endpoint.
+tags:
+  app: onmu
+  environment: staging
+  domain: ootd
+  owner: ai-data-worker
+

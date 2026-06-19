@@ -34,7 +34,8 @@ class DailyRecordScreen extends StatefulWidget {
   final DateTime recordDate;
   final OotdRecord? ootdRecord;
   final Future<OotdRecord> Function(OotdRecord) onSave;
-  final Future<String> Function(Uint8List bytes, String fileName) onUploadMedia;
+  final Future<UploadedMedia> Function(Uint8List bytes, String fileName)
+  onUploadMedia;
   final Future<OotdRecord?> Function() onCreateOotd;
 
   const DailyRecordScreen({
@@ -124,8 +125,12 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         for (final item in photoItems) {
           final draft = _PhotoMemoDraft();
           draft.controller.text = item.description;
-          if (r.imageUrls.length > _photoMemos.length) {
-            draft.originalUrl = r.imageUrls[_photoMemos.length];
+          final photoIndex = _photoMemos.length;
+          if (r.imageUrls.length > photoIndex) {
+            draft.originalUrl = r.imageUrls[photoIndex];
+          }
+          if (r.media.length > photoIndex) {
+            draft.originalStorageKey = r.media[photoIndex].storageKey;
           }
           _photoMemos.add(draft);
         }
@@ -247,6 +252,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       _photoMemos[index].imageBytes = bytes;
       _photoMemos[index].fileName = picked.name;
       _photoMemos[index].originalUrl = null;
+      _photoMemos[index].originalStorageKey = null;
     });
   }
 
@@ -258,6 +264,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     final memo = _dayMemoController.text.trim();
     final themeLabel = _selectedTheme == 0 ? 'diary' : 'clean';
     final uploadedUrls = <String>[];
+    final uploadedMedia = <UploadedMedia>[];
 
     final record = OotdRecord(
       date: widget.recordDate,
@@ -286,11 +293,17 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         final photo = _photoMemos[i];
         if (!photo.hasPhoto && photo.controller.text.trim().isEmpty) continue;
         String? imageUrl;
+        String? storageKey;
         if (photo.imageBytes != null) {
           try {
-            imageUrl = await widget.onUploadMedia(
+            final uploaded = await widget.onUploadMedia(
               photo.imageBytes!,
               photo.fileName ?? 'daily-record.jpg',
+            );
+            imageUrl = uploaded.publicUrl;
+            storageKey = uploaded.storageKey;
+            uploadedMedia.add(
+              uploaded.copyWith(sortOrder: uploadedMedia.length),
             );
           } catch (error) {
             hasPhotoUploadFailure = true;
@@ -298,6 +311,16 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           }
         } else if (photo.originalUrl != null) {
           imageUrl = photo.originalUrl!;
+          storageKey = photo.originalStorageKey;
+          if (storageKey != null && storageKey.isNotEmpty) {
+            uploadedMedia.add(
+              UploadedMedia(
+                storageKey: storageKey,
+                publicUrl: imageUrl,
+                sortOrder: uploadedMedia.length,
+              ),
+            );
+          }
         }
         if (imageUrl != null) {
           uploadedUrls.add(imageUrl);
@@ -311,6 +334,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 ? '사진에 대한 코멘트를 남기지 않았어요.'
                 : _limitedPhotoComment(photo.controller.text),
             imageUrl: imageUrl,
+            mediaStorageKey: storageKey,
           ),
         );
       }
@@ -326,6 +350,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       final recordWithImages = record.copyWith(
         imagePath: uploadedUrls.isEmpty ? null : uploadedUrls.first,
         imageUrls: uploadedUrls,
+        media: uploadedMedia,
         timeline: timelineWithImages,
       );
       final saved = await widget.onSave(recordWithImages);
@@ -1165,6 +1190,7 @@ class _PhotoMemoDraft {
   Uint8List? imageBytes;
   String? fileName;
   String? originalUrl;
+  String? originalStorageKey;
   final TextEditingController controller = TextEditingController();
 
   bool get hasPhoto => imageBytes != null || originalUrl != null;

@@ -52,7 +52,7 @@ class RecordFlowController {
     return saved;
   }
 
-  Future<String> uploadMedia(Uint8List bytes, String fileName) {
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) {
     return _ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName);
   }
 

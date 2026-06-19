@@ -488,31 +488,7 @@ public class RecordService {
     );
     RecordEntity savedRecord = recordRepository.save(record);
 
-    List<Map<String, Object>> mediaPayloads = new ArrayList<>();
-    if (request.imageUrls() != null) {
-      int order = 0;
-      for (String url : request.imageUrls()) {
-        String key = "records/media/" + UUID.randomUUID().toString() + ".jpg";
-        RecordMediaEntity mediaEntity = new RecordMediaEntity(
-          savedRecord,
-          "IMAGE",
-          key,
-          url,
-          800,
-          800,
-          null,
-          order++,
-          "{}"
-        );
-        recordMediaRepository.save(mediaEntity);
-        
-        Map<String, Object> mInfo = new LinkedHashMap<>();
-        mInfo.put("mediaType", mediaEntity.getMediaType());
-        mInfo.put("storageKey", mediaEntity.getStorageKey());
-        mInfo.put("publicUrl", mediaEntity.getPublicUrl());
-        mediaPayloads.add(mInfo);
-      }
-    }
+    List<Map<String, Object>> mediaPayloads = saveMemoryMedia(savedRecord, request);
 
     if (request.tags() != null) {
       for (String tag : request.tags()) {
@@ -590,23 +566,7 @@ public class RecordService {
     recordTagRepository.flush();
     recordMediaRepository.flush();
 
-    if (request.imageUrls() != null) {
-      int order = 0;
-      for (String url : request.imageUrls()) {
-        String key = "records/media/" + UUID.randomUUID().toString() + ".jpg";
-        recordMediaRepository.save(new RecordMediaEntity(
-          record,
-          "IMAGE",
-          key,
-          url,
-          800,
-          800,
-          null,
-          order++,
-          "{}"
-        ));
-      }
-    }
+    saveMemoryMedia(record, request);
 
     if (request.tags() != null) {
       for (String tag : request.tags().stream().filter(t -> t != null && !t.isBlank()).distinct().toList()) {
@@ -631,6 +591,72 @@ public class RecordService {
     recordRepository.save(record);
   }
 
+  private List<Map<String, Object>> saveMemoryMedia(RecordEntity record, CreateMemoryRequest request) {
+    List<Map<String, Object>> mediaPayloads = new ArrayList<>();
+    List<RecordMediaInput> mediaInputs = request.media() != null ? request.media() : List.of();
+
+    if (!mediaInputs.isEmpty()) {
+      int order = 0;
+      for (RecordMediaInput media : mediaInputs) {
+        if (media == null || media.storageKey() == null || media.storageKey().isBlank()) {
+          continue;
+        }
+        RecordMediaEntity mediaEntity = new RecordMediaEntity(
+          record,
+          media.mediaType() != null && !media.mediaType().isBlank() ? media.mediaType() : "IMAGE",
+          media.storageKey(),
+          media.publicUrl(),
+          media.width(),
+          media.height(),
+          media.durationSeconds(),
+          media.sortOrder() != null ? media.sortOrder() : order,
+          "{}"
+        );
+        order++;
+        recordMediaRepository.save(mediaEntity);
+        mediaPayloads.add(toMediaObject(mediaEntity));
+      }
+      return mediaPayloads;
+    }
+
+    if (request.imageUrls() != null) {
+      int order = 0;
+      for (String url : request.imageUrls()) {
+        if (url == null || url.isBlank()) {
+          continue;
+        }
+        String key = "records/media/" + UUID.randomUUID().toString() + ".jpg";
+        RecordMediaEntity mediaEntity = new RecordMediaEntity(
+          record,
+          "IMAGE",
+          key,
+          url,
+          800,
+          800,
+          null,
+          order++,
+          "{}"
+        );
+        recordMediaRepository.save(mediaEntity);
+        mediaPayloads.add(toMediaObject(mediaEntity));
+      }
+    }
+    return mediaPayloads;
+  }
+
+  private Map<String, Object> toMediaObject(RecordMediaEntity media) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", media.getId().toString());
+    value.put("mediaType", media.getMediaType());
+    value.put("storageKey", media.getStorageKey());
+    value.put("publicUrl", media.getPublicUrl());
+    value.put("width", media.getWidth());
+    value.put("height", media.getHeight());
+    value.put("durationSeconds", media.getDurationSeconds());
+    value.put("sortOrder", media.getSortOrder());
+    return value;
+  }
+
   private MemoryResponse mapToMemoryResponse(RecordEntity record) {
     Map<String, Object> payloadMap = readObject(record.getPayload());
     String memo = (String) payloadMap.getOrDefault("body", "");
@@ -643,6 +669,9 @@ public class RecordService {
     List<String> imageUrls = mediaList.stream()
       .map(RecordMediaEntity::getPublicUrl)
       .filter(url -> url != null && !url.isBlank())
+      .toList();
+    List<Map<String, Object>> mediaObjects = mediaList.stream()
+      .map(this::toMediaObject)
       .toList();
 
     List<RecordTagEntity> tagEntities = recordTagRepository.findByRecord(record);
@@ -660,6 +689,7 @@ public class RecordService {
         record.getGroup() != null ? record.getGroup().getId() : null,
         tags,
         imageUrls,
+        mediaObjects,
         record.getVisibility(),
         characterSnapshot,
         payloadMap,
