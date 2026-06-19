@@ -5,6 +5,68 @@ class OnmuLatLng {
   final double lng;
 }
 
+class OnmuMapBounds {
+  const OnmuMapBounds({
+    required this.south,
+    required this.west,
+    required this.north,
+    required this.east,
+  });
+
+  final double south;
+  final double west;
+  final double north;
+  final double east;
+
+  bool get isValid =>
+      south.isFinite &&
+      west.isFinite &&
+      north.isFinite &&
+      east.isFinite &&
+      south >= -90 &&
+      south <= 90 &&
+      north >= -90 &&
+      north <= 90 &&
+      west >= -180 &&
+      west <= 180 &&
+      east >= -180 &&
+      east <= 180 &&
+      south <= north &&
+      west <= east;
+
+  Map<String, Object?> toJson() {
+    return {'south': south, 'west': west, 'north': north, 'east': east};
+  }
+}
+
+class OnmuMapViewport {
+  const OnmuMapViewport({required this.bounds, required this.zoom});
+
+  final OnmuMapBounds bounds;
+  final double zoom;
+
+  bool get isValid => bounds.isValid && zoom.isFinite;
+
+  int get apiZoom => onmuMapApiZoom(zoom);
+}
+
+const double onmuMapDefaultCatalogZoom = 11;
+
+double onmuMapSafeZoom(
+  double zoom, {
+  double fallback = onmuMapDefaultCatalogZoom,
+}) {
+  final fallbackValue = fallback.isFinite
+      ? fallback
+      : onmuMapDefaultCatalogZoom;
+  final value = zoom.isFinite ? zoom : fallbackValue;
+  return value.clamp(0.0, 22.0).toDouble();
+}
+
+int onmuMapApiZoom(double zoom, {double fallback = onmuMapDefaultCatalogZoom}) {
+  return onmuMapSafeZoom(zoom, fallback: fallback).round().clamp(0, 22).toInt();
+}
+
 bool isValidOnmuLatLng(OnmuLatLng coordinate) {
   return coordinate.lat.isFinite &&
       coordinate.lng.isFinite &&
@@ -26,6 +88,125 @@ class OnmuMapPoint {
   final String label;
   final OnmuLatLng coordinate;
   final int order;
+}
+
+class OnmuCatalogMapPoint {
+  const OnmuCatalogMapPoint({
+    required this.id,
+    required this.coordinate,
+    this.category = '',
+    this.provider = '',
+    this.providerPlaceId = '',
+    this.name = '',
+    this.address = '',
+    this.roadAddress = '',
+  });
+
+  final String id;
+  final OnmuLatLng coordinate;
+  final String category;
+  final String provider;
+  final String providerPlaceId;
+  final String name;
+  final String address;
+  final String roadAddress;
+
+  factory OnmuCatalogMapPoint.fromJson(Map<String, dynamic> json) {
+    return OnmuCatalogMapPoint(
+      id: _readString(json['id']),
+      provider: _readString(json['provider']),
+      providerPlaceId: _readString(json['providerPlaceId']),
+      name: _readString(json['name']),
+      category: _readString(json['category']),
+      address: _readString(json['address']),
+      roadAddress: _readString(json['roadAddress']),
+      coordinate: OnmuLatLng(
+        lat: _readDouble(json['lat']),
+        lng: _readDouble(json['lng']),
+      ),
+    );
+  }
+}
+
+class OnmuCatalogMapCluster {
+  const OnmuCatalogMapCluster({
+    required this.id,
+    required this.count,
+    required this.coordinate,
+    required this.bounds,
+    this.categories = const [],
+  });
+
+  final String id;
+  final int count;
+  final OnmuLatLng coordinate;
+  final OnmuMapBounds bounds;
+  final List<String> categories;
+
+  factory OnmuCatalogMapCluster.fromJson(Map<String, dynamic> json) {
+    final bounds = _asMap(json['bounds']);
+    return OnmuCatalogMapCluster(
+      id: _readString(json['id']),
+      count: _readInt(json['count']),
+      coordinate: OnmuLatLng(
+        lat: _readDouble(json['lat']),
+        lng: _readDouble(json['lng']),
+      ),
+      bounds: OnmuMapBounds(
+        south: _readDouble(bounds['south']),
+        west: _readDouble(bounds['west']),
+        north: _readDouble(bounds['north']),
+        east: _readDouble(bounds['east']),
+      ),
+      categories: _stringList(json['categories']),
+    );
+  }
+}
+
+class OnmuCatalogMapData {
+  const OnmuCatalogMapData({
+    required this.mode,
+    required this.zoom,
+    required this.bounds,
+    required this.clusters,
+    required this.points,
+  });
+
+  final String mode;
+  final int zoom;
+  final OnmuMapBounds bounds;
+  final List<OnmuCatalogMapCluster> clusters;
+  final List<OnmuCatalogMapPoint> points;
+
+  factory OnmuCatalogMapData.empty(OnmuMapViewport viewport) {
+    return OnmuCatalogMapData(
+      mode: 'points',
+      zoom: viewport.apiZoom,
+      bounds: viewport.bounds,
+      clusters: const [],
+      points: const [],
+    );
+  }
+
+  factory OnmuCatalogMapData.fromJson(Map<String, dynamic> json) {
+    final bounds = _asMap(json['bounds']);
+    return OnmuCatalogMapData(
+      mode: _readString(json['mode']),
+      zoom: _readInt(json['zoom']),
+      bounds: OnmuMapBounds(
+        south: _readDouble(bounds['south']),
+        west: _readDouble(bounds['west']),
+        north: _readDouble(bounds['north']),
+        east: _readDouble(bounds['east']),
+      ),
+      clusters: _asMapList(
+        json['clusters'],
+      ).map(OnmuCatalogMapCluster.fromJson).toList(growable: false),
+      points: _asMapList(
+        json['points'],
+      ).map(OnmuCatalogMapPoint.fromJson).toList(growable: false),
+    );
+  }
 }
 
 class TileManifest {
@@ -260,4 +441,52 @@ class RouteLeg {
   final String toName;
   final int? distanceMeters;
   final int? durationSeconds;
+}
+
+Map<String, dynamic> _asMap(Object? value) {
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const {};
+}
+
+List<Map<String, dynamic>> _asMapList(Object? value) {
+  if (value is List) {
+    return value
+        .whereType<Map>()
+        .map(
+          (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+        )
+        .toList(growable: false);
+  }
+  return const [];
+}
+
+List<String> _stringList(Object? value) {
+  if (value is List) {
+    return value.map((item) => item.toString()).toList(growable: false);
+  }
+  return const [];
+}
+
+String _readString(Object? value, [String fallback = '']) {
+  final text = value?.toString() ?? '';
+  return text.isEmpty ? fallback : text;
+}
+
+int _readInt(Object? value, [int fallback = 0]) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+double _readDouble(Object? value, [double fallback = 0]) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse(value?.toString() ?? '') ?? fallback;
 }

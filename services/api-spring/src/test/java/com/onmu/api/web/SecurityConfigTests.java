@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.onmu.api.config.SecurityConfig;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.map.MapCatalogService;
 import com.onmu.api.security.AccessTokenVerifier;
 import com.onmu.api.security.BearerTokenAuthenticationFilter;
 import com.onmu.api.service.AuthService;
@@ -62,6 +63,9 @@ class SecurityConfigTests {
 
   @MockitoBean
   private OnmuApiService onmuApiService;
+
+  @MockitoBean
+  private MapCatalogService mapCatalogService;
 
   @MockitoBean
   private PlaceSearchService placeSearchService;
@@ -162,6 +166,41 @@ class SecurityConfigTests {
 
     verify(onmuApiService).plan("1", "101", user.getId());
     verifyNoInteractions(placeSearchService);
+  }
+
+  @Test
+  void mapPointsUsesPlanGuardAndDelegatesToCatalogService() throws Exception {
+    UserEntity user = authenticatedUser();
+    when(onmuApiService.plan("1", "101", user.getId())).thenReturn(Map.of("id", "101"));
+    when(mapCatalogService.mapPoints(org.mockito.ArgumentMatchers.any()))
+      .thenReturn(Map.of(
+        "canonical", true,
+        "mode", "clusters",
+        "clusters", List.of(Map.of("id", "cluster:1", "count", 3)),
+        "points", List.of()
+      ));
+
+    mvc.perform(post("/api/v1/map-points")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+          {
+            "groupId": "1",
+            "planId": "101",
+            "bounds": { "south": 37.50, "west": 126.90, "north": 37.62, "east": 127.08 },
+            "zoom": 12,
+            "category": "카페",
+            "filter": "all",
+            "query": "성수"
+          }
+          """))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.mode").value("clusters"))
+      .andExpect(jsonPath("$.clusters[0].count").value(3))
+      .andExpect(jsonPath("$.points").isArray());
+
+    verify(onmuApiService).plan("1", "101", user.getId());
+    verify(mapCatalogService).mapPoints(org.mockito.ArgumentMatchers.any());
   }
 
   @Test
