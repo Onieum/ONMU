@@ -10,6 +10,7 @@
 | Redis | Docker Redis | Azure Cache for Redis | 영속 이전 없음, cache warm-up |
 | MinIO media | MinIO bucket | Azure Blob Storage container | object copy + checksum/sample smoke |
 | Record media metadata | `record_media` table | PostgreSQL `record_media` table | DB migration/dump와 함께 이전, object key 정합성 smoke |
+| Curated place catalog | `external_places.provider='ONMU_CATALOG'` | PostgreSQL `external_places` | 대량 정적/공공 catalog import job. Flyway에는 data row를 넣지 않음 |
 | Tile assets | MinIO/gateway | Blob/CDN/Front Door 후보 | manifest/style/PMTiles object copy |
 | Outbox/events | PostgreSQL table | PostgreSQL + Event Hubs | DB 원장 유지, consumer group/checkpoint/replay 전환 |
 
@@ -61,6 +62,7 @@ Flyway는 Spring Main API schema를 소유한다.
 - Terraform은 DB server/database/extension/identity/network만 관리한다.
 - 이미 merge된 `V1`-`Vn` migration 파일은 수정하지 않는다.
 - schema 변경은 항상 새 `V{n+1}__...sql` migration으로 추가한다.
+- `external_places` schema와 catalog 조회 인덱스는 Flyway가 소유하지만, `ONMU_CATALOG` 대량 row 적재/교체/rollback은 별도 운영 import 절차가 소유한다.
 - checksum mismatch는 팀원 DB와 staging DB를 깨뜨릴 수 있으므로, 로컬에서만 맞추려고 기존 migration을 고치지 않는다.
 - baseline/repair는 production/staging에서 사람 승인 없이 실행하지 않는다.
 - 이미 적용된 migration은 되돌리지 않고 forward migration으로 보정한다.

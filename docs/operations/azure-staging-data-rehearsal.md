@@ -16,6 +16,22 @@
 
 Dev snapshot dump/restore rehearsal은 지금 수행하지 않는다. Clean staging smoke 통과 후 별도 승인, 백업, PII 보호 기준, 접근 권한 확인을 거친 sanitized/minimal dump rehearsal만 검토한다. Snapshot 공유본이나 로그에는 사용자 실제 값과 raw row를 출력하지 않는다.
 
+### Curated place catalog rehearsal
+
+`external_places.provider='ONMU_CATALOG'` 행은 앱 schema migration과 분리된 정적/공공 catalog import 산출물이다. 행 수가 많으므로 Flyway SQL로 데이터를 직접 넣지 않는다. Flyway는 `external_places` schema와 catalog 조회 인덱스만 소유하고, catalog row 적재/교체/rollback은 별도 운영 import 절차가 담당한다.
+
+검증은 raw row dump가 아니라 count/status 중심으로만 수행한다.
+
+| 항목 | 기준 |
+| --- | --- |
+| Catalog row count | `ONMU_CATALOG` provider count가 기대 범위 이상 |
+| Coordinate coverage | catalog row의 lat/lng coverage count 확인 |
+| Import batch | `provider_payload.importBatchId` presence count 확인 |
+| App visibility | Spring `onmu_catalog` provider 배포 후 `place-search`의 `provider_counts` 또는 `source_counts`에 `onmu_catalog`가 나타남 |
+| Category smoke | `가볼만한곳`은 catalog-first, 음식점/카페는 Naver-first 후 catalog supplement |
+
+보고에는 row 원문, provider raw payload, 실제 사용자 위치/검색 원문을 출력하지 않는다.
+
 ## 2. Redis rehearsal
 
 Redis는 migration 대상이 아니다.
@@ -52,6 +68,7 @@ PMTiles는 versioned path를 우선하고, manifest pointer를 되돌리는 방�
 - Provider search/route response는 Redis TTL cache로만 둔다.
 - Provider secret은 Key Vault reference로 주입하고 Terraform state에 넣지 않는다.
 - Place/Search smoke는 status, result_count, provider_counts, source_counts, coordinate_count 중심으로 보고한다.
+- 같은 category/search를 2회 실행해 Redis cache hit 또는 `place-search:v3:*` prefix key count만 확인한다. Redis value 원문은 출력하지 않는다.
 - Route smoke는 status, route_count, distance presence, duration presence 중심으로 보고한다.
 - Provider raw body, query 원문, token은 출력하지 않는다.
 
