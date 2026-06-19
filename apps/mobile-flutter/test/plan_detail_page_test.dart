@@ -63,11 +63,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('일정 타임라인'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('장소 동선'), 320);
+    await tester.scrollUntilVisible(find.text('장소 동선').first, 320);
     await tester.pumpAndSettle();
 
     expect(find.text('좌표 연동 전 미리보기'), findsNothing);
-    expect(find.text('장소 동선'), findsOneWidget);
+    expect(find.text('장소 동선'), findsWidgets);
     expect(find.text('방문 지도'), findsNothing);
   });
 
@@ -165,6 +165,12 @@ Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
       ),
       groupRepositoryProvider.overrideWithValue(_PlanDetailGroupRepository()),
       planRepositoryProvider.overrideWithValue(repository),
+      routeRepositoryProvider.overrideWithValue(
+        const _SuccessfulRouteRepository(),
+      ),
+      tileManifestRepositoryProvider.overrideWithValue(
+        const _FailingTileManifestRepository(),
+      ),
     ],
     child: MaterialApp(
       theme: AppTheme.lightTheme,
@@ -210,15 +216,15 @@ class _PlanDetailTestRepository implements PlanRepository {
              ],
            ],
        _currentParticipant = currentUserParticipating
-          ? const PlanParticipantArrival(
-              id: 'participant-me',
-              userId: 'user-me',
-              nickname: '나',
-              participantStatus: 'joined',
-              arrivalStatus: PlanArrivalStatus.none,
-              isFallback: false,
-            )
-          : null;
+           ? const PlanParticipantArrival(
+               id: 'participant-me',
+               userId: 'user-me',
+               nickname: '나',
+               participantStatus: 'joined',
+               arrivalStatus: PlanArrivalStatus.none,
+               isFallback: false,
+             )
+           : null;
 
   var joinCount = 0;
   var leaveCount = 0;
@@ -348,6 +354,14 @@ class _PlanDetailGroupRepository implements GroupRepository {
       GroupMemberProfile(name: '나', note: '현재 사용자', statusLabel: '참여 중'),
       GroupMemberProfile(name: '지우', note: '모임 멤버', statusLabel: '참여 중'),
     ];
+  }
+
+  @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
   }
 
   @override

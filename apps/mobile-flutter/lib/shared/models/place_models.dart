@@ -26,6 +26,8 @@ class PlaceCandidate {
     this.latitude,
     this.longitude,
     this.fetchedAt,
+    this.heartCount = 0,
+    this.heartedByMe = false,
   });
 
   final int id;
@@ -54,6 +56,8 @@ class PlaceCandidate {
   final double? latitude;
   final double? longitude;
   final DateTime? fetchedAt;
+  final int heartCount;
+  final bool heartedByMe;
 
   bool get hasCoordinate => latitude != null && longitude != null;
 
@@ -75,6 +79,68 @@ class PlaceCandidate {
       return directAddress;
     }
     return roadAddress.trim();
+  }
+
+  PlaceCandidate copyWith({
+    int? id,
+    String? name,
+    String? category,
+    String? summary,
+    double? score,
+    int? matchPercent,
+    String? distanceLabel,
+    String? travelTimeLabel,
+    String? priceLabel,
+    bool? isOpen,
+    String? address,
+    String? openingLabel,
+    String? sourceLabel,
+    String? riskLabel,
+    String? riskTone,
+    List<MemberFit>? memberFits,
+    List<String>? tags,
+    List<String>? reasons,
+    List<String>? risks,
+    String? provider,
+    String? providerPlaceId,
+    String? roadAddress,
+    String? sourceUrl,
+    double? latitude,
+    double? longitude,
+    DateTime? fetchedAt,
+    int? heartCount,
+    bool? heartedByMe,
+  }) {
+    return PlaceCandidate(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      summary: summary ?? this.summary,
+      score: score ?? this.score,
+      matchPercent: matchPercent ?? this.matchPercent,
+      distanceLabel: distanceLabel ?? this.distanceLabel,
+      travelTimeLabel: travelTimeLabel ?? this.travelTimeLabel,
+      priceLabel: priceLabel ?? this.priceLabel,
+      isOpen: isOpen ?? this.isOpen,
+      address: address ?? this.address,
+      openingLabel: openingLabel ?? this.openingLabel,
+      sourceLabel: sourceLabel ?? this.sourceLabel,
+      riskLabel: riskLabel ?? this.riskLabel,
+      riskTone: riskTone ?? this.riskTone,
+      memberFits: memberFits ?? this.memberFits,
+      tags: tags ?? this.tags,
+      reasons: reasons ?? this.reasons,
+      risks: risks ?? this.risks,
+      provider: provider ?? this.provider,
+      providerPlaceId: providerPlaceId ?? this.providerPlaceId,
+      roadAddress: roadAddress ?? this.roadAddress,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      heartCount: heartCount ?? this.heartCount,
+      heartedByMe: heartedByMe ?? this.heartedByMe,
+    );
   }
 }
 

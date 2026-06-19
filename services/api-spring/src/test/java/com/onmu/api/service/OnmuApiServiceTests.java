@@ -47,6 +47,7 @@ import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
+import com.onmu.api.web.dto.UpdateSchedulePlaceRequest;
 import com.onmu.api.web.dto.UpdateUserProfileRequest;
 import com.onmu.api.web.dto.UpsertPlaceCandidateHeartRequest;
 import com.onmu.api.web.dto.UpsertPlanParticipantRequest;
@@ -1177,6 +1178,35 @@ class OnmuApiServiceTests {
   }
 
   @Test
+  void placeCandidateListIgnoresPayloadFavoriteCountForUserHeartCount() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      "온무식당",
+      "한식",
+      "서울",
+      "{\"favoriteCount\":3}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(placeCandidateRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(candidate));
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(0L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(false);
+
+    var candidates = service.placeCandidates("1", "101", user.getId());
+
+    assertThat(candidates).singleElement()
+      .satisfies(value -> assertThat(value)
+        .containsEntry("id", "201")
+        .containsEntry("heartCount", 0)
+        .containsEntry("myHearted", false));
+  }
+
+  @Test
   void upsertingMyPlaceCandidateHeartCreatesHeartOnceAndRecordsOutboxEvent() {
     UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
     PlaceCandidateEntity candidate = new PlaceCandidateEntity("201", group, plan, "온무식당", "한식", "서울", "{}");
@@ -1277,6 +1307,50 @@ class OnmuApiServiceTests {
         && "101".equals(payload.get("planId"))
         && "702".equals(payload.get("schedulePlaceId"))
         && "201".equals(payload.get("candidateId")))
+    );
+  }
+
+  @Test
+  void updatingSchedulePlaceChangesVisitTimeAndRecordsOutboxEvent() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    SchedulePlaceEntity schedulePlace = new SchedulePlaceEntity(
+      "701",
+      group,
+      plan,
+      null,
+      "온무식당",
+      null,
+      null,
+      1,
+      null
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(schedulePlaceRepository.findByPlanAndPublicId(plan, "701")).thenReturn(Optional.of(schedulePlace));
+    when(schedulePlaceRepository.save(schedulePlace)).thenReturn(schedulePlace);
+
+    var updated = service.updateSchedulePlace(
+      "1",
+      "101",
+      "701",
+      user.getId(),
+      new UpdateSchedulePlaceRequest("2026-06-12T04:00:00Z", "2026-06-12T05:00:00Z", "카페")
+    );
+
+    assertThat(updated)
+      .containsEntry("id", "701")
+      .containsEntry("startsAt", "2026-06-12T04:00:00Z")
+      .containsEntry("endsAt", "2026-06-12T05:00:00Z")
+      .containsEntry("note", "카페");
+    verify(outboxService).record(
+      eq("schedule_place.updated"),
+      eq("schedule_place"),
+      eq(schedulePlace.getId()),
+      argThat(payload -> "1".equals(payload.get("groupId"))
+        && "101".equals(payload.get("planId"))
+        && "701".equals(payload.get("schedulePlaceId")))
     );
   }
 

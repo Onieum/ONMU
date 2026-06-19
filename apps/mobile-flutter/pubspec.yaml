@@ -42,6 +42,7 @@ dependencies:
   maplibre_gl: ^0.26.1
   image_picker: ^1.2.2
   permission_handler: ^12.0.3
+  geolocator: ^14.0.3
 
   # 라우팅: StatefulShellRoute 기반 하단 탭 구조
 

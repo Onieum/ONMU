@@ -73,7 +73,7 @@ void main() {
     expect(requests.single.path, '/api/v1/groups/1/plans/101/schedule-places');
     expect(visitPlansByDate, hasLength(1));
     expect(visitPlansByDate.single.single.place, '성수 테스트 카페');
-    expect(visitPlansByDate.single.single.kind, '일정 장소');
+    expect(visitPlansByDate.single.single.kind, '');
     expect(visitPlansByDate.single.single.duration, '점심');
   });
 

@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../view_model/place_candidates_view_model.dart';
@@ -43,8 +44,14 @@ class PlaceCandidatePage extends ConsumerWidget {
         onFavoritePressed: (candidateId) {
           ref.read(provider.notifier).toggleFavorite(candidateId);
         },
-        onRegisterCandidate: (candidate) async {
-          await ref.read(provider.notifier).addCandidateToSchedule(candidate);
+        onRegisterCandidate: (candidate, range) async {
+          await ref
+              .read(provider.notifier)
+              .addCandidateToSchedule(
+                candidate,
+                startsAt: range.start,
+                endsAt: range.end,
+              );
         },
       ),
       loading: () => const OnmuScaffold(
@@ -79,7 +86,8 @@ class _PlaceCandidateContent extends StatefulWidget {
   final bool showVoteResult;
   final PlaceCandidatesState state;
   final ValueChanged<int> onFavoritePressed;
-  final Future<void> Function(PlaceCandidate candidate) onRegisterCandidate;
+  final Future<void> Function(PlaceCandidate candidate, OnmuDateTimeRange range)
+  onRegisterCandidate;
 
   @override
   State<_PlaceCandidateContent> createState() => _PlaceCandidateContentState();
@@ -229,11 +237,20 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
     if (_savingCandidateIds.contains(candidate.id)) {
       return;
     }
+    final picked = await OnmuDateTimeRangePicker.show(
+      context: context,
+      title: '방문 시간 설정',
+      initialStart: _initialVisitStart(widget.state),
+      initialEnd: _initialVisitEnd(widget.state),
+    );
+    if (picked == null) {
+      return;
+    }
     setState(() {
       _savingCandidateIds.add(candidate.id);
     });
     try {
-      await widget.onRegisterCandidate(candidate);
+      await widget.onRegisterCandidate(candidate, picked);
     } catch (_) {
       if (!context.mounted) {
         return;
@@ -253,6 +270,27 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
       return;
     }
     context.go(RoutePaths.planItinerary(widget.groupId, widget.planId));
+  }
+
+  DateTime _initialVisitStart(PlaceCandidatesState state) {
+    final planStart = state.planStartsAt?.toLocal();
+    if (planStart != null && planStart.isAfter(DateTime.now())) {
+      return planStart;
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  }
+
+  DateTime _initialVisitEnd(PlaceCandidatesState state) {
+    final start = _initialVisitStart(state);
+    final defaultEnd = start.add(const Duration(hours: 1));
+    final planEnd = state.planEndsAt?.toLocal();
+    if (planEnd != null &&
+        planEnd.isAfter(start) &&
+        planEnd.isBefore(defaultEnd)) {
+      return planEnd;
+    }
+    return defaultEnd;
   }
 }
 
@@ -435,10 +473,11 @@ class _CandidateListCard extends StatelessWidget {
                             color: AppColors.accentRed,
                           ),
                         ),
-                        Text(
-                          '$favoriteCount',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
+                        if (favoriteCount > 0)
+                          Text(
+                            '$favoriteCount',
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
                       ],
                     ),
                   ],

@@ -143,7 +143,7 @@ class PlaceSearchServiceTests {
     assertThat(firstResults.subList(5, 20))
       .allSatisfy(result -> assertThat(result).containsEntry("provider", "kakao"));
     assertThat(cache.keys()).hasSize(1);
-    assertThat(naver.invocations).isEqualTo(1);
+    assertThat(naver.invocations).isEqualTo(5);
     assertThat(kakao.invocations).isEqualTo(1);
   }
 
@@ -218,13 +218,81 @@ class PlaceSearchServiceTests {
               .containsEntry("source", "external-provider")
               .containsEntry("providers", List.of("naver")));
       });
-    assertThat(httpClient.requestedUri).isNotNull();
-    assertThat(httpClient.requestedUri.getRawQuery())
-      .contains("query=%ED%99%8D%EB%8C%80%20%EC%B9%B4%ED%8E%98")
-      .contains("display=5")
-      .contains("start=1")
-      .contains("sort=random");
+    assertThat(httpClient.requestedUris).hasSize(3);
+    assertThat(httpClient.requestedUris.stream().map(URI::getRawQuery).toList())
+      .anySatisfy(query -> assertThat(query)
+        .contains("query=%ED%99%8D%EB%8C%80%20%EC%B9%B4%ED%8E%98")
+        .contains("display=5")
+        .contains("start=1")
+        .contains("sort=random"))
+      .anySatisfy(query -> assertThat(query)
+        .contains("query=%ED%99%8D%EB%8C%80%20%EB%94%94%EC%A0%80%ED%8A%B8"))
+      .anySatisfy(query -> assertThat(query)
+        .contains("query=%ED%99%8D%EB%8C%80%20%EB%B2%A0%EC%9D%B4%EC%BB%A4%EB%A6%AC"));
     assertThat(httpClient.headers).containsKeys("X-Naver-Client-Id", "X-Naver-Client-Secret");
+  }
+
+  @Test
+  void searchUsesCuratedCatalogFirstForAttractionCategory() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울 마포구", 37.55, 126.90))),
+        new FakeProvider("onmu_catalog", true, List.of(
+          result("onmu_catalog", "catalog-1", "망원 한강공원", "서울 마포구 망원동", 37.555, 126.895),
+          result("onmu_catalog", "catalog-2", "망원 전시공간", "서울 마포구 망원동", 37.556, 126.896)
+        ))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("망원동", "1", "101", null, null, null, "가볼만한곳", List.of(), false);
+
+    assertThat(results).hasSize(3);
+    assertThat(results.subList(0, 2))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "onmu_catalog"));
+    assertThat(results.get(2)).containsEntry("provider", "naver");
+  }
+
+  @Test
+  void searchKeepsNaverBeforeCatalogForRestaurantCategory() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("onmu_catalog", true, List.of(result("onmu_catalog", "catalog-1", "망원 식당", "서울 마포구 망원동", 37.555, 126.895))),
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 식당", "서울 마포구", 37.55, 126.90)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("망원동", "1", "101", null, null, null, "음식점", List.of(), false);
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0)).containsEntry("provider", "naver");
+    assertThat(results.get(1)).containsEntry("provider", "onmu_catalog");
+  }
+
+  @Test
+  void searchFansOutNaverRestaurantCategoryAndDedupesToExpandedLimit() {
+    QueryAwareProvider naver = new QueryAwareProvider("naver", true);
+    MemoryCache cache = new MemoryCache();
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(naver),
+      new DevMockPlaceSearchProvider(),
+      cache,
+      localEnvironment()
+    );
+
+    var firstResults = service.search("성수", "1", "101", null, null, null, "음식점", List.of("naver"), false);
+    var cachedResults = service.search("성수", "1", "101", null, null, null, "음식점", List.of("naver"), false);
+
+    assertThat(firstResults).hasSize(20);
+    assertThat(cachedResults).isEqualTo(firstResults);
+    assertThat(naver.queries)
+      .containsExactly("성수 한식", "성수 양식", "성수 중식", "성수 일식", "성수 아시안식");
+    assertThat(cache.keys()).singleElement().asString().startsWith("place-search:v3:");
   }
 
   @Test
@@ -476,6 +544,42 @@ class PlaceSearchServiceTests {
     }
   }
 
+  private static class QueryAwareProvider implements PlaceSearchProvider {
+    private final String provider;
+    private final boolean available;
+    private final List<String> queries = new java.util.ArrayList<>();
+
+    private QueryAwareProvider(String provider, boolean available) {
+      this.provider = provider;
+      this.available = available;
+    }
+
+    @Override
+    public String provider() {
+      return provider;
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return available;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      queries.add(query.normalizedQuery());
+      return java.util.stream.IntStream.rangeClosed(1, 5)
+        .mapToObj(index -> result(
+          provider,
+          provider + "-" + query.normalizedQuery() + "-" + index,
+          query.normalizedQuery() + " 후보 " + index,
+          "서울 성동구 " + query.normalizedQuery() + " " + index,
+          37.50 + queries.size() / 100.0 + index / 10000.0,
+          127.00 + queries.size() / 100.0 + index / 10000.0
+        ))
+        .toList();
+    }
+  }
+
   private static class MutableProvider implements PlaceSearchProvider {
     private final String provider;
     private boolean available;
@@ -535,6 +639,7 @@ class PlaceSearchServiceTests {
   private static class CapturingHttpClient implements PlaceSearchHttpClient {
     private final String response;
     private URI requestedUri;
+    private final List<URI> requestedUris = new java.util.ArrayList<>();
     private Map<String, String> headers = Map.of();
 
     private CapturingHttpClient(String response) {
@@ -544,6 +649,7 @@ class PlaceSearchServiceTests {
     @Override
     public String get(URI uri, Map<String, String> headers) {
       this.requestedUri = uri;
+      this.requestedUris.add(uri);
       this.headers = new LinkedHashMap<>(headers);
       return response;
     }

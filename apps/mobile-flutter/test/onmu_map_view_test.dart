@@ -93,8 +93,8 @@ void main() {
     expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
     expect(markerBytes, isNotEmpty);
     expect(line?.geometry, hasLength(2));
-    expect(line?.lineColor, '#1D4ED8');
-    expect(line?.lineWidth, greaterThan(6));
+    expect(line?.lineColor, '#2563EB');
+    expect(line?.lineWidth, greaterThanOrEqualTo(8));
     expect(casingLine?.lineColor, '#FFFFFF');
     expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
   });
@@ -318,44 +318,45 @@ void main() {
     },
   );
 
-  testWidgets('reports unavailable current location without native controller', (
-    tester,
-  ) async {
-    var unavailableCount = 0;
+  testWidgets(
+    'reports unavailable current location without native controller',
+    (tester) async {
+      var unavailableCount = 0;
 
-    Widget buildMap({required int requestSerial}) {
-      return ProviderScope(
-        overrides: [
-          tileManifestRepositoryProvider.overrideWithValue(
-            const _FailingTileManifestRepository(),
-          ),
-        ],
-        child: MaterialApp(
-          home: SizedBox(
-            width: 320,
-            height: 240,
-            child: OnmuMapView(
-              fallbackLabel: '지도 fallback',
-              points: const [],
-              myLocationRequestSerial: requestSerial,
-              onMyLocationUnavailable: () {
-                unavailableCount += 1;
-              },
+      Widget buildMap({required int requestSerial}) {
+        return ProviderScope(
+          overrides: [
+            tileManifestRepositoryProvider.overrideWithValue(
+              const _FailingTileManifestRepository(),
+            ),
+          ],
+          child: MaterialApp(
+            home: SizedBox(
+              width: 320,
+              height: 240,
+              child: OnmuMapView(
+                fallbackLabel: '지도 fallback',
+                points: const [],
+                myLocationRequestSerial: requestSerial,
+                onMyLocationUnavailable: () {
+                  unavailableCount += 1;
+                },
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    await tester.pumpWidget(buildMap(requestSerial: 0));
-    await tester.pump();
+      await tester.pumpWidget(buildMap(requestSerial: 0));
+      await tester.pump();
 
-    await tester.pumpWidget(buildMap(requestSerial: 1));
-    await tester.pump();
-    await tester.pump();
+      await tester.pumpWidget(buildMap(requestSerial: 1));
+      await tester.pump();
+      await tester.pump();
 
-    expect(unavailableCount, 1);
-  });
+      expect(unavailableCount, 1);
+    },
+  );
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {

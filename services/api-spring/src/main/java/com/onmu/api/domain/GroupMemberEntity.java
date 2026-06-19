@@ -64,6 +64,11 @@ public class GroupMemberEntity {
     leftAt = Instant.now();
   }
 
+  public void markActive() {
+    status = "active";
+    leftAt = null;
+  }
+
   public UUID getId() {
     return id;
   }

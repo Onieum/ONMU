@@ -120,6 +120,8 @@ class _StaticPlaceRepository implements PlaceRepository {
     required Object planId,
     required Object candidateId,
     required String name,
+    DateTime? startsAt,
+    DateTime? endsAt,
     String note = '',
   }) async => SchedulePlace(
     id: '701',
@@ -127,8 +129,41 @@ class _StaticPlaceRepository implements PlaceRepository {
     planId: planId.toString(),
     candidateId: candidateId.toString(),
     name: name,
+    startsAt: startsAt,
+    endsAt: endsAt,
     note: note,
     sortOrder: 1,
+  );
+
+  @override
+  Future<SchedulePlace> updateSchedulePlace({
+    required Object groupId,
+    required Object planId,
+    required Object schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async => SchedulePlace(
+    id: schedulePlaceId.toString(),
+    groupId: groupId.toString(),
+    planId: planId.toString(),
+    candidateId: '',
+    name: '수정 장소',
+    startsAt: startsAt,
+    endsAt: endsAt,
+    note: note,
+    sortOrder: 1,
+  );
+
+  @override
+  Future<PlaceCandidate> setCandidateHeart({
+    required Object groupId,
+    required Object planId,
+    required Object candidateId,
+    required bool hearted,
+  }) async => _candidates.first.copyWith(
+    heartedByMe: hearted,
+    heartCount: hearted ? 1 : 0,
   );
 
   @override

@@ -62,23 +62,31 @@ final placeSearchResultsProvider =
 class PlaceCandidatesState {
   const PlaceCandidatesState({
     required this.candidates,
-    required this.likedCandidateIds,
-    required this.baseFavoriteCounts,
     required this.planTitle,
     required this.planLocation,
+    this.planStartsAt,
+    this.planEndsAt,
   });
 
   final List<PlaceCandidate> candidates;
-  final Set<int> likedCandidateIds;
-  final Map<int, int> baseFavoriteCounts;
   final String planTitle;
   final String planLocation;
+  final DateTime? planStartsAt;
+  final DateTime? planEndsAt;
 
-  bool isLiked(int candidateId) => likedCandidateIds.contains(candidateId);
+  bool isLiked(int candidateId) =>
+      _candidateById(candidateId)?.heartedByMe ?? false;
 
-  int favoriteCountFor(int candidateId) {
-    final baseCount = baseFavoriteCounts[candidateId] ?? 0;
-    return baseCount + (isLiked(candidateId) ? 1 : 0);
+  int favoriteCountFor(int candidateId) =>
+      _candidateById(candidateId)?.heartCount ?? 0;
+
+  PlaceCandidate? _candidateById(int candidateId) {
+    for (final candidate in candidates) {
+      if (candidate.id == candidateId) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   PlaceCandidatesState withCandidate(PlaceCandidate candidate) {
@@ -92,15 +100,12 @@ class PlaceCandidatesState {
       nextCandidates[existingIndex] = candidate;
     }
 
-    final nextFavoriteCounts = {...baseFavoriteCounts};
-    nextFavoriteCounts.putIfAbsent(candidate.id, () => 0);
-
     return PlaceCandidatesState(
       candidates: List.unmodifiable(nextCandidates),
-      likedCandidateIds: likedCandidateIds,
-      baseFavoriteCounts: Map.unmodifiable(nextFavoriteCounts),
       planTitle: planTitle,
       planLocation: planLocation,
+      planStartsAt: planStartsAt,
+      planEndsAt: planEndsAt,
     );
   }
 
@@ -117,18 +122,17 @@ class PlaceCandidatesState {
     return findMatchingCandidate(candidate) != null;
   }
 
-  PlaceCandidatesState toggledFavorite(int candidateId) {
-    final nextLikedIds = {...likedCandidateIds};
-    if (!nextLikedIds.add(candidateId)) {
-      nextLikedIds.remove(candidateId);
-    }
-
+  PlaceCandidatesState withUpdatedCandidate(PlaceCandidate candidate) {
     return PlaceCandidatesState(
-      candidates: candidates,
-      likedCandidateIds: Set.unmodifiable(nextLikedIds),
-      baseFavoriteCounts: baseFavoriteCounts,
+      candidates: List.unmodifiable(
+        candidates
+            .map((current) => current.id == candidate.id ? candidate : current)
+            .toList(growable: false),
+      ),
       planTitle: planTitle,
       planLocation: planLocation,
+      planStartsAt: planStartsAt,
+      planEndsAt: planEndsAt,
     );
   }
 
@@ -199,20 +203,46 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
 
     return PlaceCandidatesState(
       candidates: List.unmodifiable(candidates),
-      likedCandidateIds: <int>{},
-      baseFavoriteCounts: _favoriteCountsFor(candidates),
       planTitle: plan.title,
       planLocation: plan.location,
+      planStartsAt: plan.startsAt,
+      planEndsAt: plan.endsAt,
     );
   }
 
-  void toggleFavorite(int candidateId) {
+  Future<void> toggleFavorite(int candidateId) async {
     final value = state.asData?.value;
     if (value == null) {
       return;
     }
+    final candidate = value._candidateById(candidateId);
+    if (candidate == null) {
+      return;
+    }
+    final nextHearted = !candidate.heartedByMe;
+    final optimistic = candidate.copyWith(
+      heartedByMe: nextHearted,
+      heartCount: _optimisticHeartCount(candidate, nextHearted),
+    );
+    state = AsyncData(value.withUpdatedCandidate(optimistic));
 
-    state = AsyncData(value.toggledFavorite(candidateId));
+    try {
+      final updated = await ref
+          .read(placeRepositoryProvider)
+          .setCandidateHeart(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            candidateId: candidateId,
+            hearted: nextHearted,
+          );
+      final current = state.asData?.value;
+      if (current != null) {
+        state = AsyncData(current.withUpdatedCandidate(updated));
+      }
+    } catch (_) {
+      state = AsyncData(value);
+      rethrow;
+    }
   }
 
   Future<PlaceCandidate> addCandidate(PlaceCandidate candidate) async {
@@ -234,7 +264,11 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
     return savedCandidate;
   }
 
-  Future<SchedulePlace> addCandidateToSchedule(PlaceCandidate candidate) async {
+  Future<SchedulePlace> addCandidateToSchedule(
+    PlaceCandidate candidate, {
+    DateTime? startsAt,
+    DateTime? endsAt,
+  }) async {
     final savedCandidate = await addCandidate(candidate);
     final repository = ref.read(placeRepositoryProvider);
     final schedulePlace = await repository.createSchedulePlace(
@@ -242,6 +276,32 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       planId: scope.planId,
       candidateId: savedCandidate.id,
       name: savedCandidate.name,
+      startsAt: startsAt,
+      endsAt: endsAt,
+    );
+    _invalidatePlanRouteState();
+    return schedulePlace;
+  }
+
+  Future<SchedulePlace> updateSchedulePlaceTime({
+    required String schedulePlaceId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String note = '',
+  }) async {
+    final normalizedId = schedulePlaceId.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError.value(schedulePlaceId, 'schedulePlaceId');
+    }
+
+    final repository = ref.read(placeRepositoryProvider);
+    final schedulePlace = await repository.updateSchedulePlace(
+      groupId: scope.groupId,
+      planId: scope.planId,
+      schedulePlaceId: normalizedId,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      note: note,
     );
     _invalidatePlanRouteState();
     return schedulePlace;
@@ -315,15 +375,10 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
     }
   }
 
-  Map<int, int> _favoriteCountsFor(List<PlaceCandidate> candidates) {
-    return {
-      for (var index = 0; index < candidates.length; index += 1)
-        candidates[index].id: switch (index) {
-          0 => 3,
-          1 => 2,
-          _ => 1,
-        },
-    };
+  int _optimisticHeartCount(PlaceCandidate candidate, bool nextHearted) {
+    final delta = nextHearted ? 1 : -1;
+    final nextCount = candidate.heartCount + delta;
+    return nextCount < 0 ? 0 : nextCount;
   }
 }
 
