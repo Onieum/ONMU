@@ -234,7 +234,7 @@ class _DateTimeRangePickerSheetState extends State<_DateTimeRangePickerSheet> {
                         in recommendationResult.recommendations) ...[
                       _TimeRecommendationTile(
                         recommendation: recommendation,
-                        selected: recommendation.matches(_start),
+                        selected: recommendation.matches(_start, _end),
                         onTap: () => setState(() {
                           _start = recommendation.start;
                           _end = recommendation.end;
@@ -704,10 +704,13 @@ class _TimeRecommendation {
     return '불가능 시간대';
   }
 
-  bool matches(DateTime dateTime) {
-    return _sameDate(dateTime, start) &&
-        dateTime.hour == hour &&
-        dateTime.minute == minute;
+  bool matches(DateTime selectedStart, DateTime selectedEnd) {
+    return _sameDate(selectedStart, start) &&
+        selectedStart.hour == hour &&
+        selectedStart.minute == minute &&
+        _sameDate(selectedEnd, end) &&
+        selectedEnd.hour == end.hour &&
+        selectedEnd.minute == end.minute;
   }
 }
 

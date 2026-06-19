@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
+import 'package:onmu_mobile/shared/widgets/onmu_card.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_picker.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_range_picker.dart';
 
@@ -119,6 +120,64 @@ void main() {
     );
   });
 
+  testWidgets('종료 시간을 직접 조정하면 추천 시간대 선택 상태가 해제되고 선택 결과에 반영된다', (
+    tester,
+  ) async {
+    final picked = <OnmuDateTimeRange>[];
+
+    await _pumpRangePicker(
+      tester,
+      onPicked: picked.add,
+      initialEnd: DateTime(2026, 6, 15, 16),
+    );
+    await _openRangePicker(tester);
+
+    final initialRecommendation = _recommendationCard(tester, '14:00 ~ 16:00');
+    expect(initialRecommendation.backgroundColor, AppColors.bgPurpleSoft);
+
+    await tester.tap(find.text('종료 날짜'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const ValueKey('end-time-slider-hour')),
+      find.byType(Scrollable).last,
+      const Offset(0, -120),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('end-time-slider-hour')),
+      const Offset(0, -58),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey('end-time-slider-minute')),
+      const Offset(0, -58),
+    );
+    await tester.pumpAndSettle();
+
+    final changedRecommendation = _recommendationCard(tester, '14:00 ~ 16:00');
+    expect(changedRecommendation.backgroundColor, AppColors.bgDefault);
+
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
+
+    expect(picked, hasLength(1));
+    _expectLocalDateTime(
+      picked.single.start,
+      year: 2026,
+      month: 6,
+      day: 15,
+      hour: 14,
+      minute: 0,
+    );
+    _expectLocalDateTime(
+      picked.single.end,
+      year: 2026,
+      month: 6,
+      day: 15,
+      hour: 17,
+      minute: 5,
+    );
+  });
+
   testWidgets('직접 시간을 조정한 뒤 추천 시간대를 선택해도 build 중 setState 예외가 나지 않는다', (
     tester,
   ) async {
@@ -229,12 +288,29 @@ void main() {
     expect(dates.map((date) => date.day), isNot(contains(20)));
     expect(dates.map((date) => date.day), isNot(contains(26)));
   });
+
+  test('recommended dates accept preferredDays API alias', () {
+    final profile = PreferenceProfile.fromJson({
+      'preferredDays': ['SATURDAY', 'SUNDAY'],
+      'preferredTimes': ['afternoon'],
+    });
+
+    final dates = onmuRecommendedDatesForRangePicker(
+      anchor: DateTime(2026, 6, 19),
+      participantPreferences: [profile],
+    );
+
+    expect(profile.preferredWeekdays, ['SATURDAY', 'SUNDAY']);
+    expect(dates.map((date) => date.day), containsAll([20, 21]));
+  });
 }
 
 Future<void> _pumpRangePicker(
   WidgetTester tester, {
   ValueChanged<OnmuDateTimeRange>? onPicked,
   List<PreferenceProfile> participantPreferences = const [],
+  DateTime? initialStart,
+  DateTime? initialEnd,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -247,8 +323,8 @@ Future<void> _pumpRangePicker(
                 onPressed: () async {
                   final picked = await OnmuDateTimeRangePicker.show(
                     context: context,
-                    initialStart: DateTime(2026, 6, 15, 14),
-                    initialEnd: DateTime(2026, 6, 20, 16),
+                    initialStart: initialStart ?? DateTime(2026, 6, 15, 14),
+                    initialEnd: initialEnd ?? DateTime(2026, 6, 20, 16),
                     participantPreferences: participantPreferences,
                   );
                   if (picked != null) {
@@ -282,6 +358,13 @@ Finder _calendarStarIcons() {
     of: find.byType(OnmuCalendarDatePicker),
     matching: find.byIcon(Icons.star_rounded),
   );
+}
+
+OnmuCard _recommendationCard(WidgetTester tester, String timeText) {
+  final cardFinder = find
+      .ancestor(of: find.text(timeText), matching: find.byType(OnmuCard))
+      .first;
+  return tester.widget<OnmuCard>(cardFinder);
 }
 
 void _expectLocalDateTime(

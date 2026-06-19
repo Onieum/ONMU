@@ -207,6 +207,14 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
     return true;
   }
 
+  void _goHomeAfterEditingPlan() {
+    final router = GoRouter.of(context);
+    router.go(RoutePaths.groupDetail(widget.groupId));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.go(RoutePaths.home);
+    });
+  }
+
   void _scrollToDateTimeSection() {
     FocusManager.instance.primaryFocus?.unfocus();
     final dateTimeContext = _dateTimeSectionKey.currentContext;
@@ -395,7 +403,7 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
                   if (!context.mounted) {
                     return;
                   }
-                  context.go(RoutePaths.home);
+                  _goHomeAfterEditingPlan();
                 },
         );
       },

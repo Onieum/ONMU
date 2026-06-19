@@ -1091,6 +1091,12 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+
+    await tester.tap(find.text('온모임').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '수정 완료'), findsNothing);
   });
 
   testWidgets('new plan selected members can remove added members', (
