@@ -1,11 +1,85 @@
 import 'character_model.dart';
 
+class UploadedMedia {
+  final String? id;
+  final String storageKey;
+  final String publicUrl;
+  final String mediaType;
+  final int? width;
+  final int? height;
+  final double? durationSeconds;
+  final int sortOrder;
+
+  const UploadedMedia({
+    this.id,
+    required this.storageKey,
+    required this.publicUrl,
+    this.mediaType = 'IMAGE',
+    this.width,
+    this.height,
+    this.durationSeconds,
+    this.sortOrder = 0,
+  });
+
+  UploadedMedia copyWith({
+    String? id,
+    String? storageKey,
+    String? publicUrl,
+    String? mediaType,
+    int? width,
+    int? height,
+    double? durationSeconds,
+    int? sortOrder,
+  }) {
+    return UploadedMedia(
+      id: id ?? this.id,
+      storageKey: storageKey ?? this.storageKey,
+      publicUrl: publicUrl ?? this.publicUrl,
+      mediaType: mediaType ?? this.mediaType,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
+}
+
+class OotdAvatarGenerationJob {
+  final String jobId;
+  final String status;
+  final String recordId;
+  final String? generatedImageUrl;
+  final String? errorCode;
+  final bool retryable;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const OotdAvatarGenerationJob({
+    required this.jobId,
+    required this.status,
+    required this.recordId,
+    this.generatedImageUrl,
+    this.errorCode,
+    this.retryable = false,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  bool get isPending =>
+      status.toUpperCase() == 'PENDING' || status.toUpperCase() == 'PROCESSING';
+
+  bool get isCompleted => status.toUpperCase() == 'COMPLETED';
+
+  bool get isFailed => status.toUpperCase() == 'FAILED';
+}
+
 class TimelineItem {
   final String time;
   final String placeName;
-  final String category; // 'restaurant', 'cafe', 'shopping', 'walk', etc.
+  final String category;
   final String description;
   final String? imageUrl;
+  final String? mediaStorageKey;
 
   const TimelineItem({
     required this.time,
@@ -13,27 +87,30 @@ class TimelineItem {
     required this.category,
     required this.description,
     this.imageUrl,
+    this.mediaStorageKey,
   });
 }
 
 class OotdRecord {
   final String? id;
   final DateTime date;
-  final String? imagePath; // 오늘의 착장 실제 사진 (시뮬레이션용 경로 혹은 null)
+  final String? imagePath;
   final List<String> imageUrls;
-  final CharacterDraft character; // 그 날 장착한 픽셀 캐릭터
-  final List<String> moodTags; // #캐주얼, #성수동 등
-  final Map<String, String> brands; // {'상의': '아디다스', '하의': '리바이스'}
-  final String weather; // 'sunny', 'cloudy', 'rainy'
-  final String mood; // 감정 (예: 'happy', 'excited', 'calm')
-  final bool isPublic; // true: 🌍 전체공개, false: 🔒 우리 멤버만
-  final List<TimelineItem> timeline; // 시간별 이동 동선
+  final List<UploadedMedia> media;
+  final CharacterDraft character;
+  final List<String> moodTags;
+  final Map<String, String> brands;
+  final String weather;
+  final String mood;
+  final bool isPublic;
+  final List<TimelineItem> timeline;
 
   const OotdRecord({
     this.id,
     required this.date,
     this.imagePath,
     this.imageUrls = const [],
+    this.media = const [],
     required this.character,
     required this.moodTags,
     required this.brands,
@@ -49,6 +126,7 @@ class OotdRecord {
     String? imagePath,
     bool clearImagePath = false,
     List<String>? imageUrls,
+    List<UploadedMedia>? media,
     CharacterDraft? character,
     List<String>? moodTags,
     Map<String, String>? brands,
@@ -62,6 +140,7 @@ class OotdRecord {
       date: date ?? this.date,
       imagePath: clearImagePath ? null : imagePath ?? this.imagePath,
       imageUrls: imageUrls ?? this.imageUrls,
+      media: media ?? this.media,
       character: character ?? this.character,
       moodTags: moodTags ?? this.moodTags,
       brands: brands ?? this.brands,

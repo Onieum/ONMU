@@ -335,6 +335,7 @@ class RecordServiceTests {
       "2026-06-10T12:00:00Z",
       List.of("데이트", "맑음"),
       List.of("http://test-image-url"),
+      null,
       "PUBLIC",
       "short_hair",
       "blonde",

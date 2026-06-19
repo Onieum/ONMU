@@ -331,8 +331,36 @@ class TestRecordRepository implements RecordRepository {
   }
 
   @override
-  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
-    return 'https://cdn.onmu.test/$fileName';
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) async {
+    return UploadedMedia(
+      storageKey: 'records/media/$fileName',
+      publicUrl: 'https://cdn.onmu.test/$fileName',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  }) async {
+    return OotdAvatarGenerationJob(
+      jobId: 'job-test',
+      status: 'COMPLETED',
+      recordId: recordId,
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId) async {
+    return OotdAvatarGenerationJob(
+      jobId: jobId,
+      status: 'COMPLETED',
+      recordId: 'record-test',
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
   }
 }
 
@@ -848,9 +876,26 @@ class TestPlaceRepository implements PlaceRepository {
       planId: planId,
     );
     return [
-      ...candidates,
+      ...candidates.where((candidate) => _matchesCategory(candidate, category)),
       if (_matchesSearchOnlyCategory(category)) _searchOnlyCandidate,
     ];
+  }
+
+  bool _matchesCategory(PlaceCandidate candidate, String? category) {
+    final normalized = category?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return true;
+    }
+    final values = [
+      candidate.category.trim(),
+      ...candidate.tags.map((tag) => tag.trim()),
+    ];
+    if (normalized == '음식점') {
+      return values.any(
+        const {'음식점', '한식', '양식', '중식', '일식', '아시안식', '분식'}.contains,
+      );
+    }
+    return values.contains(normalized);
   }
 
   bool _matchesSearchOnlyCategory(String? category) {

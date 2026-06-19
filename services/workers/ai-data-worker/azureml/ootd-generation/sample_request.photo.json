@@ -1,0 +1,14 @@
+{
+  "requestId": "job_photo_001",
+  "mode": "PHOTO_REFERENCE",
+  "characterImageBase64": "<png-base64>",
+  "outfitDescriptor": {
+    "top": "white sailor-collar short sleeve blouse with navy ribbon detail",
+    "bottom": "navy pleated mini skirt",
+    "shoes": "white low-top sneakers with blue accents",
+    "accessories": ["black over-ear headphones"]
+  },
+  "seed": 1234,
+  "numInferenceSteps": 24,
+  "guidanceScale": 2.5
+}

@@ -1,42 +1,44 @@
-# FastAPI AI/Data Worker Scaffold
+﻿# FastAPI AI/Data Worker Scaffold
 
-`services/workers/ai-data-worker`는 ONMU의 내부 FastAPI worker 위치다. Flutter가 직접 호출하는 공개 API가 아니라, Spring Main API가 queue/outbox를 통해 호출할 내부 실행 단위로 둔다.
+`services/workers/ai-data-worker` is the private ONMU AI/Data worker. Flutter must not call this service directly. Spring Main API owns public `/api/v1` contracts and dispatches outbox/queue tasks to this worker.
 
-이번 작업 범위는 ACA 배포 준비를 위한 최소 자산 정리다. 외부 AI provider 연동, analytics/reporting 적재, 실제 job consumer는 아직 포함하지 않는다.
+## Responsibilities
 
-## 책임
+- Consume Spring outbox/queue jobs.
+- Own only the `worker_ai` schema when worker-side persistence is introduced.
+- Call external AI providers such as Azure ML and Vision AI.
+- Return safe status/error metadata so Spring can expose fallback UX.
 
-- Spring Boot outbox/queue job 소비
-- `worker_ai` schema에 worker 상태와 metadata 기록
-- 이후 sprint에서 place explanation, record/OOTD summary, recommendation helper data 생성
-- 실패 metadata를 안전하게 반환해 Spring이 fallback 응답을 만들 수 있게 지원
+## OOTD generation MVP
 
-## Migration 소유권
+The current OOTD path supports:
 
-Alembic은 `worker_ai` schema만 소유한다.
+- `/tasks/ootd` for `ootd.avatar_generation.requested` events.
+- Mock acceptance when Azure ML endpoint env vars are absent.
+- Azure ML dry-run call when these env vars are present:
+  - `ONMU_AZUREML_ENDPOINT_URL`
+  - `ONMU_AZUREML_ENDPOINT_KEY`
+
+Photo mode expects a Vision AI outfit descriptor before calling Azure ML. Until Vision AI is connected, the worker uses a placeholder descriptor only for dry-run plumbing tests.
+
+## Migration ownership
+
+Alembic may own worker-only tables such as:
 
 - `worker_ai.ai_job_runs`
 - `worker_ai.prompt_runs`
 - `worker_ai.feature_extraction_jobs`
 
-Alembic이 `users`, `groups`, `plans`, `votes`, `settlements` 같은 core domain table을 직접 생성하거나 변경하면 안 된다.
+Alembic must not create or modify core domain tables such as `users`, `groups`, `plans`, `votes`, `settlements`, `records`, or `record_media`.
 
-## 로컬 실행과 컨테이너
-
-최소 실행 자산은 준비되어 있다.
-
-- `pyproject.toml`
-- `/healthz`
-- `Dockerfile`
-
-로컬 실행 예:
+## Local run
 
 ```powershell
 cd services\workers\ai-data-worker
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-컨테이너 빌드 예:
+## Container run
 
 ```powershell
 cd services\workers\ai-data-worker
@@ -44,13 +46,26 @@ docker build -t onmu-ai-data-worker:local .
 docker run --rm -p 8000:8000 onmu-ai-data-worker:local
 ```
 
-ACA 기준으로는 worker가 외부 공개 endpoint가 아니라도 `/healthz` probe를 내부적으로 사용한다.
+ACA should use `/healthz` for liveness and `/readyz` for readiness.
 
-## 남은 TODO
+## Azure ML smoke test
 
-1. queue/outbox consumer adapter 추가
-2. `worker_ai` job status persistence 추가
-3. SQLAlchemy/Alembic runtime wiring 보강
-4. idempotent job handling test 추가
+After `staging-azureml-endpoint-url` and `staging-azureml-endpoint-key` exist in Key Vault:
 
-secret 값은 이 디렉터리에 두지 않는다.
+```powershell
+cd <repo-root>
+.\scripts\azureml\test-ootd-generation-smoke.ps1
+```
+
+The smoke script does not print endpoint keys. It writes the returned dry-run image under `.generated/`, which is gitignored.
+
+## Remaining TODO
+
+1. Event Hubs consumer adapter.
+2. Worker-side job status persistence.
+3. Blob read/write integration.
+4. Vision AI descriptor adapter.
+5. Spring internal callback for completed/failed jobs.
+6. Idempotent job handling tests.
+
+Do not commit secret values or generated Azure ML deployment files.

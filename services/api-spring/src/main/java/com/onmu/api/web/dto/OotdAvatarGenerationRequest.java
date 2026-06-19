@@ -1,0 +1,11 @@
+package com.onmu.api.web.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
+
+public record OotdAvatarGenerationRequest(
+  @NotBlank String recordId,
+  @NotBlank String inputType,
+  UUID outfitPhotoMediaId,
+  String outfitDescription
+) {}

@@ -17,6 +17,7 @@ public record MemoryResponse(
   UUID groupId,
   List<String> tags,
   List<String> imageUrls,
+  List<Map<String, Object>> media,
   String visibility,
   Map<String, Object> characterSnapshot,
   Map<String, Object> payload,

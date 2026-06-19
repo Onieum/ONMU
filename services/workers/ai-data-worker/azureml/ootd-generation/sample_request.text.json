@@ -1,0 +1,10 @@
+{
+  "requestId": "job_text_001",
+  "mode": "TEXT_PROMPT",
+  "characterImageBase64": "<png-base64>",
+  "outfitDescription": "white short sleeve blouse, navy pleated skirt, white socks, white sneakers",
+  "seed": 1234,
+  "numInferenceSteps": 24,
+  "guidanceScale": 2.5
+}
+
