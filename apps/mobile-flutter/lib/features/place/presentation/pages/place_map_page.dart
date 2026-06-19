@@ -260,6 +260,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 
   void _handleViewportIdle(OnmuMapViewport viewport) {
+    if (!viewport.isValid) {
+      return;
+    }
     if (_sameCatalogViewport(_catalogViewport, viewport)) {
       return;
     }
@@ -278,7 +281,12 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 
   bool _sameCatalogViewport(OnmuMapViewport? previous, OnmuMapViewport next) {
-    if (previous == null || previous.apiZoom != next.apiZoom) {
+    if (!next.isValid) {
+      return true;
+    }
+    if (previous == null ||
+        !previous.isValid ||
+        previous.apiZoom != next.apiZoom) {
       return false;
     }
     const threshold = 0.0005;
@@ -289,7 +297,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   }
 
   OnmuMapViewport _initialCatalogViewport(OnmuLatLng center, double zoom) {
-    final zoomLevel = zoom.round().clamp(0, 22).toInt();
+    final safeZoom = onmuMapSafeZoom(zoom);
+    final zoomLevel = onmuMapApiZoom(safeZoom);
     final span = 18 / (1 << zoomLevel);
     final latSpan = span.clamp(0.002, 1.5);
     final lngSpan = (span * 1.2).clamp(0.002, 1.8);
@@ -300,7 +309,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         north: (center.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
         east: (center.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
       ),
-      zoom: zoom,
+      zoom: safeZoom,
     );
   }
 

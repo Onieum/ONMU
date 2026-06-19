@@ -181,6 +181,37 @@ void main() {
     expect(validPoints.single.id, 'ok');
   });
 
+  test('normalizes non-finite catalog viewport values', () {
+    const validBounds = OnmuMapBounds(
+      south: 37.50,
+      west: 126.90,
+      north: 37.62,
+      east: 127.08,
+    );
+    const invalidBounds = OnmuMapBounds(
+      south: double.nan,
+      west: 126.90,
+      north: 37.62,
+      east: 127.08,
+    );
+
+    expect(onmuMapSafeZoom(double.infinity), onmuMapDefaultCatalogZoom);
+    expect(onmuMapSafeZoom(double.nan, fallback: double.nan), 11);
+    expect(
+      const OnmuMapViewport(bounds: validBounds, zoom: double.infinity).apiZoom,
+      11,
+    );
+    expect(const OnmuMapViewport(bounds: validBounds, zoom: 12.6).apiZoom, 13);
+    expect(
+      const OnmuMapViewport(bounds: validBounds, zoom: double.infinity).isValid,
+      isFalse,
+    );
+    expect(
+      const OnmuMapViewport(bounds: invalidBounds, zoom: 12).isValid,
+      isFalse,
+    );
+  });
+
   test('recreates native map when route camera targets change', () {
     const point = OnmuMapPoint(
       id: 'place-1',

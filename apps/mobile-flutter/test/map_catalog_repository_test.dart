@@ -151,4 +151,53 @@ void main() {
     expect(response.points.single.coordinate.lat, 37.544);
     expect(response.points.single.coordinate.lng, 127.055);
   });
+
+  test(
+    'normalizes non-finite viewport zoom before posting map-points',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'mode': 'points',
+                  'zoom': 11,
+                  'bounds': {
+                    'south': 37.50,
+                    'west': 126.90,
+                    'north': 37.62,
+                    'east': 127.08,
+                  },
+                  'clusters': [],
+                  'points': [],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiMapCatalogRepository(OnmuApiClient(dio));
+
+      await repository.fetchMapPoints(
+        groupId: 1,
+        planId: 104,
+        viewport: const OnmuMapViewport(
+          zoom: double.infinity,
+          bounds: OnmuMapBounds(
+            south: 37.50,
+            west: 126.90,
+            north: 37.62,
+            east: 127.08,
+          ),
+        ),
+      );
+
+      expect(requests.single.data['zoom'], 11);
+    },
+  );
 }

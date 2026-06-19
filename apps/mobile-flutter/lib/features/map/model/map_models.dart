@@ -18,6 +18,22 @@ class OnmuMapBounds {
   final double north;
   final double east;
 
+  bool get isValid =>
+      south.isFinite &&
+      west.isFinite &&
+      north.isFinite &&
+      east.isFinite &&
+      south >= -90 &&
+      south <= 90 &&
+      north >= -90 &&
+      north <= 90 &&
+      west >= -180 &&
+      west <= 180 &&
+      east >= -180 &&
+      east <= 180 &&
+      south <= north &&
+      west <= east;
+
   Map<String, Object?> toJson() {
     return {'south': south, 'west': west, 'north': north, 'east': east};
   }
@@ -29,7 +45,26 @@ class OnmuMapViewport {
   final OnmuMapBounds bounds;
   final double zoom;
 
-  int get apiZoom => zoom.round().clamp(0, 22).toInt();
+  bool get isValid => bounds.isValid && zoom.isFinite;
+
+  int get apiZoom => onmuMapApiZoom(zoom);
+}
+
+const double onmuMapDefaultCatalogZoom = 11;
+
+double onmuMapSafeZoom(
+  double zoom, {
+  double fallback = onmuMapDefaultCatalogZoom,
+}) {
+  final fallbackValue = fallback.isFinite
+      ? fallback
+      : onmuMapDefaultCatalogZoom;
+  final value = zoom.isFinite ? zoom : fallbackValue;
+  return value.clamp(0.0, 22.0).toDouble();
+}
+
+int onmuMapApiZoom(double zoom, {double fallback = onmuMapDefaultCatalogZoom}) {
+  return onmuMapSafeZoom(zoom, fallback: fallback).round().clamp(0, 22).toInt();
 }
 
 bool isValidOnmuLatLng(OnmuLatLng coordinate) {

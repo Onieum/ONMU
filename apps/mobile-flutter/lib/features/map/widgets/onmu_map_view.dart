@@ -916,50 +916,81 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     if (controller == null) {
       final center = _centerFromData() ?? widget.center;
       if (center != null) {
-        widget.onViewportIdle!(_approximateViewport(center, widget.zoom));
+        _emitViewportIfValid(_approximateViewport(center, widget.zoom));
       }
       return;
     }
     try {
       final visible = await controller.getVisibleRegion();
-      final zoom = controller.cameraPosition?.zoom ?? widget.zoom;
-      widget.onViewportIdle!(
-        OnmuMapViewport(
-          bounds: OnmuMapBounds(
-            south: visible.southwest.latitude,
-            west: visible.southwest.longitude,
-            north: visible.northeast.latitude,
-            east: visible.northeast.longitude,
-          ),
-          zoom: zoom,
+      final viewport = OnmuMapViewport(
+        bounds: OnmuMapBounds(
+          south: visible.southwest.latitude,
+          west: visible.southwest.longitude,
+          north: visible.northeast.latitude,
+          east: visible.northeast.longitude,
+        ),
+        zoom: onmuMapSafeZoom(
+          controller.cameraPosition?.zoom ?? widget.zoom,
+          fallback: widget.zoom,
         ),
       );
-    } catch (_) {
-      final target = controller.cameraPosition?.target;
-      if (target == null) {
+      if (_emitViewportIfValid(viewport)) {
         return;
       }
-      widget.onViewportIdle!(
-        _approximateViewport(
-          OnmuLatLng(lat: target.latitude, lng: target.longitude),
-          controller.cameraPosition?.zoom ?? widget.zoom,
-        ),
-      );
+      final fallback = _fallbackViewport(controller);
+      if (fallback != null) {
+        _emitViewportIfValid(fallback);
+      }
+    } catch (_) {
+      final fallback = _fallbackViewport(controller);
+      if (fallback != null) {
+        _emitViewportIfValid(fallback);
+      }
     }
   }
 
+  bool _emitViewportIfValid(OnmuMapViewport viewport) {
+    if (!viewport.isValid) {
+      return false;
+    }
+    widget.onViewportIdle?.call(viewport);
+    return true;
+  }
+
+  OnmuMapViewport? _fallbackViewport(MapLibreMapController controller) {
+    final target = controller.cameraPosition?.target;
+    if (target != null) {
+      final center = OnmuLatLng(lat: target.latitude, lng: target.longitude);
+      if (isValidOnmuLatLng(center)) {
+        return _approximateViewport(
+          center,
+          controller.cameraPosition?.zoom ?? widget.zoom,
+        );
+      }
+    }
+    final center = _centerFromData() ?? widget.center;
+    if (center == null || !isValidOnmuLatLng(center)) {
+      return null;
+    }
+    return _approximateViewport(center, widget.zoom);
+  }
+
   OnmuMapViewport _approximateViewport(OnmuLatLng center, double zoom) {
-    final span = math.max(0.002, 18 / math.pow(2, zoom));
+    final safeCenter = isValidOnmuLatLng(center)
+        ? center
+        : const OnmuLatLng(lat: 37.5665, lng: 126.9780);
+    final safeZoom = onmuMapSafeZoom(zoom, fallback: widget.zoom);
+    final span = math.max(0.002, 18 / math.pow(2, safeZoom));
     final latSpan = span;
     final lngSpan = span * 1.2;
     return OnmuMapViewport(
       bounds: OnmuMapBounds(
-        south: (center.lat - latSpan).clamp(-90.0, 90.0).toDouble(),
-        west: (center.lng - lngSpan).clamp(-180.0, 180.0).toDouble(),
-        north: (center.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
-        east: (center.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
+        south: (safeCenter.lat - latSpan).clamp(-90.0, 90.0).toDouble(),
+        west: (safeCenter.lng - lngSpan).clamp(-180.0, 180.0).toDouble(),
+        north: (safeCenter.lat + latSpan).clamp(-90.0, 90.0).toDouble(),
+        east: (safeCenter.lng + lngSpan).clamp(-180.0, 180.0).toDouble(),
       ),
-      zoom: zoom,
+      zoom: safeZoom,
     );
   }
 
