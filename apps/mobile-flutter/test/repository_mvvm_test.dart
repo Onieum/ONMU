@@ -207,7 +207,19 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
-        friendRepositoryProvider.overrideWithValue(TestFriendRepository()),
+        friendRepositoryProvider.overrideWithValue(
+          TestFriendRepository(
+            friends: const [
+              FriendProfile(
+                publicId: 'friend-doyun',
+                userCode: 'doyun',
+                name: '도윤',
+                preferenceSummary: '',
+                isFriend: true,
+              ),
+            ],
+          ),
+        ),
       ],
     );
     addTearDown(container.dispose);

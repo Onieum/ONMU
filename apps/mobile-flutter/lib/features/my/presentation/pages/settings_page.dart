@@ -86,12 +86,10 @@ class _SettingsPage extends ConsumerWidget {
   }
 
   Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final router = GoRouter.of(context);
     try {
       await ref.read(authActionProvider).signOut();
-      if (!context.mounted) {
-        return;
-      }
-      context.go(RoutePaths.login);
+      router.go(RoutePaths.login);
     } catch (_) {
       if (!context.mounted) {
         return;
@@ -103,6 +101,7 @@ class _SettingsPage extends ConsumerWidget {
   }
 
   Future<void> _withdraw(BuildContext context, WidgetRef ref) async {
+    final router = GoRouter.of(context);
     final shouldWithdraw = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -130,10 +129,7 @@ class _SettingsPage extends ConsumerWidget {
 
     try {
       await ref.read(authActionProvider).withdraw();
-      if (!context.mounted) {
-        return;
-      }
-      context.go(RoutePaths.login);
+      router.go(RoutePaths.login);
     } catch (_) {
       if (!context.mounted) {
         return;

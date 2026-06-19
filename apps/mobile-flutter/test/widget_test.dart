@@ -863,7 +863,23 @@ void main() {
   testWidgets('group creation add invite button selects a friend', (
     tester,
   ) async {
-    await tester.pumpWidget(_testOnmuApp());
+    appRouter.go(RoutePaths.splash);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        friendRepository: TestFriendRepository(
+          friends: const [
+            FriendProfile(
+              publicId: 'friend-doyun',
+              userCode: 'doyun',
+              name: '도윤',
+              preferenceSummary: '',
+              isFriend: true,
+            ),
+          ],
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupNew);
