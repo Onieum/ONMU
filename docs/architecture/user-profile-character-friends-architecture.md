@@ -14,7 +14,7 @@
 - 친구별 메모, 즐겨찾기, 숨김, 별칭은 관계 원장이 아니라 `friend_settings(friendship_id, user_id)`의 사용자별 개인 설정이다.
 - Flutter 앱은 DB, Blob, Redis, Worker, Key Vault를 직접 호출하지 않는다. 공개 API는 Spring Boot `/api/v1`만 사용한다.
 - 친구 프로필은 상대 사용자의 공개/친구 공개 프로필만 반환하고, 인증 provider, refresh token, 이메일 같은 내 계정 전용 필드는 노출하지 않는다.
-- 사용자 표시 이름은 `nickname`을 canonical field로 사용한다. `displayName`은 OAuth provider 원본/fallback 역할과 앱 표시 이름 역할이 섞여 있어 제거 대상이다.
+- 사용자 표시 이름은 `nickname`을 canonical field로 사용한다. OAuth provider 원본 이름은 앱 표시 이름으로 재사용하지 않는다.
 - 사용자 식별자는 내부 API payload에서 DB UUID `userId` 또는 `databaseId`를 사용하고, 외부 공유/친구 코드에는 `publicId` 또는 `userCode`를 사용한다. 이름 필드는 식별자로 사용하지 않는다.
 
 ## Current Implementation
@@ -83,14 +83,14 @@ Route 기준은 `/my`, `/onboarding`, `/onboarding/preferences`, `/onboarding/ch
 
 ### Profile field contract decision
 
-다음 구현 세션의 목표는 사용자 이름 contract를 `nickname`으로 통일하고 `displayName`을 제거하는 것이다.
+사용자 이름 contract는 `nickname`으로 통일한다.
 
 - Spring API request/response에서 앱 표시 이름은 `nickname`으로만 표현한다.
 - OAuth provider가 내려준 이름은 신규 사용자 `nickname` 초기값으로만 사용한다.
-- provider 원본 이름을 장기 보관해야 하면 `displayName`을 재사용하지 않고 `auth_identities.provider_profile_name`처럼 의미가 분리된 필드를 별도 migration으로 추가한다.
-- 기존 사용자 중 `nickname`이 비어 있고 `displayName`만 있는 row는 Flyway migration에서 `nickname = displayName`으로 보정한 뒤 코드 참조를 제거한다.
+- provider 원본 이름을 장기 보관해야 하면 `auth_identities.provider_profile_name`처럼 의미가 분리된 필드를 별도 migration으로 추가한다.
+- 기존 사용자 중 `nickname`이 비어 있는 row는 Flyway migration에서 `nickname`을 보정한 뒤 코드 참조를 `nickname` 기준으로 유지한다.
 - `/api/v1/auth/oauth/{provider}`, `/api/v1/auth/session`, `/api/v1/users/me`, `/api/v1/groups/{groupId}/members`, plan participant, friend response는 같은 사용자를 같은 `nickname`으로 내려줘야 한다.
-- Flutter `AuthUser`, `MyProfile`, `FriendProfile`, `GroupMemberProfile`, `PlanMember`는 화면 표시명으로 `nickname` 또는 `name`만 사용하고 `displayName` 필드를 새로 추가하지 않는다.
+- Flutter `AuthUser`, `MyProfile`, `FriendProfile`, `GroupMemberProfile`, `PlanMember`는 화면 표시명으로 `nickname` 또는 `name`만 사용한다.
 
 ### Current side effects
 
@@ -246,18 +246,17 @@ Target 관측성:
 | 확정 | 친구 관계는 canonical pair `friendships(user_low_id, user_high_id)`로 한 쌍에 한 row만 둔다. |
 | 확정 | 친구 메모/즐겨찾기/숨김은 `friend_settings`의 owner 기준 개인 설정이다. |
 | 확정 | 기본 캐릭터 원장은 `character_profiles`이고 OOTD별 변경은 `records.payload.characterSnapshot`에 저장한다. |
-| 확정 | 사용자 표시 이름은 `nickname`으로 통일하고 `displayName`은 migration으로 제거한다. |
+| 확정 | 사용자 표시 이름은 `nickname`으로 통일한다. |
 | 후보 | 친구 검색/user code lookup rate limit은 Redis 또는 APIM policy로 구현한다. |
 | 미결정 | friend request UX를 MVP 이후 요청/수락 flow로 확장할지 여부. |
 
 ## Roadmap
 
-1. `displayName` 제거 migration과 Spring/Flutter profile field rename을 먼저 처리한다.
-2. Profile/character read-through 기준을 `character_profiles` 중심으로 고정한다.
-3. 친구 seed/test 계정을 추가해 친구 상세 프로필 dev 검증을 가능하게 한다.
-4. 친구 검색 rate limit과 security event logging을 추가한다.
-5. 친구 요청/차단/숨김 정책을 API contract에 명시한다.
-6. profile/friend 변경 이벤트를 notification/outbox와 연결한다.
+1. Profile/character read-through 기준을 `character_profiles` 중심으로 고정한다.
+2. 친구 seed/test 계정을 추가해 친구 상세 프로필 dev 검증을 가능하게 한다.
+3. 친구 검색 rate limit과 security event logging을 추가한다.
+4. 친구 요청/차단/숨김 정책을 API contract에 명시한다.
+5. profile/friend 변경 이벤트를 notification/outbox와 연결한다.
 
 ## Non-goals
 

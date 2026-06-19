@@ -1285,6 +1285,7 @@ public class OnmuApiService {
     value.put("userId", user.getId().toString());
     value.put("nickname", nickname(user));
     value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("pixelCharacter", pixelCharacter(user));
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     value.put("status", participant.getStatus());
     value.put("response", participant.getResponse());
@@ -1302,6 +1303,7 @@ public class OnmuApiService {
     value.put("badge", "추가 가능");
     value.put("selected", true);
     value.put("profileImageUrl", user.getProfileImageUrl());
+    value.put("pixelCharacter", pixelCharacter(user));
     value.put("preferenceProfile", readJsonObject(user.getPreferenceProfile()));
     return value;
   }
@@ -1328,6 +1330,7 @@ public class OnmuApiService {
     value.put("selected", true);
     value.put("userId", participant.get("userId"));
     value.put("profileImageUrl", participant.get("profileImageUrl"));
+    value.put("pixelCharacter", participant.get("pixelCharacter"));
     value.put("preferenceProfile", participant.get("preferenceProfile"));
     return value;
   }

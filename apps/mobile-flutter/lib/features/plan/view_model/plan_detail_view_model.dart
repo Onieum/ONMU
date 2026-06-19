@@ -173,6 +173,7 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
           badge: '참여 중',
           selected: true,
           profileImageUrl: participant.profileImageUrl,
+          character: participant.character,
           preferenceProfile: participant.preferenceProfile,
         ),
       );
@@ -219,6 +220,7 @@ class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {
       profileImageUrl: member.profileImageUrl.trim().isNotEmpty
           ? member.profileImageUrl
           : participant.profileImageUrl,
+      character: member.character ?? participant.character,
       preferenceProfile:
           member.preferenceProfile ?? participant.preferenceProfile,
       fallbackToViewerCharacter: member.fallbackToViewerCharacter,

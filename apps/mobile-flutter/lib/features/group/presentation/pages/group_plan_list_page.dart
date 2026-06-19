@@ -431,6 +431,7 @@ class _PlanSummaryCard extends StatelessWidget {
                         label: member.name,
                         size: 22,
                         profileImageUrl: member.profileImageUrl,
+                        character: member.character,
                       ),
                       const SizedBox(width: AppSpacing.xxs),
                     ],

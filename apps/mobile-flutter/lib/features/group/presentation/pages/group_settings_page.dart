@@ -260,6 +260,7 @@ class _SettingsHeroCard extends StatelessWidget {
                           label: displayMembers[index].name,
                           profileImageUrl:
                               displayMembers[index].profileImageUrl,
+                          character: displayMembers[index].character,
                           size: index == 1 ? 46 : 42,
                         ),
                       ),

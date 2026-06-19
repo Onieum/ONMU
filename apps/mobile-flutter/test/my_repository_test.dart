@@ -145,7 +145,7 @@ void main() {
     expect(updated.introText, 'hello');
   });
 
-  test('does not treat default ONMU User as a profile real name', () async {
+  test('does not treat default nickname as a profile real name', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -157,7 +157,7 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               data: {
-                'displayName': 'ONMU User',
+                'nickname': 'ONMU User',
                 'preferenceProfile': {'introText': 'hello'},
               },
             ),

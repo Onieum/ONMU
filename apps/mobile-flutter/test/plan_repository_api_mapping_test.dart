@@ -321,6 +321,14 @@ void main() {
                 'status': 'joined',
                 'response': 'accepted',
                 'profileImageUrl': 'dev/avatars/jimin.png',
+                'pixelCharacter': {
+                  'skinTone': 'skin_3',
+                  'hairStyle': 'hair_style_4',
+                  'hairColor': 'hair_color_2',
+                  'eyeStyle': 'eye_style_1',
+                  'eyeColor': 'eye_color_5',
+                  'clothes': 'top_6',
+                },
               },
             ),
           );
@@ -342,6 +350,12 @@ void main() {
     expect(participant.nickname, '지민');
     expect(participant.participantStatus, 'joined');
     expect(participant.profileImageUrl, 'dev/avatars/jimin.png');
+    expect(participant.character?.skinToneIndex, 3);
+    expect(participant.character?.hairStyleIndex, 4);
+    expect(participant.character?.hairColorIndex, 2);
+    expect(participant.character?.eyeShapeIndex, 1);
+    expect(participant.character?.eyeColorIndex, 5);
+    expect(participant.character?.topStyleIndex, 6);
   });
 
   test(

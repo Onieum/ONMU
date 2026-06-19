@@ -613,6 +613,7 @@ class _TodayPlanParticipants extends StatelessWidget {
               label: member.name,
               size: 28,
               profileImageUrl: member.profileImageUrl,
+              character: member.character,
             ),
           ),
         if (extraMemberCount > 0) ...[
