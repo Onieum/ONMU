@@ -69,6 +69,11 @@ else {
         accessories = @("small navy ribbon")
         styling_notes = "simple coordinated school-casual outfit"
     }
+    $payload.visionMetadata = [ordered]@{
+        provider = "smoke-test"
+        deployment = "manual-descriptor"
+        apiVersion = "none"
+    }
 }
 
 $headers = @{
