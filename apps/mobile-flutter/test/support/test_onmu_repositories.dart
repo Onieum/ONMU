@@ -187,9 +187,19 @@ class TestFriendRepository implements FriendRepository {
 
   @override
   Future<MyProfile> fetchFriendProfile(FriendProfile friend) async {
-    return TestMyRepository._defaultProfile.copyWith(
+    return MyProfile(
       realName: friend.name,
       introText: friend.preferenceSummary,
+      visibility: ProfileVisibility.friends,
+      favoriteKeywords: const [],
+      dislikedKeywords: const [],
+      preferredTimes: const [],
+      availableDays: const [],
+      unavailableDates: const [],
+      favoritePlaces: const [],
+      wantToGoPlaces: const [],
+      dislikedPlaces: const [],
+      character: friend.character,
     );
   }
 

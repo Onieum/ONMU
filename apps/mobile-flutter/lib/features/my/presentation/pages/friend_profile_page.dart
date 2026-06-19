@@ -327,7 +327,6 @@ class _FriendProfileHero extends StatelessWidget {
     final character = profile.character;
     final cleanIntro = profile.introText.trim();
     final cleanRegion = profile.region.trim();
-    final highlightLabels = profile.preferenceHighlights.take(4).toList();
 
     return Column(
       children: [
@@ -393,17 +392,6 @@ class _FriendProfileHero extends StatelessWidget {
             ],
           ),
         ),
-        if (profile.visibility != ProfileVisibility.private &&
-            highlightLabels.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _HorizontalChipList(labels: highlightLabels),
-            ),
-          ),
-        ],
         if (cleanIntro.isNotEmpty) ...[
           const SizedBox(height: 12),
           Padding(

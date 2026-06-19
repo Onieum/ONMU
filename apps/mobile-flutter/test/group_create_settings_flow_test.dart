@@ -7,6 +7,7 @@ import 'package:onmu_mobile/features/group/presentation/pages/group_create_page.
 import 'package:onmu_mobile/features/group/presentation/pages/group_list_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_settings_page.dart';
 import 'package:onmu_mobile/features/group/presentation/widgets/group_cards.dart';
+import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 
 import 'support/in_memory_onmu_store.dart';
@@ -14,6 +15,30 @@ import 'support/test_onmu_repositories.dart';
 
 Widget _testMaterialApp(Widget child) {
   return onmuTestProviderScope(child: MaterialApp(home: child));
+}
+
+Widget _testMaterialAppWithFriends(Widget child) {
+  return onmuTestProviderScope(
+    friendRepository: TestFriendRepository(
+      friends: const [
+        FriendProfile(
+          publicId: 'friend-doyun',
+          userCode: 'doyun',
+          name: '도윤',
+          preferenceSummary: '',
+          isFriend: true,
+        ),
+        FriendProfile(
+          publicId: 'friend-minseo',
+          userCode: 'minseo',
+          name: '민서',
+          preferenceSummary: '',
+          isFriend: true,
+        ),
+      ],
+    ),
+    child: MaterialApp(home: child),
+  );
 }
 
 Widget _testRouterApp(GoRouter router) {
@@ -64,7 +89,9 @@ void main() {
   testWidgets('group create member picker uses repository friends', (
     tester,
   ) async {
-    await tester.pumpWidget(_testMaterialApp(const GroupCreatePage()));
+    await tester.pumpWidget(
+      _testMaterialAppWithFriends(const GroupCreatePage()),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('추가').last);
