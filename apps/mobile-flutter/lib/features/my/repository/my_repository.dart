@@ -90,6 +90,10 @@ class ApiMyRepository implements MyRepository {
       ),
       visibility: ProfileVisibility.fromJson(preference['profileVisibility']),
       searchAllowed: OnmuJson.readBool(preference, 'searchAllowed', true),
+      useDefaultProfileImage: OnmuJson.readBool(
+        preference,
+        'useDefaultProfileImage',
+      ),
       favoriteKeywords: _readProfileStringList(preference['favoriteKeywords']),
       dislikedKeywords: _readProfileStringList(preference['dislikedKeywords']),
       preferredTimes: _readProfileStringList(preference['preferredTimes']),
@@ -144,6 +148,7 @@ class ApiMyRepository implements MyRepository {
       'introText': _safeProfileText(profile.introText),
       'profileVisibility': profile.visibility.value,
       'searchAllowed': profile.searchAllowed,
+      'useDefaultProfileImage': profile.useDefaultProfileImage,
       'region': regionSelection.toJson(),
       'regionVisibility': profile.regionVisibility.value,
       'dislikedKeywords': _safeProfileStringList(profile.dislikedKeywords),

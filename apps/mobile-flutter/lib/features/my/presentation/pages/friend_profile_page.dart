@@ -327,6 +327,7 @@ class _FriendProfileHero extends StatelessWidget {
     final character = profile.character;
     final cleanIntro = profile.introText.trim();
     final cleanRegion = profile.region.trim();
+    final highlightLabels = profile.favoriteKeywords.take(5).toList();
 
     return Column(
       children: [
@@ -337,8 +338,10 @@ class _FriendProfileHero extends StatelessWidget {
             children: [
               _CharacterPortrait(
                 size: 116,
-                character: character,
-                profileImageUrl: friend.profileImageUrl,
+                character: profile.useDefaultProfileImage ? null : character,
+                profileImageUrl: profile.profileImageUrl.isNotEmpty
+                    ? profile.profileImageUrl
+                    : friend.profileImageUrl,
                 fallbackToViewerCharacter: false,
               ),
               const SizedBox(width: 18),
@@ -392,6 +395,13 @@ class _FriendProfileHero extends StatelessWidget {
             ],
           ),
         ),
+        if (highlightLabels.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: _HorizontalChipList(labels: highlightLabels),
+          ),
+        ],
         if (cleanIntro.isNotEmpty) ...[
           const SizedBox(height: 12),
           Padding(

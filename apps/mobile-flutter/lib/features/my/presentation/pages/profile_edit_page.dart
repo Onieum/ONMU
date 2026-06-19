@@ -33,6 +33,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
   Uint8List? _profileImageBytes;
   String? _profileImageFileName;
   late String _profileImageUrl;
+  late bool _useDefaultProfileImage;
   var _isSaving = false;
 
   @override
@@ -48,6 +49,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
     _regionVisibility = widget.profile.regionVisibility;
     _interests = widget.profile.favoriteKeywords.take(5).toList();
     _profileImageUrl = widget.profileImageUrl?.trim() ?? '';
+    _useDefaultProfileImage = widget.profile.useDefaultProfileImage;
   }
 
   @override
@@ -88,6 +90,8 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
                                 size: 132,
                                 profileImageUrl: _profileImageUrl,
                                 profileImageBytes: _profileImageBytes,
+                                fallbackToViewerCharacter:
+                                    !_useDefaultProfileImage,
                               ),
                               Positioned(
                                 right: 4,
@@ -323,6 +327,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
             : _nameController.text.trim(),
         introText: _introController.text.trim(),
         profileImageUrl: profileImageUrl,
+        useDefaultProfileImage: _useDefaultProfileImage,
         region: region,
         regionSelection: KoreaRegionSelection.fromDisplayName(region),
         regionVisibility: _regionVisibility,
@@ -381,10 +386,21 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
           _profileImageBytes = null;
           _profileImageFileName = null;
           _profileImageUrl = '';
+          _useDefaultProfileImage = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장된 캐릭터 이미지를 프로필 사진으로 사용할게요.')),
         );
+      case _ProfilePhotoOption.defaultImage:
+        setState(() {
+          _profileImageBytes = null;
+          _profileImageFileName = null;
+          _profileImageUrl = '';
+          _useDefaultProfileImage = true;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('기본 프로필 이미지로 변경할게요.')));
     }
   }
 
@@ -407,6 +423,7 @@ class _ProfileEditPageState extends State<_ProfileEditPage> {
           ? 'profile-image.jpg'
           : picked.name;
       _profileImageUrl = '';
+      _useDefaultProfileImage = false;
     });
   }
 
@@ -479,6 +496,12 @@ class _ProfilePhotoOptionSheet extends StatelessWidget {
               title: '캐릭터 이미지 사용',
               subtitle: '마지막으로 저장한 ONMU 캐릭터를 사용해요',
               option: _ProfilePhotoOption.character,
+            ),
+            _ProfilePhotoOptionTile(
+              icon: Icons.person_outline_rounded,
+              title: '기본 이미지 사용',
+              subtitle: '프로필 사진 없이 기본 사람 아이콘으로 표시해요',
+              option: _ProfilePhotoOption.defaultImage,
             ),
           ],
         ),
