@@ -22,7 +22,7 @@ void main() {
                   'endsAt': '2026-06-24T07:00:00Z',
                   'placeName': '수원',
                   'memo': '오늘약속테스트',
-                  'status': 'draft',
+                  'status': 'scheduled',
                 },
               ),
             );
@@ -34,6 +34,7 @@ void main() {
       final plan = await repository.fetchPlan(groupId: 1, planId: 104);
 
       expect(plan.location, '수원');
+      expect(plan.status, 'scheduled');
       expect(plan.visitPlan, isEmpty);
     },
   );
@@ -205,7 +206,7 @@ void main() {
                 'title': '수정된 약속',
                 'dateLabel': '2026-06-12T10:00:00Z',
                 'placeName': '성수동',
-                'status': 'draft',
+                'status': 'scheduled',
                 'memo': '메모',
               },
             ),
@@ -236,7 +237,6 @@ void main() {
       'endsAt': '2026-06-12T12:00:00.000Z',
       'placeName': '성수동',
       'memo': '메모',
-      'status': 'draft',
     });
     expect(plan.title, '수정된 약속');
     expect(plan.location, '성수동');
@@ -260,7 +260,7 @@ void main() {
                   'title': '참여자 포함 약속',
                   'dateLabel': '2026-06-12T10:00:00Z',
                   'placeName': '성수동',
-                  'status': 'draft',
+                  'status': 'scheduled',
                 },
               ),
             );

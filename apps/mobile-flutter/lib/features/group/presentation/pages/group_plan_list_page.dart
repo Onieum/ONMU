@@ -437,10 +437,13 @@ class _PlanSummaryCard extends StatelessWidget {
                     if (plan.extraMemberCount > 0)
                       OnmuChip(label: '+${plan.extraMemberCount}'),
                     const Spacer(),
-                    OnmuChip(
-                      label: statusLabel ?? plan.displayStatusLabel,
-                      selected: !plan.isPast,
-                    ),
+                    if ((statusLabel ?? plan.displayStatusLabel)
+                        .trim()
+                        .isNotEmpty)
+                      OnmuChip(
+                        label: statusLabel ?? plan.displayStatusLabel,
+                        selected: !plan.isPast,
+                      ),
                   ],
                 ),
               ],

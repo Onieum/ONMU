@@ -93,7 +93,6 @@ class ApiPlanRepository implements PlanRepository {
         'endsAt': _startsAtOrNull(input.endsAt),
         'placeName': input.location.trim(),
         'memo': input.memo.trim(),
-        'status': 'draft',
       },
     );
     return _plan(plan);
@@ -171,7 +170,7 @@ class ApiPlanRepository implements PlanRepository {
       title: title,
       dateTime: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       location: location,
-      status: OnmuJson.readString(json, 'status', '예정'),
+      status: _canonicalPlanStatus(OnmuJson.readString(json, 'status')),
       memo: OnmuJson.readString(json, 'memo'),
       members: _planMembers(json),
       timeCandidates: const [],
@@ -179,6 +178,15 @@ class ApiPlanRepository implements PlanRepository {
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
       endsAt: DateTime.tryParse(OnmuJson.readString(json, 'endsAt')),
     );
+  }
+
+  String _canonicalPlanStatus(String value) {
+    final normalized = value.trim().toLowerCase();
+    return switch (normalized) {
+      '' => 'scheduled',
+      'scheduled' || 'active' || 'completed' || 'cancelled' => normalized,
+      _ => 'unknown',
+    };
   }
 
   SchedulePlace _schedulePlace(Map<String, dynamic> json) {

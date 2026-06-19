@@ -53,7 +53,7 @@ class RouteRecommendationServiceTests {
   @BeforeEach
   void setUp() {
     group = new GroupEntity("1", "ONMU", null);
-    plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "draft");
+    plan = new PlanEntity("101", group, "Route plan", Instant.parse("2026-06-10T00:00:00Z"), "scheduled");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     lenient().when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     lenient().when(schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan)).thenReturn(List.of());
