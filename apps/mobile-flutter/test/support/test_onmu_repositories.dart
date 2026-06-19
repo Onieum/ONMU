@@ -795,9 +795,28 @@ class TestPlaceRepository implements PlaceRepository {
     );
     return [
       ...candidates,
-      if (category == null || category == _searchOnlyCandidate.category)
-        _searchOnlyCandidate,
+      if (_matchesSearchOnlyCategory(category)) _searchOnlyCandidate,
     ];
+  }
+
+  bool _matchesSearchOnlyCategory(String? category) {
+    if (category == null || category.trim().isEmpty) {
+      return true;
+    }
+    if (category == _searchOnlyCandidate.category) {
+      return true;
+    }
+    if (category == '음식점') {
+      return const [
+        '분식',
+        '한식',
+        '양식',
+        '중식',
+        '일식',
+        '아시안식',
+      ].contains(_searchOnlyCandidate.category);
+    }
+    return false;
   }
 
   @override

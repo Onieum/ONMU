@@ -46,7 +46,7 @@ public class KakaoKeywordSearchProvider implements PlaceSearchProvider {
     }
     UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(keywordSearchUrl)
       .queryParam("query", query.normalizedQuery())
-      .queryParam("size", 5);
+      .queryParam("size", 15);
     if (query.lat() != null && query.lng() != null) {
       builder.queryParam("x", query.lng());
       builder.queryParam("y", query.lat());

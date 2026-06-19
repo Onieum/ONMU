@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -16,6 +17,8 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_top_bar.dart';
 import '../../view_model/place_candidates_view_model.dart';
 import '../widgets/place_candidate_card.dart';
+
+enum _MyLocationRequestState { idle, requesting, resolved, denied, unavailable }
 
 class PlaceMapPage extends ConsumerStatefulWidget {
   const PlaceMapPage({
@@ -34,18 +37,38 @@ class PlaceMapPage extends ConsumerStatefulWidget {
 }
 
 class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
-  static const _allCategory = '전체';
-  static const _categories = ['전체', '한식', '카페', '전시', '술집'];
+  static const _foodCategory = '음식점';
+  static const _cafeCategory = '카페';
+  static const _attractionCategory = '가볼만한곳';
+  static const _primaryCategories = [
+    _foodCategory,
+    _cafeCategory,
+    _attractionCategory,
+  ];
+  static const _foodFilters = ['한식', '양식', '중식', '일식', '아시안식'];
+  static const _attractionFilters = [
+    '공원',
+    '해수욕장',
+    '박물관',
+    '미술관',
+    '전시',
+    '전망대',
+    '산책로',
+  ];
   static const _mapSearchRadiusMeters = 1500;
   static const _cameraChangeThreshold = 0.0007;
 
   bool _searchActive = false;
   String _query = '';
-  String _selectedCategory = _allCategory;
+  String _selectedPrimaryCategory = _foodCategory;
+  String? _selectedCategoryFilter;
   PlaceCandidate? _selectedCandidate;
   OnmuLatLng? _lastCameraCenter;
   OnmuLatLng? _mapSearchCenter;
+  final ScrollController _recommendationScrollController = ScrollController();
+  _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
   int _myLocationRequestSerial = 0;
+  int? _pendingMyLocationSerial;
   final Set<int> _savingCandidateIds = {};
 
   @override
@@ -58,14 +81,17 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _recommendationScrollController.dispose();
+    super.dispose();
+  }
+
   List<PlaceCandidate> _visibleCandidates(List<PlaceCandidate> candidates) {
     final normalizedQuery = _query.trim().toLowerCase();
 
     final results = candidates.where((candidate) {
-      final matchesCategory =
-          _selectedCategory == _allCategory ||
-          candidate.category == _selectedCategory ||
-          candidate.tags.contains(_selectedCategory);
+      final matchesCategory = _matchesSelectedCategory(candidate);
       final searchableText = [
         candidate.name,
         candidate.category,
@@ -124,9 +150,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
 
   String _defaultSearchQuery(PlaceCandidatesState state) {
     final location = _normalizedPlanLocation(state.planLocation);
-    final categoryKeyword = _selectedCategory == _allCategory
-        ? '카페'
-        : _selectedCategory;
+    final categoryKeyword = _selectedSearchKeyword;
     return [
       location,
       categoryKeyword,
@@ -173,21 +197,217 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     });
   }
 
-  void _requestCurrentLocation() {
+  Future<void> _requestCurrentLocation() async {
+    if (_myLocationState == _MyLocationRequestState.requesting) {
+      return;
+    }
+
     setState(() {
-      _myLocationRequestSerial += 1;
+      _myLocationState = _MyLocationRequestState.requesting;
+    });
+
+    var status = await Permission.locationWhenInUse.status;
+    if (status.isDenied || status.isRestricted) {
+      status = await Permission.locationWhenInUse.request();
+    }
+    if (!mounted) {
+      return;
+    }
+
+    if (!status.isGranted && !status.isLimited) {
+      setState(() {
+        _myLocationState = _MyLocationRequestState.denied;
+      });
+      _showMapSnackBar(
+        status.isPermanentlyDenied
+            ? '설정에서 위치 권한을 허용하면 현재 위치 기준으로 검색할 수 있어요.'
+            : '위치 권한이 필요해요. 권한을 허용한 뒤 다시 눌러 주세요.',
+        action: status.isPermanentlyDenied
+            ? SnackBarAction(label: '설정 열기', onPressed: openAppSettings)
+            : null,
+      );
+      return;
+    }
+
+    final serial = _myLocationRequestSerial + 1;
+    setState(() {
+      _myLocationRequestSerial = serial;
+      _pendingMyLocationSerial = serial;
+    });
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted ||
+          _pendingMyLocationSerial != serial ||
+          _myLocationState != _MyLocationRequestState.requesting) {
+        return;
+      }
+      setState(() {
+        _myLocationState = _MyLocationRequestState.unavailable;
+      });
+      _showMapSnackBar('현재 위치를 아직 확인하지 못했어요. 지도 이동 후 현 지도에서 검색을 눌러 주세요.');
     });
   }
 
   void _handleMyLocationResolved(OnmuLatLng center) {
     setState(() {
       _lastCameraCenter = center;
+      _mapSearchCenter = center;
+      _searchActive = true;
+      _selectedCandidate = null;
+      _myLocationState = _MyLocationRequestState.resolved;
+      _pendingMyLocationSerial = null;
     });
+    _showMapSnackBar('현재 위치 주변으로 장소를 다시 찾고 있어요.');
+  }
+
+  void _handleMyLocationUnavailable() {
+    if (_myLocationState != _MyLocationRequestState.requesting) {
+      return;
+    }
+    setState(() {
+      _myLocationState = _MyLocationRequestState.unavailable;
+      _pendingMyLocationSerial = null;
+    });
+    _showMapSnackBar('현재 위치를 가져오지 못했어요. 에뮬레이터 위치나 기기 위치 설정을 확인해 주세요.');
   }
 
   bool _isMeaningfullyDifferent(OnmuLatLng previous, OnmuLatLng next) {
     return (previous.lat - next.lat).abs() > _cameraChangeThreshold ||
         (previous.lng - next.lng).abs() > _cameraChangeThreshold;
+  }
+
+  List<String> get _activeCategoryFilters {
+    return switch (_selectedPrimaryCategory) {
+      _foodCategory => _foodFilters,
+      _attractionCategory => _attractionFilters,
+      _ => const [],
+    };
+  }
+
+  String get _selectedSearchCategory =>
+      _selectedCategoryFilter ?? _selectedPrimaryCategory;
+
+  String get _selectedSearchKeyword {
+    final selectedFilter = _selectedCategoryFilter;
+    if (selectedFilter != null) {
+      return selectedFilter;
+    }
+    return switch (_selectedPrimaryCategory) {
+      _foodCategory => '맛집',
+      _cafeCategory => '카페',
+      _attractionCategory => '가볼만한곳',
+      _ => _selectedPrimaryCategory,
+    };
+  }
+
+  String get _myLocationTooltip {
+    return switch (_myLocationState) {
+      _MyLocationRequestState.requesting => '현재 위치 확인 중',
+      _MyLocationRequestState.resolved => '현재 위치 기준으로 다시 이동',
+      _MyLocationRequestState.denied => '위치 권한 다시 요청',
+      _MyLocationRequestState.unavailable => '현재 위치 다시 확인',
+      _ => '현재 위치로 이동',
+    };
+  }
+
+  IconData get _myLocationIcon {
+    return switch (_myLocationState) {
+      _MyLocationRequestState.resolved => Icons.near_me,
+      _MyLocationRequestState.denied => Icons.location_disabled_outlined,
+      _MyLocationRequestState.unavailable => Icons.location_searching,
+      _ => Icons.my_location,
+    };
+  }
+
+  String? get _myLocationStatusLabel {
+    return switch (_myLocationState) {
+      _MyLocationRequestState.requesting => '위치 확인 중',
+      _MyLocationRequestState.denied => '위치 권한 필요',
+      _MyLocationRequestState.unavailable => '위치 확인 실패',
+      _ => null,
+    };
+  }
+
+  bool _matchesSelectedCategory(PlaceCandidate candidate) {
+    final selectedFilter = _selectedCategoryFilter;
+    if (selectedFilter != null) {
+      return _matchesAnyCategoryToken(
+        candidate,
+        _tokensForFilter(selectedFilter),
+      );
+    }
+    return switch (_selectedPrimaryCategory) {
+      _foodCategory => _matchesAnyCategoryToken(candidate, const [
+        '음식점',
+        '식당',
+        '맛집',
+        '한식',
+        '양식',
+        '중식',
+        '일식',
+        '아시안',
+        '분식',
+        '고기',
+        '국밥',
+        '레스토랑',
+      ]),
+      _cafeCategory => _matchesAnyCategoryToken(candidate, const [
+        '카페',
+        '커피',
+        '디저트',
+        '베이커리',
+        '브런치',
+      ]),
+      _attractionCategory => _matchesAnyCategoryToken(candidate, const [
+        '가볼만한곳',
+        '관광',
+        '명소',
+        '공원',
+        '해수욕장',
+        '박물관',
+        '미술관',
+        '전시',
+        '전망대',
+        '산책로',
+        '문화',
+        '테마파크',
+        '놀이공원',
+      ]),
+      _ => true,
+    };
+  }
+
+  List<String> _tokensForFilter(String filter) {
+    return switch (filter) {
+      '아시안식' => const ['아시안', '태국', '베트남', '인도', '동남아'],
+      '전시' => const ['전시', '갤러리', '문화'],
+      '산책로' => const ['산책로', '둘레길', '거리', '공원'],
+      _ => [filter],
+    };
+  }
+
+  bool _matchesAnyCategoryToken(PlaceCandidate candidate, List<String> tokens) {
+    final haystack = [
+      candidate.category,
+      candidate.name,
+      candidate.summary,
+      ...candidate.tags,
+    ].join(' ').toLowerCase();
+    return tokens.any((token) => haystack.contains(token.toLowerCase()));
+  }
+
+  void _showMapSnackBar(String message, {SnackBarAction? action}) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: action,
+          duration: const Duration(seconds: 4),
+        ),
+      );
   }
 
   @override
@@ -224,8 +444,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     final autoSearch = _query.trim().isEmpty;
     final effectiveQuery = autoSearch ? _defaultSearchQuery(state) : _query;
     final searchActive =
-        _searchActive || autoSearch || _selectedCategory != _allCategory;
+        _searchActive || autoSearch || _selectedSearchCategory.isNotEmpty;
     final mapSearchCenter = _mapSearchCenter;
+    final activeCategoryFilters = _activeCategoryFilters;
     final remoteSearchState = effectiveQuery.trim().isEmpty
         ? null
         : ref.watch(
@@ -233,9 +454,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
               groupId: widget.groupId,
               planId: widget.planId,
               query: effectiveQuery,
-              category: _selectedCategory == _allCategory
-                  ? null
-                  : _selectedCategory,
+              category: _selectedSearchCategory,
               lat: mapSearchCenter?.lat,
               lng: mapSearchCenter?.lng,
               radius: mapSearchCenter == null ? null : _mapSearchRadiusMeters,
@@ -251,6 +470,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         localVisibleCandidates;
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
+    final recommendationPanelHeight = (MediaQuery.sizeOf(context).height * 0.28)
+        .clamp(176.0, 292.0)
+        .toDouble();
 
     return Scaffold(
       backgroundColor: AppColors.bgGrid,
@@ -264,141 +486,169 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                 RoutePaths.planDetail(widget.groupId, widget.planId),
               ),
             ),
-            Expanded(
-              child: Stack(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Positioned.fill(
-                    child: OnmuMapView(
-                      points: _mapPointsFor(visibleCandidates),
-                      fallbackLabel: _mapFallbackLabel(
-                        visibleCandidates,
-                        searchLoading: searchLoading,
-                        searchHadError: searchHadError,
-                      ),
-                      focusedPointId: _selectedCandidate?.id.toString(),
-                      onCameraIdle: _handleCameraIdle,
-                      onMyLocationResolved: _handleMyLocationResolved,
-                      myLocationRequestSerial: _myLocationRequestSerial,
-                      onPointTap: (point) {
-                        final selected = _candidateByPointId(
-                          visibleCandidates,
-                          point.id,
-                        );
-                        if (selected != null) {
-                          setState(() => _selectedCandidate = selected);
-                        }
-                      },
-                    ),
+                  _SearchBar(
+                    query: _query,
+                    onTap: _activateSearch,
+                    onChanged: (value) {
+                      setState(() {
+                        _query = value;
+                        _searchActive = true;
+                        _selectedCandidate = null;
+                      });
+                    },
                   ),
-                  Positioned(
-                    left: AppSpacing.lg,
-                    right: AppSpacing.lg,
-                    top: AppSpacing.sm,
-                    child: _SearchBar(
-                      query: _query,
-                      onTap: _activateSearch,
-                      onChanged: (value) {
+                  const SizedBox(height: AppSpacing.sm),
+                  _CategoryPills(
+                    categories: _primaryCategories,
+                    selectedCategory: _selectedPrimaryCategory,
+                    onSelected: (category) {
+                      setState(() {
+                        _selectedPrimaryCategory = category;
+                        _selectedCategoryFilter = null;
+                        _searchActive = true;
+                        _selectedCandidate = null;
+                      });
+                    },
+                  ),
+                  if (activeCategoryFilters.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    _CategoryPills(
+                      categories: activeCategoryFilters,
+                      selectedCategory: _selectedCategoryFilter ?? '',
+                      onSelected: (category) {
                         setState(() {
-                          _query = value;
+                          _selectedCategoryFilter =
+                              _selectedCategoryFilter == category
+                              ? null
+                              : category;
                           _searchActive = true;
                           _selectedCandidate = null;
                         });
                       },
                     ),
-                  ),
-                  Positioned(
-                    left: AppSpacing.lg,
-                    right: 0,
-                    top: 76,
-                    child: _CategoryPills(
-                      categories: _categories,
-                      selectedCategory: _selectedCategory,
-                      onSelected: (category) {
-                        setState(() {
-                          _selectedCategory = category;
-                          _searchActive =
-                              category != _allCategory || _query.isNotEmpty;
-                          _selectedCandidate = null;
-                        });
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    left: AppSpacing.lg,
-                    top: 126,
-                    child: _MapAreaSearchButton(
-                      enabled: _lastCameraCenter != null,
-                      active: _mapSearchCenter != null,
-                      onPressed: _searchVisibleMapArea,
-                    ),
-                  ),
-                  Positioned(
-                    right: AppSpacing.lg,
-                    top: 126,
-                    child: IconButton.filledTonal(
-                      tooltip: '필터',
-                      onPressed: _activateSearch,
-                      icon: const Icon(Icons.tune),
-                    ),
-                  ),
-                  Positioned(
-                    right: AppSpacing.lg,
-                    top: 176,
-                    child: IconButton.filledTonal(
-                      tooltip: '현재 위치로 이동',
-                      onPressed: _requestCurrentLocation,
-                      icon: const Icon(Icons.my_location),
-                    ),
-                  ),
-                  DraggableScrollableSheet(
-                    initialChildSize: 0.20,
-                    minChildSize: 0.14,
-                    maxChildSize: 0.92,
-                    builder: (context, scrollController) {
-                      return KeyedSubtree(
-                        key: const ValueKey('place-map-bottom-sheet'),
-                        child: _RecommendationSheet(
-                          controller: scrollController,
-                          candidates: visibleCandidates,
-                          searchActive: searchActive,
-                          autoSearch: autoSearch,
-                          query: effectiveQuery,
-                          selectedCategory: _selectedCategory,
-                          searchLoading: searchLoading,
-                          searchHadError: searchHadError,
-                          mapScopedSearch: _mapSearchCenter != null,
-                          searchRadiusMeters: _mapSearchRadiusMeters,
-                          selectedCandidate: _selectedCandidate,
-                          isAlreadyCandidate: state.hasCandidate,
-                          isSavingCandidate: (candidate) =>
-                              _savingCandidateIds.contains(candidate.id),
-                          onBackToResults: () {
-                            setState(() {
-                              _selectedCandidate = null;
-                            });
-                          },
-                          onCandidateSelected: (candidate) {
-                            setState(() {
-                              _selectedCandidate = candidate;
-                            });
-                          },
-                          onRegisterPressed: (candidate) =>
-                              _saveSchedulePlaceAndNavigate(candidate, context),
-                          onAddCandidatePressed: (candidate) =>
-                              _saveCandidateAndNavigate(
-                                candidate,
-                                context,
-                                message: '후보에 추가되었어요!',
-                                targetPath: RoutePaths.planPlaceCandidates(
-                                  widget.groupId,
-                                  widget.planId,
+                  ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      _MapAreaSearchButton(
+                        enabled: _lastCameraCenter != null,
+                        active: _mapSearchCenter != null,
+                        onPressed: _searchVisibleMapArea,
+                      ),
+                      const Spacer(),
+                      IconButton.filledTonal(
+                        tooltip: '필터',
+                        onPressed: _activateSearch,
+                        icon: const Icon(Icons.tune),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      IconButton.filledTonal(
+                        tooltip: _myLocationTooltip,
+                        onPressed:
+                            _myLocationState ==
+                                _MyLocationRequestState.requesting
+                            ? null
+                            : _requestCurrentLocation,
+                        icon:
+                            _myLocationState ==
+                                _MyLocationRequestState.requesting
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                 ),
-                              ),
-                        ),
-                      );
-                    },
+                              )
+                            : Icon(_myLocationIcon),
+                      ),
+                    ],
                   ),
+                  if (_myLocationStatusLabel case final statusLabel?) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _MapStatusPill(label: statusLabel),
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            Expanded(
+              child: OnmuMapView(
+                points: _mapPointsFor(visibleCandidates),
+                fallbackLabel: _mapFallbackLabel(
+                  visibleCandidates,
+                  searchLoading: searchLoading,
+                  searchHadError: searchHadError,
+                ),
+                focusedPointId: _selectedCandidate?.id.toString(),
+                onCameraIdle: _handleCameraIdle,
+                onMyLocationResolved: _handleMyLocationResolved,
+                onMyLocationUnavailable: _handleMyLocationUnavailable,
+                myLocationRequestSerial: _myLocationRequestSerial,
+                onPointTap: (point) {
+                  final selected = _candidateByPointId(
+                    visibleCandidates,
+                    point.id,
+                  );
+                  if (selected != null) {
+                    setState(() => _selectedCandidate = selected);
+                  }
+                },
+              ),
+            ),
+            SizedBox(
+              height: recommendationPanelHeight,
+              child: KeyedSubtree(
+                key: const ValueKey('place-map-bottom-sheet'),
+                child: _RecommendationSheet(
+                  controller: _recommendationScrollController,
+                  candidates: visibleCandidates,
+                  searchActive: searchActive,
+                  autoSearch: autoSearch,
+                  query: effectiveQuery,
+                  selectedCategory: _selectedSearchCategory,
+                  searchLoading: searchLoading,
+                  searchHadError: searchHadError,
+                  mapScopedSearch: _mapSearchCenter != null,
+                  searchRadiusMeters: _mapSearchRadiusMeters,
+                  selectedCandidate: _selectedCandidate,
+                  isAlreadyCandidate: state.hasCandidate,
+                  isSavingCandidate: (candidate) =>
+                      _savingCandidateIds.contains(candidate.id),
+                  onBackToResults: () {
+                    setState(() {
+                      _selectedCandidate = null;
+                    });
+                  },
+                  onCandidateSelected: (candidate) {
+                    setState(() {
+                      _selectedCandidate = candidate;
+                    });
+                  },
+                  onRegisterPressed: (candidate) =>
+                      _saveSchedulePlaceAndNavigate(candidate, context),
+                  onAddCandidatePressed: (candidate) =>
+                      _saveCandidateAndNavigate(
+                        candidate,
+                        context,
+                        message: '후보에 추가되었어요!',
+                        targetPath: RoutePaths.planPlaceCandidates(
+                          widget.groupId,
+                          widget.planId,
+                        ),
+                      ),
+                ),
               ),
             ),
           ],
@@ -629,20 +879,21 @@ class _CategoryPills extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 30,
-      child: ListView.separated(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(right: AppSpacing.lg),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          return _CategoryPill(
-            label: category,
-            selected: category == selectedCategory,
-            onTap: () => onSelected(category),
-          );
-        },
-        separatorBuilder: (context, index) =>
-            const SizedBox(width: AppSpacing.xs),
-        itemCount: categories.length,
+        child: Row(
+          children: [
+            for (var index = 0; index < categories.length; index += 1) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.xs),
+              _CategoryPill(
+                label: categories[index],
+                selected: categories[index] == selectedCategory,
+                onTap: () => onSelected(categories[index]),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -665,9 +916,9 @@ class _CategoryPill extends StatelessWidget {
         ? AppColors.primaryPink
         : AppColors.textSub;
     return Material(
-      key: ValueKey('place-category-pill-$label'),
       color: AppColors.transparent,
       child: InkWell(
+        key: ValueKey('place-category-pill-$label'),
         borderRadius: BorderRadius.circular(AppRadius.pill),
         onTap: onTap,
         child: DecoratedBox(
@@ -757,6 +1008,42 @@ class _MapAreaSearchButton extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MapStatusPill extends StatelessWidget {
+  const _MapStatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.lineSoft),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 5,
+        ),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.textSub, height: 1),
         ),
       ),
     );
@@ -867,7 +1154,7 @@ class _RecommendationSheet extends StatelessWidget {
     required this.onAddCandidatePressed,
   });
 
-  static const _bottomNavigationSafePadding = 180.0;
+  static const _bottomNavigationSafePadding = 32.0;
 
   final ScrollController controller;
   final List<PlaceCandidate> candidates;
@@ -996,10 +1283,6 @@ class _RecommendationSheet extends StatelessWidget {
       return '$normalizedQuery 주변에서 바로 후보를 불러왔어요.';
     }
     if (normalizedQuery.isEmpty) {
-      if (selectedCategory == '전체') {
-        return '지도 위에서 바로 찾아본 장소들이에요';
-      }
-
       return '$selectedCategory 장소를 지도 위에서 확인해요';
     }
 
@@ -1072,10 +1355,10 @@ class _EmptyPlaceSearchCard extends StatelessWidget {
     if (searchHadError) {
       return '잠시 후 다시 검색하거나 카테고리를 바꿔보세요.';
     }
-    if (searchActive && selectedCategory != '전체') {
-      return '$selectedCategory 말고 전체로 넓혀서 찾아볼 수도 있어요.';
+    if (searchActive) {
+      return '$selectedCategory 말고 다른 필터로 넓혀서 찾아볼 수도 있어요.';
     }
-    return '카페, 전시, 홍대 카페처럼 입력하면 후보를 지도에 표시해요.';
+    return '음식점, 카페, 가볼만한곳처럼 입력하면 후보를 지도에 표시해요.';
   }
 }
 

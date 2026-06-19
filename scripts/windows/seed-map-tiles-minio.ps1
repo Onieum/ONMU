@@ -20,8 +20,11 @@ param(
   [string[]]$CorsAllowedOrigins = @(
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://dev-api.onmu.cloud",
-    "https://int-api.onmu.cloud"
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "https://staging-api.onmu.cloud"
   ),
   [string]$McImage = $(if ($env:ONMU_MC_IMAGE) { $env:ONMU_MC_IMAGE } else { "minio/mc:latest" }),
   [switch]$DryRun,
@@ -181,6 +184,22 @@ function New-MapLibreStyle {
         paint = [ordered]@{
           "fill-color" = "#F4E6D5"
           "fill-opacity" = 0.55
+        }
+      },
+      [ordered]@{
+        id = "landuse-park"
+        type = "fill"
+        source = "protomaps"
+        "source-layer" = "landuse"
+        minzoom = 10
+        filter = @(
+          "any",
+          @("in", "kind", "park", "nature_reserve", "forest", "grass", "cemetery", "garden"),
+          @("in", "kind_detail", "park", "nature_reserve", "forest", "grass", "garden")
+        )
+        paint = [ordered]@{
+          "fill-color" = "#DDEED6"
+          "fill-opacity" = @("interpolate", @("linear"), @("zoom"), 10, 0.24, 13, 0.52, 15, 0.68)
         }
       },
       [ordered]@{
@@ -410,15 +429,46 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
+        id = "transit-station-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "pois"
+        minzoom = 13
+        filter = @(
+          "any",
+          @("in", "kind", "station", "subway", "railway", "train_station", "bus_station"),
+          @("in", "kind_detail", "station", "subway", "railway", "train_station", "bus_station")
+        )
+        layout = [ordered]@{
+          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
+          "text-font" = @("Open Sans Regular")
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 13, 9, 15, 11, 17, 12)
+          "text-padding" = 5
+          "text-offset" = @(0, 0.35)
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#336F9E"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.2
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 13, 0.56, 15, 0.86)
+        }
+      },
+      [ordered]@{
         id = "poi-labels"
         type = "symbol"
         source = "protomaps"
         "source-layer" = "pois"
-        minzoom = 14
+        minzoom = 13.5
+        filter = @(
+          "all",
+          @("!in", "kind", "station", "subway", "railway", "train_station", "bus_station"),
+          @("!in", "kind_detail", "station", "subway", "railway", "train_station", "bus_station")
+        )
         layout = [ordered]@{
           "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
           "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 14, 9, 16, 11)
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 13.5, 8.5, 15, 10, 17, 11.5)
           "text-padding" = 4
           "text-offset" = @(0, 0.4)
           "text-optional" = $true
@@ -427,7 +477,7 @@ function New-MapLibreStyle {
           "text-color" = "#7A6258"
           "text-halo-color" = "#FFF8F0"
           "text-halo-width" = 1.1
-          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 14, 0.58, 16, 0.82)
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 13.5, 0.42, 15, 0.72, 17, 0.86)
         }
       }
     )
