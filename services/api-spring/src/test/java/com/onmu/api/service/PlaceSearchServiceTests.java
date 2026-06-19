@@ -233,6 +233,48 @@ class PlaceSearchServiceTests {
   }
 
   @Test
+  void searchUsesCuratedCatalogFirstForAttractionCategory() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울 마포구", 37.55, 126.90))),
+        new FakeProvider("onmu_catalog", true, List.of(
+          result("onmu_catalog", "catalog-1", "망원 한강공원", "서울 마포구 망원동", 37.555, 126.895),
+          result("onmu_catalog", "catalog-2", "망원 전시공간", "서울 마포구 망원동", 37.556, 126.896)
+        ))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("망원동", "1", "101", null, null, null, "가볼만한곳", List.of(), false);
+
+    assertThat(results).hasSize(3);
+    assertThat(results.subList(0, 2))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "onmu_catalog"));
+    assertThat(results.get(2)).containsEntry("provider", "naver");
+  }
+
+  @Test
+  void searchKeepsNaverBeforeCatalogForRestaurantCategory() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(
+        new FakeProvider("onmu_catalog", true, List.of(result("onmu_catalog", "catalog-1", "망원 식당", "서울 마포구 망원동", 37.555, 126.895))),
+        new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 식당", "서울 마포구", 37.55, 126.90)))
+      ),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("망원동", "1", "101", null, null, null, "음식점", List.of(), false);
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0)).containsEntry("provider", "naver");
+    assertThat(results.get(1)).containsEntry("provider", "onmu_catalog");
+  }
+
+  @Test
   void searchFansOutNaverRestaurantCategoryAndDedupesToExpandedLimit() {
     QueryAwareProvider naver = new QueryAwareProvider("naver", true);
     MemoryCache cache = new MemoryCache();

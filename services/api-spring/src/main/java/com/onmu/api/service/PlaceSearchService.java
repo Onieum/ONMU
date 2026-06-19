@@ -29,10 +29,13 @@ public class PlaceSearchService {
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaceSearchService.class);
   private static final int RESULT_LIMIT = 20;
   private static final int NAVER_FANOUT_QUERY_LIMIT = 5;
-  private static final List<String> PROVIDER_ORDER = List.of("naver", "kakao");
+  private static final String CURATED_PROVIDER = "onmu_catalog";
+  private static final List<String> DEFAULT_PROVIDER_ORDER = List.of("naver", "kakao", CURATED_PROVIDER);
+  private static final List<String> ATTRACTION_PROVIDER_ORDER = List.of(CURATED_PROVIDER, "naver", "kakao");
   private static final List<String> FOOD_FANOUT_KEYWORDS = List.of("한식", "양식", "중식", "일식", "아시안식");
   private static final List<String> CAFE_FANOUT_KEYWORDS = List.of("카페", "디저트", "베이커리");
   private static final List<String> ATTRACTION_FANOUT_KEYWORDS = List.of("공원", "해수욕장", "박물관", "미술관", "전시", "전망대", "산책로");
+  private static final List<String> BROAD_ATTRACTION_KEYWORDS = List.of("가볼만한곳", "관광", "명소", "attraction");
   private static final String FALLBACK_PROPERTY = "onmu.place.dev-mock-fallback-enabled";
   private static final String FALLBACK_ENV = "ONMU_PLACE_DEV_MOCK_FALLBACK_ENABLED";
 
@@ -103,7 +106,7 @@ public class PlaceSearchService {
       requestedProviders,
       compare
     );
-    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers());
+    List<PlaceSearchProvider> selectedProviders = selectedProviders(searchQuery.providers(), searchQuery);
     List<PlaceSearchProvider> availableProviders = selectedProviders.stream()
       .filter(PlaceSearchProvider::isAvailable)
       .toList();
@@ -186,13 +189,17 @@ public class PlaceSearchService {
     return results;
   }
 
-  private List<PlaceSearchProvider> selectedProviders(List<String> requestedProviders) {
+  private List<PlaceSearchProvider> selectedProviders(List<String> requestedProviders, PlaceSearchQuery query) {
+    List<String> providerOrder = providerOrder(query);
     if (requestedProviders.isEmpty()) {
-      return providers;
+      return providers.stream()
+        .sorted(Comparator.comparingInt(provider -> providerPriority(provider.provider(), providerOrder)))
+        .toList();
     }
     Set<String> requested = new LinkedHashSet<>(requestedProviders);
     return providers.stream()
       .filter(provider -> requested.contains(provider.provider()))
+      .sorted(Comparator.comparingInt(provider -> providerPriority(provider.provider(), providerOrder)))
       .toList();
   }
 
@@ -248,8 +255,24 @@ public class PlaceSearchService {
   }
 
   private int providerPriority(String provider) {
-    int index = PROVIDER_ORDER.indexOf(provider);
-    return index < 0 ? PROVIDER_ORDER.size() : index;
+    return providerPriority(provider, DEFAULT_PROVIDER_ORDER);
+  }
+
+  private int providerPriority(String provider, List<String> providerOrder) {
+    int index = providerOrder.indexOf(provider);
+    return index < 0 ? providerOrder.size() : index;
+  }
+
+  private List<String> providerOrder(PlaceSearchQuery query) {
+    return isAttractionQuery(query) ? ATTRACTION_PROVIDER_ORDER : DEFAULT_PROVIDER_ORDER;
+  }
+
+  private boolean isAttractionQuery(PlaceSearchQuery query) {
+    String category = query.normalizedCategory();
+    return BROAD_ATTRACTION_KEYWORDS.stream().anyMatch(keyword -> normalize(category).equals(normalize(keyword)))
+      || ATTRACTION_FANOUT_KEYWORDS.stream().anyMatch(keyword -> normalize(category).equals(normalize(keyword)))
+      || containsAny(query.normalizedQuery(), BROAD_ATTRACTION_KEYWORDS)
+      || containsAny(query.normalizedQuery(), ATTRACTION_FANOUT_KEYWORDS);
   }
 
   private List<PlaceSearchQuery> providerQueries(PlaceSearchQuery query, PlaceSearchProvider provider) {

@@ -29,7 +29,7 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 
 | 기능 | API | 현재 구현 |
 | --- | --- | --- |
-| 장소 검색 | `POST /api/v1/place-search` | `PlaceSearchService`가 Naver, Kakao provider를 선택하고 Redis cache와 dev mock fallback을 적용한다. |
+| 장소 검색 | `POST /api/v1/place-search` | `PlaceSearchService`가 Naver, Kakao, `onmu_catalog` provider를 선택하고 Redis cache와 dev mock fallback을 적용한다. |
 | 동선 추천 | `POST /api/v1/routes/recommend` | `RouteRecommendationService`가 후보 좌표로 OpenRouteService를 호출하거나 deterministic `dev-mock` geometry를 반환한다. |
 | 후보 리스트 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates` | plan별 후보를 조회하고 heart count, 내 heart 상태, external place snapshot 필드를 포함한다. |
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` | 검색 결과 또는 수동 입력을 후보로 저장하고 external place snapshot을 연결할 수 있다. |
@@ -47,9 +47,9 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 `PlaceSearchService`의 현재 흐름:
 
 1. `PlaceSearchQuery`가 query, groupId, planId, lat, lng, radius, category, providers, compare를 normalize한다.
-2. 요청 provider가 없으면 기본 provider 순서 `naver`, `kakao`를 사용한다.
+2. 요청 provider가 없으면 category별 provider 순서를 사용한다. `가볼만한곳`/관광 계열은 `onmu_catalog`, `naver`, `kakao` 순서이고, 음식점/카페 계열은 `naver`, `kakao`, `onmu_catalog` 순서다.
 3. provider별 `isAvailable()`로 credential 주입 여부를 확인한다.
-4. Redis `place-search:v2:*` cache를 조회한다. cache key에는 query, 위치, category, 요청 provider, 실제 available provider, compare, dev mock fallback 여부가 포함된다.
+4. Redis `place-search:v3:*` cache를 조회한다. cache key에는 query, 위치, category, Naver fan-out signature, 요청 provider, 실제 available provider, compare, dev mock fallback 여부가 포함된다.
 5. available provider가 있으면 provider를 호출하고 이름/주소 기반으로 중복 제거한다.
 6. provider 결과가 비거나 실패하고 dev mock fallback이 켜져 있으면 `DevMockPlaceSearchProvider`를 사용한다.
 7. available provider가 있었는데 결과 실패로 dev mock fallback을 사용한 경우에는 fallback 결과를 cache하지 않는다.
@@ -60,7 +60,17 @@ provider별 현재 경계:
 | --- | --- | --- | --- |
 | Naver Local Search | `NaverLocalSearchProvider` | `NAVER_SEARCH_CLIENT_ID`, `NAVER_SEARCH_CLIENT_SECRET` | OAuth용 `NAVER_OAUTH_*`와 분리한다. |
 | Kakao Keyword Search | `KakaoKeywordSearchProvider` | `KAKAO_REST_API_KEY` | Kakao OAuth 공개 REST API key와 같은 env를 공유하지만 Flutter가 Local API를 직접 호출하지 않는다. |
+| ONMU curated catalog | `CuratedPlaceSearchProvider` | 없음 | `external_places.provider='ONMU_CATALOG'` 정적/공공 catalog 행을 읽는다. 데이터 적재는 Flyway가 아니라 별도 운영 import가 담당하고, Flyway는 schema/index만 소유한다. |
 | Dev mock | `DevMockPlaceSearchProvider` | 없음 | local/dev/test 또는 명시 fallback에서 deterministic 결과를 제공한다. |
+
+현재 provider별 역할:
+
+- 음식점: Naver query fan-out을 1차로 사용한다. `한식`, `양식`, `중식`, `일식`, `아시안식` 세부 query를 최대 5개 실행하고, 결과가 부족하면 `onmu_catalog`의 `식당` category를 supplement로 사용한다.
+- 카페: Naver query fan-out을 1차로 사용한다. `카페`, `디저트`, `베이커리` query를 실행하고, 결과가 부족하면 `onmu_catalog`의 `식당` 행 중 cafe-like tag/summary가 있는 row만 supplement로 사용한다.
+- 가볼만한곳: Kakao Local API 승인 전에도 안정적인 결과 수를 확보하기 위해 `onmu_catalog`를 1차 provider로 사용한다. catalog는 `관광명소`, `문화공간`, `행사` category와 `공원`, `해수욕장`, `박물관`, `미술관`, `전시`, `전망대`, `산책로` 같은 tag/summary를 사용해 필터링한다.
+- Kakao provider는 승인/availability가 확인될 때만 보조 provider로 참여한다.
+
+`CuratedPlaceSearchProvider`는 PostGIS 없이 숫자 lat/lng로 Haversine distance를 계산한다. `lat`, `lng`, `radius`가 들어오면 반경 내 row만 반환하고, PostGIS spatial query/index는 후속 고도화 단계로 남긴다.
 
 ### Route Recommendation Flow
 
@@ -335,13 +345,13 @@ Response:
 | `place_candidate_hearts` | 후보별 사용자 heart | 후보 선호 원장 |
 | `schedule_places` | plan별 일정 등록 장소, candidate FK optional | 일정 장소 원장 |
 | `vote_options` | 장소 후보 기반 투표 선택지 연결 | 투표 도메인 원장 일부 |
-| Redis `place-search:v2:*` | provider 검색 결과 10분 TTL cache | 원장 아님 |
+| Redis `place-search:v3:*` | provider 검색 결과 10분 TTL cache | 원장 아님 |
 | Redis `route-recommendation:v1:*` | route recommendation 30분 TTL cache | 원장 아님 |
 | PMTiles/manifest object | 지도 타일/style static asset | 지도 asset 원장, 앱 도메인 데이터 원장은 아님 |
 
 PostgreSQL에는 사용자가 후보 또는 일정 장소로 명시적으로 선택한 최소 snapshot만 남긴다. provider 검색 결과 전체와 raw response body는 장기 원장처럼 축적하지 않는다. 약관상 저장 가능한 필드와 보관 기간은 provider별로 별도 결정한다.
 
-Target에서는 PostGIS를 `external_places` 또는 후보 좌표에 붙여 radius query, nearby ranking, 거리 계산을 DB에서 안정적으로 수행할 수 있게 한다. 이 schema 변경은 Terraform이 아니라 Spring Flyway가 소유한다.
+현재 구현에서는 `external_places`의 숫자 lat/lng와 Spring Haversine 계산으로 radius query와 nearby ranking을 처리한다. Target에서는 PostGIS를 `external_places` 또는 후보 좌표에 붙여 radius query, nearby ranking, 거리 계산을 DB에서 더 안정적으로 수행할 수 있게 한다. 이 schema 변경은 Terraform이 아니라 Spring Flyway가 소유한다.
 
 ## Flutter Boundary
 
