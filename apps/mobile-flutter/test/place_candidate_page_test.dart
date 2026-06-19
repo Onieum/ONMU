@@ -72,15 +72,55 @@ void main() {
     expect(find.text('도윤님이 좋아하는 장소입니다 · 조용한 대화 공간을 선호해요'), findsOneWidget);
     expect(find.textContaining('민서님'), findsNothing);
   });
+
+  testWidgets('장소 일정 등록은 약속 기간 날짜만 버튼으로 선택한다', (tester) async {
+    final planStart = _futureDateAt(daysFromNow: 3, hour: 10);
+    final planEnd = planStart.add(const Duration(days: 2, hours: 2));
+
+    await tester.pumpWidget(
+      _candidatePageApp(
+        placeRepository: const _StaticPlaceRepository([_cafeCandidate]),
+        planRepository: _CandidatePlanRepository(
+          plan: _CandidatePlanRepository.defaultPlan.copyWith(
+            startsAt: planStart,
+            endsAt: planEnd,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, '일정에 등록'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_dateButtonLabel(planStart)), findsOneWidget);
+    expect(
+      find.text(_dateButtonLabel(planStart.add(const Duration(days: 1)))),
+      findsOneWidget,
+    );
+    expect(find.text(_dateButtonLabel(planEnd)), findsOneWidget);
+    expect(
+      find.text(_dateButtonLabel(planEnd.add(const Duration(days: 1)))),
+      findsNothing,
+    );
+    expect(find.text('방문 시작 시간'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('방문 종료 시간'),
+      240,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('방문 종료 시간'), findsOneWidget);
+  });
 }
 
-Widget _candidatePageApp({required PlaceRepository placeRepository}) {
+Widget _candidatePageApp({
+  required PlaceRepository placeRepository,
+  PlanRepository planRepository = const _CandidatePlanRepository(),
+}) {
   return ProviderScope(
     overrides: [
       placeRepositoryProvider.overrideWithValue(placeRepository),
-      planRepositoryProvider.overrideWithValue(
-        const _CandidatePlanRepository(),
-      ),
+      planRepositoryProvider.overrideWithValue(planRepository),
     ],
     child: MaterialApp(
       theme: AppTheme.lightTheme,
@@ -200,9 +240,9 @@ class _StaticPlaceRepository implements PlaceRepository {
 }
 
 class _CandidatePlanRepository implements PlanRepository {
-  const _CandidatePlanRepository();
+  const _CandidatePlanRepository({this.plan = defaultPlan});
 
-  static const _plan = Plan(
+  static const defaultPlan = Plan(
     id: 101,
     title: '장소 후보 테스트',
     dateTime: '일정 미정',
@@ -214,11 +254,13 @@ class _CandidatePlanRepository implements PlanRepository {
     visitPlan: [],
   );
 
+  final Plan plan;
+
   @override
   Future<Plan> fetchPlan({
     required Object groupId,
     required Object planId,
-  }) async => _plan;
+  }) async => plan;
 
   @override
   Future<Plan> createPlan(PlanCreateInput input) {
@@ -359,3 +401,49 @@ const _memberFitCandidate = PlaceCandidate(
   reasons: [],
   risks: [],
 );
+
+DateTime _futureDateAt({required int daysFromNow, required int hour}) {
+  final now = DateTime.now();
+  final date = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).add(Duration(days: daysFromNow));
+  return DateTime(date.year, date.month, date.day, hour);
+}
+
+String _dateButtonLabel(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  return '${local.month}/${local.day} ${_weekdayLabel(local)}';
+}
+
+String _weekdayLabel(DateTime dateTime) {
+  return switch (dateTime.weekday) {
+    DateTime.monday => '월',
+    DateTime.tuesday => '화',
+    DateTime.wednesday => '수',
+    DateTime.thursday => '목',
+    DateTime.friday => '금',
+    DateTime.saturday => '토',
+    DateTime.sunday => '일',
+    _ => '',
+  };
+}
+
+extension on Plan {
+  Plan copyWith({DateTime? startsAt, DateTime? endsAt}) {
+    return Plan(
+      id: id,
+      title: title,
+      dateTime: dateTime,
+      location: location,
+      status: status,
+      memo: memo,
+      members: members,
+      timeCandidates: timeCandidates,
+      visitPlan: visitPlan,
+      startsAt: startsAt ?? this.startsAt,
+      endsAt: endsAt ?? this.endsAt,
+    );
+  }
+}

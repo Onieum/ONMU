@@ -14,6 +14,7 @@ import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_location_subtitle.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../view_model/place_candidates_view_model.dart';
+import '../widgets/plan_visit_time_picker.dart';
 
 class PlaceCandidatePage extends ConsumerWidget {
   const PlaceCandidatePage({
@@ -237,9 +238,11 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
     if (_savingCandidateIds.contains(candidate.id)) {
       return;
     }
-    final picked = await OnmuDateTimeRangePicker.show(
+    final picked = await PlanVisitTimePicker.show(
       context: context,
       title: '방문 시간 설정',
+      planStartsAt: widget.state.planStartsAt,
+      planEndsAt: widget.state.planEndsAt,
       initialStart: _initialVisitStart(widget.state),
       initialEnd: _initialVisitEnd(widget.state),
     );

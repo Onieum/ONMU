@@ -104,10 +104,11 @@ enum VoteFilter {
   final IconData icon;
 
   bool matches(VoteSummary vote) {
+    final closed = vote.isClosedAt(DateTime.now());
     return switch (this) {
       VoteFilter.all => true,
-      VoteFilter.ongoing => !vote.closed,
-      VoteFilter.closed => vote.closed,
+      VoteFilter.ongoing => !closed,
+      VoteFilter.closed => closed,
       VoteFilter.mine => vote.joinedByMe,
     };
   }

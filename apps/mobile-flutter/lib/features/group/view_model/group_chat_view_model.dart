@@ -87,6 +87,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   final String groupId;
   StreamSubscription<GroupMessage>? _realtimeSubscription;
   Timer? _reconnectTimer;
+  Timer? _voteDeadlineTimer;
   bool _realtimeDisposed = false;
 
   @override
@@ -130,7 +131,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       // 약속 목록 실패는 채팅 본문 표시와 독립적으로 처리한다.
     }
 
-    final selectedPlan = _selectNearestUpcomingPlan(plans, DateTime.now());
+    final now = DateTime.now();
+    final selectedPlan = _selectPrimaryPlan(plans, now);
     final selectedPinnedPlan = selectedPlan == null
         ? null
         : _pinnedPlanFor(selectedPlan);
@@ -148,7 +150,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       // 투표 목록 실패는 투표 카드만 생략한다.
     }
 
-    final selectedVote = _selectAuxiliaryVote(votes, planId);
+    final selectedVote = _selectAuxiliaryVote(votes, planId, now);
     final voteId = selectedVote?.id ?? 0;
     VoteCard? vote;
     SettlementSummary? settlement;
@@ -198,12 +200,19 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         settlement: settlement,
       ),
     );
+    _scheduleVoteDeadlineDismissal(selectedVote, voteId);
   }
 
-  GroupPlanSummary? _selectNearestUpcomingPlan(
+  GroupPlanSummary? _selectPrimaryPlan(
     List<GroupPlanSummary> plans,
     DateTime now,
   ) {
+    final ongoingPlans =
+        plans.where((plan) => plan.isOngoingAt(now)).toList(growable: false)
+          ..sort(GroupPlanSummary.compareUpcoming);
+    if (ongoingPlans.isNotEmpty) {
+      return ongoingPlans.first;
+    }
     final upcomingPlans =
         plans.where((plan) => plan.isUpcomingFrom(now)).toList(growable: false)
           ..sort(GroupPlanSummary.compareUpcoming);
@@ -223,16 +232,44 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     );
   }
 
-  VoteSummary? _selectAuxiliaryVote(List<VoteSummary> votes, int planId) {
+  VoteSummary? _selectAuxiliaryVote(
+    List<VoteSummary> votes,
+    int planId,
+    DateTime now,
+  ) {
     if (votes.isEmpty) {
       return null;
     }
     for (final vote in votes) {
-      if (_voteSummaryMatchesPlan(vote, planId) && !vote.closed) {
+      if (_voteSummaryMatchesPlan(vote, planId) && !vote.isClosedAt(now)) {
         return vote;
       }
     }
     return null;
+  }
+
+  void _scheduleVoteDeadlineDismissal(VoteSummary? vote, int voteId) {
+    _voteDeadlineTimer?.cancel();
+    _voteDeadlineTimer = null;
+    final deadline = vote?.deadlineAt?.toLocal();
+    if (vote == null || deadline == null) {
+      return;
+    }
+
+    final duration = deadline.difference(DateTime.now().toLocal());
+    if (duration <= Duration.zero) {
+      return;
+    }
+    _voteDeadlineTimer = Timer(duration, () {
+      if (_realtimeDisposed) {
+        return;
+      }
+      final latest = state.asData?.value;
+      if (latest == null || latest.voteId != voteId) {
+        return;
+      }
+      state = AsyncData(latest.copyWith(clearVote: true, voteId: 0));
+    });
   }
 
   bool _voteSummaryMatchesPlan(VoteSummary vote, int planId) {
@@ -527,6 +564,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   void _disposeRealtime() {
     _realtimeDisposed = true;
     _reconnectTimer?.cancel();
+    _voteDeadlineTimer?.cancel();
     _realtimeSubscription?.cancel();
   }
 

@@ -1175,6 +1175,72 @@ void main() {
     expect(state.voteId, 0);
   });
 
+  test('채팅 ViewModel은 보조 투표 deadline이 지나면 투표 카드를 숨긴다', () async {
+    final now = DateTime.now();
+    final repository = _FakeGroupRepository(
+      fetchPlansCompleter: Completer<List<GroupPlanSummary>>()
+        ..complete([
+          GroupPlanSummary(
+            id: 301,
+            title: 'deadline 확인 약속',
+            dateLabel: '오늘',
+            startsAt: now.add(const Duration(hours: 1)),
+            endsAt: now.add(const Duration(hours: 3)),
+            placeName: '성수동',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 3,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+        ]),
+      fetchVotesCompleter: Completer<List<VoteSummary>>()
+        ..complete([
+          VoteSummary(
+            id: 601,
+            title: '곧 마감되는 장소 투표',
+            statusLabel: '진행 중',
+            description: '후보 2개',
+            planLabel: 'deadline 확인 약속',
+            planMeta: '오늘',
+            participants: const [],
+            participantCount: 0,
+            options: const [],
+            closed: false,
+            joinedByMe: false,
+            actionLabel: '투표 확인하기',
+            targetType: 'PLAN',
+            targetId: '301',
+            deadlineAt: DateTime.now().add(const Duration(milliseconds: 80)),
+          ),
+        ]),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    expect(container.read(provider).requireValue.voteId, 601);
+    expect(container.read(provider).requireValue.vote, isNotNull);
+
+    await Future<void>.delayed(const Duration(milliseconds: 140));
+    await pumpEventQueue();
+
+    final state = container.read(provider).requireValue;
+    expect(state.voteId, 0);
+    expect(state.vote, isNull);
+  });
+
   test('채팅 ViewModel은 지나지 않은 약속 중 가장 가까운 약속을 보조 카드로 선택한다', () async {
     final now = DateTime.now();
     final repository = _FakeGroupRepository(
@@ -1250,6 +1316,60 @@ void main() {
     expect(state.planId, 102);
     expect(state.pinnedPlan?.id, 102);
     expect(state.pinnedPlan?.title, '가장 가까운 미래 약속');
+  });
+
+  test('채팅 ViewModel은 진행 중인 약속을 미래 약속보다 먼저 보조 카드로 선택한다', () async {
+    final now = DateTime.now();
+    final repository = _FakeGroupRepository(
+      fetchPlansCompleter: Completer<List<GroupPlanSummary>>()
+        ..complete([
+          GroupPlanSummary(
+            id: 201,
+            title: '지금 진행 중인 약속',
+            dateLabel: '오늘',
+            startsAt: now.subtract(const Duration(minutes: 30)),
+            endsAt: now.add(const Duration(minutes: 90)),
+            placeName: '성수동',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 3,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+          GroupPlanSummary(
+            id: 202,
+            title: '가장 가까운 미래 약속',
+            dateLabel: '곧',
+            startsAt: now.add(const Duration(minutes: 10)),
+            endsAt: now.add(const Duration(hours: 2)),
+            placeName: '행궁동',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 3,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+        ]),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    final state = container.read(provider).requireValue;
+    expect(state.planId, 201);
+    expect(state.pinnedPlan?.title, '지금 진행 중인 약속');
   });
 
   test('채팅 ViewModel은 지나지 않은 약속이 없으면 보조 약속 카드를 숨긴다', () async {

@@ -324,6 +324,7 @@ class ApiGroupRepository implements GroupRepository {
 
   @override
   Future<VoteSummary> createVote(VoteCreateInput input) async {
+    final deadlineAt = _deadlineAtFor(input);
     final vote = await _client.postObject(
       '/api/v1/groups/${input.groupId}/votes',
       body: {
@@ -332,6 +333,8 @@ class ApiGroupRepository implements GroupRepository {
         'targetId': input.planId.toString(),
         'title': input.title,
         'options': input.candidateNames,
+        if (deadlineAt != null)
+          'deadlineAt': deadlineAt.toUtc().toIso8601String(),
         if (input.placeCandidateIds.isNotEmpty)
           'placeCandidateIds': input.placeCandidateIds,
       },
@@ -347,23 +350,7 @@ class ApiGroupRepository implements GroupRepository {
     final vote = await _client.getObject(
       '/api/v1/groups/$groupId/votes/$voteId',
     );
-    final optionSummaries = _voteOptionSummaries(vote);
-    final options = optionSummaries.map((option) => option.label).toList();
-    return VoteCard(
-      title: OnmuJson.readString(vote, 'title', '투표'),
-      summary: options.isEmpty ? '등록된 투표 후보가 없어요' : options.join(', '),
-      statusLabel: OnmuJson.readString(
-        vote,
-        'status',
-        OnmuJson.readBool(vote, 'closed') ? 'closed' : 'open',
-      ),
-      actionLabel: '투표 보기',
-      participantCount: OnmuJson.readInt(vote, 'participantCount'),
-      targetType: OnmuJson.readString(vote, 'targetType'),
-      targetId: OnmuJson.readString(vote, 'targetId'),
-      options: optionSummaries,
-      myOptionId: _myVoteOptionId(vote, optionSummaries),
-    );
+    return _voteCard(vote);
   }
 
   @override
@@ -376,6 +363,10 @@ class ApiGroupRepository implements GroupRepository {
       '/api/v1/groups/$groupId/votes/$voteId/responses/me',
       body: {'optionId': optionId.toString()},
     );
+    return _voteCard(vote);
+  }
+
+  VoteCard _voteCard(Map<String, dynamic> vote) {
     final optionSummaries = _voteOptionSummaries(vote);
     final options = optionSummaries.map((option) => option.label).toList();
     return VoteCard(
@@ -392,6 +383,7 @@ class ApiGroupRepository implements GroupRepository {
       targetId: OnmuJson.readString(vote, 'targetId'),
       options: optionSummaries,
       myOptionId: _myVoteOptionId(vote, optionSummaries),
+      deadlineAt: _voteDeadlineAt(vote),
     );
   }
 
@@ -748,7 +740,8 @@ class ApiGroupRepository implements GroupRepository {
   VoteSummary _voteSummary(Map<String, dynamic> json) {
     final optionSummaries = _voteOptionSummaries(json);
     final options = optionSummaries.map((option) => option.label).toList();
-    final closed = OnmuJson.readBool(json, 'closed');
+    final deadlineAt = _voteDeadlineAt(json);
+    final closed = _voteClosed(json, deadlineAt);
     final targetId = OnmuJson.readString(json, 'targetId');
     final myOptionId = _myVoteOptionId(json, optionSummaries);
     final participantAvatars = _voteParticipantAvatars(json);
@@ -773,7 +766,52 @@ class ApiGroupRepository implements GroupRepository {
       actionLabel: closed ? '결과 보기' : '투표 확인하기',
       targetType: OnmuJson.readString(json, 'targetType'),
       targetId: targetId,
+      deadlineAt: deadlineAt,
     );
+  }
+
+  bool _voteClosed(Map<String, dynamic> json, DateTime? deadlineAt) {
+    final status = OnmuJson.readString(json, 'status').trim().toLowerCase();
+    final normalized = status.replaceAll(RegExp(r'[\s_-]'), '');
+    if (OnmuJson.readBool(json, 'closed') ||
+        normalized == 'closed' ||
+        normalized == 'close' ||
+        normalized == 'completed' ||
+        normalized == 'complete' ||
+        normalized == 'done') {
+      return true;
+    }
+    final deadline = deadlineAt?.toLocal();
+    return deadline != null && !DateTime.now().toLocal().isBefore(deadline);
+  }
+
+  DateTime? _voteDeadlineAt(Map<String, dynamic> json) {
+    for (final key in const ['deadlineAt', 'deadline', 'expiresAt', 'dueAt']) {
+      final parsed = DateTime.tryParse(OnmuJson.readString(json, key));
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    final deadlineDate = OnmuJson.readString(json, 'deadlineDate');
+    final deadlineTime = OnmuJson.readString(json, 'deadlineTime');
+    if (deadlineDate.isEmpty || deadlineTime.isEmpty) {
+      return null;
+    }
+    return _parseDeadline(deadlineDate, deadlineTime);
+  }
+
+  DateTime? _deadlineAtFor(VoteCreateInput input) {
+    return _parseDeadline(input.deadlineDate, input.deadlineTime);
+  }
+
+  DateTime? _parseDeadline(String date, String time) {
+    final normalizedDate = date.trim();
+    final normalizedTime = time.trim();
+    if (normalizedDate.isEmpty || normalizedTime.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse('$normalizedDate $normalizedTime') ??
+        DateTime.tryParse('${normalizedDate}T$normalizedTime');
   }
 
   List<VoteParticipantAvatar> _voteParticipantAvatars(
