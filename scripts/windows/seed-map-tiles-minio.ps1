@@ -14,6 +14,7 @@ param(
   [string]$PublicTileBaseUrl = $(if ($env:ONMU_TILE_PUBLIC_BASE_URL) { $env:ONMU_TILE_PUBLIC_BASE_URL } else { "https://tiles.onmu.cloud" }),
   [string]$LocalTileBaseUrl,
   [string]$StyleTilesetUrl = $env:ONMU_TILE_STYLE_TILESET_URL,
+  [string]$GlyphsUrlTemplate = $(if ($env:ONMU_TILE_GLYPHS_URL_TEMPLATE) { $env:ONMU_TILE_GLYPHS_URL_TEMPLATE } else { "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf" }),
   [string]$RollbackManifestUrl = $env:ONMU_TILE_ROLLBACK_MANIFEST_URL,
   [string]$CacheControl = $(if ($env:ONMU_TILE_CACHE_CONTROL) { $env:ONMU_TILE_CACHE_CONTROL } else { "public, max-age=3600" }),
   [int]$CacheMaxAgeSeconds = $(if ($env:ONMU_TILE_CACHE_MAX_AGE_SECONDS) { [int]$env:ONMU_TILE_CACHE_MAX_AGE_SECONDS } else { 3600 }),
@@ -140,8 +141,12 @@ function New-CorsPolicyXml {
 function New-MapLibreStyle {
   param(
     [Parameter(Mandatory = $true)][string]$TilesetUrl,
-    [Parameter(Mandatory = $true)][string]$GeneratedAt
+    [Parameter(Mandatory = $true)][string]$GeneratedAt,
+    [Parameter(Mandatory = $true)][string]$GlyphsUrlTemplate
   )
+
+  $labelFont = @("Noto Sans Regular")
+  $labelTextField = @("coalesce", @("get", "name:ko"), @("get", "name"), @("get", "name:en"))
 
   return [ordered]@{
     version = 8
@@ -150,8 +155,10 @@ function New-MapLibreStyle {
       "onmu:generatedAt" = $GeneratedAt
       "onmu:tilesetUrl" = $TilesetUrl
       "onmu:basemapSchema" = "protomaps-compatible"
+      "onmu:fontstack" = $labelFont[0]
+      "onmu:glyphsUrlTemplate" = $GlyphsUrlTemplate
     }
-    glyphs = "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"
+    glyphs = $GlyphsUrlTemplate
     sources = [ordered]@{
       protomaps = [ordered]@{
         type = "vector"
@@ -263,65 +270,14 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
-        id = "roads-casing"
+        id = "roads"
         type = "line"
         source = "protomaps"
         "source-layer" = "roads"
-        minzoom = 8
-        filter = @("!=", "kind", "path")
         paint = [ordered]@{
-          "line-color" = "#FFFFFF"
-          "line-width" = @("interpolate", @("linear"), @("zoom"), 8, 0.9, 12, 2.6, 15, 5.4)
-          "line-opacity" = @("interpolate", @("linear"), @("zoom"), 8, 0.3, 12, 0.72, 15, 0.86)
-        }
-      },
-      [ordered]@{
-        id = "roads-major"
-        type = "line"
-        source = "protomaps"
-        "source-layer" = "roads"
-        minzoom = 5
-        filter = @(
-          "any",
-          @("in", "kind", "highway", "major_road", "trunk", "primary", "secondary"),
-          @("in", "kind_detail", "motorway", "trunk", "primary", "secondary")
-        )
-        paint = [ordered]@{
-          "line-color" = "#E98A86"
-          "line-width" = @("interpolate", @("linear"), @("zoom"), 5, 0.35, 10, 1.15, 14, 3.4, 16, 5.8)
-          "line-opacity" = 0.86
-        }
-      },
-      [ordered]@{
-        id = "roads-minor"
-        type = "line"
-        source = "protomaps"
-        "source-layer" = "roads"
-        minzoom = 11
-        filter = @(
-          "all",
-          @("!=", "kind", "path"),
-          @("!=", "kind", "highway"),
-          @("!=", "kind_detail", "motorway")
-        )
-        paint = [ordered]@{
-          "line-color" = "#F4B7AD"
-          "line-width" = @("interpolate", @("linear"), @("zoom"), 11, 0.55, 14, 1.35, 16, 2.6)
-          "line-opacity" = @("interpolate", @("linear"), @("zoom"), 11, 0.45, 14, 0.72)
-        }
-      },
-      [ordered]@{
-        id = "roads-paths"
-        type = "line"
-        source = "protomaps"
-        "source-layer" = "roads"
-        minzoom = 13
-        filter = @("==", "kind", "path")
-        paint = [ordered]@{
-          "line-color" = "#C9B4A6"
-          "line-width" = @("interpolate", @("linear"), @("zoom"), 13, 0.45, 16, 1.2)
-          "line-opacity" = 0.55
-          "line-dasharray" = @(1.2, 1.2)
+          "line-color" = "#EBA098"
+          "line-width" = @("interpolate", @("linear"), @("zoom"), 5, 0.35, 10, 0.9, 14, 2.4, 16, 4.4)
+          "line-opacity" = @("interpolate", @("linear"), @("zoom"), 5, 0.42, 11, 0.72, 15, 0.82)
         }
       },
       [ordered]@{
@@ -339,25 +295,6 @@ function New-MapLibreStyle {
           "line-color" = "#84B6D8"
           "line-width" = @("interpolate", @("linear"), @("zoom"), 10, 0.45, 13, 1.1, 16, 2.0)
           "line-opacity" = 0.72
-        }
-      },
-      [ordered]@{
-        id = "road-labels"
-        type = "symbol"
-        source = "protomaps"
-        "source-layer" = "roads"
-        minzoom = 13
-        layout = [ordered]@{
-          "symbol-placement" = "line"
-          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 13, 9, 16, 11)
-          "text-padding" = 2
-        }
-        paint = [ordered]@{
-          "text-color" = "#8A6356"
-          "text-halo-color" = "#FFF8F0"
-          "text-halo-width" = 1
         }
       },
       [ordered]@{
@@ -383,6 +320,33 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
+        id = "road-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "roads"
+        minzoom = 11.5
+        filter = @(
+          "all",
+          @("has", "name"),
+          @("!", @("in", @("get", "kind"), @("literal", @("path", "rail", "ferry", "aerialway", "aeroway"))))
+        )
+        layout = [ordered]@{
+          "symbol-placement" = "line"
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 11.5, 8.5, 13, 10, 16, 12)
+          "text-padding" = 2
+          "text-rotation-alignment" = "map"
+          "text-pitch-alignment" = "viewport"
+        }
+        paint = [ordered]@{
+          "text-color" = "#7A554B"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.15
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 11.5, 0.58, 13, 0.82, 15, 0.95)
+        }
+      },
+      [ordered]@{
         id = "place-city-labels"
         type = "symbol"
         source = "protomaps"
@@ -394,8 +358,8 @@ function New-MapLibreStyle {
           @("in", "kind_detail", "city", "town", "locality")
         )
         layout = [ordered]@{
-          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Open Sans Regular")
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
           "text-size" = @("interpolate", @("linear"), @("zoom"), 5, 10, 10, 13, 14, 15)
           "text-padding" = 4
         }
@@ -410,16 +374,16 @@ function New-MapLibreStyle {
         type = "symbol"
         source = "protomaps"
         "source-layer" = "places"
-        minzoom = 11
+        minzoom = 10
         filter = @(
           "any",
-          @("in", "kind", "neighbourhood", "neighborhood", "suburb", "quarter", "village"),
-          @("in", "kind_detail", "neighbourhood", "neighborhood", "suburb", "quarter", "village")
+          @("in", "kind", "macrohood", "neighbourhood", "neighborhood", "suburb", "quarter", "village"),
+          @("in", "kind_detail", "macrohood", "neighbourhood", "neighborhood", "suburb", "quarter", "village")
         )
         layout = [ordered]@{
-          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 11, 10, 14, 12)
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 10, 9, 12, 10.5, 14, 12)
           "text-padding" = 4
         }
         paint = [ordered]@{
@@ -429,20 +393,118 @@ function New-MapLibreStyle {
         }
       },
       [ordered]@{
+        id = "earth-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "earth"
+        minzoom = 9
+        filter = @("has", "name")
+        layout = [ordered]@{
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 9, 9, 13, 11)
+          "text-padding" = 4
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#8A6B5E"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.1
+          "text-opacity" = 0.72
+        }
+      },
+      [ordered]@{
+        id = "water-line-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "water"
+        minzoom = 10
+        filter = @(
+          "all",
+          @("has", "name"),
+          @("in", @("get", "kind"), @("literal", @("river", "stream", "canal")))
+        )
+        layout = [ordered]@{
+          "symbol-placement" = "line"
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 10, 8.5, 13, 10.5, 16, 12)
+          "text-padding" = 3
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#4F8EA6"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.05
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 10, 0.45, 13, 0.74, 15, 0.86)
+        }
+      },
+      [ordered]@{
+        id = "water-area-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "water"
+        minzoom = 11
+        filter = @(
+          "all",
+          @("has", "name"),
+          @("!", @("in", @("get", "kind"), @("literal", @("river", "stream", "canal"))))
+        )
+        layout = [ordered]@{
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 11, 8.5, 14, 11)
+          "text-padding" = 4
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#4F8EA6"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.05
+          "text-opacity" = 0.68
+        }
+      },
+      [ordered]@{
+        id = "park-mountain-labels"
+        type = "symbol"
+        source = "protomaps"
+        "source-layer" = "pois"
+        minzoom = 11
+        filter = @(
+          "all",
+          @("has", "name"),
+          @("in", @("get", "kind"), @("literal", @("park", "garden", "wood", "forest", "nature_reserve", "peak", "mountain", "volcano", "golf_course")))
+        )
+        layout = [ordered]@{
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 11, 8.5, 14, 10.5, 16, 11.5)
+          "text-padding" = 4
+          "text-offset" = @(0, 0.25)
+          "text-optional" = $true
+        }
+        paint = [ordered]@{
+          "text-color" = "#5C7C4C"
+          "text-halo-color" = "#FFF8F0"
+          "text-halo-width" = 1.1
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 11, 0.46, 13, 0.72, 15, 0.84)
+        }
+      },
+      [ordered]@{
         id = "transit-station-labels"
         type = "symbol"
         source = "protomaps"
         "source-layer" = "pois"
-        minzoom = 13
+        minzoom = 11
         filter = @(
           "any",
           @("in", "kind", "station", "subway", "railway", "train_station", "bus_station"),
           @("in", "kind_detail", "station", "subway", "railway", "train_station", "bus_station")
         )
         layout = [ordered]@{
-          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 13, 9, 15, 11, 17, 12)
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 11, 8.5, 13, 10, 15, 11.5, 17, 12.5)
           "text-padding" = 5
           "text-offset" = @(0, 0.35)
           "text-optional" = $true
@@ -451,7 +513,7 @@ function New-MapLibreStyle {
           "text-color" = "#336F9E"
           "text-halo-color" = "#FFF8F0"
           "text-halo-width" = 1.2
-          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 13, 0.56, 15, 0.86)
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 11, 0.48, 13, 0.74, 15, 0.88)
         }
       },
       [ordered]@{
@@ -459,16 +521,17 @@ function New-MapLibreStyle {
         type = "symbol"
         source = "protomaps"
         "source-layer" = "pois"
-        minzoom = 13.5
+        minzoom = 12
         filter = @(
           "all",
-          @("!in", "kind", "station", "subway", "railway", "train_station", "bus_station"),
-          @("!in", "kind_detail", "station", "subway", "railway", "train_station", "bus_station")
+          @("has", "name"),
+          @("!", @("in", @("get", "kind"), @("literal", @("station", "subway", "railway", "train_station", "bus_station", "park", "garden", "wood", "forest", "nature_reserve", "peak", "mountain", "volcano", "golf_course")))),
+          @("!", @("in", @("get", "kind_detail"), @("literal", @("station", "subway", "railway", "train_station", "bus_station"))))
         )
         layout = [ordered]@{
-          "text-field" = @("coalesce", @("get", "name:ko"), @("get", "name"))
-          "text-font" = @("Open Sans Regular")
-          "text-size" = @("interpolate", @("linear"), @("zoom"), 13.5, 8.5, 15, 10, 17, 11.5)
+          "text-field" = $labelTextField
+          "text-font" = $labelFont
+          "text-size" = @("interpolate", @("linear"), @("zoom"), 12, 8, 14, 9.5, 17, 11.5)
           "text-padding" = 4
           "text-offset" = @(0, 0.4)
           "text-optional" = $true
@@ -477,7 +540,7 @@ function New-MapLibreStyle {
           "text-color" = "#7A6258"
           "text-halo-color" = "#FFF8F0"
           "text-halo-width" = 1.1
-          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 13.5, 0.42, 15, 0.72, 17, 0.86)
+          "text-opacity" = @("interpolate", @("linear"), @("zoom"), 12, 0.28, 14, 0.58, 17, 0.78)
         }
       }
     )
@@ -628,6 +691,12 @@ try {
   if (-not (Test-HasText $StyleTilesetUrl)) {
     $StyleTilesetUrl = "pmtiles://$publicPmtilesUrl"
   }
+  if (-not (Test-HasText $GlyphsUrlTemplate)) {
+    throw "GlyphsUrlTemplate is required and must include {fontstack} and {range} placeholders."
+  }
+  if ($GlyphsUrlTemplate -notlike "*{fontstack}*" -or $GlyphsUrlTemplate -notlike "*{range}*") {
+    throw "GlyphsUrlTemplate must include {fontstack} and {range} placeholders."
+  }
 
   $pmtilesHash = (Get-FileHash -LiteralPath $pmtilesWorkFile -Algorithm SHA256).Hash.ToLowerInvariant()
   $corsPath = Join-Path $tempDir "cors.xml"
@@ -670,7 +739,8 @@ try {
 
   $stylePath = Join-Path $tempDir "onmu-light.json"
   $manifestPath = Join-Path $tempDir "manifest.json"
-  Write-JsonFile -Path $stylePath -Value (New-MapLibreStyle -TilesetUrl $StyleTilesetUrl -GeneratedAt $generatedAt)
+  $styleJson = New-MapLibreStyle -TilesetUrl $StyleTilesetUrl -GeneratedAt $generatedAt -GlyphsUrlTemplate $GlyphsUrlTemplate
+  Write-JsonFile -Path $stylePath -Value $styleJson
   Write-JsonFile -Path $manifestPath -Value (New-TileManifest `
       -PmtilesMetadata $pmtilesMetadata `
       -GeneratedAt $generatedAt `
@@ -688,6 +758,8 @@ try {
       cache = $CacheControl
       etag = "dry-run-$((Get-FileHash -LiteralPath $stylePath -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant())"
       sizeBytes = (Get-Item -LiteralPath $stylePath).Length
+      glyphsUrlTemplate = $styleJson.glyphs
+      fontstack = $styleJson.metadata["onmu:fontstack"]
     }
     $manifestMetadata = [pscustomobject]@{
       bucket = $Bucket
