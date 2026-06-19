@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -15,7 +16,6 @@ import '../../../../features/map/model/map_models.dart';
 import '../../../../features/map/view_model/map_catalog_view_model.dart';
 import '../../../../features/map/widgets/onmu_map_view.dart';
 import '../../../../shared/models/place_models.dart';
-import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
@@ -92,6 +92,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     _attractionCategory,
   ];
   static const _foodFilters = ['한식', '양식', '중식', '일식', '아시안식'];
+  static const _cafeFilters = ['디저트', '베이커리', '브런치', '커피'];
   static const _attractionFilters = [
     '공원',
     '해수욕장',
@@ -111,9 +112,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   PlaceCandidate? _selectedCandidate;
   int? _focusedCandidateId;
   OnmuLatLng? _lastCameraCenter;
+  OnmuLatLng? _mapSearchAnchorCenter;
   OnmuLatLng? _mapSearchCenter;
   OnmuMapViewport? _catalogViewport;
   Timer? _catalogViewportDebounce;
+  bool _filtersExpanded = false;
   final DraggableScrollableController _recommendationSheetController =
       DraggableScrollableController();
   _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
@@ -234,7 +237,21 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
 
   void _handleCameraIdle(OnmuLatLng center) {
     final previous = _lastCameraCenter;
-    if (previous != null && !_isMeaningfullyDifferent(previous, center)) {
+    if (previous == null) {
+      setState(() {
+        _lastCameraCenter = center;
+        _mapSearchAnchorCenter ??= center;
+      });
+      return;
+    }
+    if (_mapSearchAnchorCenter == null) {
+      setState(() {
+        _lastCameraCenter = center;
+        _mapSearchAnchorCenter = center;
+      });
+      return;
+    }
+    if (!_isMeaningfullyDifferent(previous, center)) {
       return;
     }
     setState(() {
@@ -294,6 +311,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     }
     setState(() {
       _mapSearchCenter = center;
+      _mapSearchAnchorCenter = center;
       _searchActive = true;
       _selectedCandidate = null;
       _focusedCandidateId = null;
@@ -407,6 +425,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     setState(() {
       _lastCameraCenter = center;
       _mapSearchCenter = center;
+      _mapSearchAnchorCenter = center;
       _searchActive = true;
       _selectedCandidate = null;
       _focusedCandidateId = null;
@@ -435,6 +454,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   List<String> get _activeCategoryFilters {
     return switch (_selectedPrimaryCategory) {
       _foodCategory => _foodFilters,
+      _cafeCategory => _cafeFilters,
       _attractionCategory => _attractionFilters,
       _ => const [],
     };
@@ -542,6 +562,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   List<String> _tokensForFilter(String filter) {
     return switch (filter) {
       '아시안식' => const ['아시안', '태국', '베트남', '인도', '동남아'],
+      '브런치' => const ['브런치', '카페'],
+      '커피' => const ['커피', '카페'],
       '전시' => const ['전시', '갤러리', '문화'],
       '산책로' => const ['산책로', '둘레길', '거리', '공원'],
       _ => [filter],
@@ -657,6 +679,10 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       orElse: () => OnmuCatalogMapData.empty(catalogViewport),
     );
     final activeResultCandidates = activePlaceResultsForMap(visibleCandidates);
+    final mapAreaSearchEnabled =
+        _lastCameraCenter != null &&
+        _mapSearchAnchorCenter != null &&
+        _isMeaningfullyDifferent(_mapSearchAnchorCenter!, _lastCameraCenter!);
     final sheetBottomPadding =
         (screenSize.height * _recommendationSheetSize + 80).clamp(220.0, 680.0);
     final mapCameraFitPadding = EdgeInsets.fromLTRB(
@@ -717,11 +743,12 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                 activeCategoryFilters: activeCategoryFilters,
                 selectedPrimaryCategory: _selectedPrimaryCategory,
                 selectedCategoryFilter: _selectedCategoryFilter,
+                filtersExpanded: _filtersExpanded,
                 myLocationState: _myLocationState,
                 myLocationTooltip: _myLocationTooltip,
                 myLocationIcon: _myLocationIcon,
                 myLocationStatusLabel: _myLocationStatusLabel,
-                mapAreaSearchEnabled: _lastCameraCenter != null,
+                mapAreaSearchEnabled: mapAreaSearchEnabled,
                 mapAreaSearchActive: _mapSearchCenter != null,
                 onBack: () => context.popOrGo(
                   RoutePaths.planDetail(widget.groupId, widget.planId),
@@ -731,6 +758,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                   setState(() {
                     _query = value;
                     _searchActive = true;
+                    _mapSearchCenter = null;
+                    _mapSearchAnchorCenter = _lastCameraCenter;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
                   });
@@ -739,6 +768,9 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                   setState(() {
                     _selectedPrimaryCategory = category;
                     _selectedCategoryFilter = null;
+                    _filtersExpanded = false;
+                    _mapSearchCenter = null;
+                    _mapSearchAnchorCenter = _lastCameraCenter;
                     _searchActive = true;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
@@ -748,9 +780,16 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                   setState(() {
                     _selectedCategoryFilter =
                         _selectedCategoryFilter == category ? null : category;
+                    _mapSearchCenter = null;
+                    _mapSearchAnchorCenter = _lastCameraCenter;
                     _searchActive = true;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
+                  });
+                },
+                onFiltersToggle: () {
+                  setState(() {
+                    _filtersExpanded = !_filtersExpanded;
                   });
                 },
                 onMapAreaSearchPressed: _searchVisibleMapArea,
@@ -1062,6 +1101,7 @@ class _MapSearchOverlay extends StatelessWidget {
     required this.activeCategoryFilters,
     required this.selectedPrimaryCategory,
     required this.selectedCategoryFilter,
+    required this.filtersExpanded,
     required this.myLocationState,
     required this.myLocationTooltip,
     required this.myLocationIcon,
@@ -1073,6 +1113,7 @@ class _MapSearchOverlay extends StatelessWidget {
     required this.onSearchChanged,
     required this.onPrimaryCategorySelected,
     required this.onCategoryFilterSelected,
+    required this.onFiltersToggle,
     required this.onMapAreaSearchPressed,
     required this.onCurrentLocationPressed,
   });
@@ -1082,6 +1123,7 @@ class _MapSearchOverlay extends StatelessWidget {
   final List<String> activeCategoryFilters;
   final String selectedPrimaryCategory;
   final String? selectedCategoryFilter;
+  final bool filtersExpanded;
   final _MyLocationRequestState myLocationState;
   final String myLocationTooltip;
   final IconData myLocationIcon;
@@ -1093,6 +1135,7 @@ class _MapSearchOverlay extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onPrimaryCategorySelected;
   final ValueChanged<String> onCategoryFilterSelected;
+  final VoidCallback onFiltersToggle;
   final VoidCallback onMapAreaSearchPressed;
   final VoidCallback? onCurrentLocationPressed;
 
@@ -1114,7 +1157,7 @@ class _MapSearchOverlay extends StatelessWidget {
           selectedCategory: selectedPrimaryCategory,
           onSelected: onPrimaryCategorySelected,
         ),
-        if (activeCategoryFilters.isNotEmpty) ...[
+        if (activeCategoryFilters.isNotEmpty && filtersExpanded) ...[
           const SizedBox(height: AppSpacing.xs),
           _CategoryPills(
             categories: activeCategoryFilters,
@@ -1125,15 +1168,17 @@ class _MapSearchOverlay extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
-            _MapAreaSearchButton(
-              enabled: mapAreaSearchEnabled,
-              active: mapAreaSearchActive,
-              onPressed: onMapAreaSearchPressed,
-            ),
+            if (mapAreaSearchEnabled || mapAreaSearchActive)
+              _MapAreaSearchButton(
+                enabled: mapAreaSearchEnabled,
+                active: mapAreaSearchActive,
+                onPressed: onMapAreaSearchPressed,
+              ),
             const Spacer(),
             _FloatingMapIconButton(
-              tooltip: '필터',
-              onPressed: onSearchTap,
+              tooltip: filtersExpanded ? '세부 필터 접기' : '세부 필터 열기',
+              onPressed: onFiltersToggle,
+              selected: filtersExpanded || selectedCategoryFilter != null,
               child: const Icon(Icons.tune),
             ),
             const SizedBox(width: AppSpacing.xs),
@@ -1231,22 +1276,26 @@ class _FloatingMapIconButton extends StatelessWidget {
     required this.tooltip,
     required this.onPressed,
     required this.child,
+    this.selected = false,
   });
 
   final String tooltip;
   final VoidCallback? onPressed;
   final Widget child;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.bgDefault.withValues(alpha: 0.94),
+      color: selected
+          ? AppColors.primaryPinkSoft
+          : AppColors.bgDefault.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(AppRadius.pill),
       elevation: 3,
       child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
-        color: AppColors.textMain,
+        color: selected ? AppColors.primaryPink : AppColors.textMain,
         disabledColor: AppColors.textMuted,
         constraints: const BoxConstraints.tightFor(width: 48, height: 48),
         style: IconButton.styleFrom(
@@ -1592,9 +1641,9 @@ class _RecommendationSheet extends StatelessWidget {
       child: ListView(
         controller: controller,
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
+          AppSpacing.md,
           AppSpacing.sm,
-          AppSpacing.lg,
+          AppSpacing.md,
           _bottomNavigationSafePadding,
         ),
         children: [
@@ -1607,7 +1656,7 @@ class _RecommendationSheet extends StatelessWidget {
               child: const SizedBox(width: 44, height: 5),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           if (selectedCandidate != null) ...[
             _SelectedPlaceDetailSheet(
               candidate: selectedCandidate!,
@@ -1625,14 +1674,19 @@ class _RecommendationSheet extends StatelessWidget {
                   : searchActive
                   ? '검색 결과'
                   : '장소 후보',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               searchActive
                   ? _searchResultDescription
                   : '일정에 바로 넣거나 후보 리스트에 담아둘 수 있어요',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: AppColors.textSub),
             ),
             if (mapScopedSearch) ...[
               const SizedBox(height: AppSpacing.xs),
@@ -1643,7 +1697,7 @@ class _RecommendationSheet extends StatelessWidget {
                 ).textTheme.labelSmall?.copyWith(color: AppColors.primaryPink),
               ),
             ],
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             if (candidates.isEmpty) ...[
               _EmptyPlaceSearchCard(
                 searchActive: searchActive,
@@ -1665,14 +1719,8 @@ class _RecommendationSheet extends StatelessWidget {
                 onAddCandidatePressed: () =>
                     onAddCandidatePressed(candidates[index]),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
             ],
-            Text(
-              '4명이 함께 정하고 있어요',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-            ),
           ],
         ],
       ),
@@ -1783,6 +1831,8 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final detailRows = _detailRows(candidate);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1801,54 +1851,76 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         OnmuCard(
           backgroundColor: AppColors.bgDefault,
           borderColor: AppColors.lineSoft,
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 candidate.name,
-                style: Theme.of(context).textTheme.headlineSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.12,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 candidate.categoryDistanceLabel,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.labelLarge,
               ),
               if (candidate.displayAddress.isNotEmpty)
                 Text(
                   candidate.displayAddress,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                 ),
-              const SizedBox(height: AppSpacing.sm),
+              if (detailRows.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _PlaceDetailFacts(rows: detailRows),
+              ],
               if (candidate.openingLabel.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
                 _InfoBlock(
                   title: candidate.openingLabel,
                   body: '방문 전 영업시간을 한 번 더 확인해 주세요.',
                   trailing: candidate.isOpen ? '영업중' : '확인 필요',
                 ),
-                const Divider(height: AppSpacing.xl),
               ],
-              Text('리뷰 키워드', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final tag in candidate.tags)
-                    OnmuChip(label: tag, selected: true),
-                ],
-              ),
-              const Divider(height: AppSpacing.xl),
-              Text('참여자 선호', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.sm),
-              MemberPreferenceList(candidate: candidate),
+              if (candidate.tags.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text('분류 키워드', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    for (final tag in candidate.tags.take(4))
+                      OnmuChip(label: tag, selected: true),
+                  ],
+                ),
+              ],
+              if (candidate.memberFits.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text('참여자 선호', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xs),
+                MemberPreferenceList(candidate: candidate),
+              ],
+              if (candidate.sourceUrl.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _ExternalPlaceLinkButton(sourceUrl: candidate.sourceUrl),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         _PlaceActionButtons(
           candidateId: candidate.id,
           isSaving: isSaving,
@@ -1858,6 +1930,121 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  List<_PlaceDetailFact> _detailRows(PlaceCandidate candidate) {
+    return [
+      if (candidate.roadAddress.trim().isNotEmpty &&
+          candidate.roadAddress.trim() != candidate.displayAddress.trim())
+        _PlaceDetailFact(label: '도로명', value: candidate.roadAddress.trim()),
+      if (candidate.sourceLabel.trim().isNotEmpty)
+        _PlaceDetailFact(label: '출처', value: candidate.sourceLabel.trim()),
+      if (_providerLabel(candidate.provider).isNotEmpty)
+        _PlaceDetailFact(
+          label: '제공',
+          value: _providerLabel(candidate.provider),
+        ),
+    ];
+  }
+
+  String _providerLabel(String provider) {
+    return switch (provider.trim().toLowerCase()) {
+      'naver' => 'Naver',
+      'kakao' => 'Kakao',
+      'onmu_catalog' => 'ONMU catalog',
+      final value => value,
+    };
+  }
+}
+
+class _PlaceDetailFact {
+  const _PlaceDetailFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class _PlaceDetailFacts extends StatelessWidget {
+  const _PlaceDetailFacts({required this.rows});
+
+  final List<_PlaceDetailFact> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final row in rows) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 48,
+                child: Text(
+                  row.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textSub),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  row.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    height: 1.16,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (row != rows.last) const SizedBox(height: AppSpacing.xxs),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExternalPlaceLinkButton extends StatelessWidget {
+  const _ExternalPlaceLinkButton({required this.sourceUrl});
+
+  final String sourceUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => _launchSource(context),
+        icon: const Icon(Icons.open_in_new, size: 16),
+        label: const Text('외부 상세 보기'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryPink,
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: Theme.of(context).textTheme.labelMedium,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchSource(BuildContext context) async {
+    final uri = Uri.tryParse(sourceUrl.trim());
+    if (uri == null || !uri.hasScheme) {
+      _showLaunchFailure(context);
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      _showLaunchFailure(context);
+    }
+  }
+
+  void _showLaunchFailure(BuildContext context) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('외부 상세 페이지를 열 수 없어요.')));
   }
 }
 
@@ -1923,14 +2110,14 @@ class _RecommendationTile extends StatelessWidget {
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.xs),
       child: Column(
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _PlacePhoto(candidate: candidate, index: photoIndex),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1943,7 +2130,11 @@ class _RecommendationTile extends StatelessWidget {
                             candidate.name,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall,
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.08,
+                                ),
                           ),
                         ),
                       ],
@@ -1955,11 +2146,12 @@ class _RecommendationTile extends StatelessWidget {
                           : candidate.displayAddress,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSub,
+                        height: 1.12,
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.xxs),
                     Wrap(
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
@@ -1981,18 +2173,20 @@ class _RecommendationTile extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.xxs),
                     Wrap(
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xxs,
-                      children: [for (final tag in tags) OnmuChip(label: tag)],
+                      children: [
+                        for (final tag in tags.take(2)) OnmuChip(label: tag),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           _PlaceActionButtons(
             candidateId: candidate.id,
             isSaving: isSaving,
@@ -2059,7 +2253,7 @@ class _PlaceActionButtons extends StatelessWidget {
     required this.onRegisterPressed,
   });
 
-  static const _buttonHeight = 52.0;
+  static const _buttonHeight = 44.0;
 
   final int candidateId;
   final bool isSaving;
@@ -2075,13 +2269,14 @@ class _PlaceActionButtons extends StatelessWidget {
           child: SizedBox(
             key: ValueKey('place-action-$candidateId-candidate'),
             height: _buttonHeight,
-            child: OnmuSecondaryButton(
+            child: _CompactPlaceActionButton(
               label: isSaving
                   ? '저장 중'
                   : alreadyCandidate
                   ? '후보에 있음'
                   : '후보에 추가',
               icon: alreadyCandidate ? Icons.favorite : Icons.favorite_border,
+              outlined: true,
               onPressed: isSaving || alreadyCandidate
                   ? null
                   : onAddCandidatePressed,
@@ -2093,16 +2288,81 @@ class _PlaceActionButtons extends StatelessWidget {
           child: SizedBox(
             key: ValueKey('place-action-$candidateId-schedule'),
             height: _buttonHeight,
-            child: OnmuPrimaryButton(
+            child: _CompactPlaceActionButton(
               label: isSaving ? '저장 중' : '일정에 추가',
               icon: Icons.event_available_outlined,
-              color: AppColors.primaryPink,
-              foregroundColor: AppColors.textInverse,
               onPressed: isSaving ? null : onRegisterPressed,
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CompactPlaceActionButton extends StatelessWidget {
+  const _CompactPlaceActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.outlined = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label, maxLines: 1),
+        ],
+      ),
+    );
+
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+    );
+    final padding = const EdgeInsets.symmetric(horizontal: AppSpacing.xs);
+    final minimumSize = const Size(0, _PlaceActionButtons._buttonHeight);
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700);
+
+    if (outlined) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textMain,
+          backgroundColor: AppColors.bgDefault,
+          side: const BorderSide(color: AppColors.lineBrown),
+          minimumSize: minimumSize,
+          padding: padding,
+          shape: shape,
+          textStyle: textStyle,
+        ),
+        child: child,
+      );
+    }
+
+    return FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.primaryPink,
+        foregroundColor: AppColors.textInverse,
+        minimumSize: minimumSize,
+        padding: padding,
+        shape: shape,
+        textStyle: textStyle,
+      ),
+      child: child,
     );
   }
 }
@@ -2122,8 +2382,8 @@ class _PlacePhoto extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: SizedBox(
-          width: 72,
-          height: 92,
+          width: 56,
+          height: 68,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -2139,17 +2399,17 @@ class _PlacePhoto extends StatelessWidget {
                   top: -8,
                   child: Icon(
                     Icons.circle,
-                    size: 44,
+                    size: 34,
                     color: AppColors.bgDefault.withValues(alpha: 0.36),
                   ),
                 ),
                 Positioned(
                   left: 10,
-                  bottom: 16,
+                  bottom: 12,
                   child: Icon(
                     _photoIcon,
                     color: AppColors.textInverse,
-                    size: 28,
+                    size: 22,
                   ),
                 ),
                 Positioned(
