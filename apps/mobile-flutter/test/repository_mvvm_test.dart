@@ -14,6 +14,7 @@ import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_members_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_plan_board_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_plan_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
@@ -366,6 +367,69 @@ void main() {
     expect(state.upcomingPlan?.displayStatusLabel, '조율 중');
   });
 
+  test('온모임 약속 목록 ViewModel은 진행중 약속을 지난 약속과 분리한다', () async {
+    final now = DateTime.now();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(
+            plans: [
+              GroupPlanSummary(
+                id: 501,
+                title: '지금 진행 중인 약속',
+                dateLabel: '오늘',
+                startsAt: now.subtract(const Duration(minutes: 30)),
+                endsAt: now.add(const Duration(minutes: 30)),
+                placeName: '수원',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+              GroupPlanSummary(
+                id: 502,
+                title: '다가오는 약속',
+                dateLabel: '내일',
+                startsAt: now.add(const Duration(days: 1)),
+                placeName: '서울',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+              GroupPlanSummary(
+                id: 503,
+                title: '지난 약속',
+                dateLabel: '어제',
+                startsAt: now.subtract(const Duration(days: 1)),
+                placeName: '인천',
+                statusLabel: 'completed',
+                statusType: 'completed',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupPlanListViewModelProvider('1').future,
+    );
+
+    expect(state.ongoingPlans.map((plan) => plan.title), ['지금 진행 중인 약속']);
+    expect(state.upcomingPlans.map((plan) => plan.title), ['다가오는 약속']);
+    expect(state.pastPlans.map((plan) => plan.title), ['지난 약속']);
+  });
+
   test('모임 멤버 추가 후 약속 참여자 후보 provider를 다시 불러온다', () async {
     final repository = _MutableGroupMemberRepository();
     final container = ProviderContainer(
@@ -449,6 +513,39 @@ void main() {
     final state = await container.read(groupListViewModelProvider.future);
 
     expect(state.groups.single.pinnedPlanTitle, '내일 약속');
+  });
+
+  test('온모임 목록 ViewModel은 진행중 약속을 카드 요약에 우선 노출한다', () async {
+    final now = DateTime.now();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(
+            plans: [
+              GroupPlanSummary(
+                id: 7702,
+                title: '지금 진행 중인 약속',
+                dateLabel: '오늘',
+                startsAt: now.subtract(const Duration(hours: 1)),
+                endsAt: now.add(const Duration(hours: 1)),
+                placeName: '수원',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 2,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '약속 진행 중');
   });
 
   test('온모임 홈 ViewModel은 최근 대화 API가 실패해도 상세 홈을 표시한다', () async {

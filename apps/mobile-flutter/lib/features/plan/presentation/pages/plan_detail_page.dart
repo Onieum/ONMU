@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/plan_models.dart';
+import '../../../../shared/utils/onmu_plan_date_time_format.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
@@ -139,6 +140,8 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         ),
       ),
       children: [
+        _PlanScheduleCard(plan: widget.detail.plan),
+        const SizedBox(height: AppSpacing.md),
         _PlanMemberSection(members: widget.detail.selectedMembers),
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
@@ -313,6 +316,8 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         onPressed: () => context.go(RoutePaths.groupDetail(widget.groupId)),
       ),
       children: [
+        _PlanScheduleCard(plan: widget.detail.plan),
+        const SizedBox(height: AppSpacing.md),
         _PlanMemberSection(members: widget.detail.selectedMembers),
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
@@ -373,6 +378,63 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         const SizedBox(height: AppSpacing.md),
         _PlanMemoSection(memo: widget.detail.plan.memo),
       ],
+    );
+  }
+}
+
+class _PlanScheduleCard extends StatelessWidget {
+  const _PlanScheduleCard({required this.plan});
+
+  final Plan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final startsAt = plan.startsAt?.toLocal();
+    if (startsAt == null) {
+      return const SizedBox.shrink();
+    }
+    final endsAt =
+        plan.endsAt?.toLocal() ?? startsAt.add(const Duration(hours: 2));
+    final rangeLabel = formatOnmuPlanDateTimeRange(startsAt, endsAt);
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.primaryPinkSoft,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: AppColors.linePink),
+            ),
+            child: const SizedBox.square(
+              dimension: 44,
+              child: Icon(
+                Icons.event_available_rounded,
+                color: AppColors.primaryPink,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '약속 일정',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.primaryPink,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(rangeLabel, style: Theme.of(context).textTheme.titleSmall),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

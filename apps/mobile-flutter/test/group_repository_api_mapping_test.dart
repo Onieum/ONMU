@@ -506,6 +506,41 @@ void main() {
     ]);
   });
 
+  test('maps plan thumbnail image url for plan cards', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 101,
+                  'title': '성수 브런치',
+                  'dateLabel': '오늘 12:00',
+                  'placeName': '성수동',
+                  'status': 'scheduled',
+                  'memberCount': 1,
+                  'thumbnailImageUrl':
+                      '/api/v1/media/public?key=dev%2Fplaces%2Fcoffee.jpg',
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(
+      plans.single.thumbnailImageUrl,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Fplaces%2Fcoffee.jpg',
+    );
+  });
+
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
     final requestedPaths = <String>[];
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));

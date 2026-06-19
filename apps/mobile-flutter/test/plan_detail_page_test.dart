@@ -36,6 +36,27 @@ void main() {
     expect(find.text('6/7 토'), findsNothing);
   });
 
+  testWidgets('plan detail shows full schedule before participants', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _planDetailTestApp(
+        _PlanDetailTestRepository(
+          planStartsAt: DateTime(2026, 6, 18, 10),
+          planEndsAt: DateTime(2026, 6, 19, 12),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 일정'), findsOneWidget);
+    expect(find.text('6월 18일 (목) · 10:00 ~ 6월 19일 (금) 12:00'), findsOneWidget);
+
+    final scheduleTop = tester.getTopLeft(find.text('약속 일정')).dy;
+    final participantTop = tester.getTopLeft(find.text('참여자 1명')).dy;
+    expect(scheduleTop, lessThan(participantTop));
+  });
+
   testWidgets('empty memo card uses full plan detail content width', (
     tester,
   ) async {
@@ -240,6 +261,8 @@ class _PlanDetailTestRepository implements PlanRepository {
   _PlanDetailTestRepository({
     bool currentUserParticipating = false,
     List<List<VisitPlan>>? visitPlansByDate,
+    DateTime? planStartsAt,
+    this.planEndsAt,
   }) : _visitPlansByDate =
            visitPlansByDate ??
            const [
@@ -253,6 +276,7 @@ class _PlanDetailTestRepository implements PlanRepository {
                ),
              ],
            ],
+       _planStartsAt = planStartsAt ?? DateTime(2026, 6, 18, 10),
        _currentParticipant = currentUserParticipating
            ? const PlanParticipantArrival(
                id: 'participant-me',
@@ -268,13 +292,15 @@ class _PlanDetailTestRepository implements PlanRepository {
   var leaveCount = 0;
   PlanParticipantArrival? _currentParticipant;
   final List<List<VisitPlan>> _visitPlansByDate;
+  final DateTime _planStartsAt;
+  final DateTime? planEndsAt;
 
   @override
   Future<Plan> fetchPlan({
     required Object groupId,
     required Object planId,
   }) async {
-    return _testPlan(startsAt: DateTime(2026, 6, 18, 10));
+    return _testPlan(startsAt: _planStartsAt, endsAt: planEndsAt);
   }
 
   @override
@@ -360,7 +386,7 @@ class _PlanDetailTestRepository implements PlanRepository {
   }
 }
 
-Plan _testPlan({DateTime? startsAt}) {
+Plan _testPlan({DateTime? startsAt, DateTime? endsAt}) {
   return Plan(
     id: 101,
     title: '테스트 약속',
@@ -382,6 +408,7 @@ Plan _testPlan({DateTime? startsAt}) {
       ),
     ],
     startsAt: startsAt,
+    endsAt: endsAt,
   );
 }
 

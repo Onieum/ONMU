@@ -461,7 +461,37 @@ class ApiGroupRepository implements GroupRepository {
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
       memberAvatars: memberAvatars,
+      thumbnailImageUrl: _planThumbnailImageUrl(json),
     );
+  }
+
+  String _planThumbnailImageUrl(Map<String, dynamic> json) {
+    for (final key in const [
+      'thumbnailImageUrl',
+      'placeImageUrl',
+      'primaryImageUrl',
+      'imageUrl',
+      'photoUrl',
+    ]) {
+      final resolved = _absoluteMediaUrl(OnmuJson.readString(json, key));
+      if (resolved.isNotEmpty) {
+        return resolved;
+      }
+    }
+
+    for (final key in const ['imageUrls', 'placeImageUrls', 'photoUrls']) {
+      final urls = _absoluteMediaUrls(json[key]);
+      if (urls.isNotEmpty) {
+        return urls.first;
+      }
+    }
+
+    final place = OnmuJson.asMap(json['place']);
+    if (place.isNotEmpty) {
+      return _planThumbnailImageUrl(place);
+    }
+
+    return '';
   }
 
   List<GroupPlanMemberAvatar> _groupPlanMemberAvatars(

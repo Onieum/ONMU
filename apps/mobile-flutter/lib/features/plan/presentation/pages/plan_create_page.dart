@@ -12,6 +12,7 @@ import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/providers/state_providers.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
+import '../../../../shared/utils/onmu_plan_date_time_format.dart';
 import '../../../../shared/widgets/onmu_date_time_range_picker.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
@@ -657,7 +658,7 @@ class _DateTimeRangeField extends StatelessWidget {
                 Text('선택한 일정', style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  _formatPlanDateTimeRange(startsAt, endsAt),
+                  formatOnmuPlanDateTimeRange(startsAt, endsAt),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
@@ -903,40 +904,6 @@ DateTime? _parsePlanDateTime(String value) {
   }
 
   return DateTime(now.year, month, day, hour, minute).toUtc();
-}
-
-String _formatPlanDate(DateTime date) {
-  final localDate = date.toLocal();
-  final weekday = const [
-    '월',
-    '화',
-    '수',
-    '목',
-    '금',
-    '토',
-    '일',
-  ][localDate.weekday - 1];
-  return '${localDate.month}월 ${localDate.day}일 ($weekday)';
-}
-
-String _formatPlanTime(DateTime date) {
-  final localDate = date.toLocal();
-  final hour = localDate.hour.toString().padLeft(2, '0');
-  final minute = localDate.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
-}
-
-String _formatPlanDateTimeRange(DateTime startsAt, DateTime endsAt) {
-  final localStart = startsAt.toLocal();
-  final localEnd = endsAt.toLocal();
-  final startLabel =
-      '${_formatPlanDate(localStart)} · ${_formatPlanTime(localStart)}';
-  if (localStart.year == localEnd.year &&
-      localStart.month == localEnd.month &&
-      localStart.day == localEnd.day) {
-    return '$startLabel ~ ${_formatPlanTime(localEnd)}';
-  }
-  return '$startLabel ~ ${_formatPlanDate(localEnd)} ${_formatPlanTime(localEnd)}';
 }
 
 Set<String> _memberSelectionTokens(PlanMember member) {

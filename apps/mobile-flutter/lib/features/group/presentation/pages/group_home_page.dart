@@ -51,6 +51,7 @@ class _GroupHomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = state.group;
+    final ongoingPlan = state.ongoingPlan;
     final upcomingPlan = state.upcomingPlan;
 
     return OnmuScaffold(
@@ -68,6 +69,15 @@ class _GroupHomeContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _GroupTabs(group: group),
         const SizedBox(height: AppSpacing.md),
+        if (ongoingPlan != null) ...[
+          _UpcomingPlanCard(
+            plan: ongoingPlan,
+            statusLabel: '약속 진행 중',
+            onTap: () =>
+                context.push(RoutePaths.planDetail(group.id, ongoingPlan.id)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         _SectionHeader(
           title: '다가오는 약속',
           actionLabel: '전체 보기',
@@ -346,10 +356,15 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _UpcomingPlanCard extends StatelessWidget {
-  const _UpcomingPlanCard({required this.plan, required this.onTap});
+  const _UpcomingPlanCard({
+    required this.plan,
+    required this.onTap,
+    this.statusLabel,
+  });
 
   final GroupPlanSummary plan;
   final VoidCallback onTap;
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +388,10 @@ class _UpcomingPlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    OnmuChip(label: plan.displayStatusLabel, selected: true),
+                    OnmuChip(
+                      label: statusLabel ?? plan.displayStatusLabel,
+                      selected: true,
+                    ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(

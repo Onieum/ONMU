@@ -14,6 +14,7 @@ import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_empty_state_card.dart';
+import '../../../../shared/widgets/onmu_plan_thumbnail.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -473,60 +474,73 @@ class _TodayPlanCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              OnmuPlanStatusChip(
-                status: plan.progressStatus,
-                label: plan.displayStatusLabel,
-              ),
-              const Spacer(),
-              Text(
-                _todayTimeLabel(plan),
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
+          OnmuPlanThumbnail(
+            iconKind: plan.iconKind,
+            imageUrl: plan.thumbnailImageUrl,
+            size: 86,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            plan.title,
-            style: Theme.of(context).textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            plan.placeName.trim().isEmpty ? '장소 미정' : plan.placeName,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              for (final member in avatarMembers)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: PixelAvatar(
-                    label: member.name,
-                    size: 28,
-                    profileImageUrl: member.profileImageUrl,
-                  ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    OnmuPlanStatusChip(
+                      status: plan.progressStatus,
+                      label: plan.displayStatusLabel,
+                    ),
+                    const Spacer(),
+                    Text(
+                      _todayTimeLabel(plan),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                  ],
                 ),
-              if (plan.extraMemberCount > 0)
+                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '+${plan.extraMemberCount}',
+                  plan.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  plan.placeName.trim().isEmpty ? '장소 미정' : plan.placeName,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            ],
+                const Spacer(),
+                Row(
+                  children: [
+                    for (final member in avatarMembers)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.xs),
+                        child: PixelAvatar(
+                          label: member.name,
+                          size: 28,
+                          profileImageUrl: member.profileImageUrl,
+                        ),
+                      ),
+                    if (plan.extraMemberCount > 0)
+                      Text(
+                        '+${plan.extraMemberCount}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

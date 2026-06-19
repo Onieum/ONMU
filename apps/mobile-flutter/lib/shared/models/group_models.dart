@@ -91,6 +91,7 @@ class GroupPlanSummary {
     required this.iconKind,
     required this.isPast,
     this.memberAvatars = const [],
+    this.thumbnailImageUrl = '',
     this.startsAt,
     this.endsAt,
   });
@@ -108,6 +109,7 @@ class GroupPlanSummary {
   final String iconKind;
   final bool isPast;
   final List<GroupPlanMemberAvatar> memberAvatars;
+  final String thumbnailImageUrl;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
@@ -164,6 +166,20 @@ class GroupPlanSummary {
     final endsAtLocal =
         endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
     return localNow.isBefore(endsAtLocal);
+  }
+
+  bool isOngoingAt(DateTime now) {
+    final startsAtLocal = startsAt?.toLocal();
+    if (isPast ||
+        startsAtLocal == null ||
+        !progressStatus.isUpcomingCandidate) {
+      return false;
+    }
+
+    final localNow = now.toLocal();
+    final endsAtLocal =
+        endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
+    return !localNow.isBefore(startsAtLocal) && localNow.isBefore(endsAtLocal);
   }
 
   static int compareUpcoming(GroupPlanSummary left, GroupPlanSummary right) {

@@ -801,6 +801,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('group home shows ongoing plan above upcoming section', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _OngoingPlanGroupRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupHomePage(groupId: '4'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 진행 중'), findsOneWidget);
+    expect(find.text('지금 진행 중인 약속'), findsOneWidget);
+    expect(find.text('내일 약속'), findsOneWidget);
+
+    final ongoingTop = tester.getTopLeft(find.text('지금 진행 중인 약속')).dy;
+    final upcomingTop = tester.getTopLeft(find.text('다가오는 약속')).dy;
+
+    expect(ongoingTop, lessThan(upcomingTop));
+  });
+
   testWidgets('group home create fab opens plan creation', (tester) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
@@ -2427,6 +2455,42 @@ class _SingleMemberGroupRepository implements GroupRepository {
     required Object memoryId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _OngoingPlanGroupRepository extends _SingleMemberGroupRepository {
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    final now = DateTime.now();
+    return [
+      GroupPlanSummary(
+        id: 401,
+        title: '지금 진행 중인 약속',
+        dateLabel: '오늘',
+        startsAt: now.subtract(const Duration(hours: 1)),
+        endsAt: now.add(const Duration(hours: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 402,
+        title: '내일 약속',
+        dateLabel: '내일',
+        startsAt: now.add(const Duration(days: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+    ];
   }
 }
 
