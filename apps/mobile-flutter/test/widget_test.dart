@@ -1001,7 +1001,9 @@ void main() {
     expect(find.text('장소 동선'), findsWidgets);
   });
 
-  testWidgets('draft plan can open the shared candidate list', (tester) async {
+  testWidgets('scheduled plan can open the shared candidate list', (
+    tester,
+  ) async {
     await tester.pumpWidget(_testOnmuApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
@@ -2249,7 +2251,7 @@ class _CandidatePlanRepository implements PlanRepository {
     title: '장소 후보 테스트',
     dateTime: '일정 미정',
     location: '성수동',
-    status: 'draft',
+    status: 'scheduled',
     memo: '',
     members: [],
     timeCandidates: [],

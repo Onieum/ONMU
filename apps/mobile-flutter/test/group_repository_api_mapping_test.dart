@@ -879,10 +879,17 @@ void main() {
 
   test('plan status API enum values are displayed in Korean', () {
     expect(PlanProgressStatus.fromApi('completed').label, '완료');
-    expect(PlanProgressStatus.fromApi('draft').label, '조율 중');
     expect(PlanProgressStatus.fromApi('active').label, '진행 중');
     expect(PlanProgressStatus.fromApi('scheduled').label, '예정');
     expect(PlanProgressStatus.fromApi('진행중').label, '진행 중');
+  });
+
+  test('unknown plan status is not user-displayable', () {
+    final status = PlanProgressStatus.fromApi('invalid');
+
+    expect(status, PlanProgressStatus.unknown);
+    expect(status.isDisplayable, isFalse);
+    expect(status.label, isEmpty);
   });
 
   test('group plan summary exposes centralized Korean display status', () {
@@ -900,7 +907,61 @@ void main() {
     );
 
     expect(plan.progressStatus, PlanProgressStatus.completed);
+    expect(plan.hasDisplayStatus, isTrue);
     expect(plan.displayStatusLabel, '완료');
+  });
+
+  test('group plan summary hides unknown display status', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'invalid',
+      statusType: 'invalid',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.progressStatus, PlanProgressStatus.unknown);
+    expect(plan.hasDisplayStatus, isFalse);
+    expect(plan.displayStatusLabel, isEmpty);
+  });
+
+  test('group plan summary exposes participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, '2명 참여');
+  });
+
+  test('group plan summary hides empty participant summary label', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '한강 피크닉',
+      dateLabel: '6월 12일',
+      placeName: '한강',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 0,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.participantSummaryLabel, isEmpty);
   });
 
   test('group plan summary display date includes time from startsAt', () {
@@ -921,6 +982,48 @@ void main() {
 
     expect(plan.displayDateTimeLabel, '5월 10일 13:30');
     expect(plan.displayTimeRangeLabel, '13:30~15:00');
+  });
+
+  test('multi-day plan exposes date-scoped time labels for today cards', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '제주 여행',
+      dateLabel: '6월 19일',
+      startsAt: DateTime(2026, 6, 19, 11),
+      endsAt: DateTime(2026, 6, 21, 15),
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 19)), '11:00~');
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 20)), '하루종일');
+    expect(plan.displayTimeRangeLabelFor(DateTime(2026, 6, 21)), '~15:00');
+  });
+
+  test('multi-day plan remains a today plan on middle and end dates', () {
+    final plan = GroupPlanSummary(
+      id: 1,
+      title: '제주 여행',
+      dateLabel: '6월 19일',
+      startsAt: DateTime(2026, 6, 19, 11),
+      endsAt: DateTime(2026, 6, 21, 15),
+      placeName: '제주',
+      statusLabel: 'scheduled',
+      statusType: 'scheduled',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'default',
+      isPast: false,
+    );
+
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 20, 12)), isTrue);
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 21, 14, 59)), isTrue);
+    expect(plan.isRemainingTodayAt(DateTime(2026, 6, 21, 15)), isFalse);
   });
 
   test(

@@ -16,6 +16,10 @@ class OnmuPlanStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!status.isDisplayable || label.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 72),
       child: FittedBox(
@@ -31,7 +35,6 @@ class OnmuPlanStatusChip extends StatelessWidget {
 
   Color _statusColor(PlanProgressStatus status) {
     return switch (status) {
-      PlanProgressStatus.draft => AppColors.primaryPink,
       PlanProgressStatus.scheduled => AppColors.accentBlue,
       PlanProgressStatus.active => AppColors.accentGreen,
       PlanProgressStatus.completed => AppColors.textMuted,
