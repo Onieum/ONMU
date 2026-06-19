@@ -29,6 +29,7 @@ import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
+import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
 
 import 'support/in_memory_onmu_store.dart';
 import 'support/test_onmu_repositories.dart';
@@ -42,9 +43,12 @@ String _weekdayLabel(DateTime date) {
   return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
 }
 
-Widget _testOnmuApp() {
+Widget _testOnmuApp({GroupRepository? groupRepository}) {
   appRouter.go(RoutePaths.splash);
-  return onmuTestProviderScope(child: const app.OnmuMaterialApp());
+  return onmuTestProviderScope(
+    groupRepository: groupRepository,
+    child: const app.OnmuMaterialApp(),
+  );
 }
 
 void main() {
@@ -791,7 +795,38 @@ void main() {
 
     expect(find.text('서버 단일 멤버 모임'), findsOneWidget);
     expect(find.text('멤버 1명'), findsOneWidget);
+    expect(find.text('다가오는 약속이 없어요.'), findsOneWidget);
+    expect(find.text('최근 기록이 없어요.'), findsOneWidget);
+    expect(find.text('기록을 만들면 이곳에 표시돼요.'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('group home shows ongoing plan above upcoming section', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _OngoingPlanGroupRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupHomePage(groupId: '4'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 진행 중'), findsOneWidget);
+    expect(find.text('지금 진행 중인 약속'), findsOneWidget);
+    expect(find.text('내일 약속'), findsOneWidget);
+
+    final ongoingTop = tester.getTopLeft(find.text('지금 진행 중인 약속')).dy;
+    final upcomingTop = tester.getTopLeft(find.text('다가오는 약속')).dy;
+
+    expect(ongoingTop, lessThan(upcomingTop));
   });
 
   testWidgets('group home create fab opens plan creation', (tester) async {
@@ -1090,6 +1125,12 @@ void main() {
     expect(find.text('약속 수정하기'), findsNothing);
     expect(find.textContaining('안녕하세요,'), findsOneWidget);
     expect(find.text('오늘의 약속'), findsOneWidget);
+
+    await tester.tap(find.text('온모임').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 수정하기'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '수정 완료'), findsNothing);
   });
 
   testWidgets('new plan selected members can remove added members', (
@@ -1113,6 +1154,25 @@ void main() {
 
     expect(find.byTooltip('민수 제거'), findsNothing);
   });
+
+  testWidgets(
+    'new plan member add sheet shows candidate avatar and neutral status',
+    (tester) async {
+      await tester.pumpWidget(_testOnmuApp());
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+      appRouter.go(RoutePaths.planNew(_groupId));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('참여 멤버 추가'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('참여 멤버 추가'), findsOneWidget);
+      expect(find.text('추가 가능'), findsWidgets);
+      expect(find.text('참여 중'), findsNothing);
+      expect(find.byType(PixelAvatar), findsAtLeastNWidgets(2));
+    },
+  );
 
   testWidgets('canonical plan edit route opens the edit screen', (
     tester,
@@ -1759,7 +1819,11 @@ void main() {
   });
 
   testWidgets('group chat vote notice opens vote detail', (tester) async {
-    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpWidget(
+      _testOnmuApp(
+        groupRepository: _ChatVoteGroupRepository(InMemoryOnmuStore.seeded()),
+      ),
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.groupChat(_groupId));
@@ -1947,6 +2011,29 @@ void main() {
     expect(find.text('보드게임 모임 장소'), findsOneWidget);
     expect(find.text('제주도 여행 장소 투표'), findsNothing);
   });
+}
+
+class _ChatVoteGroupRepository extends TestGroupRepository {
+  _ChatVoteGroupRepository(super.store);
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 101,
+        title: '제주도 여행',
+        dateLabel: '6월 7일',
+        startsAt: DateTime.now().add(const Duration(days: 1)),
+        placeName: '제주도 일대',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 6,
+        extraMemberCount: 2,
+        iconKind: 'water',
+        isPast: false,
+      ),
+    ];
+  }
 }
 
 class _NoAuxGroupRepository extends TestGroupRepository {
@@ -2272,6 +2359,20 @@ class _SingleMemberGroupRepository implements GroupRepository {
   ];
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,
@@ -2363,6 +2464,42 @@ class _SingleMemberGroupRepository implements GroupRepository {
     required Object memoryId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _OngoingPlanGroupRepository extends _SingleMemberGroupRepository {
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    final now = DateTime.now();
+    return [
+      GroupPlanSummary(
+        id: 401,
+        title: '지금 진행 중인 약속',
+        dateLabel: '오늘',
+        startsAt: now.subtract(const Duration(hours: 1)),
+        endsAt: now.add(const Duration(hours: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+      GroupPlanSummary(
+        id: 402,
+        title: '내일 약속',
+        dateLabel: '내일',
+        startsAt: now.add(const Duration(days: 1)),
+        placeName: '수원',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 1,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: false,
+      ),
+    ];
   }
 }
 

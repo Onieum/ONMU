@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/api/onmu_api_client.dart';
+import 'package:onmu_mobile/shared/models/character_model.dart';
+import 'package:onmu_mobile/shared/providers/state_providers.dart';
 import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
+import 'package:onmu_mobile/shared/widgets/pixel_character.dart';
 
 void main() {
   testWidgets('renders profile image when url is present', (tester) async {
@@ -59,6 +63,44 @@ void main() {
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.person_rounded), findsOneWidget);
     expect(find.text('지'), findsNothing);
+  });
+
+  testWidgets('shows supplied character fallback when image url is missing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PixelAvatar(
+            label: '지우',
+            character: CharacterDraft(nickname: '지우'),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(PixelCharacterWidget), findsOneWidget);
+    expect(find.byIcon(Icons.person_rounded), findsNothing);
+  });
+
+  testWidgets('shows viewer character fallback when enabled', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userCharacterProvider.overrideWith(
+            (ref) => const CharacterDraft(nickname: '박진희'),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: PixelAvatar(label: '박진희', fallbackToViewerCharacter: true),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(PixelCharacterWidget), findsOneWidget);
+    expect(find.byIcon(Icons.person_rounded), findsNothing);
   });
 
   testWidgets('shows person icon fallback when profile image fails to load', (

@@ -14,6 +14,7 @@ import 'package:onmu_mobile/features/group/view_model/group_home_view_model.dart
 import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_members_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_plan_board_view_model.dart';
+import 'package:onmu_mobile/features/group/view_model/group_plan_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
@@ -33,6 +34,7 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
+import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 
@@ -294,6 +296,41 @@ void main() {
     expect(state.recentMessage, isNotNull);
   });
 
+  test('온모임 홈 ViewModel은 채팅 목록의 최신 메시지를 최근 대화로 노출한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(
+            initialMessages: const [
+              GroupMessage(
+                id: 'old-message',
+                sender: '민서',
+                message: '처음 보낸 메시지',
+                timeLabel: '10:00',
+                isMine: false,
+              ),
+              GroupMessage(
+                id: 'new-message',
+                sender: '지우',
+                message: '가장 최근 메시지',
+                timeLabel: '17:37',
+                isMine: false,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupHomeViewModelProvider('9001').future,
+    );
+
+    expect(state.recentMessage?.id, 'new-message');
+    expect(state.recentMessage?.message, '가장 최근 메시지');
+  });
+
   test('온모임 홈 ViewModel은 최근 기록/채팅 실패 시에도 홈을 렌더링한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -327,7 +364,142 @@ void main() {
     final state = await container.read(groupHomeViewModelProvider('9').future);
 
     expect(state.upcomingPlan?.title, '내일 약속');
-    expect(state.upcomingPlan?.displayStatusLabel, '초안');
+    expect(state.upcomingPlan?.displayStatusLabel, '조율 중');
+  });
+
+  test('온모임 약속 목록 ViewModel은 진행중 약속을 지난 약속과 분리한다', () async {
+    final now = DateTime.now();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(
+            plans: [
+              GroupPlanSummary(
+                id: 501,
+                title: '지금 진행 중인 약속',
+                dateLabel: '오늘',
+                startsAt: now.subtract(const Duration(minutes: 30)),
+                endsAt: now.add(const Duration(minutes: 30)),
+                placeName: '수원',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+              GroupPlanSummary(
+                id: 502,
+                title: '다가오는 약속',
+                dateLabel: '내일',
+                startsAt: now.add(const Duration(days: 1)),
+                placeName: '서울',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+              GroupPlanSummary(
+                id: 503,
+                title: '지난 약속',
+                dateLabel: '어제',
+                startsAt: now.subtract(const Duration(days: 1)),
+                placeName: '인천',
+                statusLabel: 'completed',
+                statusType: 'completed',
+                memberCount: 1,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupPlanListViewModelProvider('1').future,
+    );
+
+    expect(state.ongoingPlans.map((plan) => plan.title), ['지금 진행 중인 약속']);
+    expect(state.upcomingPlans.map((plan) => plan.title), ['다가오는 약속']);
+    expect(state.pastPlans.map((plan) => plan.title), ['지난 약속']);
+  });
+
+  test('모임 멤버 추가 후 약속 참여자 후보 provider를 다시 불러온다', () async {
+    final repository = _MutableGroupMemberRepository();
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final initial = await container.read(
+      groupPlanMemberOptionsProvider('1').future,
+    );
+    expect(initial, isEmpty);
+
+    await container.read(groupMembersViewModelProvider('1').future);
+    await container
+        .read(groupMembersViewModelProvider('1').notifier)
+        .addMembers([
+          const FriendProfile(
+            userId: 'user-invited',
+            name: '새 멤버',
+            preferenceSummary: '친구',
+            isFriend: true,
+          ),
+        ]);
+
+    final options = await container.read(
+      groupPlanMemberOptionsProvider('1').future,
+    );
+    expect(options.map((member) => member.userId), contains('user-invited'));
+  });
+
+  test('약속 참여자 후보 provider는 후보 상태를 추가 가능으로 표시한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _PlanMemberOptionStatusRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final options = await container.read(
+      groupPlanMemberOptionsProvider('1').future,
+    );
+
+    expect(options.single.name, '찬도치');
+    expect(options.single.badge, '추가 가능');
+    expect(options.single.profileImageUrl, 'https://example.test/chando.png');
+  });
+
+  test('약속 생성 controller는 선택한 후보 멤버만 선호도 정보를 보강한다', () async {
+    final repository = _PlanMemberPreferenceRepository();
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final enriched = await container
+        .read(planCreateControllerProvider)
+        .enrichParticipantCandidate(
+          groupId: '1',
+          member: const PlanMember(
+            userId: 'user-chando',
+            name: '찬도치',
+            badge: '추가 가능',
+          ),
+        );
+
+    expect(repository.requestedUserIds, ['user-chando']);
+    expect(enriched.preferenceProfile?.preferredWeekdays, ['SATURDAY']);
+    expect(enriched.preferenceProfile?.preferredTimes, ['afternoon']);
   });
 
   test('온모임 목록 ViewModel은 다가오는 약속 기준으로 카드 약속 제목을 보강한다', () async {
@@ -341,6 +513,39 @@ void main() {
     final state = await container.read(groupListViewModelProvider.future);
 
     expect(state.groups.single.pinnedPlanTitle, '내일 약속');
+  });
+
+  test('온모임 목록 ViewModel은 진행중 약속을 카드 요약에 우선 노출한다', () async {
+    final now = DateTime.now();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _SparseGroupListRepository(
+            plans: [
+              GroupPlanSummary(
+                id: 7702,
+                title: '지금 진행 중인 약속',
+                dateLabel: '오늘',
+                startsAt: now.subtract(const Duration(hours: 1)),
+                endsAt: now.add(const Duration(hours: 1)),
+                placeName: '수원',
+                statusLabel: 'scheduled',
+                statusType: 'scheduled',
+                memberCount: 2,
+                extraMemberCount: 0,
+                iconKind: 'coffee',
+                isPast: false,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(groupListViewModelProvider.future);
+
+    expect(state.groups.single.pinnedPlanTitle, '약속 진행 중');
   });
 
   test('온모임 홈 ViewModel은 최근 대화 API가 실패해도 상세 홈을 표시한다', () async {
@@ -890,6 +1095,42 @@ void main() {
     expect(state.messages.single.hasSettlementRoute, isTrue);
   });
 
+  test('채팅 ViewModel은 draft 정산 미리보기를 보조 카드로 노출하지 않는다', () async {
+    final repository = _FakeGroupRepository(
+      fetchPlansCompleter: Completer<List<GroupPlanSummary>>()
+        ..complete([
+          GroupPlanSummary(
+            id: 101,
+            title: '오늘 약속 테스트',
+            dateLabel: '6월 19일',
+            startsAt: DateTime.utc(2099, 6, 19, 5),
+            placeName: '수원',
+            statusLabel: 'draft',
+            statusType: 'draft',
+            memberCount: 1,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+        ]),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          const _DraftChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    expect(container.read(provider).requireValue.settlement, isNull);
+  });
+
   test('채팅 ViewModel은 현재 약속의 진행 중 투표가 없으면 투표 카드를 숨긴다', () async {
     final repository = _ChatNoCurrentVoteRepository();
     final container = ProviderContainer(
@@ -911,6 +1152,133 @@ void main() {
     expect(state.planId, 101);
     expect(state.vote, isNull);
     expect(state.voteId, 0);
+  });
+
+  test('채팅 ViewModel은 지나지 않은 약속 중 가장 가까운 약속을 보조 카드로 선택한다', () async {
+    final now = DateTime.now();
+    final repository = _FakeGroupRepository(
+      fetchPinnedPlanCompleter: Completer<GroupPinnedPlan?>()
+        ..complete(
+          const GroupPinnedPlan(
+            id: 101,
+            title: '지난 약속',
+            dateLabel: '6월 18일',
+            placeName: '수원',
+            statusLabel: 'scheduled',
+            voteSummary: '',
+          ),
+        ),
+      fetchPlansCompleter: Completer<List<GroupPlanSummary>>()
+        ..complete([
+          GroupPlanSummary(
+            id: 101,
+            title: '지난 약속',
+            dateLabel: '6월 18일',
+            startsAt: now.subtract(const Duration(days: 1)),
+            placeName: '수원',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 1,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: true,
+          ),
+          GroupPlanSummary(
+            id: 102,
+            title: '가장 가까운 미래 약속',
+            dateLabel: '6월 20일',
+            startsAt: now.add(const Duration(hours: 2)),
+            placeName: '행궁동',
+            statusLabel: 'draft',
+            statusType: 'draft',
+            memberCount: 1,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+          GroupPlanSummary(
+            id: 103,
+            title: '더 먼 미래 약속',
+            dateLabel: '6월 21일',
+            startsAt: now.add(const Duration(days: 1)),
+            placeName: '서울',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 1,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: false,
+          ),
+        ]),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    final state = container.read(provider).requireValue;
+    expect(state.planId, 102);
+    expect(state.pinnedPlan?.id, 102);
+    expect(state.pinnedPlan?.title, '가장 가까운 미래 약속');
+  });
+
+  test('채팅 ViewModel은 지나지 않은 약속이 없으면 보조 약속 카드를 숨긴다', () async {
+    final now = DateTime.now();
+    final repository = _FakeGroupRepository(
+      fetchPinnedPlanCompleter: Completer<GroupPinnedPlan?>()
+        ..complete(
+          const GroupPinnedPlan(
+            id: 101,
+            title: '지난 약속',
+            dateLabel: '6월 18일',
+            placeName: '수원',
+            statusLabel: 'scheduled',
+            voteSummary: '',
+          ),
+        ),
+      fetchPlansCompleter: Completer<List<GroupPlanSummary>>()
+        ..complete([
+          GroupPlanSummary(
+            id: 101,
+            title: '지난 약속',
+            dateLabel: '6월 18일',
+            startsAt: now.subtract(const Duration(hours: 1)),
+            placeName: '수원',
+            statusLabel: 'scheduled',
+            statusType: 'scheduled',
+            memberCount: 1,
+            extraMemberCount: 0,
+            iconKind: 'calendar',
+            isPast: true,
+          ),
+        ]),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    final state = container.read(provider).requireValue;
+    expect(state.planId, 0);
+    expect(state.pinnedPlan, isNull);
   });
 
   test('채팅 ViewModel은 서버 응답 전에도 pending 말풍선을 즉시 추가한다', () async {
@@ -1442,6 +1810,20 @@ class _FakeGroupRepository implements GroupRepository {
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<GroupMemberProfile> addMember({
     required Object groupId,
     required String userId,
@@ -1596,6 +1978,25 @@ class _ChatNoCurrentVoteRepository extends _FakeGroupRepository {
   }
 
   @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    return [
+      GroupPlanSummary(
+        id: 101,
+        title: '제주도 여행',
+        dateLabel: '6월 7일',
+        startsAt: DateTime.now().add(const Duration(days: 1)),
+        placeName: '제주',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 4,
+        extraMemberCount: 0,
+        iconKind: 'calendar',
+        isPast: false,
+      ),
+    ];
+  }
+
+  @override
   Future<List<VoteSummary>> fetchVotes(
     Object groupId, {
     String? targetType,
@@ -1677,6 +2078,20 @@ class _EmptyGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return (await fetchMembers(groupId))
+        .where((member) => normalizedUserIds.contains(member.userId.trim()))
+        .toList(growable: false);
+  }
 
   @override
   Future<GroupMemberProfile> addMember({
@@ -2420,7 +2835,72 @@ class _UnusedSettlementRepository implements SettlementRepository {
   }
 }
 
+class _MutableGroupMemberRepository extends _FakeGroupRepository {
+  final _members = <GroupMemberProfile>[];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return List.unmodifiable(_members);
+  }
+
+  @override
+  Future<GroupMemberProfile> addMember({
+    required Object groupId,
+    required String userId,
+  }) async {
+    final member = GroupMemberProfile(
+      userId: userId,
+      name: '새 멤버',
+      note: '멤버',
+      statusLabel: '참여 중',
+    );
+    _members.add(member);
+    return member;
+  }
+}
+
+class _PlanMemberOptionStatusRepository extends _FakeGroupRepository {
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return const [
+      GroupMemberProfile(
+        userId: 'user-chando',
+        name: '찬도치',
+        note: '참여 풀',
+        statusLabel: '참여 중',
+        profileImageUrl: 'https://example.test/chando.png',
+      ),
+    ];
+  }
+}
+
+class _PlanMemberPreferenceRepository extends _FakeGroupRepository {
+  final requestedUserIds = <String>[];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    requestedUserIds.addAll(userIds);
+    return [
+      GroupMemberProfile(
+        userId: 'user-chando',
+        name: '찬도치',
+        note: '참여 풀',
+        statusLabel: '참여 중',
+        preferenceProfile: PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['SATURDAY'],
+          preferredTimes: ['afternoon'],
+        ),
+      ),
+    ];
+  }
+}
+
 class _ChatSettlementRepository implements SettlementRepository {
+  const _ChatSettlementRepository();
+
   static const _summary = SettlementSummary(
     id: '301',
     planTitle: '테스트 약속',
@@ -2484,6 +2964,31 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
   }) async => _summary;
+}
+
+class _DraftChatSettlementRepository extends _ChatSettlementRepository {
+  const _DraftChatSettlementRepository();
+
+  static const _draftSummary = SettlementSummary(
+    id: 'draft',
+    planTitle: '테스트 약속',
+    totalAmountLabel: '0원',
+    createdDateLabel: '미리보기',
+    itemCountLabel: '0개',
+    finalSummaryLabel: '정산 없음',
+    mySummaryLabel: '정산 없음',
+    paymentItems: [],
+    memberResults: [],
+    transfers: [],
+    shareMessage: '',
+    preview: true,
+  );
+
+  @override
+  Future<SettlementSummary> fetchSettlement({
+    required Object groupId,
+    required Object planId,
+  }) async => _draftSummary;
 }
 
 class _TrackingSettlementRepository extends _ChatSettlementRepository {

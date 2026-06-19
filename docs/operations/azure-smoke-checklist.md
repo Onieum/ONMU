@@ -64,7 +64,7 @@
 - `GET /api/v1/groups/{groupId}/plans/{planId}` status와 plan/member/count field presence 확인
 - `GET /api/v1/groups/{groupId}/plans/{planId}/participants` status/count와 participant `preferenceProfile` presence 확인
 - `POST /api/v1/groups/{groupId}/plans`는 `participantUserIds` 포함 요청으로 생성자와 추가 참여자 count를 확인
-- 약속 생성 화면 후보 멤버가 `preferenceProfile`을 받을 수 있는지 별도 확인한다. 현재 dev에서 group member candidate 경로가 비어 있으면 known gap으로 기록
+- `GET /api/v1/groups/{groupId}/plans/participant-candidates?userIds=<db-user-uuid>`가 선택된 후보 멤버의 `preferenceProfile`을 반환하는지 확인한다. `GET /groups/{groupId}/members`는 전체 모임원 `preferenceProfile`을 미리 싣지 않는 lightweight 계약으로 확인한다.
 - 일반 약속 수정은 명시 status 변경이 없을 때 기존 status가 draft로 회귀하지 않는지 확인
 - `GET /api/v1/groups/{groupId}/votes?targetType=PLAN&targetId=...` status/count 확인
 - `GET /api/v1/groups/{groupId}/votes/{voteId}` status와 options/responseCount/progress field presence 확인

@@ -34,6 +34,7 @@
 | 참여자 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/participants` | active participant만 반환 |
 | 내 참여 응답 | `PUT/PATCH /api/v1/groups/{groupId}/plans/{planId}/participants/me` | 현재 사용자 참여 row upsert, status/response 갱신 |
 | 참여자 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/participants` | 요청 userId가 같은 group member인지 확인한 뒤 joined/accepted로 upsert |
+| 생성 후보 보강 | `GET /api/v1/groups/{groupId}/plans/participant-candidates?userIds=<db-user-uuid>` | 요청자와 대상이 같은 group member인 경우에만 선택된 후보의 `preferenceProfile` 반환 |
 | 투표 목록 | `GET /api/v1/groups/{groupId}/votes` | 선택 query `targetType`, `targetId`로 필터 가능 |
 | 투표 생성 | `POST /api/v1/groups/{groupId}/votes` | `votes`, `vote_options` 저장, 장소 후보 기반 투표 지원 |
 | 투표 상세 | `GET /api/v1/groups/{groupId}/votes/{voteId}` | options를 정규화 row 우선으로 반환하고 없으면 payload fallback |
@@ -63,7 +64,7 @@ Flutter는 Riverpod ViewModel과 Repository 경계를 사용한다.
 
 | 항목 | 현재 확인 | 영향 | 보강 방향 |
 | --- | --- | --- | --- |
-| 생성 화면 추가 멤버 선호도 | 약속 참여자 API와 `PlanMember`는 `preferenceProfile`을 다루지만, 생성 화면 후보 멤버는 `GET /groups/{groupId}/members`와 `GroupMemberProfile`에서 오며 `preferenceProfile`을 포함하지 않는다. | 추가 멤버의 `preferredTimes`, `unavailableDates`가 생성 화면 추천/경고에 반영되지 않을 수 있다. | group member candidate 응답 또는 별도 plan participant candidate API에 `preferenceProfile` presence를 추가하고 Flutter mapper까지 연결한다. |
+| 생성 화면 추가 멤버 선호도 | 약속 참여자 API와 `PlanMember`는 `preferenceProfile`을 다루지만, 생성 화면 후보 멤버는 lightweight `GET /groups/{groupId}/members`에서 온다. | 전체 모임원의 preference를 미리 가져오면 약속에 참여하지 않을 멤버까지 불필요하게 조회한다. | 사용자가 실제 참여 후보로 선택한 userId만 `GET /groups/{groupId}/plans/participant-candidates`로 보강하고 Flutter mapper까지 연결한다. |
 | 투표 상세 후보별 결과 | `GroupRepository.fetchVoteVoters()`가 빈 map을 반환한다. | 투표 생성/목록은 동작해도 상세의 후보별 투표자/표 수 표시가 0표 또는 empty state로 보일 수 있다. | vote detail 응답에 option별 `responseCount`, `progress`, voter preview 또는 별도 voters API를 정한다. |
 | 약속 수정 status | Flutter `updatePlan()`이 항상 `status=draft`를 보낸다. Spring은 `status`가 오면 기존 상태 대신 반영한다. | 예정/진행 중 약속이 수정 후 draft로 회귀할 수 있다. | 일반 수정 body에서 `status`를 제거하고, 상태 변경은 별도 action 또는 명시 UX로 분리한다. |
 | 생성 화면 MVVM 경계 | 생성 모드는 View에서 repository를 직접 호출하고, 비선호 시간 판단과 저장 경고도 View 내부에 있다. 수정 모드는 ViewModel을 사용한다. | 생성/수정 흐름 불일치, 테스트 어려움, 참여자 선호도 보강 시 회귀 위험이 커진다. | `PlanCreateViewModel` 또는 기존 ViewModel 확장으로 생성/수정 저장, optimistic state, rollback, provider invalidation을 모은다. |
@@ -208,6 +209,25 @@ flowchart LR
 ```
 
 현재 생성자는 자동으로 joined/accepted 참여자가 되고, `participantUserIds`에 포함된 같은 모임 멤버도 joined/accepted로 upsert된다. 같은 모임 멤버가 아니면 `403 not_group_member`다.
+
+### `GET /api/v1/groups/{groupId}/plans/participant-candidates`
+
+응답 항목:
+
+```json
+{
+  "userId": "<users.id uuid>",
+  "nickname": "찬도치",
+  "profileImageUrl": "https://...",
+  "preferenceProfile": {
+    "preferredWeekdays": ["SATURDAY"],
+    "preferredTimes": ["afternoon"],
+    "unavailableDates": ["2026-06-21"]
+  }
+}
+```
+
+약속 생성/수정에서 사용자가 실제 참여자로 추가하려는 모임원만 조회한다. `GET /groups/{groupId}/members`는 초대/목록 표시용으로 유지하며, 모임원 전체의 `preferenceProfile`을 미리 싣지 않는다. 서버는 query `userIds`를 중복 제거한 뒤 각 대상이 같은 모임 멤버인지 확인한다. 대상이 모임원이 아니면 `403 not_group_member`다.
 
 ### `GET /api/v1/groups/{groupId}/plans/{planId}/participants`
 
@@ -396,7 +416,7 @@ Smoke 후보:
 | 리스크 | 영향 | 대응 |
 | --- | --- | --- |
 | 홈이 클라이언트 조합 read model에 머무름 | 권한/정렬/성능 정책이 화면마다 달라질 수 있음 | `HomeSummary` canonical 계약으로 이동 |
-| 생성 화면 후보 멤버에 선호도 없음 | 추가 참여자 기반 시간 추천/경고가 현재 사용자 중심으로 축소될 수 있음 | group member 또는 plan candidate API에 `preferenceProfile` 전달 |
+| 생성 화면 후보 멤버에 선호도 없음 | 추가 참여자 기반 시간 추천/경고가 현재 사용자 중심으로 축소될 수 있음 | 실제 선택된 userId만 plan participant candidate API로 `preferenceProfile` 보강 |
 | 약속 수정 body가 status를 강제 | 약속 상태가 의도치 않게 draft로 회귀할 수 있음 | 상태 변경 action과 일반 수정 action 분리 |
 | 생성 화면 View가 API 호출을 직접 수행 | 생성/수정 흐름과 테스트 경계가 달라짐 | 저장/검증/rollback을 ViewModel로 이동 |
 | `plan_participants.response` 의미 혼합 | 참석 응답과 도착 상태가 충돌할 수 있음 | 컬럼/테이블 분리 decision 필요 |

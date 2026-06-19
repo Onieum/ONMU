@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/group_models.dart';
+import '../../../shared/models/preference_profile.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../../../shared/models/vote_models.dart';
 
@@ -31,6 +32,11 @@ abstract interface class GroupRepository {
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId);
 
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId);
+
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  });
 
   Future<GroupMemberProfile> addMember({
     required Object groupId,
@@ -159,6 +165,30 @@ class ApiGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
     final members = await _client.getList('/api/v1/groups/$groupId/members');
+    return members.map(_groupMemberProfile).toList(growable: false);
+  }
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    final normalizedUserIds = userIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalizedUserIds.isEmpty) {
+      return const [];
+    }
+    final query = normalizedUserIds
+        .map((id) => 'userIds=${Uri.encodeQueryComponent(id)}')
+        .join('&');
+    final path = Uri(
+      path: '/api/v1/groups/$groupId/plans/participant-candidates',
+      query: query,
+    ).toString();
+    final members = await _client.getList(path);
     return members.map(_groupMemberProfile).toList(growable: false);
   }
 
@@ -431,7 +461,37 @@ class ApiGroupRepository implements GroupRepository {
       iconKind: OnmuJson.readString(json, 'iconKind', 'coffee'),
       isPast: OnmuJson.readBool(json, 'isPast'),
       memberAvatars: memberAvatars,
+      thumbnailImageUrl: _planThumbnailImageUrl(json),
     );
+  }
+
+  String _planThumbnailImageUrl(Map<String, dynamic> json) {
+    for (final key in const [
+      'thumbnailImageUrl',
+      'placeImageUrl',
+      'primaryImageUrl',
+      'imageUrl',
+      'photoUrl',
+    ]) {
+      final resolved = _absoluteMediaUrl(OnmuJson.readString(json, key));
+      if (resolved.isNotEmpty) {
+        return resolved;
+      }
+    }
+
+    for (final key in const ['imageUrls', 'placeImageUrls', 'photoUrls']) {
+      final urls = _absoluteMediaUrls(json[key]);
+      if (urls.isNotEmpty) {
+        return urls.first;
+      }
+    }
+
+    final place = OnmuJson.asMap(json['place']);
+    if (place.isNotEmpty) {
+      return _planThumbnailImageUrl(place);
+    }
+
+    return '';
   }
 
   List<GroupPlanMemberAvatar> _groupPlanMemberAvatars(
@@ -535,7 +595,15 @@ class ApiGroupRepository implements GroupRepository {
       statusLabel: OnmuJson.readString(json, 'statusLabel', '참여 중'),
       invited: OnmuJson.readBool(json, 'invited'),
       profileImageUrl: _profileImageUrl(json),
+      preferenceProfile: _preferenceProfile(json),
     );
+  }
+
+  PreferenceProfile? _preferenceProfile(Map<String, dynamic> json) {
+    final preferenceJson = OnmuJson.asMap(json['preferenceProfile']);
+    return preferenceJson.isEmpty
+        ? null
+        : PreferenceProfile.fromJson(preferenceJson);
   }
 
   GroupMemoryRecord _groupMemoryRecord(Map<String, dynamic> json) {
@@ -683,6 +751,12 @@ class ApiGroupRepository implements GroupRepository {
     final closed = OnmuJson.readBool(json, 'closed');
     final targetId = OnmuJson.readString(json, 'targetId');
     final myOptionId = _myVoteOptionId(json, optionSummaries);
+    final participantAvatars = _voteParticipantAvatars(json);
+    final participants = participantAvatars.isNotEmpty
+        ? participantAvatars
+              .map((avatar) => avatar.name)
+              .toList(growable: false)
+        : OnmuJson.stringList(json['participants']);
     return VoteSummary(
       id: OnmuJson.readInt(json, 'id'),
       title: OnmuJson.readString(json, 'title', '투표'),
@@ -690,7 +764,8 @@ class ApiGroupRepository implements GroupRepository {
       description: options.join(', '),
       planLabel: targetId.isEmpty ? '모임 투표' : '약속 $targetId',
       planMeta: OnmuJson.readString(json, 'voteType', 'PLACE'),
-      participants: OnmuJson.stringList(json['participants']),
+      participants: participants,
+      participantAvatars: participantAvatars,
       participantCount: OnmuJson.readInt(json, 'participantCount'),
       options: optionSummaries,
       closed: closed,
@@ -699,6 +774,41 @@ class ApiGroupRepository implements GroupRepository {
       targetType: OnmuJson.readString(json, 'targetType'),
       targetId: targetId,
     );
+  }
+
+  List<VoteParticipantAvatar> _voteParticipantAvatars(
+    Map<String, dynamic> json,
+  ) {
+    final profileMaps = OnmuJson.asMapList(json['participantProfiles']);
+    final source = profileMaps.isNotEmpty ? profileMaps : json['participants'];
+    if (source is! List) {
+      return const [];
+    }
+
+    return source
+        .map((participant) {
+          if (participant is Map) {
+            final map = Map<String, dynamic>.from(participant);
+            final name = resolveOnmuDisplayName([
+              OnmuJson.readString(map, 'nickname'),
+              OnmuJson.readString(map, 'name'),
+            ], fallback: '');
+            if (name.trim().isEmpty) {
+              return null;
+            }
+            return VoteParticipantAvatar(
+              name: name.trim(),
+              profileImageUrl: _profileImageUrl(map),
+            );
+          }
+          final name = participant.toString().trim();
+          if (name.isEmpty) {
+            return null;
+          }
+          return VoteParticipantAvatar(name: name);
+        })
+        .whereType<VoteParticipantAvatar>()
+        .toList(growable: false);
   }
 
   List<VoteOptionSummary> _voteOptionSummaries(Map<String, dynamic> json) {

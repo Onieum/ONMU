@@ -69,6 +69,8 @@ class PlanMemberAvatar extends StatelessWidget {
                       label: member.name,
                       size: 42,
                       profileImageUrl: member.profileImageUrl,
+                      fallbackToViewerCharacter:
+                          member.fallbackToViewerCharacter,
                     ),
                   ),
                 ),

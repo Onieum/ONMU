@@ -1,5 +1,7 @@
 import 'vote_models.dart';
 
+import 'preference_profile.dart';
+
 class GroupSummary {
   const GroupSummary({
     required this.id,
@@ -20,6 +22,15 @@ class GroupSummary {
   final String lastMessage;
   final int unreadCount;
   final String pinnedPlanTitle;
+
+  List<GroupPlanMemberAvatar> get displayMemberAvatars {
+    if (memberAvatars.isNotEmpty) {
+      return memberAvatars;
+    }
+    return members
+        .map((name) => GroupPlanMemberAvatar(name: name))
+        .toList(growable: false);
+  }
 
   GroupSummary copyWith({
     int? id,
@@ -80,6 +91,7 @@ class GroupPlanSummary {
     required this.iconKind,
     required this.isPast,
     this.memberAvatars = const [],
+    this.thumbnailImageUrl = '',
     this.startsAt,
     this.endsAt,
   });
@@ -97,6 +109,7 @@ class GroupPlanSummary {
   final String iconKind;
   final bool isPast;
   final List<GroupPlanMemberAvatar> memberAvatars;
+  final String thumbnailImageUrl;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
@@ -155,6 +168,20 @@ class GroupPlanSummary {
     return localNow.isBefore(endsAtLocal);
   }
 
+  bool isOngoingAt(DateTime now) {
+    final startsAtLocal = startsAt?.toLocal();
+    if (isPast ||
+        startsAtLocal == null ||
+        !progressStatus.isUpcomingCandidate) {
+      return false;
+    }
+
+    final localNow = now.toLocal();
+    final endsAtLocal =
+        endsAt?.toLocal() ?? startsAtLocal.add(const Duration(hours: 2));
+    return !localNow.isBefore(startsAtLocal) && localNow.isBefore(endsAtLocal);
+  }
+
   static int compareUpcoming(GroupPlanSummary left, GroupPlanSummary right) {
     final leftStartsAt = left.startsAt?.toLocal();
     final rightStartsAt = right.startsAt?.toLocal();
@@ -179,7 +206,7 @@ class GroupPlanSummary {
 }
 
 enum PlanProgressStatus {
-  draft('초안'),
+  draft('조율 중'),
   scheduled('예정'),
   active('진행 중'),
   completed('완료'),
@@ -503,6 +530,7 @@ class GroupMemberProfile {
     required this.statusLabel,
     this.invited = false,
     this.profileImageUrl = '',
+    this.preferenceProfile,
   });
 
   final String userId;
@@ -511,6 +539,7 @@ class GroupMemberProfile {
   final String statusLabel;
   final bool invited;
   final String profileImageUrl;
+  final PreferenceProfile? preferenceProfile;
 }
 
 class GroupCreateInput {

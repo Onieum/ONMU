@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/group_models.dart';
 import '../../my/domain/my_profile.dart';
+import '../../plan/view_model/plan_create_view_model.dart';
 import '../repository/group_repository.dart';
 import 'group_home_view_model.dart';
 import 'group_list_view_model.dart';
@@ -95,6 +96,7 @@ class GroupMembersViewModel extends AsyncNotifier<GroupMembersState> {
     );
     ref
       ..invalidate(groupListViewModelProvider)
-      ..invalidate(groupHomeViewModelProvider(groupId));
+      ..invalidate(groupHomeViewModelProvider(groupId))
+      ..invalidate(groupPlanMemberOptionsProvider(groupId));
   }
 }

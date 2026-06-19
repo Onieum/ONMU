@@ -13,6 +13,8 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/utils/onmu_display_name.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
+import '../../../../shared/widgets/onmu_plan_thumbnail.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_upcoming_plan_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
@@ -146,7 +148,10 @@ class _HomeContent extends ConsumerWidget {
         const _SectionTitle(title: '오늘의 약속'),
         const SizedBox(height: AppSpacing.sm),
         if (todayPlans.isEmpty)
-          const _EmptyTodayPlanCard()
+          const OnmuEmptyStateCard(
+            title: '오늘 남은 약속이 없어요',
+            icon: Icons.event_busy_outlined,
+          )
         else
           _TodayPlansGrid(groupId: groupId, plans: todayPlans),
         const SizedBox(height: AppSpacing.xxl),
@@ -157,7 +162,7 @@ class _HomeContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (upcomingPlans.isEmpty)
-          const _EmptyUpcomingPlanCard()
+          const OnmuEmptyStateCard(title: '다가오는 약속이 없어요.')
         else
           for (final plan in upcomingPlans.take(2)) ...[
             OnmuUpcomingPlanCard(
@@ -178,46 +183,6 @@ class _HomeContent extends ConsumerWidget {
           _RecentRecordsPreview(records: recentRecords),
         ],
       ],
-    );
-  }
-}
-
-class _EmptyTodayPlanCard extends StatelessWidget {
-  const _EmptyTodayPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
-          const SizedBox(height: AppSpacing.sm),
-          Text('오늘 남은 약속이 없어요', style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyUpcomingPlanCard extends StatelessWidget {
-  const _EmptyUpcomingPlanCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return OnmuCard(
-      backgroundColor: AppColors.bgDefault,
-      borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Text(
-        '다가오는 약속이 없어요.',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-      ),
     );
   }
 }
@@ -303,6 +268,7 @@ class _HomeHeader extends StatelessWidget {
               label: avatarLabel,
               size: 64,
               profileImageUrl: profileImageUrl,
+              fallbackToViewerCharacter: true,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -508,60 +474,73 @@ class _TodayPlanCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              OnmuPlanStatusChip(
-                status: plan.progressStatus,
-                label: plan.displayStatusLabel,
-              ),
-              const Spacer(),
-              Text(
-                _todayTimeLabel(plan),
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
-              ),
-            ],
+          OnmuPlanThumbnail(
+            iconKind: plan.iconKind,
+            imageUrl: plan.thumbnailImageUrl,
+            size: 86,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            plan.title,
-            style: Theme.of(context).textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            plan.placeName.trim().isEmpty ? '장소 미정' : plan.placeName,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              for (final member in avatarMembers)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: PixelAvatar(
-                    label: member.name,
-                    size: 28,
-                    profileImageUrl: member.profileImageUrl,
-                  ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    OnmuPlanStatusChip(
+                      status: plan.progressStatus,
+                      label: plan.displayStatusLabel,
+                    ),
+                    const Spacer(),
+                    Text(
+                      _todayTimeLabel(plan),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                  ],
                 ),
-              if (plan.extraMemberCount > 0)
+                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '+${plan.extraMemberCount}',
+                  plan.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  plan.placeName.trim().isEmpty ? '장소 미정' : plan.placeName,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            ],
+                const Spacer(),
+                Row(
+                  children: [
+                    for (final member in avatarMembers)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.xs),
+                        child: PixelAvatar(
+                          label: member.name,
+                          size: 28,
+                          profileImageUrl: member.profileImageUrl,
+                        ),
+                      ),
+                    if (plan.extraMemberCount > 0)
+                      Text(
+                        '+${plan.extraMemberCount}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

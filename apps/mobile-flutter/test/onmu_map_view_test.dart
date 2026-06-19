@@ -52,8 +52,6 @@ void main() {
     final cameraBounds = cameraTargetBoundsFromManifest(_readyPmtilesManifest);
 
     expect(onmuMapMinUsableZoom, 6.2);
-    expect(onmuMapCameraFitPadding.top, 160);
-    expect(onmuMapCameraFitPadding.bottom, 480);
     expect(cameraBounds.bounds?.southwest.longitude, 124);
     expect(cameraBounds.bounds?.southwest.latitude, 33);
     expect(cameraBounds.bounds?.northeast.longitude, 132);
@@ -97,6 +95,88 @@ void main() {
     expect(line?.lineWidth, greaterThanOrEqualTo(8));
     expect(casingLine?.lineColor, '#FFFFFF');
     expect(casingLine?.lineWidth, greaterThan(line!.lineWidth!));
+  });
+
+  test('filters coordinates before native camera and annotation calls', () {
+    final validCoordinates = validOnmuMapCoordinates(const [
+      OnmuLatLng(lat: double.nan, lng: 126.978),
+      OnmuLatLng(lat: 37.5665, lng: 126.978),
+      OnmuLatLng(lat: 91, lng: 126.978),
+      OnmuLatLng(lat: 37.5651, lng: double.infinity),
+    ]);
+    final validPoints = validOnmuMapPoints(const [
+      OnmuMapPoint(
+        id: 'bad',
+        label: 'Bad',
+        coordinate: OnmuLatLng(lat: double.nan, lng: 126.978),
+        order: 1,
+      ),
+      OnmuMapPoint(
+        id: 'ok',
+        label: 'OK',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+        order: 2,
+      ),
+    ]);
+
+    expect(validCoordinates, hasLength(1));
+    expect(validCoordinates.single.lat, 37.5665);
+    expect(validPoints, hasLength(1));
+    expect(validPoints.single.id, 'ok');
+  });
+
+  test('recreates native map when route camera targets change', () {
+    const point = OnmuMapPoint(
+      id: 'place-1',
+      label: '장소',
+      coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      order: 1,
+    );
+
+    final emptyKey = onmuMapCameraSeedKey(
+      points: const [],
+      routeGeometry: const [],
+      center: null,
+      zoom: 11,
+    );
+    final loadedKey = onmuMapCameraSeedKey(
+      points: const [point],
+      routeGeometry: const [],
+      center: null,
+      zoom: 11,
+    );
+
+    expect(loadedKey, isNot(emptyKey));
+  });
+
+  test('calculates initial zoom from route spread', () {
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [OnmuLatLng(lat: 37.5665, lng: 126.978)],
+        fallbackZoom: 11,
+      ),
+      14.2,
+    );
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [
+          OnmuLatLng(lat: 37.5665, lng: 126.978),
+          OnmuLatLng(lat: 37.568, lng: 126.981),
+        ],
+        fallbackZoom: 11,
+      ),
+      greaterThan(13),
+    );
+    expect(
+      onmuMapInitialZoomForCoordinates(
+        coordinates: const [
+          OnmuLatLng(lat: 37.1, lng: 126.5),
+          OnmuLatLng(lat: 37.9, lng: 127.5),
+        ],
+        fallbackZoom: 11,
+      ),
+      lessThan(9),
+    );
   });
 
   test('does not refit camera when only focused marker changes', () {

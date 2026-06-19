@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
+import 'package:onmu_mobile/shared/widgets/onmu_card.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_picker.dart';
 import 'package:onmu_mobile/shared/widgets/onmu_date_time_range_picker.dart';
 
@@ -72,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2026년 6월'), findsOneWidget);
-    expect(find.byIcon(Icons.star_rounded), findsWidgets);
+    expect(_calendarStarIcons(), findsNothing);
     expect(find.byType(OnmuSlidingTimePicker), findsOneWidget);
     expect(find.text('시작 시간'), findsOneWidget);
     expect(find.text('종료 시간'), findsNothing);
@@ -90,7 +91,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2026년 6월'), findsOneWidget);
-    expect(find.byIcon(Icons.star_rounded), findsWidgets);
+    expect(_calendarStarIcons(), findsNothing);
     expect(find.byType(OnmuSlidingTimePicker), findsOneWidget);
     expect(find.text('시작 시간'), findsNothing);
     expect(find.text('종료 시간'), findsOneWidget);
@@ -116,6 +117,62 @@ void main() {
       day: 21,
       hour: 16,
       minute: 0,
+    );
+  });
+
+  testWidgets('종료 시간을 직접 조정하면 추천 시간대 선택 상태가 해제되고 선택 결과에 반영된다', (tester) async {
+    final picked = <OnmuDateTimeRange>[];
+
+    await _pumpRangePicker(
+      tester,
+      onPicked: picked.add,
+      initialEnd: DateTime(2026, 6, 15, 16),
+    );
+    await _openRangePicker(tester);
+
+    final initialRecommendation = _recommendationCard(tester, '14:00 ~ 16:00');
+    expect(initialRecommendation.backgroundColor, AppColors.bgPurpleSoft);
+
+    await tester.tap(find.text('종료 날짜'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const ValueKey('end-time-slider-hour')),
+      find.byType(Scrollable).last,
+      const Offset(0, -120),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('end-time-slider-hour')),
+      const Offset(0, -58),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey('end-time-slider-minute')),
+      const Offset(0, -58),
+    );
+    await tester.pumpAndSettle();
+
+    final changedRecommendation = _recommendationCard(tester, '14:00 ~ 16:00');
+    expect(changedRecommendation.backgroundColor, AppColors.bgDefault);
+
+    await tester.tap(find.text('선택 완료'));
+    await tester.pumpAndSettle();
+
+    expect(picked, hasLength(1));
+    _expectLocalDateTime(
+      picked.single.start,
+      year: 2026,
+      month: 6,
+      day: 15,
+      hour: 14,
+      minute: 0,
+    );
+    _expectLocalDateTime(
+      picked.single.end,
+      year: 2026,
+      month: 6,
+      day: 15,
+      hour: 17,
+      minute: 5,
     );
   });
 
@@ -187,12 +244,104 @@ void main() {
 
     expect(find.text('일반 추천'), findsNWidgets(4));
   });
+
+  testWidgets('recommended dates are shown separately from time slots', (
+    tester,
+  ) async {
+    await _pumpRangePicker(
+      tester,
+      initialEnd: DateTime(2026, 6, 15, 16),
+      participantPreferences: [
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일', '토요일', '일요일'],
+          preferredTimes: ['점심'],
+        ),
+      ],
+    );
+    await _openRangePicker(tester);
+
+    expect(find.text('추천 날짜'), findsOneWidget);
+    expect(find.text('선택한 날짜의 추천 시간대'), findsOneWidget);
+    expect(find.text('추천/비추천 시간대'), findsNothing);
+    expect(find.textContaining('6월 19일 (금)'), findsOneWidget);
+    expect(find.textContaining('6월 15일 (월)\n'), findsNothing);
+  });
+
+  testWidgets(
+    'multi-day range shows in-range recommendation dates as read-only visit days',
+    (tester) async {
+      await _pumpRangePicker(
+        tester,
+        initialStart: DateTime(2026, 6, 20, 14),
+        initialEnd: DateTime(2026, 6, 22, 16),
+        participantPreferences: [
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['금요일', '토요일', '일요일'],
+            preferredTimes: ['점심'],
+          ),
+        ],
+      );
+      await _openRangePicker(tester);
+
+      expect(find.text('추천 날짜'), findsNothing);
+      expect(find.text('선택 범위의 추천 방문일'), findsOneWidget);
+      expect(find.text('시작 날짜의 추천 시간대'), findsOneWidget);
+      expect(find.text('선택한 날짜의 추천 시간대'), findsNothing);
+      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
+      expect(find.text('6월 21일 (일)'), findsOneWidget);
+      expect(find.text('6월 26일 (금)'), findsNothing);
+
+      await tester.tap(find.text('6월 21일 (일)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
+      expect(find.text('6월 21일 (일)'), findsOneWidget);
+    },
+  );
+
+  test('recommended dates come from participant weekday preference', () {
+    final dates = onmuRecommendedDatesForRangePicker(
+      anchor: DateTime(2026, 6, 19),
+      participantPreferences: [
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일'],
+          preferredTimes: ['점심'],
+        ),
+        PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['금요일'],
+          preferredTimes: ['오후'],
+          unavailableDates: ['2026-06-26'],
+        ),
+      ],
+    );
+
+    expect(dates.map((date) => date.day), contains(19));
+    expect(dates.map((date) => date.day), isNot(contains(20)));
+    expect(dates.map((date) => date.day), isNot(contains(26)));
+  });
+
+  test('recommended dates accept preferredDays API alias', () {
+    final profile = PreferenceProfile.fromJson({
+      'preferredDays': ['SATURDAY', 'SUNDAY'],
+      'preferredTimes': ['afternoon'],
+    });
+
+    final dates = onmuRecommendedDatesForRangePicker(
+      anchor: DateTime(2026, 6, 19),
+      participantPreferences: [profile],
+    );
+
+    expect(profile.preferredWeekdays, ['SATURDAY', 'SUNDAY']);
+    expect(dates.map((date) => date.day), containsAll([20, 21]));
+  });
 }
 
 Future<void> _pumpRangePicker(
   WidgetTester tester, {
   ValueChanged<OnmuDateTimeRange>? onPicked,
   List<PreferenceProfile> participantPreferences = const [],
+  DateTime? initialStart,
+  DateTime? initialEnd,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -205,8 +354,8 @@ Future<void> _pumpRangePicker(
                 onPressed: () async {
                   final picked = await OnmuDateTimeRangePicker.show(
                     context: context,
-                    initialStart: DateTime(2026, 6, 15, 14),
-                    initialEnd: DateTime(2026, 6, 20, 16),
+                    initialStart: initialStart ?? DateTime(2026, 6, 15, 14),
+                    initialEnd: initialEnd ?? DateTime(2026, 6, 20, 16),
                     participantPreferences: participantPreferences,
                   );
                   if (picked != null) {
@@ -233,6 +382,20 @@ Finder _calendarDay(String day) {
     of: find.byType(OnmuCalendarDatePicker),
     matching: find.text(day),
   );
+}
+
+Finder _calendarStarIcons() {
+  return find.descendant(
+    of: find.byType(OnmuCalendarDatePicker),
+    matching: find.byIcon(Icons.star_rounded),
+  );
+}
+
+OnmuCard _recommendationCard(WidgetTester tester, String timeText) {
+  final cardFinder = find
+      .ancestor(of: find.text(timeText), matching: find.byType(OnmuCard))
+      .first;
+  return tester.widget<OnmuCard>(cardFinder);
 }
 
 void _expectLocalDateTime(
