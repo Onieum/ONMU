@@ -37,17 +37,22 @@ class DailyRecordEditController {
     if (photoItems.isEmpty && record.imageUrls.isEmpty) {
       photos.add(const DailyRecordEditPhotoState());
     } else {
-      final rawCount = photoItems.length > record.imageUrls.length
-          ? photoItems.length
-          : record.imageUrls.length;
+      final rawCount = [
+        photoItems.length,
+        record.imageUrls.length,
+        record.media.length,
+      ].reduce((a, b) => a > b ? a : b);
       final count = rawCount > _maxPhotoCount ? _maxPhotoCount : rawCount;
       for (var i = 0; i < count; i++) {
         final item = i < photoItems.length ? photoItems[i] : null;
+        final media = i < record.media.length ? record.media[i] : null;
         photos.add(
           DailyRecordEditPhotoState(
             originalUrl:
                 item?.imageUrl ??
+                media?.publicUrl ??
                 (i < record.imageUrls.length ? record.imageUrls[i] : null),
+            originalStorageKey: item?.mediaStorageKey ?? media?.storageKey,
             description: item?.description ?? '',
           ),
         );
@@ -58,9 +63,9 @@ class DailyRecordEditController {
       record: record,
       tags: [...record.moodTags],
       memo: memo,
-      mood: record.mood.isEmpty ? record.brands['mood'] ?? '평온' : record.mood,
+      mood: record.mood.isEmpty ? record.brands['mood'] ?? 'calm' : record.mood,
       weather: record.weather.isEmpty
-          ? record.brands['weather'] ?? '맑음'
+          ? record.brands['weather'] ?? 'sunny'
           : record.weather,
       theme: record.brands['theme'] == 'clean' ? 'clean' : 'diary',
       photos: photos,
@@ -69,39 +74,61 @@ class DailyRecordEditController {
 
   Future<DailyRecordEditSaveResult> save(DailyRecordEditSaveInput input) async {
     final imageUrls = <String>[];
+    final media = <UploadedMedia>[];
     final photoTimeline = <TimelineItem>[];
     var hasPhotoUploadFailure = false;
+
     for (var i = 0; i < input.photos.length; i++) {
       final photo = input.photos[i];
       String? url = photo.originalUrl;
+      String? storageKey = photo.originalStorageKey;
+
       if (photo.imageBytes != null) {
         try {
-          url = await _ref
+          final uploaded = await _ref
               .read(recordRepositoryProvider)
               .uploadMedia(
                 photo.imageBytes!,
                 photo.fileName ?? 'daily-record.jpg',
               );
+          url = uploaded.publicUrl;
+          storageKey = uploaded.storageKey;
+          media.add(uploaded.copyWith(sortOrder: media.length));
         } catch (_) {
           hasPhotoUploadFailure = true;
         }
       }
+
       final description = photo.description.trim();
       if (url == null && description.isEmpty) {
         continue;
       }
+
       if (url != null) {
         imageUrls.add(url);
+        if (storageKey != null &&
+            storageKey.isNotEmpty &&
+            !media.any((item) => item.storageKey == storageKey)) {
+          media.add(
+            UploadedMedia(
+              storageKey: storageKey,
+              publicUrl: url,
+              sortOrder: media.length,
+            ),
+          );
+        }
       }
+
       photoTimeline.add(
         TimelineItem(
-          time: '사진 ${i + 1}',
-          placeName: url == null ? '사진 메모' : '추가한 사진',
+          time: 'Photo ${i + 1}',
+          placeName: url == null ? 'Photo memo' : 'Added photo',
           category: 'photo',
           description: description.isEmpty
-              ? '사진에 대한 코멘트를 남기지 않았어요.'
+              ? 'No photo comment was written.'
               : description,
           imageUrl: url,
+          mediaStorageKey: storageKey,
         ),
       );
     }
@@ -111,6 +138,7 @@ class DailyRecordEditController {
       imagePath: imageUrls.isEmpty ? null : imageUrls.first,
       clearImagePath: imageUrls.isEmpty,
       imageUrls: imageUrls,
+      media: media,
       moodTags: input.tags,
       mood: input.mood,
       weather: input.weather,
@@ -124,10 +152,12 @@ class DailyRecordEditController {
       timeline: [
         ...photoTimeline,
         TimelineItem(
-          time: '오늘',
-          placeName: '하루 일과',
+          time: 'Today',
+          placeName: 'Daily record',
           category: 'daily',
-          description: memo.isEmpty ? '오늘의 소중한 순간을 기록했어요.' : memo,
+          description: memo.isEmpty
+              ? 'No daily memo was written.'
+              : memo,
         ),
       ],
     );
@@ -172,21 +202,28 @@ class DailyRecordEditLoadState {
 }
 
 class DailyRecordEditPhotoState {
-  const DailyRecordEditPhotoState({this.originalUrl, this.description = ''});
+  const DailyRecordEditPhotoState({
+    this.originalUrl,
+    this.originalStorageKey,
+    this.description = '',
+  });
 
   final String? originalUrl;
+  final String? originalStorageKey;
   final String description;
 }
 
 class DailyRecordEditPhotoInput {
   const DailyRecordEditPhotoInput({
     this.originalUrl,
+    this.originalStorageKey,
     this.imageBytes,
     this.fileName,
     required this.description,
   });
 
   final String? originalUrl;
+  final String? originalStorageKey;
   final Uint8List? imageBytes;
   final String? fileName;
   final String description;

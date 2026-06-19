@@ -103,7 +103,22 @@ class _DetailMissingRecordRepository implements RecordRepository {
   }
 
   @override
-  Future<String> uploadMedia(Uint8List bytes, String fileName) {
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId) {
     throw UnimplementedError();
   }
 }

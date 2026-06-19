@@ -331,8 +331,36 @@ class TestRecordRepository implements RecordRepository {
   }
 
   @override
-  Future<String> uploadMedia(Uint8List bytes, String fileName) async {
-    return 'https://cdn.onmu.test/$fileName';
+  Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) async {
+    return UploadedMedia(
+      storageKey: 'records/media/$fileName',
+      publicUrl: 'https://cdn.onmu.test/$fileName',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> createAvatarGeneration({
+    required String recordId,
+    required String inputType,
+    String? outfitPhotoMediaId,
+    String? outfitDescription,
+  }) async {
+    return OotdAvatarGenerationJob(
+      jobId: 'job-test',
+      status: 'COMPLETED',
+      recordId: recordId,
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
+  }
+
+  @override
+  Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId) async {
+    return OotdAvatarGenerationJob(
+      jobId: jobId,
+      status: 'COMPLETED',
+      recordId: 'record-test',
+      generatedImageUrl: 'https://cdn.onmu.test/generated-ootd.png',
+    );
   }
 }
 

@@ -68,7 +68,8 @@ public class OutboxService {
 
       boolean hasConsumer = "record.created".equals(eventType) 
           || "place_candidate.created".equals(eventType) 
-          || "ai.summary.requested".equals(eventType);
+          || "ai.summary.requested".equals(eventType)
+          || "ootd.avatar_generation.requested".equals(eventType);
 
       if (!hasConsumer) {
         event.setStatus("no_consumer");
