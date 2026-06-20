@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.OutboxEventEntity;
 import com.onmu.api.domain.OutboxEventRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class OutboxService {
   private final OutboxEventRepository outboxEventRepository;
   private final NotificationDeliveryService notificationDeliveryService;
+  private final OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService;
   private final ObjectMapper objectMapper;
   private final String workerUrl;
   private final RestTemplate restTemplate;
@@ -28,11 +30,13 @@ public class OutboxService {
   public OutboxService(
     OutboxEventRepository outboxEventRepository,
     NotificationDeliveryService notificationDeliveryService,
+    OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService,
     ObjectMapper objectMapper,
     @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl
   ) {
     this.outboxEventRepository = outboxEventRepository;
     this.notificationDeliveryService = notificationDeliveryService;
+    this.ootdAvatarGenerationCompletionService = ootdAvatarGenerationCompletionService;
     this.objectMapper = objectMapper;
     this.workerUrl = workerUrl;
     
@@ -86,7 +90,10 @@ public class OutboxService {
         requestBody.put("eventType", event.getEventType());
         requestBody.put("payload", readMap(event.getPayload()));
 
-        restTemplate.postForEntity(workerUrl, requestBody, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(workerUrl, requestBody, String.class);
+        if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
+          ootdAvatarGenerationCompletionService.completeFromWorkerResponse(event.getAggregateId(), response.getBody());
+        }
 
         event.setStatus("published");
         event.setPublishedAt(Instant.now());
