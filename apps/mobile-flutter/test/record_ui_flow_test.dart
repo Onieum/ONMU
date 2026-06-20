@@ -29,6 +29,32 @@ void main() {
     expect(titleTop, greaterThan(progressBottom + 6));
   });
 
+  testWidgets('기록 캘린더는 좌우 드래그로 이전/다음 달을 전환한다', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final today = DateTime.now();
+    final initialMonthLabel =
+        '${today.year}. ${today.month.toString().padLeft(2, '0')}';
+    final nextMonth = DateTime(today.year, today.month + 1, 1);
+    final nextMonthLabel =
+        '${nextMonth.year}. ${nextMonth.month.toString().padLeft(2, '0')}';
+
+    await tester.pumpWidget(_recordApp(_listPage(records: const [])));
+
+    expect(find.text(initialMonthLabel), findsOneWidget);
+
+    await tester.drag(find.byType(GridView), const Offset(-360, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text(nextMonthLabel), findsOneWidget);
+
+    await tester.drag(find.byType(GridView), const Offset(360, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text(initialMonthLabel), findsOneWidget);
+  });
+
   testWidgets('OOTD만 있는 날짜에서 하루 일과 탭은 하루 일과 empty state를 보여준다', (tester) async {
     final date = DateTime.now();
     final ootdOnlyRecord = OotdRecord(

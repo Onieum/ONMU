@@ -15,18 +15,30 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> {
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
   static const _splashLogoAsset = 'assets/images/splash/ONMU_splash_logo.png';
   static const _splashImageSize = Size(1341, 1173);
   static const _logoCrop = Rect.fromLTWH(420, 130, 520, 270);
   static const _characterCrop = Rect.fromLTWH(180, 380, 980, 710);
 
+  late final AnimationController _progressController;
+  late final Animation<double> _progressAnimation;
+  Timer? _completionTimer;
   bool _completed = false;
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 4800), _complete);
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4800),
+    );
+    _progressAnimation = Tween<double>(begin: 0.08, end: 0.92).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
+    );
+    unawaited(_progressController.forward());
+    _completionTimer = Timer(const Duration(milliseconds: 4800), _complete);
   }
 
   void _complete() {
@@ -35,7 +47,15 @@ class _SplashPageState extends State<SplashPage> {
     }
 
     _completed = true;
+    _progressController.value = 1;
     unawaited(Future<void>.sync(widget.onTimeout));
+  }
+
+  @override
+  void dispose() {
+    _completionTimer?.cancel();
+    _progressController.dispose();
+    super.dispose();
   }
 
   @override
@@ -88,7 +108,9 @@ class _SplashPageState extends State<SplashPage> {
                     top: layout.progressTop,
                     left: 0,
                     right: 0,
-                    child: const Center(child: _SplashProgress()),
+                    child: Center(
+                      child: _SplashProgress(progress: _progressAnimation),
+                    ),
                   ),
                   Positioned(
                     top: layout.progressTop + 28,
@@ -167,31 +189,38 @@ class _SplashMessage extends StatelessWidget {
 }
 
 class _SplashProgress extends StatelessWidget {
-  const _SplashProgress();
+  const _SplashProgress({required this.progress});
+
+  final Animation<double> progress;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 178,
-      height: 10,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFFECE7E3),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: 0.62,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF637B),
-                borderRadius: BorderRadius.circular(999),
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) {
+        return SizedBox(
+          width: 178,
+          height: 10,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFECE7E3),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: progress.value.clamp(0.0, 1.0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF637B),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

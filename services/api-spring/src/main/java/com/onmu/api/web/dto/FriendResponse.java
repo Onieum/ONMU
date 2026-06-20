@@ -11,6 +11,7 @@ public record FriendResponse(
   Map<String, Object> pixelCharacter,
   String memo,
   String introText,
+  String friendshipCreatedAt,
   boolean useDefaultProfileImage,
   boolean favorite
 ) {

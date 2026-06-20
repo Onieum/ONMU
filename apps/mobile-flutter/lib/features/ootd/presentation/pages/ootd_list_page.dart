@@ -52,6 +52,7 @@ class _OotdListPageState extends State<OotdListPage> {
   late DateTime _selectedDay;
   final List<OotdRecord> _allRecords = [];
   final Set<String> _locallyDeletedRecordIds = {};
+  double _calendarHorizontalDragDelta = 0;
 
   final List<Color> _bgColors = [
     AppColors.calendarDatePinkBg,
@@ -528,7 +529,10 @@ class _OotdListPageState extends State<OotdListPage> {
                   physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Column(
-                    children: [_buildCalendarGrid(), SizedBox(height: 32)],
+                    children: [
+                      _buildSwipeableCalendarGrid(),
+                      SizedBox(height: 32),
+                    ],
                   ),
                 ),
               ),
@@ -732,6 +736,26 @@ class _OotdListPageState extends State<OotdListPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSwipeableCalendarGrid() {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _calendarHorizontalDragDelta = 0,
+      onPointerMove: (event) {
+        _calendarHorizontalDragDelta += event.delta.dx;
+      },
+      onPointerUp: (_) {
+        final delta = _calendarHorizontalDragDelta;
+        _calendarHorizontalDragDelta = 0;
+        if (delta < -72) {
+          _nextMonth();
+        } else if (delta > 72) {
+          _prevMonth();
+        }
+      },
+      child: _buildCalendarGrid(),
     );
   }
 

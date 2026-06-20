@@ -495,6 +495,12 @@ final appRouter = GoRouter(
               path: RoutePaths.my,
               builder: (context, state) =>
                   MyPage(resetToken: state.uri.queryParameters['reset']),
+              routes: [
+                GoRoute(
+                  path: 'settings',
+                  builder: (context, state) => const MySettingsPage(),
+                ),
+              ],
             ),
           ],
         ),

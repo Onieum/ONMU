@@ -37,7 +37,9 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     _planStyles = [...widget.profile.planStyles];
     _preferredTimes = [...widget.profile.preferredTimes];
     _preferredWeekdays = [...widget.profile.preferredWeekdays];
-    _unavailableDates = [...widget.profile.unavailableDates];
+    _unavailableDates = [
+      ...visibleUnavailableDates(widget.profile.unavailableDates),
+    ];
   }
 
   @override
@@ -259,12 +261,6 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
     setState(() => target.add(clean));
   }
 
-  String _formatKoreanDate(DateTime date) {
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-    final weekday = weekdays[date.weekday - 1];
-    return '${date.month}/${date.day} ($weekday)';
-  }
-
   Future<void> _pickUnavailableDate() async {
     final now = DateTime.now();
     final picked = await OnmuDatePicker.pickDate(
@@ -279,12 +275,12 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       return;
     }
 
-    final label = _formatKoreanDate(picked);
-    if (_unavailableDates.contains(label)) {
+    final value = formatUnavailableDateForStorage(picked);
+    if (_unavailableDates.contains(value)) {
       return;
     }
 
-    setState(() => _unavailableDates.add(label));
+    setState(() => _unavailableDates.add(value));
   }
 
   Future<void> _save() async {
@@ -299,7 +295,7 @@ class _ProfileSectionEditPageState extends State<_ProfileSectionEditPage> {
       planStyles: _planStyles,
       preferredWeekdays: _preferredWeekdays,
       preferredTimes: _preferredTimes,
-      unavailableDates: _unavailableDates,
+      unavailableDates: visibleUnavailableDates(_unavailableDates),
     );
     setState(() => _isSaving = true);
     try {
@@ -525,7 +521,7 @@ class _CalendarDateSelector extends StatelessWidget {
                     final date = dates[index];
                     return Center(
                       child: _EditableTagChip(
-                        label: date,
+                        label: formatUnavailableDateForDisplay(date),
                         selected: false,
                         onRemove: () => onRemoveDate(date),
                       ),

@@ -1,7 +1,7 @@
 part of 'my_page.dart';
 
-class _SettingsPage extends ConsumerWidget {
-  const _SettingsPage();
+class MySettingsPage extends ConsumerWidget {
+  const MySettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
