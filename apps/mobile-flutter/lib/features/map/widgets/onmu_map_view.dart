@@ -400,22 +400,19 @@ List<OnmuMapPoint> validOnmuMapPoints(Iterable<OnmuMapPoint> points) {
 String onmuMapCameraSeedKey({
   required Iterable<OnmuMapPoint> points,
   required Iterable<OnmuLatLng> routeGeometry,
-  required OnmuLatLng? center,
-  required double zoom,
 }) {
+  // Keep user-driven camera movement out of the platform-view key.
   final coordinates = [
     ...validOnmuMapPoints(points).map((point) => point.coordinate),
     ...validOnmuMapCoordinates(routeGeometry),
-    if (center != null && isValidOnmuLatLng(center)) center,
   ];
-  final coordinateKey = coordinates
+  return coordinates
       .map(
         (coordinate) =>
             '${coordinate.lat.toStringAsFixed(6)},'
             '${coordinate.lng.toStringAsFixed(6)}',
       )
       .join('|');
-  return '${zoom.toStringAsFixed(2)}:$coordinateKey';
 }
 
 @visibleForTesting
@@ -548,28 +545,10 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     final oldCameraSeedKey = onmuMapCameraSeedKey(
       points: oldWidget.points,
       routeGeometry: oldWidget.routeGeometry,
-      center: oldWidget.center,
-      zoom: onmuMapInitialZoomForCoordinates(
-        coordinates: [
-          ...validOnmuMapPoints(
-            oldWidget.points,
-          ).map((point) => point.coordinate),
-          ...validOnmuMapCoordinates(oldWidget.routeGeometry),
-        ],
-        fallbackZoom: oldWidget.zoom,
-      ),
     );
     final nextCameraSeedKey = onmuMapCameraSeedKey(
       points: widget.points,
       routeGeometry: widget.routeGeometry,
-      center: widget.center,
-      zoom: onmuMapInitialZoomForCoordinates(
-        coordinates: [
-          ...validOnmuMapPoints(widget.points).map((point) => point.coordinate),
-          ...validOnmuMapCoordinates(widget.routeGeometry),
-        ],
-        fallbackZoom: widget.zoom,
-      ),
     );
     if (oldCameraSeedKey != nextCameraSeedKey) {
       _styleLoaded = false;
@@ -670,8 +649,6 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     final cameraSeedKey = onmuMapCameraSeedKey(
       points: safePoints,
       routeGeometry: safeRouteGeometry,
-      center: widget.center,
-      zoom: initialZoom,
     );
     final styleUrl = manifest?.styleUrl ?? '';
     final webBootstrapReady =
