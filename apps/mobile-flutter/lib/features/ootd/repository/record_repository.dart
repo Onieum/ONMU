@@ -176,6 +176,7 @@ class ApiRecordRepository implements RecordRepository {
       'visibility': record.isPublic ? 'PUBLIC' : 'PRIVATE',
       'hairStyle': 'hair_style_${record.character.hairStyleIndex}',
       'hairColor': 'hair_color_${record.character.hairColorIndex}',
+      'eyeStyle': 'eye_style_${record.character.eyeShapeIndex}',
       'eyeColor': 'eye_color_${record.character.eyeColorIndex}',
       'payload': _recordPayload(record),
     };

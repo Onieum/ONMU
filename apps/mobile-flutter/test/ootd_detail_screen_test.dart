@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/ootd/presentation/pages/ootd_detail_screen.dart';
@@ -6,36 +6,52 @@ import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 
 void main() {
-  testWidgets('OOTD 상세는 특정 날짜/태그 전용 더미 레이아웃을 사용하지 않는다', (tester) async {
+  testWidgets('OOTD detail renders scrapbook analysis sections', (tester) async {
+    final record = OotdRecord(
+      id: 'ootd-1',
+      date: DateTime(2026, 10, 3),
+      imagePath: '',
+      character: const CharacterDraft(
+        gender: 'female',
+        skinToneIndex: 1,
+        eyeShapeIndex: 1,
+        eyeColorIndex: 2,
+        hairColorIndex: 3,
+        hairStyleIndex: 2,
+      ),
+      moodTags: const ['#카페투어', '#ootd'],
+      weather: 'sunny',
+      mood: 'excited',
+      brands: const {
+        'title': 'OOTD 기록',
+        'todayLook': '베이지와 블랙 조합이 단정하면서도 포인트가 살아있는 룩이에요.',
+        'hairNote': '오늘은 웨이브를 살짝 넣어서 분위기 있게 연출했어요.',
+        'outfitInfoOuter': '베이지 하프코트',
+        'outfitInfoTop': '아이보리 니트',
+        'outfitInfoBottom': '블랙 롱 스커트',
+        'outfitInfoBag': '버건디 숄더백',
+        'outfitInfoShoes': '화이트 삭스 + 로퍼',
+        'point': '가방으로 포인트 주기',
+        'nextSuggestion': '다음엔 니트에 청바지 조합도 좋을 것 같아요.',
+        'rating': '4.0',
+      },
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.lightTheme,
-        home: OotdDetailScreen(record: _seoulCafeRecord),
+        home: OotdDetailScreen(record: record),
       ),
     );
 
-    expect(find.text('2026.10.03 (토)'), findsOneWidget);
-    expect(find.text('OOTD 기록'), findsOneWidget);
-    expect(find.text('#서울카페투어'), findsOneWidget);
-    expect(find.text('서울 카페 투어 ☕'), findsNothing);
-    expect(find.text('지훈'), findsNothing);
+    expect(find.text('OOTD 기록'), findsWidgets);
+    expect(find.text("Today's Look"), findsOneWidget);
+    expect(find.text('HAIR'), findsOneWidget);
+    expect(find.text('OUTFIT INFO'), findsOneWidget);
+    expect(find.text('POINT'), findsOneWidget);
+    expect(find.text('오늘 코디는 어땠나요?'), findsOneWidget);
+    expect(find.text('4.0'), findsOneWidget);
+    expect(find.textContaining('베이지와 블랙'), findsOneWidget);
+    expect(find.textContaining('청바지 조합'), findsOneWidget);
   });
 }
-
-final _seoulCafeRecord = OotdRecord(
-  id: 'record-seoul-cafe',
-  date: DateTime(2026, 10, 3),
-  character: const CharacterDraft(nickname: '나'),
-  moodTags: const ['#서울카페투어', '#데이트'],
-  brands: const {'상의': '아이보리 니트'},
-  weather: 'sunny',
-  mood: 'excited',
-  timeline: const [
-    TimelineItem(
-      time: '13:00',
-      placeName: '기록 기반 카페',
-      category: 'cafe',
-      description: '실제 기록에 저장된 장소입니다.',
-    ),
-  ],
-);

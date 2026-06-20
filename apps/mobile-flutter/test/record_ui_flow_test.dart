@@ -77,11 +77,13 @@ void main() {
 
   testWidgets('OOTD 사진 입력 안내는 전체 코디 1장 기준으로 표시한다', (tester) async {
     await tester.pumpWidget(_recordApp(_ootdRecordScreen()));
+    await tester.tap(find.text('사진으로 생성'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    expect(find.text('사진 선택하기'), findsOneWidget);
-    expect(find.text('상의, 하의, 신발이 보이는 사진 1장'), findsOneWidget);
+    expect(find.text('전체 코디 사진 1장 선택하기'), findsOneWidget);
+    expect(find.textContaining('상의, 하의, 신발, 소품이 최대한 한 장에 보이는 사진'), findsOneWidget);
     expect(find.textContaining('최대 10장'), findsNothing);
   });
 

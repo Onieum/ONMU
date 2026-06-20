@@ -1,227 +1,50 @@
-import 'package:flutter/material.dart';
-import '../../../../core/routing/navigation_extensions.dart';
+﻿import 'package:flutter/material.dart';
+
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/ootd_model.dart';
-import '../../../../shared/widgets/pixel_character.dart';
 import '../../../../shared/widgets/grid_background.dart';
+import '../../../../shared/widgets/pixel_character.dart';
 
 class OotdDetailScreen extends StatelessWidget {
   final OotdRecord record;
 
   const OotdDetailScreen({super.key, required this.record});
 
-  String get _recordTitle {
-    final title = record.brands['title']?.trim();
-    return title == null || title.isEmpty ? 'OOTD 기록' : title;
-  }
-
-  String _formatDateLabel(DateTime date) {
-    final weekday = const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
-    return '${date.year}.${_twoDigits(date.month)}.${_twoDigits(date.day)} ($weekday)';
-  }
-
-  String _twoDigits(int value) => value.toString().padLeft(2, '0');
-
-  String get _moodLabel {
-    return switch (record.mood.trim().toLowerCase()) {
-      'happy' => '😊 신남',
-      'excited' => '🥰 설렘',
-      'calm' => '☕ 차분',
-      'sad' => '🌧️ 차분',
-      _ => '🙂 보통',
-    };
-  }
-
-  String get _weatherLabel {
-    return switch (record.weather.trim().toLowerCase()) {
-      'sunny' => '맑음',
-      'cloudy' => '구름',
-      'rainy' || 'rain' => '비',
-      'snowy' || 'snow' => '눈',
-      _ => '날씨 미정',
-    };
-  }
-
-  IconData get _weatherIcon {
-    return switch (record.weather.trim().toLowerCase()) {
-      'sunny' => Icons.wb_sunny,
-      'rainy' || 'rain' => Icons.umbrella_outlined,
-      'snowy' || 'snow' => Icons.ac_unit,
-      _ => Icons.wb_cloudy_outlined,
-    };
-  }
-
-  Color get _weatherColor {
-    return switch (record.weather.trim().toLowerCase()) {
-      'sunny' => AppColors.accentOrange,
-      'rainy' || 'rain' => AppColors.accentBlue,
-      'snowy' || 'snow' => AppColors.accentBlue,
-      _ => AppColors.textMuted,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
-        backgroundColor: AppColors.transparent,
-        elevation: 0,
+        title: const Text('OOTD 기록'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textMain),
-          onPressed: () => context.popOrGo(RoutePaths.records),
-        ),
-        title: Text(
-          '${record.date.year}.${record.date.month}.${record.date.day} 다이어리',
-          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: AppColors.textMain),
+            icon: const Icon(Icons.more_horiz),
             onPressed: () {},
           ),
         ],
       ),
-      body: GridBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. 헤더 영역 (기록 제목 & 날짜)
-              _buildTitleHeader(),
-              SizedBox(height: 16),
-
-              _buildStandardOotdDetail(),
-              SizedBox(height: 24),
-
-              // 3. 동행인 정보 & 날씨 & 기분
-              _buildMetaStatsCard(),
-              SizedBox(height: 24),
-
-              // 4. 시간별 타임라인
-              _buildTimelineListSection(),
-              SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTitleHeader() {
-    return Center(
-      child: Column(
-        children: [
-          Text(
-            _formatDateLabel(record.date),
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.primaryPink,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            _recordTitle,
-            style: AppTextStyles.headlineMedium.copyWith(
-              color: AppColors.textMain,
-            ),
-          ),
-          SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: record.moodTags.map((tag) {
-              return Text(
-                tag,
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.textSub,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    _Header(record: record),
+                    const SizedBox(height: 18),
+                    _ScrapbookBoard(record: record),
+                    const SizedBox(height: 16),
+                    _RatingAndSuggestion(record: record),
+                    const SizedBox(height: 16),
+                    _BottomActions(recordId: record.id),
+                  ],
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 일반적인 OOTD 화면
-  Widget _buildStandardOotdDetail() {
-    return Center(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.bgPaper,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.lineBrown, width: 1.5),
-        ),
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // 옷장 사진 대체용 캐릭터 빅 렌더링
-                PixelCharacterWidget(character: record.character, size: 140),
-                // 마스킹 테이프 장식 데코
-                Positioned(
-                  top: 0,
-                  child: Container(
-                    width: 60,
-                    height: 14,
-                    color: AppColors.accentOrange.withOpacity(0.4),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            // 브랜드 리스트박스
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.lineSoft),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'BRAND INFO 👕',
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.primaryPurple,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  if (record.brands.isEmpty)
-                    Text(
-                      '의상 정보가 비어있습니다.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    )
-                  else
-                    ...record.brands.entries.map((e) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            Text(
-                              '${e.key}: ',
-                              style: AppTextStyles.labelMedium.copyWith(
-                                color: AppColors.textSub,
-                              ),
-                            ),
-                            Text(
-                              e.value,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textMain,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                ],
               ),
             ),
           ],
@@ -229,165 +52,544 @@ class OotdDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildMetaStatsCard() {
+class _Header extends StatelessWidget {
+  final OotdRecord record;
+
+  const _Header({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          _formatDate(record.date),
+          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSub),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _brand(record, 'title', fallback: 'OOTD 기록'),
+          style: AppTextStyles.headlineLarge.copyWith(color: AppColors.textMain),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: record.moodTags
+              .map(
+                (tag) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryPinkSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    tag,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryPink),
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScrapbookBoard extends StatelessWidget {
+  final OotdRecord record;
+
+  const _ScrapbookBoard({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.bgPaper,
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.lineSoft),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: GridBackground(
+        gridSize: 18,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 360;
+            final avatar = _AvatarCard(record: record);
+            final look = _PaperNote(
+              title: "Today's Look",
+              titleStyle: _NoteTitleStyle.hand,
+              body: _brand(
+                record,
+                'todayLook',
+                fallback: '오늘의 코디를 분석하고 있어요. 생성이 완료되면 룩 설명이 여기에 표시돼요.',
+              ),
+            );
+            final hair = _PaperNote(
+              title: 'HAIR',
+              body: _brand(record, 'hairNote', fallback: '오늘만 선택한 헤어 스타일과 컬러를 반영했어요.'),
+              tapeColor: const Color(0xFFFFD6C8),
+            );
+            final weather = _MiniStatusCard(
+              title: 'WEATHER',
+              icon: _weatherIcon(record.weather),
+              value: _weatherLabel(record.weather),
+            );
+            final mood = _MiniStatusCard(
+              title: 'MOOD',
+              icon: _moodIcon(record.mood),
+              value: _moodLabel(record.mood),
+            );
+            final point = _PaperNote(
+              title: 'POINT',
+              body: _brand(record, 'point', fallback: '오늘 코디의 포인트를 기록해 보세요.'),
+              tapeColor: AppColors.primaryPinkSoft,
+            );
+            final outfit = _OutfitInfoCard(record: record);
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  look,
+                  const SizedBox(height: 18),
+                  avatar,
+                  const SizedBox(height: 18),
+                  hair,
+                  const SizedBox(height: 12),
+                  Row(children: [Expanded(child: mood), const SizedBox(width: 10), Expanded(child: weather)]),
+                  const SizedBox(height: 12),
+                  point,
+                  const SizedBox(height: 16),
+                  outfit,
+                  const SizedBox(height: 18),
+                  _TagSection(tags: record.moodTags),
+                ],
+              );
+            }
+
+            return Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 9, child: look),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 8, child: hair),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(flex: 8, child: mood),
+                    Expanded(flex: 10, child: avatar),
+                    Expanded(flex: 8, child: weather),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 8, child: point),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 10, child: outfit),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                _TagSection(tags: record.moodTags),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarCard extends StatelessWidget {
+  final OotdRecord record;
+
+  const _AvatarCard({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _brand(record, 'generatedImageUrl');
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgWarm.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      alignment: Alignment.center,
+      child: imageUrl.isEmpty
+          ? PixelCharacterWidget(character: record.character, size: 220)
+          : Image.network(
+              imageUrl,
+              height: 260,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) =>
+                  PixelCharacterWidget(character: record.character, size: 220),
+            ),
+    );
+  }
+}
+
+class _PaperNote extends StatelessWidget {
+  final String title;
+  final String body;
+  final Color tapeColor;
+  final _NoteTitleStyle titleStyle;
+
+  const _PaperNote({
+    required this.title,
+    required this.body,
+    this.tapeColor = AppColors.primaryPinkSoft,
+    this.titleStyle = _NoteTitleStyle.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.88),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: titleStyle == _NoteTitleStyle.hand
+                    ? AppTextStyles.headlineMedium.copyWith(color: AppColors.primaryPink)
+                    : AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                body,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.55),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: -10,
+          right: 18,
+          child: Transform.rotate(
+            angle: -0.08,
+            child: Container(
+              width: 72,
+              height: 18,
+              decoration: BoxDecoration(
+                color: tapeColor.withOpacity(0.78),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _NoteTitleStyle { label, hand }
+
+class _MiniStatusCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String value;
+
+  const _MiniStatusCard({required this.title, required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.86),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.lineSoft),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 동행
-          Column(
+          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSub)),
+          const SizedBox(height: 10),
+          Row(
             children: [
-              Text(
-                'WITH',
-                style: AppTextStyles.sticker.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: AppColors.primaryPinkSoft,
-                    child: Text(
-                      '나',
-                      style: AppTextStyles.sticker.copyWith(
-                        color: AppColors.primaryPink,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                ],
-              ),
-            ],
-          ),
-          // 기분
-          Column(
-            children: [
-              Text(
-                'MOOD',
-                style: AppTextStyles.sticker.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                _moodLabel,
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.textMain,
-                ),
-              ),
-            ],
-          ),
-          // 날씨
-          Column(
-            children: [
-              Text(
-                'WEATHER',
-                style: AppTextStyles.sticker.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(_weatherIcon, size: 14, color: _weatherColor),
-                  SizedBox(width: 4),
-                  Text(
-                    _weatherLabel,
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                ],
-              ),
+              Icon(icon, color: AppColors.primaryPink, size: 24),
+              const SizedBox(width: 8),
+              Expanded(child: Text(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain))),
             ],
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTimelineListSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '오늘 하루의 기록 상세 📍',
-          style: AppTextStyles.labelLarge.copyWith(color: AppColors.textMain),
-        ),
-        SizedBox(height: 14),
-        if (record.timeline.isEmpty)
-          Text(
-            '추가된 타임라인 경로가 없습니다.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: record.timeline.length,
-            itemBuilder: (context, index) {
-              final item = record.timeline[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryPurpleSoft,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.time,
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: AppColors.primaryPurple,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+class _OutfitInfoCard extends StatelessWidget {
+  final OotdRecord record;
+
+  const _OutfitInfoCard({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _OutfitItem(Icons.checkroom_outlined, 'outer', _brand(record, 'outfitInfoOuter', fallback: 'AI 분석 대기 중')),
+      _OutfitItem(Icons.dry_cleaning_outlined, 'top', _brand(record, 'outfitInfoTop', fallback: 'AI 분석 대기 중')),
+      _OutfitItem(Icons.accessibility_new_outlined, 'bottom', _brand(record, 'outfitInfoBottom', fallback: 'AI 분석 대기 중')),
+      _OutfitItem(Icons.work_outline, 'bag', _brand(record, 'outfitInfoBag', fallback: 'AI 분석 대기 중')),
+      _OutfitItem(Icons.ice_skating_outlined, 'shoes', _brand(record, 'outfitInfoShoes', fallback: 'AI 분석 대기 중')),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryPinkSoft,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text('OUTFIT INFO', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+          ),
+          const SizedBox(height: 14),
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(item.icon, size: 22, color: AppColors.textSub),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.35),
                           children: [
-                            Text(
-                              item.placeName,
-                              style: AppTextStyles.labelLarge.copyWith(
-                                color: AppColors.textMain,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              item.description,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSub,
-                                height: 1.4,
-                              ),
-                            ),
+                            TextSpan(text: '${item.label}\n', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+                            TextSpan(text: item.value),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              );
-            },
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutfitItem {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _OutfitItem(this.icon, this.label, this.value);
+}
+
+class _TagSection extends StatelessWidget {
+  final List<String> tags;
+
+  const _TagSection({required this.tags});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 18),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.lineSoft, style: BorderStyle.solid)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("TODAY'S TAG", style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: tags
+                .map(
+                  (tag) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPinkSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(tag, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMain)),
+                  ),
+                )
+                .toList(growable: false),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RatingAndSuggestion extends StatelessWidget {
+  final OotdRecord record;
+
+  const _RatingAndSuggestion({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = double.tryParse(_brand(record, 'rating')) ?? 0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('오늘 코디는 어땠나요?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ...List.generate(
+                      5,
+                      (index) => Icon(
+                        index < rating.round() ? Icons.star : Icons.star_border,
+                        color: const Color(0xFFFFB84D),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(rating.toStringAsFixed(1), style: AppTextStyles.labelSmall),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              _brand(record, 'nextSuggestion', fallback: '다음 코디 메모를 남겨보세요.'),
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomActions extends StatelessWidget {
+  final String? recordId;
+
+  const _BottomActions({required this.recordId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              if (recordId != null && recordId!.isNotEmpty) {
+                Navigator.of(context).pushNamed('${RoutePaths.records}/$recordId/edit');
+              }
+            },
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('수정하기'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.download_outlined),
+            label: const Text('저장하기'),
+          ),
+        ),
       ],
     );
   }
+}
+
+String _brand(OotdRecord record, String key, {String fallback = ''}) {
+  final value = record.brands[key]?.trim();
+  return value == null || value.isEmpty ? fallback : value;
+}
+
+String _formatDate(DateTime date) {
+  const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  return '${date.year}.${_two(date.month)}.${_two(date.day)} (${weekdays[date.weekday - 1]})';
+}
+
+String _two(int value) => value.toString().padLeft(2, '0');
+
+String _weatherLabel(String weather) {
+  return switch (weather.toLowerCase()) {
+    'sunny' => '맑음',
+    'cloudy' => '흐림',
+    'rainy' || 'rain' => '비',
+    'snowy' || 'snow' => '눈',
+    _ => '맑음',
+  };
+}
+
+IconData _weatherIcon(String weather) {
+  return switch (weather.toLowerCase()) {
+    'cloudy' => Icons.cloud_outlined,
+    'rainy' || 'rain' => Icons.water_drop_outlined,
+    'snowy' || 'snow' => Icons.ac_unit,
+    _ => Icons.wb_sunny_outlined,
+  };
+}
+
+String _moodLabel(String mood) {
+  return switch (mood.toLowerCase()) {
+    'excited' => '신남',
+    'calm' => '평온',
+    'tired' => '피곤',
+    _ => '행복',
+  };
+}
+
+IconData _moodIcon(String mood) {
+  return switch (mood.toLowerCase()) {
+    'excited' => Icons.celebration_outlined,
+    'calm' => Icons.air,
+    'tired' => Icons.mode_night_outlined,
+    _ => Icons.sentiment_satisfied_alt_outlined,
+  };
 }
