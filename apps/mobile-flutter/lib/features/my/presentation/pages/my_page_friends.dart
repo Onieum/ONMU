@@ -86,7 +86,7 @@ class _FriendsTabState extends State<_FriendsTab> {
 
   String get _sortLabel {
     return switch (_sortOrder) {
-      _FriendSortOrder.recent => '최근 추가순',
+      _FriendSortOrder.recent => '최근 등록순',
       _FriendSortOrder.name => '가나다순',
     };
   }
@@ -230,7 +230,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                     itemBuilder: (context) => const [
                       PopupMenuItem(
                         value: _FriendSortOrder.recent,
-                        child: Text('최근 추가순'),
+                        child: Text('최근 등록순'),
                       ),
                       PopupMenuItem(
                         value: _FriendSortOrder.name,
