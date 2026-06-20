@@ -181,13 +181,13 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
+          subtitle: '사진 없이 색상, 소재, 핏, 소품 설명으로 의상 스타일을 생성해요.',
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
         const _InfoBox(
           icon: Icons.info_outline,
-          text:
-              '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 반영해요.',
+          text: '사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 반영해요.',
         ),
       ],
     );
@@ -380,15 +380,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           const _InfoBox(
             icon: Icons.auto_awesome,
             text: '오늘만 바꿀 헤어/눈 스타일로 OOTD를 생성해요.',
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _openStylePickerSheet,
-              icon: const Icon(Icons.tune_rounded),
-              label: const Text('헤어/눈 스타일 변경하기'),
-            ),
           ),
         ] else
           const _InfoBox(
@@ -1077,7 +1068,21 @@ class _OptionGroup extends StatelessWidget {
             style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
           ),
           const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: children),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = ((constraints.maxWidth - 16) / 3)
+                  .clamp(88.0, constraints.maxWidth)
+                  .toDouble();
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final child in children)
+                    SizedBox(width: itemWidth, child: child),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -1111,37 +1116,27 @@ class _ChoicePill extends StatelessWidget {
           width: selected ? 2 : 1,
         ),
       ),
-      child: Row(
-        mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: 18,
-            child: selected
-                ? const Icon(
-                    Icons.check_rounded,
-                    color: AppColors.primaryPink,
-                    size: 18,
-                  )
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(width: 6),
-          if (width == null)
-            Text(
+          Padding(
+            padding: EdgeInsets.only(right: selected ? 18 : 0),
+            child: Text(
               label,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: AppTextStyles.labelSmall.copyWith(
                 color: selected ? AppColors.primaryPink : AppColors.textMain,
               ),
-            )
-          else
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: selected ? AppColors.primaryPink : AppColors.textMain,
-                ),
+            ),
+          ),
+          if (selected)
+            const Positioned(
+              right: 0,
+              child: Icon(
+                Icons.check_rounded,
+                color: AppColors.primaryPink,
+                size: 18,
               ),
             ),
         ],
