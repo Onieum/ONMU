@@ -301,10 +301,11 @@ void main() {
       today.month,
       today.day,
     ).add(const Duration(days: 2));
-    final expectedRecommendedDate = _firstMatchingWeekday(
-      initialDate,
-      {DateTime.friday, DateTime.saturday, DateTime.sunday},
-    );
+    final expectedRecommendedDate = _firstMatchingWeekday(initialDate, {
+      DateTime.friday,
+      DateTime.saturday,
+      DateTime.sunday,
+    });
 
     await _pumpRangePicker(
       tester,
@@ -345,10 +346,23 @@ void main() {
   testWidgets(
     'multi-day range shows in-range recommendation dates as read-only visit days',
     (tester) async {
+      final startDate = _firstMatchingWeekday(
+        DateTime.now().add(const Duration(days: 1)),
+        {DateTime.friday},
+      );
+      final middleDate = startDate.add(const Duration(days: 1));
+      final endDate = startDate.add(const Duration(days: 2));
+      final outsideDate = startDate.add(const Duration(days: 7));
+
       await _pumpRangePicker(
         tester,
-        initialStart: DateTime(2026, 6, 20, 14),
-        initialEnd: DateTime(2026, 6, 22, 16),
+        initialStart: DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          14,
+        ),
+        initialEnd: DateTime(endDate.year, endDate.month, endDate.day, 16),
         participantPreferences: [
           PreferenceProfile.empty().copyWith(
             preferredWeekdays: ['금요일', '토요일', '일요일'],
@@ -362,15 +376,15 @@ void main() {
       expect(find.text('선택 범위의 추천 방문일'), findsOneWidget);
       expect(find.text('시작 날짜의 추천 시간대'), findsOneWidget);
       expect(find.text('선택한 날짜의 추천 시간대'), findsNothing);
-      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
-      expect(find.text('6월 21일 (일)'), findsOneWidget);
-      expect(find.text('6월 26일 (금)'), findsNothing);
+      expect(find.text(_expectedDateLabel(startDate)), findsNWidgets(2));
+      expect(find.text(_expectedDateLabel(middleDate)), findsOneWidget);
+      expect(find.text(_expectedDateLabel(outsideDate)), findsNothing);
 
-      await tester.tap(find.text('6월 21일 (일)'));
+      await tester.tap(find.text(_expectedDateLabel(middleDate)));
       await tester.pumpAndSettle();
 
-      expect(find.text('6월 20일 (토)'), findsNWidgets(2));
-      expect(find.text('6월 21일 (일)'), findsOneWidget);
+      expect(find.text(_expectedDateLabel(startDate)), findsNWidgets(2));
+      expect(find.text(_expectedDateLabel(middleDate)), findsOneWidget);
     },
   );
 

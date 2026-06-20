@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -51,6 +52,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   Uint8List? _photoBytes;
   String? _photoFileName;
   OotdAvatarGenerationJob? _generationJob;
+  Timer? _generationPollTimer;
   late CharacterDraft _styleCharacter;
   late bool _changeStyle;
   late String _weather;
@@ -89,6 +91,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   @override
   void dispose() {
+    _generationPollTimer?.cancel();
     _descriptionController.dispose();
     _memoController.dispose();
     _tagController.dispose();
@@ -161,7 +164,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(
+        const _SectionTitle(
           title: 'AI OOTD 생성 방식',
           subtitle: '사진 또는 텍스트 중 하나만 선택해서 오늘의 코디를 캐릭터에 입혀요.',
         ),
@@ -170,7 +173,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isPhotoMode,
           icon: Icons.photo_camera_outlined,
           title: '사진으로 생성',
-          subtitle: '전체 코디가 보이는 사진 1장을 참고해 의상을 분석해요.',
+          subtitle: '전체 코디가 보이는 사진 1장을 참고해 의상 스타일을 분석해요.',
           onTap: () => setState(() => _inputMode = _photoMode),
         ),
         const SizedBox(height: 12),
@@ -178,14 +181,13 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: '사진 없이 옷 설명만으로 OOTD 캐릭터를 만들어요.',
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
-        _InfoBox(
+        const _InfoBox(
           icon: Icons.info_outline,
           text:
-              '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 사용합니다.',
+              '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 반영해요.',
         ),
       ],
     );
@@ -198,8 +200,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         _SectionTitle(
           title: _isPhotoMode ? 'OOTD 사진 선택' : '코디 설명 입력',
           subtitle: _isPhotoMode
-              ? '상의, 하의, 신발, 소품이 최대한 한 장에 보이는 사진을 선택해 주세요.'
-              : '색상, 소재, 핏, 소품을 자세히 적을수록 더 잘 반영돼요.',
+              ? '상의, 하의, 신발이 잘 보이는 전체 코디 사진을 올려주세요.'
+              : '색상, 소재, 핏, 소품까지 자세히 적을수록 결과가 좋아요.',
         ),
         const SizedBox(height: 18),
         if (_isPhotoMode) _buildPhotoPicker() else _buildDescriptionField(),
@@ -238,7 +240,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '상의/하의/신발을 따로 올리기보다 한 장에 보이게 찍어주세요.',
+                    '상의, 하의, 신발, 가방 같은 주요 아이템이 한 장에 보이도록 찍어주세요.',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSub,
@@ -263,7 +265,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       maxLines: 8,
       maxLength: 240,
       decoration: const InputDecoration(
-        hintText: '예: 아이보리 니트, 블랙 롱 스커트, 버건디 숄더백, 화이트 삭스와 로퍼',
+        hintText: '예: 아이보리 니트, 블랙 롱스커트, 버건디 숄더백, 화이트 양말과 로퍼',
       ),
     );
   }
@@ -272,7 +274,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('한줄 메모', style: AppTextStyles.labelSmall),
+        Text('메모', style: AppTextStyles.labelSmall),
         const SizedBox(height: 8),
         TextField(
           controller: _memoController,
@@ -349,10 +351,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
               child: _ToggleCard(
                 label: '변경하기',
                 selected: _changeStyle,
-                onTap: () => setState(() {
-                  _changeStyle = true;
-                  _styleCharacter = _styleCharacter;
-                }),
+                onTap: () {
+                  setState(() => _changeStyle = true);
+                  _openStylePickerSheet();
+                },
               ),
             ),
           ],
@@ -375,56 +377,25 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         ),
         const SizedBox(height: 20),
         if (_changeStyle) ...[
-          _OptionGroup(
-            title: '헤어스타일',
-            children: List.generate(
-              6,
-              (index) => _ChoicePill(
-                key: ValueKey('hairStyleOption-$index'),
-                label: '머리 ${index + 1}',
-                selected: _styleCharacter.hairStyleIndex == index,
-                onTap: () => setState(
-                  () => _styleCharacter = _styleCharacter.copyWith(
-                    hairStyleIndex: index,
-                  ),
-                ),
-              ),
-            ),
+          const _InfoBox(
+            icon: Icons.auto_awesome,
+            text: '오늘만 바꿀 헤어/눈 스타일로 OOTD를 생성해요.',
           ),
-          _OptionGroup(
-            title: '머리색',
-            children: List.generate(
-              CharacterDraft.hairColors.length,
-              (index) => _ColorChoice(
-                key: ValueKey('hairColorOption-$index'),
-                colorHex: CharacterDraft.hairColors[index],
-                selected: _styleCharacter.hairColorIndex == index,
-                onTap: () => setState(
-                  () => _styleCharacter = _styleCharacter.copyWith(
-                    hairColorIndex: index,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          _OptionGroup(
-            title: '눈색 / 렌즈',
-            children: List.generate(
-              CharacterDraft.eyeColors.length,
-              (index) => _ColorChoice(
-                key: ValueKey('eyeColorOption-$index'),
-                colorHex: CharacterDraft.eyeColors[index],
-                selected: _styleCharacter.eyeColorIndex == index,
-                onTap: () => setState(
-                  () => _styleCharacter = _styleCharacter.copyWith(
-                    eyeColorIndex: index,
-                  ),
-                ),
-              ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openStylePickerSheet,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('헤어/눈 스타일 변경하기'),
             ),
           ),
         ] else
-          _InfoBox(icon: Icons.auto_awesome, text: '기본 캐릭터 스타일로 OOTD를 생성해요.'),
+          const _InfoBox(
+            icon: Icons.auto_awesome,
+            text: '기본 캐릭터 스타일로 OOTD를 생성해요.',
+          ),
+        const SizedBox(height: 24),
         _OptionGroup(
           title: '오늘 날씨',
           children: _weatherOptions
@@ -471,10 +442,125 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           maxLines: 2,
           decoration: const InputDecoration(
             labelText: '다음엔 이렇게 입고 싶어요',
-            hintText: '예: 니트에 청바지 조합도 좋을 것 같아요.',
+            hintText: '예: 니트에 청바지 조합도 좋을 것 같아요',
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openStylePickerSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void updateCharacter(CharacterDraft character) {
+              setState(() => _styleCharacter = character);
+              setSheetState(() {});
+            }
+
+            return SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  18,
+                  24,
+                  24 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.lineSoft,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      '오늘만 스타일 변경',
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: AppColors.textMain,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'OOTD 생성에만 사용할 헤어와 렌즈 컬러를 골라주세요.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSub,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _OptionGroup(
+                      title: '헤어스타일',
+                      children: List.generate(
+                        6,
+                        (index) => _ChoicePill(
+                          key: ValueKey('hairStyleOption-$index'),
+                          label: '머리 ${index + 1}',
+                          width: 96,
+                          selected: _styleCharacter.hairStyleIndex == index,
+                          onTap: () => updateCharacter(
+                            _styleCharacter.copyWith(hairStyleIndex: index),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _OptionGroup(
+                      title: '머리색',
+                      children: List.generate(
+                        CharacterDraft.hairColors.length,
+                        (index) => _ColorChoice(
+                          key: ValueKey('hairColorOption-$index'),
+                          colorHex: CharacterDraft.hairColors[index],
+                          selected: _styleCharacter.hairColorIndex == index,
+                          onTap: () => updateCharacter(
+                            _styleCharacter.copyWith(hairColorIndex: index),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _OptionGroup(
+                      title: '눈색 / 렌즈',
+                      children: List.generate(
+                        CharacterDraft.eyeColors.length,
+                        (index) => _ColorChoice(
+                          key: ValueKey('eyeColorOption-$index'),
+                          colorHex: CharacterDraft.eyeColors[index],
+                          selected: _styleCharacter.eyeColorIndex == index,
+                          onTap: () => updateCharacter(
+                            _styleCharacter.copyWith(eyeColorIndex: index),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('선택 완료'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -635,13 +721,19 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       if (savedId == null || savedId.isEmpty) {
         throw StateError('ootd_record_id_missing');
       }
+      final savedOutfitPhotoMediaId = _isPhotoMode && saved.media.isNotEmpty
+          ? saved.media.first.id
+          : null;
+      if (_isPhotoMode &&
+          (savedOutfitPhotoMediaId == null ||
+              savedOutfitPhotoMediaId.isEmpty)) {
+        throw StateError('ootd_record_media_id_missing');
+      }
 
       final job = await repository.createAvatarGeneration(
         recordId: savedId,
         inputType: inputType,
-        outfitPhotoMediaId: _isPhotoMode
-            ? uploaded?.id ?? uploaded?.storageKey
-            : null,
+        outfitPhotoMediaId: _isPhotoMode ? savedOutfitPhotoMediaId : null,
         outfitDescription: _isTextMode
             ? _descriptionController.text.trim()
             : null,
@@ -654,10 +746,11 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         _isSaving = false;
         _step = 3;
       });
+      _startGenerationPolling(resolved.jobId);
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      _showMessage('OOTD 저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      _showMessage('OOTD 생성 요청에 실패했어요. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -666,11 +759,35 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     OotdAvatarGenerationJob initial,
   ) async {
     var current = initial;
-    for (var attempt = 0; attempt < 6 && current.isPending; attempt += 1) {
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+    for (var attempt = 0; attempt < 3 && current.isPending; attempt += 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
       current = await repository.fetchAvatarGeneration(current.jobId);
     }
     return current;
+  }
+
+  void _startGenerationPolling(String jobId) {
+    _generationPollTimer?.cancel();
+    _generationPollTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) async {
+      try {
+        final repository = ref.read(recordRepositoryProvider);
+        final latest = await repository.fetchAvatarGeneration(jobId);
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() => _generationJob = latest);
+        if (!latest.isPending) {
+          timer.cancel();
+        }
+      } catch (_) {
+        if (!mounted) {
+          timer.cancel();
+        }
+      }
+    });
   }
 
   Map<String, String> _buildBrands(String inputType, UploadedMedia? uploaded) {
@@ -718,9 +835,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   String _todayLook(String outfitDescription) {
     if (_isPhotoMode) {
-      return '오늘 선택한 사진을 바탕으로 전체 코디의 색감, 소재, 소품 포인트를 분석하고 있어요.';
+      return '오늘 선택한 사진을 바탕으로 전체 코디의 색감, 소재, 포인트를 분석하고 있어요.';
     }
-    return '$outfitDescription 조합으로 오늘만의 분위기를 살린 OOTD예요.';
+    return '$outfitDescription 조합으로 오늘만의 분위기를 담은 OOTD예요.';
   }
 
   String get _hairNote {
@@ -747,7 +864,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   String get _defaultNextSuggestion => '다음엔 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
-
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -972,24 +1088,70 @@ class _ChoicePill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final double? width;
 
   const _ChoicePill({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      selected: selected,
-      label: Text(label),
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.primaryPinkSoft,
-      side: BorderSide(
-        color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+    final content = AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+          width: selected ? 2 : 1,
+        ),
       ),
+      child: Row(
+        mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 18,
+            child: selected
+                ? const Icon(
+                    Icons.check_rounded,
+                    color: AppColors.primaryPink,
+                    size: 18,
+                  )
+                : const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 6),
+          if (width == null)
+            Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: selected ? AppColors.primaryPink : AppColors.textMain,
+              ),
+            )
+          else
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: selected ? AppColors.primaryPink : AppColors.textMain,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: width == null ? content : SizedBox(width: width, child: content),
     );
   }
 }
@@ -1051,7 +1213,7 @@ class _RatingPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '?? ?? ??',
+          '오늘의 코디 별점',
           style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
         ),
         const SizedBox(height: 10),

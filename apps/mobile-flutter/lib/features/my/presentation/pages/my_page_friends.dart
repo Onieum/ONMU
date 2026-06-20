@@ -1,4 +1,4 @@
-part of 'my_page.dart';
+﻿part of 'my_page.dart';
 
 class _FriendsTab extends StatefulWidget {
   const _FriendsTab({
@@ -93,9 +93,9 @@ class _FriendsTabState extends State<_FriendsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final favoriteFriends = _sortedFriends(
-      widget.friends.where((friend) => friend.isFavorite),
-    );
+    final favoriteFriends = widget.friends
+        .where((friend) => friend.isFavorite)
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +115,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                   ),
                   decoration: InputDecoration(
                     constraints: const BoxConstraints.tightFor(height: 56),
-                    hintText: '친구 검색',
+                    hintText: '친구 이름 검색',
                     prefixIcon: const Icon(
                       Icons.search,
                       color: AppColors.textSub,
@@ -271,7 +271,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
-                    child: Text('검색 결과가 없어요.', style: AppTextStyles.bodyMedium),
+                    child: Text('검색 결과가 없어요', style: AppTextStyles.bodyMedium),
                   ),
                 ),
             ],
@@ -348,7 +348,7 @@ class _KeywordPreferenceCard extends StatelessWidget {
           _InfoRow(
             icon: Icons.no_meals_rounded,
             iconColor: AppColors.textSub,
-            label: '피하고 싶은 음식/메뉴',
+            label: '싫어하는 음식/메뉴',
             trailingWidget: _KeywordScroller(
               children: [
                 for (final keyword in profile.dislikedFoodTags.take(4))
@@ -581,7 +581,7 @@ class _PlacePreferenceCard extends StatelessWidget {
         children: [
           _SectionTitle(
             title: title,
-            actionLabel: showAction && onEdit != null ? '편집' : null,
+            actionLabel: showAction ? '편집' : null,
             onAction: showAction ? onEdit : null,
             detailLabel: onDetail == null ? null : '상세 >',
             onDetail: onDetail,
@@ -744,7 +744,7 @@ class _AddFavoriteFriendButton extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '추가',
+              '??⑤베堉?',
               style: AppTextStyles.labelMedium.copyWith(
                 color: AppColors.primaryPurple,
                 fontWeight: FontWeight.w900,
@@ -804,7 +804,7 @@ class _FavoriteFriendPickerSheetState
             Row(
               children: [
                 Text(
-                  '즐겨찾기 추가',
+                  '즐겨찾는 친구 추가',
                   style: AppTextStyles.titleMedium.copyWith(
                     color: AppColors.textMain,
                     fontWeight: FontWeight.w900,
@@ -841,7 +841,7 @@ class _FavoriteFriendPickerSheetState
                         padding: const EdgeInsets.symmetric(vertical: 28),
                         child: Center(
                           child: Text(
-                            '추가할 친구가 없어요.',
+                            '추가할 친구가 없어요',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textMuted,
                             ),
