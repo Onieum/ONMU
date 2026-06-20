@@ -24,7 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 public class SpringAccessLogFilter extends OncePerRequestFilter {
   private static final Logger logger = LoggerFactory.getLogger(SpringAccessLogFilter.class);
-  private static final String DEFAULT_ACCESS_LOG_PATH = "logs/api-access.log";
+  private static final String DEFAULT_ACCESS_LOG_PATH = "";
   private static final int MAX_CLIENT_LENGTH = 80;
   private static final int MAX_ORIGIN_LENGTH = 200;
   private static final int MAX_REQUEST_ID_LENGTH = 80;
@@ -35,11 +35,12 @@ public class SpringAccessLogFilter extends OncePerRequestFilter {
 
   public SpringAccessLogFilter(ObjectMapper objectMapper, Environment environment) {
     this.objectMapper = objectMapper;
-    this.accessLogPath = Path.of(firstPresent(
+    String configuredPath = firstPresent(
       environment.getProperty("ONMU_ACCESS_LOG_PATH"),
       environment.getProperty("onmu.access-log.path"),
       DEFAULT_ACCESS_LOG_PATH
-    ));
+    );
+    this.accessLogPath = StringUtils.hasText(configuredPath) ? Path.of(configuredPath) : null;
   }
 
   @Override
@@ -78,23 +79,27 @@ public class SpringAccessLogFilter extends OncePerRequestFilter {
     fields.put("runtime", "spring");
 
     try {
-      appendJsonLine(fields);
+      String line = objectMapper.writeValueAsString(fields);
+      logger.info("api_access {}", line);
+      appendJsonLine(line);
     } catch (IOException ex) {
       logger.warn("Spring access log write failed: {}", ex.getClass().getSimpleName());
     }
   }
 
-  private void appendJsonLine(Map<String, Object> fields) throws IOException {
+  private void appendJsonLine(String line) throws IOException {
+    if (accessLogPath == null) {
+      return;
+    }
     Path parent = accessLogPath.getParent();
     if (parent != null) {
       Files.createDirectories(parent);
     }
 
-    String line = objectMapper.writeValueAsString(fields) + System.lineSeparator();
     synchronized (WRITE_LOCK) {
       Files.writeString(
         accessLogPath,
-        line,
+        line + System.lineSeparator(),
         StandardCharsets.UTF_8,
         StandardOpenOption.CREATE,
         StandardOpenOption.APPEND
@@ -162,6 +167,6 @@ public class SpringAccessLogFilter extends OncePerRequestFilter {
         return value;
       }
     }
-    return DEFAULT_ACCESS_LOG_PATH;
+    return "";
   }
 }

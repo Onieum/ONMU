@@ -378,6 +378,8 @@ module "container_apps" {
       AZURE_CLIENT_ID            = module.key_vault[0].runtime_identity_client_id
       OBJECT_STORAGE_PROVIDER    = "azure_blob"
       ONMU_ENV                   = local.environment
+      ONMU_WORKER_CONNECT_TIMEOUT_MS = "5000"
+      ONMU_WORKER_READ_TIMEOUT_MS    = "180000"
       SERVER_ADDRESS             = "0.0.0.0"
       SERVER_PORT                = "8080"
       SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
@@ -417,7 +419,7 @@ module "container_apps" {
     name         = module.naming.worker_container_app_name
     image        = var.worker_image
     target_port  = 8000
-    min_replicas = 0
+    min_replicas = 1
     max_replicas = 1
     cpu          = 0.5
     memory       = "1Gi"
