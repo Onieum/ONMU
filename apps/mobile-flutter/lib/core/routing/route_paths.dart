@@ -18,6 +18,7 @@ class RoutePaths {
   static const recordNewDaily = '/records/new/daily';
   static const recordNewOotd = '/records/new/ootd';
   static const my = '/my';
+  static const mySettings = '/my/settings';
 
   static String groupDetail(Object groupId) => '/groups/$groupId';
 

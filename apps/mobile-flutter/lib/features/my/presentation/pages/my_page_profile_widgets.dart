@@ -439,6 +439,7 @@ class _ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unavailableDates = visibleUnavailableDates(profile.unavailableDates);
     return Column(
       children: [
         const SizedBox(height: 4),
@@ -495,8 +496,10 @@ class _ProfileTab extends StatelessWidget {
               label: '불가능한 날짜',
               trailingWidget: _KeywordScroller(
                 children: [
-                  for (final date in profile.unavailableDates)
-                    _OutlinedToken(label: date),
+                  for (final date in unavailableDates)
+                    _OutlinedToken(
+                      label: formatUnavailableDateForDisplay(date),
+                    ),
                 ],
               ),
             ),

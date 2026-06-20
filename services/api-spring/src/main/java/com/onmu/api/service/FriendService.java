@@ -60,6 +60,7 @@ public class FriendService {
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          f.created_at as friendship_created_at,
           coalesce((friend.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           coalesce(fs.is_favorite, false) as favorite
         from friendships f
@@ -83,8 +84,7 @@ public class FriendService {
           and f.status = 'active'
           and f.deleted_at is null
           and friend.deleted_at is null
-        order by coalesce(fs.is_favorite, false) desc,
-          coalesce(nullif(fs.display_alias, ''), nullif(friend.nickname, ''), friend.public_id)
+        order by f.created_at desc
       """,
       this::friendResponse,
       userId,
@@ -156,6 +156,7 @@ public class FriendService {
           end as pixel_character,
           '' as memo,
           coalesce(u.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          null as friendship_created_at,
           coalesce((u.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           false as favorite
         from users u
@@ -423,6 +424,7 @@ public class FriendService {
             else coalesce(fs.memo, '')
           end as memo,
           coalesce(friend.preference_profile::jsonb ->> 'introText', '') as intro_text,
+          f.created_at as friendship_created_at,
           coalesce((friend.preference_profile::jsonb ->> 'useDefaultProfileImage')::boolean, false) as use_default_profile_image,
           coalesce(fs.is_favorite, false) as favorite
         from friendships f
@@ -567,6 +569,7 @@ public class FriendService {
       readJsonObject(rs.getString("pixel_character")),
       rs.getString("memo"),
       rs.getString("intro_text"),
+      rs.getString("friendship_created_at"),
       rs.getBoolean("use_default_profile_image"),
       rs.getBoolean("favorite")
     );

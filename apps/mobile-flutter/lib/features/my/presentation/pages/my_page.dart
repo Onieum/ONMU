@@ -23,6 +23,7 @@ import '../../../character/presentation/pages/character_start_page.dart';
 import '../../../character/repository/character_repository.dart';
 import '../../domain/korea_region.dart';
 import '../../domain/my_profile.dart';
+import '../../domain/profile_schedule_dates.dart';
 import '../../repository/friend_repository.dart';
 import '../../repository/my_repository.dart';
 import '../../view_model/my_profile_controller.dart';
@@ -47,6 +48,7 @@ class MyPage extends ConsumerStatefulWidget {
 
 class _MyPageState extends ConsumerState<MyPage> {
   var _selectedTab = _MyTab.profile;
+  double _tabHorizontalDragDelta = 0;
 
   @override
   void didUpdateWidget(covariant MyPage oldWidget) {
@@ -76,74 +78,91 @@ class _MyPageState extends ConsumerState<MyPage> {
       backgroundColor: AppColors.bgDefault,
       body: GridBackground(
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _PageHeader(
-                    hasUnreadNotifications: unreadNotificationCount > 0,
-                    onAlarmTap: () =>
-                        context.push(RoutePaths.homeNotifications),
-                    onSettingTap: _openSettingsPage,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _tabHorizontalDragDelta = 0,
+            onPointerMove: (event) {
+              _tabHorizontalDragDelta += event.delta.dx;
+            },
+            onPointerUp: (_) => _handleTabSwipe(_tabHorizontalDragDelta),
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _PageHeader(
+                      hasUnreadNotifications: unreadNotificationCount > 0,
+                      onAlarmTap: () =>
+                          context.push(RoutePaths.homeNotifications),
+                      onSettingTap: _openSettingsPage,
+                    ),
                   ),
                 ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _ProfileHero(
-                    profile: profile,
-                    publicId: authUser?.publicId,
-                    profileImageUrl: profile.profileImageUrl,
-                    onEdit: _showProfileEditor,
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _ProfileHero(
+                      profile: profile,
+                      publicId: authUser?.publicId,
+                      profileImageUrl: profile.profileImageUrl,
+                      onEdit: _showProfileEditor,
+                    ),
                   ),
                 ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _HeroTabBar(
-                    selectedTab: _selectedTab,
-                    onChanged: (tab) => setState(() => _selectedTab = tab),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _HeroTabBar(
+                      selectedTab: _selectedTab,
+                      onChanged: (tab) => setState(() => _selectedTab = tab),
+                    ),
                   ),
                 ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                sliver: SliverToBoxAdapter(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _selectedTab == _MyTab.profile
-                        ? _ProfileTab(
-                            key: const ValueKey('profile'),
-                            profile: profile,
-                            onKeywordEdit: () => _openProfileSectionEditor(
-                              _ProfileEditSection.keywords,
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                  sliver: SliverToBoxAdapter(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: _selectedTab == _MyTab.profile
+                          ? _ProfileTab(
+                              key: const ValueKey('profile'),
+                              profile: profile,
+                              onKeywordEdit: () => _openProfileSectionEditor(
+                                _ProfileEditSection.keywords,
+                              ),
+                              onScheduleEdit: () => _openProfileSectionEditor(
+                                _ProfileEditSection.schedule,
+                              ),
+                              onPlaceEdit: () => _openProfileSectionEditor(
+                                _ProfileEditSection.places,
+                              ),
+                              onDetail: _openProfileDetailPage,
+                            )
+                          : _FriendsTab(
+                              key: const ValueKey('friends'),
+                              friends: friends,
+                              onOpenAddFriend: _showFriendAddSheet,
+                              onFriendTap: _openFriendProfile,
+                              onToggleFavorite: _toggleFavoriteFriend,
                             ),
-                            onScheduleEdit: () => _openProfileSectionEditor(
-                              _ProfileEditSection.schedule,
-                            ),
-                            onPlaceEdit: () => _openProfileSectionEditor(
-                              _ProfileEditSection.places,
-                            ),
-                            onDetail: _openProfileDetailPage,
-                          )
-                        : _FriendsTab(
-                            key: const ValueKey('friends'),
-                            friends: friends,
-                            onOpenAddFriend: _showFriendAddSheet,
-                            onFriendTap: _openFriendProfile,
-                            onToggleFavorite: _toggleFavoriteFriend,
-                          ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  void _handleTabSwipe(double delta) {
+    _tabHorizontalDragDelta = 0;
+    if (delta < -72 && _selectedTab == _MyTab.profile) {
+      setState(() => _selectedTab = _MyTab.friends);
+    } else if (delta > 72 && _selectedTab == _MyTab.friends) {
+      setState(() => _selectedTab = _MyTab.profile);
+    }
   }
 
   Future<void> _toggleFavoriteFriend(FriendProfile friend) async {
@@ -254,9 +273,7 @@ class _MyPageState extends ConsumerState<MyPage> {
   }
 
   void _openSettingsPage() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const _SettingsPage()));
+    context.push(RoutePaths.mySettings);
   }
 
   void _openFriendProfile(FriendProfile friend) {

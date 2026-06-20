@@ -15,6 +15,7 @@ import 'package:onmu_mobile/features/group/presentation/pages/group_home_page.da
 import 'package:onmu_mobile/features/group/presentation/pages/group_chat_page.dart';
 import 'package:onmu_mobile/features/group/presentation/pages/group_memory_detail_page.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/launch/splash_page.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/presentation/pages/my_page.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
@@ -52,6 +53,30 @@ Widget _testOnmuApp({GroupRepository? groupRepository}) {
 }
 
 void main() {
+  testWidgets('splash progress bar fills while loading', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: SplashPage(onTimeout: () {}),
+      ),
+    );
+
+    final progressFinder = find.byWidgetPredicate(
+      (widget) => widget is FractionallySizedBox && widget.widthFactor != null,
+    );
+    final initialProgress = tester
+        .widget<FractionallySizedBox>(progressFinder)
+        .widthFactor;
+
+    await tester.pump(const Duration(milliseconds: 2400));
+
+    final updatedProgress = tester
+        .widget<FractionallySizedBox>(progressFinder)
+        .widthFactor;
+
+    expect(updatedProgress, greaterThan(initialProgress ?? 0));
+  });
+
   testWidgets('login redirects authenticated completed user to home', (
     tester,
   ) async {
@@ -415,6 +440,62 @@ void main() {
 
     expect(find.text('카카오 프로필'), findsOneWidget);
     expect(find.text('ONMU User'), findsNothing);
+  });
+
+  testWidgets(
+    'my page switches between profile and friends with horizontal drag',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(420, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        onmuTestProviderScope(
+          child: MaterialApp(theme: AppTheme.lightTheme, home: const MyPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('음식/메뉴 취향'), findsOneWidget);
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(-360, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('전체 친구 0명'), findsOneWidget);
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(360, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('음식/메뉴 취향'), findsOneWidget);
+    },
+  );
+
+  testWidgets('reselecting my tab from settings returns to my profile root', (
+    tester,
+  ) async {
+    appRouter.go(RoutePaths.my);
+    await tester.pumpWidget(
+      onmuTestProviderScope(
+        user: const AuthUser(
+          id: '00000000-0000-0000-0000-000000000001',
+          publicId: 'user-me',
+          provider: 'NAVER',
+          nickname: '나',
+          onboardingStatus: 'COMPLETED',
+        ),
+        child: const app.OnmuMaterialApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('설정'), findsOneWidget);
+
+    await tester.tap(find.text('마이').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('설정'), findsNothing);
+    expect(find.text('음식/메뉴 취향'), findsOneWidget);
   });
 
   testWidgets('my page profile editor saves display name through repository', (

@@ -58,6 +58,9 @@ class _ProfileDetailPage extends StatelessWidget {
   }
 
   Widget _buildScheduleDetail() {
+    final unavailableDates = visibleUnavailableDates(
+      profile.unavailableDates,
+    ).map(formatUnavailableDateForDisplay).toList(growable: false);
     return Column(
       children: [
         _DetailChipSection(
@@ -84,7 +87,7 @@ class _ProfileDetailPage extends StatelessWidget {
         _DetailChipSection(
           icon: Icons.event_busy_rounded,
           title: '불가능한 날짜',
-          values: profile.unavailableDates,
+          values: unavailableDates,
           selected: false,
         ),
       ],

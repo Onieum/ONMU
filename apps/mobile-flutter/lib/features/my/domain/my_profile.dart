@@ -167,6 +167,7 @@ class FriendProfile {
     this.profileImageUrl = '',
     this.introText = '',
     this.useDefaultProfileImage = false,
+    this.friendshipCreatedAt,
     this.character,
   });
 
@@ -181,6 +182,7 @@ class FriendProfile {
   final String profileImageUrl;
   final String introText;
   final bool useDefaultProfileImage;
+  final DateTime? friendshipCreatedAt;
   final CharacterDraft? character;
 
   String get memoOrCode {
@@ -201,6 +203,7 @@ class FriendProfile {
     String? memo,
     String? introText,
     bool? useDefaultProfileImage,
+    DateTime? friendshipCreatedAt,
     CharacterDraft? character,
   }) {
     return FriendProfile(
@@ -216,6 +219,7 @@ class FriendProfile {
       introText: introText ?? this.introText,
       useDefaultProfileImage:
           useDefaultProfileImage ?? this.useDefaultProfileImage,
+      friendshipCreatedAt: friendshipCreatedAt ?? this.friendshipCreatedAt,
       character: character ?? this.character,
     );
   }

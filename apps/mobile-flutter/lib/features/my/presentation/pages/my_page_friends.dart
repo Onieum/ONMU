@@ -21,24 +21,57 @@ class _FriendsTab extends StatefulWidget {
 class _FriendsTabState extends State<_FriendsTab> {
   var _query = '';
   var _isEditingFavorites = false;
+  var _sortOrder = _FriendSortOrder.recent;
 
   List<FriendProfile> get _filteredFriends {
     final query = _query.trim().toLowerCase();
+    final friends = _sortedFriends(widget.friends);
     if (query.isEmpty) {
-      return widget.friends;
+      return friends;
     }
 
-    return widget.friends.where((friend) {
+    return friends.where((friend) {
       return friend.name.toLowerCase().contains(query) ||
           friend.memo.toLowerCase().contains(query);
     }).toList();
   }
 
+  List<FriendProfile> _sortedFriends(Iterable<FriendProfile> source) {
+    final friends = source.toList();
+    friends.sort(_compareFriends);
+    return friends;
+  }
+
+  int _compareFriends(FriendProfile a, FriendProfile b) {
+    final nameCompare = a.name.compareTo(b.name);
+    final aCreatedAt = a.friendshipCreatedAt;
+    final bCreatedAt = b.friendshipCreatedAt;
+    final recentCompare = switch ((aCreatedAt, bCreatedAt)) {
+      (final DateTime aDate, final DateTime bDate) => bDate.compareTo(aDate),
+      (final DateTime _, null) => -1,
+      (null, final DateTime _) => 1,
+      _ => 0,
+    };
+
+    return switch (_sortOrder) {
+      _FriendSortOrder.recent =>
+        recentCompare != 0 ? recentCompare : nameCompare,
+      _FriendSortOrder.name => nameCompare != 0 ? nameCompare : recentCompare,
+    };
+  }
+
+  String get _sortLabel {
+    return switch (_sortOrder) {
+      _FriendSortOrder.recent => '최근 추가순',
+      _FriendSortOrder.name => '가나다순',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final favoriteFriends = widget.friends
-        .where((friend) => friend.isFavorite)
-        .toList();
+    final favoriteFriends = _sortedFriends(
+      widget.friends.where((friend) => friend.isFavorite),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,6 +180,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                 isEditing: _isEditingFavorites,
                 isSelected: friend.isFavorite,
                 onToggle: () => widget.onToggleFavorite(friend),
+                onTap: () => widget.onFriendTap(friend),
               );
             },
           ),
@@ -166,11 +200,36 @@ class _FriendsTabState extends State<_FriendsTab> {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    '가나다순',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSub,
-                      fontWeight: FontWeight.w700,
+                  PopupMenuButton<_FriendSortOrder>(
+                    initialValue: _sortOrder,
+                    onSelected: (value) => setState(() => _sortOrder = value),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _FriendSortOrder.recent,
+                        child: Text('최근 추가순'),
+                      ),
+                      PopupMenuItem(
+                        value: _FriendSortOrder.name,
+                        child: Text('가나다순'),
+                      ),
+                    ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _sortLabel,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSub,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.textSub,
+                          size: 20,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -220,6 +279,8 @@ class _FriendsTabState extends State<_FriendsTab> {
     widget.onToggleFavorite(selected);
   }
 }
+
+enum _FriendSortOrder { recent, name }
 
 class _KeywordPreferenceCard extends StatelessWidget {
   const _KeywordPreferenceCard({
@@ -559,6 +620,7 @@ class _FavoriteFriend extends StatelessWidget {
     required this.isEditing,
     required this.isSelected,
     required this.onToggle,
+    required this.onTap,
   });
 
   final FriendProfile friend;
@@ -566,11 +628,12 @@ class _FavoriteFriend extends StatelessWidget {
   final bool isEditing;
   final bool isSelected;
   final VoidCallback onToggle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: isEditing ? onToggle : null,
+      onTap: isEditing ? onToggle : onTap,
       borderRadius: BorderRadius.circular(999),
       child: SizedBox(
         width: 62,

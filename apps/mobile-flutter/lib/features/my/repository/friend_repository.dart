@@ -131,6 +131,9 @@ class ApiFriendRepository implements FriendRepository {
       memo: memo,
       introText: introText,
       useDefaultProfileImage: useDefaultProfileImage,
+      friendshipCreatedAt: _dateTimeFromJson(
+        OnmuJson.readString(json, 'friendshipCreatedAt'),
+      ),
       character: useDefaultProfileImage
           ? null
           : characterDraftFromJson(json['pixelCharacter'], nickname: name),
@@ -206,6 +209,14 @@ class ApiFriendRepository implements FriendRepository {
       planStyles: OnmuJson.stringList(preference['planStyles']),
       preferredWeekdays: OnmuJson.stringList(preference['preferredWeekdays']),
     );
+  }
+
+  DateTime? _dateTimeFromJson(String value) {
+    final clean = value.trim();
+    if (clean.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(clean);
   }
 
   String _mediaUrl(String value) {
