@@ -194,4 +194,4 @@
 
 MVP 모델은 `black-forest-labs/FLUX.1-Kontext-dev`를 사용한다. 현재 프로젝트 범위는 MVP/교육/POC이므로 non-commercial license 사용 가능 여부를 팀 기록으로 남긴다. 상업 배포 또는 production service phase로 넘어가면 모델 교체, 별도 라이선스 승인, 또는 상업용 endpoint 재선정이 필요하다.
 
-`ONMU_HF_TOKEN`, `ONMU_OOTD_MODEL_ID`, `ONMU_OOTD_MODEL_REVISION`, `ONMU_AZUREML_ENDPOINT_URL`, `ONMU_AZUREML_ENDPOINT_KEY`, `ONMU_VISION_API_KEY`는 Key Vault secret reference로만 연결한다. 모델 id와 revision은 secret 값은 아니지만, 상업 배포 또는 production service phase에서 모델을 교체할 가능성이 높으므로 Key Vault에서 운영자가 통제한다. `ONMU_VISION_MODEL_DEPLOYMENT`는 Azure OpenAI deployment name으로 현재 plain runtime config로 둔다.
+`ONMU_HF_TOKEN`, `ONMU_OOTD_MODEL_ID`, `ONMU_OOTD_MODEL_REVISION`, `ONMU_AZUREML_ENDPOINT_URL`, `ONMU_AZUREML_ENDPOINT_KEY`, `ONMU_VISION_ENDPOINT_URL`, `ONMU_VISION_DEPLOYMENT_NAME`, `ONMU_VISION_API_KEY`, `ONMU_VISION_API_VERSION`은 Key Vault secret reference로만 연결한다. 모델 id/revision, Vision endpoint/deployment/API version은 secret 값은 아니지만, 상업 배포 또는 production service phase에서 모델과 Vision deployment를 교체할 가능성이 높으므로 Key Vault에서 운영자가 통제한다.

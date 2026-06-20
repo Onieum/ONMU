@@ -125,6 +125,15 @@ case "$wave" in
       exit 1
     fi
     ;;
+  worker_ai_ready)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .address != "module.container_apps[0].azurerm_container_app.worker[0]") | .address] | length' "$plan_json")"
+    unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and .address != "module.container_apps[0].azurerm_container_app.worker[0]") | .address] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$unexpected_update" -gt 0 ]; then
+      echo "Only worker container app create/update plus existing resource no-op/read are allowed for worker_ai_ready." >&2
+      exit 1
+    fi
+    ;;
   ai_foundation)
     unexpected_mutation="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.type != "azurerm_machine_learning_workspace" and .type != "azurerm_cognitive_account" and .type != "azurerm_cognitive_deployment")) | .address] | length' "$plan_json")"

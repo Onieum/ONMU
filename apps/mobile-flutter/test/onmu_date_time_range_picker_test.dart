@@ -295,9 +295,31 @@ void main() {
   testWidgets('recommended dates are shown separately from time slots', (
     tester,
   ) async {
+    final today = DateTime.now();
+    final initialDate = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).add(const Duration(days: 2));
+    final expectedRecommendedDate = _firstMatchingWeekday(
+      initialDate,
+      {DateTime.friday, DateTime.saturday, DateTime.sunday},
+    );
+
     await _pumpRangePicker(
       tester,
-      initialEnd: DateTime(2026, 6, 15, 16),
+      initialStart: DateTime(
+        initialDate.year,
+        initialDate.month,
+        initialDate.day,
+        14,
+      ),
+      initialEnd: DateTime(
+        initialDate.year,
+        initialDate.month,
+        initialDate.day,
+        16,
+      ),
       participantPreferences: [
         PreferenceProfile.empty().copyWith(
           preferredWeekdays: ['금요일', '토요일', '일요일'],
@@ -310,8 +332,14 @@ void main() {
     expect(find.text('추천 날짜'), findsOneWidget);
     expect(find.text('선택한 날짜의 추천 시간대'), findsOneWidget);
     expect(find.text('추천/비추천 시간대'), findsNothing);
-    expect(find.textContaining('6월 19일 (금)'), findsOneWidget);
-    expect(find.textContaining('6월 15일 (월)\n'), findsNothing);
+    expect(
+      find.textContaining(_expectedDateLabel(expectedRecommendedDate)),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('${_expectedDateLabel(initialDate)}\n'),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -460,4 +488,20 @@ void _expectLocalDateTime(
   expect(local.day, day);
   expect(local.hour, hour);
   expect(local.minute, minute);
+}
+
+DateTime _firstMatchingWeekday(DateTime anchor, Set<int> weekdays) {
+  final anchorDate = DateTime(anchor.year, anchor.month, anchor.day);
+  for (var offset = 0; offset < 30; offset += 1) {
+    final candidate = anchorDate.add(Duration(days: offset));
+    if (weekdays.contains(candidate.weekday)) {
+      return candidate;
+    }
+  }
+  throw StateError('No matching weekday found within 30 days.');
+}
+
+String _expectedDateLabel(DateTime date) {
+  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  return '${date.month}월 ${date.day}일 (${weekdays[date.weekday - 1]})';
 }

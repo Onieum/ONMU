@@ -68,6 +68,28 @@ cd <repo-root>
 
 The smoke script does not print endpoint keys. It writes the returned dry-run image under `.generated/`, which is gitignored.
 
+## Azure OpenAI Vision smoke test
+
+After these Key Vault secrets exist:
+
+```text
+staging-vision-endpoint-url
+staging-vision-deployment-name
+staging-vision-api-key
+staging-vision-api-version
+```
+
+run:
+
+```powershell
+cd <repo-root>
+.\scripts\azureml\test-ootd-vision-smoke.ps1 -ImagePath C:\path\to\outfit.png
+```
+
+The smoke script verifies that the configured Vision deployment returns a
+parseable outfit descriptor JSON. It does not print API keys. It writes the
+descriptor under `.generated/`, which is gitignored.
+
 ## Remaining TODO
 
 1. Event Hubs consumer adapter.

@@ -2919,6 +2919,7 @@ class _RecordingRecordRepository implements RecordRepository {
     required String inputType,
     String? outfitPhotoMediaId,
     String? outfitDescription,
+    CharacterDraft? characterOverrides,
   }) async {
     return OotdAvatarGenerationJob(
       jobId: 'job-recording',

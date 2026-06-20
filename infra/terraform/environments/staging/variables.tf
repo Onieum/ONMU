@@ -190,12 +190,6 @@ variable "ootd_generation_provider" {
   }
 }
 
-variable "vision_model_deployment_name" {
-  description = "Azure OpenAI vision model deployment name used by the worker outfit descriptor step."
-  type        = string
-  default     = "onmu-ootd-vision"
-}
-
 variable "vision_openai_deployment" {
   description = "Optional Azure OpenAI deployment for the vision outfit descriptor. Keep null until quota/model availability is confirmed."
   type = object({
