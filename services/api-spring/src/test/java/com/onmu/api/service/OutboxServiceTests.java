@@ -24,6 +24,8 @@ class OutboxServiceTests {
   private OutboxEventRepository outboxEventRepository;
   @Mock
   private NotificationDeliveryService notificationDeliveryService;
+  @Mock
+  private OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService;
 
   private OutboxService service;
 
@@ -32,6 +34,7 @@ class OutboxServiceTests {
     service = new OutboxService(
       outboxEventRepository,
       notificationDeliveryService,
+      ootdAvatarGenerationCompletionService,
       new ObjectMapper(),
       "http://localhost:8090/tasks/ootd"
     );
