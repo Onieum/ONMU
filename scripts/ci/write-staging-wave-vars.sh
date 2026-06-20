@@ -367,6 +367,36 @@ enabled_modules = {
 EOF
     append_frontdoor_keepalive_targets
     ;;
+  worker_ai_ready)
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    cat >> "$output_path" <<EOF
+
+spring_api_image         = "${STAGING_SPRING_API_IMAGE}"
+worker_image             = "${STAGING_WORKER_IMAGE}"
+worker_enabled           = true
+ootd_generation_provider = "azure_ml"
+
+enabled_modules = {
+  observability              = true
+  container_registry         = true
+  key_vault                  = true
+  postgres                   = true
+  redis                      = true
+  storage                    = true
+  cdn                        = false
+  front_door                 = true
+  eventhubs                  = true
+  container_apps_environment = true
+  container_apps             = true
+  ai_foundation              = true
+  diagnostics                = true
+  rbac_assignments           = false
+}
+EOF
+    append_frontdoor_keepalive_targets
+    ;;
   ai_foundation)
     require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
     require_env "STAGING_SPRING_API_IMAGE"

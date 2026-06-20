@@ -344,6 +344,7 @@ class TestRecordRepository implements RecordRepository {
     required String inputType,
     String? outfitPhotoMediaId,
     String? outfitDescription,
+    CharacterDraft? characterOverrides,
   }) async {
     return OotdAvatarGenerationJob(
       jobId: 'job-test',

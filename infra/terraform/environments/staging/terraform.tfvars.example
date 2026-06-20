@@ -35,7 +35,6 @@ enabled_diagnostic_targets = {
 
 worker_enabled                = false
 ootd_generation_provider      = "mock"
-vision_model_deployment_name  = "onmu-ootd-vision"
 
 # OOTD model values are intentionally supplied through Key Vault secretRefs,
 # not through Terraform variables, so the team can swap models later without a
@@ -46,7 +45,10 @@ vision_model_deployment_name  = "onmu-ootd-vision"
 # - staging-ootd-model-revision
 # - staging-azureml-endpoint-url
 # - staging-azureml-endpoint-key
+# - staging-vision-endpoint-url
+# - staging-vision-deployment-name
 # - staging-vision-api-key
+# - staging-vision-api-version
 
 # Enable after Azure OpenAI quota/model availability is confirmed.
 # vision_openai_deployment = {

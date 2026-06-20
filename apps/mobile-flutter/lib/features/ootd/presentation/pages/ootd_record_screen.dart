@@ -231,6 +231,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         inputType: inputType,
         outfitPhotoMediaId: _isTextMode ? null : savedPhotoMediaId,
         outfitDescription: _isTextMode ? description : null,
+        characterOverrides: saved.character,
       );
       final resolvedJob = await _resolveJob(repository, job);
 

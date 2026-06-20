@@ -88,7 +88,7 @@ public class OotdAvatarGenerationService {
     }
 
     String publicId = "ootd_job_" + UUID.randomUUID().toString().replace("-", "");
-    Map<String, Object> payload = buildPayload(record, user, inputType, outfitPhotoMedia, outfitDescription);
+    Map<String, Object> payload = buildPayload(record, user, inputType, outfitPhotoMedia, outfitDescription, request.characterOverrides());
     OotdAvatarGenerationJobEntity job = new OotdAvatarGenerationJobEntity(
       publicId,
       record,
@@ -137,17 +137,29 @@ public class OotdAvatarGenerationService {
     UserEntity user,
     String inputType,
     RecordMediaEntity outfitPhotoMedia,
-    String outfitDescription
+    String outfitDescription,
+    Map<String, Object> requestCharacterOverrides
   ) {
+    Map<String, Object> recordPayload = readObject(record.getPayload());
+    Map<String, Object> characterProfile = characterProfileRepository.findByUserId(user.getId())
+      .map(this::characterProfilePayload)
+      .orElseGet(() -> new LinkedHashMap<String, Object>());
+    Map<String, Object> characterOverrides = mergeCharacterOverrides(
+      extractRecordCharacterOverrides(recordPayload),
+      sanitizeCharacterOverrides(requestCharacterOverrides)
+    );
+    characterProfile.putAll(characterOverrides);
+
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("recordId", record.getPublicId());
     payload.put("userId", user.getId().toString());
     payload.put("inputType", inputType);
     payload.put("outfitDescription", outfitDescription);
-    payload.put("recordPayload", readObject(record.getPayload()));
-    payload.put("characterProfile", characterProfileRepository.findByUserId(user.getId())
-      .map(this::characterProfilePayload)
-      .orElseGet(() -> new LinkedHashMap<String, Object>()));
+    payload.put("recordPayload", recordPayload);
+    payload.put("characterProfile", characterProfile);
+    if (!characterOverrides.isEmpty()) {
+      payload.put("characterOverrides", characterOverrides);
+    }
     if (outfitPhotoMedia != null) {
       Map<String, Object> media = new LinkedHashMap<>();
       media.put("id", outfitPhotoMedia.getId().toString());
@@ -161,12 +173,56 @@ public class OotdAvatarGenerationService {
 
   private Map<String, Object> characterProfilePayload(CharacterProfileEntity profile) {
     Map<String, Object> value = new LinkedHashMap<>();
+    value.put("gender", profile.getGender());
     value.put("skinTone", profile.getSkinTone());
     value.put("hairStyle", profile.getHairStyle());
     value.put("hairColor", profile.getHairColor());
     value.put("eyeStyle", profile.getEyeStyle());
     value.put("eyeColor", profile.getEyeColor());
+    value.put("clothes", profile.getClothes());
     return value;
+  }
+
+  private Map<String, Object> extractRecordCharacterOverrides(Map<String, Object> recordPayload) {
+    Object snapshot = recordPayload.get("characterSnapshot");
+    if (!(snapshot instanceof Map<?, ?> snapshotMap)) {
+      return Map.of();
+    }
+    Map<String, Object> overrides = new LinkedHashMap<>();
+    putStringOverride(overrides, "hairStyle", snapshotMap.get("hair_style"));
+    putStringOverride(overrides, "hairColor", snapshotMap.get("hair_color"));
+    putStringOverride(overrides, "eyeStyle", snapshotMap.get("eye_style"));
+    putStringOverride(overrides, "eyeColor", snapshotMap.get("eye_color"));
+    return overrides;
+  }
+
+  private Map<String, Object> sanitizeCharacterOverrides(Map<String, Object> rawOverrides) {
+    if (rawOverrides == null || rawOverrides.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Object> overrides = new LinkedHashMap<>();
+    putStringOverride(overrides, "hairStyle", rawOverrides.get("hairStyle"));
+    putStringOverride(overrides, "hairColor", rawOverrides.get("hairColor"));
+    putStringOverride(overrides, "eyeStyle", rawOverrides.get("eyeStyle"));
+    putStringOverride(overrides, "eyeColor", rawOverrides.get("eyeColor"));
+    return overrides;
+  }
+
+  private Map<String, Object> mergeCharacterOverrides(Map<String, Object> recordOverrides, Map<String, Object> requestOverrides) {
+    Map<String, Object> merged = new LinkedHashMap<>();
+    if (recordOverrides != null) {
+      merged.putAll(recordOverrides);
+    }
+    if (requestOverrides != null) {
+      merged.putAll(requestOverrides);
+    }
+    return merged;
+  }
+
+  private void putStringOverride(Map<String, Object> target, String key, Object value) {
+    if (value instanceof String stringValue && !stringValue.isBlank()) {
+      target.put(key, stringValue);
+    }
   }
 
   private OotdAvatarGenerationResponse toResponse(OotdAvatarGenerationJobEntity job) {

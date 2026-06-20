@@ -51,12 +51,15 @@ locals {
   }
 
   worker_ai_secret_names = {
-    ONMU_HF_TOKEN             = "${local.secret_prefix}-hf-token"
-    ONMU_OOTD_MODEL_ID        = "${local.secret_prefix}-ootd-model-id"
-    ONMU_OOTD_MODEL_REVISION  = "${local.secret_prefix}-ootd-model-revision"
-    ONMU_AZUREML_ENDPOINT_URL = "${local.secret_prefix}-azureml-endpoint-url"
-    ONMU_AZUREML_ENDPOINT_KEY = "${local.secret_prefix}-azureml-endpoint-key"
-    ONMU_VISION_API_KEY       = "${local.secret_prefix}-vision-api-key"
+    ONMU_HF_TOKEN               = "${local.secret_prefix}-hf-token"
+    ONMU_OOTD_MODEL_ID          = "${local.secret_prefix}-ootd-model-id"
+    ONMU_OOTD_MODEL_REVISION    = "${local.secret_prefix}-ootd-model-revision"
+    ONMU_AZUREML_ENDPOINT_URL   = "${local.secret_prefix}-azureml-endpoint-url"
+    ONMU_AZUREML_ENDPOINT_KEY   = "${local.secret_prefix}-azureml-endpoint-key"
+    ONMU_VISION_ENDPOINT_URL    = "${local.secret_prefix}-vision-endpoint-url"
+    ONMU_VISION_DEPLOYMENT_NAME = "${local.secret_prefix}-vision-deployment-name"
+    ONMU_VISION_API_KEY         = "${local.secret_prefix}-vision-api-key"
+    ONMU_VISION_API_VERSION     = "${local.secret_prefix}-vision-api-version"
   }
 
   spring_secret_refs = {
@@ -83,11 +86,9 @@ locals {
     {
       AZURE_CLIENT_ID               = try(module.key_vault[0].runtime_identity_client_id, "")
       ONMU_OOTD_GENERATION_PROVIDER = var.ootd_generation_provider
-      ONMU_VISION_MODEL_DEPLOYMENT  = var.vision_model_deployment_name
     },
     var.enabled_modules.ai_foundation ? {
       ONMU_AZUREML_WORKSPACE_NAME = module.ai_foundation[0].machine_learning_workspace_name
-      ONMU_VISION_ENDPOINT        = module.ai_foundation[0].vision_openai_endpoint
     } : {}
   )
 

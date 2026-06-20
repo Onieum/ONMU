@@ -32,6 +32,7 @@ abstract interface class RecordRepository {
     required String inputType,
     String? outfitPhotoMediaId,
     String? outfitDescription,
+    CharacterDraft? characterOverrides,
   });
 
   Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId);
@@ -104,6 +105,7 @@ class ApiRecordRepository implements RecordRepository {
     required String inputType,
     String? outfitPhotoMediaId,
     String? outfitDescription,
+    CharacterDraft? characterOverrides,
   }) async {
     final body = <String, Object?>{
       'recordId': recordId,
@@ -114,6 +116,14 @@ class ApiRecordRepository implements RecordRepository {
     }
     if (outfitDescription != null) {
       body['outfitDescription'] = outfitDescription;
+    }
+    if (characterOverrides != null) {
+      body['characterOverrides'] = {
+        'hairStyle': 'hair_style_${characterOverrides.hairStyleIndex}',
+        'hairColor': 'hair_color_${characterOverrides.hairColorIndex}',
+        'eyeStyle': 'eye_style_${characterOverrides.eyeShapeIndex}',
+        'eyeColor': 'eye_color_${characterOverrides.eyeColorIndex}',
+      };
     }
     final json = await _client.postObject(
       '/api/v1/ootd/avatar-generations',

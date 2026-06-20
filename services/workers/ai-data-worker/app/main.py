@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from app.ootd.azureml_client import AzureMlOotdClient
+from app.ootd.character_renderer import CharacterReferenceRenderer
 from app.ootd.vision_client import AzureOpenAiVisionClient
 from app.ootd.worker import handle_ootd_avatar_generation
 
@@ -17,12 +18,14 @@ def healthz() -> dict[str, bool | str]:
 def readyz() -> dict[str, bool | str]:
     azureml_configured = AzureMlOotdClient.from_env(required=False).is_configured
     vision_configured = AzureOpenAiVisionClient.from_env(required=False).is_configured
+    character_renderer_ready = CharacterReferenceRenderer().is_ready
     return {
         "ok": True,
         "service": "onmu-ai-data-worker",
         "mode": "azureml" if azureml_configured else "mock",
         "azureMlConfigured": azureml_configured,
         "visionConfigured": vision_configured,
+        "characterRendererReady": character_renderer_ready,
     }
 
 

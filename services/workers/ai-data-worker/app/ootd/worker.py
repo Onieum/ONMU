@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.ootd.azureml_client import AzureMlOotdClient, build_azureml_request
+from app.ootd.character_renderer import render_character_reference
 from app.ootd.vision_client import AzureOpenAiVisionClient, build_image_source_from_payload
 
 
@@ -28,6 +29,7 @@ async def handle_ootd_avatar_generation(
         }
 
     try:
+        payload = _with_character_reference(payload)
         payload = await _with_vision_descriptor(
             event_id=event_id,
             payload=payload,
@@ -75,7 +77,35 @@ async def handle_ootd_avatar_generation(
         "mimeType": result.mime_type,
         "imageBase64Length": len(result.image_base64),
         "durationMs": result.duration_ms,
+        "characterReference": payload.get("characterReferenceMetadata"),
     }
+
+
+def _with_character_reference(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("characterImageBase64"):
+        return payload
+
+    reference = render_character_reference(_character_profile_with_overrides(payload))
+    enriched_payload = dict(payload)
+    enriched_payload["characterImageBase64"] = reference.image_base64
+    enriched_payload["characterImageMimeType"] = reference.mime_type
+    enriched_payload["characterReferenceMetadata"] = reference.metadata
+    return enriched_payload
+
+
+def _character_profile_with_overrides(payload: dict[str, Any]) -> dict[str, Any]:
+    profile = (
+        dict(payload.get("characterProfile"))
+        if isinstance(payload.get("characterProfile"), dict)
+        else {}
+    )
+    overrides = payload.get("characterOverrides")
+    if isinstance(overrides, dict):
+        for key in ("hairStyle", "hairColor", "eyeStyle", "eyeColor"):
+            value = overrides.get(key)
+            if isinstance(value, str) and value:
+                profile[key] = value
+    return profile
 
 
 async def _with_vision_descriptor(

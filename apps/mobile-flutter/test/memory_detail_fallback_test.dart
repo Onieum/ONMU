@@ -7,6 +7,7 @@ import 'package:onmu_mobile/features/group/view_model/group_memory_view_model.da
 import 'package:onmu_mobile/features/memory/view_model/memory_detail_view_model.dart';
 import 'package:onmu_mobile/features/ootd/repository/record_repository.dart';
 import 'package:onmu_mobile/features/ootd/view_model/daily_record_edit_controller.dart';
+import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 
@@ -113,6 +114,7 @@ class _DetailMissingRecordRepository implements RecordRepository {
     required String inputType,
     String? outfitPhotoMediaId,
     String? outfitDescription,
+    CharacterDraft? characterOverrides,
   }) {
     throw UnimplementedError();
   }

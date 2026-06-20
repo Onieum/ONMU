@@ -52,10 +52,10 @@ staging-azureml-endpoint-key
 Vision settings are separate and are not required for this endpoint scaffold:
 
 ```text
+staging-vision-endpoint-url
+staging-vision-deployment-name
 staging-vision-api-key
 staging-vision-api-version
-staging-vision-deployment-name
-staging-vision-endpoint-url
 ```
 
 ## Deploy
@@ -124,3 +124,16 @@ This endpoint receives the fixed character image plus the Vision AI descriptor.
 It does not receive the raw OOTD photo. This keeps the generation prompt more
 controlled and prevents the model from copying the real person's face or body
 from the outfit photo.
+
+## Vision smoke
+
+Before switching the worker to a real photo-mode flow, verify the Azure OpenAI
+Vision settings independently:
+
+```powershell
+cd <repo-root>
+.\scripts\azureml\test-ootd-vision-smoke.ps1 -ImagePath C:\path\to\outfit.png
+```
+
+This reads the Vision endpoint, deployment name, API key, and API version from
+Key Vault and writes a descriptor JSON under `.generated/`.
