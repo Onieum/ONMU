@@ -99,11 +99,6 @@ public class OotdAvatarGenerationService {
       toJson(payload)
     );
     OotdAvatarGenerationJobEntity saved = jobRepository.save(job);
-    saved.markCompleted(
-      "generated/ootd/mock/" + publicId + ".png",
-      "/assets/images/sample-character.png"
-    );
-    saved = jobRepository.save(saved);
 
     Map<String, Object> outboxPayload = new LinkedHashMap<>(payload);
     outboxPayload.put("jobId", saved.getPublicId());

@@ -109,7 +109,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('전체 코디 사진 1장 선택하기'), findsOneWidget);
-    expect(find.textContaining('상의, 하의, 신발, 소품이 최대한 한 장에 보이는 사진'), findsOneWidget);
+    expect(
+      find.textContaining('상의, 하의, 신발, 가방 같은 주요 아이템이 한 장에 보이도록'),
+      findsOneWidget,
+    );
     expect(find.textContaining('최대 10장'), findsNothing);
   });
 

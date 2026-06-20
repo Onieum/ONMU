@@ -95,7 +95,7 @@ void main() {
 
       await tester.enterText(
         find.byKey(const ValueKey('ootdDescriptionField')),
-        '아이보리 니트, 블랙 롱 스커트, 버건디 숄더백, 로퍼',
+        '아이보리 니트, 블랙 롱스커트, 버건디 숄더백, 로퍼',
       );
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
@@ -111,6 +111,8 @@ void main() {
         find.byKey(const ValueKey('hairColorOption-4')),
       );
       await _tapVisible(tester, find.byKey(const ValueKey('eyeColorOption-2')));
+      await tester.tap(find.text('선택 완료'));
+      await tester.pumpAndSettle();
       await _tapVisible(tester, find.byKey(const ValueKey('weather-sunny')));
       await _tapVisible(tester, find.byKey(const ValueKey('mood-excited')));
       await _tapVisible(tester, find.byKey(const ValueKey('rating-5')));
@@ -120,7 +122,7 @@ void main() {
       );
       await tester.enterText(
         find.byKey(const ValueKey('nextSuggestionField')),
-        '다음엔 청바지랑 입어보기',
+        '다음엔 청바지를 입어보기',
       );
 
       await tester.tap(find.text('생성 요청하기'));
@@ -134,7 +136,7 @@ void main() {
       expect(savedRecord!.mood, 'excited');
       expect(savedRecord!.brands['rating'], '5.0');
       expect(savedRecord!.brands['point'], '가방으로 포인트 주기');
-      expect(savedRecord!.brands['nextSuggestion'], '다음엔 청바지랑 입어보기');
+      expect(savedRecord!.brands['nextSuggestion'], '다음엔 청바지를 입어보기');
       expect(repository.lastOverrides?.hairStyleIndex, 2);
       expect(repository.lastOverrides?.hairColorIndex, 4);
       expect(repository.lastOverrides?.eyeColorIndex, 2);

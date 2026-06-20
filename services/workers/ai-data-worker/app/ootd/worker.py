@@ -18,14 +18,20 @@ async def handle_ootd_avatar_generation(
     client = AzureMlOotdClient.from_env(required=False)
     vision_client = AzureOpenAiVisionClient.from_env(required=False)
     if not client.is_configured:
+        reference = render_character_reference(_character_profile_with_overrides(payload))
         return {
             "ok": True,
             "eventId": event_id,
             "eventType": event_type,
-            "status": "accepted_mock",
+            "status": "completed",
             "azureMlConfigured": False,
             "visionConfigured": vision_client.is_configured,
-            "message": "Azure ML endpoint env vars are not configured; task accepted in mock mode.",
+            "dryRun": True,
+            "mimeType": reference.mime_type,
+            "imageBase64": reference.image_base64,
+            "imageBase64Length": len(reference.image_base64),
+            "characterReference": reference.metadata,
+            "message": "Azure ML endpoint env vars are not configured; completed with character reference mock image.",
         }
 
     try:
@@ -75,6 +81,7 @@ async def handle_ootd_avatar_generation(
         "mode": result.mode,
         "dryRun": result.dry_run,
         "mimeType": result.mime_type,
+        "imageBase64": result.image_base64,
         "imageBase64Length": len(result.image_base64),
         "durationMs": result.duration_ms,
         "characterReference": payload.get("characterReferenceMetadata"),

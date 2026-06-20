@@ -6,6 +6,7 @@ import com.onmu.api.storage.ObjectStorageNotFoundException;
 import com.onmu.api.storage.ObjectStorageObject;
 import com.onmu.api.web.dto.UploadMediaResponse;
 import com.onmu.api.web.dto.PresignedUrlResponse;
+import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -117,6 +118,28 @@ public class MediaService {
 
     try {
       objectStorageClient.upload(storageKey, file.getInputStream(), file.getSize(), contentType);
+      String publicUrl = publicMediaUrl(storageKey);
+      return new UploadMediaResponse(storageKey, publicUrl);
+    } catch (Exception exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "failed_to_upload_media", exception);
+    }
+  }
+
+  public UploadMediaResponse uploadGeneratedImage(byte[] content, String contentType) {
+    if (content == null || content.length == 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "media_file_required");
+    }
+    String normalizedContentType = StringUtils.hasText(contentType) ? contentType.trim().toLowerCase(Locale.ROOT) : "image/png";
+    String extension = switch (normalizedContentType) {
+      case "image/jpeg", "image/jpg" -> ".jpg";
+      case "image/webp" -> ".webp";
+      default -> ".png";
+    };
+    String imageContentType = validateImageUpload(normalizedContentType, extension);
+    String storageKey = "records/media/generated/ootd/" + UUID.randomUUID().toString() + extension;
+
+    try {
+      objectStorageClient.upload(storageKey, new ByteArrayInputStream(content), content.length, imageContentType);
       String publicUrl = publicMediaUrl(storageKey);
       return new UploadMediaResponse(storageKey, publicUrl);
     } catch (Exception exception) {
