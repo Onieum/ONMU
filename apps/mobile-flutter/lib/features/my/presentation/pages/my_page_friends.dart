@@ -1,4 +1,4 @@
-﻿part of 'my_page.dart';
+part of 'my_page.dart';
 
 class _FriendsTab extends StatefulWidget {
   const _FriendsTab({
@@ -21,7 +21,6 @@ class _FriendsTab extends StatefulWidget {
 class _FriendsTabState extends State<_FriendsTab> {
   var _query = '';
   var _isEditingFavorites = false;
-  var _sortOrder = _FriendSortOrder.recent;
 
   List<FriendProfile> get _filteredFriends {
     final query = _query.trim().toLowerCase();
@@ -43,52 +42,14 @@ class _FriendsTabState extends State<_FriendsTab> {
       friends.add(MapEntry(index, friend));
       index += 1;
     }
-    friends.sort(
-      (a, b) => _compareFriends(
-        a.value,
-        b.value,
-        originalIndexA: a.key,
-        originalIndexB: b.key,
-      ),
-    );
+    friends.sort((a, b) {
+      final nameCompare = a.value.name.compareTo(b.value.name);
+      if (nameCompare != 0) {
+        return nameCompare;
+      }
+      return a.key.compareTo(b.key);
+    });
     return friends.map((entry) => entry.value).toList(growable: false);
-  }
-
-  int _compareFriends(
-    FriendProfile a,
-    FriendProfile b, {
-    required int originalIndexA,
-    required int originalIndexB,
-  }) {
-    final nameCompare = a.name.compareTo(b.name);
-    final aCreatedAt = a.friendshipCreatedAt;
-    final bCreatedAt = b.friendshipCreatedAt;
-    final recentCompare = switch ((aCreatedAt, bCreatedAt)) {
-      (final DateTime aDate, final DateTime bDate) => bDate.compareTo(aDate),
-      (final DateTime _, null) => -1,
-      (null, final DateTime _) => 1,
-      _ => 0,
-    };
-
-    return switch (_sortOrder) {
-      _FriendSortOrder.recent =>
-        recentCompare != 0
-            ? recentCompare
-            : originalIndexA.compareTo(originalIndexB),
-      _FriendSortOrder.name =>
-        nameCompare != 0
-            ? nameCompare
-            : recentCompare != 0
-            ? recentCompare
-            : originalIndexA.compareTo(originalIndexB),
-    };
-  }
-
-  String get _sortLabel {
-    return switch (_sortOrder) {
-      _FriendSortOrder.recent => '최근 등록순',
-      _FriendSortOrder.name => '가나다순',
-    };
   }
 
   @override
@@ -224,36 +185,11 @@ class _FriendsTabState extends State<_FriendsTab> {
                     ),
                   ),
                   const Spacer(),
-                  PopupMenuButton<_FriendSortOrder>(
-                    initialValue: _sortOrder,
-                    onSelected: (value) => setState(() => _sortOrder = value),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _FriendSortOrder.recent,
-                        child: Text('최근 등록순'),
-                      ),
-                      PopupMenuItem(
-                        value: _FriendSortOrder.name,
-                        child: Text('가나다순'),
-                      ),
-                    ],
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _sortLabel,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSub,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: AppColors.textSub,
-                          size: 20,
-                        ),
-                      ],
+                  Text(
+                    '가나다순',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSub,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -303,8 +239,6 @@ class _FriendsTabState extends State<_FriendsTab> {
     widget.onToggleFavorite(selected);
   }
 }
-
-enum _FriendSortOrder { recent, name }
 
 class _KeywordPreferenceCard extends StatelessWidget {
   const _KeywordPreferenceCard({
