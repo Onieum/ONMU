@@ -375,14 +375,14 @@ module "container_apps" {
     cpu          = 0.5
     memory       = "1Gi"
     plain_env = {
-      AZURE_CLIENT_ID            = module.key_vault[0].runtime_identity_client_id
-      OBJECT_STORAGE_PROVIDER    = "azure_blob"
-      ONMU_ENV                   = local.environment
+      AZURE_CLIENT_ID                = module.key_vault[0].runtime_identity_client_id
+      OBJECT_STORAGE_PROVIDER        = "azure_blob"
+      ONMU_ENV                       = local.environment
       ONMU_WORKER_CONNECT_TIMEOUT_MS = "5000"
       ONMU_WORKER_READ_TIMEOUT_MS    = "180000"
-      SERVER_ADDRESS             = "0.0.0.0"
-      SERVER_PORT                = "8080"
-      SPRING_DATASOURCE_USERNAME = var.postgres_administrator_login
+      SERVER_ADDRESS                 = "0.0.0.0"
+      SERVER_PORT                    = "8080"
+      SPRING_DATASOURCE_USERNAME     = var.postgres_administrator_login
     }
     secret_env  = local.spring_secret_env
     secret_refs = local.spring_secret_refs
