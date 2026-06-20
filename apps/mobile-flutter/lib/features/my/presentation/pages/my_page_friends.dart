@@ -37,12 +37,29 @@ class _FriendsTabState extends State<_FriendsTab> {
   }
 
   List<FriendProfile> _sortedFriends(Iterable<FriendProfile> source) {
-    final friends = source.toList();
-    friends.sort(_compareFriends);
-    return friends;
+    final friends = <MapEntry<int, FriendProfile>>[];
+    var index = 0;
+    for (final friend in source) {
+      friends.add(MapEntry(index, friend));
+      index += 1;
+    }
+    friends.sort(
+      (a, b) => _compareFriends(
+        a.value,
+        b.value,
+        originalIndexA: a.key,
+        originalIndexB: b.key,
+      ),
+    );
+    return friends.map((entry) => entry.value).toList(growable: false);
   }
 
-  int _compareFriends(FriendProfile a, FriendProfile b) {
+  int _compareFriends(
+    FriendProfile a,
+    FriendProfile b, {
+    required int originalIndexA,
+    required int originalIndexB,
+  }) {
     final nameCompare = a.name.compareTo(b.name);
     final aCreatedAt = a.friendshipCreatedAt;
     final bCreatedAt = b.friendshipCreatedAt;
@@ -55,14 +72,21 @@ class _FriendsTabState extends State<_FriendsTab> {
 
     return switch (_sortOrder) {
       _FriendSortOrder.recent =>
-        recentCompare != 0 ? recentCompare : nameCompare,
-      _FriendSortOrder.name => nameCompare != 0 ? nameCompare : recentCompare,
+        recentCompare != 0
+            ? recentCompare
+            : originalIndexA.compareTo(originalIndexB),
+      _FriendSortOrder.name =>
+        nameCompare != 0
+            ? nameCompare
+            : recentCompare != 0
+            ? recentCompare
+            : originalIndexA.compareTo(originalIndexB),
     };
   }
 
   String get _sortLabel {
     return switch (_sortOrder) {
-      _FriendSortOrder.recent => '최근 추가순',
+      _FriendSortOrder.recent => '최근 등록순',
       _FriendSortOrder.name => '가나다순',
     };
   }
@@ -206,7 +230,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                     itemBuilder: (context) => const [
                       PopupMenuItem(
                         value: _FriendSortOrder.recent,
-                        child: Text('최근 추가순'),
+                        child: Text('최근 등록순'),
                       ),
                       PopupMenuItem(
                         value: _FriendSortOrder.name,

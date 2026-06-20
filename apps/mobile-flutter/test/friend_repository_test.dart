@@ -39,6 +39,41 @@ void main() {
     );
   });
 
+  test('maps friend list snake-case friendship creation timestamp', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.method, 'GET');
+          expect(options.path, '/api/v1/users/me/friends');
+
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'publicId': 'usr_recent',
+                  'userCode': '1001',
+                  'nickname': 'Recent',
+                  'introText': '',
+                  'friendship_created_at': '2026-06-20T04:30:00Z',
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final repository = ApiFriendRepository(OnmuApiClient(dio));
+    final friends = await repository.fetchFriends();
+
+    expect(
+      friends.single.friendshipCreatedAt,
+      DateTime.utc(2026, 6, 20, 4, 30),
+    );
+  });
+
   test(
     'maps friend detail profile image, character, and profile hashtags',
     () async {

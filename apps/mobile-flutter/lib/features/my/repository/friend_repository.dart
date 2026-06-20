@@ -132,7 +132,7 @@ class ApiFriendRepository implements FriendRepository {
       introText: introText,
       useDefaultProfileImage: useDefaultProfileImage,
       friendshipCreatedAt: _dateTimeFromJson(
-        OnmuJson.readString(json, 'friendshipCreatedAt'),
+        _friendshipCreatedAtFromJson(json),
       ),
       character: useDefaultProfileImage
           ? null
@@ -146,6 +146,22 @@ class ApiFriendRepository implements FriendRepository {
             'profilePhotoUrl',
             OnmuJson.readString(json, 'avatarUrl'),
           ),
+        ),
+      ),
+    );
+  }
+
+  String _friendshipCreatedAtFromJson(Map<String, dynamic> json) {
+    return OnmuJson.readString(
+      json,
+      'friendshipCreatedAt',
+      OnmuJson.readString(
+        json,
+        'friendship_created_at',
+        OnmuJson.readString(
+          json,
+          'createdAt',
+          OnmuJson.readString(json, 'created_at'),
         ),
       ),
     );

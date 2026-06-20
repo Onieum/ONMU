@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +52,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   String? _photoFileName;
   OotdAvatarGenerationJob? _generationJob;
   late CharacterDraft _styleCharacter;
+  late bool _changeStyle;
   late String _weather;
   late String _mood;
   late double _rating;
@@ -65,7 +66,12 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     super.initState();
     final existing = widget.existingRecord;
     _styleCharacter = existing?.character ?? widget.userCharacter;
-    _weather = existing?.weather.isNotEmpty == true ? existing!.weather : 'sunny';
+    _changeStyle =
+        existing != null &&
+        !_sameCharacterStyle(_styleCharacter, widget.userCharacter);
+    _weather = existing?.weather.isNotEmpty == true
+        ? existing!.weather
+        : 'sunny';
     _mood = existing?.mood.isNotEmpty == true ? existing!.mood : 'happy';
     _rating = double.tryParse(existing?.brands['rating'] ?? '') ?? 4.0;
     _tags = existing?.moodTags.isNotEmpty == true
@@ -103,7 +109,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         child: Column(
           children: [
             RecordFlowStepIndicator(
-              labels: const ['방식', '입력', '스타일', '확인', '완료'],
+              labels: const ['방식', '입력', '스타일', '완료'],
               activeIndex: _step,
             ),
             Expanded(
@@ -137,8 +143,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return switch (_step) {
       0 => '다음',
       1 => '다음',
-      2 => '다음',
-      3 => '생성 요청하기',
+      2 => '생성 요청하기',
       _ => '기록으로 가기',
     };
   }
@@ -148,7 +153,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       0 => _buildMethodPage(),
       1 => _buildInputPage(),
       2 => _buildStylePage(),
-      3 => _buildConfirmPage(),
       _ => _buildCompletePage(),
     };
   }
@@ -180,7 +184,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         const SizedBox(height: 18),
         _InfoBox(
           icon: Icons.info_outline,
-          text: '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 사용합니다.',
+          text:
+              '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 사용합니다.',
         ),
       ],
     );
@@ -291,7 +296,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
             const SizedBox(width: 10),
             SizedBox(
               width: 88,
-              child: ElevatedButton(onPressed: _addTag, child: const Text('추가')),
+              child: ElevatedButton(
+                onPressed: _addTag,
+                child: const Text('추가'),
+              ),
             ),
           ],
         ),
@@ -315,80 +323,110 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   Widget _buildStylePage() {
+    final previewCharacter = _effectiveCharacter;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(
+        const _SectionTitle(
           title: '오늘만 스타일 조정',
-          subtitle: '기본 캐릭터는 유지하되, 오늘의 머리/렌즈 느낌만 바꿔 AI에게 전달할 수 있어요.',
+          subtitle: '헤어스타일이나 헤어/눈 컬러를 오늘 코디에 맞게 바꿀 수 있어요.',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _ToggleCard(
+                label: '변경 안 함',
+                selected: !_changeStyle,
+                onTap: () => setState(() {
+                  _changeStyle = false;
+                  _styleCharacter = widget.userCharacter;
+                }),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ToggleCard(
+                label: '변경하기',
+                selected: _changeStyle,
+                onTap: () => setState(() {
+                  _changeStyle = true;
+                  _styleCharacter = _styleCharacter;
+                }),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Center(
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(color: AppColors.lineSoft),
             ),
             child: PixelCharacterWidget(
-              character: _styleCharacter,
+              character: previewCharacter,
               size: 150,
               showClothes: false,
             ),
           ),
         ),
         const SizedBox(height: 20),
-        _OptionGroup(
-          title: '머리스타일',
-          children: List.generate(
-            6,
-            (index) => _ChoicePill(
-              key: ValueKey('hairStyleOption-$index'),
-              label: '헤어 ${index + 1}',
-              selected: _styleCharacter.hairStyleIndex == index,
-              onTap: () => setState(
-                () => _styleCharacter = _styleCharacter.copyWith(
-                  hairStyleIndex: index,
+        if (_changeStyle) ...[
+          _OptionGroup(
+            title: '헤어스타일',
+            children: List.generate(
+              6,
+              (index) => _ChoicePill(
+                key: ValueKey('hairStyleOption-$index'),
+                label: '머리 ${index + 1}',
+                selected: _styleCharacter.hairStyleIndex == index,
+                onTap: () => setState(
+                  () => _styleCharacter = _styleCharacter.copyWith(
+                    hairStyleIndex: index,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        _OptionGroup(
-          title: '머리색',
-          children: List.generate(
-            CharacterDraft.hairColors.length,
-            (index) => _ColorChoice(
-              key: ValueKey('hairColorOption-$index'),
-              colorHex: CharacterDraft.hairColors[index],
-              selected: _styleCharacter.hairColorIndex == index,
-              onTap: () => setState(
-                () => _styleCharacter = _styleCharacter.copyWith(
-                  hairColorIndex: index,
+          _OptionGroup(
+            title: '머리색',
+            children: List.generate(
+              CharacterDraft.hairColors.length,
+              (index) => _ColorChoice(
+                key: ValueKey('hairColorOption-$index'),
+                colorHex: CharacterDraft.hairColors[index],
+                selected: _styleCharacter.hairColorIndex == index,
+                onTap: () => setState(
+                  () => _styleCharacter = _styleCharacter.copyWith(
+                    hairColorIndex: index,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        _OptionGroup(
-          title: '눈색/렌즈',
-          children: List.generate(
-            CharacterDraft.eyeColors.length,
-            (index) => _ColorChoice(
-              key: ValueKey('eyeColorOption-$index'),
-              colorHex: CharacterDraft.eyeColors[index],
-              selected: _styleCharacter.eyeColorIndex == index,
-              onTap: () => setState(
-                () => _styleCharacter = _styleCharacter.copyWith(
-                  eyeColorIndex: index,
+          _OptionGroup(
+            title: '눈색 / 렌즈',
+            children: List.generate(
+              CharacterDraft.eyeColors.length,
+              (index) => _ColorChoice(
+                key: ValueKey('eyeColorOption-$index'),
+                colorHex: CharacterDraft.eyeColors[index],
+                selected: _styleCharacter.eyeColorIndex == index,
+                onTap: () => setState(
+                  () => _styleCharacter = _styleCharacter.copyWith(
+                    eyeColorIndex: index,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ] else
+          _InfoBox(icon: Icons.auto_awesome, text: '기본 캐릭터 스타일로 OOTD를 생성해요.'),
         _OptionGroup(
-          title: '오늘의 날씨',
+          title: '오늘 날씨',
           children: _weatherOptions
               .map(
                 (option) => _ChoicePill(
@@ -398,10 +436,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
                   onTap: () => setState(() => _weather = option.value),
                 ),
               )
-              .toList(growable: false),
+              .toList(),
         ),
         _OptionGroup(
-          title: '오늘의 무드',
+          title: '오늘 무드',
           children: _moodOptions
               .map(
                 (option) => _ChoicePill(
@@ -411,79 +449,30 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
                   onTap: () => setState(() => _mood = option.value),
                 ),
               )
-              .toList(growable: false),
+              .toList(),
         ),
-        const SizedBox(height: 8),
-        Text('오늘 코디 별점', style: AppTextStyles.labelSmall),
-        const SizedBox(height: 8),
-        Row(
-          children: List.generate(
-            5,
-            (index) => IconButton(
-              key: ValueKey('rating-${index + 1}'),
-              onPressed: () => setState(() => _rating = (index + 1).toDouble()),
-              icon: Icon(
-                index < _rating.round() ? Icons.star : Icons.star_border,
-                color: const Color(0xFFFFB84D),
-                size: 34,
-              ),
-            ),
-          )..add(
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(_rating.toStringAsFixed(1), style: AppTextStyles.labelSmall),
-              ),
-            ),
+        _RatingPicker(
+          rating: _rating,
+          onChanged: (value) => setState(() => _rating = value),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         TextField(
           key: const ValueKey('pointField'),
           controller: _pointController,
-          maxLength: 40,
           decoration: const InputDecoration(
-            labelText: 'POINT',
+            labelText: '오늘 코디 포인트',
             hintText: '예: 가방으로 포인트 주기',
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         TextField(
           key: const ValueKey('nextSuggestionField'),
           controller: _nextSuggestionController,
-          maxLength: 80,
+          maxLines: 2,
           decoration: const InputDecoration(
-            labelText: '다음 코디 메모',
-            hintText: '예: 다음엔 청바지랑 입어보기',
+            labelText: '다음엔 이렇게 입고 싶어요',
+            hintText: '예: 니트에 청바지 조합도 좋을 것 같아요.',
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConfirmPage() {
-    final description = _outfitDescription;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionTitle(
-          title: '저장 전 확인',
-          subtitle: '아래 정보로 OOTD 캐릭터 생성 요청을 보낼게요.',
-        ),
-        const SizedBox(height: 20),
-        _SummaryCard(
-          title: _isPhotoMode ? '사진 기반 생성' : '텍스트 기반 생성',
-          lines: [
-            if (description.isNotEmpty) description,
-            '날씨: ${_weatherLabel(_weather)}',
-            '무드: ${_moodLabel(_mood)}',
-            '별점: ${_rating.toStringAsFixed(1)}',
-            if (_pointController.text.trim().isNotEmpty)
-              '포인트: ${_pointController.text.trim()}',
-          ],
-        ),
-        const SizedBox(height: 16),
-        _InfoBox(
-          icon: Icons.auto_awesome,
-          text: '저장 후 Vision AI가 의상 정보를 정리하고, Azure ML이 오늘만 조정한 캐릭터 스타일을 기준으로 OOTD 이미지를 생성합니다.',
         ),
       ],
     );
@@ -495,15 +484,21 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       children: [
         const SizedBox(height: 40),
         Icon(
-          job?.isFailed == true ? Icons.error_outline : Icons.check_circle_outline,
-          color: job?.isFailed == true ? const Color(0xFFE75D6A) : const Color(0xFF8EBB7A),
+          job?.isFailed == true
+              ? Icons.error_outline
+              : Icons.check_circle_outline,
+          color: job?.isFailed == true
+              ? const Color(0xFFE75D6A)
+              : const Color(0xFF8EBB7A),
           size: 64,
         ),
         const SizedBox(height: 18),
         Text(
           job?.isFailed == true ? '생성 요청을 다시 확인해 주세요' : 'OOTD 기록이 저장됐어요',
           textAlign: TextAlign.center,
-          style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textMain),
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 10),
         Text(
@@ -511,7 +506,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
               ? '생성된 캐릭터 이미지는 기록 상세에서 확인할 수 있어요.'
               : 'AI 생성은 잠시 걸릴 수 있어요. 기록 화면에서 상태를 다시 확인해 주세요.',
           textAlign: TextAlign.center,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub, height: 1.4),
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSub,
+            height: 1.4,
+          ),
         ),
       ],
     );
@@ -548,12 +546,12 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   void _nextStep() {
-    if (_step == 4) {
+    if (_step == 3) {
       context.go(RoutePaths.records);
       return;
     }
     if (_step == 1 && !_validateInput()) return;
-    if (_step == 3) {
+    if (_step == 2) {
       _save();
       return;
     }
@@ -566,10 +564,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   void _handleBack() {
-    if (_step > 0) {
-      _previousStep();
-      return;
-    }
     if (Navigator.of(context).canPop()) {
       context.pop();
     } else {
@@ -619,11 +613,16 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
       final record = OotdRecord(
         id: widget.existingRecord?.id,
-        date: widget.recordDate ?? widget.existingRecord?.date ?? DateTime.now(),
+        date:
+            widget.recordDate ?? widget.existingRecord?.date ?? DateTime.now(),
         imagePath: uploaded?.publicUrl ?? widget.existingRecord?.imagePath,
-        imageUrls: uploaded == null ? widget.existingRecord?.imageUrls ?? const [] : [uploaded.publicUrl],
-        media: uploaded == null ? widget.existingRecord?.media ?? const [] : [uploaded],
-        character: _styleCharacter,
+        imageUrls: uploaded == null
+            ? widget.existingRecord?.imageUrls ?? const []
+            : [uploaded.publicUrl],
+        media: uploaded == null
+            ? widget.existingRecord?.media ?? const []
+            : [uploaded],
+        character: _effectiveCharacter,
         moodTags: _tags,
         brands: brands,
         weather: _weather,
@@ -640,16 +639,20 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       final job = await repository.createAvatarGeneration(
         recordId: savedId,
         inputType: inputType,
-        outfitPhotoMediaId: _isPhotoMode ? uploaded?.id ?? uploaded?.storageKey : null,
-        outfitDescription: _isTextMode ? _descriptionController.text.trim() : null,
-        characterOverrides: _styleCharacter,
+        outfitPhotoMediaId: _isPhotoMode
+            ? uploaded?.id ?? uploaded?.storageKey
+            : null,
+        outfitDescription: _isTextMode
+            ? _descriptionController.text.trim()
+            : null,
+        characterOverrides: _effectiveCharacter,
       );
       final resolved = await _resolveJob(repository, job);
       if (!mounted) return;
       setState(() {
         _generationJob = resolved;
         _isSaving = false;
-        _step = 4;
+        _step = 3;
       });
     } catch (error) {
       if (!mounted) return;
@@ -689,10 +692,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ? _defaultNextSuggestion
           : _nextSuggestionController.text.trim(),
       'rating': _rating.toStringAsFixed(1),
-      'styleHairStyle': 'hair_style_${_styleCharacter.hairStyleIndex}',
-      'styleHairColor': 'hair_color_${_styleCharacter.hairColorIndex}',
-      'styleEyeStyle': 'eye_style_${_styleCharacter.eyeShapeIndex}',
-      'styleEyeColor': 'eye_color_${_styleCharacter.eyeColorIndex}',
+      'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',
+      'styleHairColor': 'hair_color_${_effectiveCharacter.hairColorIndex}',
+      'styleEyeStyle': 'eye_style_${_effectiveCharacter.eyeShapeIndex}',
+      'styleEyeColor': 'eye_color_${_effectiveCharacter.eyeColorIndex}',
       if (uploaded != null) 'outfitPhotoStorageKey': uploaded.storageKey,
       ...outfitInfo,
     };
@@ -724,6 +727,17 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return '오늘은 헤어 ${_styleCharacter.hairStyleIndex + 1} 스타일과 선택한 컬러를 반영해 캐릭터 분위기를 조정했어요.';
   }
 
+  CharacterDraft get _effectiveCharacter {
+    return _changeStyle ? _styleCharacter : widget.userCharacter;
+  }
+
+  static bool _sameCharacterStyle(CharacterDraft a, CharacterDraft b) {
+    return a.hairStyleIndex == b.hairStyleIndex &&
+        a.hairColorIndex == b.hairColorIndex &&
+        a.eyeShapeIndex == b.eyeShapeIndex &&
+        a.eyeColorIndex == b.eyeColorIndex;
+  }
+
   String _defaultPoint(String outfitDescription) {
     if (outfitDescription.contains('가방')) return '가방으로 포인트 주기';
     if (outfitDescription.contains('신발') || outfitDescription.contains('로퍼')) {
@@ -735,19 +749,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   String get _defaultNextSuggestion => '다음엔 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  static String _weatherLabel(String value) {
-    return _weatherOptions
-        .firstWhere((option) => option.value == value, orElse: () => _weatherOptions.first)
-        .label;
-  }
-
-  static String _moodLabel(String value) {
-    return _moodOptions
-        .firstWhere((option) => option.value == value, orElse: () => _moodOptions.first)
-        .label;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -762,9 +766,20 @@ class _SectionTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textMain)),
+        Text(
+          title,
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: AppColors.textMain,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub, height: 1.45)),
+        Text(
+          subtitle,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSub,
+            height: 1.45,
+          ),
+        ),
       ],
     );
   }
@@ -774,14 +789,14 @@ class _ModeCard extends StatelessWidget {
   final bool selected;
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final VoidCallback onTap;
 
   const _ModeCard({
     required this.selected,
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.onTap,
   });
 
@@ -797,23 +812,44 @@ class _ModeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: selected ? AppColors.primaryPink : AppColors.lineSoft, width: selected ? 2 : 1),
+          border: Border.all(
+            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+            width: selected ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? AppColors.primaryPink : AppColors.textSub, size: 30),
+            Icon(
+              icon,
+              color: selected ? AppColors.primaryPink : AppColors.textSub,
+              size: 30,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub, height: 1.35)),
+                  Text(
+                    title,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSub,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (selected) const Icon(Icons.check_circle, color: AppColors.primaryPink),
+            if (selected)
+              const Icon(Icons.check_circle, color: AppColors.primaryPink),
           ],
         ),
       ),
@@ -842,8 +878,66 @@ class _InfoBox extends StatelessWidget {
         children: [
           Icon(icon, color: AppColors.primaryPink, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub, height: 1.45))),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSub,
+                height: 1.45,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToggleCard extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ToggleCard({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected ? AppColors.primaryPink : AppColors.textSub,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: selected ? AppColors.primaryPink : AppColors.textMain,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -862,7 +956,10 @@ class _OptionGroup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+          Text(
+            title,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
+          ),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: children),
         ],
@@ -876,7 +973,12 @@ class _ChoicePill extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ChoicePill({super.key, required this.label, required this.selected, required this.onTap});
+  const _ChoicePill({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -885,7 +987,9 @@ class _ChoicePill extends StatelessWidget {
       label: Text(label),
       onSelected: (_) => onTap(),
       selectedColor: AppColors.primaryPinkSoft,
-      side: BorderSide(color: selected ? AppColors.primaryPink : AppColors.lineSoft),
+      side: BorderSide(
+        color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+      ),
     );
   }
 }
@@ -895,7 +999,12 @@ class _ColorChoice extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ColorChoice({super.key, required this.colorHex, required this.selected, required this.onTap});
+  const _ColorChoice({
+    super.key,
+    required this.colorHex,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -909,46 +1018,62 @@ class _ColorChoice extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(color: selected ? AppColors.primaryPink : AppColors.lineSoft, width: selected ? 3 : 1),
+          border: Border.all(
+            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+            width: selected ? 3 : 1,
+          ),
           boxShadow: selected
-              ? [BoxShadow(color: AppColors.primaryPink.withOpacity(0.28), blurRadius: 8)]
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryPink.withOpacity(0.28),
+                    blurRadius: 8,
+                  ),
+                ]
               : null,
         ),
-        child: selected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+        child: selected
+            ? const Icon(Icons.check, color: Colors.white, size: 18)
+            : null,
       ),
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final List<String> lines;
+class _RatingPicker extends StatelessWidget {
+  final double rating;
+  final ValueChanged<double> onChanged;
 
-  const _SummaryCard({required this.title, required this.lines});
+  const _RatingPicker({required this.rating, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryPink)),
-          const SizedBox(height: 12),
-          ...lines.map(
-            (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(line, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.4)),
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '?? ?? ??',
+          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: List.generate(5, (index) {
+            final value = index + 1.0;
+            final selected = rating >= value;
+            return IconButton(
+              key: ValueKey('rating-${index + 1}'),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              onPressed: () => onChanged(value),
+              icon: Icon(
+                selected ? Icons.star_rounded : Icons.star_border_rounded,
+                color: selected ? const Color(0xFFFFB64D) : AppColors.lineSoft,
+                size: 32,
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
