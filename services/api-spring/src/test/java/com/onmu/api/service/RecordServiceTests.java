@@ -339,6 +339,7 @@ class RecordServiceTests {
       "PUBLIC",
       "short_hair",
       "blonde",
+      "round",
       "green",
       Map.of()
     );
@@ -353,7 +354,7 @@ class RecordServiceTests {
     assertThat(snapshot.get("skin_tone")).isEqualTo("type_cool");
     assertThat(snapshot.get("hair_style")).isEqualTo("short_hair");
     assertThat(snapshot.get("hair_color")).isEqualTo("blonde");
-    assertThat(snapshot.get("eye_style")).isEqualTo("sharp");
+    assertThat(snapshot.get("eye_style")).isEqualTo("round");
     assertThat(snapshot.get("eye_color")).isEqualTo("green");
     assertThat(snapshot.get("clothes")).isEqualTo("none");
 

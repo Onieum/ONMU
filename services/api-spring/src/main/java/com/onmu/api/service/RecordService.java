@@ -454,7 +454,7 @@ public class RecordService {
     snapshot.put("skin_tone", characterProfile.getSkinTone());
     snapshot.put("hair_style", request.hairStyle() != null ? request.hairStyle() : characterProfile.getHairStyle());
     snapshot.put("hair_color", request.hairColor() != null ? request.hairColor() : characterProfile.getHairColor());
-    snapshot.put("eye_style", characterProfile.getEyeStyle());
+    snapshot.put("eye_style", request.eyeStyle() != null ? request.eyeStyle() : characterProfile.getEyeStyle());
     snapshot.put("eye_color", request.eyeColor() != null ? request.eyeColor() : characterProfile.getEyeColor());
     snapshot.put("clothes", "none");
 
@@ -536,7 +536,7 @@ public class RecordService {
     snapshot.put("skin_tone", characterProfile.getSkinTone());
     snapshot.put("hair_style", request.hairStyle() != null ? request.hairStyle() : characterProfile.getHairStyle());
     snapshot.put("hair_color", request.hairColor() != null ? request.hairColor() : characterProfile.getHairColor());
-    snapshot.put("eye_style", characterProfile.getEyeStyle());
+    snapshot.put("eye_style", request.eyeStyle() != null ? request.eyeStyle() : characterProfile.getEyeStyle());
     snapshot.put("eye_color", request.eyeColor() != null ? request.eyeColor() : characterProfile.getEyeColor());
     snapshot.put("clothes", "none");
 

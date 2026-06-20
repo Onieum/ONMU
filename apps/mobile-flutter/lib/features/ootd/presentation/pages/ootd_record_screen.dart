@@ -1,11 +1,10 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
@@ -43,7 +42,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   final _descriptionController = TextEditingController();
   final _memoController = TextEditingController();
   final _tagController = TextEditingController();
-  final List<String> _tags = ['#OOTD'];
+  final _pointController = TextEditingController();
+  final _nextSuggestionController = TextEditingController();
 
   int _step = 0;
   int _inputMode = _photoMode;
@@ -51,24 +51,34 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   Uint8List? _photoBytes;
   String? _photoFileName;
   OotdAvatarGenerationJob? _generationJob;
+  late CharacterDraft _styleCharacter;
+  late String _weather;
+  late String _mood;
+  late double _rating;
+  late List<String> _tags;
+
+  bool get _isPhotoMode => _inputMode == _photoMode;
+  bool get _isTextMode => _inputMode == _textMode;
 
   @override
   void initState() {
     super.initState();
     final existing = widget.existingRecord;
-    if (existing != null) {
-      _tags
-        ..clear()
-        ..addAll(existing.moodTags.isEmpty ? ['#OOTD'] : existing.moodTags);
-      _memoController.text = existing.timeline.isEmpty
-          ? ''
-          : existing.timeline.first.description;
-      _descriptionController.text =
-          existing.brands['outfitDescription'] ?? '';
-      _inputMode = existing.brands['inputType'] == 'TEXT_PROMPT'
-          ? _textMode
-          : _photoMode;
-    }
+    _styleCharacter = existing?.character ?? widget.userCharacter;
+    _weather = existing?.weather.isNotEmpty == true ? existing!.weather : 'sunny';
+    _mood = existing?.mood.isNotEmpty == true ? existing!.mood : 'happy';
+    _rating = double.tryParse(existing?.brands['rating'] ?? '') ?? 4.0;
+    _tags = existing?.moodTags.isNotEmpty == true
+        ? List<String>.from(existing!.moodTags)
+        : ['#OOTD'];
+
+    final brands = existing?.brands ?? const <String, String>{};
+    _descriptionController.text = brands['outfitDescription'] ?? '';
+    _memoController.text = existing?.timeline.isNotEmpty == true
+        ? existing!.timeline.first.description
+        : '';
+    _pointController.text = brands['point'] ?? '';
+    _nextSuggestionController.text = brands['nextSuggestion'] ?? '';
   }
 
   @override
@@ -76,196 +86,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     _descriptionController.dispose();
     _memoController.dispose();
     _tagController.dispose();
+    _pointController.dispose();
+    _nextSuggestionController.dispose();
     super.dispose();
-  }
-
-  bool get _isTextMode => _inputMode == _textMode;
-
-  void _next() {
-    if (_isSaving) return;
-    if (_step == 0) {
-      setState(() => _step = 1);
-      return;
-    }
-    if (_step == 1) {
-      if (!_validateInput()) return;
-      setState(() => _step = 2);
-      return;
-    }
-    if (_step == 2) {
-      _save();
-    }
-  }
-
-  void _back() {
-    if (_isSaving) return;
-    if (_step > 0) {
-      setState(() => _step--);
-    }
-  }
-
-  bool _validateInput() {
-    if (_isTextMode && _descriptionController.text.trim().isEmpty) {
-      _showSnack('코디 설명을 입력해 주세요.');
-      return false;
-    }
-    if (!_isTextMode && _photoBytes == null) {
-      _showSnack('상의, 하의, 신발이 보이는 전체 코디 사진 1장을 선택해 주세요.');
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _pickPhoto() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
-    setState(() {
-      _inputMode = _photoMode;
-      _descriptionController.clear();
-      _photoBytes = bytes;
-      _photoFileName = picked.name.isEmpty ? 'ootd-reference.jpg' : picked.name;
-    });
-  }
-
-  void _selectPhotoMode() {
-    setState(() {
-      _inputMode = _photoMode;
-      _descriptionController.clear();
-    });
-  }
-
-  void _selectTextMode() {
-    setState(() {
-      _inputMode = _textMode;
-      _photoBytes = null;
-      _photoFileName = null;
-    });
-  }
-
-  void _addTag() {
-    final raw = _tagController.text.trim();
-    if (raw.isEmpty) return;
-    final tag = raw.startsWith('#') ? raw : '#$raw';
-    if (!_tags.contains(tag)) {
-      setState(() => _tags.add(tag));
-    }
-    _tagController.clear();
-  }
-
-  Future<void> _save() async {
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
-
-    final repository = ref.read(recordRepositoryProvider);
-    UploadedMedia? uploaded;
-
-    try {
-      if (!_isTextMode && _photoBytes != null) {
-        uploaded = await repository.uploadMedia(
-          _photoBytes!,
-          _photoFileName ?? 'ootd-reference.jpg',
-        );
-      }
-
-      final imageUrls = uploaded == null ? <String>[] : [uploaded.publicUrl];
-      final media = uploaded == null ? <UploadedMedia>[] : [uploaded];
-      final description = _descriptionController.text.trim();
-      final memo = _memoController.text.trim();
-      final inputType = _isTextMode ? 'TEXT_PROMPT' : 'PHOTO_REFERENCE';
-      final date = widget.recordDate ?? DateTime.now();
-
-      final record = OotdRecord(
-        date: date,
-        imagePath: imageUrls.isEmpty ? null : imageUrls.first,
-        imageUrls: imageUrls,
-        media: media,
-        character: widget.userCharacter,
-        moodTags: _tags,
-        brands: {
-          'recordType': 'ootd',
-          'inputType': inputType,
-          if (description.isNotEmpty) 'outfitDescription': description,
-          'aiStatus': 'PENDING',
-        },
-        weather: 'sunny',
-        mood: 'happy',
-        isPublic: false,
-        timeline: [
-          TimelineItem(
-            time: 'OOTD',
-            placeName: _isTextMode ? '코디 설명' : '코디 사진',
-            category: 'ootd',
-            description: _isTextMode
-                ? description
-                : memo.isEmpty
-                    ? '오늘의 OOTD를 기록했어요.'
-                    : memo,
-            imageUrl: imageUrls.isEmpty ? null : imageUrls.first,
-            mediaStorageKey: uploaded?.storageKey,
-          ),
-        ],
-      );
-
-      final saved = await widget.onSave(record);
-      final savedId = saved.id;
-      if (savedId == null || savedId.isEmpty) {
-        throw StateError('ootd_record_id_missing');
-      }
-
-      final savedPhotoMediaId = saved.media.isNotEmpty
-          ? saved.media.first.id
-          : null;
-      if (!_isTextMode && (savedPhotoMediaId == null || savedPhotoMediaId.isEmpty)) {
-        throw StateError('ootd_photo_media_id_missing');
-      }
-
-      final job = await repository.createAvatarGeneration(
-        recordId: savedId,
-        inputType: inputType,
-        outfitPhotoMediaId: _isTextMode ? null : savedPhotoMediaId,
-        outfitDescription: _isTextMode ? description : null,
-        characterOverrides: saved.character,
-      );
-      final resolvedJob = await _resolveJob(repository, job);
-
-      if (!mounted) return;
-      setState(() {
-        _generationJob = resolvedJob;
-        _step = 3;
-        _isSaving = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      _showSnack('OOTD 생성 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.');
-    }
-  }
-
-  Future<OotdAvatarGenerationJob> _resolveJob(
-    RecordRepository repository,
-    OotdAvatarGenerationJob initial,
-  ) async {
-    var current = initial;
-    for (var i = 0; i < 6; i++) {
-      if (!current.isPending) return current;
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      current = await repository.fetchAvatarGeneration(current.jobId);
-    }
-    return current;
-  }
-
-  void _showSnack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   @override
@@ -273,77 +96,92 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
       appBar: AppBar(
-        backgroundColor: AppColors.transparent,
-        elevation: 0,
-        leading: _step == 3
-            ? const SizedBox.shrink()
-            : RecordFlowExitButton(
-                onPressed: () => context.popOrGo(RoutePaths.records),
-              ),
-        title: Text(
-          'OOTD 기록',
-          style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
-        ),
-        centerTitle: true,
+        title: const Text('OOTD 기록'),
+        leading: RecordFlowExitButton(onPressed: _handleBack),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            if (_step < 3) _buildStepIndicator(),
+            RecordFlowStepIndicator(
+              labels: const ['방식', '입력', '스타일', '확인', '완료'],
+              activeIndex: _step,
+            ),
             Expanded(
               child: GridBackground(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                  child: _buildContent(),
+                child: CustomScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                      sliver: SliverToBoxAdapter(child: _buildStepContent()),
+                    ),
+                  ],
                 ),
               ),
             ),
-            _buildBottomBar(),
+            RecordFlowBottomBar(
+              primaryLabel: _primaryLabel,
+              showBackButton: _step > 0,
+              onBackPressed: _previousStep,
+              onPrimaryPressed: _isSaving ? () {} : _nextStep,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStepIndicator() {
-    return RecordFlowStepIndicator(
-      labels: const ['방식', '입력', '확인'],
-      activeIndex: _step.clamp(0, 2),
-    );
+  String get _primaryLabel {
+    if (_isSaving) return '저장 중...';
+    return switch (_step) {
+      0 => '다음',
+      1 => '다음',
+      2 => '다음',
+      3 => '생성 요청하기',
+      _ => '기록으로 가기',
+    };
   }
 
-  Widget _buildContent() {
-    if (_step == 0) return _buildMethodPage();
-    if (_step == 1) return _buildInputPage();
-    if (_step == 2) return _buildConfirmPage();
-    return _buildCompletePage();
+  Widget _buildStepContent() {
+    return switch (_step) {
+      0 => _buildMethodPage(),
+      1 => _buildInputPage(),
+      2 => _buildStylePage(),
+      3 => _buildConfirmPage(),
+      _ => _buildCompletePage(),
+    };
   }
 
   Widget _buildMethodPage() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(
-          title: 'OOTD 생성 방식 선택',
-          subtitle: '사진이나 텍스트 설명 중 하나를 선택해 오늘의 코디를 AI 캐릭터로 만들어 보세요.',
+        _SectionTitle(
+          title: 'AI OOTD 생성 방식',
+          subtitle: '사진 또는 텍스트 중 하나만 선택해서 오늘의 코디를 캐릭터에 입혀요.',
         ),
         const SizedBox(height: 20),
-        _buildMethodCard(
-          selected: !_isTextMode,
+        _ModeCard(
+          selected: _isPhotoMode,
           icon: Icons.photo_camera_outlined,
           title: '사진으로 생성',
-          subtitle: '상의, 하의, 신발이 모두 보이는 전체 코디 사진 1장을 사용해요.',
-          onTap: _selectPhotoMode,
+          subtitle: '전체 코디가 보이는 사진 1장을 참고해 의상을 분석해요.',
+          onTap: () => setState(() => _inputMode = _photoMode),
         ),
-        const SizedBox(height: 14),
-        _buildMethodCard(
+        const SizedBox(height: 12),
+        _ModeCard(
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: '사진 없이 옷 설명을 직접 입력해서 OOTD 캐릭터를 만들어요.',
-          onTap: _selectTextMode,
+          subtitle: '사진 없이 옷 설명만으로 OOTD 캐릭터를 만들어요.',
+          onTap: () => setState(() => _inputMode = _textMode),
         ),
-        const SizedBox(height: 24),
-        PixelCharacterWidget(character: widget.userCharacter, size: 120),
+        const SizedBox(height: 18),
+        _InfoBox(
+          icon: Icons.info_outline,
+          text: '사진과 텍스트 설명은 동시에 사용하지 않아요. 사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 사용합니다.',
+        ),
       ],
     );
   }
@@ -352,277 +190,108 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(
-          title: _isTextMode ? '코디 설명 입력' : '코디 사진 선택',
-          subtitle: _isTextMode
-              ? '색상, 소재, 핏, 소품까지 최대한 자세히 적어 주세요.'
-              : '상의, 하의, 신발이 보이는 전체 코디 사진 1장을 선택해 주세요.',
+        _SectionTitle(
+          title: _isPhotoMode ? 'OOTD 사진 선택' : '코디 설명 입력',
+          subtitle: _isPhotoMode
+              ? '상의, 하의, 신발, 소품이 최대한 한 장에 보이는 사진을 선택해 주세요.'
+              : '색상, 소재, 핏, 소품을 자세히 적을수록 더 잘 반영돼요.',
         ),
-        const SizedBox(height: 20),
-        if (_isTextMode) _buildDescriptionInput() else _buildPhotoInput(),
-        const SizedBox(height: 24),
-        _buildTagInput(),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _memoController,
-          maxLength: 120,
-          decoration: const InputDecoration(
-            labelText: '메모',
-            hintText: '오늘 코디에 대한 메모를 남겨보세요.',
-          ),
-        ),
+        const SizedBox(height: 18),
+        if (_isPhotoMode) _buildPhotoPicker() else _buildDescriptionField(),
+        const SizedBox(height: 18),
+        _buildMemoAndTags(),
       ],
     );
   }
 
-  Widget _buildConfirmPage() {
-    final description = _descriptionController.text.trim();
-    return Column(
-      children: [
-        _buildHeader(
-          title: 'AI OOTD 생성 확인',
-          subtitle: '입력 내용을 확인하고 AI 생성 요청을 보낼게요.',
-        ),
-        const SizedBox(height: 20),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: _cardDecoration(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _summaryRow('입력 방식', _isTextMode ? '텍스트 설명' : '사진'),
-              const SizedBox(height: 10),
-              _summaryRow(
-                '입력 내용',
-                _isTextMode
-                    ? description
-                    : _photoFileName ?? '사진 선택 완료',
-              ),
-              const SizedBox(height: 10),
-              _summaryRow('태그', _tags.join(' ')),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        PixelCharacterWidget(character: widget.userCharacter, size: 130),
-      ],
-    );
-  }
-
-  Widget _buildCompletePage() {
-    final job = _generationJob;
-    final isCompleted = job?.isCompleted ?? false;
-    return Column(
-      children: [
-        const SizedBox(height: 16),
-        Icon(
-          isCompleted ? Icons.check_circle_outline : Icons.hourglass_bottom,
-          color: isCompleted ? AppColors.accentGreen : AppColors.primaryPink,
-          size: 42,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          isCompleted ? 'OOTD 생성 요청 완료' : 'OOTD 생성 처리 중',
-          style: AppTextStyles.headlineSmall.copyWith(
-            color: AppColors.textMain,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          isCompleted
-              ? 'mock 생성 결과를 저장했어요. 실제 Azure ML 연결 후에는 생성 이미지가 기록에 반영됩니다.'
-              : '생성 job을 처리 중이에요. 잠시 후 기록 화면에서 결과를 확인할 수 있어요.',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: _cardDecoration(),
-          child: Column(
-            children: [
-              PixelCharacterWidget(character: widget.userCharacter, size: 140),
-              const SizedBox(height: 12),
-              Text(
-                'jobId: ${job?.jobId ?? '-'}',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textSub,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'status: ${job?.status ?? 'UNKNOWN'}',
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.primaryPink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader({required String title, required String subtitle}) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: AppTextStyles.titleMedium.copyWith(color: AppColors.textMain),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSub,
-            height: 1.4,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMethodCard({
-    required bool selected,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: selected ? AppColors.primaryPink : AppColors.textMuted,
-              size: 34,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: selected
-                          ? AppColors.primaryPink
-                          : AppColors.textMain,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textSub,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Radio<bool>(
-              value: true,
-              groupValue: selected,
-              activeColor: AppColors.primaryPink,
-              onChanged: (_) => onTap(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhotoInput() {
+  Widget _buildPhotoPicker() {
     return GestureDetector(
       onTap: _pickPhoto,
       child: Container(
         width: double.infinity,
-        height: 220,
-        decoration: _cardDecoration(),
+        height: 260,
+        decoration: BoxDecoration(
+          color: AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.lineSoft),
+        ),
         child: _photoBytes == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(
-                    Icons.add_a_photo_outlined,
+                    Icons.add_photo_alternate_outlined,
                     color: AppColors.primaryPink,
-                    size: 42,
+                    size: 44,
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '사진 선택하기',
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: AppColors.primaryPink,
+                    '전체 코디 사진 1장 선택하기',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textMain,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '상의, 하의, 신발이 보이는 사진 1장',
-                    style: AppTextStyles.labelSmall.copyWith(
+                    '상의/하의/신발을 따로 올리기보다 한 장에 보이게 찍어주세요.',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSub,
+                      height: 1.4,
                     ),
                   ),
                 ],
               )
             : ClipRRect(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(22),
                 child: Image.memory(_photoBytes!, fit: BoxFit.cover),
               ),
       ),
     );
   }
 
-  Widget _buildDescriptionInput() {
+  Widget _buildDescriptionField() {
     return TextField(
+      key: const ValueKey('ootdDescriptionField'),
       controller: _descriptionController,
-      maxLength: 500,
-      maxLines: 7,
+      minLines: 5,
+      maxLines: 8,
+      maxLength: 240,
       decoration: const InputDecoration(
-        labelText: '코디 설명',
-        hintText: '예: 아이보리 니트, 데님 미니스커트, 흰 양말, 흰 운동화',
+        hintText: '예: 아이보리 니트, 블랙 롱 스커트, 버건디 숄더백, 화이트 삭스와 로퍼',
       ),
     );
   }
 
-  Widget _buildTagInput() {
+  Widget _buildMemoAndTags() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '하루 태그',
-          style: AppTextStyles.labelLarge.copyWith(color: AppColors.textMain),
+        Text('한줄 메모', style: AppTextStyles.labelSmall),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _memoController,
+          maxLength: 80,
+          decoration: const InputDecoration(
+            hintText: '오늘 코디에 대한 짧은 메모를 남겨보세요.',
+          ),
         ),
+        const SizedBox(height: 14),
+        Text('태그', style: AppTextStyles.labelSmall),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _tagController,
-                decoration: const InputDecoration(hintText: '#코디 #OOTD'),
+                decoration: const InputDecoration(hintText: '#카페룩'),
                 onSubmitted: (_) => _addTag(),
               ),
             ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: _addTag,
-              child: const Text('추가'),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 88,
+              child: ElevatedButton(onPressed: _addTag, child: const Text('추가')),
             ),
           ],
         ),
@@ -632,9 +301,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           runSpacing: 8,
           children: _tags
               .map(
-                (tag) => Chip(
+                (tag) => InputChip(
                   label: Text(tag),
-                  onDeleted: _tags.length <= 1
+                  onDeleted: _tags.length == 1
                       ? null
                       : () => setState(() => _tags.remove(tag)),
                 ),
@@ -645,72 +314,663 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     );
   }
 
-  Widget _summaryRow(String label, String value) {
-    return Row(
+  Widget _buildStylePage() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 76,
-          child: Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.textSub,
+        _SectionTitle(
+          title: '오늘만 스타일 조정',
+          subtitle: '기본 캐릭터는 유지하되, 오늘의 머리/렌즈 느낌만 바꿔 AI에게 전달할 수 있어요.',
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.bgDefault,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.lineSoft),
+            ),
+            child: PixelCharacterWidget(
+              character: _styleCharacter,
+              size: 150,
+              showClothes: false,
             ),
           ),
         ),
-        Expanded(
-          child: Text(
-            value.isEmpty ? '-' : value,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.textMain,
-              height: 1.35,
+        const SizedBox(height: 20),
+        _OptionGroup(
+          title: '머리스타일',
+          children: List.generate(
+            6,
+            (index) => _ChoicePill(
+              key: ValueKey('hairStyleOption-$index'),
+              label: '헤어 ${index + 1}',
+              selected: _styleCharacter.hairStyleIndex == index,
+              onTap: () => setState(
+                () => _styleCharacter = _styleCharacter.copyWith(
+                  hairStyleIndex: index,
+                ),
+              ),
             ),
+          ),
+        ),
+        _OptionGroup(
+          title: '머리색',
+          children: List.generate(
+            CharacterDraft.hairColors.length,
+            (index) => _ColorChoice(
+              key: ValueKey('hairColorOption-$index'),
+              colorHex: CharacterDraft.hairColors[index],
+              selected: _styleCharacter.hairColorIndex == index,
+              onTap: () => setState(
+                () => _styleCharacter = _styleCharacter.copyWith(
+                  hairColorIndex: index,
+                ),
+              ),
+            ),
+          ),
+        ),
+        _OptionGroup(
+          title: '눈색/렌즈',
+          children: List.generate(
+            CharacterDraft.eyeColors.length,
+            (index) => _ColorChoice(
+              key: ValueKey('eyeColorOption-$index'),
+              colorHex: CharacterDraft.eyeColors[index],
+              selected: _styleCharacter.eyeColorIndex == index,
+              onTap: () => setState(
+                () => _styleCharacter = _styleCharacter.copyWith(
+                  eyeColorIndex: index,
+                ),
+              ),
+            ),
+          ),
+        ),
+        _OptionGroup(
+          title: '오늘의 날씨',
+          children: _weatherOptions
+              .map(
+                (option) => _ChoicePill(
+                  key: ValueKey('weather-${option.value}'),
+                  label: '${option.icon} ${option.label}',
+                  selected: _weather == option.value,
+                  onTap: () => setState(() => _weather = option.value),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        _OptionGroup(
+          title: '오늘의 무드',
+          children: _moodOptions
+              .map(
+                (option) => _ChoicePill(
+                  key: ValueKey('mood-${option.value}'),
+                  label: '${option.icon} ${option.label}',
+                  selected: _mood == option.value,
+                  onTap: () => setState(() => _mood = option.value),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 8),
+        Text('오늘 코디 별점', style: AppTextStyles.labelSmall),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(
+            5,
+            (index) => IconButton(
+              key: ValueKey('rating-${index + 1}'),
+              onPressed: () => setState(() => _rating = (index + 1).toDouble()),
+              icon: Icon(
+                index < _rating.round() ? Icons.star : Icons.star_border,
+                color: const Color(0xFFFFB84D),
+                size: 34,
+              ),
+            ),
+          )..add(
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(_rating.toStringAsFixed(1), style: AppTextStyles.labelSmall),
+              ),
+            ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const ValueKey('pointField'),
+          controller: _pointController,
+          maxLength: 40,
+          decoration: const InputDecoration(
+            labelText: 'POINT',
+            hintText: '예: 가방으로 포인트 주기',
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          key: const ValueKey('nextSuggestionField'),
+          controller: _nextSuggestionController,
+          maxLength: 80,
+          decoration: const InputDecoration(
+            labelText: '다음 코디 메모',
+            hintText: '예: 다음엔 청바지랑 입어보기',
           ),
         ),
       ],
     );
   }
 
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: AppColors.bgDefault,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.lineSoft),
+  Widget _buildConfirmPage() {
+    final description = _outfitDescription;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle(
+          title: '저장 전 확인',
+          subtitle: '아래 정보로 OOTD 캐릭터 생성 요청을 보낼게요.',
+        ),
+        const SizedBox(height: 20),
+        _SummaryCard(
+          title: _isPhotoMode ? '사진 기반 생성' : '텍스트 기반 생성',
+          lines: [
+            if (description.isNotEmpty) description,
+            '날씨: ${_weatherLabel(_weather)}',
+            '무드: ${_moodLabel(_mood)}',
+            '별점: ${_rating.toStringAsFixed(1)}',
+            if (_pointController.text.trim().isNotEmpty)
+              '포인트: ${_pointController.text.trim()}',
+          ],
+        ),
+        const SizedBox(height: 16),
+        _InfoBox(
+          icon: Icons.auto_awesome,
+          text: '저장 후 Vision AI가 의상 정보를 정리하고, Azure ML이 오늘만 조정한 캐릭터 스타일을 기준으로 OOTD 이미지를 생성합니다.',
+        ),
+      ],
     );
   }
 
-  Widget _buildBottomBar() {
-    if (_step == 3) {
-      return SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                if (widget.isDailyRecord) {
-                  context.pop();
-                } else {
-                  context.go(RoutePaths.records);
-                }
-              },
-              child: Text(widget.isDailyRecord ? '하루 일과 작성으로 돌아가기' : '기록으로 가기'),
-            ),
-          ),
+  Widget _buildCompletePage() {
+    final job = _generationJob;
+    return Column(
+      children: [
+        const SizedBox(height: 40),
+        Icon(
+          job?.isFailed == true ? Icons.error_outline : Icons.check_circle_outline,
+          color: job?.isFailed == true ? const Color(0xFFE75D6A) : const Color(0xFF8EBB7A),
+          size: 64,
         ),
-      );
+        const SizedBox(height: 18),
+        Text(
+          job?.isFailed == true ? '생성 요청을 다시 확인해 주세요' : 'OOTD 기록이 저장됐어요',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textMain),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          job?.isCompleted == true
+              ? '생성된 캐릭터 이미지는 기록 상세에서 확인할 수 있어요.'
+              : 'AI 생성은 잠시 걸릴 수 있어요. 기록 화면에서 상태를 다시 확인해 주세요.',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub, height: 1.4),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickPhoto() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 1600,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _photoBytes = bytes;
+      _photoFileName = picked.name;
+      _descriptionController.clear();
+    });
+  }
+
+  void _addTag() {
+    final raw = _tagController.text.trim();
+    if (raw.isEmpty) return;
+    final normalized = raw.startsWith('#') ? raw : '#$raw';
+    if (_tags.contains(normalized)) {
+      _tagController.clear();
+      return;
     }
+    setState(() {
+      _tags.add(normalized);
+      _tagController.clear();
+    });
+  }
 
-    String label = '다음';
-    if (_step == 0) label = '다음';
-    if (_step == 2) label = _isSaving ? '생성 요청 중...' : '생성 요청하기';
+  void _nextStep() {
+    if (_step == 4) {
+      context.go(RoutePaths.records);
+      return;
+    }
+    if (_step == 1 && !_validateInput()) return;
+    if (_step == 3) {
+      _save();
+      return;
+    }
+    setState(() => _step += 1);
+  }
 
-    return RecordFlowBottomBar(
-      primaryLabel: label,
-      onPrimaryPressed: _next,
-      onBackPressed: _back,
-      showBackButton: _step > 0,
+  void _previousStep() {
+    if (_step == 0) return;
+    setState(() => _step -= 1);
+  }
+
+  void _handleBack() {
+    if (_step > 0) {
+      _previousStep();
+      return;
+    }
+    if (Navigator.of(context).canPop()) {
+      context.pop();
+    } else {
+      context.go(RoutePaths.records);
+    }
+  }
+
+  bool _validateInput() {
+    if (_isPhotoMode && _photoBytes == null) {
+      _showMessage('전체 코디가 보이는 사진 1장을 선택해 주세요.');
+      return false;
+    }
+    if (_isTextMode && _descriptionController.text.trim().isEmpty) {
+      _showMessage('코디 설명을 입력해 주세요.');
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final repository = ref.read(recordRepositoryProvider);
+      UploadedMedia? uploaded;
+      if (_isPhotoMode && _photoBytes != null) {
+        uploaded = await repository.uploadMedia(
+          _photoBytes!,
+          _photoFileName ?? 'ootd-reference.jpg',
+        );
+      }
+
+      final inputType = _isTextMode ? 'TEXT_PROMPT' : 'PHOTO_REFERENCE';
+      final brands = _buildBrands(inputType, uploaded);
+      final timeline = [
+        TimelineItem(
+          time: 'OOTD',
+          placeName: '오늘의 코디',
+          category: 'ootd',
+          description: _memoController.text.trim().isEmpty
+              ? _outfitDescription
+              : _memoController.text.trim(),
+          imageUrl: uploaded?.publicUrl,
+          mediaStorageKey: uploaded?.storageKey,
+        ),
+      ];
+
+      final record = OotdRecord(
+        id: widget.existingRecord?.id,
+        date: widget.recordDate ?? widget.existingRecord?.date ?? DateTime.now(),
+        imagePath: uploaded?.publicUrl ?? widget.existingRecord?.imagePath,
+        imageUrls: uploaded == null ? widget.existingRecord?.imageUrls ?? const [] : [uploaded.publicUrl],
+        media: uploaded == null ? widget.existingRecord?.media ?? const [] : [uploaded],
+        character: _styleCharacter,
+        moodTags: _tags,
+        brands: brands,
+        weather: _weather,
+        mood: _mood,
+        timeline: timeline,
+      );
+
+      final saved = await widget.onSave(record);
+      final savedId = saved.id;
+      if (savedId == null || savedId.isEmpty) {
+        throw StateError('ootd_record_id_missing');
+      }
+
+      final job = await repository.createAvatarGeneration(
+        recordId: savedId,
+        inputType: inputType,
+        outfitPhotoMediaId: _isPhotoMode ? uploaded?.id ?? uploaded?.storageKey : null,
+        outfitDescription: _isTextMode ? _descriptionController.text.trim() : null,
+        characterOverrides: _styleCharacter,
+      );
+      final resolved = await _resolveJob(repository, job);
+      if (!mounted) return;
+      setState(() {
+        _generationJob = resolved;
+        _isSaving = false;
+        _step = 4;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showMessage('OOTD 저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    }
+  }
+
+  Future<OotdAvatarGenerationJob> _resolveJob(
+    RecordRepository repository,
+    OotdAvatarGenerationJob initial,
+  ) async {
+    var current = initial;
+    for (var attempt = 0; attempt < 6 && current.isPending; attempt += 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      current = await repository.fetchAvatarGeneration(current.jobId);
+    }
+    return current;
+  }
+
+  Map<String, String> _buildBrands(String inputType, UploadedMedia? uploaded) {
+    final outfitDescription = _outfitDescription;
+    final outfitInfo = _outfitInfo(outfitDescription);
+    return {
+      ...?widget.existingRecord?.brands,
+      'recordType': 'ootd',
+      'inputType': inputType,
+      'aiStatus': 'PENDING',
+      'title': 'OOTD 기록',
+      'outfitDescription': outfitDescription,
+      'todayLook': _todayLook(outfitDescription),
+      'hairNote': _hairNote,
+      'point': _pointController.text.trim().isEmpty
+          ? _defaultPoint(outfitDescription)
+          : _pointController.text.trim(),
+      'nextSuggestion': _nextSuggestionController.text.trim().isEmpty
+          ? _defaultNextSuggestion
+          : _nextSuggestionController.text.trim(),
+      'rating': _rating.toStringAsFixed(1),
+      'styleHairStyle': 'hair_style_${_styleCharacter.hairStyleIndex}',
+      'styleHairColor': 'hair_color_${_styleCharacter.hairColorIndex}',
+      'styleEyeStyle': 'eye_style_${_styleCharacter.eyeShapeIndex}',
+      'styleEyeColor': 'eye_color_${_styleCharacter.eyeColorIndex}',
+      if (uploaded != null) 'outfitPhotoStorageKey': uploaded.storageKey,
+      ...outfitInfo,
+    };
+  }
+
+  Map<String, String> _outfitInfo(String description) {
+    final fallback = description.isEmpty ? 'AI 분석 대기 중' : description;
+    return {
+      'outfitInfoOuter': 'AI 분석 대기 중',
+      'outfitInfoTop': fallback,
+      'outfitInfoBottom': 'AI 분석 대기 중',
+      'outfitInfoBag': 'AI 분석 대기 중',
+      'outfitInfoShoes': 'AI 분석 대기 중',
+    };
+  }
+
+  String get _outfitDescription => _isTextMode
+      ? _descriptionController.text.trim()
+      : '선택한 OOTD 사진에서 Vision AI가 의상 디테일을 분석합니다.';
+
+  String _todayLook(String outfitDescription) {
+    if (_isPhotoMode) {
+      return '오늘 선택한 사진을 바탕으로 전체 코디의 색감, 소재, 소품 포인트를 분석하고 있어요.';
+    }
+    return '$outfitDescription 조합으로 오늘만의 분위기를 살린 OOTD예요.';
+  }
+
+  String get _hairNote {
+    return '오늘은 헤어 ${_styleCharacter.hairStyleIndex + 1} 스타일과 선택한 컬러를 반영해 캐릭터 분위기를 조정했어요.';
+  }
+
+  String _defaultPoint(String outfitDescription) {
+    if (outfitDescription.contains('가방')) return '가방으로 포인트 주기';
+    if (outfitDescription.contains('신발') || outfitDescription.contains('로퍼')) {
+      return '신발로 스타일 마무리하기';
+    }
+    return '전체 코디의 색감 맞추기';
+  }
+
+  String get _defaultNextSuggestion => '다음엔 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  static String _weatherLabel(String value) {
+    return _weatherOptions
+        .firstWhere((option) => option.value == value, orElse: () => _weatherOptions.first)
+        .label;
+  }
+
+  static String _moodLabel(String value) {
+    return _moodOptions
+        .firstWhere((option) => option.value == value, orElse: () => _moodOptions.first)
+        .label;
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionTitle({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: AppTextStyles.headlineMedium.copyWith(color: AppColors.textMain)),
+        const SizedBox(height: 8),
+        Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub, height: 1.45)),
+      ],
     );
   }
 }
+
+class _ModeCard extends StatelessWidget {
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: selected ? AppColors.primaryPink : AppColors.lineSoft, width: selected ? 2 : 1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? AppColors.primaryPink : AppColors.textSub, size: 30),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub, height: 1.35)),
+                ],
+              ),
+            ),
+            if (selected) const Icon(Icons.check_circle, color: AppColors.primaryPink),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoBox({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primaryPink, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub, height: 1.45))),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionGroup extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _OptionGroup({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: children),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChoicePill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ChoicePill({super.key, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      selected: selected,
+      label: Text(label),
+      onSelected: (_) => onTap(),
+      selectedColor: AppColors.primaryPinkSoft,
+      side: BorderSide(color: selected ? AppColors.primaryPink : AppColors.lineSoft),
+    );
+  }
+}
+
+class _ColorChoice extends StatelessWidget {
+  final String colorHex;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ColorChoice({super.key, required this.colorHex, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(int.parse(colorHex.replaceFirst('#', '0xff')));
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: selected ? AppColors.primaryPink : AppColors.lineSoft, width: selected ? 3 : 1),
+          boxShadow: selected
+              ? [BoxShadow(color: AppColors.primaryPink.withOpacity(0.28), blurRadius: 8)]
+              : null,
+        ),
+        child: selected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final List<String> lines;
+
+  const _SummaryCard({required this.title, required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.bgDefault,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryPink)),
+          const SizedBox(height: 12),
+          ...lines.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(line, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.4)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NamedOption {
+  final String value;
+  final String label;
+  final String icon;
+
+  const _NamedOption(this.value, this.label, this.icon);
+}
+
+const _weatherOptions = [
+  _NamedOption('sunny', '맑음', '☀'),
+  _NamedOption('cloudy', '흐림', '☁'),
+  _NamedOption('rainy', '비', '💧'),
+  _NamedOption('snowy', '눈', '❄'),
+];
+
+const _moodOptions = [
+  _NamedOption('happy', '행복', '☺'),
+  _NamedOption('calm', '평온', '〰'),
+  _NamedOption('excited', '신남', '✦'),
+  _NamedOption('tired', '피곤', '☾'),
+];
