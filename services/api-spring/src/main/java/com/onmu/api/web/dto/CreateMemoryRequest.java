@@ -17,6 +17,7 @@ public record CreateMemoryRequest(
   // Custom character overrides for OOTD
   String hairStyle,
   String hairColor,
+  String eyeStyle,
   String eyeColor,
   Map<String, Object> payload
 ) {}
