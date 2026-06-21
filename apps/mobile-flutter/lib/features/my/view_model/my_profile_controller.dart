@@ -31,6 +31,8 @@ class MyProfileController {
         profileImageUrl: updated.profileImageUrl,
       );
     }
+    _ref.read(preferenceProfileProvider.notifier).state = updated
+        .toPreferenceProfile();
     _ref.invalidate(myProfileProvider);
   }
 

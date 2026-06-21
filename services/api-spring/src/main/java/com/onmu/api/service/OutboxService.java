@@ -17,9 +17,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class OutboxService {
+  private static final Logger log = LoggerFactory.getLogger(OutboxService.class);
+
   private final OutboxEventRepository outboxEventRepository;
   private final NotificationDeliveryService notificationDeliveryService;
   private final OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService;
@@ -32,7 +36,9 @@ public class OutboxService {
     NotificationDeliveryService notificationDeliveryService,
     OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService,
     ObjectMapper objectMapper,
-    @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl
+    @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl,
+    @Value("${ONMU_WORKER_CONNECT_TIMEOUT_MS:5000}") int workerConnectTimeoutMs,
+    @Value("${ONMU_WORKER_READ_TIMEOUT_MS:180000}") int workerReadTimeoutMs
   ) {
     this.outboxEventRepository = outboxEventRepository;
     this.notificationDeliveryService = notificationDeliveryService;
@@ -41,8 +47,8 @@ public class OutboxService {
     this.workerUrl = workerUrl;
     
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-    factory.setConnectTimeout(3000);
-    factory.setReadTimeout(3000);
+    factory.setConnectTimeout(workerConnectTimeoutMs);
+    factory.setReadTimeout(workerReadTimeoutMs);
     this.restTemplate = new RestTemplate(factory);
   }
 
@@ -53,6 +59,14 @@ public class OutboxService {
       aggregateId,
       toJson(payload)
     ));
+    if ("ootd.avatar_generation.requested".equals(eventType)) {
+      log.info(
+        "ootd outbox event recorded eventType={} aggregateType={} aggregateId={}",
+        eventType,
+        aggregateType,
+        aggregateId
+      );
+    }
   }
 
   @Transactional
@@ -90,9 +104,25 @@ public class OutboxService {
         requestBody.put("eventType", event.getEventType());
         requestBody.put("payload", readMap(event.getPayload()));
 
+        if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
+          log.info(
+            "ootd outbox dispatching eventId={} aggregateId={} retryCount={} workerUrl={}",
+            event.getId(),
+            event.getAggregateId(),
+            event.getRetryCount() + 1,
+            workerUrl
+          );
+        }
         ResponseEntity<String> response = restTemplate.postForEntity(workerUrl, requestBody, String.class);
         if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
           ootdAvatarGenerationCompletionService.completeFromWorkerResponse(event.getAggregateId(), response.getBody());
+          log.info(
+            "ootd outbox dispatched eventId={} aggregateId={} statusCode={} responseBytes={}",
+            event.getId(),
+            event.getAggregateId(),
+            response.getStatusCode().value(),
+            response.getBody() == null ? 0 : response.getBody().length()
+          );
         }
 
         event.setStatus("published");
@@ -102,6 +132,16 @@ public class OutboxService {
         int nextRetry = event.getRetryCount() + 1;
         event.setRetryCount(nextRetry);
         event.setLastError(e.getMessage());
+        if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
+          log.warn(
+            "ootd outbox dispatch failed eventId={} aggregateId={} retryCount={} errorType={} message={}",
+            event.getId(),
+            event.getAggregateId(),
+            nextRetry,
+            e.getClass().getSimpleName(),
+            e.getMessage()
+          );
+        }
         if (nextRetry >= 3) {
           event.setStatus("failed");
         } else {

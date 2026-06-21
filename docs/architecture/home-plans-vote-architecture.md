@@ -229,6 +229,8 @@ flowchart LR
 
 약속 생성/수정에서 사용자가 실제 참여자로 추가하려는 모임원만 조회한다. `GET /groups/{groupId}/members`는 초대/목록 표시용으로 유지하며, 모임원 전체의 `preferenceProfile`을 미리 싣지 않는다. 서버는 query `userIds`를 중복 제거한 뒤 각 대상이 같은 모임 멤버인지 확인한다. 대상이 모임원이 아니면 `403 not_group_member`다.
 
+약속 일정 추천은 선택된 참여자 기준으로 계산한다. 날짜 후보는 `preferredWeekdays` 일치 수가 높은 순으로 추천하되, 한 명 이상 `unavailableDates`와 겹치는 날짜도 후보에서 제외하지 않는다. 이 경우 UI는 `OO님이 불가능해요`, `OO님 외 N명이 불가능해요`처럼 충돌 사유를 표시한다. 시간 후보는 선택한 날짜에서 `preferredTimes`가 겹치는 시간대를 우선 표시하고, 선호 데이터가 없어 기본 시간대를 보여줄 때는 추천 라벨 대신 `제안` 라벨을 사용한다.
+
 ### `GET /api/v1/groups/{groupId}/plans/{planId}/participants`
 
 응답 항목:

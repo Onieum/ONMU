@@ -12,11 +12,14 @@ import com.onmu.api.domain.RecordMediaRepository;
 import com.onmu.api.domain.RecordRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.security.AuthenticatedUser;
 import com.onmu.api.web.dto.OotdAvatarGenerationRequest;
 import com.onmu.api.web.dto.OotdAvatarGenerationResponse;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OotdAvatarGenerationService {
+  private static final Logger log = LoggerFactory.getLogger(OotdAvatarGenerationService.class);
+
   private static final String PHOTO_REFERENCE = "PHOTO_REFERENCE";
   private static final String TEXT_PROMPT = "TEXT_PROMPT";
 
@@ -54,11 +59,17 @@ public class OotdAvatarGenerationService {
   }
 
   @Transactional
-  public OotdAvatarGenerationResponse create(OotdAvatarGenerationRequest request) {
-    UserEntity user = currentUser();
+  public OotdAvatarGenerationResponse create(AuthenticatedUser authenticatedUser, OotdAvatarGenerationRequest request) {
+    UserEntity user = resolveUser(authenticatedUser);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(request.recordId())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "record_not_found"));
     if (!record.getAuthor().getId().equals(user.getId())) {
+      log.warn(
+        "ootd avatar generation forbidden reason=record_owner_required recordId={} recordAuthorId={} userId={}",
+        record.getPublicId(),
+        record.getAuthor().getId(),
+        user.getId()
+      );
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "record_owner_required");
     }
 
@@ -67,19 +78,15 @@ public class OotdAvatarGenerationService {
     String outfitDescription = request.outfitDescription() != null ? request.outfitDescription().trim() : null;
 
     if (PHOTO_REFERENCE.equals(inputType)) {
-      if (request.outfitPhotoMediaId() == null) {
+      if (request.outfitPhotoMediaId() == null && !hasText(request.outfitPhotoStorageKey())) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "outfit_photo_required");
       }
       if (outfitDescription != null && !outfitDescription.isBlank()) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "choose_photo_or_text_only");
       }
-      outfitPhotoMedia = recordMediaRepository.findById(request.outfitPhotoMediaId())
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "outfit_photo_not_found"));
-      if (!outfitPhotoMedia.getRecord().getId().equals(record.getId())) {
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "outfit_photo_record_mismatch");
-      }
+      outfitPhotoMedia = resolveOutfitPhotoMedia(record, request);
     } else if (TEXT_PROMPT.equals(inputType)) {
-      if (request.outfitPhotoMediaId() != null) {
+      if (request.outfitPhotoMediaId() != null || hasText(request.outfitPhotoStorageKey())) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "choose_photo_or_text_only");
       }
       if (outfitDescription == null || outfitDescription.isBlank()) {
@@ -104,13 +111,20 @@ public class OotdAvatarGenerationService {
     outboxPayload.put("jobId", saved.getPublicId());
     outboxPayload.put("jobDatabaseId", saved.getId().toString());
     outboxService.record("ootd.avatar_generation.requested", "ootd_avatar_generation_job", saved.getId(), outboxPayload);
+    log.info(
+      "ootd avatar generation job queued jobId={} recordId={} inputType={} mediaId={}",
+      saved.getPublicId(),
+      record.getPublicId(),
+      saved.getInputType(),
+      outfitPhotoMedia == null ? null : outfitPhotoMedia.getId()
+    );
 
     return toResponse(saved);
   }
 
   @Transactional(readOnly = true)
-  public OotdAvatarGenerationResponse get(String jobId) {
-    UserEntity user = currentUser();
+  public OotdAvatarGenerationResponse get(AuthenticatedUser authenticatedUser, String jobId) {
+    UserEntity user = resolveUser(authenticatedUser);
     OotdAvatarGenerationJobEntity job = jobRepository.findByPublicId(jobId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "job_not_found"));
     if (!job.getUser().getId().equals(user.getId())) {
@@ -125,6 +139,62 @@ public class OotdAvatarGenerationService {
       return normalized;
     }
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_input_type");
+  }
+
+  private RecordMediaEntity resolveOutfitPhotoMedia(RecordEntity record, OotdAvatarGenerationRequest request) {
+    RecordMediaEntity mediaById = null;
+    if (request.outfitPhotoMediaId() != null) {
+      mediaById = recordMediaRepository.findById(request.outfitPhotoMediaId())
+        .orElse(null);
+      if (mediaById != null && mediaById.getRecord().getId().equals(record.getId())) {
+        return mediaById;
+      }
+    }
+
+    if (hasText(request.outfitPhotoStorageKey())) {
+      String expectedStorageKey = request.outfitPhotoStorageKey().trim();
+      RecordMediaEntity mediaByStorageKey = recordMediaRepository.findByRecordOrderBySortOrderAsc(record)
+        .stream()
+        .filter(media -> expectedStorageKey.equals(media.getStorageKey()))
+        .findFirst()
+        .orElse(null);
+      if (mediaByStorageKey != null) {
+        if (mediaById != null) {
+          log.warn(
+            "ootd avatar generation media id mismatch recovered by storageKey recordId={} requestedMediaId={} requestedStorageKey={} mediaIdRecordId={} resolvedMediaId={}",
+            record.getPublicId(),
+            request.outfitPhotoMediaId(),
+            expectedStorageKey,
+            mediaById.getRecord().getPublicId(),
+            mediaByStorageKey.getId()
+          );
+        }
+        return mediaByStorageKey;
+      }
+    }
+
+    if (mediaById == null) {
+      log.warn(
+        "ootd avatar generation media not found recordId={} requestedMediaId={} requestedStorageKey={}",
+        record.getPublicId(),
+        request.outfitPhotoMediaId(),
+        request.outfitPhotoStorageKey()
+      );
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "outfit_photo_not_found");
+    }
+
+    log.warn(
+      "ootd avatar generation forbidden reason=outfit_photo_record_mismatch recordId={} requestedMediaId={} requestedStorageKey={} mediaRecordId={}",
+      record.getPublicId(),
+      request.outfitPhotoMediaId(),
+      request.outfitPhotoStorageKey(),
+      mediaById.getRecord().getPublicId()
+    );
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "outfit_photo_record_mismatch");
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
   }
 
   private Map<String, Object> buildPayload(
@@ -233,22 +303,13 @@ public class OotdAvatarGenerationService {
     );
   }
 
-  private UserEntity currentUser() {
-    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
-      return userRepository.findAllByOrderByCreatedAtAsc().stream().findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized"));
+  private UserEntity resolveUser(AuthenticatedUser authenticatedUser) {
+    if (authenticatedUser == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized");
     }
 
-    String name = auth.getName();
-    try {
-      UUID userId = UUID.fromString(name);
-      return userRepository.findByIdAndDeletedAtIsNull(userId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
-    } catch (IllegalArgumentException e) {
-      return userRepository.findAllByOrderByCreatedAtAsc().stream().findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing"));
-    }
+    return userRepository.findByIdAndDeletedAtIsNull(authenticatedUser.userId())
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
   }
 
   private String toJson(Object obj) {

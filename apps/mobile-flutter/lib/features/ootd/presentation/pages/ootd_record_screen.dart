@@ -663,8 +663,31 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   Future<void> _save() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
+    final repository = ref.read(recordRepositoryProvider);
+    final shouldCleanupCreatedRecord = widget.existingRecord == null;
+    String? createdRecordId;
+    var generationAccepted = false;
+    var createdRecordCleanedUp = false;
+
+    Future<void> cleanupCreatedRecord() async {
+      if (!shouldCleanupCreatedRecord ||
+          createdRecordCleanedUp ||
+          createdRecordId == null ||
+          createdRecordId.isEmpty) {
+        return;
+      }
+      try {
+        await repository.deleteRecord(createdRecordId);
+        createdRecordCleanedUp = true;
+        ref.invalidate(ootdRecordsProvider);
+      } catch (error) {
+        debugPrint(
+          'Failed to cleanup OOTD draft after generation failure: $error',
+        );
+      }
+    }
+
     try {
-      final repository = ref.read(recordRepositoryProvider);
       UploadedMedia? uploaded;
       if (_isPhotoMode && _photoBytes != null) {
         uploaded = await repository.uploadMedia(
@@ -709,15 +732,19 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
       final saved = await widget.onSave(record);
       final savedId = saved.id;
+      createdRecordId = savedId;
       if (savedId == null || savedId.isEmpty) {
         throw StateError('ootd_record_id_missing');
       }
       final savedOutfitPhotoMediaId = _isPhotoMode && saved.media.isNotEmpty
           ? saved.media.first.id
           : null;
+      final savedOutfitPhotoStorageKey = _isPhotoMode && saved.media.isNotEmpty
+          ? saved.media.first.storageKey
+          : uploaded?.storageKey;
       if (_isPhotoMode &&
-          (savedOutfitPhotoMediaId == null ||
-              savedOutfitPhotoMediaId.isEmpty)) {
+          (savedOutfitPhotoStorageKey == null ||
+              savedOutfitPhotoStorageKey.isEmpty)) {
         throw StateError('ootd_record_media_id_missing');
       }
 
@@ -725,12 +752,20 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         recordId: savedId,
         inputType: inputType,
         outfitPhotoMediaId: _isPhotoMode ? savedOutfitPhotoMediaId : null,
+        outfitPhotoStorageKey: _isPhotoMode ? savedOutfitPhotoStorageKey : null,
         outfitDescription: _isTextMode
             ? _descriptionController.text.trim()
             : null,
         characterOverrides: _effectiveCharacter,
       );
+      generationAccepted = true;
       final resolved = await _resolveJob(repository, job);
+      if (resolved.isFailed) {
+        await cleanupCreatedRecord();
+        throw StateError(
+          'ootd_avatar_generation_failed:${resolved.errorCode ?? 'unknown'}',
+        );
+      }
       if (!mounted) return;
       setState(() {
         _generationJob = resolved;
@@ -739,9 +774,16 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       });
       _startGenerationPolling(resolved.jobId);
     } catch (error) {
+      if (!generationAccepted) {
+        await cleanupCreatedRecord();
+      }
       if (!mounted) return;
       setState(() => _isSaving = false);
-      _showMessage('OOTD 생성 요청에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      _showMessage(
+        createdRecordCleanedUp
+            ? 'OOTD 생성에 실패해서 임시 기록을 정리했어요. 잠시 후 다시 시도해 주세요.'
+            : 'OOTD 생성 요청에 실패했어요. 잠시 후 다시 시도해 주세요.',
+      );
     }
   }
 

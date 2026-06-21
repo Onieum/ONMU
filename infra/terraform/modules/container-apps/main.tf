@@ -13,6 +13,15 @@ resource "azurerm_container_app_environment" "this" {
   }
 }
 
+locals {
+  spring_api_plain_env = merge(
+    var.spring_api.plain_env,
+    var.worker.enabled && var.create_spring_api_app ? {
+      ONMU_WORKER_URL = "https://${var.worker.name}.internal.${azurerm_container_app_environment.this.default_domain}/tasks/ootd"
+    } : {}
+  )
+}
+
 resource "azurerm_container_app" "spring_api" {
   count                        = var.create_spring_api_app ? 1 : 0
   name                         = var.spring_api.name
@@ -71,7 +80,7 @@ resource "azurerm_container_app" "spring_api" {
       memory = var.spring_api.memory
 
       dynamic "env" {
-        for_each = var.spring_api.plain_env
+        for_each = local.spring_api_plain_env
         content {
           name  = env.key
           value = env.value
@@ -167,6 +176,16 @@ resource "azurerm_container_app" "worker" {
     # Azure Container Apps reports resolved Key Vault secret values back to the provider.
     # Keep Terraform focused on the secret reference wiring, not rotated secret contents.
     ignore_changes = [secret]
+  }
+
+  ingress {
+    external_enabled = false
+    target_port      = var.worker.target_port
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
   }
 
   template {

@@ -37,6 +37,7 @@ import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
+import 'package:onmu_mobile/shared/providers/state_providers.dart';
 
 import 'support/test_onmu_repositories.dart';
 
@@ -269,6 +270,48 @@ void main() {
     expect(container.read(authUserProvider)?.nickname, '박진희');
   });
 
+  test('프로필 저장 컨트롤러는 약속 추천에 쓰는 선호 상태도 동기화한다', () async {
+    final repository = TestMyRepository();
+    final container = ProviderContainer(
+      overrides: [
+        myRepositoryProvider.overrideWithValue(repository),
+        authUserProvider.overrideWith(
+          (ref) => const AuthUser(
+            id: '00000000-0000-0000-0000-000000000001',
+            publicId: 'usr_me',
+            provider: 'KAKAO',
+            nickname: '박진희',
+            onboardingStatus: 'COMPLETED',
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(myProfileControllerProvider)
+        .saveProfile(
+          const MyProfile(
+            realName: '박진희',
+            visibility: ProfileVisibility.friends,
+            favoriteKeywords: [],
+            dislikedKeywords: [],
+            preferredTimes: ['점심'],
+            availableDays: [],
+            unavailableDates: ['2026-06-27'],
+            favoritePlaces: [],
+            wantToGoPlaces: [],
+            dislikedPlaces: [],
+            preferredWeekdays: ['금요일', '토요일', '일요일'],
+          ),
+        );
+
+    final preference = container.read(preferenceProfileProvider);
+    expect(preference?.preferredWeekdays, ['금요일', '토요일', '일요일']);
+    expect(preference?.preferredTimes, ['점심']);
+    expect(preference?.unavailableDates, ['2026-06-27']);
+  });
+
   test('온모임 멤버 ViewModel은 서버 멤버 목록만 상태로 노출한다', () async {
     final container = createOnmuTestContainer();
     addTearDown(container.dispose);
@@ -477,6 +520,23 @@ void main() {
     expect(options.single.name, '찬도치');
     expect(options.single.badge, '추가 가능');
     expect(options.single.profileImageUrl, 'https://example.test/chando.png');
+  });
+
+  test('약속 참여자 후보 provider는 빈 프로필 자산만 후보 상세 응답으로 보강한다', () async {
+    final repository = _PlanMemberAvatarAssetRepository();
+    final container = ProviderContainer(
+      overrides: [groupRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final options = await container.read(
+      groupPlanMemberOptionsProvider('1').future,
+    );
+
+    expect(repository.requestedUserIds, ['user-chando']);
+    expect(options.single.profileImageUrl, 'https://example.test/chando.png');
+    expect(options.single.character, isNotNull);
+    expect(options.single.preferenceProfile, isNull);
   });
 
   test('약속 생성 controller는 선택한 후보 멤버만 선호도 정보를 보강한다', () async {
@@ -2918,6 +2978,7 @@ class _RecordingRecordRepository implements RecordRepository {
     required String recordId,
     required String inputType,
     String? outfitPhotoMediaId,
+    String? outfitPhotoStorageKey,
     String? outfitDescription,
     CharacterDraft? characterOverrides,
   }) async {
@@ -3040,6 +3101,44 @@ class _PlanMemberOptionStatusRepository extends _FakeGroupRepository {
         note: '참여 풀',
         statusLabel: '참여 중',
         profileImageUrl: 'https://example.test/chando.png',
+      ),
+    ];
+  }
+}
+
+class _PlanMemberAvatarAssetRepository extends _FakeGroupRepository {
+  final requestedUserIds = <String>[];
+
+  @override
+  Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {
+    return const [
+      GroupMemberProfile(
+        userId: 'user-chando',
+        name: '찬도치',
+        note: '참여 풀',
+        statusLabel: '참여 중',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<GroupMemberProfile>> fetchPlanParticipantCandidates({
+    required Object groupId,
+    required List<String> userIds,
+  }) async {
+    requestedUserIds.addAll(userIds);
+    return [
+      GroupMemberProfile(
+        userId: 'user-chando',
+        name: '찬도치',
+        note: '참여 풀',
+        statusLabel: '참여 중',
+        profileImageUrl: 'https://example.test/chando.png',
+        character: const CharacterDraft(nickname: '찬도치'),
+        preferenceProfile: PreferenceProfile.empty().copyWith(
+          preferredWeekdays: ['SATURDAY'],
+          preferredTimes: ['afternoon'],
+        ),
       ),
     ];
   }

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
@@ -7,6 +9,7 @@ from app.ootd.vision_client import AzureOpenAiVisionClient
 from app.ootd.worker import handle_ootd_avatar_generation
 
 app = FastAPI(title="ONMU AI/Data Worker", version="0.1.0")
+logger = logging.getLogger(__name__)
 
 
 @app.get("/healthz")
@@ -37,6 +40,11 @@ class OutboxTaskRequest(BaseModel):
 
 @app.post("/tasks/ootd")
 async def handle_ootd_task(request: OutboxTaskRequest) -> dict:
+    logger.info(
+        "ootd task received event_id=%s event_type=%s",
+        request.eventId,
+        request.eventType,
+    )
     if request.eventType == "ootd.avatar_generation.requested":
         return await handle_ootd_avatar_generation(
             event_id=request.eventId,
