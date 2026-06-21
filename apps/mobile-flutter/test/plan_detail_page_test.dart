@@ -213,6 +213,47 @@ void main() {
     expect(find.text('동선 계산 중'), findsNothing);
   });
 
+  testWidgets('itinerary opens with requested date tab', (tester) async {
+    await tester.pumpWidget(
+      _planItineraryTestApp(
+        planRepository: _PlanDetailTestRepository(
+          planStartsAt: DateTime(2026, 6, 19, 10),
+          planEndsAt: DateTime(2026, 6, 21, 12),
+          visitPlansByDate: const [
+            [
+              VisitPlan(
+                time: '10:00',
+                endTime: '11:00',
+                place: '첫째날 카페',
+                kind: '카페',
+                duration: '1시간',
+              ),
+            ],
+            [
+              VisitPlan(
+                time: '12:00',
+                endTime: '13:00',
+                place: '둘째날 식당',
+                kind: '음식점',
+                duration: '1시간',
+              ),
+            ],
+          ],
+        ),
+        routeRepository: const _SuccessfulRouteRepository(),
+        initialDateIndex: 1,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.drag(find.byType(ListView), const Offset(0, -520));
+    await tester.pumpAndSettle();
+
+    expect(find.text('6/20 토 동선'), findsOneWidget);
+    expect(find.text('둘째날 식당'), findsOneWidget);
+    expect(find.text('첫째날 카페'), findsNothing);
+  });
+
   testWidgets(
     'itinerary summary follows visible visit places when route legs are stale',
     (tester) async {
@@ -283,6 +324,7 @@ Widget _planDetailTestApp(_PlanDetailTestRepository repository) {
 Widget _planItineraryTestApp({
   required _PlanDetailTestRepository planRepository,
   required RouteRepository routeRepository,
+  int initialDateIndex = 0,
 }) {
   return ProviderScope(
     overrides: [
@@ -294,7 +336,11 @@ Widget _planItineraryTestApp({
     ],
     child: MaterialApp(
       theme: AppTheme.lightTheme,
-      home: const PlanItineraryPage(groupId: '1', planId: '101'),
+      home: PlanItineraryPage(
+        groupId: '1',
+        planId: '101',
+        initialDateIndex: initialDateIndex,
+      ),
     ),
   );
 }

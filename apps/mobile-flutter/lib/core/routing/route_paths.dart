@@ -83,8 +83,14 @@ class RoutePaths {
     Object candidateId,
   ) => '/groups/$groupId/plans/$planId/place-candidates/$candidateId';
 
-  static String planItinerary(Object groupId, Object planId) =>
-      '/groups/$groupId/plans/$planId/itinerary';
+  static String planItinerary(Object groupId, Object planId, {int? dateIndex}) {
+    final path = '/groups/$groupId/plans/$planId/itinerary';
+    if (dateIndex == null) {
+      return path;
+    }
+    final normalizedDateIndex = dateIndex < 0 ? 0 : dateIndex;
+    return '$path?dateIndex=$normalizedDateIndex';
+  }
 
   static String planSettlementNew(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/settlements/new';

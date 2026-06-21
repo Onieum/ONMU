@@ -359,7 +359,11 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
                 label: '동선 보기',
                 icon: Icons.route_outlined,
                 onPressed: () => context.push(
-                  RoutePaths.planItinerary(widget.groupId, widget.planId),
+                  RoutePaths.planItinerary(
+                    widget.groupId,
+                    widget.planId,
+                    dateIndex: _selectedDateIndex,
+                  ),
                 ),
               ),
             ),

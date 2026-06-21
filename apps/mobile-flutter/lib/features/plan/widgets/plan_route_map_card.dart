@@ -61,12 +61,14 @@ class PlanRouteMapCard extends StatelessWidget {
                   child: routeState.when(
                     data: (route) {
                       final stops = _routeStopsForVisitPlan(route, visitPlan);
+                      final routeGeometry = _routeGeometryForVisibleStops(
+                        route,
+                        stops,
+                      );
                       return OnmuMapView(
                         key: const ValueKey('plan-itinerary-route-map'),
                         points: stops,
-                        routeGeometry: stops.length >= 2
-                            ? route.geometry
-                            : const [],
+                        routeGeometry: routeGeometry,
                         zoom: _mapZoomFor(stops),
                         cameraFitPadding: _routePreviewCameraFitPadding,
                         markerScreenSafetyPadding:
@@ -207,6 +209,132 @@ List<OnmuMapPoint> _routeStopsForVisitPlan(
   return List.unmodifiable(filtered);
 }
 
+List<OnmuLatLng> _routeGeometryForVisibleStops(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  if (stops.length < 2) {
+    return const [];
+  }
+
+  final fallback = _stopCoordinates(stops);
+  if (route.geometry.length < 2) {
+    return fallback;
+  }
+
+  if (_routeStopsMatchVisibleStops(route, stops)) {
+    return route.geometry;
+  }
+
+  final routeStopIndices = _routeStopIndicesForVisibleStops(route, stops);
+  if (routeStopIndices.length != stops.length ||
+      !_routeStopIndicesAreConsecutive(routeStopIndices)) {
+    return fallback;
+  }
+
+  final startIndex = _nearestGeometryIndex(
+    route.geometry,
+    route.stops[routeStopIndices.first].coordinate,
+  );
+  final endIndex = _nearestGeometryIndex(
+    route.geometry,
+    route.stops[routeStopIndices.last].coordinate,
+  );
+  if (startIndex == null || endIndex == null || startIndex >= endIndex) {
+    return fallback;
+  }
+
+  final sliced = route.geometry
+      .sublist(startIndex, endIndex + 1)
+      .where(isValidOnmuLatLng)
+      .toList(growable: false);
+  return sliced.length >= 2 ? sliced : fallback;
+}
+
+List<OnmuLatLng> _stopCoordinates(List<OnmuMapPoint> stops) {
+  return stops
+      .map((stop) => stop.coordinate)
+      .where(isValidOnmuLatLng)
+      .toList(growable: false);
+}
+
+bool _routeStopsMatchVisibleStops(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  if (route.stops.length != stops.length) {
+    return false;
+  }
+  for (var index = 0; index < stops.length; index += 1) {
+    if (_normalizePlaceName(route.stops[index].label) !=
+        _normalizePlaceName(stops[index].label)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+List<int> _routeStopIndicesForVisibleStops(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  final indices = <int>[];
+  var searchStart = 0;
+  for (final stop in stops) {
+    final target = _normalizePlaceName(stop.label);
+    if (target.isEmpty) {
+      return const [];
+    }
+    var found = -1;
+    for (var index = searchStart; index < route.stops.length; index += 1) {
+      if (_normalizePlaceName(route.stops[index].label) == target) {
+        found = index;
+        break;
+      }
+    }
+    if (found < 0) {
+      return const [];
+    }
+    indices.add(found);
+    searchStart = found + 1;
+  }
+  return indices;
+}
+
+bool _routeStopIndicesAreConsecutive(List<int> indices) {
+  if (indices.isEmpty) {
+    return false;
+  }
+  for (var index = 1; index < indices.length; index += 1) {
+    if (indices[index] != indices[index - 1] + 1) {
+      return false;
+    }
+  }
+  return true;
+}
+
+int? _nearestGeometryIndex(List<OnmuLatLng> geometry, OnmuLatLng target) {
+  if (!isValidOnmuLatLng(target)) {
+    return null;
+  }
+  var bestIndex = -1;
+  var bestDistance = double.infinity;
+  for (var index = 0; index < geometry.length; index += 1) {
+    final point = geometry[index];
+    if (!isValidOnmuLatLng(point)) {
+      continue;
+    }
+    final latDelta = point.lat - target.lat;
+    final lngDelta = point.lng - target.lng;
+    final distance = latDelta * latDelta + lngDelta * lngDelta;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+  return bestIndex < 0 ? null : bestIndex;
+}
+
 String _normalizePlaceName(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
 }
@@ -258,9 +386,7 @@ class _RouteSummaryPill extends StatelessWidget {
                   Text(
                     route.isFallback
                         ? '${_routeFallbackLabel(route)} · ${stops.length}곳'
-                        : '${_durationLabel(route.durationSeconds)} · '
-                              '${_distanceLabel(route.distanceMeters)} · '
-                              '${_legLabel(route, stops)}',
+                        : _routeSummaryLabel(route, stops),
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   if (!route.isFallback &&
@@ -324,14 +450,21 @@ String _routeFallbackLabel(RouteRecommendation route) {
 }
 
 String _legLabel(RouteRecommendation route, List<OnmuMapPoint> stops) {
-  if (_routeLegsStartFromVisibleStops(route, stops)) {
-    return '${route.legs.length}구간';
-  }
   final stopLegCount = stops.length - 1;
   if (stopLegCount > 0) {
     return '$stopLegCount구간';
   }
   return '${stops.length}곳';
+}
+
+String _routeSummaryLabel(RouteRecommendation route, List<OnmuMapPoint> stops) {
+  final durationSeconds = _visibleRouteDurationSeconds(route, stops);
+  final distanceMeters = _visibleRouteDistanceMeters(route, stops);
+  return [
+    if (durationSeconds > 0) _durationLabel(durationSeconds),
+    if (distanceMeters > 0) _distanceLabel(distanceMeters),
+    _legLabel(route, stops),
+  ].join(' · ');
 }
 
 String _routeLegPreviewLabel(
@@ -356,32 +489,79 @@ String _routeLegPreviewLabel(
       break;
     }
   }
-  final durationSeconds = matchingLeg?.durationSeconds ?? route.durationSeconds;
-  final distanceMeters = matchingLeg?.distanceMeters ?? route.distanceMeters;
+  final useWholeRouteMetrics =
+      matchingLeg == null &&
+      stops.length == 2 &&
+      _routeStopsMatchVisibleStops(route, stops);
+  final durationSeconds =
+      matchingLeg?.durationSeconds ??
+      (useWholeRouteMetrics ? route.durationSeconds : 0);
+  final distanceMeters =
+      matchingLeg?.distanceMeters ??
+      (useWholeRouteMetrics ? route.distanceMeters : 0);
   final labels = [
     '$from → $to',
     if (durationSeconds > 0) _durationLabel(durationSeconds),
     if (distanceMeters > 0) _distanceLabel(distanceMeters),
   ];
-  final remainingLegCount = _routeLegsStartFromVisibleStops(route, stops)
-      ? route.legs.length - 1
-      : stops.length - 2;
+  final remainingLegCount = stops.length - 2;
   final suffix = remainingLegCount > 0 ? ' 외 $remainingLegCount구간' : '';
   return '${labels.join(' · ')}$suffix';
 }
 
-bool _routeLegsStartFromVisibleStops(
+int _visibleRouteDistanceMeters(
   RouteRecommendation route,
   List<OnmuMapPoint> stops,
 ) {
-  if (route.legs.isEmpty || stops.length < 2) {
-    return false;
+  final legs = _visibleRouteLegs(route, stops);
+  if (legs.length == stops.length - 1) {
+    final values = legs.map((leg) => leg.distanceMeters).whereType<int>();
+    if (values.length == legs.length) {
+      return values.fold(0, (total, value) => total + value);
+    }
   }
-  final firstLeg = route.legs.first;
-  return _normalizePlaceName(firstLeg.fromName) ==
-          _normalizePlaceName(stops.first.label) &&
-      _normalizePlaceName(firstLeg.toName) ==
-          _normalizePlaceName(stops[1].label);
+  return _routeStopsMatchVisibleStops(route, stops) ? route.distanceMeters : 0;
+}
+
+int _visibleRouteDurationSeconds(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  final legs = _visibleRouteLegs(route, stops);
+  if (legs.length == stops.length - 1) {
+    final values = legs.map((leg) => leg.durationSeconds).whereType<int>();
+    if (values.length == legs.length) {
+      return values.fold(0, (total, value) => total + value);
+    }
+  }
+  return _routeStopsMatchVisibleStops(route, stops) ? route.durationSeconds : 0;
+}
+
+List<RouteLeg> _visibleRouteLegs(
+  RouteRecommendation route,
+  List<OnmuMapPoint> stops,
+) {
+  if (stops.length < 2) {
+    return const [];
+  }
+  final legs = <RouteLeg>[];
+  for (var index = 0; index < stops.length - 1; index += 1) {
+    final from = _normalizePlaceName(stops[index].label);
+    final to = _normalizePlaceName(stops[index + 1].label);
+    RouteLeg? matchingLeg;
+    for (final leg in route.legs) {
+      if (_normalizePlaceName(leg.fromName) == from &&
+          _normalizePlaceName(leg.toName) == to) {
+        matchingLeg = leg;
+        break;
+      }
+    }
+    if (matchingLeg == null) {
+      return const [];
+    }
+    legs.add(matchingLeg);
+  }
+  return legs;
 }
 
 String _durationLabel(int seconds) {
