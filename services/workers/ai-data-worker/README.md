@@ -30,6 +30,29 @@ descriptor with Azure OpenAI Vision. The worker accepts either
 If Vision configuration or an accessible image source is missing, the worker
 falls back to a placeholder descriptor only for dry-run plumbing tests.
 
+## Place recommendation explanation
+
+Spring Main API owns the public place-search and place-candidate contracts. The
+worker only consumes private outbox tasks.
+
+- `/tasks/place-reason` accepts `place_candidate.created` and
+  `ai.summary.requested` events.
+- The current implementation acknowledges the task and returns safe metadata for
+  the rule-based explanation that Spring already stored.
+- Later Azure OpenAI prompt execution should persist prompt/run metadata under
+  `worker_ai` and return a Spring-readable completion status through the internal
+  callback path.
+
+Spring routes this path with:
+
+```text
+ONMU_PLACE_REASON_WORKER_URL=http://localhost:8090/tasks/place-reason
+```
+
+Do not include provider raw response bodies, raw queries, OAuth data, tokens, or
+user PII in worker logs or task results. Flutter must never call this endpoint
+directly.
+
 ## Migration ownership
 
 Alembic may own worker-only tables such as:

@@ -7,6 +7,7 @@ from app.ootd.azureml_client import AzureMlOotdClient
 from app.ootd.character_renderer import CharacterReferenceRenderer
 from app.ootd.vision_client import AzureOpenAiVisionClient
 from app.ootd.worker import handle_ootd_avatar_generation
+from app.place_reason import handle_place_reason_task
 
 app = FastAPI(title="ONMU AI/Data Worker", version="0.1.0")
 logger = logging.getLogger(__name__)
@@ -58,3 +59,17 @@ async def handle_ootd_task(request: OutboxTaskRequest) -> dict:
         "eventType": request.eventType,
         "status": "ignored",
     }
+
+
+@app.post("/tasks/place-reason")
+async def handle_place_reason_outbox_task(request: OutboxTaskRequest) -> dict:
+    logger.info(
+        "place reason task received event_id=%s event_type=%s",
+        request.eventId,
+        request.eventType,
+    )
+    return handle_place_reason_task(
+        event_id=request.eventId,
+        event_type=request.eventType,
+        payload=request.payload,
+    )

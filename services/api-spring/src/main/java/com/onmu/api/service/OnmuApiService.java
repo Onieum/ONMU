@@ -659,7 +659,8 @@ public class OnmuApiService {
       .map(PlaceCandidateEntity::getPublicId)
       .toList(), 201);
     ExternalPlaceEntity externalPlace = resolveExternalPlace(request);
-    String payload = toJson(placeCandidatePayload(request, externalPlace));
+    Map<String, Object> payloadMap = placeCandidatePayload(request, externalPlace);
+    String payload = toJson(payloadMap);
     PlaceCandidateEntity candidate = placeCandidateRepository.save(new PlaceCandidateEntity(
       publicId,
       group,
@@ -670,12 +671,12 @@ public class OnmuApiService {
       stringOrDefault(request.address(), ""),
       payload
     ));
-    outboxService.record("place_candidate.created", "place_candidate", candidate.getId(), Map.of(
-      "groupId", group.getPublicId(),
-      "planId", plan.getPublicId(),
-      "candidateId", candidate.getPublicId(),
-      "name", candidate.getName()
-    ));
+    outboxService.record(
+      "place_candidate.created",
+      "place_candidate",
+      candidate.getId(),
+      placeCandidateOutboxPayload(group, plan, candidate, payloadMap)
+    );
     return placeCandidateCard(candidate, access.user());
   }
 
@@ -1150,18 +1151,66 @@ public class OnmuApiService {
   ) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("summary", stringOrDefault(request.summary(), "팀원이 추가한 장소 후보입니다."));
-    payload.put("tags", request.tags() == null ? List.of() : request.tags());
+    payload.put("tags", requestStringList(request.tags()));
+    payload.put("reasons", requestReasons(request, externalPlace));
     payload.put("favoriteCount", 0);
     payload.put("source", externalPlace == null ? "manual" : externalPlace.getProvider().toLowerCase(Locale.ROOT));
     payload.put("sourceLabel", externalPlace == null ? "직접 추가" : "외부 검색");
     payload.put("provider", externalPlace == null ? null : externalPlace.getProvider());
     payload.put("providerPlaceId", externalPlace == null ? null : externalPlace.getProviderPlaceId());
+    payload.put("distanceLabel", blankToNull(request.distanceLabel()));
+    payload.put("travelTimeLabel", blankToNull(request.travelTimeLabel()));
+    payload.put("priceLabel", blankToNull(request.priceLabel()));
+    payload.put("openingLabel", blankToNull(request.openingLabel()));
     payload.put("roadAddress", blankToNull(request.roadAddress()));
     payload.put("sourceUrl", blankToNull(request.sourceUrl()));
     payload.put("lat", firstNonNull(request.latitude(), request.lat()));
     payload.put("lng", firstNonNull(request.longitude(), request.lng()));
     payload.put("fetchedAt", blankToNull(request.fetchedAt()));
     return payload;
+  }
+
+  private Map<String, Object> placeCandidateOutboxPayload(
+    GroupEntity group,
+    PlanEntity plan,
+    PlaceCandidateEntity candidate,
+    Map<String, Object> payload
+  ) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("groupId", group.getPublicId());
+    value.put("planId", plan.getPublicId());
+    value.put("candidateId", candidate.getPublicId());
+    value.put("name", candidate.getName());
+    value.put("category", candidate.getCategory());
+    value.put("recommendationVersion", "rule-v1");
+    value.put("reasonCount", stringList(payload.get("reasons")).size());
+    value.put("hasCoordinate", payload.get("lat") != null && payload.get("lng") != null);
+    value.put("sourceType", candidate.getExternalPlace() == null ? "manual" : "external_place");
+    return value;
+  }
+
+  private List<String> requestReasons(
+    CreatePlaceCandidateRequest request,
+    ExternalPlaceEntity externalPlace
+  ) {
+    List<String> reasons = requestStringList(request.reasons());
+    if (!reasons.isEmpty()) {
+      return reasons;
+    }
+    List<String> fallback = new ArrayList<>();
+    if (firstNonNull(request.latitude(), request.lat()) != null && firstNonNull(request.longitude(), request.lng()) != null) {
+      fallback.add("지도에서 위치를 확인할 수 있어요.");
+    }
+    if (blankToNull(request.roadAddress()) != null || blankToNull(request.address()) != null) {
+      fallback.add("주소 정보가 있어 일정 장소로 저장하기 좋아요.");
+    }
+    if (externalPlace != null || blankToNull(request.sourceUrl()) != null) {
+      fallback.add("방문 전 상세 정보를 더 확인할 수 있어요.");
+    }
+    if (fallback.isEmpty()) {
+      fallback.add("팀원들과 비교할 수 있는 장소 후보예요.");
+    }
+    return fallback.stream().distinct().limit(3).toList();
   }
 
   private Map<String, Object> placeCandidateCard(PlaceCandidateEntity candidate, UserEntity user) {
@@ -1578,6 +1627,18 @@ public class OnmuApiService {
       return values;
     }
     return List.of();
+  }
+
+  private List<String> requestStringList(List<String> values) {
+    if (values == null || values.isEmpty()) {
+      return List.of();
+    }
+    return values.stream()
+      .filter(value -> value != null && !value.isBlank())
+      .map(String::trim)
+      .distinct()
+      .limit(6)
+      .toList();
   }
 
   private Map<String, Object> readObject(String payload) {

@@ -125,6 +125,15 @@ class ApiPlaceRepository implements PlaceRepository {
         'address': candidate.address.trim(),
         'summary': candidate.summary.trim(),
         'tags': candidate.tags,
+        'reasons': candidate.reasons,
+        if (candidate.distanceLabel.trim().isNotEmpty)
+          'distanceLabel': candidate.distanceLabel.trim(),
+        if (candidate.travelTimeLabel.trim().isNotEmpty)
+          'travelTimeLabel': candidate.travelTimeLabel.trim(),
+        if (candidate.priceLabel.trim().isNotEmpty)
+          'priceLabel': candidate.priceLabel.trim(),
+        if (candidate.openingLabel.trim().isNotEmpty)
+          'openingLabel': candidate.openingLabel.trim(),
         if (candidate.provider.trim().isNotEmpty)
           'provider': candidate.provider.trim(),
         if (candidate.providerPlaceId.trim().isNotEmpty)

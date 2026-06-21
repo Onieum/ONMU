@@ -5,6 +5,7 @@ import com.onmu.api.place.PlaceSearchCache;
 import com.onmu.api.place.PlaceSearchProvider;
 import com.onmu.api.place.PlaceSearchQuery;
 import com.onmu.api.place.PlaceSearchResult;
+import com.onmu.api.place.PlaceRecommendationReasoner;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -43,12 +44,23 @@ public class PlaceSearchService {
   private final DevMockPlaceSearchProvider devMockProvider;
   private final PlaceSearchCache cache;
   private final Environment environment;
+  private final PlaceRecommendationReasoner recommendationReasoner;
 
   public PlaceSearchService(
     List<PlaceSearchProvider> providers,
     DevMockPlaceSearchProvider devMockProvider,
     PlaceSearchCache cache,
     Environment environment
+  ) {
+    this(providers, devMockProvider, cache, environment, new PlaceRecommendationReasoner());
+  }
+
+  PlaceSearchService(
+    List<PlaceSearchProvider> providers,
+    DevMockPlaceSearchProvider devMockProvider,
+    PlaceSearchCache cache,
+    Environment environment,
+    PlaceRecommendationReasoner recommendationReasoner
   ) {
     this.providers = providers.stream()
       .filter(provider -> !"dev-mock".equals(provider.provider()))
@@ -57,6 +69,7 @@ public class PlaceSearchService {
     this.devMockProvider = devMockProvider;
     this.cache = cache;
     this.environment = environment;
+    this.recommendationReasoner = recommendationReasoner;
   }
 
   @PostConstruct
@@ -139,10 +152,14 @@ public class PlaceSearchService {
     }
 
     Map<String, Object> context = context(searchQuery, usedDevMock ? List.of(devMockProvider.provider()) : providerNames(availableProviders), usedDevMock);
-    List<Map<String, Object>> results = normalizedResults.stream()
-      .limit(RESULT_LIMIT)
-      .map(result -> result.toApiMap(context))
-      .toList();
+    List<Map<String, Object>> results = new ArrayList<>();
+    int rank = 1;
+    for (PlaceSearchResult result : normalizedResults.stream().limit(RESULT_LIMIT).toList()) {
+      Map<String, Object> value = result.toApiMap(context);
+      value.putAll(recommendationReasoner.explainSearchResult(result, searchQuery, rank));
+      results.add(value);
+      rank++;
+    }
     if (!(usedDevMock && !availableProviders.isEmpty())) {
       cache.put(cacheKey, results);
     }
@@ -359,7 +376,7 @@ public class PlaceSearchService {
 
   private String cacheKey(PlaceSearchQuery query, DevMockFallbackMode fallbackMode, List<String> availableProviders) {
     String value = String.join("|",
-      "v3",
+      "v4",
       query.normalizedQuery(),
       nullToBlank(query.groupId()),
       nullToBlank(query.planId()),
@@ -376,7 +393,7 @@ public class PlaceSearchService {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-      return "place-search:v3:" + HexFormat.of().formatHex(hash, 0, 16);
+      return "place-search:v4:" + HexFormat.of().formatHex(hash, 0, 16);
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is required", exception);
     }

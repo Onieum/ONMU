@@ -68,7 +68,7 @@ PMTiles는 versioned path를 우선하고, manifest pointer를 되돌리는 방�
 - Provider search/route response는 Redis TTL cache로만 둔다.
 - Provider secret은 Key Vault reference로 주입하고 Terraform state에 넣지 않는다.
 - Place/Search smoke는 status, result_count, provider_counts, source_counts, coordinate_count 중심으로 보고한다.
-- 같은 category/search를 2회 실행해 Redis cache hit 또는 `place-search:v3:*` prefix key count만 확인한다. Redis value 원문은 출력하지 않는다.
+- 같은 category/search를 2회 실행해 Redis cache hit 또는 `place-search:v4:*` prefix key count만 확인한다. Redis value 원문은 출력하지 않는다.
 - Route smoke는 status, route_count, distance presence, duration presence 중심으로 보고한다.
 - Provider raw body, query 원문, token은 출력하지 않는다.
 

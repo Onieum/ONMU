@@ -118,7 +118,7 @@ Side effect 계약:
 
 FastAPI Worker는 다음 작업을 담당한다.
 
-- 장소추천 설명 생성 같은 AI 보조
+- 장소추천 설명 생성 같은 AI 보조. 현재 rule-based 추천 이유는 Spring이 즉시 생성하고, `place_candidate.created`/`ai.summary.requested`는 Worker `/tasks/place-reason`에서 비동기 보강할 수 있다.
 - 주간/월간 리포트 후보 생성
 - 검색/RAG/분석 worker job
 - 장기적으로 Azure OpenAI, Azure AI Search, Databricks/Lakehouse 연동
@@ -134,7 +134,7 @@ Worker 운영 결정 항목:
 | 결과 저장 | worker 전용 schema 또는 metadata table 후보 | Main API read model에 반영될 때는 Spring API contract를 거침 |
 | retry | idempotency key와 attempt count 필요 | dead-letter queue와 replay runbook |
 | timeout | Spring request path를 막지 않는 짧은 timeout | 장기 AI 작업은 queue/job으로 분리 |
-| AI 결과물 | summary/recommendation/thumbnail metadata 중심 | image 결과물은 Blob object + DB metadata로 분리 |
+| AI 결과물 | summary/recommendation/reason metadata/thumbnail metadata 중심 | image 결과물은 Blob object + DB metadata로 분리 |
 
 ## 8. Chat/notification contract
 

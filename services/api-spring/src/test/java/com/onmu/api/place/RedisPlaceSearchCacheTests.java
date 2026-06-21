@@ -20,7 +20,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 class RedisPlaceSearchCacheTests {
-  private static final String CACHE_KEY = "place-search:v3:test-key";
+  private static final String CACHE_KEY = "place-search:v4:test-key";
   private static final TypeReference<List<Map<String, Object>>> RESULT_TYPE = new TypeReference<>() {
   };
 

@@ -1906,6 +1906,9 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final detailRows = _detailRows(candidate);
+    final recommendationReasons = _safePlaceRecommendationReasons(
+      candidate.reasons,
+    ).take(3).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1956,6 +1959,10 @@ class _SelectedPlaceDetailSheet extends StatelessWidget {
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
                 ),
+              if (recommendationReasons.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _RecommendationReasons(reasons: recommendationReasons),
+              ],
               if (detailRows.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 _PlaceDetailFacts(rows: detailRows),
@@ -2020,6 +2027,66 @@ class _PlaceDetailFact {
 
   final String label;
   final String value;
+}
+
+List<String> _safePlaceRecommendationReasons(List<String> reasons) {
+  return reasons
+      .map((reason) => reason.trim())
+      .where((reason) => reason.isNotEmpty)
+      .where((reason) {
+        final normalized = reason.toLowerCase();
+        final scoreLike =
+            normalized.contains('점수') || RegExp(r'\d+\s*점').hasMatch(reason);
+        final operationalLike =
+            normalized.contains('리스크') || normalized.contains('운영');
+        final providerLike =
+            normalized.contains('provider') ||
+            normalized.contains('kakao') ||
+            normalized.contains('naver') ||
+            normalized.contains('google');
+        return !scoreLike && !operationalLike && !providerLike;
+      })
+      .toList(growable: false);
+}
+
+class _RecommendationReasons extends StatelessWidget {
+  const _RecommendationReasons({required this.reasons});
+
+  final List<String> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('추천 이유', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.xs),
+        for (final reason in reasons) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  reason,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMain,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (reason != reasons.last) const SizedBox(height: AppSpacing.xxs),
+        ],
+      ],
+    );
+  }
 }
 
 class _PlaceDetailFacts extends StatelessWidget {
@@ -2160,6 +2227,9 @@ class _RecommendationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final recommendationReasons = _safePlaceRecommendationReasons(
+      candidate.reasons,
+    );
     final tags = candidate.tags.isEmpty
         ? <String>[candidate.category]
         : candidate.tags.take(3).toList(growable: false);
@@ -2209,6 +2279,18 @@ class _RecommendationTile extends StatelessWidget {
                         height: 1.12,
                       ),
                     ),
+                    if (recommendationReasons.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        recommendationReasons.first,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSub,
+                          height: 1.14,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.xxs),
                     Wrap(
                       spacing: AppSpacing.xs,

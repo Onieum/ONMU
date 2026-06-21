@@ -9,6 +9,11 @@ public record CreatePlaceCandidateRequest(
   String address,
   String summary,
   List<String> tags,
+  List<String> reasons,
+  String distanceLabel,
+  String travelTimeLabel,
+  String priceLabel,
+  String openingLabel,
   String provider,
   String providerPlaceId,
   String roadAddress,
@@ -26,6 +31,6 @@ public record CreatePlaceCandidateRequest(
     String summary,
     List<String> tags
   ) {
-    this(name, category, address, summary, tags, null, null, null, null, null, null, null, null, null);
+    this(name, category, address, summary, tags, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 }

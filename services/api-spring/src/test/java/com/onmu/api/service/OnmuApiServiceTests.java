@@ -1117,7 +1117,9 @@ class OnmuApiServiceTests {
       any(),
       argThat(payload -> "1".equals(payload.get("groupId"))
         && "101".equals(payload.get("planId"))
-        && "202".equals(payload.get("candidateId")))
+        && "202".equals(payload.get("candidateId"))
+        && Integer.valueOf(1).equals(payload.get("reasonCount"))
+        && "rule-v1".equals(payload.get("recommendationVersion")))
     );
   }
 
@@ -1146,6 +1148,11 @@ class OnmuApiServiceTests {
         "서울 지번주소",
         "검색 결과에서 추가한 후보",
         List.of("카페"),
+        List.of("지도에서 위치를 확인할 수 있어요.", "주소 정보가 있어 일정 장소로 저장하기 좋아요."),
+        "약 200m",
+        "도보권 참고",
+        "",
+        "",
         "kakao",
         "kakao-123",
         "서울 도로명주소",
@@ -1167,6 +1174,11 @@ class OnmuApiServiceTests {
       .containsEntry("lat", 37.501)
       .containsEntry("lng", 127.001)
       .containsKey("externalPlaceId");
+    assertThat(created.get("reasons")).asList()
+      .contains("지도에서 위치를 확인할 수 있어요.", "주소 정보가 있어 일정 장소로 저장하기 좋아요.");
+    assertThat(created)
+      .containsEntry("distanceLabel", "약 200m")
+      .containsEntry("travelTimeLabel", "도보권 참고");
     verify(externalPlaceRepository).save(argThat((ExternalPlaceEntity place) ->
       "KAKAO".equals(place.getProvider())
         && "kakao-123".equals(place.getProviderPlaceId())

@@ -292,7 +292,34 @@ class PlaceSearchServiceTests {
     assertThat(cachedResults).isEqualTo(firstResults);
     assertThat(naver.queries)
       .containsExactly("성수 한식", "성수 양식", "성수 중식", "성수 일식", "성수 아시안식");
-    assertThat(cache.keys()).singleElement().asString().startsWith("place-search:v3:");
+    assertThat(cache.keys()).singleElement().asString().startsWith("place-search:v4:");
+  }
+
+  @Test
+  void searchAddsRuleBasedRecommendationReasons() {
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(new FakeProvider("naver", true, List.of(
+        result("naver", "naver-1", "성수 조용한 카페", "서울 성동구", 37.5441, 127.0552)
+      ))),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("성수 카페", "1", "101", 37.544, 127.055, 1500, "카페", List.of("naver"), false);
+
+    assertThat(results).singleElement()
+      .satisfies(result -> {
+        assertThat(result)
+          .containsEntry("summary", "현 지도 기준으로 비교할 수 있는 카페 후보입니다.")
+          .containsEntry("distanceLabel", "약 20m")
+          .containsKey("recommendation");
+        assertThat(result.get("reasons")).asList()
+          .contains("카페 필터와 잘 맞아요.")
+          .contains("주소 정보가 있어 일정 장소로 저장하기 좋아요.");
+        assertThat(result.get("tags")).asList()
+          .contains("카페", "지도 후보");
+      });
   }
 
   @Test

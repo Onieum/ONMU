@@ -50,7 +50,7 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 1. `PlaceSearchQuery`가 query, groupId, planId, lat, lng, radius, category, providers, compare를 normalize한다.
 2. 요청 provider가 없으면 category별 provider 순서를 사용한다. `가볼만한곳`/관광 계열은 `onmu_catalog`, `naver`, `kakao` 순서이고, 음식점/카페 계열은 `naver`, `kakao`, `onmu_catalog` 순서다.
 3. provider별 `isAvailable()`로 credential 주입 여부를 확인한다.
-4. Redis `place-search:v3:*` cache를 조회한다. cache key에는 query, 위치, category, Naver fan-out signature, 요청 provider, 실제 available provider, compare, dev mock fallback 여부가 포함된다.
+4. Redis `place-search:v4:*` cache를 조회한다. cache key에는 query, 위치, category, Naver fan-out signature, 요청 provider, 실제 available provider, compare, dev mock fallback 여부와 추천 설명 rule version이 포함된다.
 5. available provider가 있으면 provider를 호출하고 이름/주소 기반으로 중복 제거한다.
 6. provider 결과가 비거나 실패하고 dev mock fallback이 켜져 있으면 `DevMockPlaceSearchProvider`를 사용한다.
 7. available provider가 있었는데 결과 실패로 dev mock fallback을 사용한 경우에는 fallback 결과를 cache하지 않는다.
@@ -197,7 +197,7 @@ PostgreSQL은 `external_places`, `place_candidates`, `place_candidate_hearts`, `
 - 지도 타일 target edge는 Azure Blob Storage + CDN, Azure Front Door, 또는 Static Website + CDN 중 선택한다.
 - route provider는 현재 OpenRouteService를 기준으로 하되 운영 비용/약관/국내 품질을 보고 Naver/Kakao/ORS 병행 여부를 결정한다.
 - PostGIS generated geography column 또는 별도 spatial index를 `external_places`와 `place_candidates`에 추가할 수 있다.
-- 장소 추천 설명은 rule-based explanation을 먼저 제공하고, 이후 FastAPI Worker/Azure OpenAI가 자연어 설명을 생성한다.
+- 장소 추천 설명은 Spring `PlaceRecommendationReasoner`의 rule-based explanation을 먼저 제공하고, 저장 후보에는 같은 이유를 payload로 보존한다. 이후 FastAPI Worker `/tasks/place-reason`과 Azure OpenAI가 자연어 설명을 보강한다.
 - Azure AI Search는 장소 자체 검색보다 기록/취향/RAG 확장에 먼저 쓰는 후보로 둔다.
 
 ### 미결정
@@ -354,7 +354,7 @@ Response:
 | `place_candidate_hearts` | 후보별 사용자 heart | 후보 선호 원장 |
 | `schedule_places` | plan별 일정 등록 장소, candidate FK optional | 일정 장소 원장 |
 | `vote_options` | 장소 후보 기반 투표 선택지 연결 | 투표 도메인 원장 일부 |
-| Redis `place-search:v3:*` | provider 검색 결과 10분 TTL cache | 원장 아님 |
+| Redis `place-search:v4:*` | provider 검색 결과와 rule-based 추천 이유 10분 TTL cache | 원장 아님 |
 | Redis `route-recommendation:v1:*` | route recommendation 30분 TTL cache | 원장 아님 |
 | PMTiles/manifest object | 지도 타일/style static asset | 지도 asset 원장, 앱 도메인 데이터 원장은 아님 |
 
@@ -502,7 +502,7 @@ Target metric 후보:
 | Route recommendation canonical API는 `POST /api/v1/routes/recommend` | 확정 | API contract map과 Spring/Flutter repository 구현 |
 | Redis는 장소 검색/route 결과 TTL cache | 확정 | source of truth는 PostgreSQL |
 | Map tile은 manifest pointer로 접근 | 확정 | PMTiles object URL 하드코딩과 앱 재배포 없는 rollback을 피함 |
-| 추천 설명은 rule-based MVP 먼저, AI는 후속 | 후보 | 결정 대신 보조 설명이라는 제품 원칙 |
+| 추천 설명은 rule-based MVP 먼저, AI는 Worker 뒤에서 보강 | 확정 | 결정 대신 보조 설명이라는 제품 원칙 |
 | Android native PMTiles protocol 최종 전략 | 미결정 | 현재 fallback overlay가 안정화 장치, 실제 native 전략은 후속 검증 필요 |
 
 ## Roadmap
@@ -512,10 +512,10 @@ Target metric 후보:
 | Phase 1 | 현재 API/Flutter 연결 안정화 | place-search, candidate add, schedule add, heart, route recommendation smoke |
 | Phase 2 | Android 지도 실제 화면 안정화 | MapLibre/PMTiles protocol 또는 fallback 전략 확정, blank map 회귀 방지 |
 | Phase 3 | Provider 운영 안정화 | Naver/Kakao availability, fallback/cache metric, Kakao 권한 상태 분리 |
-| Phase 4 | 후보 추천 설명 MVP | provider 결과 + 사용자/모임 취향 + 거리/카테고리/영업정보 기반 rule-based reasons |
+| Phase 4 | 후보 추천 설명 MVP | provider 결과 + 지도 중심 거리 + 카테고리/주소 기반 rule-based reasons, 저장 후보 payload 보존 |
 | Phase 5 | PostGIS 고도화 | spatial column/index, nearby/radius query, route stop quality 보강 |
 | Phase 6 | Azure tile/route/provider 운영 전환 | Blob/CDN, Redis, Key Vault reference, App Insights, Event Hubs 연결 |
-| Phase 7 | AI 보조 설명 | FastAPI Worker + Azure OpenAI로 설명 생성, Spring read model 합성 |
+| Phase 7 | AI 보조 설명 | FastAPI Worker `/tasks/place-reason` + Azure OpenAI로 설명 생성, Spring read model 합성 |
 
 ## Non-goals
 
