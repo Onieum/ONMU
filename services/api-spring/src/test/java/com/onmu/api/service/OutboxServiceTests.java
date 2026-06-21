@@ -36,7 +36,9 @@ class OutboxServiceTests {
       notificationDeliveryService,
       ootdAvatarGenerationCompletionService,
       new ObjectMapper(),
-      "http://localhost:8090/tasks/ootd"
+      "http://localhost:8090/tasks/ootd",
+      5000,
+      180000
     );
   }
 

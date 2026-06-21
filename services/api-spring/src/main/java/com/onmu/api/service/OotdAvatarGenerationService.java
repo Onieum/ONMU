@@ -17,6 +17,8 @@ import com.onmu.api.web.dto.OotdAvatarGenerationResponse;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OotdAvatarGenerationService {
+  private static final Logger log = LoggerFactory.getLogger(OotdAvatarGenerationService.class);
+
   private static final String PHOTO_REFERENCE = "PHOTO_REFERENCE";
   private static final String TEXT_PROMPT = "TEXT_PROMPT";
 
@@ -104,6 +108,13 @@ public class OotdAvatarGenerationService {
     outboxPayload.put("jobId", saved.getPublicId());
     outboxPayload.put("jobDatabaseId", saved.getId().toString());
     outboxService.record("ootd.avatar_generation.requested", "ootd_avatar_generation_job", saved.getId(), outboxPayload);
+    log.info(
+      "ootd avatar generation job queued jobId={} recordId={} inputType={} mediaId={}",
+      saved.getPublicId(),
+      record.getPublicId(),
+      saved.getInputType(),
+      outfitPhotoMedia == null ? null : outfitPhotoMedia.getId()
+    );
 
     return toResponse(saved);
   }
