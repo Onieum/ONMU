@@ -12,6 +12,7 @@ import com.onmu.api.domain.RecordMediaRepository;
 import com.onmu.api.domain.RecordRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
+import com.onmu.api.security.AuthenticatedUser;
 import com.onmu.api.web.dto.OotdAvatarGenerationRequest;
 import com.onmu.api.web.dto.OotdAvatarGenerationResponse;
 import java.util.LinkedHashMap;
@@ -58,8 +59,8 @@ public class OotdAvatarGenerationService {
   }
 
   @Transactional
-  public OotdAvatarGenerationResponse create(OotdAvatarGenerationRequest request) {
-    UserEntity user = currentUser();
+  public OotdAvatarGenerationResponse create(AuthenticatedUser authenticatedUser, OotdAvatarGenerationRequest request) {
+    UserEntity user = resolveUser(authenticatedUser);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(request.recordId())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "record_not_found"));
     if (!record.getAuthor().getId().equals(user.getId())) {
@@ -122,8 +123,8 @@ public class OotdAvatarGenerationService {
   }
 
   @Transactional(readOnly = true)
-  public OotdAvatarGenerationResponse get(String jobId) {
-    UserEntity user = currentUser();
+  public OotdAvatarGenerationResponse get(AuthenticatedUser authenticatedUser, String jobId) {
+    UserEntity user = resolveUser(authenticatedUser);
     OotdAvatarGenerationJobEntity job = jobRepository.findByPublicId(jobId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "job_not_found"));
     if (!job.getUser().getId().equals(user.getId())) {
@@ -302,22 +303,13 @@ public class OotdAvatarGenerationService {
     );
   }
 
-  private UserEntity currentUser() {
-    org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
-      return userRepository.findAllByOrderByCreatedAtAsc().stream().findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized"));
+  private UserEntity resolveUser(AuthenticatedUser authenticatedUser) {
+    if (authenticatedUser == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unauthorized");
     }
 
-    String name = auth.getName();
-    try {
-      UUID userId = UUID.fromString(name);
-      return userRepository.findByIdAndDeletedAtIsNull(userId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
-    } catch (IllegalArgumentException e) {
-      return userRepository.findAllByOrderByCreatedAtAsc().stream().findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "dev_seed_data_missing"));
-    }
+    return userRepository.findByIdAndDeletedAtIsNull(authenticatedUser.userId())
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user_not_found"));
   }
 
   private String toJson(Object obj) {

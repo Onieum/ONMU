@@ -1,5 +1,6 @@
 package com.onmu.api.web;
 
+import com.onmu.api.security.AuthenticatedUser;
 import com.onmu.api.service.OotdAvatarGenerationService;
 import com.onmu.api.web.dto.OotdAvatarGenerationRequest;
 import com.onmu.api.web.dto.OotdAvatarGenerationResponse;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +32,7 @@ public class OotdAvatarGenerationController {
 
   @PostMapping
   public ResponseEntity<OotdAvatarGenerationResponse> create(
+    @AuthenticationPrincipal AuthenticatedUser user,
     @Valid @RequestBody OotdAvatarGenerationRequest request
   ) {
     log.info(
@@ -40,7 +43,7 @@ public class OotdAvatarGenerationController {
       request.outfitPhotoStorageKey() != null && !request.outfitPhotoStorageKey().isBlank(),
       request.outfitDescription() != null && !request.outfitDescription().isBlank()
     );
-    OotdAvatarGenerationResponse response = service.create(request);
+    OotdAvatarGenerationResponse response = service.create(user, request);
     log.info(
       "ootd avatar generation create accepted jobId={} recordId={} status={}",
       response.jobId(),
@@ -51,8 +54,11 @@ public class OotdAvatarGenerationController {
   }
 
   @GetMapping("/{jobId}")
-  public ResponseEntity<OotdAvatarGenerationResponse> get(@PathVariable String jobId) {
-    OotdAvatarGenerationResponse response = service.get(jobId);
+  public ResponseEntity<OotdAvatarGenerationResponse> get(
+    @AuthenticationPrincipal AuthenticatedUser user,
+    @PathVariable String jobId
+  ) {
+    OotdAvatarGenerationResponse response = service.get(user, jobId);
     log.info(
       "ootd avatar generation get jobId={} recordId={} status={} errorCode={}",
       response.jobId(),
