@@ -105,6 +105,7 @@ void main() {
     expect(symbol.zIndex, 10);
     expect(symbol.textField, isNull);
     expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
+    expect(focusedSymbol.zIndex, 40);
     expect(focusedSymbol.zIndex, greaterThan(symbol.zIndex!));
     expect(markerBytes, isNotEmpty);
     expect(markerFrame.image.width, onmuMapMarkerIconSize);

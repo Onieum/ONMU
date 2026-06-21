@@ -1212,6 +1212,9 @@ class _MapSearchOverlay extends StatelessWidget {
             _FloatingMapIconButton(
               tooltip: myLocationTooltip,
               onPressed: onCurrentLocationPressed,
+              selected:
+                  myLocationState == _MyLocationRequestState.requesting ||
+                  myLocationState == _MyLocationRequestState.resolved,
               child: myLocationState == _MyLocationRequestState.requesting
                   ? const SizedBox.square(
                       dimension: 18,
@@ -1350,7 +1353,7 @@ class _CategoryPills extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 30,
+      height: 44,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(right: AppSpacing.lg),
@@ -1393,36 +1396,45 @@ class _CategoryPill extends StatelessWidget {
         key: ValueKey('place-category-pill-$label'),
         borderRadius: BorderRadius.circular(AppRadius.pill),
         onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: selected ? AppColors.linePink : AppColors.lineSoft,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: SizedBox(
-            height: 30,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  strutStyle: const StrutStyle(
-                    height: 1,
-                    forceStrutHeight: true,
+        child: SizedBox(
+          height: 44,
+          child: Center(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.primaryPinkSoft
+                    : AppColors.bgDefault,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(
+                  color: selected ? AppColors.linePink : AppColors.lineSoft,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
                   ),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: foregroundColor,
-                    height: 1,
+                ],
+              ),
+              child: SizedBox(
+                height: 32,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      strutStyle: const StrutStyle(
+                        height: 1,
+                        forceStrutHeight: true,
+                      ),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: foregroundColor,
+                        height: 1,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1458,27 +1470,28 @@ class _MapAreaSearchButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.pill),
         onTap: enabled ? onPressed : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.travel_explore,
-                size: 18,
-                color: enabled ? foregroundColor : AppColors.textSub,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                '현 지도에서 검색',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.travel_explore,
+                  size: 18,
                   color: enabled ? foregroundColor : AppColors.textSub,
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  active ? '검색 중' : '현 지도에서 검색',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: enabled ? foregroundColor : AppColors.textSub,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

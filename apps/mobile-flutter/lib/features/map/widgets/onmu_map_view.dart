@@ -140,7 +140,7 @@ SymbolOptions nativeSymbolOptionsForPoint({
     iconImage: nativeMarkerIconImageName(order: point.order, focused: focused),
     iconAnchor: 'center',
     iconSize: 1,
-    zIndex: focused ? 20 : 10,
+    zIndex: focused ? 40 : 10,
   );
 }
 

@@ -1655,7 +1655,7 @@ void main() {
       tester
           .getRect(find.byKey(const ValueKey('place-category-pill-음식점')))
           .height,
-      30,
+      greaterThanOrEqualTo(44),
     );
     final foodCategoryText = tester.widget<Text>(find.text('음식점'));
     expect(foodCategoryText.style?.height, 1);
