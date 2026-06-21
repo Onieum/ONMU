@@ -223,17 +223,44 @@ void main() {
     final emptyKey = onmuMapCameraSeedKey(
       points: const [],
       routeGeometry: const [],
-      center: null,
-      zoom: 11,
     );
     final loadedKey = onmuMapCameraSeedKey(
       points: const [point],
       routeGeometry: const [],
-      center: null,
-      zoom: 11,
+    );
+    final routeLoadedKey = onmuMapCameraSeedKey(
+      points: const [point],
+      routeGeometry: const [OnmuLatLng(lat: 37.57, lng: 126.982)],
     );
 
     expect(loadedKey, isNot(emptyKey));
+    expect(routeLoadedKey, isNot(loadedKey));
+  });
+
+  test('keeps native map seed stable for non-camera-target rebuilds', () {
+    const point = OnmuMapPoint(
+      id: 'place-1',
+      label: '장소',
+      coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      order: 1,
+    );
+    const relabeledPoint = OnmuMapPoint(
+      id: 'place-1',
+      label: '선택된 장소',
+      coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      order: 1,
+    );
+
+    final firstKey = onmuMapCameraSeedKey(
+      points: const [point],
+      routeGeometry: const [],
+    );
+    final rebuiltKey = onmuMapCameraSeedKey(
+      points: const [relabeledPoint],
+      routeGeometry: const [],
+    );
+
+    expect(rebuiltKey, firstKey);
   });
 
   test('calculates initial zoom from route spread', () {

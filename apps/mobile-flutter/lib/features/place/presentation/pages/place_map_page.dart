@@ -665,7 +665,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         localVisibleCandidates;
     final searchLoading = remoteSearchState?.isLoading ?? false;
     final searchHadError = remoteSearchState?.hasError ?? false;
-    final mapCenter = _mapSearchCenter ?? _lastCameraCenter;
+    final mapCenter = _mapSearchCenter;
     final mapZoom = mapSearchCenter == null ? 11.0 : 14.8;
     final catalogViewport =
         _catalogViewport ??
