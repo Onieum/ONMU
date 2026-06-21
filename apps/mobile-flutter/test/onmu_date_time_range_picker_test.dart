@@ -259,37 +259,68 @@ void main() {
     await _pumpRangePicker(
       tester,
       participantPreferences: [
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['월요일'],
-          preferredTimes: ['점심'],
+        _participant(
+          '박진희',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['월요일'],
+            preferredTimes: ['점심'],
+          ),
         ),
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['월요일'],
-          preferredTimes: ['오후'],
+        _participant(
+          '찬도치',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['월요일'],
+            preferredTimes: ['오후'],
+          ),
         ),
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['월요일'],
-          preferredTimes: ['점심'],
-          unavailableDates: ['2026-06-15'],
+        _participant(
+          '민수',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['월요일'],
+            preferredTimes: ['점심'],
+            unavailableDates: ['2026-06-15'],
+          ),
         ),
       ],
     );
     await _openRangePicker(tester);
 
-    expect(find.text('모두가 가능한 시간대가 없었음'), findsOneWidget);
-    expect(find.text('2명 선호, 1명 비선호'), findsWidgets);
+    expect(find.text('민수님이 불가능해요'), findsWidgets);
+    expect(find.text('2명 선호'), findsWidgets);
+    expect(find.textContaining('찬도치님 선호'), findsWidgets);
     expect(find.text('4명 추천'), findsNothing);
-    expect(find.byIcon(Icons.close_rounded), findsWidgets);
-    expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
 
-  testWidgets('fallback recommendations do not repeat the generic label', (
-    tester,
-  ) async {
+  testWidgets('fallback recommendations use proposal label', (tester) async {
     await _pumpRangePicker(tester);
     await _openRangePicker(tester);
 
-    expect(find.text('일반 추천'), findsNWidgets(4));
+    expect(find.text('제안'), findsNWidgets(4));
+    expect(find.text('일반 추천'), findsNothing);
+  });
+
+  testWidgets('recommended time cards avoid duplicated recommendation chip', (
+    tester,
+  ) async {
+    await _pumpRangePicker(
+      tester,
+      initialStart: DateTime(2026, 6, 15, 14),
+      initialEnd: DateTime(2026, 6, 15, 16),
+      participantPreferences: [
+        _participant(
+          '찬도치',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['월요일'],
+            preferredTimes: ['오후'],
+          ),
+        ),
+      ],
+    );
+    await _openRangePicker(tester);
+
+    expect(find.text('선택한 날짜의 추천 시간대'), findsOneWidget);
+    expect(find.text('추천 시간대'), findsNothing);
+    expect(find.textContaining('찬도치님 선호'), findsWidgets);
   });
 
   testWidgets('recommended dates are shown separately from time slots', (
@@ -322,9 +353,12 @@ void main() {
         16,
       ),
       participantPreferences: [
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['금요일', '토요일', '일요일'],
-          preferredTimes: ['점심'],
+        _participant(
+          '박진희',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['금요일', '토요일', '일요일'],
+            preferredTimes: ['점심'],
+          ),
         ),
       ],
     );
@@ -341,6 +375,119 @@ void main() {
       find.textContaining('${_expectedDateLabel(initialDate)}\n'),
       findsNothing,
     );
+  });
+
+  testWidgets(
+    'recommended dates keep unavailable conflicts with participant names',
+    (tester) async {
+      final startDate = _firstMatchingWeekday(
+        DateTime.now().add(const Duration(days: 1)),
+        {DateTime.friday},
+      );
+      final conflictedSunday = startDate.add(const Duration(days: 2));
+
+      await _pumpRangePicker(
+        tester,
+        initialStart: DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          14,
+        ),
+        initialEnd: DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          16,
+        ),
+        participantPreferences: [
+          _participant(
+            '박진희',
+            PreferenceProfile.empty().copyWith(
+              preferredWeekdays: ['금요일', '토요일', '일요일'],
+              preferredTimes: ['점심'],
+            ),
+          ),
+          _participant(
+            '민수',
+            PreferenceProfile.empty().copyWith(
+              preferredWeekdays: ['일요일', '월요일'],
+              unavailableDates: [
+                '${conflictedSunday.year}-${conflictedSunday.month.toString().padLeft(2, '0')}-${conflictedSunday.day.toString().padLeft(2, '0')}',
+              ],
+            ),
+          ),
+        ],
+      );
+      await _openRangePicker(tester);
+
+      expect(find.text(_expectedDateLabel(conflictedSunday)), findsOneWidget);
+      expect(find.text('2명 선호'), findsWidgets);
+      expect(find.text('민수님이 불가능해요'), findsWidgets);
+
+      await tester.tap(find.text(_expectedDateLabel(conflictedSunday)));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('박진희님 선호'), findsWidgets);
+      expect(find.text('민수님이 불가능해요'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'unavailable participant preferred times still appear with conflict reason',
+    (tester) async {
+      await _pumpRangePicker(
+        tester,
+        initialStart: DateTime(2026, 6, 27, 14),
+        initialEnd: DateTime(2026, 6, 27, 16),
+        participantPreferences: [
+          _participant(
+            '박진희',
+            PreferenceProfile.empty().copyWith(
+              preferredWeekdays: ['토요일'],
+              preferredTimes: ['점심'],
+              unavailableDates: ['2026-06-27'],
+            ),
+          ),
+        ],
+      );
+      await _openRangePicker(tester);
+
+      expect(find.text('12:00 ~ 14:00'), findsOneWidget);
+      expect(find.text('박진희님 선호'), findsWidgets);
+      expect(find.text('박진희님이 불가능해요'), findsWidgets);
+      expect(find.text('점심부터 여유롭게 시작할 수 있어요.'), findsNothing);
+    },
+  );
+
+  testWidgets('recommended date cards keep a stable height for long notices', (
+    tester,
+  ) async {
+    await _pumpRangePicker(
+      tester,
+      initialStart: DateTime(2026, 6, 30, 14),
+      initialEnd: DateTime(2026, 6, 30, 16),
+      participantPreferences: [
+        _participant(
+          '아주긴이름의박진희',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['토요일'],
+            preferredTimes: ['점심'],
+            unavailableDates: ['2026-07-25'],
+          ),
+        ),
+      ],
+    );
+    await _openRangePicker(tester);
+
+    final conflictCard = tester.getSize(
+      find.byKey(const ValueKey('recommended-date-2026-07-25')),
+    );
+    final normalCard = tester.getSize(
+      find.byKey(const ValueKey('recommended-date-2026-07-04')),
+    );
+
+    expect(conflictCard.height, normalCard.height);
   });
 
   testWidgets(
@@ -364,9 +511,12 @@ void main() {
         ),
         initialEnd: DateTime(endDate.year, endDate.month, endDate.day, 16),
         participantPreferences: [
-          PreferenceProfile.empty().copyWith(
-            preferredWeekdays: ['금요일', '토요일', '일요일'],
-            preferredTimes: ['점심'],
+          _participant(
+            '박진희',
+            PreferenceProfile.empty().copyWith(
+              preferredWeekdays: ['금요일', '토요일', '일요일'],
+              preferredTimes: ['점심'],
+            ),
           ),
         ],
       );
@@ -392,21 +542,28 @@ void main() {
     final dates = onmuRecommendedDatesForRangePicker(
       anchor: DateTime(2026, 6, 19),
       participantPreferences: [
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['금요일'],
-          preferredTimes: ['점심'],
+        _participant(
+          '박진희',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['금요일'],
+            preferredTimes: ['점심'],
+          ),
         ),
-        PreferenceProfile.empty().copyWith(
-          preferredWeekdays: ['금요일'],
-          preferredTimes: ['오후'],
-          unavailableDates: ['2026-06-26'],
+        _participant(
+          '민수',
+          PreferenceProfile.empty().copyWith(
+            preferredWeekdays: ['금요일'],
+            preferredTimes: ['오후'],
+            unavailableDates: ['2026-06-26'],
+          ),
         ),
       ],
+      dayCount: 8,
     );
 
     expect(dates.map((date) => date.day), contains(19));
     expect(dates.map((date) => date.day), isNot(contains(20)));
-    expect(dates.map((date) => date.day), isNot(contains(26)));
+    expect(dates.map((date) => date.day), contains(26));
   });
 
   test('recommended dates accept preferredDays API alias', () {
@@ -417,7 +574,7 @@ void main() {
 
     final dates = onmuRecommendedDatesForRangePicker(
       anchor: DateTime(2026, 6, 19),
-      participantPreferences: [profile],
+      participantPreferences: [_participant('찬도치', profile)],
     );
 
     expect(profile.preferredWeekdays, ['SATURDAY', 'SUNDAY']);
@@ -428,7 +585,7 @@ void main() {
 Future<void> _pumpRangePicker(
   WidgetTester tester, {
   ValueChanged<OnmuDateTimeRange>? onPicked,
-  List<PreferenceProfile> participantPreferences = const [],
+  List<ParticipantSchedulePreference> participantPreferences = const [],
   DateTime? initialStart,
   DateTime? initialEnd,
 }) async {
@@ -485,6 +642,17 @@ OnmuCard _recommendationCard(WidgetTester tester, String timeText) {
       .ancestor(of: find.text(timeText), matching: find.byType(OnmuCard))
       .first;
   return tester.widget<OnmuCard>(cardFinder);
+}
+
+ParticipantSchedulePreference _participant(
+  String name,
+  PreferenceProfile preferenceProfile,
+) {
+  return ParticipantSchedulePreference(
+    userId: name,
+    name: name,
+    preferenceProfile: preferenceProfile,
+  );
 }
 
 void _expectLocalDateTime(

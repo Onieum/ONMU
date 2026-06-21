@@ -110,6 +110,8 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 약속 날짜 추천 UX는 단일 날짜와 다중 날짜 범위를 분리한다. 시작/종료 날짜가 같은 경우 `추천 날짜` 칩은 선택 가능한 날짜 후보로 동작한다. 시작/종료 날짜가 다른 경우 추천 날짜는 `선택 범위의 추천 방문일`로 표시하며, 이미 선택된 범위 안에서 실제 방문 가능성이 높은 날짜를 읽기 전용으로 보여 준다. 시간 추천은 다중 범위에서도 시작 날짜 기준으로 계산하고, 날짜별 상세 방문 시간은 일정 장소/동선 단계에서 별도로 다룬다.
 
+추천 계산은 약속에 실제 참여할 멤버의 `preferenceProfile`만 사용한다. `preferredWeekdays`가 겹치는 날짜와 `preferredTimes`가 겹치는 시간대를 우선 제안하되, `unavailableDates`와 겹치는 참여자가 있어도 후보에서 제외하지 않는다. 대신 날짜/시간 후보에 `OO님이 불가능해요`, `OO님 외 N명이 불가능해요`처럼 충돌 사유를 표시한다. 선호 데이터가 없어 기본 시간대를 보여줄 때의 상태 라벨은 `제안`이다.
+
 약속 상태 contract는 `scheduled`, `active`, `completed`, `cancelled` 네 값만 허용한다. 새 약속의 기본 상태는 `scheduled`이며 표시명은 `예정`이다. 일반 약속 수정은 명시적인 상태 변경 action이 아닌 한 status를 보내지 않고 일정/장소/메모만 갱신한다. 서버는 허용되지 않은 status 입력을 `400 invalid_plan_status`로 거절하고, DB는 같은 허용 목록 check constraint를 가진다.
 
 ## Place
