@@ -74,6 +74,9 @@ Spring container는 다음 env var name을 기준으로 한다.
 - `OBJECT_STORAGE_ENDPOINT`
 - `OBJECT_STORAGE_BUCKET`
 - `AZURE_CLIENT_ID` 또는 `OBJECT_STORAGE_MANAGED_IDENTITY_CLIENT_ID`
+- `ONMU_WORKER_URL`
+- `ONMU_PLACE_REASON_WORKER_URL`
+- `ONMU_INTERNAL_SECRET`
 
 값은 Key Vault/managed identity/secret reference로 주입한다. 문서와 PR에는 값이 아니라 env var name과 secret name만 적는다.
 
@@ -118,7 +121,8 @@ Side effect 계약:
 
 FastAPI Worker는 다음 작업을 담당한다.
 
-- 장소추천 설명 생성 같은 AI 보조. 현재 rule-based 추천 이유는 Spring이 즉시 생성하고, `place_candidate.created`/`ai.summary.requested`는 Worker `/tasks/place-reason`에서 비동기 보강할 수 있다.
+- 장소추천 설명 생성 같은 AI 보조. Spring은 후보 저장과 rule-based 기본 이유를 즉시 제공하고, `place_candidate.created`/`ai.summary.requested`는 Worker `/tasks/place-reason`에서 Azure OpenAI로 비동기 보강할 수 있다.
+- place reason worker는 `worker_ai.ai_job_runs`와 `worker_ai.prompt_runs`에 job/prompt metadata를 저장하고, Spring internal callback `/api/v1/internal/callbacks/place-reason`으로 결과를 반영한다.
 - 주간/월간 리포트 후보 생성
 - 검색/RAG/분석 worker job
 - 장기적으로 Azure OpenAI, Azure AI Search, Databricks/Lakehouse 연동
@@ -135,6 +139,20 @@ Worker 운영 결정 항목:
 | retry | idempotency key와 attempt count 필요 | dead-letter queue와 replay runbook |
 | timeout | Spring request path를 막지 않는 짧은 timeout | 장기 AI 작업은 queue/job으로 분리 |
 | AI 결과물 | summary/recommendation/reason metadata/thumbnail metadata 중심 | image 결과물은 Blob object + DB metadata로 분리 |
+
+Place reason worker runtime env:
+
+| Env | 용도 | secret 여부 |
+| --- | --- | --- |
+| `ONMU_PLACE_REASON_OPENAI_ENDPOINT_URL` | Azure OpenAI endpoint URL | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_DEPLOYMENT_NAME` | 장소 추천 설명 deployment 이름 | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_API_KEY` | Azure OpenAI API key | 예 |
+| `ONMU_PLACE_REASON_OPENAI_API_VERSION` | API version | 아니오 |
+| `ONMU_WORKER_AI_DATABASE_URL` | worker_ai schema persistence 연결 | 예 |
+| `ONMU_INTERNAL_CALLBACK_BASE_URL` | Spring internal callback base URL | 아니오 |
+| `ONMU_INTERNAL_SECRET` | Spring internal callback secret | 예 |
+
+Worker 로그와 `/readyz`는 설정 여부만 노출한다. API key, DB URL, internal secret 값은 출력하지 않는다.
 
 ## 8. Chat/notification contract
 

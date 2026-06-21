@@ -7,7 +7,9 @@ from app.ootd.azureml_client import AzureMlOotdClient
 from app.ootd.character_renderer import CharacterReferenceRenderer
 from app.ootd.vision_client import AzureOpenAiVisionClient
 from app.ootd.worker import handle_ootd_avatar_generation
+from app.place_reason_client import AzureOpenAiPlaceReasonClient
 from app.place_reason import handle_place_reason_task
+from app.worker_ai_store import WorkerAiStore
 
 app = FastAPI(title="ONMU AI/Data Worker", version="0.1.0")
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ def healthz() -> dict[str, bool | str]:
 def readyz() -> dict[str, bool | str]:
     azureml_configured = AzureMlOotdClient.from_env(required=False).is_configured
     vision_configured = AzureOpenAiVisionClient.from_env(required=False).is_configured
+    place_reason_configured = AzureOpenAiPlaceReasonClient.from_env(required=False).is_configured
+    worker_ai_store_configured = WorkerAiStore.from_env().is_configured
     character_renderer_ready = CharacterReferenceRenderer().is_ready
     return {
         "ok": True,
@@ -29,6 +33,8 @@ def readyz() -> dict[str, bool | str]:
         "mode": "azureml" if azureml_configured else "mock",
         "azureMlConfigured": azureml_configured,
         "visionConfigured": vision_configured,
+        "placeReasonConfigured": place_reason_configured,
+        "workerAiStoreConfigured": worker_ai_store_configured,
         "characterRendererReady": character_renderer_ready,
     }
 
@@ -68,7 +74,7 @@ async def handle_place_reason_outbox_task(request: OutboxTaskRequest) -> dict:
         request.eventId,
         request.eventType,
     )
-    return handle_place_reason_task(
+    return await handle_place_reason_task(
         event_id=request.eventId,
         event_type=request.eventType,
         payload=request.payload,

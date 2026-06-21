@@ -341,9 +341,9 @@ Response:
 | `place_candidate.heart_updated` | Spring Boot Main API | future notification/realtime | 후보 선호 변화 fan-out 또는 집계 projection 후보 |
 | `schedule_place.created` | Spring Boot Main API | future chat/realtime/notification | 일정 장소 등록 후 약속 timeline/card로 확장 가능 |
 | `vote.created` | Spring Boot Main API | chat/realtime/notification | 장소 후보 기반 투표일 때 `candidateIds`를 payload에 포함한다. |
-| `ai.summary.requested` 후보 | Spring Boot Main API | FastAPI Worker | 장소 추천 설명/선택 이유 생성이 필요할 때 후속으로 사용한다. |
+| `ai.summary.requested` 후보 | Spring Boot Main API | FastAPI Worker | 장소 추천 설명/선택 이유를 Azure OpenAI로 보강하고 Spring internal callback으로 후보 payload에 반영한다. |
 
-현재 후보/일정 생성은 Spring transaction 안에서 DB 저장과 outbox 기록을 함께 수행한다. Worker는 core domain table을 직접 수정하지 않고, worker 전용 schema 또는 결과 metadata만 기록한다. Spring이 필요한 경우 worker 결과를 읽어 API read model에 합성한다.
+현재 후보/일정 생성은 Spring transaction 안에서 DB 저장과 outbox 기록을 함께 수행한다. 장소 후보 생성 시 Spring은 rule-based summary/reasons를 즉시 저장하고 `place_candidate.created` outbox에 안전한 summary/reasons/count/status 메타데이터만 담는다. Worker는 core domain table을 직접 수정하지 않고 `worker_ai.ai_job_runs`와 `worker_ai.prompt_runs`에 job/prompt metadata를 기록한 뒤, `/api/v1/internal/callbacks/place-reason`으로 Spring에 완료/실패 상태를 돌려준다. Spring은 callback을 받은 뒤 후보 payload의 `summary`, `reasons`, `recommendation.aiStatus`만 갱신한다.
 
 ## Data Model and Source of Truth
 
@@ -396,7 +396,7 @@ Spring Boot Main API가 소유한다:
 FastAPI Worker가 소유한다:
 
 - 장소 후보 설명, 취향 기반 보조 문장, AI summary 같은 비동기/AI 작업.
-- Azure OpenAI 호출과 prompt/result metadata.
+- Azure OpenAI 호출, prompt/result metadata, `worker_ai` job/prompt run persistence.
 - worker 전용 `worker_ai` schema와 Alembic migration.
 
 Worker가 하지 않는다:
@@ -405,6 +405,7 @@ Worker가 하지 않는다:
 - Flutter 앱에 public API 제공.
 - provider secret이나 OAuth secret을 Flutter로 전달.
 - 사용자 결정을 대신하는 점수/리스크 판정 생성.
+- provider raw body/query, OAuth 값, token, 사용자 PII를 prompt/result metadata나 로그에 저장.
 
 ## Terraform Resource Implications
 

@@ -1162,6 +1162,13 @@ public class OnmuApiService {
     payload.put("travelTimeLabel", blankToNull(request.travelTimeLabel()));
     payload.put("priceLabel", blankToNull(request.priceLabel()));
     payload.put("openingLabel", blankToNull(request.openingLabel()));
+    payload.put("recommendation", Map.of(
+      "version", "rule-v1",
+      "aiStatus", "queued",
+      "reasonSource", "spring_rule",
+      "reasonCount", requestReasons(request, externalPlace).size(),
+      "promptKind", "place_reason"
+    ));
     payload.put("roadAddress", blankToNull(request.roadAddress()));
     payload.put("sourceUrl", blankToNull(request.sourceUrl()));
     payload.put("lat", firstNonNull(request.latitude(), request.lat()));
@@ -1184,6 +1191,12 @@ public class OnmuApiService {
     value.put("category", candidate.getCategory());
     value.put("recommendationVersion", "rule-v1");
     value.put("reasonCount", stringList(payload.get("reasons")).size());
+    value.put("summary", asString(payload.get("summary")));
+    value.put("reasons", stringList(payload.get("reasons")));
+    value.put("distanceLabel", asString(payload.get("distanceLabel")));
+    value.put("travelTimeLabel", asString(payload.get("travelTimeLabel")));
+    value.put("priceLabel", asString(payload.get("priceLabel")));
+    value.put("openingLabel", asString(payload.get("openingLabel")));
     value.put("hasCoordinate", payload.get("lat") != null && payload.get("lng") != null);
     value.put("sourceType", candidate.getExternalPlace() == null ? "manual" : "external_place");
     return value;
@@ -1256,6 +1269,7 @@ public class OnmuApiService {
     value.put("memberFits", List.of());
     value.put("tags", stringList(payload.get("tags")));
     value.put("reasons", stringList(payload.get("reasons")));
+    value.put("recommendation", payload.get("recommendation"));
     return value;
   }
 

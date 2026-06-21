@@ -12,7 +12,9 @@ import com.onmu.api.config.SecurityConfig;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.security.AccessTokenVerifier;
 import com.onmu.api.service.RecordService;
+import com.onmu.api.service.PlaceReasonCompletionService;
 import com.onmu.api.web.dto.OotdCallbackRequest;
+import com.onmu.api.web.dto.PlaceReasonCallbackRequest;
 import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,9 @@ class InternalCallbackControllerTests {
 
   @MockitoBean
   private RecordService recordService;
+
+  @MockitoBean
+  private PlaceReasonCompletionService placeReasonCompletionService;
 
   @MockitoBean
   private AccessTokenVerifier accessTokenVerifier;
@@ -98,6 +103,31 @@ class InternalCallbackControllerTests {
       .thenReturn(Map.of("aiStatus", "SUCCESS"));
 
     mvc.perform(post("/api/v1/internal/callbacks/ootd")
+        .header("X-Internal-Secret", "test-secret-key")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
+      .andExpect(status().isOk());
+  }
+
+  @Test
+  void placeReasonCallbackSucceedsWithCorrectSecretHeaderAndNoBearerToken() throws Exception {
+    PlaceReasonCallbackRequest request = new PlaceReasonCallbackRequest(
+      "1",
+      "101",
+      "201",
+      "completed",
+      "팀원이 비교하기 쉬운 장소예요.",
+      java.util.List.of("지도 기준 이동 부담이 낮아요."),
+      Map.of("reasonSource", "azure_openai"),
+      "job-run-id",
+      "prompt-run-id",
+      null
+    );
+
+    when(placeReasonCompletionService.completeFromWorker(any(PlaceReasonCallbackRequest.class)))
+      .thenReturn(Map.of("ok", true, "candidateId", "201", "aiStatus", "completed"));
+
+    mvc.perform(post("/api/v1/internal/callbacks/place-reason")
         .header("X-Internal-Secret", "test-secret-key")
         .contentType(MediaType.APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(request)))
