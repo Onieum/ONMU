@@ -216,6 +216,8 @@ void main() {
                 'fetchedAt': '2026-06-12T00:00:00Z',
                 'tags': ['카페', '조용함'],
                 'reasons': ['지도 후보로 저장됨'],
+                'distanceLabel': '약 300m',
+                'travelTimeLabel': '도보 5분',
               },
             ),
           );
@@ -234,7 +236,7 @@ void main() {
         summary: 'provider 검색 결과에서 저장된 후보',
         score: 0,
         matchPercent: 0,
-        distanceLabel: '',
+        distanceLabel: '약 300m',
         travelTimeLabel: '도보 5분',
         priceLabel: '',
         isOpen: true,
@@ -267,12 +269,16 @@ void main() {
     expect(requestedBodies.single['lat'], 37.544);
     expect(requestedBodies.single['lng'], 127.055);
     expect(requestedBodies.single['tags'], ['카페', '조용함']);
+    expect(requestedBodies.single['reasons'], ['지도 후보로 저장됨']);
+    expect(requestedBodies.single['distanceLabel'], '약 300m');
+    expect(requestedBodies.single['travelTimeLabel'], '도보 5분');
     expect(saved.id, 204);
     expect(saved.sourceLabel, '외부 검색');
     expect(saved.latitude, 37.544);
     expect(saved.longitude, 127.055);
-    expect(saved.distanceLabel, '');
-    expect(saved.travelTimeLabel, '');
+    expect(saved.distanceLabel, '약 300m');
+    expect(saved.travelTimeLabel, '도보 5분');
+    expect(saved.reasons, ['지도 후보로 저장됨']);
     expect(saved.priceLabel, '');
     expect(saved.openingLabel, '');
   });
@@ -297,6 +303,9 @@ void main() {
                     'providerPlaceId': 'naver-301',
                     'lat': 37.544,
                     'lng': 127.055,
+                    'summary': '현 지도 기준으로 비교할 수 있는 카페 후보입니다.',
+                    'reasons': ['카페 필터와 잘 맞아요.', '주소 정보가 있어 일정 장소로 저장하기 좋아요.'],
+                    'tags': ['카페', '지도 후보'],
                   },
                 ],
               },
@@ -327,5 +336,11 @@ void main() {
       'category': '카페',
     });
     expect(results.single.name, '성수 지도 카페');
+    expect(results.single.summary, '현 지도 기준으로 비교할 수 있는 카페 후보입니다.');
+    expect(results.single.reasons, [
+      '카페 필터와 잘 맞아요.',
+      '주소 정보가 있어 일정 장소로 저장하기 좋아요.',
+    ]);
+    expect(results.single.tags, ['카페', '지도 후보']);
   });
 }

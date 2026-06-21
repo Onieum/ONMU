@@ -29,6 +29,7 @@ public class OutboxService {
   private final OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService;
   private final ObjectMapper objectMapper;
   private final String workerUrl;
+  private final String placeReasonWorkerUrl;
   private final RestTemplate restTemplate;
 
   public OutboxService(
@@ -37,19 +38,44 @@ public class OutboxService {
     OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService,
     ObjectMapper objectMapper,
     @Value("${ONMU_WORKER_URL:http://localhost:8090/tasks/ootd}") String workerUrl,
+    @Value("${ONMU_PLACE_REASON_WORKER_URL:http://localhost:8090/tasks/place-reason}") String placeReasonWorkerUrl,
     @Value("${ONMU_WORKER_CONNECT_TIMEOUT_MS:5000}") int workerConnectTimeoutMs,
     @Value("${ONMU_WORKER_READ_TIMEOUT_MS:180000}") int workerReadTimeoutMs
+  ) {
+    this(
+      outboxEventRepository,
+      notificationDeliveryService,
+      ootdAvatarGenerationCompletionService,
+      objectMapper,
+      workerUrl,
+      placeReasonWorkerUrl,
+      restTemplate(workerConnectTimeoutMs, workerReadTimeoutMs)
+    );
+  }
+
+  OutboxService(
+    OutboxEventRepository outboxEventRepository,
+    NotificationDeliveryService notificationDeliveryService,
+    OotdAvatarGenerationCompletionService ootdAvatarGenerationCompletionService,
+    ObjectMapper objectMapper,
+    String workerUrl,
+    String placeReasonWorkerUrl,
+    RestTemplate restTemplate
   ) {
     this.outboxEventRepository = outboxEventRepository;
     this.notificationDeliveryService = notificationDeliveryService;
     this.ootdAvatarGenerationCompletionService = ootdAvatarGenerationCompletionService;
     this.objectMapper = objectMapper;
     this.workerUrl = workerUrl;
-    
+    this.placeReasonWorkerUrl = placeReasonWorkerUrl;
+    this.restTemplate = restTemplate;
+  }
+
+  private static RestTemplate restTemplate(int workerConnectTimeoutMs, int workerReadTimeoutMs) {
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(workerConnectTimeoutMs);
     factory.setReadTimeout(workerReadTimeoutMs);
-    this.restTemplate = new RestTemplate(factory);
+    return new RestTemplate(factory);
   }
 
   public void record(String eventType, String aggregateType, UUID aggregateId, Map<String, Object> payload) {
@@ -104,16 +130,18 @@ public class OutboxService {
         requestBody.put("eventType", event.getEventType());
         requestBody.put("payload", readMap(event.getPayload()));
 
+        String targetWorkerUrl = workerUrlFor(event.getEventType());
+
         if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
           log.info(
             "ootd outbox dispatching eventId={} aggregateId={} retryCount={} workerUrl={}",
             event.getId(),
             event.getAggregateId(),
             event.getRetryCount() + 1,
-            workerUrl
+            targetWorkerUrl
           );
         }
-        ResponseEntity<String> response = restTemplate.postForEntity(workerUrl, requestBody, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(targetWorkerUrl, requestBody, String.class);
         if ("ootd.avatar_generation.requested".equals(event.getEventType())) {
           ootdAvatarGenerationCompletionService.completeFromWorkerResponse(event.getAggregateId(), response.getBody());
           log.info(
@@ -182,5 +210,12 @@ public class OutboxService {
     } catch (Exception e) {
       return Collections.emptyMap();
     }
+  }
+
+  private String workerUrlFor(String eventType) {
+    if ("place_candidate.created".equals(eventType) || "ai.summary.requested".equals(eventType)) {
+      return placeReasonWorkerUrl;
+    }
+    return workerUrl;
   }
 }

@@ -9,4 +9,6 @@ public interface PlaceCandidateRepository extends JpaRepository<PlaceCandidateEn
   List<PlaceCandidateEntity> findByPlanOrderByCreatedAtAsc(PlanEntity plan);
 
   Optional<PlaceCandidateEntity> findByPlanAndPublicId(PlanEntity plan, String publicId);
+
+  Optional<PlaceCandidateEntity> findByPublicId(String publicId);
 }

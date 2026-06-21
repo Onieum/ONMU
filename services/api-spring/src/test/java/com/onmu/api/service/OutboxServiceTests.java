@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.OutboxEventEntity;
@@ -17,6 +20,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.test.web.client.MockRestServiceServer;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxServiceTests {
@@ -37,6 +44,7 @@ class OutboxServiceTests {
       ootdAvatarGenerationCompletionService,
       new ObjectMapper(),
       "http://localhost:8090/tasks/ootd",
+      "http://localhost:8090/tasks/place-reason",
       5000,
       180000
     );
@@ -141,6 +149,40 @@ class OutboxServiceTests {
 
     assertThat(event.getStatus()).isEqualTo("skipped_dev");
     assertThat(event.getLastError()).isEqualTo("notification_id_missing");
+    verify(outboxEventRepository).save(event);
+  }
+
+  @Test
+  void placeCandidateCreatedDispatchesToPlaceReasonWorker() {
+    RestTemplate restTemplate = new RestTemplate();
+    MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+    OutboxService routedService = new OutboxService(
+      outboxEventRepository,
+      notificationDeliveryService,
+      ootdAvatarGenerationCompletionService,
+      new ObjectMapper(),
+      "http://localhost:8090/tasks/ootd",
+      "http://localhost:8090/tasks/place-reason",
+      restTemplate
+    );
+    OutboxEventEntity event = new OutboxEventEntity(
+      "place_candidate.created",
+      "place_candidate",
+      UUID.randomUUID(),
+      "{\"candidateId\":\"201\",\"reasonCount\":2}"
+    );
+    when(outboxEventRepository.findByStatusOrderByCreatedAtAsc("pending"))
+      .thenReturn(List.of(event));
+    server.expect(requestTo("http://localhost:8090/tasks/place-reason"))
+      .andExpect(method(HttpMethod.POST))
+      .andRespond(withSuccess("{\"ok\":true}", MediaType.APPLICATION_JSON));
+
+    routedService.publishPendingEvents();
+
+    server.verify();
+    assertThat(event.getStatus()).isEqualTo("published");
+    assertThat(event.getPublishedAt()).isNotNull();
+    assertThat(event.getLastError()).isNull();
     verify(outboxEventRepository).save(event);
   }
 }

@@ -1,7 +1,9 @@
 package com.onmu.api.web;
 
 import com.onmu.api.service.RecordService;
+import com.onmu.api.service.PlaceReasonCompletionService;
 import com.onmu.api.web.dto.OotdCallbackRequest;
+import com.onmu.api.web.dto.PlaceReasonCallbackRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,13 +22,16 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/internal/callbacks")
 public class InternalCallbackController {
   private final RecordService recordService;
+  private final PlaceReasonCompletionService placeReasonCompletionService;
   private final String internalSecret;
 
   public InternalCallbackController(
-      RecordService recordService,
-      @Value("${ONMU_INTERNAL_SECRET:onmu-internal-secret-key}") String internalSecret
+    RecordService recordService,
+    PlaceReasonCompletionService placeReasonCompletionService,
+    @Value("${ONMU_INTERNAL_SECRET:onmu-internal-secret-key}") String internalSecret
   ) {
     this.recordService = recordService;
+    this.placeReasonCompletionService = placeReasonCompletionService;
     this.internalSecret = internalSecret;
   }
 
@@ -39,6 +44,18 @@ public class InternalCallbackController {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "forbidden_internal_only");
     }
     Map<String, Object> result = recordService.processOotdCallback(request);
+    return ResponseEntity.ok(result);
+  }
+
+  @PostMapping("/place-reason")
+  public ResponseEntity<Map<String, Object>> placeReasonCallback(
+    @RequestHeader(value = "X-Internal-Secret", required = false) String secret,
+    @Valid @RequestBody PlaceReasonCallbackRequest request
+  ) {
+    if (secret == null || !secret.equals(internalSecret)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "forbidden_internal_only");
+    }
+    Map<String, Object> result = placeReasonCompletionService.completeFromWorker(request);
     return ResponseEntity.ok(result);
   }
 }
