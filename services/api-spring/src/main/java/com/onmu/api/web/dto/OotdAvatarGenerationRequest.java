@@ -8,6 +8,7 @@ public record OotdAvatarGenerationRequest(
   @NotBlank String recordId,
   @NotBlank String inputType,
   UUID outfitPhotoMediaId,
+  String outfitPhotoStorageKey,
   String outfitDescription,
   Map<String, Object> characterOverrides
 ) {}
