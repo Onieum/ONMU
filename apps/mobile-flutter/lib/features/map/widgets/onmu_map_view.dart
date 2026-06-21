@@ -500,6 +500,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.onMyLocationUnavailable,
     this.myLocationEnabled = false,
     this.myLocationRequestSerial = 0,
+    this.cameraFocusTarget,
+    this.cameraFocusRequestSerial = 0,
     this.cameraFitPadding = onmuMapCameraFitPadding,
     this.markerScreenSafetyPadding = onmuMapMarkerScreenSafetyPadding,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
@@ -521,6 +523,8 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final VoidCallback? onMyLocationUnavailable;
   final bool myLocationEnabled;
   final int myLocationRequestSerial;
+  final OnmuLatLng? cameraFocusTarget;
+  final int cameraFocusRequestSerial;
   final EdgeInsets cameraFitPadding;
   final EdgeInsets markerScreenSafetyPadding;
   final String fallbackLabel;
@@ -536,6 +540,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   bool _catalogSourceAdded = false;
   bool _myLocationLayerEnabled = false;
   int _handledMyLocationRequestSerial = 0;
+  int _handledCameraFocusRequestSerial = 0;
   int _nativeSyncGeneration = 0;
   final Set<String> _registeredNativeMarkerImages = {};
 
@@ -609,6 +614,11 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       } else {
         unawaited(_focusNativeMyLocation());
       }
+    }
+    if (widget.cameraFocusRequestSerial > 0 &&
+        widget.cameraFocusRequestSerial != _handledCameraFocusRequestSerial) {
+      _handledCameraFocusRequestSerial = widget.cameraFocusRequestSerial;
+      unawaited(_focusExplicitCameraTarget(widget.cameraFocusTarget));
     }
   }
 
@@ -995,6 +1005,23 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     } catch (_) {
       widget.onMyLocationUnavailable?.call();
       // 위치 권한 거부나 플랫폼 위치 미사용 상태에서는 지도를 유지한다.
+    }
+  }
+
+  Future<void> _focusExplicitCameraTarget(OnmuLatLng? target) async {
+    final controller = _mapController;
+    if (controller == null || target == null || !isValidOnmuLatLng(target)) {
+      return;
+    }
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(target.lat, target.lng), 14.8),
+        duration: const Duration(milliseconds: 320),
+      );
+      _emitCurrentCameraTarget();
+      unawaited(_emitCurrentViewport());
+    } catch (_) {
+      // 명시적 카메라 이동 실패는 지도 화면 자체를 깨지 않게 무시한다.
     }
   }
 

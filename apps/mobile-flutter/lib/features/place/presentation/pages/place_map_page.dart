@@ -122,6 +122,8 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   _MyLocationRequestState _myLocationState = _MyLocationRequestState.idle;
   int _myLocationRequestSerial = 0;
   int? _pendingMyLocationSerial;
+  int _cameraFocusRequestSerial = 0;
+  OnmuLatLng? _cameraFocusTarget;
   double _recommendationSheetSize = _RecommendationSheet.initialSheetSize;
   final Set<int> _savingCandidateIds = {};
   final Map<int, GlobalKey> _candidateTileKeys = {};
@@ -406,17 +408,19 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _myLocationState = _MyLocationRequestState.unavailable;
-      });
-      _showMapSnackBar('현재 위치를 가져오지 못했어요. 기기 위치 설정을 확인해 주세요.');
+      _requestNativeCurrentLocationFallback();
+      return;
     }
+  }
 
+  void _requestNativeCurrentLocationFallback() {
     final serial = _myLocationRequestSerial + 1;
     setState(() {
+      _myLocationState = _MyLocationRequestState.requesting;
       _myLocationRequestSerial = serial;
       _pendingMyLocationSerial = serial;
     });
+    _showMapSnackBar('지도에서 현재 위치를 한 번 더 확인하고 있어요.');
     Future.delayed(const Duration(seconds: 4), () {
       if (!mounted ||
           _pendingMyLocationSerial != serial ||
@@ -430,7 +434,10 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     });
   }
 
-  void _handleMyLocationResolved(OnmuLatLng center) {
+  void _handleMyLocationResolved(
+    OnmuLatLng center, {
+    bool requestCameraFocus = true,
+  }) {
     setState(() {
       _lastCameraCenter = center;
       _mapSearchCenter = center;
@@ -440,6 +447,10 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       _focusedCandidateId = null;
       _myLocationState = _MyLocationRequestState.resolved;
       _pendingMyLocationSerial = null;
+      if (requestCameraFocus) {
+        _cameraFocusRequestSerial += 1;
+        _cameraFocusTarget = center;
+      }
     });
     _showMapSnackBar('현재 위치 주변으로 장소를 다시 찾고 있어요.');
   }
@@ -733,7 +744,12 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                           ?.toString(),
                   onCameraIdle: _handleCameraIdle,
                   onViewportIdle: _handleViewportIdle,
-                  onMyLocationResolved: _handleMyLocationResolved,
+                  onMyLocationResolved: (center) => _handleMyLocationResolved(
+                    center,
+                    requestCameraFocus: false,
+                  ),
+                  cameraFocusTarget: _cameraFocusTarget,
+                  cameraFocusRequestSerial: _cameraFocusRequestSerial,
                   onMyLocationUnavailable: _handleMyLocationUnavailable,
                   myLocationRequestSerial: _myLocationRequestSerial,
                   onPointTap: (point) {
