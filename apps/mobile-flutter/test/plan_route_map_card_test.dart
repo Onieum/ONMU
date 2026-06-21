@@ -121,6 +121,46 @@ void main() {
     expect(find.text('1구간'), findsOneWidget);
     expect(find.text('퍼스트커피랩행궁 → 싸계면반 염통본점'), findsOneWidget);
   });
+
+  testWidgets('route map matches duplicate place names by schedule id', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tileManifestRepositoryProvider.overrideWithValue(
+            const _ReadyTileManifestRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlanRouteMapCard(
+              routeState: AsyncValue.data(_duplicateNameRouteRecommendation),
+              visitPlan: _secondDayDuplicateNameVisitPlan,
+              travelMode: 'walk',
+              onTravelModeChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final routeMap = tester.widget<OnmuMapView>(
+      find.byKey(const ValueKey('plan-itinerary-route-map')),
+    );
+
+    expect(routeMap.points, hasLength(2));
+    expect(routeMap.points.first.id, 'schedule-3');
+    expect(routeMap.points.first.coordinate.lng, 127.0300);
+    expect(routeMap.routeGeometry.first.lng, 127.0300);
+    expect(routeMap.routeGeometry.last.lng, 127.0340);
+    expect(
+      routeMap.routeGeometry.any((point) => point.lng == 127.0100),
+      isFalse,
+    );
+    expect(find.text('7분 · 420m · 1구간'), findsOneWidget);
+    expect(find.text('동명 카페 → 둘째날 식당 · 7분 · 420m'), findsOneWidget);
+  });
 }
 
 class _ReadyTileManifestRepository implements TileManifestRepository {
@@ -246,6 +286,25 @@ final _nonConsecutiveVisitPlan = [
   ),
 ];
 
+final _secondDayDuplicateNameVisitPlan = [
+  const VisitPlan(
+    id: 'schedule-3',
+    time: '10:00',
+    endTime: '11:00',
+    place: '동명 카페',
+    kind: '카페',
+    duration: '1시간',
+  ),
+  const VisitPlan(
+    id: 'schedule-4',
+    time: '11:10',
+    endTime: '12:00',
+    place: '둘째날 식당',
+    kind: '음식점',
+    duration: '50분',
+  ),
+];
+
 final _multiDayRouteRecommendation = RouteRecommendation(
   provider: 'openrouteservice',
   stops: const [
@@ -297,6 +356,80 @@ final _multiDayRouteRecommendation = RouteRecommendation(
   ],
   distanceMeters: 9350,
   durationSeconds: 6720,
+  travelMode: 'walk',
+  liveProvider: true,
+  fallbackReason: '',
+  fetchedAt: null,
+);
+
+final _duplicateNameRouteRecommendation = RouteRecommendation(
+  provider: 'openrouteservice',
+  stops: const [
+    OnmuMapPoint(
+      id: 'schedule-1',
+      label: '동명 카페',
+      coordinate: OnmuLatLng(lat: 37.2800, lng: 127.0100),
+      order: 1,
+    ),
+    OnmuMapPoint(
+      id: 'schedule-2',
+      label: '첫째날 전시',
+      coordinate: OnmuLatLng(lat: 37.2820, lng: 127.0140),
+      order: 2,
+    ),
+    OnmuMapPoint(
+      id: 'schedule-3',
+      label: '동명 카페',
+      coordinate: OnmuLatLng(lat: 37.2900, lng: 127.0300),
+      order: 3,
+    ),
+    OnmuMapPoint(
+      id: 'schedule-4',
+      label: '둘째날 식당',
+      coordinate: OnmuLatLng(lat: 37.2920, lng: 127.0340),
+      order: 4,
+    ),
+  ],
+  geometry: const [
+    OnmuLatLng(lat: 37.2800, lng: 127.0100),
+    OnmuLatLng(lat: 37.2810, lng: 127.0120),
+    OnmuLatLng(lat: 37.2820, lng: 127.0140),
+    OnmuLatLng(lat: 37.2860, lng: 127.0220),
+    OnmuLatLng(lat: 37.2900, lng: 127.0300),
+    OnmuLatLng(lat: 37.2910, lng: 127.0320),
+    OnmuLatLng(lat: 37.2920, lng: 127.0340),
+  ],
+  legs: const [
+    RouteLeg(
+      order: 1,
+      fromStopId: 'schedule-1',
+      toStopId: 'schedule-2',
+      fromName: '동명 카페',
+      toName: '첫째날 전시',
+      distanceMeters: 380,
+      durationSeconds: 360,
+    ),
+    RouteLeg(
+      order: 2,
+      fromStopId: 'schedule-2',
+      toStopId: 'schedule-3',
+      fromName: '첫째날 전시',
+      toName: '동명 카페',
+      distanceMeters: 1400,
+      durationSeconds: 1200,
+    ),
+    RouteLeg(
+      order: 3,
+      fromStopId: 'schedule-3',
+      toStopId: 'schedule-4',
+      fromName: '동명 카페',
+      toName: '둘째날 식당',
+      distanceMeters: 420,
+      durationSeconds: 420,
+    ),
+  ],
+  distanceMeters: 2200,
+  durationSeconds: 1980,
   travelMode: 'walk',
   liveProvider: true,
   fallbackReason: '',

@@ -159,7 +159,7 @@ List<OnmuMapPoint> _uniqueRouteStops(List<OnmuMapPoint> stops) {
   final uniqueStops = <OnmuMapPoint>[];
   final seen = <String>{};
   for (final stop in stops) {
-    final key = stop.label.trim().toLowerCase();
+    final key = _routeStopKey(stop);
     if (key.isEmpty || !seen.add(key)) {
       continue;
     }
@@ -183,8 +183,13 @@ List<OnmuMapPoint> _routeStopsForVisitPlan(
     return const [];
   }
 
+  final stopsById = <String, OnmuMapPoint>{};
   final stopsByName = <String, OnmuMapPoint>{};
   for (final stop in _uniqueRouteStops(route.stops)) {
+    final idKey = _normalizeStopId(stop.id);
+    if (idKey.isNotEmpty) {
+      stopsById.putIfAbsent(idKey, () => stop);
+    }
     final key = _normalizePlaceName(stop.label);
     if (key.isNotEmpty) {
       stopsByName.putIfAbsent(key, () => stop);
@@ -192,9 +197,18 @@ List<OnmuMapPoint> _routeStopsForVisitPlan(
   }
 
   final filtered = <OnmuMapPoint>[];
+  final usedStopKeys = <String>{};
   for (final plan in visitPlan) {
-    final stop = stopsByName[_normalizePlaceName(plan.place)];
+    final idKey = _normalizeStopId(plan.id);
+    final nameKey = _normalizePlaceName(plan.place);
+    final stopById = idKey.isEmpty ? null : stopsById[idKey];
+    final stopByName = nameKey.isEmpty ? null : stopsByName[nameKey];
+    final stop = stopById ?? stopByName;
     if (stop == null) {
+      continue;
+    }
+    final stopKey = _routeStopKey(stop);
+    if (stopKey.isNotEmpty && !usedStopKeys.add(stopKey)) {
       continue;
     }
     filtered.add(
@@ -266,8 +280,7 @@ bool _routeStopsMatchVisibleStops(
     return false;
   }
   for (var index = 0; index < stops.length; index += 1) {
-    if (_normalizePlaceName(route.stops[index].label) !=
-        _normalizePlaceName(stops[index].label)) {
+    if (!_stopsReferToSamePlace(route.stops[index], stops[index])) {
       return false;
     }
   }
@@ -281,13 +294,12 @@ List<int> _routeStopIndicesForVisibleStops(
   final indices = <int>[];
   var searchStart = 0;
   for (final stop in stops) {
-    final target = _normalizePlaceName(stop.label);
-    if (target.isEmpty) {
+    if (_routeStopKey(stop).isEmpty) {
       return const [];
     }
     var found = -1;
     for (var index = searchStart; index < route.stops.length; index += 1) {
-      if (_normalizePlaceName(route.stops[index].label) == target) {
+      if (_stopsReferToSamePlace(route.stops[index], stop)) {
         found = index;
         break;
       }
@@ -333,6 +345,37 @@ int? _nearestGeometryIndex(List<OnmuLatLng> geometry, OnmuLatLng target) {
     }
   }
   return bestIndex < 0 ? null : bestIndex;
+}
+
+String _routeStopKey(OnmuMapPoint stop) {
+  final idKey = _normalizeStopId(stop.id);
+  if (idKey.isNotEmpty) {
+    return 'id:$idKey';
+  }
+  final nameKey = _normalizePlaceName(stop.label);
+  if (nameKey.isEmpty) {
+    return '';
+  }
+  final coordinate = stop.coordinate;
+  if (isValidOnmuLatLng(coordinate)) {
+    return 'name:$nameKey:${coordinate.lat.toStringAsFixed(6)},'
+        '${coordinate.lng.toStringAsFixed(6)}';
+  }
+  return 'name:$nameKey';
+}
+
+bool _stopsReferToSamePlace(OnmuMapPoint routeStop, OnmuMapPoint visibleStop) {
+  final routeId = _normalizeStopId(routeStop.id);
+  final visibleId = _normalizeStopId(visibleStop.id);
+  if (routeId.isNotEmpty && visibleId.isNotEmpty) {
+    return routeId == visibleId;
+  }
+  return _normalizePlaceName(routeStop.label) ==
+      _normalizePlaceName(visibleStop.label);
+}
+
+String _normalizeStopId(String value) {
+  return value.trim().toLowerCase();
 }
 
 String _normalizePlaceName(String value) {
@@ -483,8 +526,7 @@ String _routeLegPreviewLabel(
 
   RouteLeg? matchingLeg;
   for (final leg in route.legs) {
-    if (_normalizePlaceName(leg.fromName) == _normalizePlaceName(from) &&
-        _normalizePlaceName(leg.toName) == _normalizePlaceName(to)) {
+    if (_legMatchesStops(leg, stops.first, stops[1])) {
       matchingLeg = leg;
       break;
     }
@@ -546,12 +588,9 @@ List<RouteLeg> _visibleRouteLegs(
   }
   final legs = <RouteLeg>[];
   for (var index = 0; index < stops.length - 1; index += 1) {
-    final from = _normalizePlaceName(stops[index].label);
-    final to = _normalizePlaceName(stops[index + 1].label);
     RouteLeg? matchingLeg;
     for (final leg in route.legs) {
-      if (_normalizePlaceName(leg.fromName) == from &&
-          _normalizePlaceName(leg.toName) == to) {
+      if (_legMatchesStops(leg, stops[index], stops[index + 1])) {
         matchingLeg = leg;
         break;
       }
@@ -562,6 +601,24 @@ List<RouteLeg> _visibleRouteLegs(
     legs.add(matchingLeg);
   }
   return legs;
+}
+
+bool _legMatchesStops(RouteLeg leg, OnmuMapPoint from, OnmuMapPoint to) {
+  return _legEndpointMatchesStop(leg.fromStopId, leg.fromName, from) &&
+      _legEndpointMatchesStop(leg.toStopId, leg.toName, to);
+}
+
+bool _legEndpointMatchesStop(
+  String legStopId,
+  String legStopName,
+  OnmuMapPoint stop,
+) {
+  final legId = _normalizeStopId(legStopId);
+  final stopId = _normalizeStopId(stop.id);
+  if (legId.isNotEmpty && stopId.isNotEmpty) {
+    return legId == stopId;
+  }
+  return _normalizePlaceName(legStopName) == _normalizePlaceName(stop.label);
 }
 
 String _durationLabel(int seconds) {
