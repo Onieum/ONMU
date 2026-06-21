@@ -115,6 +115,7 @@ Android 검증은 emulator 또는 실기기에서 수행한다. Web smoke는 보
 | 항목 | 보고 기준 |
 | --- | --- |
 | place-search | status, result_count, provider_counts, source_counts, coordinate_count |
+| map-points catalog | mode, cluster_count, point_count, schema_version |
 | route provider | status, route_count, distance presence, duration presence, provider가 `dev-mock`이 아님 |
 | provider fallback | fallback 여부와 provider별 availability count |
 | cache | cache key count, TTL policy, cleanup 여부 |
@@ -122,6 +123,27 @@ Android 검증은 emulator 또는 실기기에서 수행한다. Web smoke는 보
 Provider raw body, query 원문, token, Authorization header는 출력하지 않는다.
 
 Route smoke에서 status와 distance/duration이 있어도 provider가 `dev-mock`이면 live provider 성공으로 판정하지 않는다. 이 경우 `OPENROUTESERVICE_API_KEY` 또는 route provider feature flag/runtime 주입 상태를 secret-safe 방식으로 분리 확인한 뒤 재검증한다.
+
+반복 가능한 staging 지도 smoke는 Windows PowerShell에서 `scripts/windows/smoke-map-staging.ps1`를 사용한다. 이 스크립트는 Authorization 값, raw request/response body, provider raw body, Redis raw value를 출력하지 않고 endpoint별 status/count/presence만 JSON Lines로 출력한다.
+
+```powershell
+$env:ONMU_STAGING_ACCESS_TOKEN = "<short-lived access token>"
+.\scripts\windows\smoke-map-staging.ps1 `
+  -GroupId "<group public id>" `
+  -PlanId "<plan public id>" `
+  -Query "성수" `
+  -Category "음식점"
+```
+
+확인 기준은 다음이다.
+
+- `healthz`, `readyz`: `ok=true`
+- `place-search-first`, `place-search-second`: `resultCount`, `coordinateCount`, `providerCounts`, `sourceCounts` 존재. 같은 검색 2회차에서 count가 급격히 흔들리면 provider/cache 경계를 분리 확인한다.
+- `map-points-clusters`: 낮은 zoom에서 `mode=clusters`, `clusterCount` 존재.
+- `map-points-points`: 높은 zoom에서 `mode=points`, `pointCount` 존재.
+- `route-recommendation`: `-IncludeRoute`를 준 경우에만 실행하며 `providerIsLive=true`, `distancePresent=true`, `durationPresent=true`를 live route 통과 기준으로 본다.
+
+`map-points`는 하단 top20 장소 검색 결과가 아니라 지도 context용 catalog cluster/dot 레이어다. 결과 수가 많아도 숫자 marker나 후보 리스트 개수로 해석하지 않는다.
 
 ## 7. Notification/Event smoke
 
@@ -191,6 +213,15 @@ Staging API가 ACA에서 기동된 뒤 최소 1회 Android emulator 기준으로
 | Chat | 메시지 목록/입력창 표시, pending -> sent 정착, crash 없음 |
 
 My/Profile smoke는 실제 display name, region/address 값을 출력하지 않는다. 보고에는 `preferenceProfile`, `region`, `regionVisibility` presence와 field/key count만 포함한다.
+
+Place/Search/Map 모바일 smoke는 다음 사용자 조작을 반드시 포함한다.
+
+- 지도 진입 직후 basemap road/water/label, 검색/카테고리 overlay, bottom sheet 표시
+- 손가락 pan/zoom 후 지도 중심이 원위치로 즉시 강제 복귀하지 않음
+- `현 지도에서 검색`은 카메라가 의미 있게 이동했을 때만 활성화되고, 누른 뒤 top20 결과/숫자 marker가 갱신됨
+- 현재 위치 버튼은 권한 허용 후 지도 카메라를 현재 위치 주변으로 이동시키고, 실패 시 권한 거부/위치 서비스 꺼짐/timeout/지도 fallback 실패를 구분한 메시지를 표시함
+- bottom sheet는 축소/기본/확장으로 드래그 가능하며 marker/card focus가 앱 crash 없이 동작함
+- provider/source 진단 텍스트가 후보 카드, 지도 상세, 장소 상세에 사용자-facing으로 노출되지 않음
 
 ## 9. Observability smoke
 

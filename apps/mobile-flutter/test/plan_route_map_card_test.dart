@@ -44,7 +44,82 @@ void main() {
       routeMap.markerScreenSafetyPadding.top,
       lessThan(onmuMapMarkerScreenSafetyPadding.top),
     );
-    expect(find.textContaining('2구간'), findsOneWidget);
+    expect(find.textContaining('1구간'), findsOneWidget);
+  });
+
+  testWidgets('route map slices full route geometry to visible date stops', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tileManifestRepositoryProvider.overrideWithValue(
+            const _ReadyTileManifestRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlanRouteMapCard(
+              routeState: AsyncValue.data(_multiDayRouteRecommendation),
+              visitPlan: _firstDayVisitPlan,
+              travelMode: 'walk',
+              onTravelModeChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final routeMap = tester.widget<OnmuMapView>(
+      find.byKey(const ValueKey('plan-itinerary-route-map')),
+    );
+
+    expect(routeMap.points, hasLength(2));
+    expect(routeMap.routeGeometry, hasLength(3));
+    expect(routeMap.routeGeometry.first.lng, 127.0143);
+    expect(routeMap.routeGeometry.last.lng, 127.0158);
+    expect(
+      routeMap.routeGeometry.any((point) => point.lng == 127.1050),
+      isFalse,
+    );
+    expect(find.text('5분 · 350m · 1구간'), findsOneWidget);
+    expect(find.text('퍼스트커피랩행궁 → 렉스프레소뮤지엄 행궁 · 5분 · 350m'), findsOneWidget);
+    expect(find.textContaining('9.3km'), findsNothing);
+  });
+
+  testWidgets('route map falls back to visible stop line for skipped stops', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tileManifestRepositoryProvider.overrideWithValue(
+            const _ReadyTileManifestRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlanRouteMapCard(
+              routeState: AsyncValue.data(_multiDayRouteRecommendation),
+              visitPlan: _nonConsecutiveVisitPlan,
+              travelMode: 'walk',
+              onTravelModeChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final routeMap = tester.widget<OnmuMapView>(
+      find.byKey(const ValueKey('plan-itinerary-route-map')),
+    );
+
+    expect(routeMap.points, hasLength(2));
+    expect(routeMap.routeGeometry, hasLength(2));
+    expect(routeMap.routeGeometry.first.lng, 127.0143);
+    expect(routeMap.routeGeometry.last.lng, 127.1050);
+    expect(find.text('1구간'), findsOneWidget);
+    expect(find.text('퍼스트커피랩행궁 → 싸계면반 염통본점'), findsOneWidget);
   });
 }
 
@@ -127,6 +202,101 @@ final _routeRecommendation = RouteRecommendation(
   ],
   distanceMeters: 880,
   durationSeconds: 810,
+  travelMode: 'walk',
+  liveProvider: true,
+  fallbackReason: '',
+  fetchedAt: null,
+);
+
+final _firstDayVisitPlan = [
+  const VisitPlan(
+    id: 'schedule-1',
+    time: '10:00',
+    endTime: '11:00',
+    place: '퍼스트커피랩행궁',
+    kind: '카페',
+    duration: '1시간',
+  ),
+  const VisitPlan(
+    id: 'schedule-2',
+    time: '11:10',
+    endTime: '12:00',
+    place: '렉스프레소뮤지엄 행궁',
+    kind: '전시',
+    duration: '50분',
+  ),
+];
+
+final _nonConsecutiveVisitPlan = [
+  const VisitPlan(
+    id: 'schedule-1',
+    time: '10:00',
+    endTime: '11:00',
+    place: '퍼스트커피랩행궁',
+    kind: '카페',
+    duration: '1시간',
+  ),
+  const VisitPlan(
+    id: 'schedule-3',
+    time: '12:30',
+    endTime: '13:30',
+    place: '싸계면반 염통본점',
+    kind: '음식점',
+    duration: '1시간',
+  ),
+];
+
+final _multiDayRouteRecommendation = RouteRecommendation(
+  provider: 'openrouteservice',
+  stops: const [
+    OnmuMapPoint(
+      id: 'stop-1',
+      label: '퍼스트커피랩행궁',
+      coordinate: OnmuLatLng(lat: 37.2859, lng: 127.0143),
+      order: 1,
+    ),
+    OnmuMapPoint(
+      id: 'stop-2',
+      label: '렉스프레소뮤지엄 행궁',
+      coordinate: OnmuLatLng(lat: 37.2863, lng: 127.0158),
+      order: 2,
+    ),
+    OnmuMapPoint(
+      id: 'stop-3',
+      label: '싸계면반 염통본점',
+      coordinate: OnmuLatLng(lat: 37.2970, lng: 127.1050),
+      order: 3,
+    ),
+  ],
+  geometry: const [
+    OnmuLatLng(lat: 37.2859, lng: 127.0143),
+    OnmuLatLng(lat: 37.2860, lng: 127.0150),
+    OnmuLatLng(lat: 37.2863, lng: 127.0158),
+    OnmuLatLng(lat: 37.2920, lng: 127.0800),
+    OnmuLatLng(lat: 37.2970, lng: 127.1050),
+  ],
+  legs: const [
+    RouteLeg(
+      order: 1,
+      fromStopId: 'stop-1',
+      toStopId: 'stop-2',
+      fromName: '퍼스트커피랩행궁',
+      toName: '렉스프레소뮤지엄 행궁',
+      distanceMeters: 350,
+      durationSeconds: 300,
+    ),
+    RouteLeg(
+      order: 2,
+      fromStopId: 'stop-2',
+      toStopId: 'stop-3',
+      fromName: '렉스프레소뮤지엄 행궁',
+      toName: '싸계면반 염통본점',
+      distanceMeters: 9000,
+      durationSeconds: 6420,
+    ),
+  ],
+  distanceMeters: 9350,
+  durationSeconds: 6720,
   travelMode: 'walk',
   liveProvider: true,
   fallbackReason: '',

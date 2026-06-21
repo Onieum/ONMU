@@ -571,6 +571,47 @@ void main() {
       expect(unavailableCount, 1);
     },
   );
+
+  testWidgets(
+    'ignores explicit camera focus safely when native controller is absent',
+    (tester) async {
+      var unavailableCount = 0;
+
+      Widget buildMap({required int focusSerial}) {
+        return ProviderScope(
+          overrides: [
+            tileManifestRepositoryProvider.overrideWithValue(
+              const _FailingTileManifestRepository(),
+            ),
+          ],
+          child: MaterialApp(
+            home: SizedBox(
+              width: 320,
+              height: 240,
+              child: OnmuMapView(
+                fallbackLabel: '지도 fallback',
+                points: const [],
+                cameraFocusTarget: const OnmuLatLng(lat: 37.5665, lng: 126.978),
+                cameraFocusRequestSerial: focusSerial,
+                onMyLocationUnavailable: () {
+                  unavailableCount += 1;
+                },
+              ),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(buildMap(focusSerial: 0));
+      await tester.pump();
+
+      await tester.pumpWidget(buildMap(focusSerial: 1));
+      await tester.pump();
+
+      expect(find.text('지도 fallback'), findsOneWidget);
+      expect(unavailableCount, 0);
+    },
+  );
 }
 
 class _FailingTileManifestRepository implements TileManifestRepository {

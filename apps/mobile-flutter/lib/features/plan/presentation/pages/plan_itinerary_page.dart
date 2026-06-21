@@ -22,19 +22,37 @@ class PlanItineraryPage extends ConsumerStatefulWidget {
   const PlanItineraryPage({
     required this.groupId,
     required this.planId,
+    this.initialDateIndex = 0,
     super.key,
   });
 
   final String groupId;
   final String planId;
+  final int initialDateIndex;
 
   @override
   ConsumerState<PlanItineraryPage> createState() => _PlanItineraryPageState();
 }
 
 class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
-  var _selectedDateIndex = 0;
+  late int _selectedDateIndex;
   var _travelMode = 'walk';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDateIndex = _normalizedDateIndex(widget.initialDateIndex);
+  }
+
+  @override
+  void didUpdateWidget(covariant PlanItineraryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groupId != widget.groupId ||
+        oldWidget.planId != widget.planId ||
+        oldWidget.initialDateIndex != widget.initialDateIndex) {
+      _selectedDateIndex = _normalizedDateIndex(widget.initialDateIndex);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +84,8 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   }
 
   Widget _buildContent(BuildContext context, PlanDetailState state) {
-    final selectedVisitPlan = state.visitPlanForDate(_selectedDateIndex);
+    final selectedDateIndex = _clampedDateIndex(_selectedDateIndex, state);
+    final selectedVisitPlan = state.visitPlanForDate(selectedDateIndex);
     final routeState = ref.watch(
       routeRecommendationViewModelProvider((
         groupId: widget.groupId,
@@ -111,13 +130,13 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                   const SizedBox(height: AppSpacing.md),
                   PlanDateTabs(
                     tabs: state.dateTabs,
-                    selectedIndex: _selectedDateIndex,
+                    selectedIndex: selectedDateIndex,
                     onChanged: (index) =>
                         setState(() => _selectedDateIndex = index),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    state.dateTabForDate(_selectedDateIndex).headingLabel,
+                    state.dateTabForDate(selectedDateIndex).headingLabel,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -219,6 +238,25 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
     }
     return start.add(const Duration(hours: 1));
   }
+}
+
+int _normalizedDateIndex(int value) {
+  return value < 0 ? 0 : value;
+}
+
+int _clampedDateIndex(int value, PlanDetailState state) {
+  final maxIndex =
+      (state.dateTabs.isNotEmpty
+          ? state.dateTabs.length
+          : state.visitPlansByDate.length) -
+      1;
+  if (maxIndex < 0 || value < 0) {
+    return 0;
+  }
+  if (value > maxIndex) {
+    return maxIndex;
+  }
+  return value;
 }
 
 class _RouteList extends StatelessWidget {

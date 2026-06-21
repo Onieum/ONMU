@@ -367,6 +367,7 @@ final appRouter = GoRouter(
                               builder: (context, state) => PlanItineraryPage(
                                 groupId: state.pathParameters['groupId']!,
                                 planId: state.pathParameters['planId']!,
+                                initialDateIndex: _dateIndexFromState(state),
                               ),
                             ),
                             GoRoute(
@@ -637,6 +638,14 @@ DateTime _recordDateFromState(GoRouterState state) {
   final dateStr =
       state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
   return DateTime.parse(dateStr);
+}
+
+int _dateIndexFromState(GoRouterState state) {
+  final parsed = int.tryParse(state.uri.queryParameters['dateIndex'] ?? '');
+  if (parsed == null || parsed < 0) {
+    return 0;
+  }
+  return parsed;
 }
 
 void _showResetDialog(BuildContext context, RecordFlowController controller) {

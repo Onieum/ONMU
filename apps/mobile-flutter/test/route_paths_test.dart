@@ -8,6 +8,10 @@ void main() {
     expect(RoutePaths.planDetail(1, 101), '/groups/1/plans/101');
     expect(RoutePaths.planEdit(1, 103), '/groups/1/plans/103/edit');
     expect(RoutePaths.planItinerary(1, 101), '/groups/1/plans/101/itinerary');
+    expect(
+      RoutePaths.planItinerary(1, 101, dateIndex: 1),
+      '/groups/1/plans/101/itinerary?dateIndex=1',
+    );
     expect(RoutePaths.records, '/records');
   });
 

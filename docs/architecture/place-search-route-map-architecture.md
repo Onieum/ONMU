@@ -124,6 +124,8 @@ Flutter route와 repository는 운영 API 이름을 따른다.
 
 `OnmuMapView`는 `TileManifestRepository`가 manifest를 읽고 style URL이 있으며 platform view와 PMTiles protocol bootstrap이 준비되면 `MapLibreMap`을 렌더링한다. 그렇지 않으면 `CustomPaint` fallback 배경 위에 projected pins와 route overlay를 표시한다. 이 fallback은 Android emulator나 test binding에서 blank 지도 대신 후보 위치와 동선을 계속 보여주기 위한 현재 안정화 장치다.
 
+지도 camera fit은 초기 데이터/route 변경 seed에만 사용하고, runtime sync에서 강제 `fitBounds`를 다시 켜지 않는다. iOS MapLibre 안정성을 위해 pan/zoom 이후 center 또는 zoom만 바뀌는 경우에는 자동 refit하지 않는다. 현재 위치 버튼, catalog cluster tap처럼 사용자가 명시적으로 누른 액션만 `animateCamera`를 호출해 카메라를 이동한다.
+
 ### Tile Runtime
 
 지도 타일 운영 기준은 `docs/operations/map-tiles-dev.md`와 `scripts/windows/seed-map-tiles-minio.ps1`, `scripts/map-tiles-gateway.js`에 나뉘어 있다.
