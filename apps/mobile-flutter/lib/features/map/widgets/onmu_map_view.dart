@@ -60,6 +60,18 @@ const EdgeInsets onmuMapMarkerScreenSafetyPadding = EdgeInsets.fromLTRB(
 );
 
 @visibleForTesting
+const double onmuMapMarkerIconSize = 64;
+
+@visibleForTesting
+const double onmuMapFocusedMarkerIconSize = 78;
+
+@visibleForTesting
+const double onmuMapMarkerFallbackSize = 50;
+
+@visibleForTesting
+const double onmuMapFocusedMarkerFallbackSize = 62;
+
+@visibleForTesting
 String nativeMarkerIconImageName({required int order, required bool focused}) {
   final state = focused ? 'focused' : 'normal';
   return 'onmu-map-marker-$state-$order';
@@ -70,16 +82,16 @@ Future<Uint8List> createNativeMarkerIconBytes({
   required int order,
   required bool focused,
 }) async {
-  final size = focused ? 56.0 : 46.0;
+  final size = focused ? onmuMapFocusedMarkerIconSize : onmuMapMarkerIconSize;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   final center = Offset(size / 2, size / 2);
-  final radius = focused ? 22.0 : 18.0;
+  final radius = focused ? 30.0 : 24.0;
 
   final shadowPaint = Paint()
     ..color = const Color(0x33000000)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-  canvas.drawCircle(center.translate(0, 2), radius + 1, shadowPaint);
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+  canvas.drawCircle(center.translate(0, 3), radius + 1.5, shadowPaint);
 
   final fillPaint = Paint()
     ..color = focused ? const Color(0xFFE86D75) : const Color(0xFFFF8FA3);
@@ -88,7 +100,7 @@ Future<Uint8List> createNativeMarkerIconBytes({
   final strokePaint = Paint()
     ..color = Colors.white
     ..style = PaintingStyle.stroke
-    ..strokeWidth = focused ? 5 : 4;
+    ..strokeWidth = focused ? 6 : 5;
   canvas.drawCircle(center, radius, strokePaint);
 
   final textPainter = TextPainter(
@@ -96,7 +108,7 @@ Future<Uint8List> createNativeMarkerIconBytes({
       text: '$order',
       style: TextStyle(
         color: Colors.white,
-        fontSize: focused ? 24 : 20,
+        fontSize: focused ? 30 : 25,
         fontWeight: FontWeight.w800,
         height: 1,
       ),
@@ -1351,7 +1363,9 @@ class _PositionedMapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = focused ? 46.0 : 38.0;
+    final width = focused
+        ? onmuMapFocusedMarkerFallbackSize
+        : onmuMapMarkerFallbackSize;
     final left = (offset.dx - width / 2)
         .clamp(8.0, math.max(8.0, viewportSize.width - width - 8))
         .toDouble();
