@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/models/group_models.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../group/repository/group_repository.dart';
 import '../../group/view_model/group_home_view_model.dart';
@@ -14,10 +15,9 @@ final planCreateControllerProvider = Provider<PlanCreateController>(
 
 final groupPlanMemberOptionsProvider =
     FutureProvider.family<List<PlanMember>, String>((ref, groupId) async {
-      final members = await ref
-          .watch(groupRepositoryProvider)
-          .fetchMembers(groupId);
-      return members
+      final repository = ref.watch(groupRepositoryProvider);
+      final members = await repository.fetchMembers(groupId);
+      final options = members
           .where((member) => !member.invited && member.userId.trim().isNotEmpty)
           .map(
             (member) => PlanMember(
@@ -31,7 +31,60 @@ final groupPlanMemberOptionsProvider =
             ),
           )
           .toList(growable: false);
+      final missingAssetUserIds = options
+          .where(_needsProfileAsset)
+          .map((member) => member.userId.trim())
+          .where((userId) => userId.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      if (missingAssetUserIds.isEmpty) {
+        return options;
+      }
+
+      try {
+        final enrichedMembers = await repository.fetchPlanParticipantCandidates(
+          groupId: groupId,
+          userIds: missingAssetUserIds,
+        );
+        final enrichedByUserId = {
+          for (final member in enrichedMembers)
+            if (member.userId.trim().isNotEmpty) member.userId.trim(): member,
+        };
+        return options
+            .map(
+              (member) => _mergeProfileAsset(
+                member,
+                enrichedByUserId[member.userId.trim()],
+              ),
+            )
+            .toList(growable: false);
+      } catch (_) {
+        return options;
+      }
     });
+
+bool _needsProfileAsset(PlanMember member) {
+  return member.profileImageUrl.trim().isEmpty && member.character == null;
+}
+
+PlanMember _mergeProfileAsset(PlanMember member, GroupMemberProfile? enriched) {
+  if (enriched == null) {
+    return member;
+  }
+  return PlanMember(
+    userId: member.userId,
+    name: member.name,
+    message: member.message,
+    badge: member.badge,
+    selected: member.selected,
+    profileImageUrl: enriched.profileImageUrl.trim().isNotEmpty
+        ? enriched.profileImageUrl
+        : member.profileImageUrl,
+    character: enriched.character ?? member.character,
+    preferenceProfile: member.preferenceProfile,
+    fallbackToViewerCharacter: member.fallbackToViewerCharacter,
+  );
+}
 
 class PlanCreateController {
   const PlanCreateController(this._ref);

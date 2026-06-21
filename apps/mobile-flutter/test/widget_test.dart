@@ -27,7 +27,6 @@ import 'package:onmu_mobile/features/settlement/repository/settlement_repository
 import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
-import 'package:onmu_mobile/shared/models/preference_profile.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
 import 'package:onmu_mobile/shared/models/vote_models.dart';
 import 'package:onmu_mobile/shared/widgets/pixel_avatar.dart';
@@ -313,6 +312,10 @@ void main() {
     tester,
   ) async {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final unavailableDate =
+        '${tomorrow.year.toString().padLeft(4, '0')}-'
+        '${tomorrow.month.toString().padLeft(2, '0')}-'
+        '${tomorrow.day.toString().padLeft(2, '0')}';
     await tester.pumpWidget(
       onmuTestProviderScope(
         user: const AuthUser(
@@ -322,10 +325,19 @@ void main() {
           nickname: '나',
           onboardingStatus: 'COMPLETED',
         ),
-        preferenceProfile: PreferenceProfile.empty().copyWith(
-          unavailableDates: [
-            '${tomorrow.year.toString().padLeft(4, '0')}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}',
-          ],
+        myRepository: TestMyRepository(
+          profile: MyProfile(
+            realName: '나',
+            visibility: ProfileVisibility.friends,
+            favoriteKeywords: const [],
+            dislikedKeywords: const [],
+            preferredTimes: const [],
+            availableDays: const [],
+            unavailableDates: [unavailableDate],
+            favoritePlaces: const [],
+            wantToGoPlaces: const [],
+            dislikedPlaces: const [],
+          ),
         ),
         child: const app.OnmuMaterialApp(),
       ),
@@ -1159,7 +1171,7 @@ void main() {
     await tester.tap(find.text('선택한 일정'));
     await tester.pumpAndSettle();
     expect(find.text('날짜와 시간 선택'), findsOneWidget);
-    expect(find.text('일반 추천'), findsWidgets);
+    expect(find.text('제안'), findsWidgets);
     expect(find.text('직접 시간 지정'), findsNothing);
     expect(find.text('보통'), findsNothing);
     expect(find.text('저녁'), findsNothing);

@@ -8,6 +8,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../my/domain/my_profile.dart';
+import '../../../my/repository/my_repository.dart';
 import '../../../../shared/models/plan_models.dart';
 import '../../../../shared/models/preference_profile.dart';
 import '../../../../shared/providers/state_providers.dart';
@@ -96,9 +98,13 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 
   List<PlanMember> _defaultSelectedMembers(
     AuthUser? currentUser,
+    MyProfile? myProfile,
     PreferenceProfile? preferenceProfile,
   ) {
-    final name = resolveOnmuDisplayName([currentUser?.nickname], fallback: '나');
+    final name = resolveOnmuDisplayName([
+      myProfile?.realName,
+      currentUser?.nickname,
+    ], fallback: '나');
     return [
       PlanMember(
         userId: currentUser?.id ?? '',
@@ -106,8 +112,11 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
         message: '기본 참여자',
         badge: '참여 중',
         selected: true,
-        profileImageUrl: currentUser?.profileImageUrl ?? '',
-        preferenceProfile: preferenceProfile,
+        profileImageUrl:
+            myProfile?.profileImageUrl ?? currentUser?.profileImageUrl ?? '',
+        character: myProfile?.character,
+        preferenceProfile:
+            myProfile?.toPreferenceProfile() ?? preferenceProfile,
         fallbackToViewerCharacter: true,
       ),
     ];
@@ -115,12 +124,34 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
 
   List<PlanMember> _selectedMembersForCreate(
     AuthUser? currentUser,
+    MyProfile? myProfile,
     PreferenceProfile? preferenceProfile,
   ) {
-    return _createSelectedMembers ??= _defaultSelectedMembers(
+    final current = _createSelectedMembers;
+    if (current == null || current.isEmpty) {
+      return _createSelectedMembers = _defaultSelectedMembers(
+        currentUser,
+        myProfile,
+        preferenceProfile,
+      );
+    }
+
+    final currentUserId = currentUser?.id.trim() ?? '';
+    final first = current.first;
+    if (currentUserId.isEmpty || first.userId.trim() != currentUserId) {
+      return current;
+    }
+
+    final refreshedMe = _defaultSelectedMembers(
       currentUser,
+      myProfile,
       preferenceProfile,
-    );
+    ).first;
+    _createSelectedMembers = List.unmodifiable([
+      refreshedMe,
+      ...current.skip(1),
+    ]);
+    return _createSelectedMembers!;
   }
 
   Future<void> _addCreateMember(PlanMember member) async {
@@ -312,8 +343,10 @@ class _PlanCreatePageState extends ConsumerState<PlanCreatePage> {
   @override
   Widget build(BuildContext context) {
     if (widget.editingPlanId == null) {
+      final myProfile = ref.watch(myProfileProvider).asData?.value;
       final selectedMembers = _selectedMembersForCreate(
         ref.watch(authUserProvider),
+        myProfile,
         ref.watch(preferenceProfileProvider),
       );
       final groupMembers = ref.watch(
@@ -627,7 +660,7 @@ class _DateTimeRangeField extends StatelessWidget {
 
   final DateTime startsAt;
   final DateTime endsAt;
-  final List<PreferenceProfile> participantPreferences;
+  final List<ParticipantSchedulePreference> participantPreferences;
   final Future<void> Function(OnmuDateTimeRange range) onChanged;
 
   @override
@@ -912,9 +945,17 @@ Set<String> _memberSelectionTokens(PlanMember member) {
   return userId.isEmpty ? const <String>{} : {userId};
 }
 
-List<PreferenceProfile> _participantPreferences(List<PlanMember> members) {
+List<ParticipantSchedulePreference> _participantPreferences(
+  List<PlanMember> members,
+) {
   return members
-      .map((member) => member.preferenceProfile)
-      .whereType<PreferenceProfile>()
+      .where((member) => member.preferenceProfile != null)
+      .map(
+        (member) => ParticipantSchedulePreference(
+          userId: member.userId,
+          name: member.name,
+          preferenceProfile: member.preferenceProfile!,
+        ),
+      )
       .toList(growable: false);
 }

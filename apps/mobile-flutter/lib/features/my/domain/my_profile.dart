@@ -1,4 +1,5 @@
 import '../../../shared/models/character_model.dart';
+import '../../../shared/models/preference_profile.dart';
 import 'korea_region.dart';
 
 enum ProfileVisibility {
@@ -88,6 +89,23 @@ class MyProfile {
 
   List<String> get preferenceHighlights {
     return [...favoriteFoodTags, ...favoritePlaceTags, ...planStyles];
+  }
+
+  PreferenceProfile toPreferenceProfile() {
+    return PreferenceProfile(
+      favoriteFoodTags: favoriteFoodTags,
+      dislikedFoodTags: dislikedFoodTags,
+      otherFavoriteFood: '',
+      otherDislikedFood: '',
+      favoritePlaceTags: favoritePlaceTags,
+      dislikedPlaceTags: dislikedPlaceTags,
+      otherFavoritePlace: '',
+      otherDislikedPlace: '',
+      planStyles: planStyles,
+      preferredWeekdays: preferredWeekdays,
+      preferredTimes: preferredTimes,
+      unavailableDates: unavailableDates,
+    );
   }
 
   KoreaRegionSelection get effectiveRegionSelection {
