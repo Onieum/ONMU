@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,12 +86,35 @@ void main() {
       order: point.order,
       focused: false,
     );
+    final focusedMarkerBytes = await createNativeMarkerIconBytes(
+      order: point.order,
+      focused: true,
+    );
+    final markerCodec = await ui.instantiateImageCodec(markerBytes);
+    final focusedMarkerCodec = await ui.instantiateImageCodec(
+      focusedMarkerBytes,
+    );
+    final markerFrame = await markerCodec.getNextFrame();
+    final focusedMarkerFrame = await focusedMarkerCodec.getNextFrame();
+    addTearDown(markerFrame.image.dispose);
+    addTearDown(focusedMarkerFrame.image.dispose);
 
     expect(symbol.iconImage, 'onmu-map-marker-normal-7');
     expect(symbol.iconAnchor, 'center');
+    expect(symbol.iconSize, 1);
+    expect(symbol.zIndex, 10);
     expect(symbol.textField, isNull);
     expect(focusedSymbol.iconImage, 'onmu-map-marker-focused-7');
+    expect(focusedSymbol.zIndex, 40);
+    expect(focusedSymbol.zIndex, greaterThan(symbol.zIndex!));
     expect(markerBytes, isNotEmpty);
+    expect(markerFrame.image.width, onmuMapMarkerIconSize);
+    expect(focusedMarkerFrame.image.width, onmuMapFocusedMarkerIconSize);
+    expect(onmuMapMarkerFallbackSize, greaterThanOrEqualTo(44));
+    expect(
+      onmuMapFocusedMarkerFallbackSize,
+      greaterThan(onmuMapMarkerFallbackSize),
+    );
     expect(line?.geometry, hasLength(2));
     expect(line?.lineColor, '#2563EB');
     expect(line?.lineWidth, greaterThanOrEqualTo(8));
@@ -150,6 +175,7 @@ void main() {
     expect(clusterLayer['circle-color'], '#FF8FA3');
     expect(clusterLayer['circle-radius'], isA<List>());
     expect(clusterCountLayer['text-field'], ['get', 'point_count_abbreviated']);
+    expect(dotLayer['circle-radius'], lessThan(8));
     expect(dotLayer['circle-radius'], 4.2);
   });
 
