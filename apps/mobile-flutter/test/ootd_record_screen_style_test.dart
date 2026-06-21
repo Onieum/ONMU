@@ -17,6 +17,7 @@ class _FakeRecordRepository implements RecordRepository {
     required String recordId,
     required String inputType,
     String? outfitPhotoMediaId,
+    String? outfitPhotoStorageKey,
     String? outfitDescription,
     CharacterDraft? characterOverrides,
   }) async {

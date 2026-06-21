@@ -63,6 +63,12 @@ public class OotdAvatarGenerationService {
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(request.recordId())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "record_not_found"));
     if (!record.getAuthor().getId().equals(user.getId())) {
+      log.warn(
+        "ootd avatar generation forbidden reason=record_owner_required recordId={} recordAuthorId={} userId={}",
+        record.getPublicId(),
+        record.getAuthor().getId(),
+        user.getId()
+      );
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "record_owner_required");
     }
 
@@ -71,19 +77,15 @@ public class OotdAvatarGenerationService {
     String outfitDescription = request.outfitDescription() != null ? request.outfitDescription().trim() : null;
 
     if (PHOTO_REFERENCE.equals(inputType)) {
-      if (request.outfitPhotoMediaId() == null) {
+      if (request.outfitPhotoMediaId() == null && !hasText(request.outfitPhotoStorageKey())) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "outfit_photo_required");
       }
       if (outfitDescription != null && !outfitDescription.isBlank()) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "choose_photo_or_text_only");
       }
-      outfitPhotoMedia = recordMediaRepository.findById(request.outfitPhotoMediaId())
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "outfit_photo_not_found"));
-      if (!outfitPhotoMedia.getRecord().getId().equals(record.getId())) {
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "outfit_photo_record_mismatch");
-      }
+      outfitPhotoMedia = resolveOutfitPhotoMedia(record, request);
     } else if (TEXT_PROMPT.equals(inputType)) {
-      if (request.outfitPhotoMediaId() != null) {
+      if (request.outfitPhotoMediaId() != null || hasText(request.outfitPhotoStorageKey())) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "choose_photo_or_text_only");
       }
       if (outfitDescription == null || outfitDescription.isBlank()) {
@@ -136,6 +138,62 @@ public class OotdAvatarGenerationService {
       return normalized;
     }
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported_input_type");
+  }
+
+  private RecordMediaEntity resolveOutfitPhotoMedia(RecordEntity record, OotdAvatarGenerationRequest request) {
+    RecordMediaEntity mediaById = null;
+    if (request.outfitPhotoMediaId() != null) {
+      mediaById = recordMediaRepository.findById(request.outfitPhotoMediaId())
+        .orElse(null);
+      if (mediaById != null && mediaById.getRecord().getId().equals(record.getId())) {
+        return mediaById;
+      }
+    }
+
+    if (hasText(request.outfitPhotoStorageKey())) {
+      String expectedStorageKey = request.outfitPhotoStorageKey().trim();
+      RecordMediaEntity mediaByStorageKey = recordMediaRepository.findByRecordOrderBySortOrderAsc(record)
+        .stream()
+        .filter(media -> expectedStorageKey.equals(media.getStorageKey()))
+        .findFirst()
+        .orElse(null);
+      if (mediaByStorageKey != null) {
+        if (mediaById != null) {
+          log.warn(
+            "ootd avatar generation media id mismatch recovered by storageKey recordId={} requestedMediaId={} requestedStorageKey={} mediaIdRecordId={} resolvedMediaId={}",
+            record.getPublicId(),
+            request.outfitPhotoMediaId(),
+            expectedStorageKey,
+            mediaById.getRecord().getPublicId(),
+            mediaByStorageKey.getId()
+          );
+        }
+        return mediaByStorageKey;
+      }
+    }
+
+    if (mediaById == null) {
+      log.warn(
+        "ootd avatar generation media not found recordId={} requestedMediaId={} requestedStorageKey={}",
+        record.getPublicId(),
+        request.outfitPhotoMediaId(),
+        request.outfitPhotoStorageKey()
+      );
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "outfit_photo_not_found");
+    }
+
+    log.warn(
+      "ootd avatar generation forbidden reason=outfit_photo_record_mismatch recordId={} requestedMediaId={} requestedStorageKey={} mediaRecordId={}",
+      record.getPublicId(),
+      request.outfitPhotoMediaId(),
+      request.outfitPhotoStorageKey(),
+      mediaById.getRecord().getPublicId()
+    );
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "outfit_photo_record_mismatch");
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
   }
 
   private Map<String, Object> buildPayload(

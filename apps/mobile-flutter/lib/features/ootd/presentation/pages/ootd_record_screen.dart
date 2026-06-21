@@ -739,9 +739,12 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       final savedOutfitPhotoMediaId = _isPhotoMode && saved.media.isNotEmpty
           ? saved.media.first.id
           : null;
+      final savedOutfitPhotoStorageKey = _isPhotoMode && saved.media.isNotEmpty
+          ? saved.media.first.storageKey
+          : uploaded?.storageKey;
       if (_isPhotoMode &&
-          (savedOutfitPhotoMediaId == null ||
-              savedOutfitPhotoMediaId.isEmpty)) {
+          (savedOutfitPhotoStorageKey == null ||
+              savedOutfitPhotoStorageKey.isEmpty)) {
         throw StateError('ootd_record_media_id_missing');
       }
 
@@ -749,6 +752,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         recordId: savedId,
         inputType: inputType,
         outfitPhotoMediaId: _isPhotoMode ? savedOutfitPhotoMediaId : null,
+        outfitPhotoStorageKey: _isPhotoMode ? savedOutfitPhotoStorageKey : null,
         outfitDescription: _isTextMode
             ? _descriptionController.text.trim()
             : null,

@@ -31,6 +31,7 @@ abstract interface class RecordRepository {
     required String recordId,
     required String inputType,
     String? outfitPhotoMediaId,
+    String? outfitPhotoStorageKey,
     String? outfitDescription,
     CharacterDraft? characterOverrides,
   });
@@ -104,6 +105,7 @@ class ApiRecordRepository implements RecordRepository {
     required String recordId,
     required String inputType,
     String? outfitPhotoMediaId,
+    String? outfitPhotoStorageKey,
     String? outfitDescription,
     CharacterDraft? characterOverrides,
   }) async {
@@ -113,6 +115,9 @@ class ApiRecordRepository implements RecordRepository {
     };
     if (outfitPhotoMediaId != null) {
       body['outfitPhotoMediaId'] = outfitPhotoMediaId;
+    }
+    if (outfitPhotoStorageKey != null) {
+      body['outfitPhotoStorageKey'] = outfitPhotoStorageKey;
     }
     if (outfitDescription != null) {
       body['outfitDescription'] = outfitDescription;

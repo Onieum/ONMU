@@ -33,10 +33,11 @@ public class OotdAvatarGenerationController {
     @Valid @RequestBody OotdAvatarGenerationRequest request
   ) {
     log.info(
-      "ootd avatar generation create requested recordId={} inputType={} hasPhoto={} hasText={}",
+      "ootd avatar generation create requested recordId={} inputType={} hasPhoto={} hasPhotoStorageKey={} hasText={}",
       request.recordId(),
       request.inputType(),
       request.outfitPhotoMediaId() != null,
+      request.outfitPhotoStorageKey() != null && !request.outfitPhotoStorageKey().isBlank(),
       request.outfitDescription() != null && !request.outfitDescription().isBlank()
     );
     OotdAvatarGenerationResponse response = service.create(request);
