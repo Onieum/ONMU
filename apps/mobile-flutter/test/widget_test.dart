@@ -20,6 +20,7 @@ import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/presentation/pages/my_page.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/place/presentation/pages/place_candidate_page.dart';
+import 'package:onmu_mobile/features/place/presentation/pages/place_map_page.dart';
 import 'package:onmu_mobile/features/place/repository/place_repository.dart';
 import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/widgets/plan_member_avatar_row.dart';
@@ -52,6 +53,21 @@ Widget _testOnmuApp({GroupRepository? groupRepository}) {
 }
 
 void main() {
+  test('place map area search label separates loading from applied state', () {
+    expect(
+      mapAreaSearchButtonLabel(enabled: true, active: false, loading: false),
+      '현 지도에서 검색',
+    );
+    expect(
+      mapAreaSearchButtonLabel(enabled: false, active: true, loading: false),
+      '지도 기준 적용',
+    );
+    expect(
+      mapAreaSearchButtonLabel(enabled: false, active: true, loading: true),
+      '검색 중',
+    );
+  });
+
   testWidgets('splash progress bar fills while loading', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -36,6 +36,21 @@ List<PlaceCandidate> activePlaceResultsForMap(List<PlaceCandidate> candidates) {
   return candidates.take(20).toList(growable: false);
 }
 
+@visibleForTesting
+String mapAreaSearchButtonLabel({
+  required bool enabled,
+  required bool active,
+  required bool loading,
+}) {
+  if (loading) {
+    return '검색 중';
+  }
+  if (active && !enabled) {
+    return '지도 기준 적용';
+  }
+  return '현 지도에서 검색';
+}
+
 List<OnmuMapPoint> mapPointsForPlaceCandidates(
   List<PlaceCandidate> candidates,
 ) {
@@ -775,6 +790,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                 myLocationStatusLabel: _myLocationStatusLabel,
                 mapAreaSearchEnabled: mapAreaSearchEnabled,
                 mapAreaSearchActive: _mapSearchCenter != null,
+                mapAreaSearchLoading: searchLoading && _mapSearchCenter != null,
                 onBack: () => context.popOrGo(
                   RoutePaths.planDetail(widget.groupId, widget.planId),
                 ),
@@ -1135,6 +1151,7 @@ class _MapSearchOverlay extends StatelessWidget {
     required this.myLocationStatusLabel,
     required this.mapAreaSearchEnabled,
     required this.mapAreaSearchActive,
+    required this.mapAreaSearchLoading,
     required this.onBack,
     required this.onSearchTap,
     required this.onSearchChanged,
@@ -1157,6 +1174,7 @@ class _MapSearchOverlay extends StatelessWidget {
   final String? myLocationStatusLabel;
   final bool mapAreaSearchEnabled;
   final bool mapAreaSearchActive;
+  final bool mapAreaSearchLoading;
   final VoidCallback onBack;
   final VoidCallback onSearchTap;
   final ValueChanged<String> onSearchChanged;
@@ -1199,6 +1217,7 @@ class _MapSearchOverlay extends StatelessWidget {
               _MapAreaSearchButton(
                 enabled: mapAreaSearchEnabled,
                 active: mapAreaSearchActive,
+                loading: mapAreaSearchLoading,
                 onPressed: onMapAreaSearchPressed,
               ),
             const Spacer(),
@@ -1450,26 +1469,37 @@ class _MapAreaSearchButton extends StatelessWidget {
   const _MapAreaSearchButton({
     required this.enabled,
     required this.active,
+    required this.loading,
     required this.onPressed,
   });
 
   final bool enabled;
   final bool active;
+  final bool loading;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = active
+    final emphasized = active || loading;
+    final canPress = enabled && !loading;
+    final backgroundColor = emphasized
         ? AppColors.primaryPink
         : AppColors.bgDefault;
-    final foregroundColor = active ? AppColors.textInverse : AppColors.textMain;
+    final foregroundColor = emphasized
+        ? AppColors.textInverse
+        : AppColors.textMain;
+    final label = mapAreaSearchButtonLabel(
+      enabled: enabled,
+      active: active,
+      loading: loading,
+    );
     return Material(
       color: backgroundColor,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       elevation: 3,
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        onTap: enabled ? onPressed : null,
+        onTap: canPress ? onPressed : null,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
           child: Padding(
@@ -1480,13 +1510,17 @@ class _MapAreaSearchButton extends StatelessWidget {
                 Icon(
                   Icons.travel_explore,
                   size: 18,
-                  color: enabled ? foregroundColor : AppColors.textSub,
+                  color: canPress || emphasized
+                      ? foregroundColor
+                      : AppColors.textSub,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  active ? '검색 중' : '현 지도에서 검색',
+                  label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: enabled ? foregroundColor : AppColors.textSub,
+                    color: canPress || emphasized
+                        ? foregroundColor
+                        : AppColors.textSub,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
