@@ -2151,6 +2151,50 @@ void main() {
     expect(find.textContaining('계산 기준'), findsNothing);
   });
 
+  testWidgets(
+    'settlement receiver confirmation handles all incoming transfers',
+    (tester) async {
+      final settlementRepository = _IncomingTransferSettlementRepository();
+
+      appRouter.go(RoutePaths.splash);
+      await tester.pumpWidget(
+        onmuTestProviderScope(
+          settlementRepository: settlementRepository,
+          child: const app.OnmuMaterialApp(),
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+      appRouter.go(RoutePaths.planSettlementDetail(_groupId, _planId, '301'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('정산 확인'), findsOneWidget);
+
+      final basisButton = find.ancestor(
+        of: find.text('정산 근거'),
+        matching: find.byType(OutlinedButton),
+      );
+      final actionButton = find.ancestor(
+        of: find.text('정산 확인'),
+        matching: find.byType(FilledButton),
+      );
+      expect(
+        tester.getSize(basisButton).height,
+        tester.getSize(actionButton).height,
+      );
+
+      await tester.tap(find.text('정산 확인'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '확인'));
+      await tester.pumpAndSettle();
+
+      expect(settlementRepository.receivedTransferIds, [
+        'transfer-a',
+        'transfer-c',
+      ]);
+    },
+  );
+
   testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
@@ -2333,6 +2377,100 @@ class _TrackingWidgetSettlementRepository extends TestSettlementRepository {
       transfers: [],
       shareMessage: '',
     );
+  }
+}
+
+class _IncomingTransferSettlementRepository extends TestSettlementRepository {
+  _IncomingTransferSettlementRepository() : super(InMemoryOnmuStore.seeded());
+
+  final receivedTransferIds = <String>[];
+
+  static const _settlement = SettlementSummary(
+    id: '301',
+    status: 'finalized',
+    planTitle: '진행중인약속만들기',
+    totalAmountWon: 77000,
+    totalAmountLabel: '77,000원',
+    createdDateLabel: '정산일 2026.06.22',
+    itemCountLabel: '결제 항목 2개',
+    finalSummaryLabel: '2건 이체 필요',
+    mySummaryLabel: '나는 77,000원을 받아요',
+    paymentItems: [],
+    memberResults: [
+      SettlementMemberResult(
+        userId: 'user-a',
+        name: 'A',
+        finalShareLabel: '25,667원',
+        paidAmountLabel: '0원',
+        resultLabel: 'B에게 25,667원',
+      ),
+      SettlementMemberResult(
+        userId: 'user-b',
+        name: 'B',
+        finalShareLabel: '25,666원',
+        paidAmountLabel: '77,000원',
+        resultLabel: '77,000원 받음',
+        isMe: true,
+        willReceive: true,
+      ),
+      SettlementMemberResult(
+        userId: 'user-c',
+        name: 'C',
+        finalShareLabel: '25,667원',
+        paidAmountLabel: '0원',
+        resultLabel: 'B에게 25,667원',
+      ),
+    ],
+    participantStatuses: [
+      SettlementParticipantStatus(userId: 'user-a', name: 'A'),
+      SettlementParticipantStatus(
+        userId: 'user-b',
+        name: 'B',
+        willReceive: true,
+      ),
+      SettlementParticipantStatus(userId: 'user-c', name: 'C'),
+    ],
+    transfers: [
+      SettlementTransferSummary(
+        id: 'transfer-a',
+        fromUserId: 'user-a',
+        fromName: 'A',
+        toUserId: 'user-b',
+        toName: 'B',
+        amountWon: 25667,
+        amountLabel: '25,667원',
+      ),
+      SettlementTransferSummary(
+        id: 'transfer-c',
+        fromUserId: 'user-c',
+        fromName: 'C',
+        toUserId: 'user-b',
+        toName: 'B',
+        amountWon: 25667,
+        amountLabel: '25,667원',
+      ),
+    ],
+    shareMessage: '진행중인약속만들기 약속 정산입니다.',
+  );
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    return _settlement;
+  }
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async {
+    receivedTransferIds.add(transferId.toString());
+    return _settlement;
   }
 }
 

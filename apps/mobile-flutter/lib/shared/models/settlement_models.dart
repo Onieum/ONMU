@@ -149,6 +149,8 @@ class SettlementParticipantStatus {
     required this.name,
     this.profileImageUrl = '',
     this.willReceive = false,
+    this.sent = false,
+    this.received = false,
     this.completed = false,
   });
 
@@ -156,6 +158,8 @@ class SettlementParticipantStatus {
   final String name;
   final String profileImageUrl;
   final bool willReceive;
+  final bool sent;
+  final bool received;
   final bool completed;
 }
 

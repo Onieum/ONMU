@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/settlement_models.dart';
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
@@ -506,6 +507,8 @@ class ApiSettlementRepository implements SettlementRepository {
       name: OnmuJson.readString(json, 'name', '참여자'),
       profileImageUrl: _profileImageUrl(json),
       willReceive: OnmuJson.readBool(json, 'willReceive'),
+      sent: OnmuJson.readBool(json, 'sent'),
+      received: OnmuJson.readBool(json, 'received'),
       completed: OnmuJson.readBool(json, 'completed'),
     );
   }
@@ -529,7 +532,7 @@ class ApiSettlementRepository implements SettlementRepository {
     Map<String, dynamic> json, [
     String primaryKey = 'profileImageUrl',
   ]) {
-    return OnmuJson.readString(
+    final url = OnmuJson.readString(
       json,
       primaryKey,
       OnmuJson.readString(
@@ -542,6 +545,7 @@ class ApiSettlementRepository implements SettlementRepository {
         ),
       ),
     );
+    return resolveOnmuMediaUrl(url, baseUrl: _client.baseUrl);
   }
 }
 

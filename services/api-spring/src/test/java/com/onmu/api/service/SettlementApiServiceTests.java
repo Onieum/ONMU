@@ -321,7 +321,74 @@ class SettlementApiServiceTests {
     MapLike result = new MapLike(service.markTransferReceived("1", "101", "302", transfer.getPublicId(), jimin.getId()));
 
     assertThat(result.value("status")).isEqualTo("completed");
+    verify(chatActivityEventRepository).save(argThat(event -> "settlement.completed".equals(event.getEventType())
+      && event.getPlan() == plan));
     verify(outboxService).record(eq("settlement.completed"), eq("settlement"), any(), any());
+  }
+
+  @Test
+  void receivedConfirmationDoesNotMarkSenderParticipantAsReceived() {
+    SettlementEntity settlement = new SettlementEntity("302", group, plan, "{}");
+    SettlementSectionEntity section = new SettlementSectionEntity(
+      null,
+      settlement,
+      "section-a",
+      null,
+      "기타 비용",
+      jimin,
+      0
+    );
+    SettlementItemEntity item = new SettlementItemEntity(
+      null,
+      settlement,
+      section,
+      "403",
+      "커피",
+      12000,
+      "menu",
+      "사용자 메모"
+    );
+    SettlementItemTargetEntity jiminTarget = new SettlementItemTargetEntity(item, jimin, 6000);
+    SettlementItemTargetEntity minsuTarget = new SettlementItemTargetEntity(item, minsu, 6000);
+    SettlementTransferEntity transfer = new SettlementTransferEntity(settlement, minsu, jimin, 6000, "민수 -> 지민");
+    transfer.markReceived();
+
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findByPlanAndPublicId(plan, "302")).thenReturn(Optional.of(settlement));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(settlement)).thenReturn(List.of(section));
+    when(settlementItemRepository.findBySectionOrderByCreatedAtAsc(section)).thenReturn(List.of(item));
+    when(settlementItemTargetRepository.findBySettlementItemInOrderByCreatedAtAsc(List.of(item)))
+      .thenReturn(List.of(jiminTarget, minsuTarget));
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(transfer));
+
+    MapLike result = new MapLike(service.settlementById("1", "101", "302", me.getId()));
+
+    assertThat(result.participantStatus("민수").get("sent")).isEqualTo(false);
+    assertThat(result.participantStatus("민수").get("completed")).isEqualTo(false);
+    assertThat(result.participantStatus("지민").get("received")).isEqualTo(true);
+    assertThat(result.participantStatus("지민").get("completed")).isEqualTo(true);
+  }
+
+  @Test
+  void currentSettlementDoesNotReturnCompletedSettlementAsActive() {
+    SettlementEntity completedSettlement = new SettlementEntity("302", group, plan, "{}");
+    completedSettlement.markCompleted();
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlan(plan)).thenReturn(Optional.empty());
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(eq(plan), any()))
+      .thenAnswer(invocation -> {
+        @SuppressWarnings("unchecked")
+        List<String> statuses = invocation.getArgument(1, List.class);
+        return statuses.contains("completed") ? Optional.of(completedSettlement) : Optional.empty();
+      });
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.currentSettlement("1", "101", me.getId()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getReason()).isEqualTo("settlement_not_found");
+      });
   }
 
   @Test
@@ -661,6 +728,14 @@ class SettlementApiServiceTests {
     @SuppressWarnings("unchecked")
     java.util.Map<String, Object> memberResult(String name) {
       return ((List<java.util.Map<String, Object>>) value.get("memberResults")).stream()
+        .filter(result -> name.equals(result.get("name")))
+        .findFirst()
+        .orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    java.util.Map<String, Object> participantStatus(String name) {
+      return ((List<java.util.Map<String, Object>>) value.get("participantStatuses")).stream()
         .filter(result -> name.equals(result.get("name")))
         .findFirst()
         .orElseThrow();

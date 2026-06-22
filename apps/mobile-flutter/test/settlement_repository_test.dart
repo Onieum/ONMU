@@ -118,4 +118,85 @@ void main() {
     expect(settlement.preview, isTrue);
     expect(settlement.isCreated, isFalse);
   });
+
+  test(
+    'maps settlement profile image aliases through common media resolver',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': '301',
+                  'status': 'finalized',
+                  'planTitle': '정산 테스트',
+                  'totalAmountLabel': '12,000원',
+                  'itemCountLabel': '결제 항목 1개',
+                  'paymentItems': [],
+                  'memberResults': [
+                    {
+                      'userId': 'user-b',
+                      'name': 'B',
+                      'profilePhotoUrl': 'dev/avatars/b.png',
+                      'finalShareLabel': '0원',
+                      'paidAmountLabel': '12,000원',
+                      'resultLabel': '12,000원 받음',
+                      'isMe': true,
+                      'willReceive': true,
+                    },
+                  ],
+                  'participantStatuses': [
+                    {
+                      'userId': 'user-b',
+                      'name': 'B',
+                      'avatarUrl': 'dev/avatars/b.png',
+                      'willReceive': true,
+                      'sent': false,
+                      'received': true,
+                      'completed': true,
+                    },
+                  ],
+                  'transfers': [
+                    {
+                      'id': 'transfer-a',
+                      'fromUserId': 'user-a',
+                      'fromName': 'A',
+                      'fromProfileImageUrl': 'dev/avatars/a.png',
+                      'toUserId': 'user-b',
+                      'toName': 'B',
+                      'toProfileImageUrl': 'dev/avatars/b.png',
+                      'amountWon': 12000,
+                      'amountLabel': '12,000원',
+                      'status': 'received',
+                    },
+                  ],
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final settlement = await ApiSettlementRepository(
+        OnmuApiClient(dio),
+      ).fetchSettlement(groupId: 1, planId: 101);
+
+      expect(
+        settlement.memberResults.single.profileImageUrl,
+        'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fb.png',
+      );
+      expect(
+        settlement.participantStatuses.single.profileImageUrl,
+        'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fb.png',
+      );
+      expect(settlement.participantStatuses.single.received, isTrue);
+      expect(
+        settlement.transfers.single.fromProfileImageUrl,
+        'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fa.png',
+      );
+    },
+  );
 }

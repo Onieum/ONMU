@@ -60,7 +60,6 @@ public class SettlementApiService {
   private static final String STATUS_FINALIZED = "finalized";
   private static final String STATUS_COMPLETED = "completed";
   private static final String EXTRA_SECTION_ID = "extra";
-  private static final List<String> RESULT_STATUSES = List.of(STATUS_FINALIZED, STATUS_COMPLETED);
 
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
@@ -273,7 +272,7 @@ public class SettlementApiService {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
     return settlementDraftRepository.findActiveByPlan(access.plan())
       .map(draft -> settlementDraftCard(draft, true, access.user()))
-      .or(() -> settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(access.plan(), RESULT_STATUSES)
+      .or(() -> settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(access.plan(), List.of(STATUS_FINALIZED))
         .map(settlement -> settlementCard(settlement, false, access.user())))
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_not_found"));
   }
@@ -330,6 +329,7 @@ public class SettlementApiService {
     target.transfer().markReceived();
     if (allReceiversConfirmed(target.settlement())) {
       target.settlement().markCompleted();
+      createSettlementCompletedActivity(access.group(), access.plan(), target.settlement(), access.user());
       outboxService.record("settlement.completed", "settlement", target.settlement().getId(), settlementEventPayload(access.group(), access.plan(), target.settlement()));
     }
     return settlementCard(target.settlement(), false, access.user());
@@ -480,6 +480,31 @@ public class SettlementApiService {
     }
   }
 
+  private void createSettlementCompletedActivity(
+    GroupEntity group,
+    PlanEntity plan,
+    SettlementEntity settlement,
+    UserEntity actor
+  ) {
+    Map<String, Object> activityPayload = new LinkedHashMap<>();
+    activityPayload.put("senderName", "ONMU");
+    activityPayload.put("message", plan.getTitle() + " 정산이 완료됐어요.");
+    activityPayload.put("messageType", "system");
+    activityPayload.put("cardType", "system");
+    activityPayload.put("planId", plan.getPublicId());
+    activityPayload.put("settlementId", settlement.getPublicId());
+    activityPayload.put("settlementStatus", settlement.getStatus());
+    activityPayload.put("source", "spring_api");
+    chatActivityEventRepository.save(new ChatActivityEventEntity(
+      group,
+      plan,
+      actor,
+      "settlement.completed",
+      toJson(activityPayload),
+      Instant.now()
+    ));
+  }
+
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft, boolean persisted, UserEntity currentUser) {
     List<SectionView> sections = sectionViewsForDraft(draft);
     List<ItemView> items = itemViews(sections);
@@ -619,15 +644,23 @@ public class SettlementApiService {
 
   private Map<String, Object> participantStatusCard(MemberBalance balance, List<TransferView> transfers) {
     UserEntity user = balance.user();
-    boolean receiver = transfers.stream().anyMatch(transfer -> sameUser(transfer.toUser(), user));
-    boolean completed = transfers.stream()
-      .filter(transfer -> sameUser(transfer.fromUser(), user) || sameUser(transfer.toUser(), user))
-      .allMatch(transfer -> "received".equals(transfer.status()));
+    List<TransferView> outgoing = transfers.stream()
+      .filter(transfer -> sameUser(transfer.fromUser(), user))
+      .toList();
+    List<TransferView> incoming = transfers.stream()
+      .filter(transfer -> sameUser(transfer.toUser(), user))
+      .toList();
+    boolean receiver = !incoming.isEmpty();
+    boolean sent = !outgoing.isEmpty() && outgoing.stream().allMatch(TransferView::sentConfirmed);
+    boolean received = receiver && incoming.stream().allMatch(transfer -> transfer.receivedConfirmed() || "received".equals(transfer.status()));
+    boolean completed = receiver ? received : sent;
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("userId", userId(user));
     value.put("name", nickname(user));
     value.put("profileImageUrl", profileImageUrl(user));
     value.put("willReceive", receiver);
+    value.put("sent", sent);
+    value.put("received", received);
     value.put("completed", completed);
     return value;
   }
@@ -868,7 +901,9 @@ public class SettlementApiService {
         transfer.getFromUser(),
         transfer.getToUser(),
         transfer.getAmountWon(),
-        transfer.getStatus()
+        transfer.getStatus(),
+        settlementConfirmationRepository.existsBySettlementTransferAndConfirmationType(transfer, "sent"),
+        settlementConfirmationRepository.existsBySettlementTransferAndConfirmationType(transfer, "received")
       ))
       .toList();
     return persisted.isEmpty() ? calculateTransfers(itemViews) : persisted;
@@ -900,7 +935,9 @@ public class SettlementApiService {
             debtor.user(),
             creditor.user(),
             amount,
-            "pending"
+            "pending",
+            false,
+            false
           ));
         }
         debt -= amount;
@@ -1282,7 +1319,9 @@ public class SettlementApiService {
     UserEntity fromUser,
     UserEntity toUser,
     long amountWon,
-    String status
+    String status,
+    boolean sentConfirmed,
+    boolean receivedConfirmed
   ) {
     private String fromName() {
       return fromUser == null ? "사용자" : fromUser.getNickname();
