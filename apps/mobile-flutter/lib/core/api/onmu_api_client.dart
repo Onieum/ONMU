@@ -218,6 +218,9 @@ class OnmuApiClient {
   }
 
   String _featureForPath(String path) {
+    if (path.contains('/settlement')) {
+      return 'settlement';
+    }
     if (path.contains('/auth/') || path.contains('/users/me')) {
       return 'auth';
     }

@@ -128,6 +128,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
             scrollController: _scrollController,
             onSend: () => _sendMessage(ref),
             onPickImage: () => _sendImageMessage(ref),
+            onLoadSettlementCandidatePlans: () => ref
+                .read(groupChatViewModelProvider(widget.groupId).notifier)
+                .loadSettlementCandidatePlans(),
             onLoadOlderMessages: () => ref
                 .read(groupChatViewModelProvider(widget.groupId).notifier)
                 .loadOlderMessages(),
@@ -169,6 +172,7 @@ class _ThreadContent extends StatelessWidget {
     required this.scrollController,
     required this.onSend,
     required this.onPickImage,
+    required this.onLoadSettlementCandidatePlans,
     required this.onLoadOlderMessages,
     required this.onRetryMessage,
   });
@@ -178,6 +182,7 @@ class _ThreadContent extends StatelessWidget {
   final ScrollController scrollController;
   final Future<void> Function() onSend;
   final Future<void> Function() onPickImage;
+  final Future<List<GroupPlanSummary>> Function() onLoadSettlementCandidatePlans;
   final Future<void> Function() onLoadOlderMessages;
   final Future<void> Function(String messageId) onRetryMessage;
 
@@ -407,7 +412,13 @@ class _ThreadContent extends StatelessWidget {
 
   Future<void> _openSettlementPlanPicker(BuildContext context) async {
     final group = state.group;
-    final plans = state.settlementCandidatePlans;
+    var plans = state.settlementCandidatePlans;
+    if (plans.isEmpty) {
+      plans = await _reloadSettlementCandidatePlans(context);
+      if (!context.mounted) {
+        return;
+      }
+    }
     if (plans.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -428,6 +439,30 @@ class _ThreadContent extends StatelessWidget {
       return;
     }
     context.push(RoutePaths.planSettlementNew(group.id, selectedPlan.id));
+  }
+
+  Future<List<GroupPlanSummary>> _reloadSettlementCandidatePlans(
+    BuildContext context,
+  ) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      return await onLoadSettlementCandidatePlans();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('약속 목록을 불러오지 못했어요.')));
+      }
+      return const [];
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
   }
 }
 

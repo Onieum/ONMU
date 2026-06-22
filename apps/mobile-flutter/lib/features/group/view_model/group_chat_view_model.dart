@@ -215,6 +215,23 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     _scheduleVoteDeadlineDismissal(selectedVote, voteId);
   }
 
+  Future<List<GroupPlanSummary>> loadSettlementCandidatePlans() async {
+    try {
+      final plans = await ref.read(groupRepositoryProvider).fetchPlans(groupId);
+      final candidates = _settlementCandidatePlans(plans, DateTime.now());
+      final latest = state.asData?.value;
+      if (latest != null && !_realtimeDisposed) {
+        state = AsyncData(
+          latest.copyWith(settlementCandidatePlans: candidates),
+        );
+      }
+      return candidates;
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_settlement_plans');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
   List<GroupPlanSummary> _settlementCandidatePlans(
     List<GroupPlanSummary> plans,
     DateTime now,

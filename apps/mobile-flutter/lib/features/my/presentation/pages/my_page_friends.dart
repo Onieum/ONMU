@@ -678,7 +678,9 @@ class _AddFavoriteFriendButton extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '??⑤베堉?',
+              '친구 추가',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTextStyles.labelMedium.copyWith(
                 color: AppColors.primaryPurple,
                 fontWeight: FontWeight.w900,
