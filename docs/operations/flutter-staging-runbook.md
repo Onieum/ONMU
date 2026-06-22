@@ -53,7 +53,8 @@ Windows PowerShell:
 ```powershell
 cd C:\dev\ONMU
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
-  -VaultName $env:AZURE_KEY_VAULT_NAME
+  -VaultName $env:AZURE_KEY_VAULT_NAME `
+  -IncludeSentry
 
 cd apps\mobile-flutter
 flutter run --dart-define-from-file=.dart_tool\onmu-staging-api.defines.json
@@ -64,7 +65,8 @@ macOS:
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-access-jwt.sh \
-  --vault-name "$AZURE_KEY_VAULT_NAME"
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-sentry
 
 ./scripts/macos/run-flutter-staging-api.sh
 ```
@@ -74,6 +76,7 @@ cd <ONMU repo>
 - define 파일명이 `.dart_tool/onmu-staging-api.defines.json`이다.
 - `ONMU_API_BASE_URL`이 staging host다.
 - JWT signing secret 자체는 앱 bundle이나 문서에 들어가지 않는다.
+- `--include-sentry`를 쓰면 Key Vault secret `sentry-dsn` 값이 git ignored define 파일에만 들어가고, 로그에는 출력되지 않는다.
 
 ### 3.3 staging actual OAuth smoke
 
@@ -86,7 +89,8 @@ cd C:\dev\ONMU
 python scripts\new-flutter-access-jwt.py `
   --vault-name $env:AZURE_KEY_VAULT_NAME `
   --oauth-only `
-  --include-provider-oauth
+  --include-provider-oauth `
+  --include-sentry
 
 cd apps\mobile-flutter
 flutter run --dart-define-from-file=.dart_tool\onmu-staging-oauth.defines.json
@@ -97,7 +101,8 @@ macOS:
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-oauth-defines.sh \
-  --vault-name "$AZURE_KEY_VAULT_NAME"
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-sentry
 
 cd apps/mobile-flutter
 flutter run --dart-define-from-file=.dart_tool/onmu-staging-oauth.defines.json
@@ -116,6 +121,34 @@ adb -s <serial> shell am start -n "io.onieum.onmu_mobile/.MainActivity"
 
 - OAuth callback host가 `staging-api.onmu.cloud`다.
 - 로그인 성공 후 `/api/v1/users/me` 200과 앱 재실행 후 세션 유지까지 확인한다.
+
+### 3.4 Sentry 모바일 smoke
+
+Sentry 연결 확인은 실제 모바일 runtime에서 SDK가 이벤트를 보내는지까지 본다. DSN은 Key Vault secret `sentry-dsn`에서 읽되, 값 자체를 terminal, 채팅, 문서, PR 본문에 출력하지 않는다.
+
+권장 흐름:
+
+```bash
+cd <ONMU repo>
+python3 scripts/new-flutter-access-jwt.py \
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-sentry \
+  --output-path apps/mobile-flutter/.dart_tool/onmu-sentry-smoke.defines.json
+
+cd apps/mobile-flutter
+flutter run \
+  -d <ios-simulator-device-id> \
+  --dart-define-from-file=.dart_tool/onmu-sentry-smoke.defines.json \
+  --dart-define=SENTRY_TRACES_SAMPLE_RATE=0
+```
+
+판정 기준:
+
+- 앱 runtime에서 의도적으로 발생시킨 reportable 오류가 Sentry Issues에 표시된다.
+- Sentry UI 반영에는 수십 초 정도 지연이 있을 수 있다. 바로 안 보이면 event id, issue title, environment, tag 기준으로 다시 검색한다.
+- `flutter run` 로그나 process list에 `-DSENTRY_DSN=`처럼 빈 값으로 보이면 DSN이 주입되지 않은 것이다. inline shell 변수와 `--dart-define=SENTRY_DSN="$SENTRY_DSN_VALUE"`를 한 줄에서 섞으면 이 상태가 될 수 있으므로 쓰지 않는다.
+- `--dart-define-from-file`을 사용하면 DSN 값이 command line argument에 직접 노출되지 않고, git ignored define 파일에만 남는다.
+- iOS 26.2 이상 simulator에서 `sentry_flutter` 8.x 계열 iOS plugin compile error가 나면 9.x 이상으로 올린 뒤 `flutter pub get`, `flutter analyze`, `flutter test`를 다시 실행한다.
 
 ## 4. dev/local opt-in 경로
 
@@ -150,6 +183,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-
 - define 없이 실행했다면 기본은 staging이다.
 - 실제 OAuth smoke에서는 `ONMU_API_ACCESS_JWT`, `ONMU_DEV_ACCESS_TOKEN`을 넣지 않는다.
 - staging 검증 중인데 callback host가 `dev-api.onmu.cloud`로 보이면 잘못된 define을 사용한 것이다.
+- Sentry smoke에서 DSN을 직접 `--dart-define=SENTRY_DSN=...`로 넘기지 않는다. Key Vault에서 만든 git ignored define file과 `--dart-define-from-file`을 사용한다.
 
 ## 6. 다음에 읽을 문서
 
