@@ -615,6 +615,7 @@ void main() {
                     'id': 'message-1',
                     'cursor': '2026-06-09T05:00:00Z',
                     'senderName': '지민',
+                    'senderProfilePhotoUrl': 'dev/avatars/jimin.png',
                     'message': '안녕!',
                     'timeLabel': '14:00',
                     'isMine': false,
@@ -672,6 +673,10 @@ void main() {
     expect(messages[0].id, 'message-1');
     expect(messages[0].cursor, '2026-06-09T05:00:00Z');
     expect(messages[0].sendStatus, GroupMessageSendStatus.sent);
+    expect(
+      messages[0].senderProfileImageUrl,
+      'https://dev-api.onmu.cloud/api/v1/media/public?key=dev%2Favatars%2Fjimin.png',
+    );
     expect(messages[0].attachments, hasLength(1));
     expect(messages[0].attachments.single.type, 'image');
     expect(

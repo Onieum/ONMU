@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
-import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/preference_profile.dart';
 import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 
 final planRepositoryProvider = Provider<PlanRepository>((ref) {
   return ApiPlanRepository(ref.watch(onmuApiClientProvider));
@@ -276,16 +276,7 @@ class ApiPlanRepository implements PlanRepository {
   }
 
   String _profileImageUrl(Map<String, dynamic> json) {
-    final url = OnmuJson.readString(
-      json,
-      'profileImageUrl',
-      OnmuJson.readString(
-        json,
-        'profilePhotoUrl',
-        OnmuJson.readString(json, 'avatarUrl'),
-      ),
-    );
-    return resolveOnmuMediaUrl(url, baseUrl: _client.baseUrl);
+    return resolveOnmuProfileImageUrl(json, baseUrl: _client.baseUrl);
   }
 
   List<String> _participantUserIds(List<PlanMember> members) {

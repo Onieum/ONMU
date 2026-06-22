@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
-import '../../../core/api/onmu_media_url.dart';
 import '../../../core/error/onmu_exception.dart';
 import '../../../shared/utils/onmu_display_name.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
 import '../domain/oauth_provider_credential.dart';
@@ -96,10 +96,7 @@ AuthUser authUserFromJson(
       username,
     ], fallback: '사용자'),
     email: OnmuJson.readString(json, 'email'),
-    profileImageUrl: resolveOnmuMediaUrl(
-      OnmuJson.readString(json, 'profileImageUrl'),
-      baseUrl: mediaBaseUrl,
-    ),
+    profileImageUrl: resolveOnmuProfileImageUrl(json, baseUrl: mediaBaseUrl),
     onboardingStatus: OnmuJson.readString(json, 'onboardingStatus', 'PENDING'),
   );
 }

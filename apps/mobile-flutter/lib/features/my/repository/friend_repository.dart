@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
-import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 import '../domain/korea_region.dart';
 import '../domain/my_profile.dart';
 
@@ -137,16 +137,9 @@ class ApiFriendRepository implements FriendRepository {
       character: useDefaultProfileImage
           ? null
           : characterDraftFromJson(json['pixelCharacter'], nickname: name),
-      profileImageUrl: _mediaUrl(
-        OnmuJson.readString(
-          json,
-          'profileImageUrl',
-          OnmuJson.readString(
-            json,
-            'profilePhotoUrl',
-            OnmuJson.readString(json, 'avatarUrl'),
-          ),
-        ),
+      profileImageUrl: resolveOnmuProfileImageUrl(
+        json,
+        baseUrl: _client.baseUrl,
       ),
     );
   }
@@ -202,7 +195,10 @@ class ApiFriendRepository implements FriendRepository {
       character: useDefaultProfileImage
           ? null
           : characterDraftFromJson(json['pixelCharacter'], nickname: nickname),
-      profileImageUrl: _mediaUrl(OnmuJson.readString(json, 'profileImageUrl')),
+      profileImageUrl: resolveOnmuProfileImageUrl(
+        json,
+        baseUrl: _client.baseUrl,
+      ),
       introText: OnmuJson.readString(preference, 'introText', ''),
       region: !regionVisibility.isPublic || regionValue == null
           ? ''
@@ -233,9 +229,5 @@ class ApiFriendRepository implements FriendRepository {
       return null;
     }
     return DateTime.tryParse(clean);
-  }
-
-  String _mediaUrl(String value) {
-    return resolveOnmuMediaUrl(value, baseUrl: _client.baseUrl);
   }
 }
