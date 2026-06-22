@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -109,6 +112,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   int _selectedTheme = 0;
   bool _includeCrew = true;
   bool _isSaving = false;
+  bool _isSavingResultImage = false;
   OotdRecord? _linkedOotdRecord;
   OotdRecord? _savedRecord;
   int _savedPhotoCount = 0;
@@ -122,6 +126,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   final _tagController = TextEditingController();
   final _memoryController = TextEditingController();
   final _imagePicker = ImagePicker();
+  final _resultCaptureKey = GlobalKey();
   final List<_PhotoMemoDraft> _photoMemos = [_PhotoMemoDraft()];
   final List<String> _hashtags = ['#하루기록'];
 
@@ -329,6 +334,71 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     final canSave = await _confirmMemoryForNoPlan();
     if (!canSave || !mounted) return;
     await _save();
+  }
+
+  Future<Uint8List> _captureResultImageBytes() async {
+    await WidgetsBinding.instance.endOfFrame;
+    var renderObject = _resultCaptureKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) {
+      throw StateError('daily_result_capture_boundary_missing');
+    }
+    if (renderObject.debugNeedsPaint) {
+      await WidgetsBinding.instance.endOfFrame;
+      renderObject = _resultCaptureKey.currentContext?.findRenderObject();
+      if (renderObject is! RenderRepaintBoundary) {
+        throw StateError('daily_result_capture_boundary_missing');
+      }
+    }
+
+    final image = await renderObject.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    final bytes = byteData?.buffer.asUint8List();
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError('daily_result_capture_empty');
+    }
+    return bytes;
+  }
+
+  Future<void> _saveResultImage() async {
+    final currentRecord = _savedRecord;
+    if (currentRecord == null || _isSavingResultImage) return;
+
+    setState(() => _isSavingResultImage = true);
+    try {
+      final bytes = await _captureResultImageBytes();
+      final date = currentRecord.date;
+      final fileName =
+          "daily-record-${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}.png";
+      final uploaded = await widget.onUploadMedia(bytes, fileName);
+      final updatedRecord = currentRecord.copyWith(
+        imageUrls: [...currentRecord.imageUrls, uploaded.publicUrl],
+        media: [
+          ...currentRecord.media,
+          uploaded.copyWith(sortOrder: currentRecord.media.length),
+        ],
+        brands: {
+          ...currentRecord.brands,
+          'dailyCompositeImageUrl': uploaded.publicUrl,
+          'dailyCompositeStorageKey': uploaded.storageKey,
+        },
+      );
+      final saved = await widget.onSave(updatedRecord);
+      if (!mounted) return;
+      setState(() {
+        _savedRecord = saved;
+        _isSavingResultImage = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('하루 일과 결과 이미지를 저장했어요.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSavingResultImage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이미지 저장에 실패했어요: $error')),
+      );
+    }
   }
 
   Future<bool> _confirmMemoryForNoPlan() async {
@@ -687,6 +757,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           ootdRecord: _linkedOotdRecord,
           includeCrew: _includeCrew,
           photoCount: _savedPhotoCount,
+          captureKey: _resultCaptureKey,
           onEdit: () {
             final id = savedRecord.id;
             if (id == null || id.isEmpty) return;
@@ -1235,33 +1306,58 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         color: AppColors.bgWarm,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
+            SizedBox(
+              width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: saved?.id == null
+                onPressed: saved == null || _isSavingResultImage
                     ? null
-                    : () => context.go(RoutePaths.recordEdit(saved!.id!)),
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const FittedBox(child: Text('수정하기')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPinkSoft,
-                  foregroundColor: AppColors.primaryPink,
-                  side: const BorderSide(color: AppColors.linePink),
+                    : _saveResultImage,
+                icon: const Icon(Icons.download_outlined, size: 20),
+                label: FittedBox(
+                  child: Text(
+                    _isSavingResultImage ? '이미지 저장 중...' : '결과 이미지 저장하기',
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _closeResult,
-                icon: const Icon(Icons.calendar_month_outlined, size: 18),
-                label: const FittedBox(child: Text('기록으로 가기')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryPink,
                   foregroundColor: AppColors.textInverse,
                 ),
               ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: saved?.id == null
+                        ? null
+                        : () => context.go(RoutePaths.recordEdit(saved!.id!)),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const FittedBox(child: Text('수정하기')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPinkSoft,
+                      foregroundColor: AppColors.primaryPink,
+                      side: const BorderSide(color: AppColors.linePink),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _closeResult,
+                    icon: const Icon(Icons.calendar_month_outlined, size: 18),
+                    label: const FittedBox(child: Text('기록으로 가기')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.border),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

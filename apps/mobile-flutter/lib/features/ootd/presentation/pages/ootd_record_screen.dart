@@ -166,7 +166,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       children: [
         const _SectionTitle(
           title: 'AI OOTD 생성 방식',
-          subtitle: '사진 또는 텍스트 중 하나만 선택해서 오늘의 코디를 캐릭터에 입혀요.',
+          subtitle:
+              '사진은 보이는 스타일을 우선 반영하고, 가려진 부분만 프로필 캐릭터 설정을 참고해요.',
         ),
         const SizedBox(height: 20),
         _ModeCard(
@@ -376,16 +377,14 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        if (_changeStyle) ...[
-          const _InfoBox(
-            icon: Icons.auto_awesome,
-            text: '오늘만 바꿀 헤어/눈 스타일로 OOTD를 생성해요.',
-          ),
-        ] else
-          const _InfoBox(
-            icon: Icons.auto_awesome,
-            text: '기본 캐릭터 스타일로 OOTD를 생성해요.',
-          ),
+        _InfoBox(
+          icon: Icons.auto_awesome,
+          text: _isPhotoMode
+              ? '사진에서 보이는 머리/피부/소품/의상은 사진을 우선 반영하고, 안 보이는 눈/입 같은 부분만 프로필 설정을 참고해요.'
+              : _changeStyle
+                  ? '텍스트에 없는 머리/눈 정보는 오늘만 바꾼 스타일을 참고해요.'
+                  : '텍스트에 없는 머리/눈/피부 정보는 프로필 캐릭터 설정을 참고해요.',
+        ),
         const SizedBox(height: 24),
         _OptionGroup(
           title: '오늘 날씨',

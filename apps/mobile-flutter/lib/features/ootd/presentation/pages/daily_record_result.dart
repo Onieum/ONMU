@@ -6,6 +6,7 @@ class DailyRecordResultScreen extends StatelessWidget {
   final OotdRecord? ootdRecord;
   final bool includeCrew;
   final int photoCount;
+  final GlobalKey? captureKey;
   final VoidCallback onEdit;
 
   const DailyRecordResultScreen({
@@ -15,6 +16,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     required this.includeCrew,
     required this.photoCount,
     required this.onEdit,
+    this.captureKey,
     this.ootdRecord,
   });
 
@@ -195,9 +197,12 @@ class DailyRecordResultScreen extends StatelessWidget {
         .toList(growable: false);
     final dailyMemo = dailyItems.isEmpty ? null : dailyItems.first.description;
 
-    return isDiary
+    final content = isDiary
         ? _buildDiaryResult(context, photoItems, dailyMemo)
         : _buildCleanResult(context, photoItems, dailyMemo);
+
+    if (captureKey == null) return content;
+    return RepaintBoundary(key: captureKey, child: content);
   }
 
   Widget _buildDiaryResult(

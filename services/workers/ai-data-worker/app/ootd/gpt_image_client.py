@@ -399,10 +399,10 @@ def _build_outfit_edit_mask_png(image_bytes: bytes) -> bytes:
 
     mask = Image.new("RGBA", (width, height), (255, 255, 255, 255))
     draw = ImageDraw.Draw(mask)
-    edit_left = int(width * 0.18)
-    edit_right = int(width * 0.82)
-    edit_top = int(height * 0.32)
-    edit_bottom = int(height * 0.94)
+    edit_left = int(width * 0.08)
+    edit_right = int(width * 0.92)
+    edit_top = int(height * 0.08)
+    edit_bottom = int(height * 0.96)
     draw.rectangle((edit_left, edit_top, edit_right, edit_bottom), fill=(0, 0, 0, 0))
 
     output = BytesIO()

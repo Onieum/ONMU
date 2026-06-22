@@ -493,6 +493,33 @@ final appRouter = GoRouter(
                         return;
                       }
                     },
+                    onSaveRecordImage: ({
+                      required record,
+                      required bytes,
+                      required fileName,
+                    }) async {
+                      final uploaded =
+                          await controller.uploadMedia(bytes, fileName);
+                      final compositePrefix =
+                          record.brands['recordType'] == 'daily'
+                              ? 'dailyComposite'
+                              : 'ootdComposite';
+                      final updatedRecord = record.copyWith(
+                        imageUrls: [...record.imageUrls, uploaded.publicUrl],
+                        media: [
+                          ...record.media,
+                          uploaded.copyWith(sortOrder: record.media.length),
+                        ],
+                        brands: {
+                          ...record.brands,
+                          '${compositePrefix}ImageUrl': uploaded.publicUrl,
+                          '${compositePrefix}StorageKey': uploaded.storageKey,
+                        },
+                      );
+                      final saved = await controller.saveRecord(updatedRecord);
+                      controller.refreshRecords();
+                      return saved;
+                    },
                     onNavigateToProfile: () =>
                         _showResetDialog(context, controller),
                   );
