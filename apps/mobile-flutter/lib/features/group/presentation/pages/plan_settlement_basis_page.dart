@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/settlement_models.dart';
@@ -31,13 +33,22 @@ class PlanSettlementBasisPage extends ConsumerWidget {
     );
 
     return state.when(
-      data: (basis) => _SettlementBasisContent(basis: basis),
-      loading: () => const OnmuScaffold(
+      data: (basis) => _SettlementBasisContent(
+        groupId: groupId,
+        planId: planId,
+        settlementId: settlementId,
+        basis: basis,
+      ),
+      loading: () => OnmuScaffold(
         title: '정산 근거',
-        children: [Center(child: CircularProgressIndicator())],
+        showBackButton: true,
+        onBack: () => _goBack(context),
+        children: const [Center(child: CircularProgressIndicator())],
       ),
       error: (error, stackTrace) => OnmuScaffold(
         title: '정산 근거',
+        showBackButton: true,
+        onBack: () => _goBack(context),
         children: [
           Text(
             '정산 근거를 불러오지 못했어요.',
@@ -47,11 +58,23 @@ class PlanSettlementBasisPage extends ConsumerWidget {
       ),
     );
   }
+
+  void _goBack(BuildContext context) {
+    context.go(RoutePaths.planSettlementDetail(groupId, planId, settlementId));
+  }
 }
 
 class _SettlementBasisContent extends StatelessWidget {
-  const _SettlementBasisContent({required this.basis});
+  const _SettlementBasisContent({
+    required this.groupId,
+    required this.planId,
+    required this.settlementId,
+    required this.basis,
+  });
 
+  final String groupId;
+  final String planId;
+  final String settlementId;
   final SettlementBasis basis;
 
   @override
@@ -60,6 +83,9 @@ class _SettlementBasisContent extends StatelessWidget {
       title: '정산 근거',
       subtitle: '${basis.planTitle} 계산 기준',
       showBackButton: true,
+      onBack: () => context.go(
+        RoutePaths.planSettlementDetail(groupId, planId, settlementId),
+      ),
       children: [
         OnmuCard(
           backgroundColor: AppColors.primaryPinkSoft.withValues(alpha: 0.28),
