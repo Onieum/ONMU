@@ -51,6 +51,15 @@ class PlanDetailState {
     return dateTabs[index];
   }
 
+  int get firstVisitPlanDateIndex {
+    for (var index = 0; index < visitPlansByDate.length; index += 1) {
+      if (visitPlansByDate[index].isNotEmpty) {
+        return index;
+      }
+    }
+    return 0;
+  }
+
   bool get canShareArrivalStatus =>
       plan.isInProgressAt(currentTime ?? DateTime.now());
 

@@ -514,6 +514,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
     this.myLocationRequestSerial = 0,
     this.cameraFocusTarget,
     this.cameraFocusRequestSerial = 0,
+    this.cameraFitRequestSerial = 0,
     this.cameraFitPadding = onmuMapCameraFitPadding,
     this.markerScreenSafetyPadding = onmuMapMarkerScreenSafetyPadding,
     this.fallbackLabel = '지도 스타일을 불러오는 중입니다.',
@@ -537,6 +538,7 @@ class OnmuMapView extends ConsumerStatefulWidget {
   final int myLocationRequestSerial;
   final OnmuLatLng? cameraFocusTarget;
   final int cameraFocusRequestSerial;
+  final int cameraFitRequestSerial;
   final EdgeInsets cameraFitPadding;
   final EdgeInsets markerScreenSafetyPadding;
   final String fallbackLabel;
@@ -554,6 +556,7 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   int _handledMyLocationRequestSerial = 0;
   int _handledCameraFocusRequestSerial = 0;
   int _nativeSyncGeneration = 0;
+  bool _pendingNativeCameraFit = false;
   final Set<String> _registeredNativeMarkerImages = {};
 
   @override
@@ -594,21 +597,26 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
     );
     final zoomChanged = oldWidget.zoom != widget.zoom;
     final focusChanged = oldWidget.focusedPointId != widget.focusedPointId;
+    final cameraFitRequested =
+        oldWidget.cameraFitRequestSerial != widget.cameraFitRequestSerial;
     if (pointsChanged ||
         routeGeometryChanged ||
         catalogPointsChanged ||
         catalogClustersChanged ||
         centerChanged ||
         zoomChanged ||
-        focusChanged) {
+        focusChanged ||
+        cameraFitRequested) {
       _syncNativeMap(
-        fitCamera: shouldFitCameraForMapUpdate(
-          pointsChanged: pointsChanged,
-          routeGeometryChanged: routeGeometryChanged,
-          centerChanged: centerChanged,
-          zoomChanged: zoomChanged,
-          styleLoaded: false,
-        ),
+        fitCamera:
+            cameraFitRequested ||
+            shouldFitCameraForMapUpdate(
+              pointsChanged: pointsChanged,
+              routeGeometryChanged: routeGeometryChanged,
+              centerChanged: centerChanged,
+              zoomChanged: zoomChanged,
+              styleLoaded: false,
+            ),
       );
     }
     if (widget.myLocationRequestSerial > 0 &&
@@ -1053,10 +1061,17 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
   Future<void> _syncNativeMap({required bool fitCamera}) async {
     final controller = _mapController;
     if (controller == null || !_styleLoaded) {
+      _pendingNativeCameraFit = _pendingNativeCameraFit || fitCamera;
       return;
     }
     final points = validOnmuMapPoints(widget.points);
     final routeGeometry = validOnmuMapCoordinates(widget.routeGeometry);
+    final shouldFitCamera = fitCamera || _pendingNativeCameraFit;
+    if (shouldFitCamera && points.isEmpty && routeGeometry.isEmpty) {
+      _pendingNativeCameraFit = true;
+    } else if (shouldFitCamera) {
+      _pendingNativeCameraFit = false;
+    }
     final generation = ++_nativeSyncGeneration;
     try {
       await controller.clearSymbols();
@@ -1097,11 +1112,17 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       if (symbolOptions.isNotEmpty) {
         await controller.addSymbols(symbolOptions, pointData);
       }
+      final runtimeFit = shouldFitCamera
+          ? await _fitNativeCameraToData(controller, points, routeGeometry)
+          : false;
+      if (shouldFitCamera && !runtimeFit) {
+        _pendingNativeCameraFit = true;
+      }
       debugPrint(
         'ONMU_MAP_NATIVE_SYNC points=${points.length} '
         'symbols=${symbolOptions.length} '
         'images=${_registeredNativeMarkerImages.length} '
-        'fitCameraRequest=$fitCamera runtimeFit=false',
+        'fitCameraRequest=$shouldFitCamera runtimeFit=$runtimeFit',
       );
 
       if (!mounted || generation != _nativeSyncGeneration) {
@@ -1112,6 +1133,51 @@ class _OnmuMapViewState extends ConsumerState<OnmuMapView> {
       await _logNativeMarkerScreenSummary(controller);
     } catch (_) {
       // 지도 annotation 동기화 실패는 플랫폼 뷰 수명주기 경쟁일 수 있어 UI를 유지한다.
+    }
+  }
+
+  Future<bool> _fitNativeCameraToData(
+    MapLibreMapController controller,
+    List<OnmuMapPoint> points,
+    List<OnmuLatLng> routeGeometry,
+  ) async {
+    final coordinates = validOnmuMapCoordinates([
+      ...points.map((point) => point.coordinate),
+      ...routeGeometry,
+    ]);
+    if (coordinates.isEmpty) {
+      return false;
+    }
+    try {
+      if (coordinates.length == 1) {
+        final target = coordinates.first;
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(LatLng(target.lat, target.lng), 14.2),
+          duration: const Duration(milliseconds: 260),
+        );
+        return true;
+      }
+
+      final minLat = coordinates.map((value) => value.lat).reduce(math.min);
+      final maxLat = coordinates.map((value) => value.lat).reduce(math.max);
+      final minLng = coordinates.map((value) => value.lng).reduce(math.min);
+      final maxLng = coordinates.map((value) => value.lng).reduce(math.max);
+      await controller.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(minLat, minLng),
+            northeast: LatLng(maxLat, maxLng),
+          ),
+          left: widget.cameraFitPadding.left,
+          top: widget.cameraFitPadding.top,
+          right: widget.cameraFitPadding.right,
+          bottom: widget.cameraFitPadding.bottom,
+        ),
+        duration: const Duration(milliseconds: 280),
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

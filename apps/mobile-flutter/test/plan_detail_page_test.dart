@@ -98,6 +98,36 @@ void main() {
     expect(find.text('방문 지도'), findsNothing);
   });
 
+  testWidgets('plan detail opens on first date with visits', (tester) async {
+    await tester.pumpWidget(
+      _planDetailTestApp(
+        _PlanDetailTestRepository(
+          planStartsAt: DateTime(2026, 6, 19, 10),
+          planEndsAt: DateTime(2026, 6, 21, 12),
+          visitPlansByDate: const [
+            [],
+            [
+              VisitPlan(
+                time: '12:00',
+                endTime: '13:00',
+                place: '둘째날 식당',
+                kind: '음식점',
+                duration: '1시간',
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('둘째날 식당'), 320);
+    await tester.pumpAndSettle();
+
+    expect(find.text('둘째날 식당'), findsOneWidget);
+    expect(find.text('방문 장소를 추가하면 일정 동선이 표시돼요.'), findsNothing);
+  });
+
   testWidgets('visit time edit picker is constrained to plan date range', (
     tester,
   ) async {
@@ -258,6 +288,38 @@ void main() {
     expect(find.text('6/20 토 동선'), findsOneWidget);
     expect(find.text('둘째날 식당'), findsOneWidget);
     expect(find.text('첫째날 카페'), findsNothing);
+  });
+
+  testWidgets('itinerary defaults to first date with visits', (tester) async {
+    await tester.pumpWidget(
+      _planItineraryTestApp(
+        planRepository: _PlanDetailTestRepository(
+          planStartsAt: DateTime(2026, 6, 19, 10),
+          planEndsAt: DateTime(2026, 6, 21, 12),
+          visitPlansByDate: const [
+            [],
+            [
+              VisitPlan(
+                time: '12:00',
+                endTime: '13:00',
+                place: '둘째날 식당',
+                kind: '음식점',
+                duration: '1시간',
+              ),
+            ],
+          ],
+        ),
+        routeRepository: const _SuccessfulRouteRepository(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.drag(find.byType(ListView), const Offset(0, -520));
+    await tester.pumpAndSettle();
+
+    expect(find.text('6/20 토 동선'), findsOneWidget);
+    expect(find.text('둘째날 식당'), findsOneWidget);
+    expect(find.text('아직 추가된 방문 장소가 없어요.'), findsNothing);
   });
 
   testWidgets(

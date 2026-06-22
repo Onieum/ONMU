@@ -36,6 +36,7 @@ class PlanItineraryPage extends ConsumerStatefulWidget {
 
 class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   late int _selectedDateIndex;
+  var _dateSelectedByUser = false;
   var _travelMode = 'walk';
 
   @override
@@ -51,6 +52,7 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
         oldWidget.planId != widget.planId ||
         oldWidget.initialDateIndex != widget.initialDateIndex) {
       _selectedDateIndex = _normalizedDateIndex(widget.initialDateIndex);
+      _dateSelectedByUser = false;
     }
   }
 
@@ -84,7 +86,12 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
   }
 
   Widget _buildContent(BuildContext context, PlanDetailState state) {
-    final selectedDateIndex = _clampedDateIndex(_selectedDateIndex, state);
+    final selectedDateIndex = _clampedDateIndex(
+      _dateSelectedByUser
+          ? _selectedDateIndex
+          : _defaultDateIndex(_selectedDateIndex, state),
+      state,
+    );
     final selectedVisitPlan = state.visitPlanForDate(selectedDateIndex);
     final routeState = ref.watch(
       routeRecommendationViewModelProvider((
@@ -131,8 +138,10 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
                   PlanDateTabs(
                     tabs: state.dateTabs,
                     selectedIndex: selectedDateIndex,
-                    onChanged: (index) =>
-                        setState(() => _selectedDateIndex = index),
+                    onChanged: (index) => setState(() {
+                      _dateSelectedByUser = true;
+                      _selectedDateIndex = index;
+                    }),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
@@ -242,6 +251,16 @@ class _PlanItineraryPageState extends ConsumerState<PlanItineraryPage> {
 
 int _normalizedDateIndex(int value) {
   return value < 0 ? 0 : value;
+}
+
+int _defaultDateIndex(int preferredIndex, PlanDetailState state) {
+  if (preferredIndex > 0) {
+    return preferredIndex;
+  }
+  if (state.visitPlanForDate(preferredIndex).isNotEmpty) {
+    return preferredIndex;
+  }
+  return state.firstVisitPlanDateIndex;
 }
 
 int _clampedDateIndex(int value, PlanDetailState state) {
