@@ -461,6 +461,7 @@ class _TargetParticipantRow extends StatelessWidget {
             label: participant.name,
             size: 36,
             profileImageUrl: participant.profileImageUrl,
+            character: participant.character,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

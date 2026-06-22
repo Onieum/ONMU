@@ -219,6 +219,7 @@ class ChatMessageBubble extends StatelessWidget {
               label: message.sender,
               size: 32,
               profileImageUrl: message.senderProfileImageUrl,
+              character: message.senderCharacter,
             ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
@@ -375,15 +376,15 @@ class _ChatMessageContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message.sender,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: message.isMine
-                      ? AppColors.textSub
-                      : AppColors.textMuted,
+              if (!message.isMine) ...[
+                Text(
+                  message.sender,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xxs),
+              ],
               if (message.attachments.isNotEmpty) ...[
                 _MessageAttachments(attachments: message.attachments),
                 if (message.message.trim().isNotEmpty)
@@ -423,52 +424,151 @@ class _MessageAttachments extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final attachment in attachments.where(
-          (attachment) => attachment.type == 'image',
-        )) ...[
-          _ChatImagePreview(attachment: attachment),
-          if (attachment != attachments.last)
-            const SizedBox(height: AppSpacing.xs),
-        ],
-      ],
-    );
+    final imageAttachments = attachments
+        .where((attachment) => attachment.type == 'image')
+        .toList(growable: false);
+    if (imageAttachments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return _ChatImageGrid(attachments: imageAttachments);
   }
 }
 
-class _ChatImagePreview extends StatelessWidget {
-  const _ChatImagePreview({required this.attachment});
+class _ChatImageGrid extends StatelessWidget {
+  const _ChatImageGrid({required this.attachments});
 
-  final GroupMessageAttachment attachment;
+  final List<GroupMessageAttachment> attachments;
+
+  static const double _gap = 4;
 
   @override
   Widget build(BuildContext context) {
-    final url = attachment.publicUrl;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: AspectRatio(
-        aspectRatio: _aspectRatio,
-        child: url.isEmpty
-            ? const _ChatImageFallback()
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _ChatImageFallback(),
-              ),
+    final visible = attachments.take(4).toList(growable: false);
+    final extraCount = attachments.length - visible.length;
+
+    return switch (visible.length) {
+      1 => AspectRatio(
+        aspectRatio: _aspectRatioFor(visible.first),
+        child: _ChatImageTile(attachment: visible.first),
       ),
-    );
+      2 => Row(
+        children: [
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _ChatImageTile(attachment: visible[0]),
+            ),
+          ),
+          const SizedBox(width: _gap),
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _ChatImageTile(attachment: visible[1]),
+            ),
+          ),
+        ],
+      ),
+      3 => AspectRatio(
+        aspectRatio: 1.45,
+        child: Row(
+          children: [
+            Expanded(flex: 2, child: _ChatImageTile(attachment: visible[0])),
+            const SizedBox(width: _gap),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _ChatImageTile(attachment: visible[1])),
+                  const SizedBox(height: _gap),
+                  Expanded(child: _ChatImageTile(attachment: visible[2])),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      _ => AspectRatio(
+        aspectRatio: 1,
+        child: Column(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(child: _ChatImageTile(attachment: visible[0])),
+                  const SizedBox(width: _gap),
+                  Expanded(child: _ChatImageTile(attachment: visible[1])),
+                ],
+              ),
+            ),
+            const SizedBox(height: _gap),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(child: _ChatImageTile(attachment: visible[2])),
+                  const SizedBox(width: _gap),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[3],
+                      extraCount: extraCount,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    };
   }
 
-  double get _aspectRatio {
+  double _aspectRatioFor(GroupMessageAttachment attachment) {
     final width = attachment.width;
     final height = attachment.height;
     if (width == null || height == null || width <= 0 || height <= 0) {
       return 4 / 3;
     }
     return (width / height).clamp(0.7, 1.8);
+  }
+}
+
+class _ChatImageTile extends StatelessWidget {
+  const _ChatImageTile({required this.attachment, this.extraCount = 0});
+
+  final GroupMessageAttachment attachment;
+  final int extraCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = attachment.publicUrl;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          url.isEmpty
+              ? const _ChatImageFallback()
+              : Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const _ChatImageFallback(),
+                ),
+          if (extraCount > 0)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.textMain.withAlpha(140),
+              ),
+              child: Center(
+                child: Text(
+                  '+$extraCount',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.textInverse,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

@@ -26,6 +26,7 @@ import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/widgets/plan_member_avatar_row.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -44,10 +45,14 @@ String _weekdayLabel(DateTime date) {
   return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
 }
 
-Widget _testOnmuApp({GroupRepository? groupRepository}) {
+Widget _testOnmuApp({
+  GroupRepository? groupRepository,
+  InMemoryOnmuStore? store,
+}) {
   appRouter.go(RoutePaths.splash);
   return onmuTestProviderScope(
     groupRepository: groupRepository,
+    store: store,
     child: const app.OnmuMaterialApp(),
   );
 }
@@ -1665,7 +1670,7 @@ void main() {
     expect(find.text('음식점'), findsOneWidget);
     expect(find.text('카페'), findsOneWidget);
     expect(find.text('가볼만한곳'), findsOneWidget);
-    expect(find.text('현 지도에서 검색'), findsNothing);
+    expect(find.text('현 지도에서 검색'), findsOneWidget);
     expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     expect(
       tester
@@ -1926,6 +1931,46 @@ void main() {
     expect(find.text('확인 메시지'), findsOneWidget);
   });
 
+  testWidgets('group chat renders cursor date dividers and unread boundary', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _TimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2024년 6월 2일'), findsNothing);
+    expect(find.text('2026년 6월 9일 화요일'), findsOneWidget);
+    expect(find.text('2026년 6월 10일 수요일'), findsOneWidget);
+    expect(find.text('2개의 새 메시지'), findsOneWidget);
+
+    final readMessageTop = tester.getTopLeft(find.text('읽었던 메시지')).dy;
+    final unreadDividerTop = tester.getTopLeft(find.text('2개의 새 메시지')).dy;
+    final firstUnreadTop = tester.getTopLeft(find.text('첫 새 메시지')).dy;
+
+    expect(readMessageTop, lessThan(unreadDividerTop));
+    expect(unreadDividerTop, lessThan(firstUnreadTop));
+  });
+
   testWidgets('group chat renders input without vote or settlement cards', (
     tester,
   ) async {
@@ -2132,6 +2177,69 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
+  testWidgets('settlement basis back falls back to settlement detail route', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planSettlementBasis(_groupId, _planId, '301'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('정산 근거'), findsOneWidget);
+    expect(find.textContaining('계산 기준'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('뒤로'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산'), findsOneWidget);
+    expect(find.textContaining('계산 기준'), findsNothing);
+  });
+
+  testWidgets(
+    'settlement receiver confirmation handles all incoming transfers',
+    (tester) async {
+      final settlementRepository = _IncomingTransferSettlementRepository();
+
+      appRouter.go(RoutePaths.splash);
+      await tester.pumpWidget(
+        onmuTestProviderScope(
+          settlementRepository: settlementRepository,
+          child: const app.OnmuMaterialApp(),
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+      appRouter.go(RoutePaths.planSettlementDetail(_groupId, _planId, '301'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('정산 확인'), findsOneWidget);
+
+      final basisButton = find.ancestor(
+        of: find.text('정산 근거'),
+        matching: find.byType(OutlinedButton),
+      );
+      final actionButton = find.ancestor(
+        of: find.text('정산 확인'),
+        matching: find.byType(FilledButton),
+      );
+      expect(
+        tester.getSize(basisButton).height,
+        tester.getSize(actionButton).height,
+      );
+
+      await tester.tap(find.text('정산 확인'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '확인'));
+      await tester.pumpAndSettle();
+
+      expect(settlementRepository.receivedTransferIds, [
+        'transfer-a',
+        'transfer-c',
+      ]);
+    },
+  );
+
   testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
@@ -2145,6 +2253,44 @@ void main() {
     expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('주말 나들이 정산이 만들어졌어요'), findsNothing);
     expect(find.text('약속 정산'), findsNothing);
+  });
+
+  testWidgets('home chat notification opens group chat and marks it read', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded()
+      ..addNotification(
+        NotificationItem(
+          id: '00000000-0000-0000-0000-000000001213',
+          notificationType: 'chat_message',
+          title: '새 메시지가 도착했어요',
+          body: '현우님의 사진 2장을 확인해 보세요.',
+          status: 'queued',
+          createdAt: DateTime.parse('2026-06-09T14:12:00+09:00'),
+          timeLabel: '14:12',
+          groupId: '1',
+          payload: const {
+            'groupId': '1',
+            'messageId': 'message-1',
+            'chatActivityEventId': 'message-1',
+            'attachmentCount': 2,
+          },
+          isRead: false,
+        ),
+      );
+    await tester.pumpWidget(_testOnmuApp(store: store));
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeNotifications);
+    await tester.pumpAndSettle();
+
+    expect(store.fetchUnreadNotificationCount(), 3);
+    await tester.tap(find.text('새 메시지가 도착했어요'));
+    await tester.pumpAndSettle();
+
+    expect(store.fetchUnreadNotificationCount(), 2);
+    expect(find.text('대학 동기 여행단'), findsOneWidget);
+    expect(find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'), findsOneWidget);
   });
 
   testWidgets('group chat menu opens vote list', (tester) async {
@@ -2238,6 +2384,47 @@ class _NoAuxGroupRepository extends TestGroupRepository {
   }) async => [];
 }
 
+class _TimelineGroupRepository extends _NoAuxGroupRepository {
+  _TimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      unreadCount: 2,
+      messages: [
+        GroupMessage(
+          id: 'message-read-1',
+          cursor: '2026-06-09T12:00:00+09:00',
+          sender: '민서',
+          message: '읽었던 메시지',
+          timeLabel: '12:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'message-unread-1',
+          cursor: '2026-06-09T12:05:00+09:00',
+          sender: '지우',
+          message: '첫 새 메시지',
+          timeLabel: '12:05',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'message-unread-2',
+          cursor: '2026-06-10T12:00:00+09:00',
+          sender: '나',
+          message: '다음 날 새 메시지',
+          timeLabel: '12:00',
+          isMine: true,
+        ),
+      ],
+    );
+  }
+}
+
 class _SettlementActivityGroupRepository extends _NoAuxGroupRepository {
   _SettlementActivityGroupRepository(super.store);
 
@@ -2314,6 +2501,100 @@ class _TrackingWidgetSettlementRepository extends TestSettlementRepository {
       transfers: [],
       shareMessage: '',
     );
+  }
+}
+
+class _IncomingTransferSettlementRepository extends TestSettlementRepository {
+  _IncomingTransferSettlementRepository() : super(InMemoryOnmuStore.seeded());
+
+  final receivedTransferIds = <String>[];
+
+  static const _settlement = SettlementSummary(
+    id: '301',
+    status: 'finalized',
+    planTitle: '진행중인약속만들기',
+    totalAmountWon: 77000,
+    totalAmountLabel: '77,000원',
+    createdDateLabel: '정산일 2026.06.22',
+    itemCountLabel: '결제 항목 2개',
+    finalSummaryLabel: '2건 이체 필요',
+    mySummaryLabel: '나는 77,000원을 받아요',
+    paymentItems: [],
+    memberResults: [
+      SettlementMemberResult(
+        userId: 'user-a',
+        name: 'A',
+        finalShareLabel: '25,667원',
+        paidAmountLabel: '0원',
+        resultLabel: 'B에게 25,667원',
+      ),
+      SettlementMemberResult(
+        userId: 'user-b',
+        name: 'B',
+        finalShareLabel: '25,666원',
+        paidAmountLabel: '77,000원',
+        resultLabel: '77,000원 받음',
+        isMe: true,
+        willReceive: true,
+      ),
+      SettlementMemberResult(
+        userId: 'user-c',
+        name: 'C',
+        finalShareLabel: '25,667원',
+        paidAmountLabel: '0원',
+        resultLabel: 'B에게 25,667원',
+      ),
+    ],
+    participantStatuses: [
+      SettlementParticipantStatus(userId: 'user-a', name: 'A'),
+      SettlementParticipantStatus(
+        userId: 'user-b',
+        name: 'B',
+        willReceive: true,
+      ),
+      SettlementParticipantStatus(userId: 'user-c', name: 'C'),
+    ],
+    transfers: [
+      SettlementTransferSummary(
+        id: 'transfer-a',
+        fromUserId: 'user-a',
+        fromName: 'A',
+        toUserId: 'user-b',
+        toName: 'B',
+        amountWon: 25667,
+        amountLabel: '25,667원',
+      ),
+      SettlementTransferSummary(
+        id: 'transfer-c',
+        fromUserId: 'user-c',
+        fromName: 'C',
+        toUserId: 'user-b',
+        toName: 'B',
+        amountWon: 25667,
+        amountLabel: '25,667원',
+      ),
+    ],
+    shareMessage: '진행중인약속만들기 약속 정산입니다.',
+  );
+
+  @override
+  Future<SettlementSummary> fetchSettlementById({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    return _settlement;
+  }
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async {
+    receivedTransferIds.add(transferId.toString());
+    return _settlement;
   }
 }
 

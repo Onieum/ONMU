@@ -105,7 +105,29 @@ class _DraftPlanDetail extends StatefulWidget {
 }
 
 class _DraftPlanDetailState extends State<_DraftPlanDetail> {
-  var _selectedDateIndex = 0;
+  late int _selectedDateIndex;
+  var _dateSelectedByUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DraftPlanDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groupId != widget.groupId ||
+        oldWidget.planId != widget.planId) {
+      _dateSelectedByUser = false;
+      _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+      return;
+    }
+    if (!_dateSelectedByUser &&
+        widget.detail.visitPlanForDate(_selectedDateIndex).isEmpty) {
+      _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +185,10 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         PlanDateTabs(
           tabs: widget.detail.dateTabs,
           selectedIndex: _selectedDateIndex,
-          onChanged: (index) => setState(() => _selectedDateIndex = index),
+          onChanged: (index) => setState(() {
+            _dateSelectedByUser = true;
+            _selectedDateIndex = index;
+          }),
         ),
         const SizedBox(height: AppSpacing.md),
         Text('일정 타임라인', style: Theme.of(context).textTheme.titleMedium),
@@ -292,7 +317,29 @@ class _ConfirmedPlanDetail extends StatefulWidget {
 }
 
 class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
-  var _selectedDateIndex = 0;
+  late int _selectedDateIndex;
+  var _dateSelectedByUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ConfirmedPlanDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groupId != widget.groupId ||
+        oldWidget.planId != widget.planId) {
+      _dateSelectedByUser = false;
+      _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+      return;
+    }
+    if (!_dateSelectedByUser &&
+        widget.detail.visitPlanForDate(_selectedDateIndex).isEmpty) {
+      _selectedDateIndex = widget.detail.firstVisitPlanDateIndex;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +396,10 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         PlanDateTabs(
           tabs: widget.detail.dateTabs,
           selectedIndex: _selectedDateIndex,
-          onChanged: (index) => setState(() => _selectedDateIndex = index),
+          onChanged: (index) => setState(() {
+            _dateSelectedByUser = true;
+            _selectedDateIndex = index;
+          }),
         ),
         const SizedBox(height: AppSpacing.md),
         Row(

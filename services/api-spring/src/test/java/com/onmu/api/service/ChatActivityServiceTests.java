@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ChatActivityEventEntity;
 import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.ChatReadStateEntity;
@@ -59,6 +60,8 @@ class ChatActivityServiceTests {
   @Mock
   private UserRepository userRepository;
   @Mock
+  private CharacterProfileRepository characterProfileRepository;
+  @Mock
   private ChatRealtimePublisher chatRealtimePublisher;
   @Mock
   private OutboxService outboxService;
@@ -78,15 +81,19 @@ class ChatActivityServiceTests {
       notificationRepository,
       notificationPreferenceService,
       userRepository,
+      new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper()),
       new ObjectMapper(),
       chatRealtimePublisher,
       outboxService
     );
     currentUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000001"), "나");
     otherUser = new UserEntity(UUID.fromString("00000000-0000-0000-0000-000000000002"), "지민");
+    currentUser.updateProfile(null, "dev/avatars/me.png", null, null, null);
+    otherUser.updateProfile(null, "dev/avatars/jimin.png", null, null, null);
     group = new GroupEntity("1", "제주 여행 모임", currentUser);
     lenient().when(notificationPreferenceService.isEnabled(any(UUID.class), any(String.class), any(String.class)))
       .thenReturn(true);
+    lenient().when(characterProfileRepository.findByUserId(any(UUID.class))).thenReturn(Optional.empty());
   }
 
   @Test
@@ -121,6 +128,7 @@ class ChatActivityServiceTests {
     assertThat(messages.getFirst())
       .containsEntry("senderUserId", otherUser.getPublicId())
       .containsEntry("senderName", "지민")
+      .containsEntry("senderProfileImageUrl", "dev/avatars/jimin.png")
       .containsEntry("message", "다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.")
       .containsEntry("messageType", "message")
       .containsEntry("cursor", "2026-06-09T05:00:00Z")
@@ -129,6 +137,7 @@ class ChatActivityServiceTests {
       .containsEntry("timeLabel", "05:00");
     assertThat(messages.get(1))
       .containsEntry("senderUserId", currentUser.getPublicId())
+      .containsEntry("senderProfileImageUrl", "dev/avatars/me.png")
       .containsEntry("message", "기대된다아 ㅎㅎ")
       .containsEntry("isMine", true)
       .containsEntry("timeLabel", "05:01");
@@ -177,6 +186,13 @@ class ChatActivityServiceTests {
 
   @Test
   void postMessageCreatesChatActivityEventAndReturnsCreatedMessage() {
+    currentUser.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"female\",\"skinTone\":\"skin_1\",\"hairStyle\":\"hair_style_3\",\"hairColor\":\"hair_color_2\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_0\"}",
+      null
+    );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
@@ -193,9 +209,13 @@ class ChatActivityServiceTests {
     assertThat(response)
       .containsEntry("senderUserId", currentUser.getPublicId())
       .containsEntry("senderName", "나")
+      .containsEntry("senderProfileImageUrl", "dev/avatars/me.png")
       .containsEntry("message", "새 메시지입니다")
       .containsEntry("messageType", "message")
       .containsEntry("isMine", true);
+    assertThat(response.get("senderPixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_3");
 
     ArgumentCaptor<ChatActivityEventEntity> eventCaptor = ArgumentCaptor.forClass(ChatActivityEventEntity.class);
     verify(chatActivityEventRepository).save(eventCaptor.capture());
@@ -247,13 +267,17 @@ class ChatActivityServiceTests {
         .contains("\"groupId\":\"1\"")
         .contains("\"messageId\"")
         .contains("\"senderUserId\":\"" + currentUser.getPublicId() + "\"")
-        .contains("\"chatActivityEventId\"");
+        .contains("\"chatActivityEventId\"")
+        .contains("\"attachmentCount\":0")
+        .contains("\"hasText\":true");
       assertThat(notification.getStatus()).isEqualTo("queued");
       assertThat(notification.getReadAt()).isNull();
     });
     verify(outboxService, times(3)).record(eq("notification.requested"), eq("notification"), any(), argThat(payload ->
       "1".equals(payload.get("groupId"))
         && "chat_message".equals(payload.get("notificationType"))
+        && Integer.valueOf(0).equals(payload.get("attachmentCount"))
+        && payload.containsKey("chatActivityEventId")
         && payload.containsKey("notificationId")
         && payload.containsKey("channels")
     ));
@@ -330,6 +354,14 @@ class ChatActivityServiceTests {
           "photo.jpg",
           null,
           null
+        ), new ChatMessageAttachmentRequest(
+          "image",
+          "records/media/photo-2.jpg",
+          "/api/v1/media/public?key=records%2Fmedia%2Fphoto-2.jpg",
+          "image/jpeg",
+          "photo-2.jpg",
+          null,
+          null
         ))
       )
     );
@@ -338,7 +370,7 @@ class ChatActivityServiceTests {
       .containsEntry("message", "")
       .containsEntry("messageType", "message");
     List<Map<String, Object>> responseAttachments = attachments(response);
-    assertThat(responseAttachments).hasSize(1);
+    assertThat(responseAttachments).hasSize(2);
     assertThat(responseAttachments.getFirst())
       .containsEntry("type", "image")
       .containsEntry("storageKey", "records/media/photo-1.jpg")
@@ -357,17 +389,22 @@ class ChatActivityServiceTests {
       eq(eventCaptor.getValue().getId()),
       outboxPayloadCaptor.capture()
     );
-    assertThat(outboxPayloadCaptor.getValue()).containsEntry("attachmentCount", 1);
+    assertThat(outboxPayloadCaptor.getValue()).containsEntry("attachmentCount", 2);
     verify(chatRealtimePublisher).publishMessage(eq("1"), any());
 
     ArgumentCaptor<NotificationEntity> notificationCaptor = ArgumentCaptor.forClass(NotificationEntity.class);
     verify(notificationRepository).save(notificationCaptor.capture());
     assertThat(notificationCaptor.getValue().getUser()).isEqualTo(recipientUser);
-    assertThat(notificationCaptor.getValue().getBody()).isEqualTo("사진을 보냈어요.");
+    assertThat(notificationCaptor.getValue().getBody()).isEqualTo("사진 2장을 보냈어요.");
     assertThat(notificationCaptor.getValue().getNotificationType()).isEqualTo("chat_message");
+    assertThat(notificationCaptor.getValue().getPayload())
+      .contains("\"attachmentCount\":2")
+      .contains("\"hasText\":false");
     verify(outboxService).record(eq("notification.requested"), eq("notification"), any(), argThat(payload ->
       "1".equals(payload.get("groupId"))
         && "chat_message".equals(payload.get("notificationType"))
+        && Integer.valueOf(2).equals(payload.get("attachmentCount"))
+        && payload.containsKey("chatActivityEventId")
         && payload.containsKey("notificationId")
         && payload.containsKey("channels")
     ));
@@ -578,6 +615,11 @@ class ChatActivityServiceTests {
       .containsEntry("lastReadMessageId", lastMessage.getId().toString())
       .containsEntry("lastReadAt", "2026-06-09T05:05:00Z")
       .containsEntry("unreadCount", 0L);
+    verify(notificationRepository).markUnreadChatMessagesReadByUserIdAndGroup(
+      eq(currentUser.getId()),
+      eq(group),
+      any(Instant.class)
+    );
   }
 
   @SuppressWarnings("unchecked")

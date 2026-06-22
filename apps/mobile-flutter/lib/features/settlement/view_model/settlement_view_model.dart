@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/observability/onmu_error_reporter.dart';
+import '../../../shared/models/group_models.dart';
+import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/settlement_models.dart';
+import '../../plan/repository/plan_repository.dart';
 import '../repository/settlement_repository.dart';
 
 typedef SettlementScope = ({String groupId, String planId});
@@ -43,6 +46,42 @@ final settlementBasisViewModelProvider =
       SettlementBasis,
       SettlementBasisScope
     >(SettlementBasisViewModel.new);
+
+final settlementDraftParticipantsProvider =
+    FutureProvider.family<List<GroupMemberProfile>, SettlementScope>((
+      ref,
+      scope,
+    ) async {
+      final participants = await ref
+          .watch(planRepositoryProvider)
+          .fetchPlanParticipants(groupId: scope.groupId, planId: scope.planId);
+      return participants
+          .where(_isActiveSettlementParticipant)
+          .map(_groupMemberFromParticipant)
+          .toList(growable: false);
+    });
+
+bool _isActiveSettlementParticipant(PlanParticipantArrival participant) {
+  if (participant.isFallback || participant.userId.trim().isEmpty) {
+    return false;
+  }
+  final status = participant.participantStatus.trim().toLowerCase();
+  return status != 'left' && status != 'declined';
+}
+
+GroupMemberProfile _groupMemberFromParticipant(
+  PlanParticipantArrival participant,
+) {
+  return GroupMemberProfile(
+    userId: participant.userId,
+    name: participant.nickname,
+    note: '',
+    statusLabel: '참여 중',
+    profileImageUrl: participant.profileImageUrl,
+    character: participant.character,
+    preferenceProfile: participant.preferenceProfile,
+  );
+}
 
 class SettlementViewModel extends AsyncNotifier<SettlementSummary> {
   SettlementViewModel(this.scope);
@@ -114,6 +153,48 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
             itemId: itemId,
             targetUserIds: targetUserIds,
             targetNames: targetNames,
+          );
+      state = AsyncData(updated);
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      _reportSettlementError(ref, error, stackTrace, 'settlement_draft_save');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
+  Future<void> updateSectionPayer({
+    required Object sectionId,
+    required String payerUserId,
+  }) async {
+    final previous = await future;
+    final normalizedSectionId = sectionId.toString().trim();
+    final normalizedPayerUserId = payerUserId.trim();
+    if (normalizedSectionId.isEmpty || normalizedPayerUserId.isEmpty) {
+      return;
+    }
+
+    final sections = _sectionInputsFrom(previous)
+        .map((section) {
+          if (section.id.toString() != normalizedSectionId) {
+            return section;
+          }
+          return SettlementDraftSectionInput(
+            id: section.id,
+            schedulePlaceId: section.schedulePlaceId,
+            title: section.title,
+            payerUserId: normalizedPayerUserId,
+            items: section.items,
+          );
+        })
+        .toList(growable: false);
+    try {
+      final updated = await ref
+          .read(settlementRepositoryProvider)
+          .updateSettlementDraftSections(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            sections: sections,
+            memo: 'Flutter settlement draft',
           );
       state = AsyncData(updated);
     } catch (error, stackTrace) {
@@ -232,6 +313,26 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
 
     if (appendedItem == null) {
       return sections;
+    }
+
+    final appendedSectionId = appendedItem.sectionId?.toString().trim();
+    if (appendedSectionId != null && appendedSectionId.isNotEmpty) {
+      for (var index = 0; index < sections.length; index++) {
+        final section = sections[index];
+        if (section.id.toString() != appendedSectionId) {
+          continue;
+        }
+        sections[index] = SettlementDraftSectionInput(
+          id: section.id,
+          schedulePlaceId: section.schedulePlaceId,
+          title: section.title,
+          payerUserId: appendedItem.payerUserId?.trim().isNotEmpty == true
+              ? appendedItem.payerUserId!.trim()
+              : section.payerUserId,
+          items: [...section.items, appendedItem],
+        );
+        return sections;
+      }
     }
 
     final appendedPayerId = appendedItem.payerUserId ?? '';

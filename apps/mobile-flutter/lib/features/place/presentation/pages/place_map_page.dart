@@ -81,6 +81,38 @@ List<OnmuMapPoint> mapPointsForPlaceCandidates(
   ];
 }
 
+@visibleForTesting
+String? mapCatalogCategoryForPlaceCategory(String category) {
+  return switch (category.trim()) {
+    _PlaceMapCategories.food || _PlaceMapCategories.cafe => '식당',
+    _PlaceMapCategories.attraction => '관광명소',
+    _ => category.trim().isEmpty ? null : category.trim(),
+  };
+}
+
+@visibleForTesting
+String mapCatalogFilterForPlaceCategory({
+  required String primaryCategory,
+  required String? selectedFilter,
+}) {
+  final filter = selectedFilter?.trim();
+  if (filter != null && filter.isNotEmpty) {
+    return filter;
+  }
+  return switch (primaryCategory.trim()) {
+    _PlaceMapCategories.cafe => _PlaceMapCategories.cafe,
+    _ => 'all',
+  };
+}
+
+class _PlaceMapCategories {
+  const _PlaceMapCategories._();
+
+  static const food = '음식점';
+  static const cafe = '카페';
+  static const attraction = '가볼만한곳';
+}
+
 class PlaceMapPage extends ConsumerStatefulWidget {
   const PlaceMapPage({
     required this.groupId,
@@ -98,9 +130,9 @@ class PlaceMapPage extends ConsumerStatefulWidget {
 }
 
 class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
-  static const _foodCategory = '음식점';
-  static const _cafeCategory = '카페';
-  static const _attractionCategory = '가볼만한곳';
+  static const _foodCategory = _PlaceMapCategories.food;
+  static const _cafeCategory = _PlaceMapCategories.cafe;
+  static const _attractionCategory = _PlaceMapCategories.attraction;
   static const _primaryCategories = [
     _foodCategory,
     _cafeCategory,
@@ -129,6 +161,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
   OnmuLatLng? _lastCameraCenter;
   OnmuLatLng? _mapSearchAnchorCenter;
   OnmuLatLng? _mapSearchCenter;
+  int _cameraFitRequestSerial = 0;
   OnmuMapViewport? _catalogViewport;
   Timer? _catalogViewportDebounce;
   bool _filtersExpanded = false;
@@ -338,6 +371,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
     setState(() {
       _mapSearchCenter = center;
       _mapSearchAnchorCenter = center;
+      _cameraFitRequestSerial += 1;
       _searchActive = true;
       _selectedCandidate = null;
       _focusedCandidateId = null;
@@ -457,6 +491,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
       _lastCameraCenter = center;
       _mapSearchCenter = center;
       _mapSearchAnchorCenter = center;
+      _cameraFitRequestSerial += 1;
       _searchActive = true;
       _selectedCandidate = null;
       _focusedCandidateId = null;
@@ -704,8 +739,11 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
         groupId: widget.groupId,
         planId: widget.planId,
         viewport: catalogViewport,
-        category: _selectedSearchCategory,
-        filter: _selectedCategoryFilter ?? 'all',
+        category: mapCatalogCategoryForPlaceCategory(_selectedPrimaryCategory),
+        filter: mapCatalogFilterForPlaceCategory(
+          primaryCategory: _selectedPrimaryCategory,
+          selectedFilter: _selectedCategoryFilter,
+        ),
         query: _query.trim().isEmpty ? null : _query.trim(),
       )),
     );
@@ -765,6 +803,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                   ),
                   cameraFocusTarget: _cameraFocusTarget,
                   cameraFocusRequestSerial: _cameraFocusRequestSerial,
+                  cameraFitRequestSerial: _cameraFitRequestSerial,
                   onMyLocationUnavailable: _handleMyLocationUnavailable,
                   myLocationRequestSerial: _myLocationRequestSerial,
                   onPointTap: (point) {
@@ -801,6 +840,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     _searchActive = true;
                     _mapSearchCenter = null;
                     _mapSearchAnchorCenter = _lastCameraCenter;
+                    _cameraFitRequestSerial += 1;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
                   });
@@ -812,6 +852,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                     _filtersExpanded = false;
                     _mapSearchCenter = null;
                     _mapSearchAnchorCenter = _lastCameraCenter;
+                    _cameraFitRequestSerial += 1;
                     _searchActive = true;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
@@ -823,6 +864,7 @@ class _PlaceMapPageState extends ConsumerState<PlaceMapPage> {
                         _selectedCategoryFilter == category ? null : category;
                     _mapSearchCenter = null;
                     _mapSearchAnchorCenter = _lastCameraCenter;
+                    _cameraFitRequestSerial += 1;
                     _searchActive = true;
                     _selectedCandidate = null;
                     _focusedCandidateId = null;
@@ -1213,13 +1255,12 @@ class _MapSearchOverlay extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
-            if (mapAreaSearchEnabled || mapAreaSearchActive)
-              _MapAreaSearchButton(
-                enabled: mapAreaSearchEnabled,
-                active: mapAreaSearchActive,
-                loading: mapAreaSearchLoading,
-                onPressed: onMapAreaSearchPressed,
-              ),
+            _MapAreaSearchButton(
+              enabled: mapAreaSearchEnabled,
+              active: mapAreaSearchActive,
+              loading: mapAreaSearchLoading,
+              onPressed: onMapAreaSearchPressed,
+            ),
             const Spacer(),
             _FloatingMapIconButton(
               tooltip: filtersExpanded ? '세부 필터 접기' : '세부 필터 열기',

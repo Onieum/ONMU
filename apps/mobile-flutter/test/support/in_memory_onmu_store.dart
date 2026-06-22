@@ -194,12 +194,31 @@ class InMemoryOnmuStore {
   }
 
   int markMessagesRead({required Object groupId, String? lastReadMessageId}) {
+    final parsedGroupId = _parseId(groupId);
+    final groupIndex = _groups.indexWhere((group) => group.id == parsedGroupId);
+    if (groupIndex >= 0) {
+      final group = _groups[groupIndex];
+      _groups[groupIndex] = group.copyWith(unreadCount: 0);
+    }
+    for (var index = 0; index < _notifications.length; index += 1) {
+      final notification = _notifications[index];
+      if (notification.isRead ||
+          notification.notificationType != 'chat_message' ||
+          notification.groupId != parsedGroupId.toString()) {
+        continue;
+      }
+      _notifications[index] = notification.markRead();
+    }
     return 0;
   }
 
   List<NotificationItem> fetchNotifications({int? limit}) {
     final effectiveLimit = limit ?? _notifications.length;
     return List.unmodifiable(_notifications.take(effectiveLimit));
+  }
+
+  void addNotification(NotificationItem notification) {
+    _notifications.add(notification);
   }
 
   int fetchUnreadNotificationCount() {

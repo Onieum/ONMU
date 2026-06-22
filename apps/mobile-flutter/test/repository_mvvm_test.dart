@@ -1149,16 +1149,18 @@ void main() {
 
     expect(initial.isDraft, isTrue);
     await expectLater(
-      container.read(provider.notifier).addDraftItem(
-        const SettlementDraftItemInput(
-          title: '커피',
-          amount: 12000,
-          payerUserId: 'user-1',
-          payerName: '지우',
-          targetUserIds: ['user-1'],
-          targetNames: ['지우'],
-        ),
-      ),
+      container
+          .read(provider.notifier)
+          .addDraftItem(
+            const SettlementDraftItemInput(
+              title: '커피',
+              amount: 12000,
+              payerUserId: 'user-1',
+              payerName: '지우',
+              targetUserIds: ['user-1'],
+              targetNames: ['지우'],
+            ),
+          ),
       throwsA(isA<StateError>()),
     );
 
@@ -1168,6 +1170,58 @@ void main() {
     expect(restored.paymentItems, isEmpty);
     expect(reporter.reports.single.tags['feature'], 'settlement_draft_save');
     expect(reporter.reports.single.tags['kind'], 'unknown');
+  });
+
+  test('정산 draft 항목 추가는 결제자가 같아도 요청한 section에 붙인다', () async {
+    final repository = _RecordingDraftSectionSettlementRepository();
+    final container = ProviderContainer(
+      overrides: [settlementRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final provider = settlementDraftViewModelProvider((
+      groupId: '1',
+      planId: '101',
+    ));
+
+    await container.read(provider.future);
+    await container
+        .read(provider.notifier)
+        .addDraftItem(
+          const SettlementDraftItemInput(
+            sectionId: 'section-b',
+            sectionTitle: 'B장소',
+            title: '커피',
+            amount: 12000,
+            payerUserId: 'user-me',
+            payerName: '나',
+            targetUserIds: ['user-me', 'user-jimin'],
+            targetNames: ['나', '지민'],
+          ),
+        );
+
+    expect(repository.savedSections, hasLength(2));
+    expect(repository.savedSections[0].id, 'section-a');
+    expect(repository.savedSections[0].items, isEmpty);
+    expect(repository.savedSections[1].id, 'section-b');
+    expect(repository.savedSections[1].items.single.title, '커피');
+  });
+
+  test('정산 draft 참여자 후보는 약속 참여자 중 활성 참여자만 사용한다', () async {
+    final container = ProviderContainer(
+      overrides: [
+        planRepositoryProvider.overrideWithValue(
+          _SettlementParticipantPlanRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final participants = await container.read(
+      settlementDraftParticipantsProvider((groupId: '1', planId: '101')).future,
+    );
+
+    expect(participants.map((member) => member.userId), ['db-me', 'db-a']);
+    expect(participants.map((member) => member.name), ['나', '아라']);
   });
 
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
@@ -1249,7 +1303,9 @@ void main() {
   test('채팅 ViewModel은 정산 후보 약속을 요청 시 재조회한다', () async {
     final now = DateTime.now();
     final plansCompleter = Completer<List<GroupPlanSummary>>();
-    final repository = _FakeGroupRepository(fetchPlansCompleter: plansCompleter);
+    final repository = _FakeGroupRepository(
+      fetchPlansCompleter: plansCompleter,
+    );
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(repository),
@@ -1727,6 +1783,52 @@ void main() {
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
   });
 
+  test('채팅 ViewModel은 여러 사진을 한 메시지의 attachments로 전송한다', () async {
+    final repository = _FakeGroupRepository();
+    final mediaRepository = _FakeMediaRepository(
+      uploaded: const GroupMessageAttachment(
+        type: 'image',
+        publicUrl:
+            'https://dev-api.onmu.cloud/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+        storageKey: 'records/media/photo.jpg',
+        contentType: 'image/jpeg',
+        fileName: 'photo.jpg',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        mediaRepositoryProvider.overrideWithValue(mediaRepository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final sent = await container
+        .read(provider.notifier)
+        .sendImageMessages(const [
+          PickedChatImage(path: '/tmp/photo-1.jpg', fileName: 'photo-1.jpg'),
+          PickedChatImage(path: '/tmp/photo-2.jpg', fileName: 'photo-2.jpg'),
+          PickedChatImage(path: '/tmp/photo-3.jpg', fileName: 'photo-3.jpg'),
+        ], text: '사진 모아 보내요');
+    final updated = container.read(provider).requireValue;
+
+    expect(sent, isTrue);
+    expect(mediaRepository.uploadedPaths, [
+      '/tmp/photo-1.jpg',
+      '/tmp/photo-2.jpg',
+      '/tmp/photo-3.jpg',
+    ]);
+    expect(repository.sentMessages, ['사진 모아 보내요']);
+    expect(repository.sentAttachments.single, hasLength(3));
+    expect(updated.messages.single.attachments, hasLength(3));
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+  });
+
   test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
     final repository = _FakeGroupRepository(
       initialMessages: const [
@@ -1885,6 +1987,52 @@ void main() {
       'message-2',
     ]);
     expect(repository.markedReadMessages, contains('message-2'));
+  });
+
+  test('채팅 ViewModel은 REST catch-up으로 SSE 누락 메시지를 병합한다', () async {
+    final latestMessages = <GroupMessage>[
+      const GroupMessage(
+        id: 'message-1',
+        cursor: '2026-06-09T05:00:00Z',
+        sender: '민서',
+        message: '처음 받은 메시지',
+        timeLabel: '14:00',
+        isMine: false,
+      ),
+    ];
+    final repository = _FakeGroupRepository(initialMessages: latestMessages);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+    latestMessages.add(
+      const GroupMessage(
+        id: 'message-2',
+        cursor: '2026-06-09T05:01:00Z',
+        sender: '지우',
+        message: 'SSE가 놓친 최신 메시지',
+        timeLabel: '14:01',
+        isMine: false,
+      ),
+    );
+
+    await container.read(provider.notifier).refreshLatestMessages();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.map((message) => message.id), [
+      'message-1',
+      'message-2',
+    ]);
+    expect(repository.markedReadMessages.last, 'message-2');
   });
 
   test(
@@ -3104,6 +3252,50 @@ class _UnusedPlanRepository implements PlanRepository {
   }
 }
 
+class _SettlementParticipantPlanRepository extends _UnusedPlanRepository {
+  @override
+  Future<List<PlanParticipantArrival>> fetchPlanParticipants({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    return const [
+      PlanParticipantArrival(
+        id: 'pp-1',
+        userId: 'db-me',
+        nickname: '나',
+        participantStatus: 'joined',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+        profileImageUrl: 'https://cdn.example.com/me.png',
+      ),
+      PlanParticipantArrival(
+        id: 'pp-2',
+        userId: 'db-a',
+        nickname: '아라',
+        participantStatus: 'accepted',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+      PlanParticipantArrival(
+        id: 'pp-3',
+        userId: 'db-left',
+        nickname: '나간 멤버',
+        participantStatus: 'left',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: false,
+      ),
+      PlanParticipantArrival(
+        id: 'pp-4',
+        userId: 'db-fallback',
+        nickname: 'fallback',
+        participantStatus: 'joined',
+        arrivalStatus: PlanArrivalStatus.none,
+        isFallback: true,
+      ),
+    ];
+  }
+}
+
 class _RecordingPlanCreateRepository extends _UnusedPlanRepository {
   final createdInputs = <PlanCreateInput>[];
 
@@ -3572,7 +3764,8 @@ class _FailingDraftFetchSettlementRepository extends _ChatSettlementRepository {
   }
 }
 
-class _FailingDraftUpdateSettlementRepository extends _ChatSettlementRepository {
+class _FailingDraftUpdateSettlementRepository
+    extends _ChatSettlementRepository {
   static const _draftSummary = SettlementSummary(
     id: 'draft-301',
     status: 'draft',
@@ -3602,6 +3795,60 @@ class _FailingDraftUpdateSettlementRepository extends _ChatSettlementRepository 
     String? memo,
   }) async {
     throw StateError('draft save failed');
+  }
+}
+
+class _RecordingDraftSectionSettlementRepository
+    extends _ChatSettlementRepository {
+  List<SettlementDraftSectionInput> savedSections = const [];
+
+  static const _draftSummary = SettlementSummary(
+    id: 'draft',
+    status: 'draft',
+    planTitle: '테스트 약속',
+    totalAmountLabel: '0원',
+    createdDateLabel: '미리보기',
+    itemCountLabel: '결제 항목 0개',
+    finalSummaryLabel: '정산 없음',
+    mySummaryLabel: '정산 없음',
+    paymentItems: [],
+    sections: [
+      SettlementSection(
+        id: 'section-a',
+        title: 'A장소',
+        payerUserId: 'user-me',
+        payerName: '나',
+        items: [],
+      ),
+      SettlementSection(
+        id: 'section-b',
+        title: 'B장소',
+        payerUserId: 'user-me',
+        payerName: '나',
+        items: [],
+      ),
+    ],
+    memberResults: [],
+    transfers: [],
+    shareMessage: '',
+    preview: true,
+  );
+
+  @override
+  Future<SettlementSummary> fetchSettlementDraft({
+    required Object groupId,
+    required Object planId,
+  }) async => _draftSummary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
+  }) async {
+    savedSections = sections;
+    return _draftSummary;
   }
 }
 

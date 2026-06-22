@@ -4,12 +4,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
-import '../../../core/api/onmu_media_url.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/preference_profile.dart';
 import '../../../shared/models/vote_models.dart';
 import '../../../shared/utils/character_draft_json.dart';
 import '../../../shared/utils/onmu_display_name.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
   return ApiGroupRepository(ref.watch(onmuApiClientProvider));
@@ -532,13 +532,14 @@ class ApiGroupRepository implements GroupRepository {
   GroupMessage _groupMessage(Map<String, dynamic> json) {
     final createdAt = OnmuJson.readString(json, 'createdAt');
     final localTimeLabel = _messageTimeLabel(createdAt);
+    final sender = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'senderName'),
+      OnmuJson.readString(json, 'sender'),
+    ], fallback: 'ONMU');
     return GroupMessage(
       id: OnmuJson.readString(json, 'id'),
       cursor: OnmuJson.readString(json, 'cursor'),
-      sender: resolveOnmuDisplayName([
-        OnmuJson.readString(json, 'senderName'),
-        OnmuJson.readString(json, 'sender'),
-      ], fallback: 'ONMU'),
+      sender: sender,
       message: _messageText(json),
       timeLabel: localTimeLabel.isEmpty
           ? OnmuJson.readString(json, 'timeLabel')
@@ -556,6 +557,10 @@ class ApiGroupRepository implements GroupRepository {
       settlementId: OnmuJson.readString(json, 'settlementId'),
       isMine: OnmuJson.readBool(json, 'isMine'),
       senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
+      senderCharacter: characterDraftFromJson(
+        json['senderPixelCharacter'] ?? json['pixelCharacter'],
+        nickname: sender,
+      ),
       attachments: _messageAttachments(json['attachments']),
       sendStatus: GroupMessageSendStatus.fromApi(
         OnmuJson.readString(json, 'sendStatus', 'sent'),
@@ -719,20 +724,11 @@ class ApiGroupRepository implements GroupRepository {
     Map<String, dynamic> json, [
     String primaryKey = 'profileImageUrl',
   ]) {
-    final url = OnmuJson.readString(
+    return resolveOnmuProfileImageUrl(
       json,
-      primaryKey,
-      OnmuJson.readString(
-        json,
-        'profileImageUrl',
-        OnmuJson.readString(
-          json,
-          'profilePhotoUrl',
-          OnmuJson.readString(json, 'avatarUrl'),
-        ),
-      ),
+      primaryKey: primaryKey,
+      baseUrl: _client.baseUrl,
     );
-    return resolveOnmuMediaUrl(url, baseUrl: _client.baseUrl);
   }
 
   String _memoryDateLabel(String value) {

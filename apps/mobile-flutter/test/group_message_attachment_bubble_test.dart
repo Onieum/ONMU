@@ -31,6 +31,64 @@ void main() {
     expect(find.text('방금'), findsOneWidget);
   });
 
+  testWidgets('내 채팅 말풍선은 sender 이름 라벨을 숨긴다', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ChatMessageBubble(
+            message: GroupMessage(
+              sender: '나',
+              message: '사진 좋아요',
+              timeLabel: '방금',
+              isMine: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('나'), findsNothing);
+    expect(find.text('사진 좋아요'), findsOneWidget);
+    expect(find.text('방금'), findsOneWidget);
+  });
+
+  testWidgets('여러 첨부 이미지는 하나의 그리드 말풍선으로 렌더링한다', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ChatMessageBubble(
+            message: GroupMessage(
+              sender: '나',
+              message: '',
+              timeLabel: '방금',
+              isMine: true,
+              attachments: [
+                GroupMessageAttachment(
+                  type: 'image',
+                  publicUrl: '',
+                  storageKey: 'records/media/photo-1.jpg',
+                ),
+                GroupMessageAttachment(
+                  type: 'image',
+                  publicUrl: '',
+                  storageKey: 'records/media/photo-2.jpg',
+                ),
+                GroupMessageAttachment(
+                  type: 'image',
+                  publicUrl: '',
+                  storageKey: 'records/media/photo-3.jpg',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.broken_image_outlined), findsNWidgets(3));
+    expect(find.text('방금'), findsOneWidget);
+  });
+
   testWidgets('채팅 activity card는 서버 card event를 timeline 안에 렌더링한다', (
     tester,
   ) async {

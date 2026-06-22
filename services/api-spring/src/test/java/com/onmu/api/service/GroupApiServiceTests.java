@@ -55,8 +55,10 @@ class GroupApiServiceTests {
       groupMemberRepository,
       new GroupReadModelMapper(
         groupMemberRepository,
-        characterProfileRepository,
-        new com.fasterxml.jackson.databind.ObjectMapper()
+        new UserAvatarReadModelMapper(
+          characterProfileRepository,
+          new com.fasterxml.jackson.databind.ObjectMapper()
+        )
       ),
       outboxService
     );

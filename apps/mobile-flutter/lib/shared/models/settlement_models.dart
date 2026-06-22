@@ -1,3 +1,5 @@
+import 'character_model.dart';
+
 enum SettlementSplitType { equal, custom }
 
 class SettlementSection {
@@ -9,6 +11,7 @@ class SettlementSection {
     this.schedulePlaceId = '',
     this.payerUserId = '',
     this.payerProfileImageUrl = '',
+    this.payerCharacter,
     this.sortOrder = 0,
     this.totalAmountWon = 0,
   });
@@ -19,6 +22,7 @@ class SettlementSection {
   final String payerUserId;
   final String payerName;
   final String payerProfileImageUrl;
+  final CharacterDraft? payerCharacter;
   final int sortOrder;
   final int totalAmountWon;
   final List<SettlementPaymentItem> items;
@@ -30,12 +34,14 @@ class SettlementPayerShare {
     required this.amountLabel,
     this.userId = '',
     this.profileImageUrl = '',
+    this.character,
   });
 
   final String userId;
   final String name;
   final String amountLabel;
   final String profileImageUrl;
+  final CharacterDraft? character;
 }
 
 class SettlementPaymentParticipant {
@@ -45,6 +51,7 @@ class SettlementPaymentParticipant {
     this.userId = '',
     this.included = true,
     this.profileImageUrl = '',
+    this.character,
   });
 
   final String userId;
@@ -52,6 +59,7 @@ class SettlementPaymentParticipant {
   final String owedAmountLabel;
   final bool included;
   final String profileImageUrl;
+  final CharacterDraft? character;
 
   String get selectionKey => userId.isNotEmpty ? userId : name;
 }
@@ -103,6 +111,8 @@ class SettlementTransferSummary {
     this.status = 'pending',
     this.fromProfileImageUrl = '',
     this.toProfileImageUrl = '',
+    this.fromCharacter,
+    this.toCharacter,
   });
 
   final String id;
@@ -115,6 +125,8 @@ class SettlementTransferSummary {
   final String status;
   final String fromProfileImageUrl;
   final String toProfileImageUrl;
+  final CharacterDraft? fromCharacter;
+  final CharacterDraft? toCharacter;
 
   bool get sent => status == 'sent' || status == 'received';
 
@@ -131,6 +143,7 @@ class SettlementMemberResult {
     this.isMe = false,
     this.willReceive = false,
     this.profileImageUrl = '',
+    this.character,
   });
 
   final String userId;
@@ -141,6 +154,7 @@ class SettlementMemberResult {
   final bool isMe;
   final bool willReceive;
   final String profileImageUrl;
+  final CharacterDraft? character;
 }
 
 class SettlementParticipantStatus {
@@ -149,14 +163,20 @@ class SettlementParticipantStatus {
     required this.name,
     this.profileImageUrl = '',
     this.willReceive = false,
+    this.sent = false,
+    this.received = false,
     this.completed = false,
+    this.character,
   });
 
   final String userId;
   final String name;
   final String profileImageUrl;
   final bool willReceive;
+  final bool sent;
+  final bool received;
   final bool completed;
+  final CharacterDraft? character;
 }
 
 class SettlementBasis {

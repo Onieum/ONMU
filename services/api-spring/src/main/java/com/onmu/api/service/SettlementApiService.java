@@ -60,7 +60,6 @@ public class SettlementApiService {
   private static final String STATUS_FINALIZED = "finalized";
   private static final String STATUS_COMPLETED = "completed";
   private static final String EXTRA_SECTION_ID = "extra";
-  private static final List<String> RESULT_STATUSES = List.of(STATUS_FINALIZED, STATUS_COMPLETED);
 
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
@@ -79,6 +78,7 @@ public class SettlementApiService {
   private final GroupMemberRepository groupMemberRepository;
   private final NotificationRepository notificationRepository;
   private final OutboxService outboxService;
+  private final UserAvatarReadModelMapper userAvatarReadModelMapper;
   private final ObjectMapper objectMapper;
 
   public SettlementApiService(
@@ -98,6 +98,7 @@ public class SettlementApiService {
     GroupMemberRepository groupMemberRepository,
     NotificationRepository notificationRepository,
     OutboxService outboxService,
+    UserAvatarReadModelMapper userAvatarReadModelMapper,
     ObjectMapper objectMapper
   ) {
     this.groupRepository = groupRepository;
@@ -116,6 +117,7 @@ public class SettlementApiService {
     this.groupMemberRepository = groupMemberRepository;
     this.notificationRepository = notificationRepository;
     this.outboxService = outboxService;
+    this.userAvatarReadModelMapper = userAvatarReadModelMapper;
     this.objectMapper = objectMapper;
   }
 
@@ -183,9 +185,9 @@ public class SettlementApiService {
     SettlementItemEntity item = settlementItemRepository.findBySettlementDraftAndPublicId(draft, itemId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_item_not_found"));
     List<UserEntity> participants = activeParticipants(access.plan());
-    List<UserEntity> targets = usersByPublicIds(
+    List<UserEntity> targets = usersByUserIds(
       request == null || request.targetUserIds() == null || request.targetUserIds().isEmpty()
-        ? participants.stream().map(UserEntity::getPublicId).toList()
+        ? participants.stream().map(user -> user.getId().toString()).toList()
         : request.targetUserIds(),
       participants
     );
@@ -273,7 +275,7 @@ public class SettlementApiService {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
     return settlementDraftRepository.findActiveByPlan(access.plan())
       .map(draft -> settlementDraftCard(draft, true, access.user()))
-      .or(() -> settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(access.plan(), RESULT_STATUSES)
+      .or(() -> settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(access.plan(), List.of(STATUS_FINALIZED))
         .map(settlement -> settlementCard(settlement, false, access.user())))
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_not_found"));
   }
@@ -330,6 +332,7 @@ public class SettlementApiService {
     target.transfer().markReceived();
     if (allReceiversConfirmed(target.settlement())) {
       target.settlement().markCompleted();
+      createSettlementCompletedActivity(access.group(), access.plan(), target.settlement(), access.user());
       outboxService.record("settlement.completed", "settlement", target.settlement().getId(), settlementEventPayload(access.group(), access.plan(), target.settlement()));
     }
     return settlementCard(target.settlement(), false, access.user());
@@ -351,6 +354,7 @@ public class SettlementApiService {
   }
 
   private void replaceDraftSections(SettlementDraftEntity draft, List<SectionInput> sections) {
+    boolean deletedRows = false;
     List<SettlementSectionEntity> previousSections = settlementSectionRepository.findBySettlementDraftOrderBySortOrderAsc(draft);
     if (!previousSections.isEmpty()) {
       List<SettlementItemEntity> previousItems = previousSections.stream()
@@ -362,11 +366,16 @@ public class SettlementApiService {
         settlementItemRepository.deleteBySectionIn(previousSections);
       }
       settlementSectionRepository.deleteBySettlementDraft(draft);
+      deletedRows = true;
     }
     List<SettlementItemEntity> unsectionedItems = settlementItemRepository.findBySettlementDraft(draft);
     if (!unsectionedItems.isEmpty()) {
       settlementItemTargetRepository.deleteBySettlementItemIn(unsectionedItems);
       settlementItemRepository.deleteBySettlementDraft(draft);
+      deletedRows = true;
+    }
+    if (deletedRows) {
+      settlementSectionRepository.flush();
     }
 
     for (SectionInput section : sections) {
@@ -474,6 +483,31 @@ public class SettlementApiService {
     }
   }
 
+  private void createSettlementCompletedActivity(
+    GroupEntity group,
+    PlanEntity plan,
+    SettlementEntity settlement,
+    UserEntity actor
+  ) {
+    Map<String, Object> activityPayload = new LinkedHashMap<>();
+    activityPayload.put("senderName", "ONMU");
+    activityPayload.put("message", plan.getTitle() + " 정산이 완료됐어요.");
+    activityPayload.put("messageType", "system");
+    activityPayload.put("cardType", "system");
+    activityPayload.put("planId", plan.getPublicId());
+    activityPayload.put("settlementId", settlement.getPublicId());
+    activityPayload.put("settlementStatus", settlement.getStatus());
+    activityPayload.put("source", "spring_api");
+    chatActivityEventRepository.save(new ChatActivityEventEntity(
+      group,
+      plan,
+      actor,
+      "settlement.completed",
+      toJson(activityPayload),
+      Instant.now()
+    ));
+  }
+
   private Map<String, Object> settlementDraftCard(SettlementDraftEntity draft, boolean persisted, UserEntity currentUser) {
     List<SectionView> sections = sectionViewsForDraft(draft);
     List<ItemView> items = itemViews(sections);
@@ -556,9 +590,10 @@ public class SettlementApiService {
     value.put("id", section.publicId());
     value.put("schedulePlaceId", section.schedulePlace() == null ? null : section.schedulePlace().getPublicId());
     value.put("title", section.title());
-    value.put("payerUserId", section.payer() == null ? null : section.payer().getPublicId());
+    value.put("payerUserId", userId(section.payer()));
     value.put("payerName", nickname(section.payer()));
     value.put("payerProfileImageUrl", profileImageUrl(section.payer()));
+    value.put("payerPixelCharacter", userAvatarReadModelMapper.pixelCharacter(section.payer()));
     value.put("sortOrder", section.sortOrder());
     value.put("items", section.items().stream().map(this::draftItemCard).toList());
     value.put("totalAmountWon", section.items().stream().map(ItemView::amountWon).reduce(0L, Long::sum));
@@ -573,26 +608,28 @@ public class SettlementApiService {
     value.put("amountWon", item.amountWon());
     value.put("amountLabel", amountLabel(item.amountWon()));
     value.put("splitType", item.splitType());
-    value.put("targetUserIds", item.targets().stream().map(target -> target.user().getPublicId()).toList());
-    value.put("participants", item.targets().stream().map(target -> Map.of(
-      "name", target.name(),
-      "userId", target.user().getPublicId(),
-      "profileImageUrl", profileImageUrl(target.user()),
-      "amountWon", target.amountWon(),
-      "owedAmountLabel", amountLabel(target.amountWon()),
-      "included", true
-    )).toList());
+    value.put("targetUserIds", item.targets().stream().map(target -> target.user().getId().toString()).toList());
+    value.put("participants", item.targets().stream().map(target -> {
+      Map<String, Object> participant = new LinkedHashMap<>();
+      participant.put("name", target.name());
+      participant.put("userId", target.user().getId().toString());
+      userAvatarReadModelMapper.putAvatar(participant, target.user());
+      participant.put("amountWon", target.amountWon());
+      participant.put("owedAmountLabel", amountLabel(target.amountWon()));
+      participant.put("included", true);
+      return participant;
+    }).toList());
     return value;
   }
 
   private Map<String, Object> paymentItemCard(ItemView item) {
     Map<String, Object> value = draftItemCard(item);
-    value.put("payerShares", List.of(Map.of(
-      "userId", item.payer().getPublicId(),
-      "name", nickname(item.payer()),
-      "profileImageUrl", profileImageUrl(item.payer()),
-      "amountLabel", amountLabel(item.amountWon())
-    )));
+    Map<String, Object> payerShare = new LinkedHashMap<>();
+    payerShare.put("userId", userId(item.payer()));
+    payerShare.put("name", nickname(item.payer()));
+    userAvatarReadModelMapper.putAvatar(payerShare, item.payer());
+    payerShare.put("amountLabel", amountLabel(item.amountWon()));
+    value.put("payerShares", List.of(payerShare));
     value.put("targetLabel", item.targets().size() + "명");
     return value;
   }
@@ -600,9 +637,9 @@ public class SettlementApiService {
   private Map<String, Object> memberResultCard(MemberBalance balance, String currentUserKey) {
     long net = balance.netWon();
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("userId", balance.user().getPublicId());
+    value.put("userId", userId(balance.user()));
     value.put("name", nickname(balance.user()));
-    value.put("profileImageUrl", profileImageUrl(balance.user()));
+    userAvatarReadModelMapper.putAvatar(value, balance.user());
     value.put("finalShareLabel", amountLabel(balance.owedWon()));
     value.put("paidAmountLabel", amountLabel(balance.paidWon()));
     value.put("resultLabel", resultLabel(net));
@@ -613,15 +650,23 @@ public class SettlementApiService {
 
   private Map<String, Object> participantStatusCard(MemberBalance balance, List<TransferView> transfers) {
     UserEntity user = balance.user();
-    boolean receiver = transfers.stream().anyMatch(transfer -> sameUser(transfer.toUser(), user));
-    boolean completed = transfers.stream()
-      .filter(transfer -> sameUser(transfer.fromUser(), user) || sameUser(transfer.toUser(), user))
-      .allMatch(transfer -> "received".equals(transfer.status()));
+    List<TransferView> outgoing = transfers.stream()
+      .filter(transfer -> sameUser(transfer.fromUser(), user))
+      .toList();
+    List<TransferView> incoming = transfers.stream()
+      .filter(transfer -> sameUser(transfer.toUser(), user))
+      .toList();
+    boolean receiver = !incoming.isEmpty();
+    boolean sent = !outgoing.isEmpty() && outgoing.stream().allMatch(TransferView::sentConfirmed);
+    boolean received = receiver && incoming.stream().allMatch(transfer -> transfer.receivedConfirmed() || "received".equals(transfer.status()));
+    boolean completed = receiver ? received : sent;
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("userId", user.getPublicId());
+    value.put("userId", userId(user));
     value.put("name", nickname(user));
-    value.put("profileImageUrl", profileImageUrl(user));
+    userAvatarReadModelMapper.putAvatar(value, user);
     value.put("willReceive", receiver);
+    value.put("sent", sent);
+    value.put("received", received);
     value.put("completed", completed);
     return value;
   }
@@ -629,12 +674,12 @@ public class SettlementApiService {
   private Map<String, Object> transferCard(TransferView transfer) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", transfer.publicId());
-    value.put("fromUserId", transfer.fromUser().getPublicId());
+    value.put("fromUserId", userId(transfer.fromUser()));
     value.put("fromName", transfer.fromName());
-    value.put("fromProfileImageUrl", profileImageUrl(transfer.fromUser()));
-    value.put("toUserId", transfer.toUser().getPublicId());
+    userAvatarReadModelMapper.putPrefixedAvatar(value, "from", transfer.fromUser());
+    value.put("toUserId", userId(transfer.toUser()));
     value.put("toName", transfer.toName());
-    value.put("toProfileImageUrl", profileImageUrl(transfer.toUser()));
+    userAvatarReadModelMapper.putPrefixedAvatar(value, "to", transfer.toUser());
     value.put("amountWon", transfer.amountWon());
     value.put("amountLabel", amountLabel(transfer.amountWon()));
     value.put("status", transfer.status());
@@ -649,8 +694,9 @@ public class SettlementApiService {
 
   private Map<String, Object> basisParticipantCard(MemberBalance balance) {
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("userId", balance.user().getPublicId());
+    value.put("userId", userId(balance.user()));
     value.put("name", nickname(balance.user()));
+    userAvatarReadModelMapper.putAvatar(value, balance.user());
     value.put("paidTotalLabel", amountLabel(balance.paidWon()));
     value.put("owedTotalLabel", amountLabel(balance.owedWon()));
     value.put("netLabel", resultLabel(balance.netWon()));
@@ -682,7 +728,7 @@ public class SettlementApiService {
     if (requests == null || requests.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_sections");
     }
-    Map<String, UserEntity> participantsByPublicId = participantsByPublicId(participants);
+    Map<String, UserEntity> participantsByUserId = participantsByUserId(participants);
     int order = 0;
     List<SectionInput> sections = new ArrayList<>();
     for (SettlementDraftSectionRequest request : requests) {
@@ -690,7 +736,7 @@ public class SettlementApiService {
       String sectionId = stringOrDefault(request.id(), schedulePlace == null ? EXTRA_SECTION_ID : schedulePlace.getPublicId());
       String title = stringOrDefault(request.title(), schedulePlace == null ? "기타 비용" : schedulePlace.getName());
       List<SettlementDraftItemRequest> rawItems = request.items() == null ? List.of() : request.items();
-      UserEntity payer = userFromParticipant(request.payerUserId(), participantsByPublicId);
+      UserEntity payer = userFromParticipant(request.payerUserId(), participantsByUserId);
       if (!rawItems.isEmpty() && payer == null) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "settlement_participant_not_found");
       }
@@ -716,7 +762,7 @@ public class SettlementApiService {
     String splitType = normalizeSplitType(request.splitType());
     List<UserEntity> targets = "equal".equals(splitType) || request.targetUserIds() == null || request.targetUserIds().isEmpty()
       ? participants
-      : usersByPublicIds(request.targetUserIds(), participants);
+      : usersByUserIds(request.targetUserIds(), participants);
     List<Long> targetAmounts = splitAmount(amount, targets);
     List<TargetShare> targetShares = new ArrayList<>();
     for (int index = 0; index < targets.size(); index++) {
@@ -801,6 +847,8 @@ public class SettlementApiService {
     if (!(rawSections instanceof List<?> sectionItems)) {
       return List.of();
     }
+    List<UserEntity> participants = activeParticipants(plan);
+    Map<String, UserEntity> participantsByUserId = participantsByUserId(participants);
     List<SectionView> sections = new ArrayList<>();
     int order = 0;
     for (Object rawSection : sectionItems) {
@@ -809,15 +857,17 @@ public class SettlementApiService {
       }
       String sectionId = firstString(sectionMap, "id", "sectionId");
       SchedulePlaceEntity place = schedulePlace(firstString(sectionMap, "schedulePlaceId"), plan);
-      UserEntity payer = nullableUserByPublicId(firstString(sectionMap, "payerUserId"));
+      UserEntity payer = nullableParticipant(firstString(sectionMap, "payerUserId"), participantsByUserId);
       List<ItemView> items = new ArrayList<>();
       Object rawItems = sectionMap.get("items");
       if (rawItems instanceof List<?> itemItems) {
         for (Object rawItem : itemItems) {
           if (rawItem instanceof Map<?, ?> itemMap) {
-            UserEntity itemPayer = payer == null ? nullableUserByPublicId(firstString(itemMap, "payerUserId")) : payer;
+            UserEntity itemPayer = payer == null
+              ? nullableParticipant(firstString(itemMap, "payerUserId"), participantsByUserId)
+              : payer;
             long amount = longValue(itemMap.get("amountWon"), 0);
-            List<UserEntity> targets = usersByPublicIds(stringList(itemMap.get("targetUserIds")), activeParticipants(plan));
+            List<UserEntity> targets = usersByUserIds(stringList(itemMap.get("targetUserIds")), participants);
             List<Long> amounts = splitAmount(amount, targets);
             List<TargetShare> targetShares = new ArrayList<>();
             for (int index = 0; index < targets.size(); index++) {
@@ -858,7 +908,9 @@ public class SettlementApiService {
         transfer.getFromUser(),
         transfer.getToUser(),
         transfer.getAmountWon(),
-        transfer.getStatus()
+        transfer.getStatus(),
+        settlementConfirmationRepository.existsBySettlementTransferAndConfirmationType(transfer, "sent"),
+        settlementConfirmationRepository.existsBySettlementTransferAndConfirmationType(transfer, "received")
       ))
       .toList();
     return persisted.isEmpty() ? calculateTransfers(itemViews) : persisted;
@@ -890,7 +942,9 @@ public class SettlementApiService {
             debtor.user(),
             creditor.user(),
             amount,
-            "pending"
+            "pending",
+            false,
+            false
           ));
         }
         debt -= amount;
@@ -1009,39 +1063,39 @@ public class SettlementApiService {
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user_not_found"));
   }
 
-  private UserEntity userFromParticipant(String userId, Map<String, UserEntity> participantsByPublicId) {
+  private UserEntity userFromParticipant(String userId, Map<String, UserEntity> participantsByUserId) {
     if (userId == null || userId.isBlank()) {
       return null;
     }
-    UserEntity user = participantsByPublicId.get(userId.trim());
+    UserEntity user = participantsByUserId.get(userId.trim());
     if (user == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "settlement_participant_not_found");
     }
     return user;
   }
 
-  private UserEntity nullableUserByPublicId(String userId) {
+  private UserEntity nullableParticipant(String userId, Map<String, UserEntity> participantsByUserId) {
     if (userId == null || userId.isBlank()) {
       return null;
     }
-    return userRepository.findByPublicIdAndDeletedAtIsNull(userId).orElse(null);
+    return participantsByUserId.get(userId.trim());
   }
 
-  private List<UserEntity> usersByPublicIds(List<String> userIds, List<UserEntity> participants) {
+  private List<UserEntity> usersByUserIds(List<String> userIds, List<UserEntity> participants) {
     if (userIds == null || userIds.isEmpty()) {
       return participants;
     }
-    Map<String, UserEntity> participantsByPublicId = participantsByPublicId(participants);
+    Map<String, UserEntity> participantsByUserId = participantsByUserId(participants);
     return userIds.stream()
-      .map(userId -> userFromParticipant(userId, participantsByPublicId))
+      .map(userId -> userFromParticipant(userId, participantsByUserId))
       .distinct()
       .sorted(Comparator.comparing(UserEntity::getPublicId))
       .toList();
   }
 
-  private Map<String, UserEntity> participantsByPublicId(List<UserEntity> participants) {
+  private Map<String, UserEntity> participantsByUserId(List<UserEntity> participants) {
     return participants.stream().collect(Collectors.toMap(
-      UserEntity::getPublicId,
+      user -> user.getId().toString(),
       user -> user,
       (first, ignored) -> first,
       LinkedHashMap::new
@@ -1122,7 +1176,11 @@ public class SettlementApiService {
   }
 
   private String profileImageUrl(UserEntity user) {
-    return user == null ? "" : stringOrDefault(user.getProfileImageUrl(), "");
+    return userAvatarReadModelMapper.profileImageUrl(user);
+  }
+
+  private String userId(UserEntity user) {
+    return user == null || user.getId() == null ? "" : user.getId().toString();
   }
 
   private String nickname(UserEntity user) {
@@ -1268,7 +1326,9 @@ public class SettlementApiService {
     UserEntity fromUser,
     UserEntity toUser,
     long amountWon,
-    String status
+    String status,
+    boolean sentConfirmed,
+    boolean receivedConfirmed
   ) {
     private String fromName() {
       return fromUser == null ? "사용자" : fromUser.getNickname();

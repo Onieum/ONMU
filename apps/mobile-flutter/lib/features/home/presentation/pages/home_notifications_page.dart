@@ -94,7 +94,8 @@ class _NotificationContent extends StatelessWidget {
   final List<NotificationItem> items;
   final VoidCallback onMarkAllRead;
   final ValueChanged<NotificationItem> onTapItem;
-  final void Function(NotificationItem item, bool accept) onRespondFriendRequest;
+  final void Function(NotificationItem item, bool accept)
+  onRespondFriendRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +254,8 @@ class _NotificationList extends StatelessWidget {
 
   final List<NotificationItem> items;
   final ValueChanged<NotificationItem> onTapItem;
-  final void Function(NotificationItem item, bool accept) onRespondFriendRequest;
+  final void Function(NotificationItem item, bool accept)
+  onRespondFriendRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -412,6 +414,7 @@ class _NotificationIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = switch (type) {
+      'chat_message' => Icons.chat_bubble_outline_rounded,
       'settlement_created' ||
       'settlement_requested' => Icons.receipt_long_rounded,
       'vote_created' || 'vote_closed' => Icons.how_to_vote_rounded,

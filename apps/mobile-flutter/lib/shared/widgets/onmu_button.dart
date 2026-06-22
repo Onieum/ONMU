@@ -65,7 +65,7 @@ class OnmuSecondaryButton extends StatelessWidget {
       foregroundColor: AppColors.textMain,
       backgroundColor: AppColors.bgDefault,
       side: const BorderSide(color: AppColors.lineBrown),
-      minimumSize: const Size(0, 48),
+      minimumSize: const Size(0, 52),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),

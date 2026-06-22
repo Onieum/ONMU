@@ -52,14 +52,17 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
       "id": "section-extra",
       "schedulePlaceId": "place-101",
       "title": "퍼스트커피랩행궁",
-      "payerUserId": "user-jimin",
+      "payerUserId": "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
       "items": [
         {
           "id": "item-401",
           "title": "커피",
           "amountWon": 12000,
           "splitType": "menu",
-          "targetUserIds": ["user-jimin", "user-minsu"]
+          "targetUserIds": [
+            "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
+            "7f3b1b60-2cf7-4dd3-a4d4-b56c6f4f2a7c"
+          ]
         }
       ]
     }
@@ -71,7 +74,8 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 요청 규칙:
 
 - 금액 필드는 `amountWon`만 사용한다.
-- 사용자 식별자는 DB UUID가 아니라 API public user id를 사용한다.
+- `payerUserId`, `targetUserIds`는 사용자 DB UUID를 사용한다.
+- `publicId`/친구 코드는 외부 공유와 검색용 식별자이며 정산 입력 식별자로 사용하지 않는다.
 - 이름 필드로 결제자나 대상자를 resolve하지 않는다.
 - `splitType`은 `equal`, `menu`만 허용한다.
 - `targetUserIds`가 비어 있으면 약속 활성 참여자 전체를 대상으로 본다.

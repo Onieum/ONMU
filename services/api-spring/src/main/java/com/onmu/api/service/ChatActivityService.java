@@ -54,6 +54,7 @@ public class ChatActivityService {
   private final NotificationRepository notificationRepository;
   private final NotificationPreferenceService notificationPreferenceService;
   private final UserRepository userRepository;
+  private final UserAvatarReadModelMapper userAvatarReadModelMapper;
   private final ObjectMapper objectMapper;
   private final ChatRealtimePublisher chatRealtimePublisher;
   private final OutboxService outboxService;
@@ -66,6 +67,7 @@ public class ChatActivityService {
     NotificationRepository notificationRepository,
     NotificationPreferenceService notificationPreferenceService,
     UserRepository userRepository,
+    UserAvatarReadModelMapper userAvatarReadModelMapper,
     ObjectMapper objectMapper,
     ChatRealtimePublisher chatRealtimePublisher,
     OutboxService outboxService
@@ -77,6 +79,7 @@ public class ChatActivityService {
     this.notificationRepository = notificationRepository;
     this.notificationPreferenceService = notificationPreferenceService;
     this.userRepository = userRepository;
+    this.userAvatarReadModelMapper = userAvatarReadModelMapper;
     this.objectMapper = objectMapper;
     this.chatRealtimePublisher = chatRealtimePublisher;
     this.outboxService = outboxService;
@@ -185,12 +188,14 @@ public class ChatActivityService {
     Instant createdAt = Instant.now();
     String senderName = nickname(actorUser);
     String body = messagePreview(message, attachmentCount);
-    String payload = toJson(Map.of(
-      "groupId", group.getPublicId(),
-      "messageId", event.getId().toString(),
-      "senderUserId", actorUser.getPublicId(),
-      "chatActivityEventId", event.getId().toString()
-    ));
+    Map<String, Object> notificationPayload = new LinkedHashMap<>();
+    notificationPayload.put("groupId", group.getPublicId());
+    notificationPayload.put("messageId", event.getId().toString());
+    notificationPayload.put("chatActivityEventId", event.getId().toString());
+    notificationPayload.put("senderUserId", actorUser.getPublicId());
+    notificationPayload.put("attachmentCount", attachmentCount);
+    notificationPayload.put("hasText", message != null && !message.isBlank());
+    String payload = toJson(notificationPayload);
     for (UserEntity recipient : recipients.values()) {
       if (!notificationPreferenceService.isEnabled(recipient.getId(), "chat_message", "in_app")) {
         continue;
@@ -209,6 +214,9 @@ public class ChatActivityService {
       ));
       outboxService.record("notification.requested", "notification", notification.getId(), Map.of(
         "groupId", group.getPublicId(),
+        "messageId", event.getId().toString(),
+        "chatActivityEventId", event.getId().toString(),
+        "attachmentCount", attachmentCount,
         "notificationId", notification.getId().toString(),
         "notificationType", notification.getNotificationType(),
         "channels", List.of("push")
@@ -222,6 +230,9 @@ public class ChatActivityService {
 
   private String messagePreview(String message, int attachmentCount) {
     if (message == null || message.isBlank()) {
+      if (attachmentCount > 1) {
+        return "사진 " + attachmentCount + "장을 보냈어요.";
+      }
       return attachmentCount > 0 ? "사진을 보냈어요." : "메시지를 확인해 주세요.";
     }
     String normalized = message.replaceAll("\\R+", " ").replaceAll("[\\t ]+", " ").trim();
@@ -242,6 +253,11 @@ public class ChatActivityService {
       .orElseGet(() -> new ChatReadStateEntity(group, user, lastReadEvent, now));
     readState.markRead(lastReadEvent, now);
     ChatReadStateEntity saved = chatReadStateRepository.save(readState);
+    notificationRepository.markUnreadChatMessagesReadByUserIdAndGroup(
+      currentUserId,
+      group,
+      now
+    );
 
     Map<String, Object> response = new LinkedHashMap<>();
     response.put("lastReadMessageId", saved.getLastReadEvent() == null ? null : saved.getLastReadEvent().getId().toString());
@@ -309,6 +325,7 @@ public class ChatActivityService {
     response.put("id", event.getId().toString());
     response.put("senderUserId", actorUser == null ? null : actorUser.getPublicId());
     response.put("senderName", senderName(payload, actorUser, messageType));
+    userAvatarReadModelMapper.putPrefixedAvatar(response, "sender", actorUser);
     response.put("message", message);
     response.put("attachments", attachments);
     response.put("messageType", messageType);
