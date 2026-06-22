@@ -85,7 +85,8 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
                           _OnboardingTaskCard(
                             compact: layout.compact,
                             title: '캐릭터 만들기',
-                            description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
+                            description: '???? ?? ???? ???
+?? ???? ???.',
                             icon: Icons.face_retouching_natural_outlined,
                             state: _TaskState.from(
                               hasCharacter,

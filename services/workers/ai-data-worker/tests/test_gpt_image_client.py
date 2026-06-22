@@ -25,24 +25,24 @@ def test_build_gpt_image_avatar_prompt_keeps_identity_and_uses_outfit_descriptor
         }
     )
 
-    assert "Change only the outfit" in prompt
+    assert "visible OOTD photo analysis" in prompt
     assert "cream" in prompt
     assert "black" in prompt
     assert "burgundy shoulder bag" in prompt
-    assert "Keep the same face" in prompt
-    assert "Do not redesign the character" in prompt
+    assert "Keep the same face, hair, skin tone, body, pose, and pixel-art style" in prompt
+    assert "Edit the visible outfit, shoes, and wearable accessories only" in prompt
 
 
 def test_build_gpt_image_diary_card_prompt_contains_diary_sections():
     prompt = build_gpt_image_diary_card_prompt(
         {
-            "todaysLook": "베이지와 블랙 조합이 단정한 룩이에요.",
-            "hairNote": "웨이브를 살짝 넣었어요.",
-            "weatherText": "20°C / 맑음",
-            "moodText": "신나요!",
-            "pointText": "가방으로 포인트 주기!",
-            "tags": ["#ootd", "#데이트룩"],
-            "outfitInfo": {"top": "아이보리 니트", "bottom": "블랙 스커트"},
+            "todaysLook": "Beige and black daily outfit.",
+            "hairNote": "Soft waves for today's mood.",
+            "weatherText": "20C / clear",
+            "moodText": "excited",
+            "pointText": "Use the bag as the outfit point.",
+            "tags": ["#ootd", "#dailylook"],
+            "outfitInfo": {"top": "ivory knit", "bottom": "black skirt"},
         }
     )
 
@@ -52,11 +52,11 @@ def test_build_gpt_image_diary_card_prompt_contains_diary_sections():
     assert "Mood" in prompt
     assert "Outfit Info" in prompt
     assert "Today's Tag" in prompt
-    assert "베이지와 블랙" in prompt
-    assert "#데이트룩" in prompt
+    assert "Beige and black" in prompt
+    assert "#dailylook" in prompt
 
 
-def test_gpt_image_client_posts_image_edit_request_with_foundry_bearer_contract():
+def test_gpt_image_client_posts_edit_request_with_foundry_bearer_contract():
     seen: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -64,8 +64,7 @@ def test_gpt_image_client_posts_image_edit_request_with_foundry_bearer_contract(
         seen["authorization"] = request.headers.get("authorization")
         seen["api_key"] = request.headers.get("api-key")
         seen["content_type"] = request.headers.get("content-type")
-        body = await request.aread()
-        seen["body"] = body.decode("utf-8", errors="ignore")
+        seen["body"] = await request.aread()
         return httpx.Response(
             200,
             json={"data": [{"b64_json": base64.b64encode(b"fake-png").decode("ascii")}]},
@@ -100,10 +99,11 @@ def test_gpt_image_client_posts_image_edit_request_with_foundry_bearer_contract(
     assert seen["authorization"] == "Bearer secret-key"
     assert seen["api_key"] is None
     assert str(seen["content_type"]).startswith("multipart/form-data")
-    assert 'name="image[]"' in str(seen["body"])
-    assert 'name="model"' in str(seen["body"])
-    assert "gpt-image-2" in str(seen["body"])
-    assert "ivory knit top and black skirt" in str(seen["body"])
+    assert b'name="image"' in seen["body"]
+    assert b'name="mask"' in seen["body"]
+    assert b'name="prompt"' in seen["body"]
+    assert b'name="size"' in seen["body"]
+    assert b'ivory knit top and black skirt' in seen["body"]
 
 
 def test_gpt_image_client_retries_with_api_key_header_after_foundry_404():
