@@ -115,15 +115,15 @@ class GptImageOotdClient:
             response = await client.post(
                 url,
                 params=params,
-                headers={"api-key": self._config.api_key},
+                headers={"Authorization": f"Bearer {self._config.api_key}"},
                 data=data,
                 files=files,
             )
-            if response.status_code in {401, 403}:
+            if response.status_code in {401, 403, 404}:
                 response = await client.post(
                     url,
                     params=params,
-                    headers={"Authorization": f"Bearer {self._config.api_key}"},
+                    headers={"api-key": self._config.api_key},
                     data=data,
                     files=files,
                 )
