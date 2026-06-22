@@ -253,6 +253,11 @@ public class ChatActivityService {
       .orElseGet(() -> new ChatReadStateEntity(group, user, lastReadEvent, now));
     readState.markRead(lastReadEvent, now);
     ChatReadStateEntity saved = chatReadStateRepository.save(readState);
+    notificationRepository.markUnreadChatMessagesReadByUserIdAndGroup(
+      currentUserId,
+      group,
+      now
+    );
 
     Map<String, Object> response = new LinkedHashMap<>();
     response.put("lastReadMessageId", saved.getLastReadEvent() == null ? null : saved.getLastReadEvent().getId().toString());

@@ -1989,6 +1989,52 @@ void main() {
     expect(repository.markedReadMessages, contains('message-2'));
   });
 
+  test('채팅 ViewModel은 REST catch-up으로 SSE 누락 메시지를 병합한다', () async {
+    final latestMessages = <GroupMessage>[
+      const GroupMessage(
+        id: 'message-1',
+        cursor: '2026-06-09T05:00:00Z',
+        sender: '민서',
+        message: '처음 받은 메시지',
+        timeLabel: '14:00',
+        isMine: false,
+      ),
+    ];
+    final repository = _FakeGroupRepository(initialMessages: latestMessages);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+    latestMessages.add(
+      const GroupMessage(
+        id: 'message-2',
+        cursor: '2026-06-09T05:01:00Z',
+        sender: '지우',
+        message: 'SSE가 놓친 최신 메시지',
+        timeLabel: '14:01',
+        isMine: false,
+      ),
+    );
+
+    await container.read(provider.notifier).refreshLatestMessages();
+
+    final updated = container.read(provider).requireValue;
+    expect(updated.messages.map((message) => message.id), [
+      'message-1',
+      'message-2',
+    ]);
+    expect(repository.markedReadMessages.last, 'message-2');
+  });
+
   test(
     '채팅 ViewModel은 첨부-only realtime 수신 시 storageKey가 맞는 pending만 교체한다',
     () async {
