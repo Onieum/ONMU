@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -51,6 +52,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -320,6 +322,69 @@ class SettlementApiServiceTests {
 
     assertThat(result.value("status")).isEqualTo("completed");
     verify(outboxService).record(eq("settlement.completed"), eq("settlement"), any(), any());
+  }
+
+  @Test
+  void updateSettlementDraftFlushesDeletedSectionsBeforeReusingPublicIds() {
+    com.onmu.api.domain.SettlementDraftEntity draft =
+      new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, "{}");
+    SettlementSectionEntity previousSection = new SettlementSectionEntity(
+      draft,
+      null,
+      "section-a",
+      null,
+      "기타 비용",
+      jimin,
+      0
+    );
+    SettlementItemEntity previousItem = new SettlementItemEntity(
+      draft,
+      null,
+      previousSection,
+      "401",
+      "커피",
+      12000,
+      "menu",
+      null
+    );
+
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlanForUpdate(plan)).thenReturn(Optional.of(draft));
+    when(settlementSectionRepository.findBySettlementDraftOrderBySortOrderAsc(draft))
+      .thenReturn(List.of(previousSection))
+      .thenReturn(List.of());
+    when(settlementItemRepository.findBySectionOrderByCreatedAtAsc(previousSection)).thenReturn(List.of(previousItem));
+    when(settlementItemRepository.findBySettlementDraft(draft)).thenReturn(List.of());
+    when(settlementDraftRepository.save(draft)).thenReturn(draft);
+    when(settlementSectionRepository.save(any(SettlementSectionEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.updateSettlementDraft("1", "101", me.getId(), new UpdateSettlementDraftRequest(List.of(
+      new SettlementDraftSectionRequest(
+        "section-a",
+        null,
+        "기타 비용",
+        userId(me),
+        List.of(new SettlementDraftItemRequest(
+          "402",
+          "음료",
+          9000,
+          "menu",
+          List.of(userId(me), userId(jimin))
+        ))
+      )
+    ), null));
+
+    InOrder inOrder = inOrder(settlementItemTargetRepository, settlementItemRepository, settlementSectionRepository);
+    inOrder.verify(settlementItemTargetRepository).deleteBySettlementItemIn(List.of(previousItem));
+    inOrder.verify(settlementItemRepository).deleteBySectionIn(List.of(previousSection));
+    inOrder.verify(settlementSectionRepository).deleteBySettlementDraft(draft);
+    inOrder.verify(settlementSectionRepository).flush();
+    inOrder.verify(settlementSectionRepository).save(argThat(section -> "section-a".equals(section.getPublicId())));
   }
 
   @Test
