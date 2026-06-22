@@ -351,6 +351,7 @@ public class SettlementApiService {
   }
 
   private void replaceDraftSections(SettlementDraftEntity draft, List<SectionInput> sections) {
+    boolean deletedRows = false;
     List<SettlementSectionEntity> previousSections = settlementSectionRepository.findBySettlementDraftOrderBySortOrderAsc(draft);
     if (!previousSections.isEmpty()) {
       List<SettlementItemEntity> previousItems = previousSections.stream()
@@ -362,11 +363,16 @@ public class SettlementApiService {
         settlementItemRepository.deleteBySectionIn(previousSections);
       }
       settlementSectionRepository.deleteBySettlementDraft(draft);
+      deletedRows = true;
     }
     List<SettlementItemEntity> unsectionedItems = settlementItemRepository.findBySettlementDraft(draft);
     if (!unsectionedItems.isEmpty()) {
       settlementItemTargetRepository.deleteBySettlementItemIn(unsectionedItems);
       settlementItemRepository.deleteBySettlementDraft(draft);
+      deletedRows = true;
+    }
+    if (deletedRows) {
+      settlementSectionRepository.flush();
     }
 
     for (SectionInput section : sections) {
