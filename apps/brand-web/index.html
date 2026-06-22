@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ONMU(온뮤) | 온이음 팀의 약속과 기록을 잇는 모바일 프로젝트</title>
+    <meta
+      name="description"
+      content="ONMU는 온이음 팀이 만드는 모바일 프로젝트입니다. 사람과 약속, 채팅, 장소 선택, 정산, 사진 기록을 귀여운 픽셀 캐릭터와 함께 연결합니다.">
+    <meta
+      name="keywords"
+      content="ONMU, 온뮤, 온이음, 약속 앱, 모임 앱, 채팅, 장소 추천, 기록, 픽셀 캐릭터, Flutter 프로젝트">
+    <meta name="author" content="온이음 팀">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="https://onmu.cloud/">
+    <link rel="icon" href="/assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="preload" as="image" href="/assets/images/onmu-hero.png">
+
+    <meta property="og:locale" content="ko_KR">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ONMU">
+    <meta property="og:title" content="ONMU(온뮤) | 온이음 팀의 모바일 프로젝트">
+    <meta
+      property="og:description"
+      content="사람과 약속, 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임으로 잇는 모바일 다이어리 프로젝트입니다.">
+    <meta property="og:url" content="https://onmu.cloud/">
+    <meta property="og:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="ONMU 픽셀 캐릭터가 함께 약속을 준비하는 이미지">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ONMU(온뮤) | 온이음 팀의 모바일 프로젝트">
+    <meta
+      name="twitter:description"
+      content="약속과 기록을 귀여운 픽셀 캐릭터와 함께 남기는 온이음 팀의 ONMU 프로젝트를 소개합니다.">
+    <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
+
+    <link rel="stylesheet" href="/styles.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://onmu.cloud/#organization",
+            "name": "온이음 팀",
+            "url": "https://onmu.cloud/",
+            "sameAs": ["https://github.com/Onieum/ONMU"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://onmu.cloud/#app",
+            "name": "ONMU",
+            "alternateName": "온뮤",
+            "applicationCategory": "LifestyleApplication",
+            "operatingSystem": "iOS, Android",
+            "url": "https://onmu.cloud/",
+            "creator": { "@id": "https://onmu.cloud/#organization" },
+            "description": "ONMU는 사람과 약속, 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임으로 연결하는 모바일 프로젝트입니다."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://onmu.cloud/#website",
+            "name": "ONMU",
+            "url": "https://onmu.cloud/",
+            "publisher": { "@id": "https://onmu.cloud/#organization" },
+            "inLanguage": "ko-KR"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+    <header class="site-header" aria-label="ONMU 소개 페이지 상단">
+      <a class="brand-mark" href="/" aria-label="ONMU 홈">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span>ONMU</span>
+      </a>
+      <nav class="site-nav" aria-label="주요 섹션">
+        <a href="#product">프로젝트</a>
+        <a href="#flow">흐름</a>
+        <a href="#team">온이음</a>
+        <a href="#links">링크</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <img
+          class="hero-art"
+          src="/assets/images/onmu-hero.png"
+          alt="ONMU 픽셀 캐릭터들이 함께 앉아 있는 브랜드 이미지"
+          width="1200"
+          height="1049"
+          fetchpriority="high">
+        <div class="hero-copy">
+          <p class="eyebrow">온이음 팀 프로젝트</p>
+          <h1 id="hero-title">ONMU</h1>
+          <p class="hero-subtitle">
+            사람과 약속, 채팅과 기록을 하나의 온모임으로 잇는 모바일 다이어리 프로젝트.
+          </p>
+          <p class="hero-description">
+            ONMU는 함께 만나는 순간을 정하고, 장소를 고르고, 대화와 정산과 사진을 귀여운
+            픽셀 캐릭터와 함께 남기도록 설계된 Flutter 모바일 앱입니다.
+          </p>
+          <div class="hero-actions">
+            <a class="button-primary" href="#product">프로젝트 보기</a>
+            <a class="button-secondary" href="https://github.com/Onieum/ONMU">GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-band" aria-label="ONMU 핵심 요약">
+        <div class="intro-item">
+          <strong>온모임</strong>
+          <span>사람, 약속, 채팅, 기록이 모이는 공간</span>
+        </div>
+        <div class="intro-item">
+          <strong>약속</strong>
+          <span>장소 후보, 투표, 일정, 정산을 한 흐름으로 연결</span>
+        </div>
+        <div class="intro-item">
+          <strong>기록</strong>
+          <span>사진과 메모를 픽셀 캐릭터가 담긴 기억 카드로 저장</span>
+        </div>
+      </section>
+
+      <section id="product" class="section section-product" aria-labelledby="product-title">
+        <div class="section-copy">
+          <p class="eyebrow">Project</p>
+          <h2 id="product-title">약속이 흩어지지 않도록, 하나의 온모임 안에서.</h2>
+          <p>
+            ONMU는 약속을 만드는 순간부터 장소 후보, 채팅, 투표, 정산, 기록까지 이어지는
+            모바일 경험을 목표로 합니다. 웹은 그 제품과 팀의 방향을 소개하고, 실제 제품
+            흐름은 iOS와 Android Flutter 앱 안에서 제공합니다.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-number">01</span>
+            <h3>함께 정하는 약속</h3>
+            <p>모임 안에서 일정을 만들고 장소 후보를 모아 투표와 확정까지 이어갑니다.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">02</span>
+            <h3>대화 위의 액션 카드</h3>
+            <p>채팅 안에서 투표, 정산, 약속 변경 같은 행동을 같은 시간축으로 확인합니다.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">03</span>
+            <h3>남겨지는 기억</h3>
+            <p>만남 이후 사진과 메모를 스크랩북처럼 정리하고 캐릭터와 함께 보관합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="flow" class="section section-flow" aria-labelledby="flow-title">
+        <div class="visual-panel">
+          <img
+            src="/assets/images/onmu-preview.png"
+            alt="ONMU 픽셀 캐릭터가 노트와 캘린더를 들고 있는 프로젝트 프리뷰"
+            width="822"
+            height="511"
+            loading="lazy">
+        </div>
+        <div class="section-copy">
+          <p class="eyebrow">Flow</p>
+          <h2 id="flow-title">처음 만남을 정하는 일부터, 다시 꺼내 보는 기록까지.</h2>
+          <ol class="timeline-list">
+            <li>
+              <span>프로필과 취향</span>
+              <p>사용자 취향과 캐릭터를 먼저 만들어 ONMU 안의 나를 세웁니다.</p>
+            </li>
+            <li>
+              <span>약속과 장소</span>
+              <p>모임원이 함께 장소 후보를 보고, 투표하고, 일정에 등록합니다.</p>
+            </li>
+            <li>
+              <span>채팅과 정산</span>
+              <p>대화 속 카드로 투표, 정산, 약속 변경을 빠르게 확인합니다.</p>
+            </li>
+            <li>
+              <span>사진과 기억 카드</span>
+              <p>하루의 사진과 메모를 픽셀 캐릭터가 있는 기록으로 남깁니다.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="team" class="section section-team" aria-labelledby="team-title">
+        <div class="section-copy">
+          <p class="eyebrow">Onieum Team</p>
+          <h2 id="team-title">온이음은 만남의 앞뒤를 모두 잇는 팀입니다.</h2>
+          <p>
+            온이음 팀은 모바일 앱, Spring Boot API, 실시간 채팅, 기록과 캐릭터 경험을 하나의
+            제품으로 연결하는 프로젝트를 만들고 있습니다. ONMU는 팀이 설계한 제품 흐름과
+            운영 가능한 아키텍처를 함께 보여주는 공개 프로젝트입니다.
+          </p>
+        </div>
+        <div class="team-visual">
+          <img
+            src="/assets/images/onmu-team-pixel.png"
+            alt="ONMU 픽셀 캐릭터가 노트북과 노트를 들고 있는 팀 소개 이미지"
+            width="900"
+            height="600"
+            loading="lazy">
+        </div>
+      </section>
+
+      <section id="links" class="section section-links" aria-labelledby="links-title">
+        <div class="section-copy">
+          <p class="eyebrow">Links</p>
+          <h2 id="links-title">지금은 프로젝트 소개, 다음은 앱 공개로.</h2>
+          <p>
+            ONMU 브랜드 웹은 제품 소개와 프로젝트 정보를 먼저 제공합니다. 앱 스토어 링크,
+            개인정보 처리방침, contact 채널은 공개 준비가 끝나는 순서대로 연결합니다.
+          </p>
+        </div>
+        <div class="link-grid">
+          <a class="link-card" href="https://github.com/Onieum/ONMU">
+            <span>Repository</span>
+            <strong>GitHub에서 프로젝트 보기</strong>
+          </a>
+          <a class="link-card" href="/robots.txt">
+            <span>Search</span>
+            <strong>검색 엔진 수집 기준 확인</strong>
+          </a>
+          <a class="link-card" href="mailto:hello@onmu.cloud">
+            <span>Contact</span>
+            <strong>온이음 팀에 문의하기</strong>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>ONMU by 온이음 팀</p>
+      <p>모바일 앱 중심의 약속, 채팅, 기록 프로젝트</p>
+    </footer>
+  </body>
+</html>

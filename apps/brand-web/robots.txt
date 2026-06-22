@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://onmu.cloud/sitemap.xml
