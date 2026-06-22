@@ -49,6 +49,88 @@ update settlement_transfers set amount_won = amount_cents where amount_won is nu
 alter table settlement_transfers alter column amount_won set not null;
 alter table settlement_transfers drop column if exists amount_cents;
 
+-- 기존 seed/개발 데이터에는 payer_ack 같은 이전 확인 타입이 남아 있을 수 있다.
+-- 새 계약은 송금자 sent, 수취자 received만 허용하므로 constraint 추가 전에 정규화한다.
+with normalized_confirmations as (
+  select
+    confirmation.id,
+    confirmation.settlement_transfer_id,
+    confirmation.user_id,
+    case
+      when lower(trim(confirmation.confirmation_type)) in (
+        'sent',
+        'payer_ack',
+        'payer_confirmed',
+        'sender_ack',
+        'sender_confirmed',
+        'paid',
+        'transfer_sent'
+      ) then 'sent'
+      when lower(trim(confirmation.confirmation_type)) in (
+        'received',
+        'payee_ack',
+        'payee_confirmed',
+        'receiver_ack',
+        'receiver_confirmed',
+        'recipient_ack',
+        'recipient_confirmed',
+        'transfer_received'
+      ) then 'received'
+      when confirmation.user_id = transfer.to_user_id then 'received'
+      else 'sent'
+    end as normalized_type
+  from settlement_confirmations confirmation
+  join settlement_transfers transfer on transfer.id = confirmation.settlement_transfer_id
+),
+ranked_confirmations as (
+  select
+    id,
+    row_number() over (
+      partition by settlement_transfer_id, user_id, normalized_type
+      order by id
+    ) as duplicate_rank
+  from normalized_confirmations
+)
+delete from settlement_confirmations confirmation
+using ranked_confirmations ranked
+where confirmation.id = ranked.id
+  and ranked.duplicate_rank > 1;
+
+with normalized_confirmations as (
+  select
+    confirmation.id,
+    case
+      when lower(trim(confirmation.confirmation_type)) in (
+        'sent',
+        'payer_ack',
+        'payer_confirmed',
+        'sender_ack',
+        'sender_confirmed',
+        'paid',
+        'transfer_sent'
+      ) then 'sent'
+      when lower(trim(confirmation.confirmation_type)) in (
+        'received',
+        'payee_ack',
+        'payee_confirmed',
+        'receiver_ack',
+        'receiver_confirmed',
+        'recipient_ack',
+        'recipient_confirmed',
+        'transfer_received'
+      ) then 'received'
+      when confirmation.user_id = transfer.to_user_id then 'received'
+      else 'sent'
+    end as normalized_type
+  from settlement_confirmations confirmation
+  join settlement_transfers transfer on transfer.id = confirmation.settlement_transfer_id
+)
+update settlement_confirmations confirmation
+set confirmation_type = normalized.normalized_type
+from normalized_confirmations normalized
+where confirmation.id = normalized.id
+  and confirmation.confirmation_type <> normalized.normalized_type;
+
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'settlement_drafts_status_check') then
