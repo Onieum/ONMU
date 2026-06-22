@@ -193,6 +193,15 @@ public class ChatActivityService {
     notificationPayload.put("messageId", event.getId().toString());
     notificationPayload.put("chatActivityEventId", event.getId().toString());
     notificationPayload.put("senderUserId", actorUser.getPublicId());
+    notificationPayload.put("senderName", senderName);
+    notificationPayload.put(
+      "senderProfileImageUrl",
+      userAvatarReadModelMapper.profileImageUrl(actorUser)
+    );
+    notificationPayload.put(
+      "senderPixelCharacter",
+      userAvatarReadModelMapper.pixelCharacter(actorUser)
+    );
     notificationPayload.put("attachmentCount", attachmentCount);
     notificationPayload.put("hasText", message != null && !message.isBlank());
     String payload = toJson(notificationPayload);

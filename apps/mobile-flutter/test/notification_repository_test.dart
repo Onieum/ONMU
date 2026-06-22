@@ -81,6 +81,29 @@ void main() {
     expect(notification.payloadString('voteId'), '501');
   });
 
+  test('chat notification sender identity를 payload에서 매핑한다', () {
+    final notification = NotificationItem.fromJson({
+      'id': 'notification-3',
+      'notificationType': 'chat_message',
+      'title': '새 메시지가 도착했어요',
+      'payload': {
+        'groupId': '1',
+        'senderName': '현우',
+        'senderProfileImageUrl': 'dev/avatars/hyunwoo.png',
+        'senderPixelCharacter': {'gender': 'male', 'hairStyle': 'hair_style_2'},
+      },
+    }, baseUrl: 'https://api.onmu.test');
+
+    expect(notification.senderName, '현우');
+    expect(
+      notification.senderProfileImageUrl,
+      'https://api.onmu.test/api/v1/media/public?key=dev%2Favatars%2Fhyunwoo.png',
+    );
+    expect(notification.senderCharacter?.nickname, '현우');
+    expect(notification.senderCharacter?.hairStyleIndex, 2);
+    expect(notification.hasSenderIdentity, isTrue);
+  });
+
   test('API notification 읽음 처리 endpoint를 호출한다', () async {
     final requested = <String>[];
     final dio = Dio();
