@@ -2132,6 +2132,25 @@ void main() {
     expect(find.text('내 정산 결과'), findsOneWidget);
   });
 
+  testWidgets('settlement basis back falls back to settlement detail route', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.planSettlementBasis(_groupId, _planId, '301'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('정산 근거'), findsOneWidget);
+    expect(find.textContaining('계산 기준'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('뒤로'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약속 정산'), findsOneWidget);
+    expect(find.textContaining('계산 기준'), findsNothing);
+  });
+
   testWidgets('home notification page shows API notifications only', (
     tester,
   ) async {
