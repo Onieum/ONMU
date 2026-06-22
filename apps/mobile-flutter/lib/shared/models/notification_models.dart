@@ -1,4 +1,7 @@
 import '../../core/api/onmu_api_client.dart';
+import 'character_model.dart';
+import '../utils/character_draft_json.dart';
+import '../utils/onmu_profile_image.dart';
 
 class NotificationItem {
   const NotificationItem({
@@ -14,9 +17,15 @@ class NotificationItem {
     this.readAt,
     this.groupId,
     this.planId,
+    this.senderName = '',
+    this.senderProfileImageUrl = '',
+    this.senderCharacter,
   });
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+  factory NotificationItem.fromJson(
+    Map<String, dynamic> json, {
+    String baseUrl = defaultOnmuApiBaseUrl,
+  }) {
     final payload = OnmuJson.asMap(json['payload']);
     final createdAt = DateTime.tryParse(OnmuJson.readString(json, 'createdAt'));
     final notificationType = OnmuJson.readString(
@@ -24,6 +33,10 @@ class NotificationItem {
       'notificationType',
       OnmuJson.readString(json, 'type', 'notification'),
     );
+    final senderName =
+        _readOptionalString(json, payload, 'senderName') ??
+        _readOptionalString(json, payload, 'senderDisplayName') ??
+        '';
     return NotificationItem(
       id: OnmuJson.readString(json, 'id'),
       notificationType: notificationType,
@@ -39,6 +52,19 @@ class NotificationItem {
       groupId: _readOptionalString(json, payload, 'groupId'),
       planId: _readOptionalString(json, payload, 'planId'),
       payload: Map.unmodifiable(payload),
+      senderName: senderName,
+      senderProfileImageUrl: resolveOnmuProfileImageUrl(
+        _payloadBackedJson(json, payload),
+        primaryKey: 'senderProfileImageUrl',
+        baseUrl: baseUrl,
+      ),
+      senderCharacter: characterDraftFromJson(
+        json['senderPixelCharacter'] ??
+            payload['senderPixelCharacter'] ??
+            json['pixelCharacter'] ??
+            payload['pixelCharacter'],
+        nickname: senderName.isEmpty ? 'ONMU' : senderName,
+      ),
       isRead: OnmuJson.readBool(
         json,
         'isRead',
@@ -58,7 +84,15 @@ class NotificationItem {
   final String? groupId;
   final String? planId;
   final Map<String, dynamic> payload;
+  final String senderName;
+  final String senderProfileImageUrl;
+  final CharacterDraft? senderCharacter;
   final bool isRead;
+
+  bool get hasSenderIdentity =>
+      senderName.trim().isNotEmpty ||
+      senderProfileImageUrl.trim().isNotEmpty ||
+      senderCharacter != null;
 
   NotificationItem copyWith({String? status, DateTime? readAt, bool? isRead}) {
     return NotificationItem(
@@ -73,6 +107,9 @@ class NotificationItem {
       groupId: groupId,
       planId: planId,
       payload: payload,
+      senderName: senderName,
+      senderProfileImageUrl: senderProfileImageUrl,
+      senderCharacter: senderCharacter,
       isRead: isRead ?? this.isRead,
     );
   }
@@ -106,6 +143,13 @@ class NotificationItem {
     final fallback = payload[key]?.toString().trim() ?? '';
     return fallback.isEmpty ? null : fallback;
   }
+}
+
+Map<String, dynamic> _payloadBackedJson(
+  Map<String, dynamic> json,
+  Map<String, dynamic> payload,
+) {
+  return {...payload, ...json};
 }
 
 String _localTimeLabel(DateTime? value, String fallback) {

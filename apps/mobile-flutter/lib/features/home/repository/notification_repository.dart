@@ -43,7 +43,11 @@ class ApiNotificationRepository implements NotificationRepository {
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     ).toString();
     final notifications = await _client.getList(path);
-    return notifications.map(NotificationItem.fromJson).toList(growable: false);
+    return notifications
+        .map(
+          (json) => NotificationItem.fromJson(json, baseUrl: _client.baseUrl),
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -58,7 +62,7 @@ class ApiNotificationRepository implements NotificationRepository {
   Future<NotificationItem> markNotificationRead(String notificationId) async {
     final id = Uri.encodeComponent(notificationId.trim());
     final response = await _client.putObject('/api/v1/notifications/$id/read');
-    return NotificationItem.fromJson(response);
+    return NotificationItem.fromJson(response, baseUrl: _client.baseUrl);
   }
 
   @override
