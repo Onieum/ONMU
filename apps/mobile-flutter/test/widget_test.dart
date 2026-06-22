@@ -1665,7 +1665,7 @@ void main() {
     expect(find.text('음식점'), findsOneWidget);
     expect(find.text('카페'), findsOneWidget);
     expect(find.text('가볼만한곳'), findsOneWidget);
-    expect(find.text('현 지도에서 검색'), findsNothing);
+    expect(find.text('현 지도에서 검색'), findsOneWidget);
     expect(find.byKey(const ValueKey('place-category-pill-한식')), findsNothing);
     expect(
       tester
