@@ -9,6 +9,18 @@ void main() {
     expect(RoutePaths.planEdit(1, 103), '/groups/1/plans/103/edit');
     expect(RoutePaths.planItinerary(1, 101), '/groups/1/plans/101/itinerary');
     expect(
+      RoutePaths.planSettlementNew(1, 103),
+      '/groups/1/plans/103/settlements/new',
+    );
+    expect(
+      RoutePaths.planSettlementCurrent(1, 103),
+      '/groups/1/plans/103/settlements/current',
+    );
+    expect(
+      RoutePaths.planSettlementBasis(1, 103, 'stl_301'),
+      '/groups/1/plans/103/settlements/stl_301/basis',
+    );
+    expect(
       RoutePaths.planItinerary(1, 101, dateIndex: 1),
       '/groups/1/plans/101/itinerary?dateIndex=1',
     );

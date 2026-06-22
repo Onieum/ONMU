@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -19,7 +20,12 @@ import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.NotificationEntity;
 import com.onmu.api.domain.NotificationRepository;
 import com.onmu.api.domain.PlanEntity;
+import com.onmu.api.domain.PlanParticipantEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanRepository;
+import com.onmu.api.domain.SchedulePlaceRepository;
+import com.onmu.api.domain.SettlementConfirmationEntity;
+import com.onmu.api.domain.SettlementConfirmationRepository;
 import com.onmu.api.domain.SettlementDraftRepository;
 import com.onmu.api.domain.SettlementEntity;
 import com.onmu.api.domain.SettlementItemEntity;
@@ -27,12 +33,16 @@ import com.onmu.api.domain.SettlementItemRepository;
 import com.onmu.api.domain.SettlementItemTargetEntity;
 import com.onmu.api.domain.SettlementItemTargetRepository;
 import com.onmu.api.domain.SettlementRepository;
+import com.onmu.api.domain.SettlementSectionEntity;
+import com.onmu.api.domain.SettlementSectionRepository;
 import com.onmu.api.domain.SettlementTransferEntity;
 import com.onmu.api.domain.SettlementTransferRepository;
 import com.onmu.api.domain.UserEntity;
 import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
+import com.onmu.api.web.dto.SettlementDraftSectionRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -54,17 +64,25 @@ class SettlementApiServiceTests {
   @Mock
   private PlanRepository planRepository;
   @Mock
+  private PlanParticipantRepository planParticipantRepository;
+  @Mock
+  private SchedulePlaceRepository schedulePlaceRepository;
+  @Mock
   private UserRepository userRepository;
   @Mock
   private SettlementDraftRepository settlementDraftRepository;
   @Mock
   private SettlementRepository settlementRepository;
   @Mock
+  private SettlementSectionRepository settlementSectionRepository;
+  @Mock
   private SettlementItemRepository settlementItemRepository;
   @Mock
   private SettlementItemTargetRepository settlementItemTargetRepository;
   @Mock
   private SettlementTransferRepository settlementTransferRepository;
+  @Mock
+  private SettlementConfirmationRepository settlementConfirmationRepository;
   @Mock
   private ChatActivityEventRepository chatActivityEventRepository;
   @Mock
@@ -86,12 +104,16 @@ class SettlementApiServiceTests {
     service = new SettlementApiService(
       groupRepository,
       planRepository,
+      planParticipantRepository,
+      schedulePlaceRepository,
       userRepository,
       settlementDraftRepository,
       settlementRepository,
+      settlementSectionRepository,
       settlementItemRepository,
       settlementItemTargetRepository,
       settlementTransferRepository,
+      settlementConfirmationRepository,
       chatActivityEventRepository,
       groupMemberRepository,
       notificationRepository,
@@ -105,7 +127,17 @@ class SettlementApiServiceTests {
     minsu = user("user-minsu", "민수");
 
     lenient().when(userRepository.findByIdAndDeletedAtIsNull(me.getId())).thenReturn(Optional.of(me));
+    lenient().when(userRepository.findByPublicIdAndDeletedAtIsNull("user-me")).thenReturn(Optional.of(me));
+    lenient().when(userRepository.findByPublicIdAndDeletedAtIsNull("user-jimin")).thenReturn(Optional.of(jimin));
+    lenient().when(userRepository.findByPublicIdAndDeletedAtIsNull("user-minsu")).thenReturn(Optional.of(minsu));
     lenient().when(groupRepository.isUserMember("1", me.getId())).thenReturn(true);
+    lenient().when(planParticipantRepository.findByPlanAndUser(plan, me))
+      .thenReturn(Optional.of(new PlanParticipantEntity(plan, me, "joined", "accepted")));
+    lenient().when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(
+      new PlanParticipantEntity(plan, me, "joined", "accepted"),
+      new PlanParticipantEntity(plan, jimin, "joined", "accepted"),
+      new PlanParticipantEntity(plan, minsu, "joined", "accepted")
+    ));
     lenient().when(userRepository.findByPublicIdIn(any())).thenAnswer(invocation -> {
       Collection<?> userIds = invocation.getArgument(0);
       if (userIds == null) {
@@ -127,9 +159,175 @@ class SettlementApiServiceTests {
   }
 
   @Test
+  void createSettlementDraftRejectsUpcomingPlan() {
+    PlanEntity upcoming = new PlanEntity(
+      "101",
+      group,
+      "다가오는 약속",
+      Instant.parse("2026-12-01T01:00:00Z"),
+      Instant.parse("2026-12-01T03:00:00Z"),
+      "scheduled",
+      null,
+      "수원"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(upcoming));
+    when(planParticipantRepository.findByPlanAndUser(upcoming, me))
+      .thenReturn(Optional.of(new PlanParticipantEntity(upcoming, me, "joined", "accepted")));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        service.createSettlementDraft("1", "101", me.getId()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getReason()).isEqualTo("settlement_plan_not_eligible");
+      });
+  }
+
+  @Test
+  void createSettlementDraftReturnsActiveFinalizedSettlement() {
+    SettlementEntity finalized = new SettlementEntity("302", group, plan, "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(plan, List.of("finalized")))
+      .thenReturn(Optional.of(finalized));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(finalized)).thenReturn(List.of());
+    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(finalized)).thenReturn(List.of());
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(finalized)).thenReturn(List.of());
+
+    MapLike result = new MapLike(service.createSettlementDraft("1", "101", me.getId()));
+
+    assertThat(result.value("id")).isEqualTo("302");
+    assertThat(result.value("status")).isEqualTo("finalized");
+    verify(settlementDraftRepository, never()).save(any());
+  }
+
+  @Test
+  void finalizeSettlementUsesDraftSectionsAndCalculatesMinimumTransfers() {
+    PlanEntity pastPlan = new PlanEntity(
+      "101",
+      group,
+      "지난 약속",
+      Instant.parse("2026-06-01T01:00:00Z"),
+      Instant.parse("2026-06-01T03:00:00Z"),
+      "completed",
+      null,
+      "수원"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(pastPlan));
+    when(planParticipantRepository.findByPlanAndUser(pastPlan, me))
+      .thenReturn(Optional.of(new PlanParticipantEntity(pastPlan, me, "joined", "accepted")));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(pastPlan)).thenReturn(List.of(
+      new PlanParticipantEntity(pastPlan, me, "joined", "accepted"),
+      new PlanParticipantEntity(pastPlan, jimin, "joined", "accepted"),
+      new PlanParticipantEntity(pastPlan, minsu, "joined", "accepted")
+    ));
+    when(settlementDraftRepository.findActiveByPlan(pastPlan)).thenReturn(Optional.empty());
+    when(settlementDraftRepository.findAll()).thenReturn(List.of());
+    when(settlementDraftRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementSectionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.createSettlementDraft("1", "101", me.getId());
+    when(settlementDraftRepository.findActiveByPlanForUpdate(pastPlan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, pastPlan, "{}")));
+    when(settlementItemRepository.findBySettlementDraft(any())).thenReturn(List.of());
+    when(settlementRepository.findAll()).thenReturn(List.of());
+    when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementTransferRepository.save(any(SettlementTransferEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationRepository.save(any(NotificationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.updateSettlementDraft("1", "101", me.getId(), new UpdateSettlementDraftRequest(List.of(
+      new SettlementDraftSectionRequest(
+        "section-a",
+        null,
+        "A장소",
+        "user-jimin",
+        List.of(new SettlementDraftItemRequest(
+          "401",
+          "커피",
+          10000,
+          "equal",
+          List.of("user-me", "user-jimin", "user-minsu")
+        ))
+      ),
+      new SettlementDraftSectionRequest(
+        "section-b",
+        null,
+        "B장소",
+        "user-me",
+        List.of(new SettlementDraftItemRequest(
+          "402",
+          "저녁",
+          30000,
+          "equal",
+          List.of("user-me", "user-jimin", "user-minsu")
+        ))
+      ),
+      new SettlementDraftSectionRequest(
+        "section-c",
+        null,
+        "C장소",
+        "user-minsu",
+        List.of(new SettlementDraftItemRequest(
+          "403",
+          "디저트",
+          20000,
+          "equal",
+          List.of("user-me", "user-jimin", "user-minsu")
+        ))
+      )
+    ), null));
+
+    MapLike created = new MapLike(service.finalizeSettlement("1", "101", me.getId()));
+
+    assertThat(created.value("status")).isEqualTo("finalized");
+    assertThat(created.value("totalAmountLabel")).isEqualTo("60,000원");
+    assertThat(created.firstTransfer().get("fromName")).isEqualTo("지민");
+    assertThat(created.firstTransfer().get("toName")).isEqualTo("나");
+    assertThat(created.firstTransfer().get("amountLabel")).isEqualTo("10,000원");
+    verify(settlementTransferRepository, times(2)).save(any(SettlementTransferEntity.class));
+    verify(outboxService).record(eq("settlement.finalized"), eq("settlement"), any(), any());
+  }
+
+  @Test
+  void receivedConfirmationCompletesSettlementWhenAllReceiversConfirmed() {
+    SettlementEntity settlement = new SettlementEntity("302", group, plan, "{}");
+    SettlementTransferEntity transfer = new SettlementTransferEntity(settlement, minsu, jimin, 6000, "민수 -> 지민");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(planParticipantRepository.findByPlanAndUser(plan, jimin))
+      .thenReturn(Optional.of(new PlanParticipantEntity(plan, jimin, "joined", "accepted")));
+    when(userRepository.findByIdAndDeletedAtIsNull(jimin.getId())).thenReturn(Optional.of(jimin));
+    when(groupRepository.isUserMember("1", jimin.getId())).thenReturn(true);
+    when(settlementRepository.findByPlanAndPublicIdForUpdate(plan, "302")).thenReturn(Optional.of(settlement));
+    when(settlementTransferRepository.findBySettlementAndPublicId(settlement, transfer.getPublicId()))
+      .thenReturn(Optional.of(transfer));
+    when(settlementConfirmationRepository.findBySettlementTransferAndUserAndConfirmationType(transfer, jimin, "received"))
+      .thenReturn(Optional.empty());
+    when(settlementConfirmationRepository.save(any(SettlementConfirmationEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(transfer));
+    when(settlementConfirmationRepository.existsBySettlementTransferAndConfirmationType(transfer, "received"))
+      .thenReturn(true);
+
+    MapLike result = new MapLike(service.markTransferReceived("1", "101", "302", transfer.getPublicId(), jimin.getId()));
+
+    assertThat(result.value("status")).isEqualTo("completed");
+    verify(outboxService).record(eq("settlement.completed"), eq("settlement"), any(), any());
+  }
+
+  @Test
   void previewSettlementCalculatesTransfersWithoutWritingTables() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlan(plan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
 
     MapLike preview = new MapLike(service.previewSettlement("1", "101", me.getId(), request()));
 
@@ -138,8 +336,11 @@ class SettlementApiServiceTests {
     assertThat(preview.firstTransfer().get("fromName")).isEqualTo("민수");
     assertThat(preview.firstTransfer().get("toName")).isEqualTo("지민");
     assertThat(preview.firstTransfer().get("amountLabel")).isEqualTo("6,000원");
-    verifyNoInteractions(settlementRepository, settlementItemRepository, settlementItemTargetRepository,
-      settlementTransferRepository, outboxService);
+    verify(settlementRepository, never()).save(any());
+    verify(settlementItemRepository, never()).save(any());
+    verify(settlementItemTargetRepository, never()).save(any());
+    verify(settlementTransferRepository, never()).save(any());
+    verifyNoInteractions(outboxService);
   }
 
   @Test
@@ -160,9 +361,10 @@ class SettlementApiServiceTests {
   void createSettlementPersistsItemsTargetsTransfersAndOutboxEvents() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlanForUpdate(plan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
     when(settlementRepository.findAll()).thenReturn(List.of(new SettlementEntity("301", group, plan, "{}")));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    when(settlementItemRepository.findAll()).thenReturn(List.of());
     when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
@@ -176,17 +378,18 @@ class SettlementApiServiceTests {
 
     assertThat(created.value("id")).isEqualTo("302");
     assertThat(created.value("preview")).isEqualTo(false);
+    assertThat(created.value("status")).isEqualTo("finalized");
     assertThat(created.firstTransfer().get("amountLabel")).isEqualTo("6,000원");
     verify(settlementItemRepository).save(any(SettlementItemEntity.class));
     verify(settlementItemTargetRepository, times(2)).save(any(SettlementItemTargetEntity.class));
     verify(settlementTransferRepository).save(any(SettlementTransferEntity.class));
-    verify(chatActivityEventRepository).save(argThat(event -> "settlement.created".equals(event.getEventType())
+    verify(chatActivityEventRepository).save(argThat(event -> "settlement.finalized".equals(event.getEventType())
       && event.getPlan() == plan));
     verify(notificationRepository, times(2)).save(argThat(notification ->
       "settlement_created".equals(notification.getNotificationType())
         && notification.getPlan() == plan
         && "queued".equals(notification.getStatus())));
-    verify(outboxService).record(eq("settlement.created"), eq("settlement"), any(),
+    verify(outboxService).record(eq("settlement.finalized"), eq("settlement"), any(),
       argThat(payload -> "302".equals(payload.get("settlementId"))));
     verify(outboxService, times(2)).record(eq("notification.requested"), eq("notification"), any(),
       argThat(payload -> "302".equals(payload.get("settlementId"))
@@ -195,40 +398,32 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void userPublicIdsArePreferredOverNicknameFallback() {
+  void previewSettlementUsesParticipantPublicIds() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlan(plan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
 
-    MapLike preview = new MapLike(service.previewSettlement("1", "101", me.getId(), new SettlementPreviewRequest(List.of(
-      new SettlementDraftItemRequest(
-        "401",
-        "커피",
-        12000,
-        12000,
-        "user-jimin",
-        "동명이인 표시 이름",
-        "equal",
-        List.of("user-jimin", "user-minsu"),
-        List.of("동명이인 표시 이름", "민수")
-      )
-    ))));
+    MapLike preview = new MapLike(service.previewSettlement("1", "101", me.getId(), request()));
 
     assertThat(preview.firstTransfer().get("fromName")).isEqualTo("민수");
     assertThat(preview.firstTransfer().get("toName")).isEqualTo("지민");
+    verify(userRepository, never()).findByNicknameIn(any());
   }
 
   @Test
-  void duplicateNicknameFallbackReturnsValidationError() {
-    UserEntity anotherJimin = user("user-jimin-2", "지민");
+  void unknownParticipantPublicIdReturnsValidationErrorWithoutNicknameFallback() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(userRepository.findByNicknameIn(any())).thenReturn(List.of(jimin, anotherJimin));
+    when(settlementDraftRepository.findActiveByPlan(plan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, unknownTargetPayload())));
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.previewSettlement("1", "101", me.getId(), nameFallbackRequest()))
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.previewSettlement("1", "101", me.getId(), request()))
       .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(exception.getReason()).isEqualTo("ambiguous_settlement_member_name");
+        assertThat(exception.getReason()).isEqualTo("settlement_participant_not_found");
       });
+    verify(userRepository, never()).findByNicknameIn(any());
   }
 
   @Test
@@ -237,11 +432,21 @@ class SettlementApiServiceTests {
       "302",
       group,
       plan,
-      "{\"items\":[{\"id\":\"403\",\"payerUserId\":\"user-jimin\",\"payerName\":\"지민\",\"amountWon\":12000}]}"
+      "{}"
+    );
+    SettlementSectionEntity section = new SettlementSectionEntity(
+      null,
+      settlement,
+      "section-a",
+      null,
+      "카페",
+      jimin,
+      0
     );
     SettlementItemEntity item = new SettlementItemEntity(
       null,
       settlement,
+      section,
       "403",
       "커피",
       12000,
@@ -255,7 +460,8 @@ class SettlementApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementRepository.findByPlanAndPublicId(plan, "302")).thenReturn(Optional.of(settlement));
-    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(item));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(settlement)).thenReturn(List.of(section));
+    when(settlementItemRepository.findBySectionOrderByCreatedAtAsc(section)).thenReturn(List.of(item));
     when(settlementItemTargetRepository.findBySettlementItemInOrderByCreatedAtAsc(List.of(item)))
       .thenReturn(List.of(jiminTarget, minsuTarget));
     when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(transfer));
@@ -269,24 +475,30 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void settlementByIdUsesPayloadPayerSharesBeforeTopLevelPayer() {
-    when(userRepository.findByIdAndDeletedAtIsNull(jimin.getId())).thenReturn(Optional.of(jimin));
-    when(groupRepository.isUserMember("1", jimin.getId())).thenReturn(true);
+  void settlementByIdUsesSectionPayerForPaidTotalsAndTransfers() {
     SettlementEntity settlement = new SettlementEntity(
       "303",
       group,
       plan,
-      """
-      {"items":[{"id":"404","payerName":"민수","amount":60000,"payerShares":[{"name":"민수","amount":20000},{"userId":"user-jimin","payerName":"지민","amountWon":40000}]}]}
-      """
+      "{}"
+    );
+    SettlementSectionEntity section = new SettlementSectionEntity(
+      null,
+      settlement,
+      "section-a",
+      null,
+      "카페",
+      jimin,
+      0
     );
     SettlementItemEntity item = new SettlementItemEntity(
       null,
       settlement,
+      section,
       "404",
       "카페",
       60000,
-      "custom",
+      "menu",
       "사용자 메모"
     );
     SettlementItemTargetEntity jiminTarget = new SettlementItemTargetEntity(item, jimin, 20000);
@@ -296,52 +508,51 @@ class SettlementApiServiceTests {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementRepository.findByPlanAndPublicId(plan, "303")).thenReturn(Optional.of(settlement));
-    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(item));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(settlement)).thenReturn(List.of(section));
+    when(settlementItemRepository.findBySectionOrderByCreatedAtAsc(section)).thenReturn(List.of(item));
     when(settlementItemTargetRepository.findBySettlementItemInOrderByCreatedAtAsc(List.of(item)))
       .thenReturn(List.of(jiminTarget, minsuTarget, meTarget));
     when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of());
 
-    MapLike result = new MapLike(service.settlementById("1", "101", "303", jimin.getId()));
+    MapLike result = new MapLike(service.settlementById("1", "101", "303", me.getId()));
 
-    assertThat(result.payerShares()).hasSize(2);
-    assertThat(result.payerShares().get(0).get("name")).isEqualTo("민수");
-    assertThat(result.payerShares().get(0).get("amountLabel")).isEqualTo("20,000원");
-    assertThat(result.payerShares().get(1).get("name")).isEqualTo("지민");
-    assertThat(result.payerShares().get(1).get("amountLabel")).isEqualTo("40,000원");
+    assertThat(result.payerShares()).hasSize(1);
+    assertThat(result.payerShares().get(0).get("name")).isEqualTo("지민");
+    assertThat(result.payerShares().get(0).get("amountLabel")).isEqualTo("60,000원");
     assertThat(result.firstTransfer().get("fromName")).isEqualTo("나");
     assertThat(result.firstTransfer().get("toName")).isEqualTo("지민");
     assertThat(result.firstTransfer().get("amountLabel")).isEqualTo("20,000원");
-    assertThat(result.value("mySummaryLabel")).isEqualTo("나는 20,000원 받을 예정");
-    assertThat(result.memberResult("지민").get("paidAmountLabel")).isEqualTo("40,000원");
-    assertThat(result.memberResult("민수").get("resultLabel")).isEqualTo("정산 완료");
+    assertThat(result.value("mySummaryLabel")).isEqualTo("나는 20,000원 송금");
+    assertThat(result.memberResult("지민").get("paidAmountLabel")).isEqualTo("60,000원");
+    assertThat(result.memberResult("민수").get("resultLabel")).isEqualTo("20,000원 송금");
   }
 
   private SettlementPreviewRequest request() {
-    return new SettlementPreviewRequest(List.of(new SettlementDraftItemRequest(
-      "401",
-      "커피",
-      12000,
-      12000,
+    return new SettlementPreviewRequest(List.of(new SettlementDraftSectionRequest(
+      "section-a",
+      null,
+      "기타 비용",
       "user-jimin",
-      "지민",
-      "equal",
-      List.of("user-jimin", "user-minsu"),
-      List.of("지민", "민수")
+      List.of(new SettlementDraftItemRequest(
+        "401",
+        "커피",
+        12000,
+        "menu",
+        List.of("user-jimin", "user-minsu")
+      ))
     )));
   }
 
-  private SettlementPreviewRequest nameFallbackRequest() {
-    return new SettlementPreviewRequest(List.of(new SettlementDraftItemRequest(
-      "401",
-      "커피",
-      12000,
-      12000,
-      null,
-      "지민",
-      "equal",
-      List.of(),
-      List.of("지민", "민수")
-    )));
+  private String requestPayload() {
+    return """
+      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"user-jimin","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["user-jimin","user-minsu"]}]}]}
+      """;
+  }
+
+  private String unknownTargetPayload() {
+    return """
+      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"user-jimin","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["user-jimin","unknown-user"]}]}]}
+      """;
   }
 
   private UserEntity user(String publicId, String nickname) {

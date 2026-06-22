@@ -46,6 +46,7 @@ import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
+import com.onmu.api.web.dto.SettlementDraftSectionRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
@@ -1593,7 +1594,7 @@ class OnmuApiServiceTests {
     ));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var created = service.createSettlement("1", "101", new SettlementPreviewRequest(List.of(settlementItem())));
+    var created = service.createSettlement("1", "101", settlementRequest());
 
     assertThat(created).containsEntry("id", "302").containsEntry("preview", false);
     verify(outboxService).record(
@@ -1628,13 +1629,19 @@ class OnmuApiServiceTests {
       "401",
       "Coffee",
       12000,
-      12000,
-      null,
-      "Jimin",
       "equal",
-      List.of(),
-      List.of("Jimin", "Minsu")
+      List.of("user-1", "user-2")
     );
+  }
+
+  private SettlementPreviewRequest settlementRequest() {
+    return new SettlementPreviewRequest(List.of(new SettlementDraftSectionRequest(
+      "section-a",
+      null,
+      "기타 비용",
+      "user-1",
+      List.of(settlementItem())
+    )));
   }
 
   private UserEntity user(String id, String nickname) {

@@ -947,7 +947,8 @@ class TestSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
+    final settlement = await fetchSettlement(groupId: groupId, planId: planId);
+    return settlement.copyWith(status: 'draft', preview: true);
   }
 
   @override
@@ -955,6 +956,16 @@ class TestSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required List<SettlementDraftItemInput> items,
+    String? memo,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
     String? memo,
   }) async {
     return fetchSettlement(groupId: groupId, planId: planId);
@@ -986,7 +997,8 @@ class TestSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
   }) async {
-    return fetchSettlement(groupId: groupId, planId: planId);
+    final settlement = await fetchSettlement(groupId: groupId, planId: planId);
+    return settlement.copyWith(status: 'finalized', preview: false);
   }
 
   @override
@@ -994,7 +1006,9 @@ class TestSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    return _store.fetchSettlement(groupId: groupId, planId: planId);
+    return _store
+        .fetchSettlement(groupId: groupId, planId: planId)
+        .copyWith(status: 'finalized');
   }
 
   @override
@@ -1002,6 +1016,44 @@ class TestSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object settlementId,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementBasis> fetchSettlementBasis({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    final settlement = await fetchSettlement(groupId: groupId, planId: planId);
+    return SettlementBasis(
+      settlementId: settlement.id,
+      planTitle: settlement.planTitle,
+      totalAmountLabel: settlement.totalAmountLabel,
+      sections: settlement.sections,
+      participants: settlement.memberResults,
+      transfers: settlement.transfers,
+      summary: settlement.shareMessage,
+    );
+  }
+
+  @override
+  Future<SettlementSummary> markTransferSent({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async {
+    return fetchSettlement(groupId: groupId, planId: planId);
+  }
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
   }) async {
     return fetchSettlement(groupId: groupId, planId: planId);
   }

@@ -39,6 +39,7 @@ import com.onmu.api.web.dto.CreatePlanRequest;
 import com.onmu.api.web.dto.CreateSchedulePlaceRequest;
 import com.onmu.api.web.dto.CreateVoteRequest;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
+import com.onmu.api.web.dto.SettlementDraftSectionRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
 import com.onmu.api.web.dto.SubmitVoteResponseRequest;
 import com.onmu.api.web.dto.UpdatePlanRequest;
@@ -831,7 +832,7 @@ public class OnmuApiService {
   ) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
-    requireSettlementItems(request.items());
+    requireSettlementSections(request.sections());
     SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
       .orElseGet(() -> new SettlementDraftEntity(
         nextPublicId(settlementDraftRepository.findAll().stream()
@@ -841,15 +842,15 @@ public class OnmuApiService {
         plan,
         defaultSettlementPayload(plan)
       ));
-    draft.setPayload(toJson(settlementPayloadFromItems(plan, request.items())));
+    draft.setPayload(toJson(settlementPayloadFromSections(plan, request.sections())));
     return settlementDraftCard(settlementDraftRepository.save(draft));
   }
 
   @Transactional(readOnly = true)
   public Map<String, Object> previewSettlement(String groupId, String planId, SettlementPreviewRequest request) {
     PlanEntity plan = planOrThrow(groupOrThrow(groupId), planId);
-    requireSettlementItems(request.items());
-    Map<String, Object> payload = settlementPayloadFromItems(plan, request.items());
+    requireSettlementSections(request.sections());
+    Map<String, Object> payload = settlementPayloadFromSections(plan, request.sections());
     return settlementSummaryCard("preview", plan, payload, true);
   }
 
@@ -857,8 +858,8 @@ public class OnmuApiService {
   public Map<String, Object> createSettlement(String groupId, String planId, SettlementPreviewRequest request) {
     GroupEntity group = groupOrThrow(groupId);
     PlanEntity plan = planOrThrow(group, planId);
-    requireSettlementItems(request.items());
-    Map<String, Object> payload = settlementPayloadFromItems(plan, request.items());
+    requireSettlementSections(request.sections());
+    Map<String, Object> payload = settlementPayloadFromSections(plan, request.sections());
     String publicId = nextPublicId(settlementRepository.findAll().stream()
       .map(SettlementEntity::getPublicId)
       .toList(), 301);
@@ -965,8 +966,8 @@ public class OnmuApiService {
     }
   }
 
-  private void requireSettlementItems(List<SettlementDraftItemRequest> items) {
-    if (items == null || items.isEmpty()) {
+  private void requireSettlementSections(List<SettlementDraftSectionRequest> sections) {
+    if (sections == null || sections.stream().noneMatch(section -> section.items() != null && !section.items().isEmpty())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_items");
     }
   }
@@ -1462,15 +1463,15 @@ public class OnmuApiService {
   ) {
     List<Map<String, Object>> items = settlementItems(payload);
     int totalAmount = items.stream()
-      .map(item -> intOrDefault(item.get("amount"), 0))
+      .map(item -> intOrDefault(item.get("amountWon"), 0))
       .reduce(0, Integer::sum);
-    String payerName = items.stream()
-      .map(item -> asString(item.get("payerName")))
+    String payerUserId = items.stream()
+      .map(item -> asString(item.get("payerUserId")))
       .filter(value -> value != null && !value.isBlank())
       .findFirst()
-      .orElse("지민");
+      .orElse("payer");
     List<String> targets = items.stream()
-      .flatMap(item -> stringList(item.get("targetNames")).stream())
+      .flatMap(item -> stringList(item.get("targetUserIds")).stream())
       .distinct()
       .toList();
     int targetCount = targets.isEmpty() ? 1 : targets.size();
@@ -1491,38 +1492,41 @@ public class OnmuApiService {
       .map(item -> settlementPaymentItem(item, targetCount, shareAmount))
       .toList());
     value.put("memberResults", targets.stream()
-      .map(name -> settlementMemberResult(name, shareAmount, payerName.equals(name)))
+      .map(userId -> settlementMemberResult(userId, shareAmount, payerUserId.equals(userId)))
       .toList());
     value.put("transfers", targets.stream()
-      .filter(name -> !payerName.equals(name))
-      .map(name -> settlementTransfer(name, payerName, shareAmount))
+      .filter(userId -> !payerUserId.equals(userId))
+      .map(userId -> settlementTransfer(userId, payerUserId, shareAmount))
       .toList());
     value.put("shareMessage", stringOrDefault(asString(payload.get("shareMessage")), plan.getTitle() + " 약속 정산입니다."));
     return value;
   }
 
   private Map<String, Object> settlementPaymentItem(Map<String, Object> item, int targetCount, int shareAmount) {
-    String payerName = stringOrDefault(asString(item.get("payerName")), "지민");
+    String payerUserId = stringOrDefault(asString(item.get("payerUserId")), "payer");
+    int amountWon = intOrDefault(item.get("amountWon"), 0);
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", stringOrDefault(asString(item.get("id")), "401"));
     value.put("title", stringOrDefault(asString(item.get("title")), "결제 항목"));
-    value.put("amount", intOrDefault(item.get("amount"), 0));
-    value.put("amountLabel", amountLabel(intOrDefault(item.get("amount"), 0)));
+    value.put("amountWon", amountWon);
+    value.put("amountLabel", amountLabel(amountWon));
     value.put("payerShares", List.of(Map.of(
-      "name", payerName,
-      "amountLabel", amountLabel(intOrDefault(item.get("amount"), 0))
+      "userId", payerUserId,
+      "name", payerUserId,
+      "amountLabel", amountLabel(amountWon)
     )));
     value.put("targetLabel", targetCount + "명");
     value.put("splitType", stringOrDefault(asString(item.get("splitType")), "equal"));
-    value.put("participants", stringList(item.get("targetNames")).stream()
-      .map(name -> Map.of("name", name, "owedAmountLabel", amountLabel(shareAmount), "included", true))
+    value.put("participants", stringList(item.get("targetUserIds")).stream()
+      .map(userId -> Map.of("userId", userId, "name", userId, "owedAmountLabel", amountLabel(shareAmount), "included", true))
       .toList());
     return value;
   }
 
-  private Map<String, Object> settlementMemberResult(String name, int shareAmount, boolean payer) {
+  private Map<String, Object> settlementMemberResult(String userId, int shareAmount, boolean payer) {
     Map<String, Object> value = new LinkedHashMap<>();
-    value.put("name", name);
+    value.put("userId", userId);
+    value.put("name", userId);
     value.put("finalShareLabel", amountLabel(shareAmount));
     value.put("paidAmountLabel", payer ? "결제자" : "0원");
     value.put("resultLabel", payer ? "정산 받을 예정" : amountLabel(shareAmount) + " 송금");
@@ -1531,60 +1535,80 @@ public class OnmuApiService {
     return value;
   }
 
-  private Map<String, Object> settlementTransfer(String fromName, String toName, int amount) {
+  private Map<String, Object> settlementTransfer(String fromUserId, String toUserId, int amount) {
     return Map.of(
-      "fromName", fromName,
-      "toName", toName,
+      "fromUserId", fromUserId,
+      "fromName", fromUserId,
+      "toUserId", toUserId,
+      "toName", toUserId,
       "amountLabel", amountLabel(amount)
     );
   }
 
-  private Map<String, Object> settlementPayloadFromItems(PlanEntity plan, List<SettlementDraftItemRequest> items) {
-    List<SettlementDraftItemRequest> sourceItems = items == null || items.isEmpty()
-      ? List.of(new SettlementDraftItemRequest(
-        "401",
-        "저녁",
-        124000,
-        124000,
+  private Map<String, Object> settlementPayloadFromSections(PlanEntity plan, List<SettlementDraftSectionRequest> sections) {
+    List<SettlementDraftSectionRequest> sourceSections = sections == null || sections.isEmpty()
+      ? List.of(new SettlementDraftSectionRequest(
+        "extra",
         null,
-        "지민",
-        "equal",
-        List.of(),
-        List.of("지민", "민수", "소연", "현우")
+        "기타 비용",
+        "user-jimin",
+        List.of(new SettlementDraftItemRequest(
+          "401",
+          "저녁",
+          124000,
+          "equal",
+          List.of("user-jimin", "user-minsu", "user-soyeon", "user-hyunwoo")
+        ))
       ))
-      : items;
+      : sections;
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("items", sourceItems.stream().map(this::settlementItemPayload).toList());
+    payload.put("sections", sourceSections.stream().map(this::settlementSectionPayload).toList());
     payload.put("memo", "Spring settlement draft");
     payload.put("shareMessage", plan.getTitle() + " 약속 정산입니다.");
     return payload;
   }
 
-  private Map<String, Object> settlementItemPayload(SettlementDraftItemRequest item) {
+  private Map<String, Object> settlementSectionPayload(SettlementDraftSectionRequest section) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("id", stringOrDefault(section.id(), "extra"));
+    value.put("title", stringOrDefault(section.title(), "기타 비용"));
+    value.put("payerUserId", stringOrDefault(section.payerUserId(), "user-jimin"));
+    value.put("items", (section.items() == null ? List.<SettlementDraftItemRequest>of() : section.items()).stream()
+      .map(item -> settlementItemPayload(item, stringOrDefault(section.payerUserId(), "user-jimin")))
+      .toList());
+    return value;
+  }
+
+  private Map<String, Object> settlementItemPayload(SettlementDraftItemRequest item, String payerUserId) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", stringOrDefault(item.id(), "401"));
     value.put("title", stringOrDefault(item.title(), "결제 항목"));
-    value.put("amount", item.amount() == null ? 0 : item.amount());
-    value.put("amountWon", item.amountWon() == null ? item.amount() == null ? 0 : item.amount() : item.amountWon());
-    value.put("payerUserId", item.payerUserId());
-    value.put("payerName", stringOrDefault(item.payerName(), "지민"));
+    value.put("amountWon", item.amountWon() == null ? 0 : item.amountWon());
+    value.put("payerUserId", payerUserId);
     value.put("splitType", stringOrDefault(item.splitType(), "equal"));
     value.put("targetUserIds", item.targetUserIds() == null ? List.of() : item.targetUserIds());
-    value.put("targetNames", item.targetNames() == null || item.targetNames().isEmpty()
-      ? List.of("지민", "민수", "소연", "현우")
-      : item.targetNames());
     return value;
   }
 
   private List<Map<String, Object>> settlementItems(Map<String, Object> payload) {
-    Object rawItems = payload.get("items");
-    if (rawItems instanceof List<?> list) {
+    Object rawSections = payload.get("sections");
+    if (rawSections instanceof List<?> sections) {
       List<Map<String, Object>> values = new ArrayList<>();
-      for (Object item : list) {
-        if (item instanceof Map<?, ?> map) {
-          Map<String, Object> value = new LinkedHashMap<>();
-          map.forEach((key, itemValue) -> value.put(String.valueOf(key), itemValue));
-          values.add(value);
+      for (Object rawSection : sections) {
+        if (!(rawSection instanceof Map<?, ?> sectionMap)) {
+          continue;
+        }
+        String payerUserId = asString(sectionMap.get("payerUserId"));
+        Object rawItems = sectionMap.get("items");
+        if (rawItems instanceof List<?> items) {
+          for (Object item : items) {
+            if (item instanceof Map<?, ?> map) {
+              Map<String, Object> value = new LinkedHashMap<>();
+              map.forEach((key, itemValue) -> value.put(String.valueOf(key), itemValue));
+              value.putIfAbsent("payerUserId", stringOrDefault(payerUserId, "payer"));
+              values.add(value);
+            }
+          }
         }
       }
       if (!values.isEmpty()) {
@@ -1594,15 +1618,15 @@ public class OnmuApiService {
     return List.of(Map.of(
       "id", "401",
       "title", "저녁",
-      "amount", 124000,
-      "payerName", "지민",
+      "amountWon", 124000,
+      "payerUserId", "user-jimin",
       "splitType", "equal",
-      "targetNames", List.of("지민", "민수", "소연", "현우")
+      "targetUserIds", List.of("user-jimin", "user-minsu", "user-soyeon", "user-hyunwoo")
     ));
   }
 
   private String defaultSettlementPayload(PlanEntity plan) {
-    return toJson(settlementPayloadFromItems(plan, List.of()));
+    return toJson(settlementPayloadFromSections(plan, List.of()));
   }
 
   private Instant parseNullableInstant(String value) {
