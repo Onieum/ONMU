@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.OutboxEventEntity;
 import com.onmu.api.domain.OutboxEventRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -32,6 +33,7 @@ public class OutboxService {
   private final String placeReasonWorkerUrl;
   private final RestTemplate restTemplate;
 
+  @Autowired
   public OutboxService(
     OutboxEventRepository outboxEventRepository,
     NotificationDeliveryService notificationDeliveryService,
