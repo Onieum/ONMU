@@ -80,20 +80,35 @@ class AzureMlOotdClient:
         )
 
 
+DEFAULT_GUIDANCE_SCALE = 2.5
+DEFAULT_MAX_SEQUENCE_LENGTH = 128
+DEFAULT_NUM_INFERENCE_STEPS = 8
+MAX_OUTFIT_BRIEF_CHARS = 360
+
+
 def build_azureml_request(event_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     input_type = str(payload.get("inputType") or payload.get("mode") or "").upper()
     character_image = str(payload.get("characterImageBase64") or DEFAULT_CHARACTER_IMAGE_BASE64)
     request_id = str(payload.get("jobId") or event_id)
+    common = {
+        "requestId": request_id,
+        "characterImageBase64": character_image,
+        "guidanceScale": DEFAULT_GUIDANCE_SCALE,
+        "maxSequenceLength": DEFAULT_MAX_SEQUENCE_LENGTH,
+        "numInferenceSteps": DEFAULT_NUM_INFERENCE_STEPS,
+        "useDimensions": False,
+        "useNegativePrompt": False,
+    }
 
     if input_type == "TEXT_PROMPT":
         outfit_description = str(payload.get("outfitDescription") or "").strip()
         if not outfit_description:
             raise ValueError("outfitDescription is required for TEXT_PROMPT")
         return {
-            "requestId": request_id,
+            **common,
             "mode": "TEXT_PROMPT",
-            "characterImageBase64": character_image,
             "outfitDescription": outfit_description,
+            "promptOverride": _build_prompt_override(outfit_description),
         }
 
     if input_type == "PHOTO_REFERENCE":
@@ -101,13 +116,71 @@ def build_azureml_request(event_id: str, payload: dict[str, Any]) -> dict[str, A
         if not descriptor:
             descriptor = _fallback_descriptor(payload)
         return {
-            "requestId": request_id,
+            **common,
             "mode": "PHOTO_REFERENCE",
-            "characterImageBase64": character_image,
             "outfitDescriptor": descriptor,
+            "promptOverride": _build_prompt_override(_descriptor_to_brief(descriptor)),
         }
 
     raise ValueError("inputType must be TEXT_PROMPT or PHOTO_REFERENCE")
+
+
+def _build_prompt_override(outfit_brief: str) -> str:
+    brief = _clip_text(" ".join(outfit_brief.split()), MAX_OUTFIT_BRIEF_CHARS) or "cute daily outfit"
+    return (
+        "Change only the outfit of this exact ONMU pixel avatar to: "
+        f"{brief}. "
+        "Keep the same face, hair, skin tone, body, pose, and pixel-art style."
+    )
+
+
+def _descriptor_to_brief(descriptor: Any) -> str:
+    if isinstance(descriptor, str):
+        return _clip_text(descriptor, MAX_OUTFIT_BRIEF_CHARS)
+    if not isinstance(descriptor, dict):
+        return "cute daily outfit"
+
+    parts: list[str] = []
+    for key in (
+        "top",
+        "bottom",
+        "dress",
+        "outerwear",
+        "shoes",
+        "bag",
+        "headwear",
+        "eyewear",
+        "headphones",
+    ):
+        text = _value(descriptor.get(key))
+        if text:
+            parts.append(f"{key}: {text}")
+
+    for key in ("accessories", "jewelry", "colors", "patterns", "materials", "point", "styling_notes", "overall_aesthetic"):
+        text = _value(descriptor.get(key))
+        if text:
+            parts.append(f"{key}: {text}")
+
+    return _clip_text("; ".join(parts), MAX_OUTFIT_BRIEF_CHARS) or "cute daily outfit"
+
+
+def _value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return " ".join(value.strip().split())
+    if isinstance(value, list):
+        return ", ".join(_value(item) for item in value[:4] if _value(item))
+    if isinstance(value, dict):
+        return ", ".join(_value(item) for item in value.values() if _value(item))
+    return str(value)
+
+
+def _clip_text(value: str, max_chars: int) -> str:
+    value = " ".join(value.strip().split())
+    if len(value) <= max_chars:
+        return value
+    return value[:max_chars].rsplit(" ", 1)[0].rstrip(" ,.;:")
 
 
 def _fallback_descriptor(payload: dict[str, Any]) -> dict[str, Any]:
