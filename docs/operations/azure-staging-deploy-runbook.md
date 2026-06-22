@@ -181,7 +181,7 @@ Place reason worker와 internal callback도 같은 원칙을 따른다.
 
 `ONMU_INTERNAL_CALLBACK_BASE_URL`은 staging worker plain env로 `https://staging-api.onmu.cloud`를 사용한다. Spring의 `ONMU_PLACE_REASON_WORKER_URL`은 Terraform module이 ACA internal worker FQDN `/tasks/place-reason`으로 만든다. 위 secret 값이 바뀌면 API/worker revision restart 뒤 `/readyz`, 후보 추가, outbox 발행, worker 처리, Spring callback, 후보 재조회 smoke를 status/count 중심으로 다시 본다.
 
-이미 Spring API와 worker Container App이 있는 staging에서 place-reason wiring만 맞출 때는 `Terraform Staging` workflow의 `place_reason_worker_ready` wave를 사용한다. 이 wave는 OOTD `azure_ml` 전환을 하지 않으며, API/worker Container App env/secretRef create/update만 허용한다.
+이미 Spring API와 worker Container App이 있는 staging에서 place-reason wiring만 맞출 때는 `Terraform Staging` workflow의 `place_reason_worker_ready` wave를 사용한다. 이 wave는 OOTD `azure_ml` 전환을 하지 않으며, API/worker Container App env/secretRef create/update만 허용한다. 기존 `ai_foundation` 리소스는 keepalive로 유지해 delete 계획을 막지만, 새 AI foundation resource create는 이 wave 범위가 아니다.
 
 ### 4.3 Terraform 인프라 patch
 

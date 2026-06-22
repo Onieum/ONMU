@@ -68,7 +68,7 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `postgres_ready`: PostgreSQL Flexible Server와 database/extension만 먼저 적용한다.
 - `api_app_ready`: Spring API Container App만 적용한다.
 - `worker_app_ready`: worker Container App을 적용하고 place-reason callback/OpenAI/worker_ai Key Vault secretRef를 연결한다.
-- `place_reason_worker_ready`: 기존 Spring API/worker Container App에 place-reason worker URL, internal callback, Azure OpenAI, worker_ai persistence secretRef를 맞춘다. OOTD `azure_ml` 전환은 포함하지 않는다.
+- `place_reason_worker_ready`: 기존 Spring API/worker Container App에 place-reason worker URL, internal callback, Azure OpenAI, worker_ai persistence secretRef를 맞춘다. OOTD `azure_ml` 전환은 포함하지 않는다. 이미 state에 있는 `ai_foundation` 리소스는 keepalive로 유지한다.
 - `worker_ai_ready`: 기존 worker Container App을 `ootd_generation_provider = "azure_ml"`로 전환하고 OOTD Azure ML/Vision Key Vault secretRef를 연결한다. 기존 worker 생성 이후, `ai_foundation`, `ai_diagnostics`, Azure ML endpoint smoke, Vision smoke가 끝난 뒤 실행한다.
 - `ai_foundation`: OOTD AI generation을 위한 Azure ML Workspace, Azure OpenAI-compatible vision account, optional vision deployment, worker runtime RBAC, worker AI env/secret reference를 준비한다. 기본값은 꺼져 있으며, `storage`, `observability`, `container_registry`가 먼저 준비되어 있어야 한다.
 - `db_and_app_ready`: 기존 호환용 alias다. 실제 운영 순서는 split wave를 기준으로 본다.
