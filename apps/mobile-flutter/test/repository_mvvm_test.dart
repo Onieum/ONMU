@@ -1488,7 +1488,7 @@ void main() {
             actionLabel: '투표 확인하기',
             targetType: 'PLAN',
             targetId: '301',
-            deadlineAt: DateTime.now().add(const Duration(milliseconds: 80)),
+            deadlineAt: DateTime.now().add(const Duration(milliseconds: 500)),
           ),
         ]),
     );
@@ -1509,7 +1509,7 @@ void main() {
     expect(container.read(provider).requireValue.voteId, 601);
     expect(container.read(provider).requireValue.vote, isNotNull);
 
-    await Future<void>.delayed(const Duration(milliseconds: 140));
+    await Future<void>.delayed(const Duration(milliseconds: 620));
     await pumpEventQueue();
 
     final state = container.read(provider).requireValue;
