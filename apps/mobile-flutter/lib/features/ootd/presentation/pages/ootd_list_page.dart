@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -7,12 +10,14 @@ import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import 'daily_record_screen.dart';
-
 part 'ootd_timeline_sheet.dart';
-
+typedef SaveRecordImageCallback = Future<OotdRecord> Function({
+  required OotdRecord record,
+  required Uint8List bytes,
+  required String fileName,
+});
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
-
   @override
   Set<PointerDeviceKind> get dragDevices => const {
     PointerDeviceKind.touch,
@@ -20,7 +25,6 @@ class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
     PointerDeviceKind.stylus,
   };
 }
-
 class OotdListPage extends StatefulWidget {
   final CharacterDraft userCharacter;
   final List<OotdRecord> customRecords;
@@ -29,8 +33,8 @@ class OotdListPage extends StatefulWidget {
   final Function(OotdRecord) onViewOotdDetail;
   final Future<Object?> Function(OotdRecord) onEditRecord;
   final Future<void> Function(OotdRecord) onDeleteRecord;
+  final SaveRecordImageCallback onSaveRecordImage;
   final VoidCallback onNavigateToProfile;
-
   const OotdListPage({
     super.key,
     required this.userCharacter,
@@ -40,9 +44,9 @@ class OotdListPage extends StatefulWidget {
     required this.onViewOotdDetail,
     required this.onEditRecord,
     required this.onDeleteRecord,
+    required this.onSaveRecordImage,
     required this.onNavigateToProfile,
   });
-
   @override
   State<OotdListPage> createState() => _OotdListPageState();
 }
@@ -338,6 +342,7 @@ class _OotdListPageState extends State<OotdListPage> {
               }
             });
           },
+          onSaveRecordImage: widget.onSaveRecordImage,
           onAddDailyRecord: (date, ootdRecord) {
             widget.onAddDailyRecord(date, ootdRecord);
           },

@@ -6,6 +6,7 @@ class _TimelineBottomSheetContent extends StatefulWidget {
   final OotdRecord? ootdRecord;
   final CharacterDraft userCharacter;
   final Function(OotdRecord) onSaveRecord;
+  final SaveRecordImageCallback onSaveRecordImage;
   final Function(DateTime, OotdRecord?) onAddDailyRecord;
   final Function(DateTime, OotdRecord?) onAddOotdRecord;
   final Future<Object?> Function(OotdRecord) onEditRecord;
@@ -18,6 +19,7 @@ class _TimelineBottomSheetContent extends StatefulWidget {
     this.ootdRecord,
     required this.userCharacter,
     required this.onSaveRecord,
+    required this.onSaveRecordImage,
     required this.onAddDailyRecord,
     required this.onAddOotdRecord,
     required this.onEditRecord,
@@ -40,9 +42,11 @@ class _TimelineBottomSheetContentState
   late OotdRecord _localRecord;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+  final GlobalKey _recordImageCaptureKey = GlobalKey();
   double _currentExtent = _sheetDefaultSize; // 드래그 비율 상태 변수
   bool _isDailyRecordButtonHovered = false;
   bool _isOotdRecordButtonHovered = false;
+  bool _isSavingRecordImage = false;
 
   @override
   void initState() {
@@ -220,9 +224,9 @@ class _TimelineBottomSheetContentState
           else if (!hasActiveRecord)
             _buildEmptyOotdView()
           else if (_tabIndex == 0)
-            _buildDailyTimelineView()
+            _buildCaptureSurface(_buildDailyTimelineView())
           else
-            _buildOotdDetailView(),
+            _buildCaptureSurface(_buildOotdDetailView()),
           SizedBox(height: 24),
           if (hasActiveRecord) ...[
             _buildBottomButtonRow(),
@@ -231,6 +235,10 @@ class _TimelineBottomSheetContentState
         ],
       ),
     );
+  }
+
+  Widget _buildCaptureSurface(Widget child) {
+    return RepaintBoundary(key: _recordImageCaptureKey, child: child);
   }
 
   Widget _buildTabButton(int index, String title) {
@@ -745,14 +753,11 @@ class _TimelineBottomSheetContentState
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
-              widget.onSaveRecord(activeRecord);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('이미지 저장 기능은 이후 연결 예정입니다.')),
-              );
-            },
+            onPressed: _isSavingRecordImage
+                ? null
+                : () => _saveActiveRecordImage(activeRecord),
             icon: const Icon(Icons.download, size: 16),
-            label: Text('이미지로 저장하기'),
+            label: Text(_isSavingRecordImage ? '이미지 저장 중...' : '이미지로 저장하기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
@@ -822,5 +827,57 @@ class _TimelineBottomSheetContentState
         ),
       ],
     );
+  }
+
+  Future<Uint8List> _captureRecordImageBytes() async {
+    await WidgetsBinding.instance.endOfFrame;
+    final boundary = _recordImageCaptureKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null) {
+      throw StateError('저장할 결과 화면을 찾지 못했어요.');
+    }
+    final image = await boundary.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    final bytes = byteData?.buffer.asUint8List();
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError('결과 이미지를 만들지 못했어요.');
+    }
+    return bytes;
+  }
+
+  Future<void> _saveActiveRecordImage(OotdRecord activeRecord) async {
+    if (_isSavingRecordImage) return;
+    setState(() => _isSavingRecordImage = true);
+
+    try {
+      final bytes = await _captureRecordImageBytes();
+      final type = activeRecord.brands['recordType'] == 'daily'
+          ? 'daily'
+          : 'ootd';
+      final date = activeRecord.date;
+      final fileName =
+          "$type-record-${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}.png";
+      final savedRecord = await widget.onSaveRecordImage(
+        record: activeRecord,
+        bytes: bytes,
+        fileName: fileName,
+      );
+      if (!mounted) return;
+      setState(() {
+        _localRecord = savedRecord;
+        _isSavingRecordImage = false;
+      });
+      widget.onSaveRecord(savedRecord);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('결과 이미지를 저장했어요.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSavingRecordImage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이미지 저장에 실패했어요: $error')),
+      );
+    }
   }
 }

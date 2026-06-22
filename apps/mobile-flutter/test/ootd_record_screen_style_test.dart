@@ -10,6 +10,15 @@ import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 
 class _FakeRecordRepository implements RecordRepository {
+  @override
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) async {
+    return const [];
+  }
+
   CharacterDraft? lastOverrides;
 
   @override
