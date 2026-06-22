@@ -54,6 +54,7 @@ public class ChatActivityService {
   private final NotificationRepository notificationRepository;
   private final NotificationPreferenceService notificationPreferenceService;
   private final UserRepository userRepository;
+  private final UserAvatarReadModelMapper userAvatarReadModelMapper;
   private final ObjectMapper objectMapper;
   private final ChatRealtimePublisher chatRealtimePublisher;
   private final OutboxService outboxService;
@@ -66,6 +67,7 @@ public class ChatActivityService {
     NotificationRepository notificationRepository,
     NotificationPreferenceService notificationPreferenceService,
     UserRepository userRepository,
+    UserAvatarReadModelMapper userAvatarReadModelMapper,
     ObjectMapper objectMapper,
     ChatRealtimePublisher chatRealtimePublisher,
     OutboxService outboxService
@@ -77,6 +79,7 @@ public class ChatActivityService {
     this.notificationRepository = notificationRepository;
     this.notificationPreferenceService = notificationPreferenceService;
     this.userRepository = userRepository;
+    this.userAvatarReadModelMapper = userAvatarReadModelMapper;
     this.objectMapper = objectMapper;
     this.chatRealtimePublisher = chatRealtimePublisher;
     this.outboxService = outboxService;
@@ -309,6 +312,7 @@ public class ChatActivityService {
     response.put("id", event.getId().toString());
     response.put("senderUserId", actorUser == null ? null : actorUser.getPublicId());
     response.put("senderName", senderName(payload, actorUser, messageType));
+    userAvatarReadModelMapper.putPrefixedAvatar(response, "sender", actorUser);
     response.put("message", message);
     response.put("attachments", attachments);
     response.put("messageType", messageType);

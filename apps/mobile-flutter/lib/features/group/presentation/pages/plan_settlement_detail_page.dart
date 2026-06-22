@@ -507,6 +507,7 @@ class _ParticipantStatusGrid extends StatelessWidget {
                         label: status.name,
                         size: 44,
                         profileImageUrl: status.profileImageUrl,
+                        character: status.character,
                       ),
                       if (status.willReceive)
                         const Positioned(
@@ -666,6 +667,7 @@ class _TransferRow extends StatelessWidget {
           label: transfer.fromName,
           size: 30,
           profileImageUrl: transfer.fromProfileImageUrl,
+          character: transfer.fromCharacter,
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
@@ -776,6 +778,7 @@ class _MemberResultCompactCard extends StatelessWidget {
                   label: result.name,
                   size: 30,
                   profileImageUrl: result.profileImageUrl,
+                  character: result.character,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(

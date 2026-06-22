@@ -78,6 +78,7 @@ public class SettlementApiService {
   private final GroupMemberRepository groupMemberRepository;
   private final NotificationRepository notificationRepository;
   private final OutboxService outboxService;
+  private final UserAvatarReadModelMapper userAvatarReadModelMapper;
   private final ObjectMapper objectMapper;
 
   public SettlementApiService(
@@ -97,6 +98,7 @@ public class SettlementApiService {
     GroupMemberRepository groupMemberRepository,
     NotificationRepository notificationRepository,
     OutboxService outboxService,
+    UserAvatarReadModelMapper userAvatarReadModelMapper,
     ObjectMapper objectMapper
   ) {
     this.groupRepository = groupRepository;
@@ -115,6 +117,7 @@ public class SettlementApiService {
     this.groupMemberRepository = groupMemberRepository;
     this.notificationRepository = notificationRepository;
     this.outboxService = outboxService;
+    this.userAvatarReadModelMapper = userAvatarReadModelMapper;
     this.objectMapper = objectMapper;
   }
 
@@ -590,6 +593,7 @@ public class SettlementApiService {
     value.put("payerUserId", userId(section.payer()));
     value.put("payerName", nickname(section.payer()));
     value.put("payerProfileImageUrl", profileImageUrl(section.payer()));
+    value.put("payerPixelCharacter", userAvatarReadModelMapper.pixelCharacter(section.payer()));
     value.put("sortOrder", section.sortOrder());
     value.put("items", section.items().stream().map(this::draftItemCard).toList());
     value.put("totalAmountWon", section.items().stream().map(ItemView::amountWon).reduce(0L, Long::sum));
@@ -605,25 +609,27 @@ public class SettlementApiService {
     value.put("amountLabel", amountLabel(item.amountWon()));
     value.put("splitType", item.splitType());
     value.put("targetUserIds", item.targets().stream().map(target -> target.user().getId().toString()).toList());
-    value.put("participants", item.targets().stream().map(target -> Map.of(
-      "name", target.name(),
-      "userId", target.user().getId().toString(),
-      "profileImageUrl", profileImageUrl(target.user()),
-      "amountWon", target.amountWon(),
-      "owedAmountLabel", amountLabel(target.amountWon()),
-      "included", true
-    )).toList());
+    value.put("participants", item.targets().stream().map(target -> {
+      Map<String, Object> participant = new LinkedHashMap<>();
+      participant.put("name", target.name());
+      participant.put("userId", target.user().getId().toString());
+      userAvatarReadModelMapper.putAvatar(participant, target.user());
+      participant.put("amountWon", target.amountWon());
+      participant.put("owedAmountLabel", amountLabel(target.amountWon()));
+      participant.put("included", true);
+      return participant;
+    }).toList());
     return value;
   }
 
   private Map<String, Object> paymentItemCard(ItemView item) {
     Map<String, Object> value = draftItemCard(item);
-    value.put("payerShares", List.of(Map.of(
-      "userId", userId(item.payer()),
-      "name", nickname(item.payer()),
-      "profileImageUrl", profileImageUrl(item.payer()),
-      "amountLabel", amountLabel(item.amountWon())
-    )));
+    Map<String, Object> payerShare = new LinkedHashMap<>();
+    payerShare.put("userId", userId(item.payer()));
+    payerShare.put("name", nickname(item.payer()));
+    userAvatarReadModelMapper.putAvatar(payerShare, item.payer());
+    payerShare.put("amountLabel", amountLabel(item.amountWon()));
+    value.put("payerShares", List.of(payerShare));
     value.put("targetLabel", item.targets().size() + "명");
     return value;
   }
@@ -633,7 +639,7 @@ public class SettlementApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("userId", userId(balance.user()));
     value.put("name", nickname(balance.user()));
-    value.put("profileImageUrl", profileImageUrl(balance.user()));
+    userAvatarReadModelMapper.putAvatar(value, balance.user());
     value.put("finalShareLabel", amountLabel(balance.owedWon()));
     value.put("paidAmountLabel", amountLabel(balance.paidWon()));
     value.put("resultLabel", resultLabel(net));
@@ -657,7 +663,7 @@ public class SettlementApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("userId", userId(user));
     value.put("name", nickname(user));
-    value.put("profileImageUrl", profileImageUrl(user));
+    userAvatarReadModelMapper.putAvatar(value, user);
     value.put("willReceive", receiver);
     value.put("sent", sent);
     value.put("received", received);
@@ -670,10 +676,10 @@ public class SettlementApiService {
     value.put("id", transfer.publicId());
     value.put("fromUserId", userId(transfer.fromUser()));
     value.put("fromName", transfer.fromName());
-    value.put("fromProfileImageUrl", profileImageUrl(transfer.fromUser()));
+    userAvatarReadModelMapper.putPrefixedAvatar(value, "from", transfer.fromUser());
     value.put("toUserId", userId(transfer.toUser()));
     value.put("toName", transfer.toName());
-    value.put("toProfileImageUrl", profileImageUrl(transfer.toUser()));
+    userAvatarReadModelMapper.putPrefixedAvatar(value, "to", transfer.toUser());
     value.put("amountWon", transfer.amountWon());
     value.put("amountLabel", amountLabel(transfer.amountWon()));
     value.put("status", transfer.status());
@@ -690,6 +696,7 @@ public class SettlementApiService {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("userId", userId(balance.user()));
     value.put("name", nickname(balance.user()));
+    userAvatarReadModelMapper.putAvatar(value, balance.user());
     value.put("paidTotalLabel", amountLabel(balance.paidWon()));
     value.put("owedTotalLabel", amountLabel(balance.owedWon()));
     value.put("netLabel", resultLabel(balance.netWon()));
@@ -1169,7 +1176,7 @@ public class SettlementApiService {
   }
 
   private String profileImageUrl(UserEntity user) {
-    return user == null ? "" : stringOrDefault(user.getProfileImageUrl(), "");
+    return userAvatarReadModelMapper.profileImageUrl(user);
   }
 
   private String userId(UserEntity user) {

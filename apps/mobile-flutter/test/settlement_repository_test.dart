@@ -135,12 +135,64 @@ void main() {
                   'planTitle': '정산 테스트',
                   'totalAmountLabel': '12,000원',
                   'itemCountLabel': '결제 항목 1개',
-                  'paymentItems': [],
+                  'paymentItems': [
+                    {
+                      'id': 'item-a',
+                      'title': '커피',
+                      'amountWon': 12000,
+                      'amountLabel': '12,000원',
+                      'splitType': 'equal',
+                      'payerShares': [
+                        {
+                          'userId': 'user-b',
+                          'name': 'B',
+                          'profilePhotoUrl': 'dev/avatars/b.png',
+                          'pixelCharacter': {
+                            'gender': 'female',
+                            'skinTone': 'skin_1',
+                            'hairStyle': 'hair_style_4',
+                            'hairColor': 'hair_color_2',
+                            'eyeStyle': 'eye_style_1',
+                            'eyeColor': 'eye_color_1',
+                            'clothes': 'top_0',
+                          },
+                          'amountLabel': '12,000원',
+                        },
+                      ],
+                      'participants': [
+                        {
+                          'userId': 'user-a',
+                          'name': 'A',
+                          'profileImageUrl': 'dev/avatars/a.png',
+                          'pixelCharacter': {
+                            'gender': 'male',
+                            'skinTone': 'skin_2',
+                            'hairStyle': 'hair_style_2',
+                            'hairColor': 'hair_color_1',
+                            'eyeStyle': 'eye_style_1',
+                            'eyeColor': 'eye_color_1',
+                            'clothes': 'top_1',
+                          },
+                          'owedAmountLabel': '12,000원',
+                          'included': true,
+                        },
+                      ],
+                    },
+                  ],
                   'memberResults': [
                     {
                       'userId': 'user-b',
                       'name': 'B',
                       'profilePhotoUrl': 'dev/avatars/b.png',
+                      'pixelCharacter': {
+                        'gender': 'female',
+                        'skinTone': 'skin_1',
+                        'hairStyle': 'hair_style_4',
+                        'hairColor': 'hair_color_2',
+                        'eyeStyle': 'eye_style_1',
+                        'eyeColor': 'eye_color_1',
+                        'clothes': 'top_0',
+                      },
                       'finalShareLabel': '0원',
                       'paidAmountLabel': '12,000원',
                       'resultLabel': '12,000원 받음',
@@ -153,6 +205,15 @@ void main() {
                       'userId': 'user-b',
                       'name': 'B',
                       'avatarUrl': 'dev/avatars/b.png',
+                      'pixelCharacter': {
+                        'gender': 'female',
+                        'skinTone': 'skin_1',
+                        'hairStyle': 'hair_style_4',
+                        'hairColor': 'hair_color_2',
+                        'eyeStyle': 'eye_style_1',
+                        'eyeColor': 'eye_color_1',
+                        'clothes': 'top_0',
+                      },
                       'willReceive': true,
                       'sent': false,
                       'received': true,
@@ -165,9 +226,27 @@ void main() {
                       'fromUserId': 'user-a',
                       'fromName': 'A',
                       'fromProfilePhotoUrl': 'dev/avatars/a.png',
+                      'fromPixelCharacter': {
+                        'gender': 'male',
+                        'skinTone': 'skin_2',
+                        'hairStyle': 'hair_style_2',
+                        'hairColor': 'hair_color_1',
+                        'eyeStyle': 'eye_style_1',
+                        'eyeColor': 'eye_color_1',
+                        'clothes': 'top_1',
+                      },
                       'toUserId': 'user-b',
                       'toName': 'B',
                       'toAvatarUrl': 'dev/avatars/b.png',
+                      'toPixelCharacter': {
+                        'gender': 'female',
+                        'skinTone': 'skin_1',
+                        'hairStyle': 'hair_style_4',
+                        'hairColor': 'hair_color_2',
+                        'eyeStyle': 'eye_style_1',
+                        'eyeColor': 'eye_color_1',
+                        'clothes': 'top_0',
+                      },
                       'amountWon': 12000,
                       'amountLabel': '12,000원',
                       'status': 'received',
@@ -188,15 +267,42 @@ void main() {
         settlement.memberResults.single.profileImageUrl,
         'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fb.png',
       );
+      expect(settlement.memberResults.single.character?.hairStyleIndex, 4);
       expect(
         settlement.participantStatuses.single.profileImageUrl,
         'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fb.png',
       );
+      expect(
+        settlement.participantStatuses.single.character?.hairStyleIndex,
+        4,
+      );
       expect(settlement.participantStatuses.single.received, isTrue);
+      expect(
+        settlement
+            .paymentItems
+            .single
+            .payerShares
+            .single
+            .character
+            ?.hairStyleIndex,
+        4,
+      );
+      expect(
+        settlement
+            .paymentItems
+            .single
+            .participants
+            .single
+            .character
+            ?.hairStyleIndex,
+        2,
+      );
       expect(
         settlement.transfers.single.fromProfileImageUrl,
         'https://api.test/api/v1/media/public?key=dev%2Favatars%2Fa.png',
       );
+      expect(settlement.transfers.single.fromCharacter?.hairStyleIndex, 2);
+      expect(settlement.transfers.single.toCharacter?.hairStyleIndex, 4);
     },
   );
 }

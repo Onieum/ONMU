@@ -532,13 +532,14 @@ class ApiGroupRepository implements GroupRepository {
   GroupMessage _groupMessage(Map<String, dynamic> json) {
     final createdAt = OnmuJson.readString(json, 'createdAt');
     final localTimeLabel = _messageTimeLabel(createdAt);
+    final sender = resolveOnmuDisplayName([
+      OnmuJson.readString(json, 'senderName'),
+      OnmuJson.readString(json, 'sender'),
+    ], fallback: 'ONMU');
     return GroupMessage(
       id: OnmuJson.readString(json, 'id'),
       cursor: OnmuJson.readString(json, 'cursor'),
-      sender: resolveOnmuDisplayName([
-        OnmuJson.readString(json, 'senderName'),
-        OnmuJson.readString(json, 'sender'),
-      ], fallback: 'ONMU'),
+      sender: sender,
       message: _messageText(json),
       timeLabel: localTimeLabel.isEmpty
           ? OnmuJson.readString(json, 'timeLabel')
@@ -556,6 +557,10 @@ class ApiGroupRepository implements GroupRepository {
       settlementId: OnmuJson.readString(json, 'settlementId'),
       isMine: OnmuJson.readBool(json, 'isMine'),
       senderProfileImageUrl: _profileImageUrl(json, 'senderProfileImageUrl'),
+      senderCharacter: characterDraftFromJson(
+        json['senderPixelCharacter'] ?? json['pixelCharacter'],
+        nickname: sender,
+      ),
       attachments: _messageAttachments(json['attachments']),
       sendStatus: GroupMessageSendStatus.fromApi(
         OnmuJson.readString(json, 'sendStatus', 'sent'),

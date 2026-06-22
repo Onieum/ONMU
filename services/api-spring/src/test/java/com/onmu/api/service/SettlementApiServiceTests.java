@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.ChatActivityEventEntity;
 import com.onmu.api.domain.ChatActivityEventRepository;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
@@ -93,6 +94,8 @@ class SettlementApiServiceTests {
   private NotificationRepository notificationRepository;
   @Mock
   private OutboxService outboxService;
+  @Mock
+  private CharacterProfileRepository characterProfileRepository;
 
   private SettlementApiService service;
   private GroupEntity group;
@@ -120,6 +123,7 @@ class SettlementApiServiceTests {
       groupMemberRepository,
       notificationRepository,
       outboxService,
+      new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper()),
       new ObjectMapper()
     );
     group = new GroupEntity("1", "ONMU 개발 모임", null);
@@ -158,6 +162,7 @@ class SettlementApiServiceTests {
         .filter(user -> names.contains(user.getNickname()))
         .toList();
     });
+    lenient().when(characterProfileRepository.findByUserId(any(UUID.class))).thenReturn(Optional.empty());
   }
 
   @Test
@@ -560,6 +565,20 @@ class SettlementApiServiceTests {
 
   @Test
   void settlementByIdReadsItemsTargetsAndTransfers() {
+    minsu.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"male\",\"skinTone\":\"skin_2\",\"hairStyle\":\"hair_style_2\",\"hairColor\":\"hair_color_1\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_1\"}",
+      null
+    );
+    jimin.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"female\",\"skinTone\":\"skin_1\",\"hairStyle\":\"hair_style_3\",\"hairColor\":\"hair_color_2\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_0\"}",
+      null
+    );
     SettlementEntity settlement = new SettlementEntity(
       "302",
       group,
@@ -603,7 +622,16 @@ class SettlementApiServiceTests {
     assertThat(result.value("id")).isEqualTo("302");
     assertThat(result.firstPaymentItem().get("id")).isEqualTo("403");
     assertThat(result.firstPayerShare().get("userId")).isEqualTo(userId(jimin));
+    assertThat(result.firstPayerShare().get("pixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_3");
+    assertThat(result.participantStatus("민수").get("pixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_2");
     assertThat(result.firstTransfer().get("fromName")).isEqualTo("민수");
+    assertThat(result.firstTransfer().get("fromPixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_2");
   }
 
   @Test

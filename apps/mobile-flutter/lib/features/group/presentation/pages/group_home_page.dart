@@ -626,6 +626,7 @@ class _RecentChatPreview extends StatelessWidget {
             PixelAvatar(
               label: preview.sender,
               profileImageUrl: preview.senderProfileImageUrl,
+              character: preview.senderCharacter,
               size: 42,
             ),
             const SizedBox(width: AppSpacing.sm),

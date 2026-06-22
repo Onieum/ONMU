@@ -335,6 +335,7 @@ class GroupMessage {
     this.settlementId = '',
     this.sendStatus = GroupMessageSendStatus.sent,
     this.senderProfileImageUrl = '',
+    this.senderCharacter,
     this.attachments = const [],
   });
 
@@ -353,6 +354,7 @@ class GroupMessage {
   final bool isMine;
   final GroupMessageSendStatus sendStatus;
   final String senderProfileImageUrl;
+  final CharacterDraft? senderCharacter;
   final List<GroupMessageAttachment> attachments;
 
   bool get canRetry => isMine && sendStatus.isFailed;
@@ -421,6 +423,7 @@ class GroupMessage {
     bool? isMine,
     GroupMessageSendStatus? sendStatus,
     String? senderProfileImageUrl,
+    CharacterDraft? senderCharacter,
     List<GroupMessageAttachment>? attachments,
   }) {
     return GroupMessage(
@@ -440,6 +443,7 @@ class GroupMessage {
       sendStatus: sendStatus ?? this.sendStatus,
       senderProfileImageUrl:
           senderProfileImageUrl ?? this.senderProfileImageUrl,
+      senderCharacter: senderCharacter ?? this.senderCharacter,
       attachments: attachments ?? this.attachments,
     );
   }
