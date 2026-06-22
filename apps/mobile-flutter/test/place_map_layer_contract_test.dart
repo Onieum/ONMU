@@ -30,6 +30,38 @@ void main() {
     expect(activeMarkers, hasLength(2));
     expect(activeMarkers.first.order, 1);
   });
+
+  test('maps user-facing categories to catalog categories', () {
+    expect(mapCatalogCategoryForPlaceCategory('음식점'), '식당');
+    expect(mapCatalogCategoryForPlaceCategory('카페'), '식당');
+    expect(mapCatalogCategoryForPlaceCategory('가볼만한곳'), '관광명소');
+    expect(mapCatalogCategoryForPlaceCategory('문화공간'), '문화공간');
+    expect(mapCatalogCategoryForPlaceCategory(''), isNull);
+  });
+
+  test('uses cafe token as catalog filter for broad restaurant catalog', () {
+    expect(
+      mapCatalogFilterForPlaceCategory(
+        primaryCategory: '카페',
+        selectedFilter: null,
+      ),
+      '카페',
+    );
+    expect(
+      mapCatalogFilterForPlaceCategory(
+        primaryCategory: '카페',
+        selectedFilter: '디저트',
+      ),
+      '디저트',
+    );
+    expect(
+      mapCatalogFilterForPlaceCategory(
+        primaryCategory: '음식점',
+        selectedFilter: null,
+      ),
+      'all',
+    );
+  });
 }
 
 PlaceCandidate _candidate({required int id, double? lat, double? lng}) {
