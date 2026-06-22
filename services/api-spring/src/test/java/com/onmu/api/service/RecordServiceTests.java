@@ -13,6 +13,7 @@ import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.OotdFeatureEntity;
 import com.onmu.api.domain.OotdFeatureRepository;
 import com.onmu.api.domain.PlanEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.RecordEntity;
 import com.onmu.api.domain.RecordMediaEntity;
@@ -55,6 +56,8 @@ class RecordServiceTests {
   @Mock
   private PlanRepository planRepository;
   @Mock
+  private PlanParticipantRepository planParticipantRepository;
+  @Mock
   private UserRepository userRepository;
   @Mock
   private OutboxService outboxService;
@@ -75,6 +78,7 @@ class RecordServiceTests {
       ootdFeatureRepository,
       groupRepository,
       planRepository,
+      planParticipantRepository,
       userRepository,
       outboxService,
       new ObjectMapper(),

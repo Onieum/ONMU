@@ -29,10 +29,54 @@ String _limitedPhotoComment(String value) {
   return trimmed.substring(0, _photoCommentMaxLength);
 }
 
+Widget _crewAppearanceAvatar(
+  CrewOotdAppearance appearance, {
+  required double size,
+}) {
+  final character = appearance.character;
+  final imageUrl = appearance.ootdImageUrl;
+  final fallback = character == null
+      ? Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: AppColors.bgPaper,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          child: const Icon(Icons.person_outline, color: AppColors.textMuted),
+        )
+      : PixelCharacterWidget(character: character, size: size);
+
+  if (imageUrl == null || imageUrl.trim().isEmpty) return fallback;
+
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: Image.network(
+      imageUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => fallback,
+    ),
+  );
+}
+
 class DailyRecordScreen extends StatefulWidget {
   final CharacterDraft userCharacter;
   final DateTime recordDate;
   final OotdRecord? ootdRecord;
+  final List<String> memoryPlaceNames;
+  final List<CharacterDraft> crewCharacters;
+  final List<CrewOotdAppearance> crewAppearances;
+  final String? groupId;
+  final String? planId;
+  final Future<List<CrewOotdAppearance>> Function({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  })?
+  onFetchCrewAppearances;
   final Future<OotdRecord> Function(OotdRecord) onSave;
   final Future<UploadedMedia> Function(Uint8List bytes, String fileName)
   onUploadMedia;
@@ -46,6 +90,12 @@ class DailyRecordScreen extends StatefulWidget {
     required this.onUploadMedia,
     required this.onCreateOotd,
     this.ootdRecord,
+    this.memoryPlaceNames = const [],
+    this.crewCharacters = const [],
+    this.crewAppearances = const [],
+    this.groupId,
+    this.planId,
+    this.onFetchCrewAppearances,
   });
 
   @override
@@ -62,9 +112,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   OotdRecord? _linkedOotdRecord;
   OotdRecord? _savedRecord;
   int _savedPhotoCount = 0;
+  bool _askedMemoryForNoPlan = false;
+  late List<String> _memoryPlaceNames;
+  late List<CharacterDraft> _crewCharacters;
+  late List<CrewOotdAppearance> _crewAppearances;
+  bool _isLoadingCrewAppearances = false;
 
   final _dayMemoController = TextEditingController();
   final _tagController = TextEditingController();
+  final _memoryController = TextEditingController();
   final _imagePicker = ImagePicker();
   final List<_PhotoMemoDraft> _photoMemos = [_PhotoMemoDraft()];
   final List<String> _hashtags = ['#하루기록'];
@@ -86,10 +142,31 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   @override
   void initState() {
     super.initState();
+    _memoryPlaceNames = _normalizePlaceNames(widget.memoryPlaceNames);
+    _crewCharacters = List<CharacterDraft>.unmodifiable(widget.crewCharacters);
+    _crewAppearances = List<CrewOotdAppearance>.unmodifiable(
+      widget.crewAppearances,
+    );
     _linkedOotdRecord = widget.ootdRecord;
     if (widget.ootdRecord != null &&
         widget.ootdRecord!.brands['recordType'] == 'daily') {
       final r = widget.ootdRecord!;
+      final savedPlaces = _memoryPlaceNamesFromRecord(r);
+      if (savedPlaces.isNotEmpty) {
+        _memoryPlaceNames = savedPlaces;
+      }
+      if (r.crewAppearances.isNotEmpty) {
+        _crewAppearances = List<CrewOotdAppearance>.unmodifiable(
+          r.crewAppearances,
+        );
+        _crewCharacters = List<CharacterDraft>.unmodifiable(
+          r.crewAppearances
+              .map((appearance) => appearance.character)
+              .whereType<CharacterDraft>(),
+        );
+      } else if (r.crewCharacters.isNotEmpty) {
+        _crewCharacters = List<CharacterDraft>.unmodifiable(r.crewCharacters);
+      }
       _selectedMood = _moods.indexWhere((m) => m.label == r.brands['mood']);
       if (_selectedMood == -1) _selectedMood = 0;
       _selectedWeather = _weathers.indexWhere(
@@ -136,6 +213,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         }
       }
     }
+    _loadCrewAppearances();
   }
 
   @override
@@ -145,7 +223,73 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     }
     _dayMemoController.dispose();
     _tagController.dispose();
+    _memoryController.dispose();
     super.dispose();
+  }
+
+  List<CharacterDraft> get _selectedCrewCharacters =>
+      _includeCrew ? _crewCharacters : const <CharacterDraft>[];
+
+  List<CrewOotdAppearance> get _selectedCrewAppearances =>
+      _includeCrew ? _crewAppearances : const <CrewOotdAppearance>[];
+
+  bool get _hasCrew =>
+      _crewAppearances.isNotEmpty || _crewCharacters.isNotEmpty;
+
+  bool get _shouldSkipCrewStep => !_hasCrew;
+
+  Future<void> _loadCrewAppearances() async {
+    final fetch = widget.onFetchCrewAppearances;
+    final groupId = widget.groupId;
+    final planId = widget.planId;
+    if (fetch == null || groupId == null || planId == null) return;
+    if (groupId.trim().isEmpty || planId.trim().isEmpty) return;
+
+    setState(() => _isLoadingCrewAppearances = true);
+    try {
+      final appearances = await fetch(
+        groupId: groupId,
+        planId: planId,
+        date: widget.recordDate,
+      );
+      if (!mounted) return;
+      setState(() {
+        _crewAppearances = List<CrewOotdAppearance>.unmodifiable(appearances);
+        _crewCharacters = List<CharacterDraft>.unmodifiable(
+          appearances
+              .map((appearance) => appearance.character)
+              .whereType<CharacterDraft>(),
+        );
+        _isLoadingCrewAppearances = false;
+        if (!_hasCrew) _includeCrew = false;
+      });
+    } catch (error) {
+      debugPrint('Daily record crew appearance load failed: $error');
+      if (!mounted) return;
+      setState(() => _isLoadingCrewAppearances = false);
+    }
+  }
+
+  List<String> _normalizePlaceNames(Iterable<String> source) {
+    final seen = <String>{};
+    final places = <String>[];
+    for (final value in source) {
+      final place = value.trim();
+      if (place.isEmpty) continue;
+      if (seen.add(place)) places.add(place);
+    }
+    return List<String>.unmodifiable(places);
+  }
+
+  List<String> _memoryPlaceNamesFromRecord(OotdRecord record) {
+    return _normalizePlaceNames(
+      record.timeline
+          .where((item) => item.category == 'place')
+          .map((item) {
+            final place = item.placeName.trim();
+            return place.isNotEmpty ? place : item.description;
+          }),
+    );
   }
 
   void _next() {
@@ -155,10 +299,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       return;
     }
     if (_currentStep == 6) {
-      _save();
+      _handleSaveStep();
       return;
     }
-    if (_currentStep == 3 && _linkedOotdRecord == null) {
+    if (_currentStep == 3 && _shouldSkipCrewStep) {
       setState(() {
         _includeCrew = false;
         _currentStep = 5;
@@ -174,11 +318,90 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       context.popOrGo(RoutePaths.records);
       return;
     }
-    if (_currentStep == 5 && _linkedOotdRecord == null) {
+    if (_currentStep == 5 && _shouldSkipCrewStep) {
       setState(() => _currentStep = 3);
       return;
     }
     setState(() => _currentStep--);
+  }
+
+  Future<void> _handleSaveStep() async {
+    final canSave = await _confirmMemoryForNoPlan();
+    if (!canSave || !mounted) return;
+    await _save();
+  }
+
+  Future<bool> _confirmMemoryForNoPlan() async {
+    if (_memoryPlaceNames.isNotEmpty || _askedMemoryForNoPlan) {
+      return true;
+    }
+
+    final wantsMemory = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('오늘의 약속이 없습니다.'),
+        content: const Text("TODAY'S MEMORY를 작성하시겠습니까?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('아니오'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('예'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return false;
+
+    if (wantsMemory != true) {
+      setState(() => _askedMemoryForNoPlan = true);
+      return true;
+    }
+
+    final memory = await _promptManualMemory();
+    if (!mounted) return false;
+    if (memory == null) return false;
+
+    setState(() {
+      _askedMemoryForNoPlan = true;
+      _memoryPlaceNames = _normalizePlaceNames([
+        ..._memoryPlaceNames,
+        memory,
+      ]);
+    });
+    return true;
+  }
+
+  Future<String?> _promptManualMemory() {
+    _memoryController.clear();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("TODAY'S MEMORY"),
+        content: TextField(
+          controller: _memoryController,
+          autofocus: true,
+          maxLength: 40,
+          decoration: const InputDecoration(
+            hintText: '예: 혼자 카페에서 책 읽기',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_memoryController.text.trim()),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _closeResult() async {
@@ -283,6 +506,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       mood: selectedMood,
       isPublic: false,
       timeline: const [],
+      crewCharacters: _includeCrew ? _crewCharacters : const [],
+      crewAppearances: _includeCrew ? _crewAppearances : const [],
     );
 
     setState(() => _isSaving = true);
@@ -338,8 +563,19 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           ),
         );
       }
+      final placeTimeline = _memoryPlaceNames
+          .map(
+            (place) => TimelineItem(
+              time: 'Place',
+              placeName: place,
+              category: 'place',
+              description: place,
+            ),
+          )
+          .toList(growable: false);
       final timelineWithImages = [
         ...photoTimeline,
+        ...placeTimeline,
         TimelineItem(
           time: '메모',
           placeName: '하루 일과',
@@ -352,6 +588,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         imageUrls: uploadedUrls,
         media: uploadedMedia,
         timeline: timelineWithImages,
+        crewCharacters: _includeCrew ? _crewCharacters : const [],
+        crewAppearances: _includeCrew ? _crewAppearances : const [],
       );
       final saved = await widget.onSave(recordWithImages);
       if (!mounted) return;
@@ -808,11 +1046,6 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   }
 
   Widget _buildCrewPage() {
-    final crew = [
-      widget.userCharacter.copyWith(hairColorIndex: 4, topStyleIndex: 1),
-      widget.userCharacter.copyWith(hairColorIndex: 6, bottomStyleIndex: 2),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -826,20 +1059,43 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         ),
         SizedBox(height: 28),
         Center(
-          child: Wrap(
-            spacing: 14,
-            runSpacing: 14,
-            alignment: WrapAlignment.center,
-            children: [
-              PixelCharacterWidget(character: widget.userCharacter, size: 86),
-              if (_includeCrew)
-                ...crew.map(
-                  (character) =>
-                      PixelCharacterWidget(character: character, size: 76),
+          child: _isLoadingCrewAppearances
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 22),
+                  child: CircularProgressIndicator(),
+                )
+              : Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    PixelCharacterWidget(
+                      character: widget.userCharacter,
+                      size: 86,
+                    ),
+                    if (_includeCrew && _crewAppearances.isNotEmpty)
+                      ..._crewAppearances.map(
+                        (appearance) =>
+                            _crewAppearanceAvatar(appearance, size: 76),
+                      )
+                    else if (_includeCrew)
+                      ..._crewCharacters.map(
+                        (character) => PixelCharacterWidget(
+                          character: character,
+                          size: 76,
+                        ),
+                      ),
+                  ],
                 ),
-            ],
-          ),
         ),
+        if (_includeCrew && !_isLoadingCrewAppearances && !_hasCrew) ...[
+          SizedBox(height: 18),
+          Text(
+            'No crew character was found for plans on this date.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
+          ),
+        ],
       ],
     );
   }
@@ -912,7 +1168,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           ),
           child: Column(
             children: [
-              if (widget.ootdRecord != null) ...[
+              if (_linkedOotdRecord != null) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -920,15 +1176,26 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                       character: widget.userCharacter,
                       size: 78,
                     ),
-                    if (_includeCrew) ...[
-                      SizedBox(width: 10),
-                      PixelCharacterWidget(
-                        character: widget.userCharacter.copyWith(
-                          hairColorIndex: 4,
-                        ),
-                        size: 66,
-                      ),
-                    ],
+                    if (_selectedCrewAppearances.isNotEmpty)
+                      ..._selectedCrewAppearances.take(3).map(
+                            (appearance) => Padding(
+                              padding: const EdgeInsets.only(left: 10),
+                              child: _crewAppearanceAvatar(
+                                appearance,
+                                size: 66,
+                              ),
+                            ),
+                          )
+                    else if (_selectedCrewCharacters.isNotEmpty)
+                      ..._selectedCrewCharacters.take(3).map(
+                            (character) => Padding(
+                              padding: const EdgeInsets.only(left: 10),
+                              child: PixelCharacterWidget(
+                                character: character,
+                                size: 66,
+                              ),
+                            ),
+                          ),
                   ],
                 ),
                 SizedBox(height: 14),

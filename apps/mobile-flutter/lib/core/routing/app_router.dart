@@ -38,6 +38,7 @@ import '../../features/ootd/presentation/pages/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
+import '../../features/ootd/repository/record_repository.dart';
 import '../../features/ootd/view_model/record_flow_controller.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
@@ -534,11 +535,17 @@ final appRouter = GoRouter(
           final ootdRecord = state.extra as OotdRecord?;
           final routeState = ref.watch(recordRouteStateProvider);
           final controller = ref.watch(recordFlowControllerProvider);
+          final recordRepository = ref.watch(recordRepositoryProvider);
+          final groupId = state.uri.queryParameters['groupId'];
+          final planId = state.uri.queryParameters['planId'];
 
           return DailyRecordScreen(
             userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
+            groupId: groupId,
+            planId: planId,
+            onFetchCrewAppearances: recordRepository.fetchCrewOotdAppearances,
             onSave: controller.saveRecord,
             onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {
