@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.ChatActivityEventEntity;
 import com.onmu.api.domain.ChatActivityEventRepository;
 import com.onmu.api.domain.ChatReadStateEntity;
@@ -59,6 +60,8 @@ class ChatActivityServiceTests {
   @Mock
   private UserRepository userRepository;
   @Mock
+  private CharacterProfileRepository characterProfileRepository;
+  @Mock
   private ChatRealtimePublisher chatRealtimePublisher;
   @Mock
   private OutboxService outboxService;
@@ -78,6 +81,7 @@ class ChatActivityServiceTests {
       notificationRepository,
       notificationPreferenceService,
       userRepository,
+      new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper()),
       new ObjectMapper(),
       chatRealtimePublisher,
       outboxService
@@ -87,6 +91,7 @@ class ChatActivityServiceTests {
     group = new GroupEntity("1", "제주 여행 모임", currentUser);
     lenient().when(notificationPreferenceService.isEnabled(any(UUID.class), any(String.class), any(String.class)))
       .thenReturn(true);
+    lenient().when(characterProfileRepository.findByUserId(any(UUID.class))).thenReturn(Optional.empty());
   }
 
   @Test
@@ -177,6 +182,13 @@ class ChatActivityServiceTests {
 
   @Test
   void postMessageCreatesChatActivityEventAndReturnsCreatedMessage() {
+    currentUser.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"female\",\"skinTone\":\"skin_1\",\"hairStyle\":\"hair_style_3\",\"hairColor\":\"hair_color_2\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_0\"}",
+      null
+    );
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(groupRepository.isUserMember("1", currentUser.getId())).thenReturn(true);
     when(userRepository.findByIdAndDeletedAtIsNull(currentUser.getId())).thenReturn(Optional.of(currentUser));
@@ -193,9 +205,13 @@ class ChatActivityServiceTests {
     assertThat(response)
       .containsEntry("senderUserId", currentUser.getPublicId())
       .containsEntry("senderName", "나")
+      .containsEntry("senderProfileImageUrl", "")
       .containsEntry("message", "새 메시지입니다")
       .containsEntry("messageType", "message")
       .containsEntry("isMine", true);
+    assertThat(response.get("senderPixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_3");
 
     ArgumentCaptor<ChatActivityEventEntity> eventCaptor = ArgumentCaptor.forClass(ChatActivityEventEntity.class);
     verify(chatActivityEventRepository).save(eventCaptor.capture());

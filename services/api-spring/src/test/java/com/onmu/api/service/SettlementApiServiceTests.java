@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.ChatActivityEventEntity;
 import com.onmu.api.domain.ChatActivityEventRepository;
+import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.domain.GroupEntity;
 import com.onmu.api.domain.GroupMemberRepository;
 import com.onmu.api.domain.GroupRepository;
@@ -93,6 +94,8 @@ class SettlementApiServiceTests {
   private NotificationRepository notificationRepository;
   @Mock
   private OutboxService outboxService;
+  @Mock
+  private CharacterProfileRepository characterProfileRepository;
 
   private SettlementApiService service;
   private GroupEntity group;
@@ -120,6 +123,7 @@ class SettlementApiServiceTests {
       groupMemberRepository,
       notificationRepository,
       outboxService,
+      new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper()),
       new ObjectMapper()
     );
     group = new GroupEntity("1", "ONMU 개발 모임", null);
@@ -158,6 +162,7 @@ class SettlementApiServiceTests {
         .filter(user -> names.contains(user.getNickname()))
         .toList();
     });
+    lenient().when(characterProfileRepository.findByUserId(any(UUID.class))).thenReturn(Optional.empty());
   }
 
   @Test
@@ -321,7 +326,74 @@ class SettlementApiServiceTests {
     MapLike result = new MapLike(service.markTransferReceived("1", "101", "302", transfer.getPublicId(), jimin.getId()));
 
     assertThat(result.value("status")).isEqualTo("completed");
+    verify(chatActivityEventRepository).save(argThat(event -> "settlement.completed".equals(event.getEventType())
+      && event.getPlan() == plan));
     verify(outboxService).record(eq("settlement.completed"), eq("settlement"), any(), any());
+  }
+
+  @Test
+  void receivedConfirmationDoesNotMarkSenderParticipantAsReceived() {
+    SettlementEntity settlement = new SettlementEntity("302", group, plan, "{}");
+    SettlementSectionEntity section = new SettlementSectionEntity(
+      null,
+      settlement,
+      "section-a",
+      null,
+      "기타 비용",
+      jimin,
+      0
+    );
+    SettlementItemEntity item = new SettlementItemEntity(
+      null,
+      settlement,
+      section,
+      "403",
+      "커피",
+      12000,
+      "menu",
+      "사용자 메모"
+    );
+    SettlementItemTargetEntity jiminTarget = new SettlementItemTargetEntity(item, jimin, 6000);
+    SettlementItemTargetEntity minsuTarget = new SettlementItemTargetEntity(item, minsu, 6000);
+    SettlementTransferEntity transfer = new SettlementTransferEntity(settlement, minsu, jimin, 6000, "민수 -> 지민");
+    transfer.markReceived();
+
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findByPlanAndPublicId(plan, "302")).thenReturn(Optional.of(settlement));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(settlement)).thenReturn(List.of(section));
+    when(settlementItemRepository.findBySectionOrderByCreatedAtAsc(section)).thenReturn(List.of(item));
+    when(settlementItemTargetRepository.findBySettlementItemInOrderByCreatedAtAsc(List.of(item)))
+      .thenReturn(List.of(jiminTarget, minsuTarget));
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(settlement)).thenReturn(List.of(transfer));
+
+    MapLike result = new MapLike(service.settlementById("1", "101", "302", me.getId()));
+
+    assertThat(result.participantStatus("민수").get("sent")).isEqualTo(false);
+    assertThat(result.participantStatus("민수").get("completed")).isEqualTo(false);
+    assertThat(result.participantStatus("지민").get("received")).isEqualTo(true);
+    assertThat(result.participantStatus("지민").get("completed")).isEqualTo(true);
+  }
+
+  @Test
+  void currentSettlementDoesNotReturnCompletedSettlementAsActive() {
+    SettlementEntity completedSettlement = new SettlementEntity("302", group, plan, "{}");
+    completedSettlement.markCompleted();
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findActiveByPlan(plan)).thenReturn(Optional.empty());
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(eq(plan), any()))
+      .thenAnswer(invocation -> {
+        @SuppressWarnings("unchecked")
+        List<String> statuses = invocation.getArgument(1, List.class);
+        return statuses.contains("completed") ? Optional.of(completedSettlement) : Optional.empty();
+      });
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.currentSettlement("1", "101", me.getId()))
+      .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getReason()).isEqualTo("settlement_not_found");
+      });
   }
 
   @Test
@@ -493,6 +565,20 @@ class SettlementApiServiceTests {
 
   @Test
   void settlementByIdReadsItemsTargetsAndTransfers() {
+    minsu.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"male\",\"skinTone\":\"skin_2\",\"hairStyle\":\"hair_style_2\",\"hairColor\":\"hair_color_1\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_1\"}",
+      null
+    );
+    jimin.updateProfile(
+      null,
+      null,
+      null,
+      "{\"gender\":\"female\",\"skinTone\":\"skin_1\",\"hairStyle\":\"hair_style_3\",\"hairColor\":\"hair_color_2\",\"eyeStyle\":\"eye_style_1\",\"eyeColor\":\"eye_color_1\",\"clothes\":\"top_0\"}",
+      null
+    );
     SettlementEntity settlement = new SettlementEntity(
       "302",
       group,
@@ -536,7 +622,16 @@ class SettlementApiServiceTests {
     assertThat(result.value("id")).isEqualTo("302");
     assertThat(result.firstPaymentItem().get("id")).isEqualTo("403");
     assertThat(result.firstPayerShare().get("userId")).isEqualTo(userId(jimin));
+    assertThat(result.firstPayerShare().get("pixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_3");
+    assertThat(result.participantStatus("민수").get("pixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_2");
     assertThat(result.firstTransfer().get("fromName")).isEqualTo("민수");
+    assertThat(result.firstTransfer().get("fromPixelCharacter"))
+      .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+      .containsEntry("hairStyle", "hair_style_2");
   }
 
   @Test
@@ -661,6 +756,14 @@ class SettlementApiServiceTests {
     @SuppressWarnings("unchecked")
     java.util.Map<String, Object> memberResult(String name) {
       return ((List<java.util.Map<String, Object>>) value.get("memberResults")).stream()
+        .filter(result -> name.equals(result.get("name")))
+        .findFirst()
+        .orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    java.util.Map<String, Object> participantStatus(String name) {
+      return ((List<java.util.Map<String, Object>>) value.get("participantStatuses")).stream()
         .filter(result -> name.equals(result.get("name")))
         .findFirst()
         .orElseThrow();

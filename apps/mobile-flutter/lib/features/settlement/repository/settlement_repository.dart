@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/models/settlement_models.dart';
+import '../../../shared/utils/character_draft_json.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
   return ApiSettlementRepository(ref.watch(onmuApiClientProvider));
@@ -419,6 +421,10 @@ class ApiSettlementRepository implements SettlementRepository {
       payerUserId: OnmuJson.readString(json, 'payerUserId'),
       payerName: OnmuJson.readString(json, 'payerName', '결제자'),
       payerProfileImageUrl: _profileImageUrl(json, 'payerProfileImageUrl'),
+      payerCharacter: characterDraftFromJson(
+        json['payerPixelCharacter'] ?? json['pixelCharacter'],
+        nickname: OnmuJson.readString(json, 'payerName', '결제자'),
+      ),
       sortOrder: OnmuJson.readInt(json, 'sortOrder'),
       totalAmountWon: OnmuJson.readInt(json, 'totalAmountWon'),
       items: OnmuJson.asMapList(
@@ -446,6 +452,10 @@ class ApiSettlementRepository implements SettlementRepository {
               name: OnmuJson.readString(payer, 'name', '결제자'),
               amountLabel: OnmuJson.readString(payer, 'amountLabel', '0원'),
               profileImageUrl: _profileImageUrl(payer),
+              character: characterDraftFromJson(
+                payer['pixelCharacter'],
+                nickname: OnmuJson.readString(payer, 'name', '결제자'),
+              ),
             ),
           )
           .toList(growable: false),
@@ -465,6 +475,10 @@ class ApiSettlementRepository implements SettlementRepository {
               ),
               included: OnmuJson.readBool(participant, 'included', true),
               profileImageUrl: _profileImageUrl(participant),
+              character: characterDraftFromJson(
+                participant['pixelCharacter'],
+                nickname: OnmuJson.readString(participant, 'name', '참여자'),
+              ),
             ),
           )
           .toList(growable: false),
@@ -497,6 +511,10 @@ class ApiSettlementRepository implements SettlementRepository {
       isMe: OnmuJson.readBool(json, 'isMe'),
       willReceive: OnmuJson.readBool(json, 'willReceive'),
       profileImageUrl: _profileImageUrl(json),
+      character: characterDraftFromJson(
+        json['pixelCharacter'],
+        nickname: OnmuJson.readString(json, 'name', '참여자'),
+      ),
     );
   }
 
@@ -505,7 +523,13 @@ class ApiSettlementRepository implements SettlementRepository {
       userId: OnmuJson.readString(json, 'userId'),
       name: OnmuJson.readString(json, 'name', '참여자'),
       profileImageUrl: _profileImageUrl(json),
+      character: characterDraftFromJson(
+        json['pixelCharacter'],
+        nickname: OnmuJson.readString(json, 'name', '참여자'),
+      ),
       willReceive: OnmuJson.readBool(json, 'willReceive'),
+      sent: OnmuJson.readBool(json, 'sent'),
+      received: OnmuJson.readBool(json, 'received'),
       completed: OnmuJson.readBool(json, 'completed'),
     );
   }
@@ -522,6 +546,14 @@ class ApiSettlementRepository implements SettlementRepository {
       status: OnmuJson.readString(json, 'status', 'pending'),
       fromProfileImageUrl: _profileImageUrl(json, 'fromProfileImageUrl'),
       toProfileImageUrl: _profileImageUrl(json, 'toProfileImageUrl'),
+      fromCharacter: characterDraftFromJson(
+        json['fromPixelCharacter'],
+        nickname: OnmuJson.readString(json, 'fromName', '보내는 사람'),
+      ),
+      toCharacter: characterDraftFromJson(
+        json['toPixelCharacter'],
+        nickname: OnmuJson.readString(json, 'toName', '받는 사람'),
+      ),
     );
   }
 
@@ -529,18 +561,10 @@ class ApiSettlementRepository implements SettlementRepository {
     Map<String, dynamic> json, [
     String primaryKey = 'profileImageUrl',
   ]) {
-    return OnmuJson.readString(
+    return resolveOnmuProfileImageUrl(
       json,
-      primaryKey,
-      OnmuJson.readString(
-        json,
-        'profileImageUrl',
-        OnmuJson.readString(
-          json,
-          'profilePhotoUrl',
-          OnmuJson.readString(json, 'avatarUrl'),
-        ),
-      ),
+      primaryKey: primaryKey,
+      baseUrl: _client.baseUrl,
     );
   }
 }

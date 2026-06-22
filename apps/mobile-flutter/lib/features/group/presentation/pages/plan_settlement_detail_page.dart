@@ -212,31 +212,46 @@ class _SettlementShareContent extends StatelessWidget {
     if (currentUserId.isEmpty || settlement.isCompleted) {
       return null;
     }
-    for (final transfer in settlement.transfers) {
-      if (transfer.fromUserId == currentUserId && !transfer.sent) {
-        final markSent = onMarkSent;
-        if (markSent == null || transfer.id.isEmpty) {
-          continue;
-        }
-        return _TransferAction(
-          label: '송금 완료 알리기',
-          icon: Icons.outgoing_mail,
-          transferId: transfer.id,
-          submit: markSent,
-        );
-      }
-      if (transfer.toUserId == currentUserId && !transfer.received) {
-        final markReceived = onMarkReceived;
-        if (markReceived == null || transfer.id.isEmpty) {
-          continue;
-        }
-        return _TransferAction(
-          label: '수취 완료하기',
-          icon: Icons.check_circle_outline,
-          transferId: transfer.id,
-          submit: markReceived,
-        );
-      }
+    final incomingTransferIds = settlement.transfers
+        .where(
+          (transfer) =>
+              transfer.toUserId == currentUserId &&
+              !transfer.received &&
+              transfer.id.isNotEmpty,
+        )
+        .map((transfer) => transfer.id)
+        .toList(growable: false);
+    final markReceived = onMarkReceived;
+    if (incomingTransferIds.isNotEmpty && markReceived != null) {
+      return _TransferAction(
+        label: '정산 확인',
+        icon: Icons.check_circle_outline,
+        transferIds: incomingTransferIds,
+        submit: markReceived,
+        confirmTitle: '정산금을 받았나요?',
+        confirmMessage: '내가 받을 모든 이체를 수취 완료로 표시해요. 확인 후에는 되돌릴 수 없어요.',
+      );
+    }
+
+    final outgoingTransferIds = settlement.transfers
+        .where(
+          (transfer) =>
+              transfer.fromUserId == currentUserId &&
+              !transfer.sent &&
+              transfer.id.isNotEmpty,
+        )
+        .map((transfer) => transfer.id)
+        .toList(growable: false);
+    final markSent = onMarkSent;
+    if (outgoingTransferIds.isNotEmpty && markSent != null) {
+      return _TransferAction(
+        label: '송금 완료',
+        icon: Icons.outgoing_mail,
+        transferIds: outgoingTransferIds,
+        submit: markSent,
+        confirmTitle: '송금을 완료했나요?',
+        confirmMessage: '내가 보내야 하는 모든 이체를 송금 완료로 표시해요. 수취자가 확인해야 최종 완료돼요.',
+      );
     }
     return null;
   }
@@ -257,8 +272,8 @@ class _SettlementShareContent extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('정말로 정산을 완료하셨나요?'),
-        content: const Text('확인 후에는 이 상태를 되돌릴 수 없어요.'),
+        title: Text(action.confirmTitle),
+        content: Text(action.confirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -275,7 +290,9 @@ class _SettlementShareContent extends StatelessWidget {
       return;
     }
     try {
-      await action.submit(action.transferId);
+      for (final transferId in action.transferIds) {
+        await action.submit(transferId);
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -316,14 +333,18 @@ class _TransferAction {
   const _TransferAction({
     required this.label,
     required this.icon,
-    required this.transferId,
+    required this.transferIds,
     required this.submit,
+    required this.confirmTitle,
+    required this.confirmMessage,
   });
 
   final String label;
   final IconData icon;
-  final String transferId;
+  final List<String> transferIds;
   final Future<void> Function(String transferId) submit;
+  final String confirmTitle;
+  final String confirmMessage;
 }
 
 class _SettlementHeaderCard extends StatelessWidget {
@@ -486,6 +507,7 @@ class _ParticipantStatusGrid extends StatelessWidget {
                         label: status.name,
                         size: 44,
                         profileImageUrl: status.profileImageUrl,
+                        character: status.character,
                       ),
                       if (status.willReceive)
                         const Positioned(
@@ -497,7 +519,7 @@ class _ParticipantStatusGrid extends StatelessWidget {
                             size: 20,
                           ),
                         ),
-                      if (status.completed)
+                      if (status.sent || status.received)
                         const Positioned(
                           right: -4,
                           bottom: -2,
@@ -645,6 +667,7 @@ class _TransferRow extends StatelessWidget {
           label: transfer.fromName,
           size: 30,
           profileImageUrl: transfer.fromProfileImageUrl,
+          character: transfer.fromCharacter,
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
@@ -755,6 +778,7 @@ class _MemberResultCompactCard extends StatelessWidget {
                   label: result.name,
                   size: 30,
                   profileImageUrl: result.profileImageUrl,
+                  character: result.character,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(

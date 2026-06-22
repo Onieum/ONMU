@@ -219,6 +219,7 @@ class ChatMessageBubble extends StatelessWidget {
               label: message.sender,
               size: 32,
               profileImageUrl: message.senderProfileImageUrl,
+              character: message.senderCharacter,
             ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(

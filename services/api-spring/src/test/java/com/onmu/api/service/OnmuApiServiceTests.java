@@ -123,8 +123,7 @@ class OnmuApiServiceTests {
       groupRepository,
       new GroupReadModelMapper(
         groupMemberRepository,
-        characterProfileRepository,
-        new ObjectMapper()
+        new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper())
       ),
       planRepository,
       voteRepository,
