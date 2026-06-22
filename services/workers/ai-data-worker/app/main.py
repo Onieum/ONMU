@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 
 from app.ootd.azureml_client import AzureMlOotdClient
 from app.ootd.character_renderer import CharacterReferenceRenderer
+from app.ootd.gpt_image_client import GptImageOotdClient
 from app.ootd.vision_client import AzureOpenAiVisionClient
-from app.ootd.worker import handle_ootd_avatar_generation
+from app.ootd.worker import handle_ootd_avatar_generation, resolve_image_generation_provider
 from app.place_reason_client import AzureOpenAiPlaceReasonClient
 from app.place_reason import handle_place_reason_task
 from app.worker_ai_store import WorkerAiStore
@@ -23,15 +24,22 @@ def healthz() -> dict[str, bool | str]:
 @app.get("/readyz")
 def readyz() -> dict[str, bool | str]:
     azureml_configured = AzureMlOotdClient.from_env(required=False).is_configured
+    gpt_image_configured = GptImageOotdClient.from_env(required=False).is_configured
     vision_configured = AzureOpenAiVisionClient.from_env(required=False).is_configured
     place_reason_configured = AzureOpenAiPlaceReasonClient.from_env(required=False).is_configured
     worker_ai_store_configured = WorkerAiStore.from_env().is_configured
     character_renderer_ready = CharacterReferenceRenderer().is_ready
+    image_generation_provider = resolve_image_generation_provider(
+        azureml_configured=azureml_configured,
+        gpt_image_configured=gpt_image_configured,
+    )
     return {
         "ok": True,
         "service": "onmu-ai-data-worker",
-        "mode": "azureml" if azureml_configured else "mock",
+        "mode": image_generation_provider.lower(),
+        "imageGenerationProvider": image_generation_provider,
         "azureMlConfigured": azureml_configured,
+        "gptImageConfigured": gpt_image_configured,
         "visionConfigured": vision_configured,
         "placeReasonConfigured": place_reason_configured,
         "workerAiStoreConfigured": worker_ai_store_configured,

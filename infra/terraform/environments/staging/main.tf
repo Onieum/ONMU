@@ -22,8 +22,9 @@ locals {
   resource_group_location = var.create_resource_group ? module.resource_group[0].location : data.azurerm_resource_group.existing[0].location
   runtime_key_vault_id    = data.azurerm_key_vault.runtime.id
   key_vault_uri           = data.azurerm_key_vault.runtime.vault_uri
+  spring_api_base_url     = "https://staging-api.onmu.cloud"
 
-  spring_secret_names = {
+  spring_base_secret_names = {
     DATABASE_URL                          = "${local.secret_prefix}-database-url"
     POSTGRES_PASSWORD                     = "${local.secret_prefix}-postgres-password"
     SPRING_DATASOURCE_URL                 = "${local.secret_prefix}-database-url"
@@ -50,42 +51,91 @@ locals {
     APPLICATIONINSIGHTS_CONNECTION_STRING = "${local.secret_prefix}-appinsights-connection-string"
   }
 
-  worker_ai_secret_names = {
-    ONMU_HF_TOKEN               = "${local.secret_prefix}-hf-token"
-    ONMU_OOTD_MODEL_ID          = "${local.secret_prefix}-ootd-model-id"
-    ONMU_OOTD_MODEL_REVISION    = "${local.secret_prefix}-ootd-model-revision"
-    ONMU_AZUREML_ENDPOINT_URL   = "${local.secret_prefix}-azureml-endpoint-url"
-    ONMU_AZUREML_ENDPOINT_KEY   = "${local.secret_prefix}-azureml-endpoint-key"
+  spring_worker_secret_names = var.worker_enabled ? {
+    ONMU_INTERNAL_SECRET = "${local.secret_prefix}-internal-secret"
+  } : {}
+
+  worker_place_reason_secret_names = {
+    ONMU_INTERNAL_SECRET                     = "${local.secret_prefix}-internal-secret"
+    ONMU_PLACE_REASON_OPENAI_ENDPOINT_URL    = "${local.secret_prefix}-place-reason-openai-endpoint-url"
+    ONMU_PLACE_REASON_OPENAI_DEPLOYMENT_NAME = "${local.secret_prefix}-place-reason-openai-deployment-name"
+    ONMU_PLACE_REASON_OPENAI_API_KEY         = "${local.secret_prefix}-place-reason-openai-api-key"
+    ONMU_PLACE_REASON_OPENAI_API_VERSION     = "${local.secret_prefix}-place-reason-openai-api-version"
+    ONMU_WORKER_AI_DATABASE_URL              = "${local.secret_prefix}-worker-ai-database-url"
+  }
+
+  worker_azure_ml_secret_names = {
+    ONMU_HF_TOKEN             = "${local.secret_prefix}-hf-token"
+    ONMU_OOTD_MODEL_ID        = "${local.secret_prefix}-ootd-model-id"
+    ONMU_OOTD_MODEL_REVISION  = "${local.secret_prefix}-ootd-model-revision"
+    ONMU_AZUREML_ENDPOINT_URL = "${local.secret_prefix}-azureml-endpoint-url"
+    ONMU_AZUREML_ENDPOINT_KEY = "${local.secret_prefix}-azureml-endpoint-key"
+  }
+
+  worker_vision_secret_names = {
     ONMU_VISION_ENDPOINT_URL    = "${local.secret_prefix}-vision-endpoint-url"
     ONMU_VISION_DEPLOYMENT_NAME = "${local.secret_prefix}-vision-deployment-name"
     ONMU_VISION_API_KEY         = "${local.secret_prefix}-vision-api-key"
     ONMU_VISION_API_VERSION     = "${local.secret_prefix}-vision-api-version"
   }
 
+  worker_gpt_image_secret_names = {
+    ONMU_GPT_IMAGE_ENDPOINT_URL    = "${local.secret_prefix}-gpt-image-endpoint-url"
+    ONMU_GPT_IMAGE_API_KEY         = "${local.secret_prefix}-gpt-image-api-key"
+    ONMU_GPT_IMAGE_API_VERSION     = "${local.secret_prefix}-gpt-image-api-version"
+    ONMU_GPT_IMAGE_DEPLOYMENT_NAME = "${local.secret_prefix}-gpt-image-deployment-name"
+    ONMU_IMAGE_GENERATION_PROVIDER = "${local.secret_prefix}-image-generation-provider"
+  }
+
+  worker_ootd_secret_names = merge(
+    var.ootd_generation_provider == "azure_ml" ? merge(
+      local.worker_azure_ml_secret_names,
+      local.worker_vision_secret_names
+    ) : {},
+    var.ootd_generation_provider == "gpt_image" ? merge(
+      local.worker_gpt_image_secret_names,
+      local.worker_vision_secret_names
+    ) : {}
+  )
+
+  worker_secret_names = merge(
+    local.worker_place_reason_secret_names,
+    local.worker_ootd_secret_names
+  )
+
+  spring_secret_names = merge(
+    local.spring_base_secret_names,
+    local.spring_worker_secret_names
+  )
+
   spring_secret_refs = {
     for env_name, secret_name in local.spring_secret_names :
     lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
   }
 
-  worker_ai_secret_refs = var.ootd_generation_provider == "azure_ml" ? {
-    for env_name, secret_name in local.worker_ai_secret_names :
+  worker_secret_refs = {
+    for env_name, secret_name in local.worker_secret_names :
     lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
-  } : {}
+  }
 
   spring_secret_env = {
     for env_name, secret_name in local.spring_secret_names :
     env_name => lower(replace(env_name, "_", "-"))
   }
 
-  worker_ai_secret_env = var.ootd_generation_provider == "azure_ml" ? {
-    for env_name, secret_name in local.worker_ai_secret_names :
+  worker_secret_env = {
+    for env_name, secret_name in local.worker_secret_names :
     env_name => lower(replace(env_name, "_", "-"))
-  } : {}
+  }
 
   worker_ai_plain_env = merge(
     {
-      AZURE_CLIENT_ID               = try(module.key_vault[0].runtime_identity_client_id, "")
-      ONMU_OOTD_GENERATION_PROVIDER = var.ootd_generation_provider
+      AZURE_CLIENT_ID                 = try(module.key_vault[0].runtime_identity_client_id, "")
+      ONMU_INTERNAL_CALLBACK_BASE_URL = local.spring_api_base_url
+      ONMU_OOTD_GENERATION_PROVIDER   = var.ootd_generation_provider
+    },
+    var.ootd_generation_provider == "gpt_image" ? {} : {
+      ONMU_IMAGE_GENERATION_PROVIDER = var.ootd_generation_provider
     },
     var.enabled_modules.ai_foundation ? {
       ONMU_AZUREML_WORKSPACE_NAME = module.ai_foundation[0].machine_learning_workspace_name
@@ -429,8 +479,8 @@ module "container_apps" {
       },
       local.worker_ai_plain_env
     )
-    secret_env  = local.worker_ai_secret_env
-    secret_refs = local.worker_ai_secret_refs
+    secret_env  = local.worker_secret_env
+    secret_refs = local.worker_secret_refs
     startup_probe = {
       transport               = "HTTP"
       port                    = 8000

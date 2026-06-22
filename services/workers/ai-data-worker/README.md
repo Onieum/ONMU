@@ -84,6 +84,28 @@ Alembic may own worker-only tables such as:
 
 Alembic must not create or modify core domain tables such as `users`, `groups`, `plans`, `votes`, `settlements`, `records`, or `record_media`.
 
+## Worker schema migration
+
+`worker_ai` schema migration은 FastAPI worker가 소유한다. Spring Flyway가 core domain schema를 올린 뒤, worker persistence smoke 전에 별도로 실행한다.
+
+```powershell
+cd services\workers\ai-data-worker
+python -m pip install -e .
+$env:ONMU_WORKER_AI_DATABASE_URL = "<set from approved secret source; do not print>"
+alembic upgrade head
+```
+
+macOS/Linux:
+
+```bash
+cd services/workers/ai-data-worker
+python -m pip install -e .
+export ONMU_WORKER_AI_DATABASE_URL="<set from approved secret source; do not print>"
+alembic upgrade head
+```
+
+`ONMU_WORKER_AI_DATABASE_URL` 대신 `DATABASE_URL`도 fallback으로 읽지만, staging worker 운영 기준은 `ONMU_WORKER_AI_DATABASE_URL`이다. Migration log와 smoke 보고에는 schema/table/count/status만 남기고 DB URL 값은 출력하지 않는다.
+
 ## Local run
 
 ```powershell

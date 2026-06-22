@@ -180,13 +180,13 @@ variable "worker_enabled" {
 }
 
 variable "ootd_generation_provider" {
-  description = "Worker OOTD generation provider. Use mock before Azure ML endpoint smoke is ready."
+  description = "Worker OOTD generation provider. Use mock before image generation endpoint smoke is ready."
   type        = string
   default     = "mock"
 
   validation {
-    condition     = contains(["mock", "azure_ml"], var.ootd_generation_provider)
-    error_message = "ootd_generation_provider must be mock or azure_ml."
+    condition     = contains(["mock", "azure_ml", "gpt_image"], var.ootd_generation_provider)
+    error_message = "ootd_generation_provider must be mock, azure_ml, or gpt_image."
   }
 }
 

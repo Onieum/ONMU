@@ -9,6 +9,7 @@ description = "ONMU AI/Data Worker"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "alembic==1.14.0",
   "fastapi==0.116.1",
   "httpx==0.28.1",
   "pillow==10.4.0",

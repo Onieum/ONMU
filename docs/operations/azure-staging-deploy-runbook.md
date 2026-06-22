@@ -168,6 +168,21 @@ Staging Container App의 runtime env는 기본적으로 Key Vault secretRef로 �
 
 운영자가 위 값을 수정할 때는 Key Vault secret value만 갱신하고, ACA env는 해당 secret name을 `secretref`로 계속 바라봐야 한다. ACA revision env에 redirect URI가 plain value로 직접 들어가 있으면 임시 hotfix 상태로 보고 Terraform/ACA secretRef 경계에 맞춰 되돌린다.
 
+Place reason worker와 internal callback도 같은 원칙을 따른다.
+
+| Env var | Key Vault secret name |
+| --- | --- |
+| `ONMU_INTERNAL_SECRET` | `staging-internal-secret` |
+| `ONMU_PLACE_REASON_OPENAI_ENDPOINT_URL` | `staging-place-reason-openai-endpoint-url` |
+| `ONMU_PLACE_REASON_OPENAI_DEPLOYMENT_NAME` | `staging-place-reason-openai-deployment-name` |
+| `ONMU_PLACE_REASON_OPENAI_API_KEY` | `staging-place-reason-openai-api-key` |
+| `ONMU_PLACE_REASON_OPENAI_API_VERSION` | `staging-place-reason-openai-api-version` |
+| `ONMU_WORKER_AI_DATABASE_URL` | `staging-worker-ai-database-url` |
+
+`ONMU_INTERNAL_CALLBACK_BASE_URL`은 staging worker plain env로 `https://staging-api.onmu.cloud`를 사용한다. Spring의 `ONMU_PLACE_REASON_WORKER_URL`은 Terraform module이 ACA internal worker FQDN `/tasks/place-reason`으로 만든다. 위 secret 값이 바뀌면 API/worker revision restart 뒤 `/readyz`, 후보 추가, outbox 발행, worker 처리, Spring callback, 후보 재조회 smoke를 status/count 중심으로 다시 본다.
+
+이미 Spring API와 worker Container App이 있는 staging에서 place-reason wiring만 맞출 때는 `Terraform Staging` workflow의 `place_reason_worker_ready` wave를 사용한다. 이 wave는 OOTD `azure_ml` 전환을 하지 않으며, API/worker Container App env/secretRef create/update만 허용한다. 기존 `ai_foundation` 리소스는 keepalive로 유지해 delete 계획을 막지만, 새 AI foundation resource create는 이 wave 범위가 아니다.
+
 ### 4.3 Terraform 인프라 patch
 
 Terraform으로 다루는 변경이면 `Terraform Staging` workflow를 사용한다.
@@ -190,6 +205,7 @@ Terraform으로 다루는 변경이면 `Terraform Staging` workflow를 사용한
 - `postgres_ready`
 - `api_app_ready`
 - `worker_app_ready`
+- `place_reason_worker_ready`
 
 ### 4.4 key vault secret refresh 이후 smoke
 
