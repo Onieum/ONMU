@@ -84,6 +84,15 @@ void main() {
 }
 
 class _DetailMissingRecordRepository implements RecordRepository {
+  @override
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) async {
+    return const [];
+  }
+
   _DetailMissingRecordRepository()
     : _records = List.of(TestRecordRepository.defaultRecords);
 

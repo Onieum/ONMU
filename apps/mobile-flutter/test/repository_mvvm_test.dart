@@ -3317,6 +3317,15 @@ class _RecordingPlanCreateRepository extends _UnusedPlanRepository {
 }
 
 class _RecordingRecordRepository implements RecordRepository {
+  @override
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) async {
+    return const [];
+  }
+
   final createdRecords = <OotdRecord>[];
   final deletedIds = <String>[];
   final uploadedFiles = <String>[];

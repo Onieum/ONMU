@@ -38,7 +38,6 @@ import '../../features/ootd/presentation/pages/ootd_list_page.dart';
 import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
-import '../../features/ootd/repository/record_repository.dart';
 import '../../features/ootd/view_model/record_flow_controller.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
@@ -493,33 +492,7 @@ final appRouter = GoRouter(
                         return;
                       }
                     },
-                    onSaveRecordImage: ({
-                      required record,
-                      required bytes,
-                      required fileName,
-                    }) async {
-                      final uploaded =
-                          await controller.uploadMedia(bytes, fileName);
-                      final compositePrefix =
-                          record.brands['recordType'] == 'daily'
-                              ? 'dailyComposite'
-                              : 'ootdComposite';
-                      final updatedRecord = record.copyWith(
-                        imageUrls: [...record.imageUrls, uploaded.publicUrl],
-                        media: [
-                          ...record.media,
-                          uploaded.copyWith(sortOrder: record.media.length),
-                        ],
-                        brands: {
-                          ...record.brands,
-                          '${compositePrefix}ImageUrl': uploaded.publicUrl,
-                          '${compositePrefix}StorageKey': uploaded.storageKey,
-                        },
-                      );
-                      final saved = await controller.saveRecord(updatedRecord);
-                      controller.refreshRecords();
-                      return saved;
-                    },
+                    onSaveRecordImage: controller.saveRecordImage,
                     onNavigateToProfile: () =>
                         _showResetDialog(context, controller),
                   );
@@ -562,7 +535,6 @@ final appRouter = GoRouter(
           final ootdRecord = state.extra as OotdRecord?;
           final routeState = ref.watch(recordRouteStateProvider);
           final controller = ref.watch(recordFlowControllerProvider);
-          final recordRepository = ref.watch(recordRepositoryProvider);
           final groupId = state.uri.queryParameters['groupId'];
           final planId = state.uri.queryParameters['planId'];
 
@@ -572,7 +544,7 @@ final appRouter = GoRouter(
             ootdRecord: ootdRecord,
             groupId: groupId,
             planId: planId,
-            onFetchCrewAppearances: recordRepository.fetchCrewOotdAppearances,
+            onFetchCrewAppearances: controller.fetchCrewOotdAppearances,
             onSave: controller.saveRecord,
             onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {

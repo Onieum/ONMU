@@ -326,7 +326,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   Widget _buildStylePage() {
-    final previewCharacter = _recordCharacter;
+    final previewCharacter = _effectiveCharacter;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -721,7 +721,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         media: uploaded == null
             ? widget.existingRecord?.media ?? const []
             : [uploaded],
-        character: _recordCharacter,
+        character: _effectiveCharacter,
         moodTags: _tags,
         brands: brands,
         weather: _weather,
@@ -841,10 +841,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ? _defaultNextSuggestion
           : _nextSuggestionController.text.trim(),
       'rating': _rating.toStringAsFixed(1),
-      'styleHairStyle': 'hair_style_${_recordCharacter.hairStyleIndex}',
-      'styleHairColor': 'hair_color_${_recordCharacter.hairColorIndex}',
+      'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',
+      'styleHairColor': 'hair_color_${_effectiveCharacter.hairColorIndex}',
       'styleEyeStyle': 'eye_style_${_effectiveCharacter.eyeShapeIndex}',
-      'styleEyeColor': 'eye_color_${_recordCharacter.eyeColorIndex}',
+      'styleEyeColor': 'eye_color_${_effectiveCharacter.eyeColorIndex}',
       if (uploaded != null) 'outfitPhotoStorageKey': uploaded.storageKey,
       ...outfitInfo,
     };
