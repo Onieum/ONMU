@@ -50,24 +50,46 @@ locals {
     APPLICATIONINSIGHTS_CONNECTION_STRING = "${local.secret_prefix}-appinsights-connection-string"
   }
 
-  worker_ai_secret_names = {
-    ONMU_HF_TOKEN               = "${local.secret_prefix}-hf-token"
-    ONMU_OOTD_MODEL_ID          = "${local.secret_prefix}-ootd-model-id"
-    ONMU_OOTD_MODEL_REVISION    = "${local.secret_prefix}-ootd-model-revision"
-    ONMU_AZUREML_ENDPOINT_URL   = "${local.secret_prefix}-azureml-endpoint-url"
-    ONMU_AZUREML_ENDPOINT_KEY   = "${local.secret_prefix}-azureml-endpoint-key"
+  worker_azure_ml_secret_names = {
+    ONMU_HF_TOKEN             = "${local.secret_prefix}-hf-token"
+    ONMU_OOTD_MODEL_ID        = "${local.secret_prefix}-ootd-model-id"
+    ONMU_OOTD_MODEL_REVISION  = "${local.secret_prefix}-ootd-model-revision"
+    ONMU_AZUREML_ENDPOINT_URL = "${local.secret_prefix}-azureml-endpoint-url"
+    ONMU_AZUREML_ENDPOINT_KEY = "${local.secret_prefix}-azureml-endpoint-key"
+  }
+
+  worker_vision_secret_names = {
     ONMU_VISION_ENDPOINT_URL    = "${local.secret_prefix}-vision-endpoint-url"
     ONMU_VISION_DEPLOYMENT_NAME = "${local.secret_prefix}-vision-deployment-name"
     ONMU_VISION_API_KEY         = "${local.secret_prefix}-vision-api-key"
     ONMU_VISION_API_VERSION     = "${local.secret_prefix}-vision-api-version"
   }
 
+  worker_gpt_image_secret_names = {
+    ONMU_GPT_IMAGE_ENDPOINT_URL    = "${local.secret_prefix}-gpt-image-endpoint-url"
+    ONMU_GPT_IMAGE_API_KEY         = "${local.secret_prefix}-gpt-image-api-key"
+    ONMU_GPT_IMAGE_API_VERSION     = "${local.secret_prefix}-gpt-image-api-version"
+    ONMU_GPT_IMAGE_DEPLOYMENT_NAME = "${local.secret_prefix}-gpt-image-deployment-name"
+    ONMU_IMAGE_GENERATION_PROVIDER = "${local.secret_prefix}-image-generation-provider"
+  }
+
+  worker_ai_secret_names = merge(
+    var.ootd_generation_provider == "azure_ml" ? merge(
+      local.worker_azure_ml_secret_names,
+      local.worker_vision_secret_names
+    ) : {},
+    var.ootd_generation_provider == "gpt_image" ? merge(
+      local.worker_gpt_image_secret_names,
+      local.worker_vision_secret_names
+    ) : {}
+  )
+
   spring_secret_refs = {
     for env_name, secret_name in local.spring_secret_names :
     lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
   }
 
-  worker_ai_secret_refs = var.ootd_generation_provider == "azure_ml" ? {
+  worker_ai_secret_refs = var.ootd_generation_provider != "mock" ? {
     for env_name, secret_name in local.worker_ai_secret_names :
     lower(replace(env_name, "_", "-")) => "${local.key_vault_uri}secrets/${secret_name}"
   } : {}
@@ -77,7 +99,7 @@ locals {
     env_name => lower(replace(env_name, "_", "-"))
   }
 
-  worker_ai_secret_env = var.ootd_generation_provider == "azure_ml" ? {
+  worker_ai_secret_env = var.ootd_generation_provider != "mock" ? {
     for env_name, secret_name in local.worker_ai_secret_names :
     env_name => lower(replace(env_name, "_", "-"))
   } : {}
@@ -86,6 +108,9 @@ locals {
     {
       AZURE_CLIENT_ID               = try(module.key_vault[0].runtime_identity_client_id, "")
       ONMU_OOTD_GENERATION_PROVIDER = var.ootd_generation_provider
+    },
+    var.ootd_generation_provider == "gpt_image" ? {} : {
+      ONMU_IMAGE_GENERATION_PROVIDER = var.ootd_generation_provider
     },
     var.enabled_modules.ai_foundation ? {
       ONMU_AZUREML_WORKSPACE_NAME = module.ai_foundation[0].machine_learning_workspace_name
