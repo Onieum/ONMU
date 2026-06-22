@@ -135,10 +135,11 @@ staging은 PostgreSQL public access를 쓰는 동안 ACA environment static IP�
 - `Build Staging Images`로 worker image build, 필요 시 push
 - `STAGING_WORKER_IMAGE` 갱신
 - `wave=worker_app_ready`
+- 기존 API/worker Container App의 place-reason callback/OpenAI/worker_ai secretRef만 맞추는 경우 `wave=place_reason_worker_ready`
 
 ## 6. smoke 기준
 
-`api_app_ready` 또는 `worker_app_ready` 이후에는 최소한 아래를 다시 본다.
+`api_app_ready`, `worker_app_ready`, `place_reason_worker_ready` 이후에는 최소한 아래를 다시 본다.
 
 - container revision ready 여부
 - `/healthz` 200

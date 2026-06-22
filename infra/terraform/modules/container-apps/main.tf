@@ -17,7 +17,8 @@ locals {
   spring_api_plain_env = merge(
     var.spring_api.plain_env,
     var.worker.enabled && var.create_spring_api_app ? {
-      ONMU_WORKER_URL = "https://${var.worker.name}.internal.${azurerm_container_app_environment.this.default_domain}/tasks/ootd"
+      ONMU_WORKER_URL              = "https://${var.worker.name}.internal.${azurerm_container_app_environment.this.default_domain}/tasks/ootd"
+      ONMU_PLACE_REASON_WORKER_URL = "https://${var.worker.name}.internal.${azurerm_container_app_environment.this.default_domain}/tasks/place-reason"
     } : {}
   )
 }

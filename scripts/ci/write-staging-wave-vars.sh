@@ -367,6 +367,13 @@ enabled_modules = {
 EOF
     append_frontdoor_keepalive_targets
     ;;
+  place_reason_worker_ready)
+    require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
+    require_env "STAGING_SPRING_API_IMAGE"
+    require_env "STAGING_WORKER_IMAGE"
+    append_live_app_keepalive_modules
+    append_frontdoor_keepalive_targets
+    ;;
   worker_ai_ready)
     require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
     require_env "STAGING_SPRING_API_IMAGE"

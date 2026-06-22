@@ -152,8 +152,11 @@ App phase 전 사전 조건과 현재 병목은 [Azure ACA 앱 배포 사전 점
 - `postgres_ready`
 - `api_app_ready`
 - `worker_app_ready`
+- `place_reason_worker_ready`
 
 이 순서를 쓰는 이유는 PostgreSQL, Spring API, worker를 각각 독립 approval과 smoke로 끊기 위해서다. `db_and_app_ready`는 호환용 alias로만 유지한다.
+
+`place_reason_worker_ready`는 기존 API/worker Container App에 장소 추천 설명 worker wiring을 반영하는 patch wave다. API에는 ACA internal worker URL과 internal callback secretRef를, worker에는 Spring callback base URL, internal secretRef, Azure OpenAI place-reason secretRef, worker_ai DB secretRef를 연결한다. OOTD `azure_ml` provider 전환은 포함하지 않으며 `worker_ai_ready`와 분리한다.
 
 ### Staging DB/App Ready
 
