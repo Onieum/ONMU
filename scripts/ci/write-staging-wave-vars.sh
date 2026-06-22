@@ -64,6 +64,8 @@ EOF
 }
 
 append_live_app_keepalive_modules() {
+  local ai_foundation_enabled="${1:-false}"
+
   cat >> "$output_path" <<EOF
 
 spring_api_image = "${STAGING_SPRING_API_IMAGE}"
@@ -82,7 +84,7 @@ enabled_modules = {
   eventhubs                  = true
   container_apps_environment = true
   container_apps             = true
-  ai_foundation              = false
+  ai_foundation              = ${ai_foundation_enabled}
   diagnostics                = true
   rbac_assignments           = false
 }
@@ -371,7 +373,7 @@ EOF
     require_env "STAGING_POSTGRES_ADMINISTRATOR_PASSWORD"
     require_env "STAGING_SPRING_API_IMAGE"
     require_env "STAGING_WORKER_IMAGE"
-    append_live_app_keepalive_modules
+    append_live_app_keepalive_modules true
     append_frontdoor_keepalive_targets
     ;;
   worker_ai_ready)
