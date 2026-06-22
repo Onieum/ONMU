@@ -1931,6 +1931,46 @@ void main() {
     expect(find.text('확인 메시지'), findsOneWidget);
   });
 
+  testWidgets('group chat renders cursor date dividers and unread boundary', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    await binding.setSurfaceSize(const Size(420, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _TimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2024년 6월 2일'), findsNothing);
+    expect(find.text('2026년 6월 9일 화요일'), findsOneWidget);
+    expect(find.text('2026년 6월 10일 수요일'), findsOneWidget);
+    expect(find.text('2개의 새 메시지'), findsOneWidget);
+
+    final readMessageTop = tester.getTopLeft(find.text('읽었던 메시지')).dy;
+    final unreadDividerTop = tester.getTopLeft(find.text('2개의 새 메시지')).dy;
+    final firstUnreadTop = tester.getTopLeft(find.text('첫 새 메시지')).dy;
+
+    expect(readMessageTop, lessThan(unreadDividerTop));
+    expect(unreadDividerTop, lessThan(firstUnreadTop));
+  });
+
   testWidgets('group chat renders input without vote or settlement cards', (
     tester,
   ) async {
@@ -2342,6 +2382,47 @@ class _NoAuxGroupRepository extends TestGroupRepository {
     String? targetType,
     Object? targetId,
   }) async => [];
+}
+
+class _TimelineGroupRepository extends _NoAuxGroupRepository {
+  _TimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      unreadCount: 2,
+      messages: [
+        GroupMessage(
+          id: 'message-read-1',
+          cursor: '2026-06-09T12:00:00+09:00',
+          sender: '민서',
+          message: '읽었던 메시지',
+          timeLabel: '12:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'message-unread-1',
+          cursor: '2026-06-09T12:05:00+09:00',
+          sender: '지우',
+          message: '첫 새 메시지',
+          timeLabel: '12:05',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'message-unread-2',
+          cursor: '2026-06-10T12:00:00+09:00',
+          sender: '나',
+          message: '다음 날 새 메시지',
+          timeLabel: '12:00',
+          isMine: true,
+        ),
+      ],
+    );
+  }
 }
 
 class _SettlementActivityGroupRepository extends _NoAuxGroupRepository {

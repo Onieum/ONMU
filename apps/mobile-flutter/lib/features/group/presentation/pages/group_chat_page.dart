@@ -31,8 +31,19 @@ class _GroupChatPageState extends State<GroupChatPage> {
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
 
+  int _lastRenderedMessageCount = 0;
+  String _lastRenderedLastMessageKey = '';
+  bool _showJumpToLatest = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -52,6 +63,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     final sendFuture = ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendMessage(text);
+    _setJumpToLatestVisible(false);
     _scheduleScrollToBottom();
     final sent = await sendFuture;
     if (!mounted) {
@@ -96,6 +108,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     final sendFuture = ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
         .sendImageMessages(selectedImages, text: text);
+    _setJumpToLatestVisible(false);
     _scheduleScrollToBottom();
     final sent = await sendFuture;
     if (!mounted) {
@@ -123,6 +136,70 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
+  void _jumpToLatestMessage() {
+    _setJumpToLatestVisible(false);
+    _scheduleScrollToBottom();
+  }
+
+  void _handleScroll() {
+    if (_showJumpToLatest && _isNearTimelineBottom()) {
+      _setJumpToLatestVisible(false);
+    }
+  }
+
+  bool _isNearTimelineBottom() {
+    if (!_scrollController.hasClients) {
+      return true;
+    }
+    final position = _scrollController.position;
+    return position.maxScrollExtent - position.pixels <= 180;
+  }
+
+  void _syncTimelineScrollState(List<GroupMessage> messages) {
+    final messageCount = messages.length;
+    final lastMessageKey = messages.isEmpty ? '' : _messageKey(messages.last);
+    final appendedLatestMessage =
+        messageCount > _lastRenderedMessageCount &&
+        _lastRenderedLastMessageKey.isNotEmpty &&
+        lastMessageKey != _lastRenderedLastMessageKey;
+
+    _lastRenderedMessageCount = messageCount;
+    _lastRenderedLastMessageKey = lastMessageKey;
+
+    if (!appendedLatestMessage) {
+      return;
+    }
+    if (_isNearTimelineBottom()) {
+      _setJumpToLatestVisible(false);
+      _scheduleScrollToBottom();
+      return;
+    }
+    _setJumpToLatestVisible(true);
+  }
+
+  String _messageKey(GroupMessage message) {
+    if (message.id.trim().isNotEmpty) {
+      return 'id:${message.id}';
+    }
+    if (message.cursor.trim().isNotEmpty) {
+      return 'cursor:${message.cursor}';
+    }
+    return '${message.sender}|${message.message}|${message.timeLabel}|'
+        '${message.isMine}|${message.sendStatus.name}';
+  }
+
+  void _setJumpToLatestVisible(bool visible) {
+    if (_showJumpToLatest == visible) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _showJumpToLatest == visible) {
+        return;
+      }
+      setState(() => _showJumpToLatest = visible);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
@@ -130,30 +207,35 @@ class _GroupChatPageState extends State<GroupChatPage> {
         final state = ref.watch(groupChatViewModelProvider(widget.groupId));
 
         return state.when(
-          data: (state) => _ThreadContent(
-            state: state,
-            messageController: _messageController,
-            scrollController: _scrollController,
-            onSend: () => _sendMessage(ref),
-            onPickImage: () => _sendImageMessages(ref),
-            onLoadSettlementCandidatePlans: () => ref
-                .read(groupChatViewModelProvider(widget.groupId).notifier)
-                .loadSettlementCandidatePlans(),
-            onLoadOlderMessages: () => ref
-                .read(groupChatViewModelProvider(widget.groupId).notifier)
-                .loadOlderMessages(),
-            onRetryMessage: (messageId) async {
-              final retried = await ref
+          data: (state) {
+            _syncTimelineScrollState(state.messages);
+            return _ThreadContent(
+              state: state,
+              messageController: _messageController,
+              scrollController: _scrollController,
+              showJumpToLatest: _showJumpToLatest,
+              onJumpToLatest: _jumpToLatestMessage,
+              onSend: () => _sendMessage(ref),
+              onPickImage: () => _sendImageMessages(ref),
+              onLoadSettlementCandidatePlans: () => ref
                   .read(groupChatViewModelProvider(widget.groupId).notifier)
-                  .retryMessage(messageId);
-              if (!mounted || !context.mounted || retried) {
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')),
-              );
-            },
-          ),
+                  .loadSettlementCandidatePlans(),
+              onLoadOlderMessages: () => ref
+                  .read(groupChatViewModelProvider(widget.groupId).notifier)
+                  .loadOlderMessages(),
+              onRetryMessage: (messageId) async {
+                final retried = await ref
+                    .read(groupChatViewModelProvider(widget.groupId).notifier)
+                    .retryMessage(messageId);
+                if (!mounted || !context.mounted || retried) {
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')),
+                );
+              },
+            );
+          },
           loading: () => const OnmuScaffold(
             title: '채팅',
             children: [Center(child: CircularProgressIndicator())],
@@ -178,6 +260,8 @@ class _ThreadContent extends StatelessWidget {
     required this.state,
     required this.messageController,
     required this.scrollController,
+    required this.showJumpToLatest,
+    required this.onJumpToLatest,
     required this.onSend,
     required this.onPickImage,
     required this.onLoadSettlementCandidatePlans,
@@ -188,6 +272,8 @@ class _ThreadContent extends StatelessWidget {
   final GroupChatState state;
   final TextEditingController messageController;
   final ScrollController scrollController;
+  final bool showJumpToLatest;
+  final VoidCallback onJumpToLatest;
   final Future<void> Function() onSend;
   final Future<void> Function() onPickImage;
   final Future<List<GroupPlanSummary>> Function()
@@ -261,6 +347,15 @@ class _ThreadContent extends StatelessWidget {
         onSend: onSend,
         onOpenActions: () => _showChatActions(context),
       ),
+      floatingActionButton: showJumpToLatest
+          ? FloatingActionButton.small(
+              tooltip: '최신 메시지로 이동',
+              backgroundColor: AppColors.primaryPink,
+              foregroundColor: AppColors.textInverse,
+              onPressed: onJumpToLatest,
+              child: const Icon(Icons.arrow_downward),
+            )
+          : null,
       scrollController: scrollController,
       children: [
         if (state.pinnedPlan != null)
@@ -296,8 +391,6 @@ class _ThreadContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        const _DateDivider(label: '2024년 6월 2일'),
-        const SizedBox(height: AppSpacing.md),
         if (state.hasMoreOlderMessages) ...[
           _LoadOlderMessagesButton(
             loading: state.isLoadingOlderMessages,
@@ -307,27 +400,98 @@ class _ThreadContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        if (state.unreadCount > 0) ...[
-          _UnreadDivider(count: state.unreadCount),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        for (final message in state.messages) ...[
-          if (message.isActivity)
-            ChatActivityCard(
-              message: message,
-              onTap: () => _openActivityMessage(context, message),
-            )
-          else
-            ChatMessageBubble(
-              message: message,
-              onRetry: message.canRetry
-                  ? () => onRetryMessage(message.id)
-                  : null,
-            ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        ..._timelineChildren(context),
       ],
     );
+  }
+
+  List<Widget> _timelineChildren(BuildContext context) {
+    final children = <Widget>[];
+    final fallbackDate = DateTime.now();
+    final unreadStartIndex = _unreadStartIndex(
+      state.messages.length,
+      state.unreadCount,
+    );
+    String? previousDateKey;
+
+    for (var index = 0; index < state.messages.length; index += 1) {
+      final message = state.messages[index];
+      final messageDate = _localDateForMessage(message, fallbackDate);
+      final dateKey = _dateKey(messageDate);
+      if (dateKey != previousDateKey) {
+        children
+          ..add(_DateDivider(label: _dateDividerLabel(messageDate)))
+          ..add(const SizedBox(height: AppSpacing.md));
+        previousDateKey = dateKey;
+      }
+      if (index == unreadStartIndex) {
+        children
+          ..add(_UnreadDivider(count: state.unreadCount))
+          ..add(const SizedBox(height: AppSpacing.md));
+      }
+      children
+        ..add(_messageWidget(context, message))
+        ..add(const SizedBox(height: AppSpacing.sm));
+    }
+
+    return children;
+  }
+
+  Widget _messageWidget(BuildContext context, GroupMessage message) {
+    if (message.isActivity) {
+      return ChatActivityCard(
+        message: message,
+        onTap: () => _openActivityMessage(context, message),
+      );
+    }
+    return ChatMessageBubble(
+      message: message,
+      onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
+    );
+  }
+
+  int _unreadStartIndex(int messageCount, int unreadCount) {
+    if (messageCount <= 0 || unreadCount <= 0) {
+      return -1;
+    }
+    final startIndex = messageCount - unreadCount;
+    if (startIndex <= 0) {
+      return 0;
+    }
+    if (startIndex >= messageCount) {
+      return -1;
+    }
+    return startIndex;
+  }
+
+  DateTime _localDateForMessage(GroupMessage message, DateTime fallbackDate) {
+    final cursorDate = DateTime.tryParse(message.cursor.trim());
+    if (cursorDate != null) {
+      return cursorDate.toLocal();
+    }
+    final localMessageDate = _localPendingDate(message.id);
+    return localMessageDate ?? fallbackDate;
+  }
+
+  DateTime? _localPendingDate(String messageId) {
+    final match = RegExp(r'^local-(\d+)').firstMatch(messageId.trim());
+    final microseconds = int.tryParse(match?.group(1) ?? '');
+    if (microseconds == null) {
+      return null;
+    }
+    return DateTime.fromMicrosecondsSinceEpoch(microseconds);
+  }
+
+  String _dateKey(DateTime date) {
+    final local = date.toLocal();
+    return '${local.year}-${local.month}-${local.day}';
+  }
+
+  String _dateDividerLabel(DateTime date) {
+    final local = date.toLocal();
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[local.weekday - 1];
+    return '${local.year}년 ${local.month}월 ${local.day}일 $weekday요일';
   }
 
   void _openActivityMessage(BuildContext context, GroupMessage message) {
