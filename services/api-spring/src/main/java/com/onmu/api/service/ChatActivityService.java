@@ -188,12 +188,14 @@ public class ChatActivityService {
     Instant createdAt = Instant.now();
     String senderName = nickname(actorUser);
     String body = messagePreview(message, attachmentCount);
-    String payload = toJson(Map.of(
-      "groupId", group.getPublicId(),
-      "messageId", event.getId().toString(),
-      "senderUserId", actorUser.getPublicId(),
-      "chatActivityEventId", event.getId().toString()
-    ));
+    Map<String, Object> notificationPayload = new LinkedHashMap<>();
+    notificationPayload.put("groupId", group.getPublicId());
+    notificationPayload.put("messageId", event.getId().toString());
+    notificationPayload.put("chatActivityEventId", event.getId().toString());
+    notificationPayload.put("senderUserId", actorUser.getPublicId());
+    notificationPayload.put("attachmentCount", attachmentCount);
+    notificationPayload.put("hasText", message != null && !message.isBlank());
+    String payload = toJson(notificationPayload);
     for (UserEntity recipient : recipients.values()) {
       if (!notificationPreferenceService.isEnabled(recipient.getId(), "chat_message", "in_app")) {
         continue;
@@ -212,6 +214,9 @@ public class ChatActivityService {
       ));
       outboxService.record("notification.requested", "notification", notification.getId(), Map.of(
         "groupId", group.getPublicId(),
+        "messageId", event.getId().toString(),
+        "chatActivityEventId", event.getId().toString(),
+        "attachmentCount", attachmentCount,
         "notificationId", notification.getId().toString(),
         "notificationType", notification.getNotificationType(),
         "channels", List.of("push")
@@ -225,6 +230,9 @@ public class ChatActivityService {
 
   private String messagePreview(String message, int attachmentCount) {
     if (message == null || message.isBlank()) {
+      if (attachmentCount > 1) {
+        return "사진 " + attachmentCount + "장을 보냈어요.";
+      }
       return attachmentCount > 0 ? "사진을 보냈어요." : "메시지를 확인해 주세요.";
     }
     String normalized = message.replaceAll("\\R+", " ").replaceAll("[\\t ]+", " ").trim();

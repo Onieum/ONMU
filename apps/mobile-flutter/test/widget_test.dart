@@ -26,6 +26,7 @@ import 'package:onmu_mobile/features/plan/repository/plan_repository.dart';
 import 'package:onmu_mobile/features/plan/widgets/plan_member_avatar_row.dart';
 import 'package:onmu_mobile/features/settlement/repository/settlement_repository.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
+import 'package:onmu_mobile/shared/models/notification_models.dart';
 import 'package:onmu_mobile/shared/models/place_models.dart';
 import 'package:onmu_mobile/shared/models/plan_models.dart';
 import 'package:onmu_mobile/shared/models/settlement_models.dart';
@@ -44,10 +45,14 @@ String _weekdayLabel(DateTime date) {
   return const ['월', '화', '수', '목', '금', '토', '일'][date.weekday - 1];
 }
 
-Widget _testOnmuApp({GroupRepository? groupRepository}) {
+Widget _testOnmuApp({
+  GroupRepository? groupRepository,
+  InMemoryOnmuStore? store,
+}) {
   appRouter.go(RoutePaths.splash);
   return onmuTestProviderScope(
     groupRepository: groupRepository,
+    store: store,
     child: const app.OnmuMaterialApp(),
   );
 }
@@ -2208,6 +2213,44 @@ void main() {
     expect(find.text('알림이 없어요.'), findsNothing);
     expect(find.text('주말 나들이 정산이 만들어졌어요'), findsNothing);
     expect(find.text('약속 정산'), findsNothing);
+  });
+
+  testWidgets('home chat notification opens group chat and marks it read', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded()
+      ..addNotification(
+        NotificationItem(
+          id: '00000000-0000-0000-0000-000000001213',
+          notificationType: 'chat_message',
+          title: '새 메시지가 도착했어요',
+          body: '현우님의 사진 2장을 확인해 보세요.',
+          status: 'queued',
+          createdAt: DateTime.parse('2026-06-09T14:12:00+09:00'),
+          timeLabel: '14:12',
+          groupId: '1',
+          payload: const {
+            'groupId': '1',
+            'messageId': 'message-1',
+            'chatActivityEventId': 'message-1',
+            'attachmentCount': 2,
+          },
+          isRead: false,
+        ),
+      );
+    await tester.pumpWidget(_testOnmuApp(store: store));
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.homeNotifications);
+    await tester.pumpAndSettle();
+
+    expect(store.fetchUnreadNotificationCount(), 3);
+    await tester.tap(find.text('새 메시지가 도착했어요'));
+    await tester.pumpAndSettle();
+
+    expect(store.fetchUnreadNotificationCount(), 2);
+    expect(find.text('대학 동기 여행단'), findsOneWidget);
+    expect(find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'), findsOneWidget);
   });
 
   testWidgets('group chat menu opens vote list', (tester) async {

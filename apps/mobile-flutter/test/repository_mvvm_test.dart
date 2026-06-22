@@ -1783,6 +1783,52 @@ void main() {
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
   });
 
+  test('채팅 ViewModel은 여러 사진을 한 메시지의 attachments로 전송한다', () async {
+    final repository = _FakeGroupRepository();
+    final mediaRepository = _FakeMediaRepository(
+      uploaded: const GroupMessageAttachment(
+        type: 'image',
+        publicUrl:
+            'https://dev-api.onmu.cloud/api/v1/media/public?key=records%2Fmedia%2Fphoto.jpg',
+        storageKey: 'records/media/photo.jpg',
+        contentType: 'image/jpeg',
+        fileName: 'photo.jpg',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        mediaRepositoryProvider.overrideWithValue(mediaRepository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final sent = await container
+        .read(provider.notifier)
+        .sendImageMessages(const [
+          PickedChatImage(path: '/tmp/photo-1.jpg', fileName: 'photo-1.jpg'),
+          PickedChatImage(path: '/tmp/photo-2.jpg', fileName: 'photo-2.jpg'),
+          PickedChatImage(path: '/tmp/photo-3.jpg', fileName: 'photo-3.jpg'),
+        ], text: '사진 모아 보내요');
+    final updated = container.read(provider).requireValue;
+
+    expect(sent, isTrue);
+    expect(mediaRepository.uploadedPaths, [
+      '/tmp/photo-1.jpg',
+      '/tmp/photo-2.jpg',
+      '/tmp/photo-3.jpg',
+    ]);
+    expect(repository.sentMessages, ['사진 모아 보내요']);
+    expect(repository.sentAttachments.single, hasLength(3));
+    expect(updated.messages.single.attachments, hasLength(3));
+    expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+  });
+
   test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
     final repository = _FakeGroupRepository(
       initialMessages: const [

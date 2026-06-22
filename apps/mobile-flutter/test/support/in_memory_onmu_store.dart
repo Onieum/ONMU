@@ -202,6 +202,10 @@ class InMemoryOnmuStore {
     return List.unmodifiable(_notifications.take(effectiveLimit));
   }
 
+  void addNotification(NotificationItem notification) {
+    _notifications.add(notification);
+  }
+
   int fetchUnreadNotificationCount() {
     return _notifications.where((notification) => !notification.isRead).length;
   }

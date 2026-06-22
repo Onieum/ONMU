@@ -66,28 +66,36 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
   }
 
-  Future<void> _sendImageMessage(WidgetRef ref) async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
+  Future<void> _sendImageMessages(WidgetRef ref) async {
+    final pickedImages = await _imagePicker.pickMultiImage(
       imageQuality: 88,
       maxWidth: 1800,
     );
-    if (picked == null) {
+    if (pickedImages.isEmpty) {
       return;
+    }
+
+    final selectedImages = pickedImages
+        .take(maxChatImageAttachmentCount)
+        .map(
+          (picked) => PickedChatImage(
+            path: picked.path,
+            fileName: picked.name,
+            contentType: picked.mimeType ?? 'image/jpeg',
+          ),
+        )
+        .toList(growable: false);
+    if (pickedImages.length > maxChatImageAttachmentCount && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진은 한 번에 4장까지 보낼 수 있어요.')));
     }
 
     final text = _messageController.text.trim();
     _messageController.clear();
     final sendFuture = ref
         .read(groupChatViewModelProvider(widget.groupId).notifier)
-        .sendImageMessage(
-          PickedChatImage(
-            path: picked.path,
-            fileName: picked.name,
-            contentType: picked.mimeType ?? 'image/jpeg',
-          ),
-          text: text,
-        );
+        .sendImageMessages(selectedImages, text: text);
     _scheduleScrollToBottom();
     final sent = await sendFuture;
     if (!mounted) {
@@ -127,7 +135,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
             messageController: _messageController,
             scrollController: _scrollController,
             onSend: () => _sendMessage(ref),
-            onPickImage: () => _sendImageMessage(ref),
+            onPickImage: () => _sendImageMessages(ref),
             onLoadSettlementCandidatePlans: () => ref
                 .read(groupChatViewModelProvider(widget.groupId).notifier)
                 .loadSettlementCandidatePlans(),
@@ -182,7 +190,8 @@ class _ThreadContent extends StatelessWidget {
   final ScrollController scrollController;
   final Future<void> Function() onSend;
   final Future<void> Function() onPickImage;
-  final Future<List<GroupPlanSummary>> Function() onLoadSettlementCandidatePlans;
+  final Future<List<GroupPlanSummary>> Function()
+  onLoadSettlementCandidatePlans;
   final Future<void> Function() onLoadOlderMessages;
   final Future<void> Function(String messageId) onRetryMessage;
 
