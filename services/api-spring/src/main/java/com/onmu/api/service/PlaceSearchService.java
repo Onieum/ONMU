@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
@@ -46,6 +47,7 @@ public class PlaceSearchService {
   private final Environment environment;
   private final PlaceRecommendationReasoner recommendationReasoner;
 
+  @Autowired
   public PlaceSearchService(
     List<PlaceSearchProvider> providers,
     DevMockPlaceSearchProvider devMockProvider,
