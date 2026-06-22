@@ -98,13 +98,14 @@ class GptImageOotdClient:
         params = {"api-version": self._config.api_version}
         data = {
             "prompt": prompt,
+            "model": self._config.deployment_name,
             "size": DEFAULT_IMAGE_SIZE,
             "quality": DEFAULT_IMAGE_QUALITY,
             "output_format": "png",
             "n": "1",
         }
         files = {
-            "image": ("onmu-character-reference.png", image_bytes, "image/png"),
+            "image[]": ("onmu-character-reference.png", image_bytes, "image/png"),
         }
 
         async with httpx.AsyncClient(
@@ -114,7 +115,7 @@ class GptImageOotdClient:
             response = await client.post(
                 url,
                 params=params,
-                headers={"Authorization": f"Bearer {self._config.api_key}"},
+                headers={"api-key": self._config.api_key},
                 data=data,
                 files=files,
             )
@@ -122,7 +123,7 @@ class GptImageOotdClient:
                 response = await client.post(
                     url,
                     params=params,
-                    headers={"api-key": self._config.api_key},
+                    headers={"Authorization": f"Bearer {self._config.api_key}"},
                     data=data,
                     files=files,
                 )
