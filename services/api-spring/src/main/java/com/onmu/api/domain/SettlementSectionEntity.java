@@ -24,7 +24,7 @@ public class SettlementSectionEntity {
   @JoinColumn(name = "settlement_id")
   private SettlementEntity settlement;
 
-  @Column(name = "public_id", nullable = false, unique = true)
+  @Column(name = "public_id", nullable = false)
   private String publicId;
 
   @ManyToOne(fetch = FetchType.LAZY)

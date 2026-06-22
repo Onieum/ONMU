@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/error/onmu_exception.dart';
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -35,9 +36,11 @@ class PlanSettlementCreatePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(
-      settlementDraftViewModelProvider((groupId: groupId, planId: planId)),
-    );
+    final draftProvider = settlementDraftViewModelProvider((
+      groupId: groupId,
+      planId: planId,
+    ));
+    final state = ref.watch(draftProvider);
     final members = ref.watch(_settlementGroupMembersProvider(groupId));
 
     return state.when(
@@ -72,13 +75,39 @@ class PlanSettlementCreatePage extends ConsumerWidget {
         title: '약속 정산 만들기',
         children: [
           Text(
-            '정산 정보를 불러오지 못했어요.',
+            _settlementDraftLoadMessage(error),
             style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OnmuSecondaryButton(
+            label: '다시 시도',
+            icon: Icons.refresh_rounded,
+            onPressed: () => ref.invalidate(draftProvider),
           ),
         ],
       ),
     );
   }
+}
+
+String _settlementDraftLoadMessage(Object error) {
+  if (error is OnmuApiException) {
+    final reason = error.serverReason.toLowerCase();
+    if (reason.contains('settlement_plan_not_eligible')) {
+      return '아직 시작 전인 약속은 정산을 만들 수 없어요.';
+    }
+    if (reason.contains('settlement_participant_not_found')) {
+      return '이 약속에 참여 중인 멤버만 정산을 만들 수 있어요.';
+    }
+    if (reason.contains('plan_not_found')) {
+      return '약속 정보를 찾을 수 없어요.';
+    }
+    if (reason.contains('not_group_member')) {
+      return '이 모임의 멤버만 정산을 만들 수 있어요.';
+    }
+    return error.userMessage;
+  }
+  return '정산 정보를 불러오지 못했어요.';
 }
 
 class _SettlementCreateContent extends StatelessWidget {

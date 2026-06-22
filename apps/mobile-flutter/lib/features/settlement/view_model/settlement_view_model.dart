@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/settlement_models.dart';
 import '../repository/settlement_repository.dart';
 
@@ -49,10 +50,15 @@ class SettlementViewModel extends AsyncNotifier<SettlementSummary> {
   final SettlementScope scope;
 
   @override
-  Future<SettlementSummary> build() {
-    return ref
-        .watch(settlementRepositoryProvider)
-        .fetchSettlement(groupId: scope.groupId, planId: scope.planId);
+  Future<SettlementSummary> build() async {
+    try {
+      return await ref
+          .watch(settlementRepositoryProvider)
+          .fetchSettlement(groupId: scope.groupId, planId: scope.planId);
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_load');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 
@@ -62,26 +68,35 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
   final SettlementScope scope;
 
   @override
-  Future<SettlementSummary> build() {
-    return ref
-        .watch(settlementRepositoryProvider)
-        .fetchSettlementDraft(groupId: scope.groupId, planId: scope.planId);
+  Future<SettlementSummary> build() async {
+    try {
+      return await ref
+          .watch(settlementRepositoryProvider)
+          .fetchSettlementDraft(groupId: scope.groupId, planId: scope.planId);
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_draft_load');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> addDraftItem(SettlementDraftItemInput input) async {
     final previous = await future;
     final sections = _sectionInputsFrom(previous, appendedItem: input);
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
+    try {
+      final updated = await ref
           .read(settlementRepositoryProvider)
           .updateSettlementDraftSections(
             groupId: scope.groupId,
             planId: scope.planId,
             sections: sections,
             memo: 'Flutter settlement draft',
-          ),
-    );
+          );
+      state = AsyncData(updated);
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      _reportSettlementError(ref, error, stackTrace, 'settlement_draft_save');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> updateDraftItemTargets({
@@ -89,9 +104,9 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
     required List<String> targetUserIds,
     required List<String> targetNames,
   }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
+    final previous = await future;
+    try {
+      final updated = await ref
           .read(settlementRepositoryProvider)
           .updateSettlementDraftItemTargets(
             groupId: scope.groupId,
@@ -99,33 +114,48 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
             itemId: itemId,
             targetUserIds: targetUserIds,
             targetNames: targetNames,
-          ),
-    );
+          );
+      state = AsyncData(updated);
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      _reportSettlementError(ref, error, stackTrace, 'settlement_draft_save');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<SettlementSummary> previewCurrentDraft() async {
     final draft = await future;
-    return ref
-        .read(settlementRepositoryProvider)
-        .previewSettlement(
-          groupId: scope.groupId,
-          planId: scope.planId,
-          items: _inputsFrom(draft),
-        );
+    try {
+      return await ref
+          .read(settlementRepositoryProvider)
+          .previewSettlement(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            items: _inputsFrom(draft),
+          );
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_preview');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<SettlementSummary> createCurrentDraft() async {
     final draft = await future;
-    final created = await ref
-        .read(settlementRepositoryProvider)
-        .createSettlement(
-          groupId: scope.groupId,
-          planId: scope.planId,
-          items: _inputsFrom(draft),
-        );
-    state = AsyncData(created);
-    ref.invalidate(settlementViewModelProvider(scope));
-    return created;
+    try {
+      final created = await ref
+          .read(settlementRepositoryProvider)
+          .createSettlement(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            items: _inputsFrom(draft),
+          );
+      state = AsyncData(created);
+      ref.invalidate(settlementViewModelProvider(scope));
+      return created;
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_finalize');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   List<SettlementDraftItemInput> _inputsFrom(SettlementSummary settlement) {
@@ -237,42 +267,71 @@ class SettlementByIdViewModel extends AsyncNotifier<SettlementSummary> {
   final SettlementDetailScope scope;
 
   @override
-  Future<SettlementSummary> build() {
-    return ref
-        .watch(settlementRepositoryProvider)
-        .fetchSettlementById(
-          groupId: scope.groupId,
-          planId: scope.planId,
-          settlementId: scope.settlementId,
-        );
+  Future<SettlementSummary> build() async {
+    try {
+      return await ref
+          .watch(settlementRepositoryProvider)
+          .fetchSettlementById(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            settlementId: scope.settlementId,
+          );
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_detail_load');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> markTransferSent(String transferId) async {
+    final previous = await future;
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
-          .read(settlementRepositoryProvider)
-          .markTransferSent(
-            groupId: scope.groupId,
-            planId: scope.planId,
-            settlementId: scope.settlementId,
-            transferId: transferId,
-          ),
-    );
+    try {
+      state = AsyncData(
+        await ref
+            .read(settlementRepositoryProvider)
+            .markTransferSent(
+              groupId: scope.groupId,
+              planId: scope.planId,
+              settlementId: scope.settlementId,
+              transferId: transferId,
+            ),
+      );
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      _reportSettlementError(
+        ref,
+        error,
+        stackTrace,
+        'settlement_transfer_sent',
+      );
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> markTransferReceived(String transferId) async {
+    final previous = await future;
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref
-          .read(settlementRepositoryProvider)
-          .markTransferReceived(
-            groupId: scope.groupId,
-            planId: scope.planId,
-            settlementId: scope.settlementId,
-            transferId: transferId,
-          ),
-    );
+    try {
+      state = AsyncData(
+        await ref
+            .read(settlementRepositoryProvider)
+            .markTransferReceived(
+              groupId: scope.groupId,
+              planId: scope.planId,
+              settlementId: scope.settlementId,
+              transferId: transferId,
+            ),
+      );
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      _reportSettlementError(
+        ref,
+        error,
+        stackTrace,
+        'settlement_transfer_received',
+      );
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 
@@ -282,13 +341,29 @@ class SettlementBasisViewModel extends AsyncNotifier<SettlementBasis> {
   final SettlementBasisScope scope;
 
   @override
-  Future<SettlementBasis> build() {
-    return ref
-        .watch(settlementRepositoryProvider)
-        .fetchSettlementBasis(
-          groupId: scope.groupId,
-          planId: scope.planId,
-          settlementId: scope.settlementId,
-        );
+  Future<SettlementBasis> build() async {
+    try {
+      return await ref
+          .watch(settlementRepositoryProvider)
+          .fetchSettlementBasis(
+            groupId: scope.groupId,
+            planId: scope.planId,
+            settlementId: scope.settlementId,
+          );
+    } catch (error, stackTrace) {
+      _reportSettlementError(ref, error, stackTrace, 'settlement_basis_load');
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
+}
+
+void _reportSettlementError(
+  Ref ref,
+  Object error,
+  StackTrace stackTrace,
+  String feature,
+) {
+  ref
+      .read(onmuErrorReporterProvider)
+      .captureException(error, stackTrace, feature: feature);
 }

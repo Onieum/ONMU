@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/core/error/onmu_exception.dart';
 import 'package:onmu_mobile/core/observability/onmu_error_reporter.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
@@ -1104,6 +1105,71 @@ void main() {
     expect(repository.fetchByIdCalls, ['1/101/301']);
   });
 
+  test('정산 draft 초기 조회 실패는 reporter에 남긴다', () async {
+    final repository = _FailingDraftFetchSettlementRepository();
+    final reporter = _RecordingOnmuErrorReporter();
+    final container = ProviderContainer(
+      overrides: [
+        settlementRepositoryProvider.overrideWithValue(repository),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = settlementDraftViewModelProvider((
+      groupId: '1',
+      planId: '101',
+    ));
+
+    container.read(provider);
+    await pumpEventQueue();
+
+    final state = container.read(provider);
+    expect(state.hasError, isTrue);
+    expect(state.error, isA<OnmuException>());
+    expect(reporter.reports.single.tags['feature'], 'settlement');
+    expect(reporter.reports.single.tags['kind'], 'server');
+  });
+
+  test('정산 draft 저장 실패 시 기존 draft 상태를 유지하고 실패를 전달한다', () async {
+    final repository = _FailingDraftUpdateSettlementRepository();
+    final reporter = _RecordingOnmuErrorReporter();
+    final container = ProviderContainer(
+      overrides: [
+        settlementRepositoryProvider.overrideWithValue(repository),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = settlementDraftViewModelProvider((
+      groupId: '1',
+      planId: '101',
+    ));
+
+    final initial = await container.read(provider.future);
+
+    expect(initial.isDraft, isTrue);
+    await expectLater(
+      container.read(provider.notifier).addDraftItem(
+        const SettlementDraftItemInput(
+          title: '커피',
+          amount: 12000,
+          payerUserId: 'user-1',
+          payerName: '지우',
+          targetUserIds: ['user-1'],
+          targetNames: ['지우'],
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final restored = container.read(provider).requireValue;
+    expect(restored.id, initial.id);
+    expect(restored.isDraft, isTrue);
+    expect(restored.paymentItems, isEmpty);
+    expect(reporter.reports.single.tags['feature'], 'settlement_draft_save');
+    expect(reporter.reports.single.tags['kind'], 'unknown');
+  });
+
   test('채팅 ViewModel은 메시지 작성 성공 시 서버 응답을 상태에 반영한다', () async {
     final repository = _FakeGroupRepository(
       sentMessage: const GroupMessage(
@@ -1178,6 +1244,61 @@ void main() {
     plansCompleter.complete(const []);
     votesCompleter.complete(const []);
     await pumpEventQueue();
+  });
+
+  test('채팅 ViewModel은 정산 후보 약속을 요청 시 재조회한다', () async {
+    final now = DateTime.now();
+    final plansCompleter = Completer<List<GroupPlanSummary>>();
+    final repository = _FakeGroupRepository(fetchPlansCompleter: plansCompleter);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    final candidatesFuture = container
+        .read(provider.notifier)
+        .loadSettlementCandidatePlans();
+    plansCompleter.complete([
+      GroupPlanSummary(
+        id: 101,
+        title: '지난 약속',
+        dateLabel: '어제',
+        startsAt: now.subtract(const Duration(days: 1)),
+        placeName: '수원',
+        statusLabel: 'completed',
+        statusType: 'completed',
+        memberCount: 2,
+        extraMemberCount: 0,
+        iconKind: 'coffee',
+        isPast: true,
+      ),
+      GroupPlanSummary(
+        id: 102,
+        title: '내일 약속',
+        dateLabel: '내일',
+        startsAt: now.add(const Duration(days: 1)),
+        placeName: '성수',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 2,
+        extraMemberCount: 0,
+        iconKind: 'calendar',
+        isPast: false,
+      ),
+    ]);
+
+    final candidates = await candidatesFuture;
+    final updated = container.read(provider).requireValue;
+
+    expect(candidates.map((plan) => plan.id), [101]);
+    expect(updated.settlementCandidatePlans.map((plan) => plan.id), [101]);
   });
 
   test('채팅 ViewModel은 정산 카드 메시지 메타데이터를 유지한다', () async {
@@ -3428,6 +3549,59 @@ class _TrackingSettlementRepository extends _ChatSettlementRepository {
   }) async {
     fetchByIdCalls.add('$groupId/$planId/$settlementId');
     return _ChatSettlementRepository._summary;
+  }
+}
+
+class _FailingDraftFetchSettlementRepository extends _ChatSettlementRepository {
+  @override
+  Future<SettlementSummary> fetchSettlementDraft({
+    required Object groupId,
+    required Object planId,
+  }) async {
+    throw const OnmuException(
+      kind: OnmuErrorKind.server,
+      userMessage: '잠시 문제가 생겼어요. 다시 시도해 주세요.',
+      technicalMessage: 'POST settlement-draft failed with 500',
+      feature: 'settlement',
+      statusCode: 500,
+      method: 'POST',
+      endpoint: '/api/v1/groups/1/plans/101/settlement-draft',
+      retryable: true,
+      reportable: true,
+    );
+  }
+}
+
+class _FailingDraftUpdateSettlementRepository extends _ChatSettlementRepository {
+  static const _draftSummary = SettlementSummary(
+    id: 'draft-301',
+    status: 'draft',
+    planTitle: '테스트 약속',
+    totalAmountLabel: '0원',
+    createdDateLabel: '정산 입력 중',
+    itemCountLabel: '결제 항목 0개',
+    finalSummaryLabel: '정산 없음',
+    mySummaryLabel: '정산 없음',
+    paymentItems: [],
+    memberResults: [],
+    transfers: [],
+    shareMessage: '',
+  );
+
+  @override
+  Future<SettlementSummary> fetchSettlementDraft({
+    required Object groupId,
+    required Object planId,
+  }) async => _draftSummary;
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
+  }) async {
+    throw StateError('draft save failed');
   }
 }
 

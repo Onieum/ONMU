@@ -28,7 +28,7 @@ public class SettlementItemEntity {
   @JoinColumn(name = "section_id")
   private SettlementSectionEntity section;
 
-  @Column(name = "public_id", nullable = false, unique = true)
+  @Column(name = "public_id", nullable = false)
   private String publicId;
 
   @Column(nullable = false)
