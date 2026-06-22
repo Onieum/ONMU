@@ -32,7 +32,7 @@ jobs:
     name: Docker build Spring API and worker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Build Spring API image
         run: |
@@ -66,7 +66,7 @@ jobs:
     env:
       STAGING_ACR_NAME: ${{ vars.STAGING_ACR_NAME || 'acronmustagingkrc001' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Validate Azure workflow variables
         env:
@@ -88,7 +88,7 @@ jobs:
           echo "Required Azure workflow variable names are configured."
 
       - name: Azure login with OIDC
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
