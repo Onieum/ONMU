@@ -34,7 +34,7 @@ void main() {
       expect(OnmuReportPolicy.shouldReport(error), isTrue);
     });
 
-    test('maps receive timeout as retryable timeout', () {
+    test('maps receive timeout as retryable sampled report', () {
       final error = OnmuApiException.fromDio(
         _dioError(type: DioExceptionType.receiveTimeout),
         feature: 'plan',
@@ -43,7 +43,20 @@ void main() {
       expect(error.kind, OnmuErrorKind.timeout);
       expect(error.statusCode, isNull);
       expect(error.retryable, isTrue);
-      expect(error.reportable, isFalse);
+      expect(error.reportable, isTrue);
+      expect(OnmuReportPolicy.sampleRateFor(error), 0.2);
+    });
+
+    test('maps network error as low sampled report', () {
+      final error = OnmuApiException.fromDio(
+        _dioError(type: DioExceptionType.connectionError),
+        feature: 'plan',
+      );
+
+      expect(error.kind, OnmuErrorKind.network);
+      expect(error.retryable, isTrue);
+      expect(error.reportable, isTrue);
+      expect(OnmuReportPolicy.sampleRateFor(error), 0.05);
     });
   });
 
@@ -58,6 +71,7 @@ void main() {
       expect(error.kind, OnmuErrorKind.contractMismatch);
       expect(error.reportable, isTrue);
       expect(OnmuReportPolicy.shouldReport(error), isTrue);
+      expect(OnmuReportPolicy.sampleRateFor(error), 1.0);
       expect(error.technicalMessage, contains('storageKey'));
     });
   });

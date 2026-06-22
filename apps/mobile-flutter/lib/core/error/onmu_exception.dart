@@ -182,6 +182,9 @@ bool _reportableFor(OnmuErrorKind kind) {
   return switch (kind) {
     OnmuErrorKind.server ||
     OnmuErrorKind.unavailable ||
+    OnmuErrorKind.rateLimited ||
+    OnmuErrorKind.timeout ||
+    OnmuErrorKind.network ||
     OnmuErrorKind.contractMismatch ||
     OnmuErrorKind.unknown => true,
     _ => false,

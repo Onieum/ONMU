@@ -81,7 +81,9 @@ Flutter API 오류는 `OnmuApiClient`에서 `OnmuApiException`으로 정규화�
 | `contractMismatch` | 필수 JSON 필드 누락, enum 불일치 | fallback 또는 오류 UI | 반드시 보고 |
 | `backgroundSync` | push token, 채팅 읽음 동기화, 보조 카드 로딩 | 화면 유지 | reportable일 때만 보고 |
 
-보고 경계는 `core/observability/OnmuErrorReporter`로 감싼다. 현재 구현은 `FlutterError.reportError`로 전달해 추후 Sentry SDK 도입 시 자동 수집되게 하고, SDK DSN이나 token 값은 Flutter bundle에 넣지 않는다.
+보고 경계는 `core/observability/OnmuErrorReporter`로 감싼다. `SENTRY_DSN` dart-define이 있으면 `SentryOnmuErrorReporter`가 정책에 맞는 오류만 Sentry로 직접 전송하고, DSN이 없으면 `FlutterError.reportError` 기반 local reporter로 동작한다. Sentry DSN은 Key Vault secret `sentry-dsn`에서 git ignored `.dart_tool/*.defines.json` 또는 CI secret으로만 주입한다.
+
+Sentry 오류 이벤트 샘플링은 `OnmuReportPolicy.sampleRateFor`를 기준으로 한다. `server`, `unavailable`, `contractMismatch`, `unknown`은 1.0으로 전부 보고한다. `timeout`, `rateLimited`는 반복 노이즈를 줄이기 위해 0.2로 보고한다. `network`는 사용자 네트워크 환경 영향이 커서 0.05로 낮게 보고한다. validation, conflict, notFound, forbidden 같은 예상 가능한 사용자/권한 흐름은 0으로 보고하지 않는다.
 
 Sentry tag로 보낼 수 있는 값은 `feature`, `kind`, `statusCode`, `method`, `endpoint_template`, `retryable`, `environment`처럼 안전한 메타데이터뿐이다. JWT, Authorization header, request/response body, nickname, email, 채팅/메모/기록 원문은 보고 필드에 넣지 않는다.
 

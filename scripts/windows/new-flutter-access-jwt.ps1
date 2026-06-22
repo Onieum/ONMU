@@ -10,7 +10,8 @@ param(
   [string]$ApiBaseUrl,
   [string]$OutputPath,
   [switch]$IncludeKakaoOAuth,
-  [string]$KakaoOAuthRedirectUri
+  [string]$KakaoOAuthRedirectUri,
+  [switch]$IncludeSentry
 )
 
 $ErrorActionPreference = "Stop"
@@ -81,6 +82,19 @@ if ($IncludeKakaoOAuth -and -not $env:KAKAO_REST_API_KEY) {
     -Quiet
 }
 
+if ($IncludeSentry -and -not $env:SENTRY_DSN) {
+  if (-not $VaultName) {
+    throw "SENTRY_DSN is not set. Set it for local testing or pass -VaultName to load sentry-dsn from Key Vault."
+  }
+  $loadKeyVaultEnv = Join-Path $repoRoot "scripts\load-key-vault-env.ps1"
+  & $loadKeyVaultEnv `
+    -VaultName $VaultName `
+    -SecretPrefix $secretPrefix `
+    -EnvName SENTRY_DSN `
+    -RequiredEnv SENTRY_DSN `
+    -Quiet
+}
+
 $secret = $env:ONMU_ACCESS_TOKEN_SECRET
 if (-not $secret) {
   throw "ONMU_ACCESS_TOKEN_SECRET could not be loaded."
@@ -132,6 +146,13 @@ if ($IncludeKakaoOAuth) {
   $defines.KAKAO_REST_API_KEY = $env:KAKAO_REST_API_KEY.Trim()
   $defines.KAKAO_OAUTH_REDIRECT_URI = $KakaoOAuthRedirectUri
 }
+if ($IncludeSentry) {
+  if (-not $env:SENTRY_DSN) {
+    throw "SENTRY_DSN could not be loaded."
+  }
+  $defines.SENTRY_DSN = $env:SENTRY_DSN.Trim()
+  $defines.SENTRY_ENVIRONMENT = $Environment
+}
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if (-not (Test-Path -LiteralPath $outputDirectory)) {
@@ -147,4 +168,7 @@ Write-Host "JWT expires at UTC: $($expiresAt.ToString("yyyy-MM-ddTHH:mm:ssZ"))"
 Write-Host "Token value is stored only in the local ignored dart-define file and is not printed."
 if ($IncludeKakaoOAuth) {
   Write-Host "Included Kakao OAuth dart-define keys without printing their values."
+}
+if ($IncludeSentry) {
+  Write-Host "Included Sentry dart-define keys without printing their values."
 }

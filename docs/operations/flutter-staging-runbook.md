@@ -53,7 +53,8 @@ Windows PowerShell:
 ```powershell
 cd C:\dev\ONMU
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\new-flutter-access-jwt.ps1 `
-  -VaultName $env:AZURE_KEY_VAULT_NAME
+  -VaultName $env:AZURE_KEY_VAULT_NAME `
+  -IncludeSentry
 
 cd apps\mobile-flutter
 flutter run --dart-define-from-file=.dart_tool\onmu-staging-api.defines.json
@@ -64,7 +65,8 @@ macOS:
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-access-jwt.sh \
-  --vault-name "$AZURE_KEY_VAULT_NAME"
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-sentry
 
 ./scripts/macos/run-flutter-staging-api.sh
 ```
@@ -74,6 +76,7 @@ cd <ONMU repo>
 - define 파일명이 `.dart_tool/onmu-staging-api.defines.json`이다.
 - `ONMU_API_BASE_URL`이 staging host다.
 - JWT signing secret 자체는 앱 bundle이나 문서에 들어가지 않는다.
+- `--include-sentry`를 쓰면 Key Vault secret `sentry-dsn` 값이 git ignored define 파일에만 들어가고, 로그에는 출력되지 않는다.
 
 ### 3.3 staging actual OAuth smoke
 
@@ -86,7 +89,8 @@ cd C:\dev\ONMU
 python scripts\new-flutter-access-jwt.py `
   --vault-name $env:AZURE_KEY_VAULT_NAME `
   --oauth-only `
-  --include-provider-oauth
+  --include-provider-oauth `
+  --include-sentry
 
 cd apps\mobile-flutter
 flutter run --dart-define-from-file=.dart_tool\onmu-staging-oauth.defines.json
@@ -97,7 +101,8 @@ macOS:
 ```bash
 cd <ONMU repo>
 ./scripts/macos/new-flutter-oauth-defines.sh \
-  --vault-name "$AZURE_KEY_VAULT_NAME"
+  --vault-name "$AZURE_KEY_VAULT_NAME" \
+  --include-sentry
 
 cd apps/mobile-flutter
 flutter run --dart-define-from-file=.dart_tool/onmu-staging-oauth.defines.json
