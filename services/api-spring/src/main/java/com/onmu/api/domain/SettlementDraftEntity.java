@@ -6,6 +6,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -53,7 +55,7 @@ public class SettlementDraftEntity {
   @Column(nullable = false)
   private long version;
 
-  @Column(name = "updated_at", insertable = false)
+  @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
   protected SettlementDraftEntity() {
@@ -66,6 +68,7 @@ public class SettlementDraftEntity {
     this.plan = plan;
     this.payload = payload;
     this.status = "draft";
+    this.updatedAt = Instant.now();
   }
 
   public UUID getId() {
@@ -128,5 +131,11 @@ public class SettlementDraftEntity {
   public void markFinalized(SettlementEntity settlement) {
     this.status = "finalized";
     this.finalizedSettlement = settlement;
+  }
+
+  @PrePersist
+  @PreUpdate
+  void touchUpdatedAt() {
+    this.updatedAt = Instant.now();
   }
 }

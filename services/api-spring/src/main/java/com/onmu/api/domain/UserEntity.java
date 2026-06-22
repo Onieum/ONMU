@@ -3,6 +3,8 @@ package com.onmu.api.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
@@ -42,7 +44,7 @@ public class UserEntity {
   @Column(name = "created_at", insertable = false, updatable = false)
   private Instant createdAt;
 
-  @Column(name = "updated_at", insertable = false)
+  @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
   @Column(name = "deleted_at")
@@ -60,6 +62,7 @@ public class UserEntity {
     this.pixelCharacter = "{}";
     this.preferenceProfile = "{}";
     this.onboardingStatus = "PENDING";
+    this.updatedAt = Instant.now();
   }
 
   public UserEntity(UUID id, String nickname) {
@@ -69,6 +72,7 @@ public class UserEntity {
     this.pixelCharacter = "{}";
     this.preferenceProfile = "{}";
     this.onboardingStatus = "PENDING";
+    this.updatedAt = Instant.now();
   }
 
   public UUID getId() {
@@ -141,5 +145,11 @@ public class UserEntity {
 
   public void markDeleted(Instant deletedAt) {
     this.deletedAt = Objects.requireNonNull(deletedAt);
+  }
+
+  @PrePersist
+  @PreUpdate
+  void touchUpdatedAt() {
+    this.updatedAt = Instant.now();
   }
 }
