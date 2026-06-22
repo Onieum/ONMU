@@ -247,39 +247,39 @@ class SettlementApiServiceTests {
         "section-a",
         null,
         "A장소",
-        "user-jimin",
+        userId(jimin),
         List.of(new SettlementDraftItemRequest(
           "401",
           "커피",
           10000,
           "equal",
-          List.of("user-me", "user-jimin", "user-minsu")
+          List.of(userId(me), userId(jimin), userId(minsu))
         ))
       ),
       new SettlementDraftSectionRequest(
         "section-b",
         null,
         "B장소",
-        "user-me",
+        userId(me),
         List.of(new SettlementDraftItemRequest(
           "402",
           "저녁",
           30000,
           "equal",
-          List.of("user-me", "user-jimin", "user-minsu")
+          List.of(userId(me), userId(jimin), userId(minsu))
         ))
       ),
       new SettlementDraftSectionRequest(
         "section-c",
         null,
         "C장소",
-        "user-minsu",
+        userId(minsu),
         List.of(new SettlementDraftItemRequest(
           "403",
           "디저트",
           20000,
           "equal",
-          List.of("user-me", "user-jimin", "user-minsu")
+          List.of(userId(me), userId(jimin), userId(minsu))
         ))
       )
     ), null));
@@ -398,7 +398,7 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void previewSettlementUsesParticipantPublicIds() {
+  void previewSettlementUsesParticipantUserIds() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementDraftRepository.findActiveByPlan(plan))
@@ -412,7 +412,7 @@ class SettlementApiServiceTests {
   }
 
   @Test
-  void unknownParticipantPublicIdReturnsValidationErrorWithoutNicknameFallback() {
+  void unknownParticipantUserIdReturnsValidationErrorWithoutNicknameFallback() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementDraftRepository.findActiveByPlan(plan))
@@ -470,7 +470,7 @@ class SettlementApiServiceTests {
 
     assertThat(result.value("id")).isEqualTo("302");
     assertThat(result.firstPaymentItem().get("id")).isEqualTo("403");
-    assertThat(result.firstPayerShare().get("userId")).isEqualTo("user-jimin");
+    assertThat(result.firstPayerShare().get("userId")).isEqualTo(userId(jimin));
     assertThat(result.firstTransfer().get("fromName")).isEqualTo("민수");
   }
 
@@ -532,27 +532,31 @@ class SettlementApiServiceTests {
       "section-a",
       null,
       "기타 비용",
-      "user-jimin",
+      userId(jimin),
       List.of(new SettlementDraftItemRequest(
         "401",
         "커피",
         12000,
         "menu",
-        List.of("user-jimin", "user-minsu")
+        List.of(userId(jimin), userId(minsu))
       ))
     )));
   }
 
   private String requestPayload() {
     return """
-      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"user-jimin","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["user-jimin","user-minsu"]}]}]}
-      """;
+      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"%s","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["%s","%s"]}]}]}
+      """.formatted(userId(jimin), userId(jimin), userId(minsu));
   }
 
   private String unknownTargetPayload() {
     return """
-      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"user-jimin","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["user-jimin","unknown-user"]}]}]}
-      """;
+      {"sections":[{"id":"section-a","title":"기타 비용","payerUserId":"%s","items":[{"id":"401","title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["%s","unknown-user"]}]}]}
+      """.formatted(userId(jimin), userId(jimin));
+  }
+
+  private String userId(UserEntity user) {
+    return user.getId().toString();
   }
 
   private UserEntity user(String publicId, String nickname) {
