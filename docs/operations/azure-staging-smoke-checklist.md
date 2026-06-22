@@ -72,7 +72,7 @@ Staging Spring API Container App도 동일한 callback host를 사용해야 한�
 - ACA Environment 존재, Spring API/worker Container App 미생성 확인
 - diagnostic settings가 Log Analytics workspace로 연결됐는지 count/status 확인
 
-`postgres_ready`, `api_app_ready`, `worker_app_ready` wave는 protected Postgres password, Spring image, worker image, Flyway 실행 계획, Key Vault secret value 준비가 끝난 뒤 별도 승인으로만 실행한다. `db_and_app_ready`는 호환용 alias로만 유지한다.
+`postgres_ready`, `api_app_ready`, `worker_app_ready` wave는 protected Postgres password, Spring image, worker image, Flyway 실행 계획, Key Vault secret value 준비가 끝난 뒤 별도 승인으로만 실행한다. 이미 API/worker Container App이 있는 상태에서 place-reason wiring만 맞출 때는 `place_reason_worker_ready`를 사용한다. `db_and_app_ready`는 호환용 alias로만 유지한다.
 
 현재 app phase smoke는 두 가지 전제 리스크를 함께 본다.
 

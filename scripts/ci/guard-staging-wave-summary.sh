@@ -125,6 +125,15 @@ case "$wave" in
       exit 1
     fi
     ;;
+  place_reason_worker_ready)
+    unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
+    unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and (.address != "module.container_apps[0].azurerm_container_app.spring_api[0]" and .address != "module.container_apps[0].azurerm_container_app.worker[0]")) | .address] | length' "$plan_json")"
+    unexpected_update="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "update" and (.address != "module.container_apps[0].azurerm_container_app.spring_api[0]" and .address != "module.container_apps[0].azurerm_container_app.worker[0]")) | .address] | length' "$plan_json")"
+    if [ "$unexpected" -gt 0 ] || [ "$unexpected_create" -gt 0 ] || [ "$unexpected_update" -gt 0 ]; then
+      echo "Only Spring API and worker container app create/update plus existing resource no-op/read are allowed for place_reason_worker_ready." >&2
+      exit 1
+    fi
+    ;;
   worker_ai_ready)
     unexpected="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) != "no-op" and (.change.actions | join(",")) != "create" and (.change.actions | join(",")) != "update" and (.change.actions | join(",")) != "read") | .address] | length' "$plan_json")"
     unexpected_create="$(jq '[.resource_changes[]? | select((.change.actions | join(",")) == "create" and .address != "module.container_apps[0].azurerm_container_app.worker[0]") | .address] | length' "$plan_json")"

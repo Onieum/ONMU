@@ -46,6 +46,7 @@ on:
           - postgres_firewall_ready
           - api_app_ready
           - worker_app_ready
+          - place_reason_worker_ready
           - worker_ai_ready
           - ai_foundation
           - ai_diagnostics
@@ -230,9 +231,9 @@ jobs:
           elif [ "${{ inputs.wave }}" = "ai_diagnostics" ]; then
             target_args=(-target=module.ai_diagnostic_settings)
             echo "Using targeted Terraform plan for ai_diagnostics to avoid unrelated staging resource changes."
-          elif [ "${{ inputs.wave }}" = "worker_ai_ready" ]; then
+          elif [ "${{ inputs.wave }}" = "place_reason_worker_ready" ] || [ "${{ inputs.wave }}" = "worker_ai_ready" ]; then
             target_args=(-target=module.container_apps)
-            echo "Using targeted Terraform plan for worker_ai_ready to avoid unrelated staging resource changes."
+            echo "Using targeted Terraform plan for ${{ inputs.wave }} to avoid unrelated staging resource changes."
           fi
           set +e
           terraform plan \
@@ -367,9 +368,9 @@ jobs:
           elif [ "${{ inputs.wave }}" = "ai_diagnostics" ]; then
             target_args=(-target=module.ai_diagnostic_settings)
             echo "Using targeted Terraform plan for ai_diagnostics to avoid unrelated staging resource changes."
-          elif [ "${{ inputs.wave }}" = "worker_ai_ready" ]; then
+          elif [ "${{ inputs.wave }}" = "place_reason_worker_ready" ] || [ "${{ inputs.wave }}" = "worker_ai_ready" ]; then
             target_args=(-target=module.container_apps)
-            echo "Using targeted Terraform plan for worker_ai_ready to avoid unrelated staging resource changes."
+            echo "Using targeted Terraform plan for ${{ inputs.wave }} to avoid unrelated staging resource changes."
           fi
           set +e
           terraform plan \
