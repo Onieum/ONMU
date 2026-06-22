@@ -10,6 +10,7 @@ import '../../../../shared/models/notification_models.dart';
 import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
+import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../view_model/home_notifications_view_model.dart';
 
 class HomeNotificationsPage extends ConsumerWidget {
@@ -306,7 +307,7 @@ class _NotificationCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _NotificationIcon(type: item.notificationType, isRead: item.isRead),
+          _NotificationLeading(item: item),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -403,6 +404,25 @@ String? _routeForNotification(NotificationItem item) {
     return RoutePaths.groupChat(groupId);
   }
   return null;
+}
+
+class _NotificationLeading extends StatelessWidget {
+  const _NotificationLeading({required this.item});
+
+  final NotificationItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    if (item.notificationType == 'chat_message' && item.hasSenderIdentity) {
+      return PixelAvatar(
+        label: item.senderName.isEmpty ? '채팅 보낸 사람' : item.senderName,
+        profileImageUrl: item.senderProfileImageUrl,
+        character: item.senderCharacter,
+        size: 40,
+      );
+    }
+    return _NotificationIcon(type: item.notificationType, isRead: item.isRead);
+  }
 }
 
 class _NotificationIcon extends StatelessWidget {

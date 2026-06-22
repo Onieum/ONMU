@@ -1,79 +1,79 @@
-import asyncio
+from __future__ import annotations
+
 import base64
+import asyncio
 import json
 
 import httpx
 
-from app.ootd.azureml_client import DEFAULT_CHARACTER_IMAGE_BASE64
-from app.ootd.gpt_image_client import (
-    GptImageConfig,
-    GptImageOotdClient,
-    build_gpt_image_avatar_prompt,
-    build_gpt_image_diary_card_prompt,
-)
+from app.ootd.gpt_image_client import GptImageConfig
+from app.ootd.gpt_image_client import GptImageOotdClient
+from app.ootd.gpt_image_client import build_gpt_image_avatar_prompt
 
 
-def test_build_gpt_image_avatar_prompt_keeps_identity_and_uses_outfit_descriptor():
+def test_photo_prompt_uses_photo_first_and_profile_only_as_fallback() -> None:
     prompt = build_gpt_image_avatar_prompt(
         {
             "mode": "PHOTO_REFERENCE",
             "outfitDescriptor": {
-                "top": {"category": "cardigan", "color": "cream"},
-                "bottom": {"category": "skirt", "color": "black"},
-                "bag": "burgundy shoulder bag",
+                "hair": {"style": "half-up tied dark wavy hair visible under a white and green cap"},
+                "headwear": {"type": "white and green baseball cap with CBO lettering"},
+                "upper_body": {"item": "black rugby shirt with white horizontal stripes"},
+                "lower_body": {"item": "very wide gray washed denim jeans"},
+                "pixel_avatar_translation": {
+                    "generation_brief": "black striped rugby shirt, gray wide jeans, white green cap, dark half-up hair",
+                    "must_use_photo_features": ["half-up tied dark hair", "white and green CBO cap"],
+                    "must_use_profile_fallback_for": ["eyes", "mouth"],
+                },
             },
+            "characterProfile": {"hairStyleIndex": 2, "hairColorIndex": 5, "eyeColorIndex": 3},
         }
     )
 
-    assert "Change only the outfit" in prompt
-    assert "cream" in prompt
-    assert "black" in prompt
-    assert "burgundy shoulder bag" in prompt
-    assert "Keep the same face" in prompt
-    assert "Do not redesign the character" in prompt
+    assert "visible OOTD photo analysis as the primary evidence" in prompt
+    assert "Use the ONMU profile fallback only" in prompt
+    assert "photo hairstyle or hat anyway" in prompt
+    assert "half-up tied dark hair" in prompt
+    assert "Profile character part indices for fallback only" in prompt
+    assert "No diary page" in prompt
 
 
-def test_build_gpt_image_diary_card_prompt_contains_diary_sections():
-    prompt = build_gpt_image_diary_card_prompt(
+def test_text_prompt_uses_text_and_profile_for_missing_details() -> None:
+    prompt = build_gpt_image_avatar_prompt(
         {
-            "todaysLook": "베이지와 블랙 조합이 단정한 룩이에요.",
-            "hairNote": "웨이브를 살짝 넣었어요.",
-            "weatherText": "20°C / 맑음",
-            "moodText": "신나요!",
-            "pointText": "가방으로 포인트 주기!",
-            "tags": ["#ootd", "#데이트룩"],
-            "outfitInfo": {"top": "아이보리 니트", "bottom": "블랙 스커트"},
+            "mode": "TEXT_PROMPT",
+            "outfitDescription": "Oversized navy hoodie, ivory cargo skirt, silver headphones, black boots.",
+            "characterProfile": {"hairStyleIndex": 1, "eyeColorIndex": 4},
         }
     )
 
-    assert "Today's Look" in prompt
-    assert "Hair" in prompt
-    assert "Weather" in prompt
-    assert "Mood" in prompt
-    assert "Outfit Info" in prompt
-    assert "Today's Tag" in prompt
-    assert "베이지와 블랙" in prompt
-    assert "#데이트룩" in prompt
+    assert "from the user's text description" in prompt
+    assert "If the text explicitly describes hair" in prompt
+    assert "Oversized navy hoodie" in prompt
+    assert "Profile character part indices for fallback only" in prompt
+    assert "No diary page" in prompt
 
 
-def test_gpt_image_client_posts_image_edit_request_with_foundry_bearer_contract():
-    seen: dict[str, object] = {}
+def test_gpt_image_client_posts_generation_request_with_foundry_bearer_contract() -> None:
+    asyncio.run(_assert_gpt_image_client_posts_generation_request_with_foundry_bearer_contract())
+
+
+async def _assert_gpt_image_client_posts_generation_request_with_foundry_bearer_contract() -> None:
+    captured: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        seen["url"] = str(request.url)
-        seen["authorization"] = request.headers.get("authorization")
-        seen["api_key"] = request.headers.get("api-key")
-        seen["content_type"] = request.headers.get("content-type")
-        body = await request.aread()
-        seen["body"] = body.decode("utf-8", errors="ignore")
+        captured["url"] = str(request.url)
+        captured["headers"] = dict(request.headers)
+        captured["body"] = json.loads(request.content.decode("utf-8"))
         return httpx.Response(
             200,
-            json={"data": [{"b64_json": base64.b64encode(b"fake-png").decode("ascii")}]},
+            json={"data": [{"b64_json": base64.b64encode(b"png").decode("ascii")}]},
+            headers={"x-ms-processing-ms": "1234"},
         )
 
     client = GptImageOotdClient(
         GptImageConfig(
-            endpoint_url="https://example.openai.azure.com",
+            endpoint_url="https://example.cognitiveservices.azure.com",
             api_key="secret-key",
             api_version="2024-02-01",
             deployment_name="gpt-image-2",
@@ -81,94 +81,55 @@ def test_gpt_image_client_posts_image_edit_request_with_foundry_bearer_contract(
         transport=httpx.MockTransport(handler),
     )
 
-    result = asyncio.run(
-        client.generate(
-            {
-                "requestId": "job-1",
-                "mode": "TEXT_PROMPT",
-                "characterImageBase64": DEFAULT_CHARACTER_IMAGE_BASE64,
-                "outfitDescription": "ivory knit top and black skirt",
-            }
-        )
+    result = await client.generate(
+        {
+            "requestId": "job-1",
+            "mode": "PHOTO_REFERENCE",
+            "outfitDescriptor": {"style_summary": "beige cardigan and black skirt"},
+            "characterProfile": {"hairStyleIndex": 1},
+        }
     )
 
     assert result.status == "succeeded"
     assert result.request_id == "job-1"
-    assert result.image_base64 == base64.b64encode(b"fake-png").decode("ascii")
-    assert "/openai/deployments/gpt-image-2/images/edits" in str(seen["url"])
-    assert "api-version=2024-02-01" in str(seen["url"])
-    assert seen["authorization"] == "Bearer secret-key"
-    assert seen["api_key"] is None
-    assert str(seen["content_type"]).startswith("multipart/form-data")
-    assert 'name="image[]"' in str(seen["body"])
-    assert 'name="model"' in str(seen["body"])
-    assert "gpt-image-2" in str(seen["body"])
-    assert "ivory knit top and black skirt" in str(seen["body"])
+    assert result.duration_ms == 1234
+    assert "/openai/deployments/gpt-image-2/images/generations" in str(captured["url"])
+    assert "api-version=2024-02-01" in str(captured["url"])
+    assert captured["headers"]["authorization"] == "Bearer secret-key"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["size"] == "1024x1024"
+    assert body["quality"] == "low"
+    assert body["output_format"] == "png"
+    assert body["output_compression"] == 100
+    assert body["n"] == 1
+    assert "beige cardigan and black skirt" in str(body["prompt"])
 
 
-def test_gpt_image_client_retries_with_api_key_header_after_foundry_404():
-    calls: list[str | None] = []
+def test_gpt_image_client_retries_with_api_key_for_openai_account_style_auth() -> None:
+    asyncio.run(_assert_gpt_image_client_retries_with_api_key_for_openai_account_style_auth())
+
+
+async def _assert_gpt_image_client_retries_with_api_key_for_openai_account_style_auth() -> None:
+    auth_headers: list[str] = []
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.headers.get("authorization") or request.headers.get("api-key"))
-        if len(calls) == 1:
-            return httpx.Response(404, json={"error": {"message": "resource not found"}})
-        return httpx.Response(
-            200,
-            json={"data": [{"b64_json": base64.b64encode(b"ok").decode("ascii")}]},
-        )
+        auth_headers.append(request.headers.get("authorization") or request.headers.get("api-key") or "")
+        if len(auth_headers) == 1:
+            return httpx.Response(404, json={"error": {"message": "Resource not found"}})
+        return httpx.Response(200, json={"data": [{"b64_json": base64.b64encode(b"png").decode("ascii")}]})
 
     client = GptImageOotdClient(
         GptImageConfig(
             endpoint_url="https://example.openai.azure.com",
             api_key="secret-key",
-            api_version="2024-02-01",
+            api_version="2025-04-01",
             deployment_name="gpt-image-2",
         ),
         transport=httpx.MockTransport(handler),
     )
 
-    result = asyncio.run(
-        client.generate(
-            {
-                "requestId": "job-2",
-                "mode": "PHOTO_REFERENCE",
-                "characterImageBase64": DEFAULT_CHARACTER_IMAGE_BASE64,
-                "outfitDescriptor": "cream cardigan and black skirt",
-            }
-        )
-    )
+    result = await client.generate({"requestId": "job-2", "mode": "TEXT_PROMPT", "outfitDescription": "red cardigan"})
 
     assert result.status == "succeeded"
-    assert calls == ["Bearer secret-key", "secret-key"]
-
-
-def test_gpt_image_client_rejects_response_without_image_data():
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=json.dumps({"data": []}))
-
-    client = GptImageOotdClient(
-        GptImageConfig(
-            endpoint_url="https://example.openai.azure.com",
-            api_key="secret-key",
-            api_version="2024-02-01",
-            deployment_name="gpt-image-2",
-        ),
-        transport=httpx.MockTransport(handler),
-    )
-
-    try:
-        asyncio.run(
-            client.generate(
-                {
-                    "requestId": "job-3",
-                    "mode": "TEXT_PROMPT",
-                    "characterImageBase64": DEFAULT_CHARACTER_IMAGE_BASE64,
-                    "outfitDescription": "black dress",
-                }
-            )
-        )
-    except RuntimeError as exc:
-        assert "did not include data" in str(exc)
-    else:
-        raise AssertionError("Expected RuntimeError")
+    assert auth_headers == ["Bearer secret-key", "secret-key"]

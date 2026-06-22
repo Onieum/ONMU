@@ -3,6 +3,7 @@ package com.onmu.api.web;
 import com.onmu.api.security.AuthenticatedUser;
 import com.onmu.api.service.RecordService;
 import com.onmu.api.web.dto.CreateMemoryRequest;
+import com.onmu.api.web.dto.CrewOotdAppearanceResponse;
 import com.onmu.api.web.dto.MemoryResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Validated
@@ -91,6 +93,18 @@ public class MemoryController {
       @AuthenticationPrincipal AuthenticatedUser user
   ) {
     List<MemoryResponse> response = recordService.getGroupMemories(user.userId(), groupId);
+    return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/crew-ootd-appearances")
+  public ResponseEntity<List<CrewOotdAppearanceResponse>> getCrewOotdAppearances(
+      @PathVariable String groupId,
+      @PathVariable String planId,
+      @RequestParam String date,
+      @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    List<CrewOotdAppearanceResponse> response =
+        recordService.getCrewOotdAppearances(user.userId(), groupId, planId, date);
     return ResponseEntity.ok(response);
   }
 

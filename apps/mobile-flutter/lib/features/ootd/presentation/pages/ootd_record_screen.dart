@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -166,14 +166,15 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       children: [
         const _SectionTitle(
           title: 'AI OOTD 생성 방식',
-          subtitle: '사진 또는 텍스트 중 하나만 선택해서 오늘의 코디를 캐릭터에 입혀요.',
+          subtitle:
+              '사진은 보이는 스타일을 우선 반영하고, 가려진 부분만 프로필 캐릭터 설정을 참고해요.',
         ),
         const SizedBox(height: 20),
         _ModeCard(
           selected: _isPhotoMode,
           icon: Icons.photo_camera_outlined,
           title: '사진으로 생성',
-          subtitle: '전체 코디가 보이는 사진 1장을 참고해 의상 스타일을 분석해요.',
+          subtitle: '사진에서 보이는 의상, 머리, 모자, 소품을 우선 분석해 OOTD 캐릭터를 만들어요.',
           onTap: () => setState(() => _inputMode = _photoMode),
         ),
         const SizedBox(height: 12),
@@ -181,13 +182,13 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: '사진 없이 색상, 소재, 핏, 소품 설명으로 의상 스타일을 생성해요.',
+          subtitle: null,
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
         const _InfoBox(
           icon: Icons.info_outline,
-          text: '사진 모드는 Vision AI가 의상만 분석하고, 텍스트 모드는 입력한 설명을 그대로 반영해요.',
+          text: '프로필 캐릭터는 기준 이미지가 아니라 보이지 않거나 설명이 부족한 부분을 보완하는 참고값이에요. 사진에서 보이는 헤어, 모자, 의상, 소품은 사진을 우선 반영해요.',
         ),
       ],
     );
@@ -200,8 +201,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         _SectionTitle(
           title: _isPhotoMode ? 'OOTD 사진 선택' : '코디 설명 입력',
           subtitle: _isPhotoMode
-              ? '상의, 하의, 신발이 잘 보이는 전체 코디 사진을 올려주세요.'
-              : '색상, 소재, 핏, 소품까지 자세히 적을수록 결과가 좋아요.',
+              ? '상의, 하의, 신발과 소품이 잘 보이는 OOTD 사진을 올려주세요.'
+              : '색상, 소재, 핏, 소품까지 자세히 적을수록 결과가 좋아져요.',
         ),
         const SizedBox(height: 18),
         if (_isPhotoMode) _buildPhotoPicker() else _buildDescriptionField(),
@@ -291,7 +292,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
             Expanded(
               child: TextField(
                 controller: _tagController,
-                decoration: const InputDecoration(hintText: '#카페룩'),
+                decoration: const InputDecoration(hintText: '#카페투어'),
                 onSubmitted: (_) => _addTag(),
               ),
             ),
@@ -325,41 +326,52 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   Widget _buildStylePage() {
-    final previewCharacter = _effectiveCharacter;
+    final previewCharacter = _isTextMode ? _effectiveCharacter : widget.userCharacter;
+    final styleSubtitle = _isPhotoMode
+        ? '사진에서 보이지 않는 얼굴, 눈, 입 같은 부분만 프로필 캐릭터 설정을 참고해요.'
+        : '텍스트 설명에 없는 헤어/눈 컬러를 오늘 코디에 맞게 바꿀 수 있어요.';
+    final styleInfoText = _isPhotoMode
+        ? '사진에서 보이는 머리, 모자, 소품, 의상은 사진을 우선 반영하고, 눈이나 입처럼 보이지 않는 부분만 프로필 설정을 참고해요.'
+        : _changeStyle
+            ? '텍스트에 없는 머리/눈 정보는 오늘만 바꾼 스타일을 참고해요.'
+            : '텍스트에 없는 머리/눈/피부 정보는 프로필 캐릭터 설정을 참고해요.';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle(
-          title: '오늘만 스타일 조정',
-          subtitle: '헤어스타일이나 헤어/눈 컬러를 오늘 코디에 맞게 바꿀 수 있어요.',
+        _SectionTitle(
+          title: _isPhotoMode ? '사진 기반 스타일 보완' : '오늘만 스타일 조정',
+          subtitle: styleSubtitle,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _ToggleCard(
-                label: '변경 안 함',
-                selected: !_changeStyle,
-                onTap: () => setState(() {
-                  _changeStyle = false;
-                  _styleCharacter = widget.userCharacter;
-                }),
+        if (_isTextMode) ...[
+          Row(
+            children: [
+              Expanded(
+                child: _ToggleCard(
+                  label: '변경 안 함',
+                  selected: !_changeStyle,
+                  onTap: () => setState(() {
+                    _changeStyle = false;
+                    _styleCharacter = widget.userCharacter;
+                  }),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ToggleCard(
-                label: '변경하기',
-                selected: _changeStyle,
-                onTap: () {
-                  setState(() => _changeStyle = true);
-                  _openStylePickerSheet();
-                },
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ToggleCard(
+                  label: '변경하기',
+                  selected: _changeStyle,
+                  onTap: () {
+                    setState(() => _changeStyle = true);
+                    _openStylePickerSheet();
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
         Center(
           child: Container(
             padding: const EdgeInsets.all(18),
@@ -376,16 +388,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        if (_changeStyle) ...[
-          const _InfoBox(
-            icon: Icons.auto_awesome,
-            text: '오늘만 바꿀 헤어/눈 스타일로 OOTD를 생성해요.',
-          ),
-        ] else
-          const _InfoBox(
-            icon: Icons.auto_awesome,
-            text: '기본 캐릭터 스타일로 OOTD를 생성해요.',
-          ),
+        _InfoBox(
+          icon: Icons.auto_awesome,
+          text: styleInfoText,
+        ),
         const SizedBox(height: 24),
         _OptionGroup(
           title: '오늘 날씨',
@@ -489,7 +495,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'OOTD 생성에만 사용할 헤어와 렌즈 컬러를 골라주세요.',
+                      '텍스트 설명에 없는 머리와 렌즈 컬러를 보완할 때만 사용해요.',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textSub,
                       ),
@@ -571,7 +577,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         ),
         const SizedBox(height: 18),
         Text(
-          job?.isFailed == true ? '생성 요청을 다시 확인해 주세요' : 'OOTD 기록이 저장됐어요',
+          job?.isFailed == true ? '생성 요청을 다시 확인해 주세요' : 'OOTD 기록이 저장되었어요',
           textAlign: TextAlign.center,
           style: AppTextStyles.headlineMedium.copyWith(
             color: AppColors.textMain,
@@ -580,7 +586,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         const SizedBox(height: 10),
         Text(
           job?.isCompleted == true
-              ? '생성된 캐릭터 이미지는 기록 상세에서 확인할 수 있어요.'
+              ? '생성된 캐릭터 이미지를 기록 상세에서 확인할 수 있어요.'
               : 'AI 생성은 잠시 걸릴 수 있어요. 기록 화면에서 상태를 다시 확인해 주세요.',
           textAlign: TextAlign.center,
           style: AppTextStyles.bodyMedium.copyWith(
@@ -722,7 +728,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         media: uploaded == null
             ? widget.existingRecord?.media ?? const []
             : [uploaded],
-        character: _effectiveCharacter,
+        character: _isTextMode ? _effectiveCharacter : widget.userCharacter,
         moodTags: _tags,
         brands: brands,
         weather: _weather,
@@ -756,7 +762,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         outfitDescription: _isTextMode
             ? _descriptionController.text.trim()
             : null,
-        characterOverrides: _effectiveCharacter,
+        characterOverrides: _isTextMode ? _effectiveCharacter : null,
       );
       generationAccepted = true;
       final resolved = await _resolveJob(repository, job);
@@ -864,17 +870,20 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   String get _outfitDescription => _isTextMode
       ? _descriptionController.text.trim()
-      : '선택한 OOTD 사진에서 Vision AI가 의상 디테일을 분석합니다.';
+      : '선택한 OOTD 사진에서 Vision AI가 보이는 스타일과 의상 디테일을 분석합니다.';
 
   String _todayLook(String outfitDescription) {
     if (_isPhotoMode) {
-      return '오늘 선택한 사진을 바탕으로 전체 코디의 색감, 소재, 포인트를 분석하고 있어요.';
+      return '오늘 선택한 사진을 바탕으로 보이는 코디와 스타일을 우선 분석했어요.';
     }
     return '$outfitDescription 조합으로 오늘만의 분위기를 담은 OOTD예요.';
   }
 
   String get _hairNote {
-    return '오늘은 헤어 ${_styleCharacter.hairStyleIndex + 1} 스타일과 선택한 컬러를 반영해 캐릭터 분위기를 조정했어요.';
+    if (_isPhotoMode) {
+      return '사진에서 보이는 헤어와 모자는 사진을 우선 반영하고, 가려진 부분만 프로필 설정을 참고해요.';
+    }
+    return '오늘 선택한 스타일과 컬러를 참고해 캐릭터 분위기를 조정했어요.';
   }
 
   CharacterDraft get _effectiveCharacter {
@@ -896,7 +905,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     return '전체 코디의 색감 맞추기';
   }
 
-  String get _defaultNextSuggestion => '다음엔 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
+  String get _defaultNextSuggestion => '다음에는 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -1288,7 +1298,7 @@ class _NamedOption {
 const _weatherOptions = [
   _NamedOption('sunny', '맑음', '☀'),
   _NamedOption('cloudy', '흐림', '☁'),
-  _NamedOption('rainy', '비', '💧'),
+  _NamedOption('rainy', '비', '☂'),
   _NamedOption('snowy', '눈', '❄'),
 ];
 

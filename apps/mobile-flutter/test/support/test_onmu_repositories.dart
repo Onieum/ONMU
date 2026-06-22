@@ -243,6 +243,15 @@ class TestCharacterRepository implements CharacterRepository {
 }
 
 class TestRecordRepository implements RecordRepository {
+  @override
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) async {
+    return const [];
+  }
+
   TestRecordRepository({List<OotdRecord>? records})
     : _records = List.of(records ?? defaultRecords);
 

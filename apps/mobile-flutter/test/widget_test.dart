@@ -2269,6 +2269,8 @@ void main() {
           createdAt: DateTime.parse('2026-06-09T14:12:00+09:00'),
           timeLabel: '14:12',
           groupId: '1',
+          senderName: '현우',
+          senderProfileImageUrl: 'dev/avatars/hyunwoo.png',
           payload: const {
             'groupId': '1',
             'messageId': 'message-1',
@@ -2285,6 +2287,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(store.fetchUnreadNotificationCount(), 3);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is PixelAvatar &&
+            widget.label == '현우' &&
+            widget.profileImageUrl == 'dev/avatars/hyunwoo.png',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('새 메시지가 도착했어요'));
     await tester.pumpAndSettle();
 

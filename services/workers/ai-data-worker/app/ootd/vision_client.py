@@ -111,7 +111,7 @@ class AzureOpenAiVisionClient:
                     ],
                 },
             ],
-            "max_tokens": 1800,
+            "max_tokens": 4096,
             "temperature": 0.1,
             "top_p": 0.2,
             "response_format": {"type": "json_object"},

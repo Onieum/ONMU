@@ -1,24 +1,19 @@
-"""Azure OpenAI GPT Image client for ONMU OOTD avatar generation."""
+"""Azure GPT Image client for ONMU OOTD image generation."""
 
 from __future__ import annotations
 
-import base64
 import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
-from app.ootd.azureml_client import (
-    DEFAULT_CHARACTER_IMAGE_BASE64,
-    _descriptor_to_brief,
-    _optional_int,
-)
+from app.ootd.azureml_client import _optional_int
 
 
 DEFAULT_IMAGE_SIZE = "1024x1024"
 DEFAULT_IMAGE_QUALITY = "low"
-MAX_OUTFIT_BRIEF_CHARS = 700
+MAX_OUTFIT_BRIEF_CHARS = 900
 
 
 @dataclass(frozen=True)
@@ -86,26 +81,20 @@ class GptImageOotdClient:
             raise RuntimeError("GPT Image OOTD client is not configured")
 
         request_id = str(request.get("requestId") or "")
-        mode = str(request.get("mode") or "").upper()
+        mode = str(request.get("mode") or request.get("inputType") or "").upper()
         prompt = build_gpt_image_avatar_prompt(request)
-        image_bytes = _decode_base64_image(
-            str(request.get("characterImageBase64") or DEFAULT_CHARACTER_IMAGE_BASE64)
-        )
         url = (
             f"{self._config.endpoint_url}/openai/deployments/"
-            f"{self._config.deployment_name}/images/edits"
+            f"{self._config.deployment_name}/images/generations"
         )
         params = {"api-version": self._config.api_version}
-        data = {
+        body = {
             "prompt": prompt,
-            "model": self._config.deployment_name,
             "size": DEFAULT_IMAGE_SIZE,
             "quality": DEFAULT_IMAGE_QUALITY,
+            "output_compression": 100,
             "output_format": "png",
-            "n": "1",
-        }
-        files = {
-            "image[]": ("onmu-character-reference.png", image_bytes, "image/png"),
+            "n": 1,
         }
 
         async with httpx.AsyncClient(
@@ -115,17 +104,21 @@ class GptImageOotdClient:
             response = await client.post(
                 url,
                 params=params,
-                headers={"Authorization": f"Bearer {self._config.api_key}"},
-                data=data,
-                files=files,
+                headers={
+                    "Authorization": f"Bearer {self._config.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
             )
             if response.status_code in {401, 403, 404}:
                 response = await client.post(
                     url,
                     params=params,
-                    headers={"api-key": self._config.api_key},
-                    data=data,
-                    files=files,
+                    headers={
+                        "api-key": self._config.api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
                 )
 
         if response.status_code >= 400:
@@ -146,36 +139,75 @@ class GptImageOotdClient:
 
 
 def build_gpt_image_avatar_prompt(request: dict[str, Any]) -> str:
-    outfit_brief = _outfit_brief_from_request(request)
-    return (
-        "Edit the provided ONMU pixel avatar. "
-        "Change only the outfit of this exact ONMU pixel avatar to: "
-        f"{outfit_brief}. "
-        "Keep the same face, eyes, mouth, hairstyle, hair color, skin tone, body proportions, "
-        "front-facing pose, sprite scale, and clean pixel-art style. "
-        "Do not redesign the character. Do not change the character identity. "
-        "Do not change the background into a scene. "
-        "Make the clothing cute, clear, readable, and wearable as pixel avatar equipment. "
-        "Preserve visible outfit details such as garment type, colors, shoes, bag, hat, glasses, "
-        "jewelry, socks, graphics, ribbons, buttons, pleats, trims, and accessories when present. "
-        "Return one centered full-body ONMU-style pixel art avatar."
-    )
+    """Build the prompt used by GPT Image for the OOTD character image."""
+
+    mode = str(request.get("mode") or request.get("inputType") or "").upper()
+    style_brief = _outfit_brief_from_request(request)
+    profile_brief = _profile_reference_brief(request.get("characterProfile"))
+
+    if mode == "PHOTO_REFERENCE":
+        return f"""
+Create a full-body ONMU OOTD character image.
+
+Source priority:
+1. Use the visible OOTD photo analysis as the primary evidence for every visible feature.
+2. Preserve visible outfit, headwear, hair shape, hair color, visible skin tone, pose, silhouette, shoes, bags, and accessories from the photo analysis.
+3. Use the ONMU profile fallback only for details that are hidden, cropped out, blurry, or not described.
+4. If the photo shows a hairstyle or hat that ONMU profile parts do not have, use the photo hairstyle or hat anyway.
+5. Do not force the profile character hairstyle, hair color, eye color, skin tone, or outfit over visible photo evidence.
+
+Visible OOTD photo/style analysis:
+{style_brief}
+
+Profile fallback for hidden or missing details:
+{profile_brief}
+
+Rendering requirements:
+- Cute Korean diary-app character.
+- Full-body, centered, front-facing or near-front pose.
+- Clean pixel-art inspired avatar style with readable sprite proportions.
+- The result should look like one coherent OOTD character, not a pasted collage.
+- Plain transparent or simple light neutral background.
+- No diary page, no UI frame, no labels, no captions, no text.
+""".strip()
+
+    return f"""
+Create a full-body ONMU OOTD character image from the user's text description.
+
+Use the text description as the outfit and styling source.
+Use the ONMU profile fallback for details the text does not specify, such as hair, eyes, mouth, skin tone, body proportions, or overall character mood.
+If the text explicitly describes hair, eyes, accessories, or pose, the text wins over the profile fallback.
+
+Outfit and style request:
+{style_brief}
+
+Profile fallback for missing text details:
+{profile_brief}
+
+Rendering requirements:
+- Cute Korean diary-app character.
+- Full-body, centered, front-facing or near-front pose.
+- Clean pixel-art inspired avatar style with readable sprite proportions.
+- Apply the described outfit, shoes, bags, and accessories clearly.
+- Plain transparent or simple light neutral background.
+- No diary page, no UI frame, no labels, no captions, no text.
+""".strip()
 
 
 def build_gpt_image_diary_card_prompt(metadata: dict[str, Any]) -> str:
-    todays_look = _clean_text(metadata.get("todaysLook")) or "오늘의 코디를 귀엽게 기록했어요."
-    hair_note = _clean_text(metadata.get("hairNote")) or "오늘 스타일에 맞춘 헤어 포인트"
-    weather = _clean_text(metadata.get("weatherText")) or "맑음"
-    mood = _clean_text(metadata.get("moodText")) or "행복"
-    point = _clean_text(metadata.get("pointText")) or "오늘 코디의 포인트"
-    tags = _value_to_text(metadata.get("tags")) or "#ootd #오늘의코디"
-    outfit_info = _value_to_text(metadata.get("outfitInfo")) or "상의, 하의, 신발, 소품"
+    todays_look = _clean_text(metadata.get("todaysLook")) or "A cozy daily outfit record."
+    hair_note = _clean_text(metadata.get("hairNote")) or "Hair style matched today's mood."
+    weather = _clean_text(metadata.get("weatherText")) or "clear"
+    mood = _clean_text(metadata.get("moodText")) or "happy"
+    point = _clean_text(metadata.get("pointText")) or "Today's outfit point."
+    tags = _value_to_text(metadata.get("tags")) or "#ootd #dailylook"
+    outfit_info = _value_to_text(metadata.get("outfitInfo")) or "top, bottom, shoes, accessories"
     return (
         "Create a cute Korean mobile diary scrapbook card image for an OOTD record. "
         "Use a warm ivory paper background with a subtle square grid notebook pattern, "
         "soft beige and pink tones, tape stickers, paper clips, hearts, sparkles, arrows, and small doodles. "
-        "Place the provided ONMU pixel avatar in the center with a soft cutout sticker border. "
-        "Keep the avatar face, hair, skin tone, eyes, and body identity unchanged. "
+        "Reserve a clean empty center area where the ONMU character sticker will be composited later. "
+        "Do not draw a full character in the center area. "
         "Do not include phone status bars, app navigation buttons, edit buttons, or delete buttons. "
         "Add legible Korean diary handwriting inside separate memo cards. "
         f"Today's Look: {todays_look}. "
@@ -185,18 +217,127 @@ def build_gpt_image_diary_card_prompt(metadata: dict[str, Any]) -> str:
         f"Outfit Info: {outfit_info}. "
         f"Point: {point}. "
         f"Today's Tag: {tags}. "
-        "Keep all text inside cards, avoid cropped stickers, and do not cover the character."
+        "Keep all text inside cards, avoid cropped stickers, and keep the center character area unobstructed."
     )
 
 
 def _outfit_brief_from_request(request: dict[str, Any]) -> str:
-    description = _clean_text(request.get("outfitDescription"))
+    descriptor = request.get("outfitDescriptor")
+    if isinstance(descriptor, dict):
+        descriptor_brief = _descriptor_to_brief(descriptor)
+        if descriptor_brief:
+            return _clip_text(descriptor_brief, MAX_OUTFIT_BRIEF_CHARS)
+
+    description = str(request.get("outfitDescription") or "").strip()
     if description:
         return _clip_text(description, MAX_OUTFIT_BRIEF_CHARS)
-    descriptor = request.get("outfitDescriptor")
-    if descriptor:
-        return _clip_text(_descriptor_to_brief(descriptor), MAX_OUTFIT_BRIEF_CHARS)
-    return "a cute daily outfit that matches the user's OOTD reference"
+
+    return "A casual daily OOTD with clear clothing, shoes, and accessories."
+
+
+def _descriptor_to_brief(descriptor: dict[str, Any]) -> str:
+    translation = descriptor.get("pixel_avatar_translation")
+    if isinstance(translation, dict):
+        generation_brief = str(translation.get("generation_brief") or "").strip()
+        if generation_brief:
+            parts = [generation_brief]
+            photo_features = _string_list(translation.get("must_use_photo_features"))
+            fallback_features = _string_list(translation.get("must_use_profile_fallback_for"))
+            if photo_features:
+                parts.append("Visible photo features that must be preserved: " + "; ".join(photo_features))
+            if fallback_features:
+                parts.append("Use profile fallback only for: " + "; ".join(fallback_features))
+            return "\n".join(parts)
+
+    diary = descriptor.get("outfit_info_for_diary")
+    outfit_info = diary.get("outfit_info") if isinstance(diary, dict) else None
+
+    parts: list[str] = []
+    for key in ("overall_aesthetic", "style_summary", "styling_notes"):
+        value = str(descriptor.get(key) or "").strip()
+        if value:
+            parts.append(value)
+
+    for key in ("hair", "headwear", "upper_body", "lower_body", "one_piece", "shoes", "socks", "pose_and_silhouette"):
+        value = _compact_descriptor_value(key, descriptor.get(key))
+        if value:
+            parts.append(value)
+
+    for key in ("bags_and_carried_items", "jewelry_and_accessories", "logos_text_graphics", "construction_details", "materials", "colors"):
+        values = _string_list(descriptor.get(key))
+        if values:
+            parts.append(f"{key}: " + "; ".join(values))
+
+    if isinstance(outfit_info, dict):
+        info_values = [f"{key}: {value}" for key, value in outfit_info.items() if str(value or "").strip()]
+        if info_values:
+            parts.append("Diary outfit info: " + "; ".join(info_values))
+
+    fallback = descriptor.get("fallback_to_profile_character")
+    if isinstance(fallback, dict):
+        fallback_bits = [f"{key}={value}" for key, value in fallback.items() if str(value or "").strip()]
+        if fallback_bits:
+            parts.append("Fallback plan: " + "; ".join(fallback_bits))
+
+    return "\n".join(parts).strip()
+
+
+def _profile_reference_brief(profile: Any) -> str:
+    if not isinstance(profile, dict):
+        return "Use the user's ONMU profile character settings only for hidden or missing details."
+
+    fields = []
+    for key in (
+        "skinToneIndex",
+        "hairStyleIndex",
+        "hairColorIndex",
+        "eyeStyleIndex",
+        "eyeColorIndex",
+        "mouthIndex",
+        "topIndex",
+        "bottomIndex",
+    ):
+        if key in profile and profile.get(key) is not None:
+            fields.append(f"{key}: {profile.get(key)}")
+    if not fields:
+        return "Use the user's ONMU profile character settings only for hidden or missing details."
+    return "Profile character part indices for fallback only: " + ", ".join(fields)
+
+
+def _compact_descriptor_value(label: str, value: Any) -> str:
+    if isinstance(value, dict):
+        bits = []
+        for key, nested in value.items():
+            if isinstance(nested, dict):
+                nested_bits = [f"{nested_key} {nested_value}" for nested_key, nested_value in nested.items() if str(nested_value or "").strip()]
+                if nested_bits:
+                    bits.append(f"{key}: " + ", ".join(nested_bits))
+            elif isinstance(nested, list):
+                listed = _string_list(nested)
+                if listed:
+                    bits.append(f"{key}: " + ", ".join(listed))
+            elif str(nested or "").strip():
+                bits.append(f"{key}: {nested}")
+        return f"{label}: " + "; ".join(bits) if bits else ""
+    if isinstance(value, list):
+        listed = _string_list(value)
+        return f"{label}: " + "; ".join(listed) if listed else ""
+    text = str(value or "").strip()
+    return f"{label}: {text}" if text else ""
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    results: list[str] = []
+    for item in value:
+        if isinstance(item, dict):
+            text = ", ".join(f"{key} {nested}" for key, nested in item.items() if str(nested or "").strip())
+        else:
+            text = str(item or "").strip()
+        if text:
+            results.append(text)
+    return results
 
 
 def _extract_image_base64(body: dict[str, Any]) -> str:
@@ -212,19 +353,8 @@ def _extract_image_base64(body: dict[str, Any]) -> str:
     return image_base64.strip()
 
 
-def _decode_base64_image(value: str) -> bytes:
-    if "," in value and value.strip().startswith("data:"):
-        value = value.split(",", 1)[1]
-    try:
-        return base64.b64decode(value, validate=True)
-    except Exception as exc:
-        raise ValueError("characterImageBase64 must be a valid base64 image") from exc
-
-
 def _clean_text(value: Any) -> str:
-    if value is None:
-        return ""
-    if not isinstance(value, str):
+    if value is None or not isinstance(value, str):
         return ""
     return " ".join(value.strip().split())
 

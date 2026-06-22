@@ -267,6 +267,9 @@ class ChatActivityServiceTests {
         .contains("\"groupId\":\"1\"")
         .contains("\"messageId\"")
         .contains("\"senderUserId\":\"" + currentUser.getPublicId() + "\"")
+        .contains("\"senderName\":\"나\"")
+        .contains("\"senderProfileImageUrl\":\"dev/avatars/me.png\"")
+        .contains("\"senderPixelCharacter\"")
         .contains("\"chatActivityEventId\"")
         .contains("\"attachmentCount\":0")
         .contains("\"hasText\":true");

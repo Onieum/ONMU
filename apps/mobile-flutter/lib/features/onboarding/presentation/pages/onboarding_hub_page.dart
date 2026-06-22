@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -32,7 +32,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
     final skippedPreference = ref.watch(skippedPreferenceProvider);
     final nickname = resolveOnmuDisplayName([
       user?.nickname,
-    ], fallback: '카카오 친구');
+    ], fallback: '온뮤 친구');
 
     return Scaffold(
       backgroundColor: AppColors.bgWarm,
@@ -85,7 +85,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
                           _OnboardingTaskCard(
                             compact: layout.compact,
                             title: '캐릭터 만들기',
-                            description: 'OOTD 기록에 함께할\n픽셀 캐릭터를 꾸며요.',
+                            description: '프로필에 사용할 캐릭터를 만들어요.',
                             icon: Icons.face_retouching_natural_outlined,
                             state: _TaskState.from(
                               hasCharacter,
@@ -102,7 +102,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
                           _OnboardingTaskCard(
                             compact: layout.compact,
                             title: '취향 선택',
-                            description: '음식, 장소, 약속 스타일\n추천에 쓸 취향을 골라요.',
+                            description: '음식, 장소, 활동 스타일 추천을 위한 취향을 골라요.',
                             icon: Icons.tune_rounded,
                             state: _TaskState.from(
                               hasPreference,
@@ -152,9 +152,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
   }) async {
     setState(() => _isSavingHomeStatus = true);
     try {
-      await ref
-          .read(onboardingHubControllerProvider)
-          .saveSkipStatus(
+      await ref.read(onboardingHubControllerProvider).saveSkipStatus(
             hasCharacter: hasCharacter,
             hasPreference: hasPreference,
             skippedCharacter: skippedCharacter,
@@ -251,7 +249,7 @@ class _OnboardingTitle extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '$nickname님,',
+          '$nickname님',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
@@ -348,14 +346,13 @@ class _OnboardingTaskCard extends StatelessWidget {
                             title,
                             maxLines: 1,
                             softWrap: false,
-                            style:
-                                (compact
-                                        ? AppTextStyles.titleMedium
-                                        : AppTextStyles.titleLarge)
-                                    .copyWith(
-                                      color: const Color(0xFF4D3930),
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                            style: (compact
+                                    ? AppTextStyles.titleMedium
+                                    : AppTextStyles.titleLarge)
+                                .copyWith(
+                              color: const Color(0xFF4D3930),
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
