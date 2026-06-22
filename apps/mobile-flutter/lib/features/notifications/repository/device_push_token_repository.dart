@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/device_push_token_models.dart';
 
 final devicePushTokenRepositoryProvider = Provider<DevicePushTokenRepository>((
@@ -19,6 +20,7 @@ final pushTokenRegistrationCoordinatorProvider =
       return PushTokenRegistrationCoordinator(
         repository: ref.watch(devicePushTokenRepositoryProvider),
         tokenSource: ref.watch(devicePushTokenSourceProvider),
+        errorReporter: ref.watch(onmuErrorReporterProvider),
       );
     });
 
@@ -67,10 +69,12 @@ class PushTokenRegistrationCoordinator {
   const PushTokenRegistrationCoordinator({
     required this.repository,
     required this.tokenSource,
+    this.errorReporter = const FlutterOnmuErrorReporter(),
   });
 
   final DevicePushTokenRepository repository;
   final DevicePushTokenSource tokenSource;
+  final OnmuErrorReporter errorReporter;
 
   Future<DevicePushTokenSyncResult> registerCurrentDevice() async {
     final token = await tokenSource.currentToken();
@@ -84,13 +88,10 @@ class PushTokenRegistrationCoordinator {
       return DevicePushTokenSyncResult.synced(registration);
     } catch (error, stackTrace) {
       debugPrint('Push token registration failed: ${error.runtimeType}');
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'onmu push token registration',
-          context: ErrorDescription('registering a device push token'),
-        ),
+      errorReporter.captureException(
+        error,
+        stackTrace,
+        feature: 'push_token_registration',
       );
       return const DevicePushTokenSyncResult.failed(
         'push_token_register_failed',
@@ -110,13 +111,10 @@ class PushTokenRegistrationCoordinator {
       return DevicePushTokenSyncResult.synced(registration);
     } catch (error, stackTrace) {
       debugPrint('Push token deactivation failed: ${error.runtimeType}');
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'onmu push token registration',
-          context: ErrorDescription('deactivating a device push token'),
-        ),
+      errorReporter.captureException(
+        error,
+        stackTrace,
+        feature: 'push_token_deactivation',
       );
       return const DevicePushTokenSyncResult.failed(
         'push_token_deactivate_failed',

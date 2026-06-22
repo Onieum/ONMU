@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/group_models.dart';
 
 final mediaRepositoryProvider = Provider<MediaRepository>((ref) {
@@ -41,10 +42,26 @@ class ApiMediaRepository implements MediaRepository {
       fileName: image.fileName,
       contentType: image.contentType,
     );
+    final publicUrl = OnmuJson.readString(response, 'publicUrl');
+    final storageKey = OnmuJson.readString(response, 'storageKey');
+    if (publicUrl.isEmpty) {
+      throw OnmuContractException.missingField(
+        feature: 'chat',
+        field: 'publicUrl',
+        endpoint: '/api/v1/media/upload',
+      );
+    }
+    if (storageKey.isEmpty) {
+      throw OnmuContractException.missingField(
+        feature: 'chat',
+        field: 'storageKey',
+        endpoint: '/api/v1/media/upload',
+      );
+    }
     return GroupMessageAttachment(
       type: 'image',
-      publicUrl: _absoluteMediaUrl(OnmuJson.readString(response, 'publicUrl')),
-      storageKey: OnmuJson.readString(response, 'storageKey'),
+      publicUrl: _absoluteMediaUrl(publicUrl),
+      storageKey: storageKey,
       contentType: image.contentType,
       fileName: image.fileName,
       width: image.width,

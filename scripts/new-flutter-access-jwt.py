@@ -85,6 +85,10 @@ def google_server_client_id_secret_name(environment: str) -> str:
     return f"{prefix}-google-server-client-id"
 
 
+def sentry_dsn_secret_name() -> str:
+    return "sentry-dsn"
+
+
 def secret_prefix(environment: str) -> str:
     if environment == "integration":
         return "int"
@@ -218,6 +222,20 @@ def resolve_google_server_client_id(environment: str, vault_name: Optional[str])
     return read_secret_from_key_vault(vault_name, secret_name)
 
 
+def resolve_sentry_dsn(vault_name: Optional[str]) -> str:
+    env_value = os.environ.get("SENTRY_DSN")
+    if env_value:
+        return env_value.strip()
+
+    secret_name = sentry_dsn_secret_name()
+    if not vault_name:
+        raise RuntimeError(
+            "SENTRY_DSN is not set. Set it for local testing or pass "
+            f"--vault-name to load {secret_name} from Key Vault."
+        )
+    return read_secret_from_key_vault(vault_name, secret_name)
+
+
 def google_reversed_client_id(client_id: str) -> str:
     trimmed = client_id.strip()
     suffix = ".apps.googleusercontent.com"
@@ -332,6 +350,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-ios-google-xcconfig",
         action="store_true",
         help="Do not write the generated iOS Google OAuth xcconfig when Google OAuth is included.",
+    )
+    parser.add_argument(
+        "--include-sentry",
+        action="store_true",
+        help="Include the Sentry DSN from SENTRY_DSN or Key Vault secret sentry-dsn in the local dart-define file.",
     )
     return parser.parse_args()
 
@@ -450,6 +473,18 @@ def main() -> int:
                 print(str(exc), file=sys.stderr)
                 return 1
 
+    if args.include_sentry:
+        try:
+            sentry_dsn = resolve_sentry_dsn(args.vault_name)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        if not sentry_dsn:
+            print("SENTRY_DSN could not be loaded.", file=sys.stderr)
+            return 1
+        defines["SENTRY_DSN"] = sentry_dsn
+        defines["SENTRY_ENVIRONMENT"] = args.environment
+
     output_path.write_text(
         json.dumps(defines, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -470,6 +505,8 @@ def main() -> int:
         print("Included Google OAuth dart-define keys without printing their values.")
         if not args.skip_ios_google_xcconfig:
             print("Wrote iOS Google OAuth xcconfig without printing its values.")
+    if args.include_sentry:
+        print("Included Sentry dart-define keys without printing their values.")
     return 0
 
 

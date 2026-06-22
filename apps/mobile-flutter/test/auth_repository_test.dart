@@ -72,6 +72,31 @@ void main() {
     expect(user!.nickname, '지무');
   });
 
+  test('treats unauthorized current user response as signed out', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.badResponse,
+              response: Response<Object?>(
+                requestOptions: options,
+                statusCode: 401,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+    final user = await repository.fetchCurrentUser();
+
+    expect(user, isNull);
+  });
+
   test('uses canonical nickname from auth response', () {
     final user = authUserFromJson({
       'databaseId': '00000000-0000-0000-0000-000000000001',

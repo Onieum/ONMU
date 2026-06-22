@@ -1,6 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onmu_mobile/core/error/onmu_exception.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
 import 'package:onmu_mobile/features/my/view_model/my_profile_controller.dart';
@@ -28,6 +28,35 @@ void main() {
       expect(repository.fetchFriendsCallCount, 2);
     },
   );
+
+  test(
+    'addFriend preserves already friend message from normalized API error',
+    () async {
+      final repository = _AlreadyFriendRepository();
+      final container = ProviderContainer(
+        overrides: [friendRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+
+      expect(await container.read(friendsProvider.future), isEmpty);
+
+      await expectLater(
+        container.read(myProfileControllerProvider).addFriend('usr_friend'),
+        throwsA(
+          isA<FriendAddException>()
+              .having(
+                (error) => error.kind,
+                'kind',
+                FriendAddErrorKind.alreadyFriend,
+              )
+              .having((error) => error.message, 'message', '이미 친구예요.'),
+        ),
+      );
+
+      final friends = await container.read(friendsProvider.future);
+      expect(friends, hasLength(1));
+    },
+  );
 }
 
 class _AlreadyFriendRepository implements FriendRepository {
@@ -49,14 +78,16 @@ class _AlreadyFriendRepository implements FriendRepository {
 
   @override
   Future<FriendProfile> addFriend(String publicId, {String? memo}) async {
-    final requestOptions = RequestOptions(path: '/api/v1/users/me/friends');
-    throw DioException(
-      requestOptions: requestOptions,
-      response: Response<String>(
-        requestOptions: requestOptions,
-        statusCode: 409,
-        data: 'already_friend',
-      ),
+    throw OnmuApiException(
+      kind: OnmuErrorKind.conflict,
+      userMessage: '이미 처리된 요청이에요.',
+      technicalMessage: 'POST /api/v1/users/me/friends failed with 409',
+      feature: 'friend',
+      statusCode: 409,
+      method: 'POST',
+      endpoint: '/api/v1/users/me/friends',
+      reportable: false,
+      serverReason: 'already_friend',
     );
   }
 
