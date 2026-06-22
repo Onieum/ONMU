@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/character_model.dart';
 import '../../../shared/models/ootd_model.dart';
 
@@ -89,10 +90,18 @@ class ApiRecordRepository implements RecordRepository {
     final storageKey = OnmuJson.readString(json, 'storageKey');
     final publicUrl = OnmuJson.readString(json, 'publicUrl');
     if (storageKey.isEmpty) {
-      throw StateError('media_upload_storage_key_missing');
+      throw OnmuContractException.missingField(
+        feature: 'record',
+        field: 'storageKey',
+        endpoint: '/api/v1/media/upload',
+      );
     }
     if (publicUrl.isEmpty) {
-      throw StateError('media_upload_public_url_missing');
+      throw OnmuContractException.missingField(
+        feature: 'record',
+        field: 'publicUrl',
+        endpoint: '/api/v1/media/upload',
+      );
     }
     return UploadedMedia(
       storageKey: storageKey,

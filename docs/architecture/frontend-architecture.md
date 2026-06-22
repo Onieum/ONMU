@@ -68,6 +68,23 @@ lib/features/<feature>/
 - ViewModel에 `BuildContext`를 저장하지 않는다.
 - navigation, snackbar, dialog는 View 또는 UI event 패턴으로 처리한다.
 
+## 오류 처리와 관측성
+
+Flutter API 오류는 `OnmuApiClient`에서 `OnmuApiException`으로 정규화한다. ViewModel과 repository는 raw `DioException`에 직접 의존하지 않고, `OnmuErrorKind`를 기준으로 사용자 상태와 보고 정책을 나눈다.
+
+| 범주 | 대표 상황 | 사용자 처리 | 보고 정책 |
+| --- | --- | --- | --- |
+| `validation`, `conflict`, `notFound`, `forbidden` | 입력 오류, 이미 처리됨, 삭제됨, 예상 권한 오류 | inline 또는 snackbar | 기본 보고하지 않음 |
+| `unauthorized` | 세션 없음 또는 만료 | 로그인 흐름 전환 | bootstrap의 정상 401은 보고하지 않음 |
+| `server`, `unavailable`, `unknown` | 5xx, 장애, 알 수 없는 실패 | retryable card 또는 snackbar | 보고 |
+| `timeout`, `network`, `rateLimited` | 시간 초과, 네트워크, 요청 제한 | 재시도 안내 | 필요 시 샘플링 보고 |
+| `contractMismatch` | 필수 JSON 필드 누락, enum 불일치 | fallback 또는 오류 UI | 반드시 보고 |
+| `backgroundSync` | push token, 채팅 읽음 동기화, 보조 카드 로딩 | 화면 유지 | reportable일 때만 보고 |
+
+보고 경계는 `core/observability/OnmuErrorReporter`로 감싼다. 현재 구현은 `FlutterError.reportError`로 전달해 추후 Sentry SDK 도입 시 자동 수집되게 하고, SDK DSN이나 token 값은 Flutter bundle에 넣지 않는다.
+
+Sentry tag로 보낼 수 있는 값은 `feature`, `kind`, `statusCode`, `method`, `endpoint_template`, `retryable`, `environment`처럼 안전한 메타데이터뿐이다. JWT, Authorization header, request/response body, nickname, email, 채팅/메모/기록 원문은 보고 필드에 넣지 않는다.
+
 ## Mock to API 전환
 
 Flutter repository가 호출하는 실제 서버는 Spring Boot Main API다. FastAPI Worker 결과는 Spring Boot API read model을 통해 전달받고, Flutter 앱에서 Worker를 직접 호출하지 않는다.
