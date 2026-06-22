@@ -1,8 +1,8 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/api/onmu_media_url.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/utils/onmu_display_name.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
@@ -32,8 +32,8 @@ class ApiAuthRepository implements AuthRepository {
     try {
       final json = await _client.getObject('/api/v1/users/me');
       return authUserFromJson(json, mediaBaseUrl: _client.baseUrl);
-    } on DioException catch (error) {
-      final statusCode = error.response?.statusCode;
+    } on OnmuApiException catch (error) {
+      final statusCode = error.statusCode;
       if (statusCode == 401 || statusCode == 403) {
         return null;
       }

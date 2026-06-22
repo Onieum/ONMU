@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/notification_models.dart';
 import '../repository/notification_repository.dart';
 
@@ -50,7 +51,8 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
         _replaceItem(state.value ?? previous, updated.id, updated),
       );
       ref.invalidate(notificationUnreadCountProvider);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'notifications_mark_read');
       state = AsyncValue.data(previous);
     }
   }
@@ -68,7 +70,8 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
       final repository = ref.read(notificationRepositoryProvider);
       await repository.markAllNotificationsRead();
       ref.invalidate(notificationUnreadCountProvider);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'notifications_mark_all_read');
       state = AsyncValue.data(previous);
     }
   }
@@ -95,10 +98,17 @@ class HomeNotificationsViewModel extends AsyncNotifier<List<NotificationItem>> {
         await repository.declineFriendRequest(requestId);
       }
       ref.invalidate(notificationUnreadCountProvider);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'notifications_friend_request');
       state = AsyncValue.data(previous);
       rethrow;
     }
+  }
+
+  void _report(Object error, StackTrace stackTrace, {required String feature}) {
+    ref
+        .read(onmuErrorReporterProvider)
+        .captureException(error, stackTrace, feature: feature);
   }
 
   List<NotificationItem> _replaceItem(

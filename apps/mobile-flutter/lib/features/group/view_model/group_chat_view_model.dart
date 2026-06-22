@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/settlement_models.dart';
 import '../../../shared/models/vote_models.dart';
@@ -127,7 +128,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
 
     try {
       plans = await groupRepository.fetchPlans(groupId);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_plans');
       // 약속 목록 실패는 채팅 본문 표시와 독립적으로 처리한다.
     }
 
@@ -146,7 +148,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
           targetId: planId,
         );
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_votes');
       // 투표 목록 실패는 투표 카드만 생략한다.
     }
 
@@ -162,7 +165,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
           voteId: voteId,
         );
         vote = fetchedVote;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        _report(error, stackTrace, feature: 'group_chat_vote_card');
         // 투표 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
       }
     }
@@ -176,7 +180,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         if (fetchedSettlement.isCreated) {
           settlement = fetchedSettlement;
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        _report(error, stackTrace, feature: 'group_chat_settlement');
         // 정산 카드 실패는 채팅 본문 표시와 독립적으로 처리한다.
       }
     }
@@ -321,7 +326,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       );
       await _markSentMessageRead(sent);
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_send');
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
@@ -355,7 +361,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       attachment = await ref
           .read(mediaRepositoryProvider)
           .uploadChatImage(image);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_media');
       final latest = state.asData?.value ?? value;
       state = AsyncData(latest.copyWith(sendErrorMessage: '사진을 올리지 못했어요.'));
       return false;
@@ -399,7 +406,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       );
       await _markSentMessageRead(sent);
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_send');
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
@@ -465,7 +473,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       );
       await _markSentMessageRead(sent);
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_retry');
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
@@ -511,7 +520,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
           isLoadingOlderMessages: false,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_history');
       final latest = state.asData?.value ?? value;
       state = AsyncData(
         latest.copyWith(
@@ -531,7 +541,10 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         .watchMessages(groupId, afterCursor: afterCursor)
         .listen(
           _handleRealtimeMessage,
-          onError: (_) => _scheduleRealtimeReconnect(),
+          onError: (Object error, StackTrace stackTrace) {
+            _report(error, stackTrace, feature: 'group_chat_realtime');
+            _scheduleRealtimeReconnect();
+          },
           onDone: _scheduleRealtimeReconnect,
         );
   }
@@ -581,7 +594,8 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         groupId: groupId,
         lastReadMessageId: lastReadMessageId,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_read_sync');
       // 읽음 동기화 실패는 초기 메시지 표시를 막지 않는다.
     }
   }
@@ -594,9 +608,16 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       await ref
           .read(groupRepositoryProvider)
           .markMessagesRead(groupId: groupId, lastReadMessageId: message.id);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'group_chat_read_sync');
       // 읽음 동기화 실패는 말풍선 전송 성공을 되돌리지 않는다.
     }
+  }
+
+  void _report(Object error, StackTrace stackTrace, {required String feature}) {
+    ref
+        .read(onmuErrorReporterProvider)
+        .captureException(error, stackTrace, feature: feature);
   }
 
   List<GroupMessage> _replaceMessage(
