@@ -7,6 +7,20 @@ update settlement_drafts set status = 'draft' where status is null or status not
 
 alter table settlements add column if not exists completed_at timestamptz;
 update settlements set status = 'finalized' where status is null or status not in ('finalized', 'completed');
+with ranked_finalized_settlements as (
+  select
+    id,
+    row_number() over (partition by plan_id order by created_at desc nulls last, id desc) as row_number
+  from settlements
+  where status = 'finalized'
+)
+update settlements settlement
+set
+  status = 'completed',
+  completed_at = coalesce(settlement.completed_at, now())
+from ranked_finalized_settlements ranked
+where settlement.id = ranked.id
+  and ranked.row_number > 1;
 
 create table if not exists settlement_sections (
   id uuid primary key default gen_random_uuid(),
