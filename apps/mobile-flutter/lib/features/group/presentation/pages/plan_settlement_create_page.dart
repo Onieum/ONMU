@@ -14,15 +14,9 @@ import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
-import '../../repository/group_repository.dart';
 import '../../../settlement/repository/settlement_repository.dart';
 import '../../../settlement/view_model/settlement_view_model.dart';
 import 'plan_settlement_detail_page.dart';
-
-final _settlementGroupMembersProvider =
-    FutureProvider.family<List<GroupMemberProfile>, String>((ref, groupId) {
-      return ref.watch(groupRepositoryProvider).fetchMembers(groupId);
-    });
 
 class PlanSettlementCreatePage extends ConsumerWidget {
   const PlanSettlementCreatePage({
@@ -41,7 +35,9 @@ class PlanSettlementCreatePage extends ConsumerWidget {
       planId: planId,
     ));
     final state = ref.watch(draftProvider);
-    final members = ref.watch(_settlementGroupMembersProvider(groupId));
+    final members = ref.watch(
+      settlementDraftParticipantsProvider((groupId: groupId, planId: planId)),
+    );
 
     return state.when(
       data: (settlement) {
@@ -65,6 +61,17 @@ class PlanSettlementCreatePage extends ConsumerWidget {
                 )).notifier,
               )
               .addDraftItem(input),
+          onSectionPayerChanged: (sectionId, payer) => ref
+              .read(
+                settlementDraftViewModelProvider((
+                  groupId: groupId,
+                  planId: planId,
+                )).notifier,
+              )
+              .updateSectionPayer(
+                sectionId: sectionId,
+                payerUserId: payer.userId,
+              ),
         );
       },
       loading: () => const OnmuScaffold(
@@ -117,6 +124,7 @@ class _SettlementCreateContent extends StatelessWidget {
     required this.settlement,
     required this.members,
     required this.onAddItem,
+    required this.onSectionPayerChanged,
   });
 
   final String groupId;
@@ -124,6 +132,8 @@ class _SettlementCreateContent extends StatelessWidget {
   final SettlementSummary settlement;
   final List<GroupMemberProfile> members;
   final Future<void> Function(SettlementDraftItemInput input) onAddItem;
+  final Future<void> Function(Object sectionId, GroupMemberProfile payer)
+  onSectionPayerChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +153,10 @@ class _SettlementCreateContent extends StatelessWidget {
                   context.go(RoutePaths.planSettlementPreview(groupId, planId)),
       ),
       children: [
-        _SettlementScopeCard(settlement: settlement),
+        _SettlementScopeCard(
+          settlement: settlement,
+          participantCount: members.length,
+        ),
         const SizedBox(height: AppSpacing.lg),
         const _SettlementStepStrip(activeIndex: 0),
         const SizedBox(height: AppSpacing.xl),
@@ -158,6 +171,8 @@ class _SettlementCreateContent extends StatelessWidget {
               section: section,
               members: members,
               onAddItem: onAddItem,
+              onPayerChanged: (payer) =>
+                  onSectionPayerChanged(section.id, payer),
               itemBuilder: (item) => _PaymentItemSummaryCard(
                 item: item,
                 onTap: () => context.push(
@@ -191,12 +206,14 @@ class _SettlementSectionCard extends StatelessWidget {
     required this.section,
     required this.members,
     required this.onAddItem,
+    required this.onPayerChanged,
     required this.itemBuilder,
   });
 
   final SettlementSection section;
   final List<GroupMemberProfile> members;
   final Future<void> Function(SettlementDraftItemInput input) onAddItem;
+  final Future<void> Function(GroupMemberProfile payer) onPayerChanged;
   final Widget Function(SettlementPaymentItem item) itemBuilder;
 
   @override
@@ -212,7 +229,11 @@ class _SettlementSectionCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            OnmuChip(label: '${section.payerName} 결제'),
+            _SectionPayerSelector(
+              section: section,
+              members: members,
+              onChanged: onPayerChanged,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -245,9 +266,13 @@ class _SettlementSectionCard extends StatelessWidget {
 }
 
 class _SettlementScopeCard extends StatelessWidget {
-  const _SettlementScopeCard({required this.settlement});
+  const _SettlementScopeCard({
+    required this.settlement,
+    required this.participantCount,
+  });
 
   final SettlementSummary settlement;
+  final int participantCount;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +310,7 @@ class _SettlementScopeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '${settlement.createdDateLabel.replaceFirst('정산일 ', '')} · 참여자 6명',
+                      _subtitle(),
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -302,18 +327,23 @@ class _SettlementScopeCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              OnmuChip(label: settlement.itemCountLabel, selected: true),
-              const OnmuChip(label: '항목별 대상자'),
-              const OnmuChip(label: '약속 단위 정산'),
-            ],
+          Text(
+            '${settlement.itemCountLabel} · 장소별 결제자와 항목별 대상자를 기준으로 계산해요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
           ),
         ],
       ),
     );
+  }
+
+  String _subtitle() {
+    final dateLabel = settlement.createdDateLabel.replaceFirst('정산일 ', '');
+    if (participantCount <= 0) {
+      return dateLabel;
+    }
+    return '$dateLabel · 참여자 $participantCount명';
   }
 }
 
@@ -491,6 +521,116 @@ class _PaymentItemSummaryCard extends StatelessWidget {
   }
 }
 
+class _SectionPayerSelector extends StatelessWidget {
+  const _SectionPayerSelector({
+    required this.section,
+    required this.members,
+    required this.onChanged,
+  });
+
+  final SettlementSection section;
+  final List<GroupMemberProfile> members;
+  final Future<void> Function(GroupMemberProfile payer) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _selectedPayer();
+    final label = selected?.name.trim().isNotEmpty == true
+        ? selected!.name
+        : section.payerName;
+    if (members.isEmpty) {
+      return OnmuChip(label: '$label 결제');
+    }
+
+    return PopupMenuButton<GroupMemberProfile>(
+      tooltip: '결제자 변경',
+      onSelected: (member) async {
+        if (member.userId == section.payerUserId) {
+          return;
+        }
+        try {
+          await onChanged(member);
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('결제자를 변경했어요.')));
+          }
+        } catch (_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('결제자 변경에 실패했어요.')));
+          }
+        }
+      },
+      itemBuilder: (context) => [
+        for (final member in members)
+          PopupMenuItem<GroupMemberProfile>(
+            value: member,
+            child: Row(
+              children: [
+                if (member.userId == section.payerUserId) ...[
+                  const Icon(
+                    Icons.check,
+                    size: 18,
+                    color: AppColors.primaryPink,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Expanded(child: Text(member.name)),
+              ],
+            ),
+          ),
+      ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.lineWarm),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.payments_outlined,
+                size: 16,
+                color: AppColors.textSub,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              const Icon(
+                Icons.expand_more,
+                size: 16,
+                color: AppColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  GroupMemberProfile? _selectedPayer() {
+    for (final member in members) {
+      if (member.userId == section.payerUserId) {
+        return member;
+      }
+    }
+    return null;
+  }
+}
+
 class _PaymentItemIcon extends StatelessWidget {
   const _PaymentItemIcon();
 
@@ -540,9 +680,17 @@ class _AddPaymentItemCard extends StatelessWidget {
   }
 
   Future<void> _showAddItemDialog(BuildContext context) async {
+    final payer = _sectionPayer();
+    if (payer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('약속 참여자를 불러온 뒤 다시 시도해 주세요.')),
+      );
+      return;
+    }
     final input = await showDialog<SettlementDraftItemInput>(
       context: context,
-      builder: (dialogContext) => _AddSettlementItemDialog(members: members),
+      builder: (dialogContext) =>
+          _AddSettlementItemDialog(members: members, payer: payer),
     );
     if (input == null || !context.mounted) {
       return;
@@ -554,13 +702,42 @@ class _AddPaymentItemCard extends StatelessWidget {
           context,
         ).showSnackBar(const SnackBar(content: Text('정산 항목을 저장했어요.')));
       }
-    } catch (_) {
+    } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('정산 항목 저장에 실패했어요.')));
+        ).showSnackBar(SnackBar(content: Text(_addItemFailureMessage(error))));
       }
     }
+  }
+
+  GroupMemberProfile? _sectionPayer() {
+    final sectionPayerId = section?.payerUserId.trim() ?? '';
+    if (sectionPayerId.isNotEmpty) {
+      for (final member in members) {
+        if (member.userId == sectionPayerId) {
+          return member;
+        }
+      }
+    }
+    return members.isEmpty ? null : members.first;
+  }
+
+  String _addItemFailureMessage(Object error) {
+    if (error is OnmuApiException) {
+      final reason = error.serverReason.toLowerCase();
+      if (reason.contains('settlement_participant_not_found')) {
+        return '약속 참여자만 정산에 포함할 수 있어요.';
+      }
+      if (reason.contains('invalid_settlement_amount')) {
+        return '1원 이상의 금액을 입력해 주세요.';
+      }
+      if (reason.contains('missing_settlement_targets')) {
+        return '정산 대상을 한 명 이상 선택해 주세요.';
+      }
+      return error.userMessage;
+    }
+    return '정산 항목 저장에 실패했어요.';
   }
 
   SettlementDraftItemInput _attachSection(SettlementDraftItemInput input) {
@@ -585,9 +762,10 @@ class _AddPaymentItemCard extends StatelessWidget {
 }
 
 class _AddSettlementItemDialog extends StatefulWidget {
-  const _AddSettlementItemDialog({required this.members});
+  const _AddSettlementItemDialog({required this.members, required this.payer});
 
   final List<GroupMemberProfile> members;
+  final GroupMemberProfile payer;
 
   @override
   State<_AddSettlementItemDialog> createState() =>
@@ -598,13 +776,11 @@ class _AddSettlementItemDialogState extends State<_AddSettlementItemDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  late GroupMemberProfile _payer;
   late final Set<String> _targetKeys;
 
   @override
   void initState() {
     super.initState();
-    _payer = widget.members.first;
     _targetKeys = widget.members.map(_memberKey).toSet();
   }
 
@@ -644,20 +820,6 @@ class _AddSettlementItemDialogState extends State<_AddSettlementItemDialog> {
                     return '1원 이상의 금액을 입력해 주세요.';
                   }
                   return null;
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              DropdownButtonFormField<GroupMemberProfile>(
-                value: _payer,
-                decoration: const InputDecoration(labelText: '결제자'),
-                items: [
-                  for (final member in widget.members)
-                    DropdownMenuItem(value: member, child: Text(member.name)),
-                ],
-                onChanged: (member) {
-                  if (member != null) {
-                    setState(() => _payer = member);
-                  }
                 },
               ),
               const SizedBox(height: AppSpacing.md),
@@ -716,8 +878,11 @@ class _AddSettlementItemDialogState extends State<_AddSettlementItemDialog> {
       SettlementDraftItemInput(
         title: _titleController.text.trim(),
         amount: _amountFrom(_amountController.text) ?? 0,
-        payerUserId: _payer.userId,
-        payerName: _payer.name,
+        payerUserId: widget.payer.userId,
+        payerName: widget.payer.name,
+        splitType: targets.length == widget.members.length
+            ? SettlementSplitType.equal
+            : SettlementSplitType.custom,
         targetUserIds: targets.map((member) => member.userId).toList(),
         targetNames: targets.map((member) => member.name).toList(),
       ),
