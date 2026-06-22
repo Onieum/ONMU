@@ -615,6 +615,11 @@ class ChatActivityServiceTests {
       .containsEntry("lastReadMessageId", lastMessage.getId().toString())
       .containsEntry("lastReadAt", "2026-06-09T05:05:00Z")
       .containsEntry("unreadCount", 0L);
+    verify(notificationRepository).markUnreadChatMessagesReadByUserIdAndGroup(
+      eq(currentUser.getId()),
+      eq(group),
+      any(Instant.class)
+    );
   }
 
   @SuppressWarnings("unchecked")

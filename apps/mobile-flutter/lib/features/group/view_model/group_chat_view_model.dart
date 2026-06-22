@@ -6,9 +6,12 @@ import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/settlement_models.dart';
 import '../../../shared/models/vote_models.dart';
+import '../../home/view_model/home_notifications_view_model.dart';
 import '../../settlement/repository/settlement_repository.dart';
 import '../repository/group_repository.dart';
 import '../repository/media_repository.dart';
+import 'group_home_view_model.dart';
+import 'group_list_view_model.dart';
 
 final groupChatViewModelProvider =
     AsyncNotifierProvider.family<GroupChatViewModel, GroupChatState, String>(
@@ -90,11 +93,16 @@ class GroupChatState {
 class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   GroupChatViewModel(this.groupId);
 
+  static const Duration _catchUpInterval = Duration(seconds: 15);
+
   final String groupId;
   StreamSubscription<GroupMessage>? _realtimeSubscription;
   Timer? _reconnectTimer;
+  Timer? _catchUpTimer;
   Timer? _voteDeadlineTimer;
   bool _realtimeDisposed = false;
+  bool _isCatchingUpLatestMessages = false;
+  String? _lastReadSyncMessageId;
 
   @override
   Future<GroupChatState> build() async {
@@ -122,6 +130,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       groupRepository,
       afterCursor: _latestCursor(chatState.messages),
     );
+    _startCatchUpPolling(groupRepository);
     return chatState;
   }
 
@@ -601,6 +610,13 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  Future<void> refreshLatestMessages() {
+    return _catchUpLatestMessages(
+      ref.read(groupRepositoryProvider),
+      feature: 'group_chat_refresh',
+    );
+  }
+
   void _startRealtimeSubscription(
     GroupRepository repository, {
     String? afterCursor,
@@ -618,6 +634,47 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         );
   }
 
+  void _startCatchUpPolling(GroupRepository repository) {
+    _catchUpTimer?.cancel();
+    _catchUpTimer = Timer.periodic(_catchUpInterval, (_) {
+      unawaited(
+        _catchUpLatestMessages(repository, feature: 'group_chat_polling'),
+      );
+    });
+  }
+
+  Future<void> _catchUpLatestMessages(
+    GroupRepository repository, {
+    required String feature,
+  }) async {
+    if (_realtimeDisposed || _isCatchingUpLatestMessages) {
+      return;
+    }
+    _isCatchingUpLatestMessages = true;
+    try {
+      final page = await repository.fetchMessagePage(groupId, limit: 50);
+      if (_realtimeDisposed) {
+        return;
+      }
+      final value = state.asData?.value;
+      if (value == null) {
+        return;
+      }
+      final merged = _appendIncomingMessages(value.messages, page.messages);
+      if (!identical(merged, value.messages)) {
+        state = AsyncData(value.copyWith(messages: merged));
+      }
+      final latestMessage = page.messages.lastOrNull;
+      if (latestMessage != null) {
+        await _markMessageRead(repository, latestMessage);
+      }
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: feature);
+    } finally {
+      _isCatchingUpLatestMessages = false;
+    }
+  }
+
   void _handleRealtimeMessage(GroupMessage message) {
     final value = state.asData?.value;
     if (value == null) {
@@ -625,7 +682,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
     final messages = _appendRealtimeMessage(value.messages, message);
     state = AsyncData(value.copyWith(messages: messages));
-    _markSentMessageRead(message);
+    unawaited(_markSentMessageRead(message));
   }
 
   void _scheduleRealtimeReconnect() {
@@ -646,6 +703,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   void _disposeRealtime() {
     _realtimeDisposed = true;
     _reconnectTimer?.cancel();
+    _catchUpTimer?.cancel();
     _voteDeadlineTimer?.cancel();
     _realtimeSubscription?.cancel();
   }
@@ -658,25 +716,33 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     if (lastReadMessageId == null || lastReadMessageId.isEmpty) {
       return;
     }
-    try {
-      await repository.markMessagesRead(
-        groupId: groupId,
-        lastReadMessageId: lastReadMessageId,
-      );
-    } catch (error, stackTrace) {
-      _report(error, stackTrace, feature: 'group_chat_read_sync');
-      // 읽음 동기화 실패는 초기 메시지 표시를 막지 않는다.
-    }
+    await _markMessageRead(repository, messages.last);
   }
 
   Future<void> _markSentMessageRead(GroupMessage message) async {
+    await _markMessageRead(ref.read(groupRepositoryProvider), message);
+  }
+
+  Future<void> _markMessageRead(
+    GroupRepository repository,
+    GroupMessage message,
+  ) async {
     if (message.id.isEmpty) {
       return;
     }
+    if (_lastReadSyncMessageId == message.id) {
+      return;
+    }
     try {
-      await ref
-          .read(groupRepositoryProvider)
-          .markMessagesRead(groupId: groupId, lastReadMessageId: message.id);
+      await repository.markMessagesRead(
+        groupId: groupId,
+        lastReadMessageId: message.id,
+      );
+      _lastReadSyncMessageId = message.id;
+      if (_realtimeDisposed) {
+        return;
+      }
+      _invalidateReadDependentProviders();
     } catch (error, stackTrace) {
       _report(error, stackTrace, feature: 'group_chat_read_sync');
       // 읽음 동기화 실패는 말풍선 전송 성공을 되돌리지 않는다.
@@ -709,6 +775,20 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         .where((message) => knownKeys.add(_messageKey(message)))
         .toList(growable: false);
     return [...uniqueOlder, ...currentMessages];
+  }
+
+  List<GroupMessage> _appendIncomingMessages(
+    List<GroupMessage> currentMessages,
+    List<GroupMessage> incomingMessages,
+  ) {
+    var nextMessages = currentMessages;
+    for (final message in incomingMessages) {
+      nextMessages = _appendRealtimeMessage(nextMessages, message);
+    }
+    if (identical(nextMessages, currentMessages)) {
+      return currentMessages;
+    }
+    return _sortTimelineMessages(nextMessages);
   }
 
   List<GroupMessage> _appendRealtimeMessage(
@@ -761,5 +841,30 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         .map((attachment) => attachment.storageKey.trim())
         .where((storageKey) => storageKey.isNotEmpty)
         .join('|');
+  }
+
+  List<GroupMessage> _sortTimelineMessages(List<GroupMessage> messages) {
+    final withCursor = <GroupMessage>[];
+    final withoutCursor = <GroupMessage>[];
+    for (final message in messages) {
+      if (DateTime.tryParse(message.cursor) == null) {
+        withoutCursor.add(message);
+      } else {
+        withCursor.add(message);
+      }
+    }
+    withCursor.sort((left, right) {
+      final leftCursor = DateTime.parse(left.cursor);
+      final rightCursor = DateTime.parse(right.cursor);
+      final compared = leftCursor.compareTo(rightCursor);
+      return compared == 0 ? left.id.compareTo(right.id) : compared;
+    });
+    return [...withCursor, ...withoutCursor];
+  }
+
+  void _invalidateReadDependentProviders() {
+    ref.invalidate(groupListViewModelProvider);
+    ref.invalidate(groupHomeViewModelProvider(groupId));
+    ref.invalidate(notificationUnreadCountProvider);
   }
 }

@@ -46,4 +46,20 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
     @Param("userId") UUID userId,
     @Param("readAt") Instant readAt
   );
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("""
+    update NotificationEntity notification
+       set notification.readAt = :readAt,
+           notification.status = 'read'
+     where notification.user.id = :userId
+       and notification.group = :group
+       and notification.notificationType = 'chat_message'
+       and notification.readAt is null
+    """)
+  int markUnreadChatMessagesReadByUserIdAndGroup(
+    @Param("userId") UUID userId,
+    @Param("group") GroupEntity group,
+    @Param("readAt") Instant readAt
+  );
 }
