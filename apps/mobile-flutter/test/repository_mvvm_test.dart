@@ -746,6 +746,43 @@ void main() {
     );
   });
 
+  test('약속 상세 정산 진입은 진행중이거나 지난 약속에만 허용한다', () {
+    final basePlan = Plan(
+      id: 101,
+      title: '정산 가능 검증',
+      dateTime: '일정 미정',
+      location: '성수동',
+      status: '예정',
+      memo: '',
+      members: const [],
+      timeCandidates: const [],
+      visitPlan: const [],
+      startsAt: DateTime.parse('2026-06-10T10:00:00+09:00'),
+      endsAt: DateTime.parse('2026-06-10T12:00:00+09:00'),
+    );
+    PlanDetailState detailAt(DateTime currentTime) => PlanDetailState(
+      plan: basePlan,
+      selectedMembers: const [],
+      visitPlansByDate: const [],
+      dateTabs: const [],
+      participantArrivals: const [],
+      currentTime: currentTime,
+    );
+
+    expect(
+      detailAt(DateTime.parse('2026-06-10T09:59:00+09:00')).canCreateSettlement,
+      isFalse,
+    );
+    expect(
+      detailAt(DateTime.parse('2026-06-10T10:00:00+09:00')).canCreateSettlement,
+      isTrue,
+    );
+    expect(
+      detailAt(DateTime.parse('2026-06-10T12:01:00+09:00')).canCreateSettlement,
+      isTrue,
+    );
+  });
+
   test('장소 후보 ViewModel은 서버 하트 상태와 count를 그대로 사용한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -3069,6 +3106,16 @@ class _UnusedSettlementRepository implements SettlementRepository {
   }
 
   @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<SettlementSummary> updateSettlementDraftItemTargets({
     required Object groupId,
     required Object planId,
@@ -3093,6 +3140,35 @@ class _UnusedSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required List<SettlementDraftItemInput> items,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementBasis> fetchSettlementBasis({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> markTransferSent({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
   }) {
     throw UnimplementedError();
   }
@@ -3244,6 +3320,14 @@ class _ChatSettlementRepository implements SettlementRepository {
   }) async => _summary;
 
   @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
+  }) async => _summary;
+
+  @override
   Future<SettlementSummary> updateSettlementDraftItemTargets({
     required Object groupId,
     required Object planId,
@@ -3264,6 +3348,37 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required List<SettlementDraftItemInput> items,
+  }) async => _summary;
+
+  @override
+  Future<SettlementBasis> fetchSettlementBasis({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async => const SettlementBasis(
+    settlementId: '301',
+    planTitle: '테스트 약속',
+    totalAmountLabel: '0원',
+    sections: [],
+    participants: [],
+    transfers: [],
+    summary: '',
+  );
+
+  @override
+  Future<SettlementSummary> markTransferSent({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async => _summary;
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
   }) async => _summary;
 }
 

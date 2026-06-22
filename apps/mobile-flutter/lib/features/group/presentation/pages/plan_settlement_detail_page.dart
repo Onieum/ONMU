@@ -56,6 +56,28 @@ class PlanSettlementDetailPage extends ConsumerWidget {
                   .read(settlementDraftViewModelProvider(scope).notifier)
                   .createCurrentDraft()
             : null,
+        onMarkSent: !preview && id != null
+            ? (transferId) => ref
+                  .read(
+                    settlementByIdViewModelProvider((
+                      groupId: groupId,
+                      planId: planId,
+                      settlementId: id,
+                    )).notifier,
+                  )
+                  .markTransferSent(transferId)
+            : null,
+        onMarkReceived: !preview && id != null
+            ? (transferId) => ref
+                  .read(
+                    settlementByIdViewModelProvider((
+                      groupId: groupId,
+                      planId: planId,
+                      settlementId: id,
+                    )).notifier,
+                  )
+                  .markTransferReceived(transferId)
+            : null,
       ),
       loading: () => OnmuScaffold(
         title: preview ? '정산 미리보기' : '약속 정산',
@@ -81,6 +103,8 @@ class _SettlementShareContent extends StatelessWidget {
     required this.preview,
     required this.settlement,
     this.onCreate,
+    this.onMarkSent,
+    this.onMarkReceived,
   });
 
   final String groupId;
@@ -88,6 +112,8 @@ class _SettlementShareContent extends StatelessWidget {
   final bool preview;
   final SettlementSummary settlement;
   final Future<SettlementSummary> Function()? onCreate;
+  final Future<void> Function(String transferId)? onMarkSent;
+  final Future<void> Function(String transferId)? onMarkReceived;
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +128,28 @@ class _SettlementShareContent extends StatelessWidget {
             ? RoutePaths.planSettlementNew(groupId, planId)
             : RoutePaths.planDetail(groupId, planId),
       ),
-      bottom: Row(
+      bottom: _buildBottomActions(context),
+      children: [
+        _SettlementHeaderCard(settlement: settlement, preview: preview),
+        const SizedBox(height: AppSpacing.md),
+        if (settlement.participantStatuses.isNotEmpty) ...[
+          _ParticipantStatusGrid(statuses: settlement.participantStatuses),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        _MyResultCompactCard(settlement: settlement),
+        const SizedBox(height: AppSpacing.md),
+        _TransferCompactCard(transfers: settlement.transfers),
+        const SizedBox(height: AppSpacing.md),
+        _ItemTargetCompactCard(items: settlement.paymentItems),
+        const SizedBox(height: AppSpacing.md),
+        _MemberResultCompactCard(results: settlement.memberResults),
+      ],
+    );
+  }
+
+  Widget _buildBottomActions(BuildContext context) {
+    if (preview) {
+      return Row(
         children: [
           Expanded(
             child: OnmuSecondaryButton(
@@ -115,33 +162,132 @@ class _SettlementShareContent extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: OnmuPrimaryButton(
-              label: preview ? '정산 만들기' : '약속 상세',
-              icon: preview
-                  ? Icons.check_circle_outline
-                  : Icons.event_note_outlined,
+              label: '정산 만들기',
+              icon: Icons.check_circle_outline,
               color: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
-              onPressed: preview
-                  ? () => _createSettlement(context)
-                  : () {
-                      context.go(RoutePaths.planDetail(groupId, planId));
-                    },
+              onPressed: () => _createSettlement(context),
             ),
           ),
         ],
-      ),
+      );
+    }
+
+    final action = _currentAction();
+    return Row(
       children: [
-        _SettlementHeaderCard(settlement: settlement, preview: preview),
-        const SizedBox(height: AppSpacing.md),
-        _MyResultCompactCard(settlement: settlement),
-        const SizedBox(height: AppSpacing.md),
-        _TransferCompactCard(transfers: settlement.transfers),
-        const SizedBox(height: AppSpacing.md),
-        _ItemTargetCompactCard(items: settlement.paymentItems),
-        const SizedBox(height: AppSpacing.md),
-        _MemberResultCompactCard(results: settlement.memberResults),
+        Expanded(
+          child: OnmuSecondaryButton(
+            label: '정산 근거',
+            icon: Icons.fact_check_outlined,
+            onPressed: settlement.id.isEmpty
+                ? null
+                : () => context.push(
+                    RoutePaths.planSettlementBasis(
+                      groupId,
+                      planId,
+                      settlement.id,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: OnmuPrimaryButton(
+            label: action?.label ?? '약속 상세',
+            icon: action?.icon ?? Icons.event_note_outlined,
+            color: AppColors.primaryPink,
+            foregroundColor: AppColors.textInverse,
+            onPressed: action == null
+                ? () => context.go(RoutePaths.planDetail(groupId, planId))
+                : () => _confirmTransferAction(context, action),
+          ),
+        ),
       ],
     );
+  }
+
+  _TransferAction? _currentAction() {
+    final currentUserId = _currentUserId();
+    if (currentUserId.isEmpty || settlement.isCompleted) {
+      return null;
+    }
+    for (final transfer in settlement.transfers) {
+      if (transfer.fromUserId == currentUserId && !transfer.sent) {
+        final markSent = onMarkSent;
+        if (markSent == null || transfer.id.isEmpty) {
+          continue;
+        }
+        return _TransferAction(
+          label: '송금 완료 알리기',
+          icon: Icons.outgoing_mail,
+          transferId: transfer.id,
+          submit: markSent,
+        );
+      }
+      if (transfer.toUserId == currentUserId && !transfer.received) {
+        final markReceived = onMarkReceived;
+        if (markReceived == null || transfer.id.isEmpty) {
+          continue;
+        }
+        return _TransferAction(
+          label: '수취 완료하기',
+          icon: Icons.check_circle_outline,
+          transferId: transfer.id,
+          submit: markReceived,
+        );
+      }
+    }
+    return null;
+  }
+
+  String _currentUserId() {
+    for (final result in settlement.memberResults) {
+      if (result.isMe) {
+        return result.userId;
+      }
+    }
+    return '';
+  }
+
+  Future<void> _confirmTransferAction(
+    BuildContext context,
+    _TransferAction action,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('정말로 정산을 완료하셨나요?'),
+        content: const Text('확인 후에는 이 상태를 되돌릴 수 없어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+    try {
+      await action.submit(action.transferId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('정산 상태를 반영했어요.')));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('정산 상태 반영에 실패했어요.')));
+      }
+    }
   }
 
   Future<void> _createSettlement(BuildContext context) async {
@@ -164,6 +310,20 @@ class _SettlementShareContent extends StatelessWidget {
       }
     }
   }
+}
+
+class _TransferAction {
+  const _TransferAction({
+    required this.label,
+    required this.icon,
+    required this.transferId,
+    required this.submit,
+  });
+
+  final String label;
+  final IconData icon;
+  final String transferId;
+  final Future<void> Function(String transferId) submit;
 }
 
 class _SettlementHeaderCard extends StatelessWidget {
@@ -284,6 +444,83 @@ class _MiniSummaryTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ParticipantStatusGrid extends StatelessWidget {
+  const _ParticipantStatusGrid({required this.statuses});
+
+  final List<SettlementParticipantStatus> statuses;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('참여자 정산 상태', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.md),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: statuses.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.sm,
+              mainAxisExtent: 82,
+            ),
+            itemBuilder: (context, index) {
+              final status = statuses[index];
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      PixelAvatar(
+                        label: status.name,
+                        size: 44,
+                        profileImageUrl: status.profileImageUrl,
+                      ),
+                      if (status.willReceive)
+                        const Positioned(
+                          top: -6,
+                          left: -4,
+                          child: Icon(
+                            Icons.workspace_premium,
+                            color: AppColors.accentOrange,
+                            size: 20,
+                          ),
+                        ),
+                      if (status.completed)
+                        const Positioned(
+                          right: -4,
+                          bottom: -2,
+                          child: Icon(
+                            Icons.check_circle,
+                            color: AppColors.accentGreen,
+                            size: 18,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    status.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }

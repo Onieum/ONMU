@@ -271,11 +271,13 @@ class _ThreadContent extends StatelessWidget {
           _SettlementNoticeCard(
             settlement: state.settlement!,
             onTap: () => context.push(
-              RoutePaths.planSettlementDetail(
-                group.id,
-                state.planId,
-                state.settlement!.id,
-              ),
+              state.settlement!.isDraft
+                  ? RoutePaths.planSettlementNew(group.id, state.planId)
+                  : RoutePaths.planSettlementDetail(
+                      group.id,
+                      state.planId,
+                      state.settlement!.id,
+                    ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -341,7 +343,7 @@ class _ThreadContent extends StatelessWidget {
         planId != null && settlementId.isNotEmpty
             ? RoutePaths.planSettlementDetail(groupId, planId, settlementId)
             : planId != null
-            ? RoutePaths.planSettlementNew(groupId, planId)
+            ? RoutePaths.planSettlementCurrent(groupId, planId)
             : RoutePaths.planNew(groupId),
       );
       return;
@@ -399,12 +401,33 @@ class _ThreadContent extends StatelessWidget {
               : RoutePaths.groupVotes(group.id),
         );
       case _ChatActionCommand.settlement:
-        context.push(
-          state.planId > 0
-              ? RoutePaths.planSettlementNew(group.id, state.planId)
-              : RoutePaths.planNew(group.id),
-        );
+        await _openSettlementPlanPicker(context);
     }
+  }
+
+  Future<void> _openSettlementPlanPicker(BuildContext context) async {
+    final group = state.group;
+    final plans = state.settlementCandidatePlans;
+    if (plans.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('정산할 수 있는 진행중/지난 약속이 없어요.')));
+      return;
+    }
+
+    final selectedPlan = await showModalBottomSheet<GroupPlanSummary>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgDefault,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (context) => _SettlementPlanPickerSheet(plans: plans),
+    );
+    if (selectedPlan == null || !context.mounted) {
+      return;
+    }
+    context.push(RoutePaths.planSettlementNew(group.id, selectedPlan.id));
   }
 }
 
@@ -529,6 +552,119 @@ class _ChatMenuItem extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Text(label, style: Theme.of(context).textTheme.labelLarge),
       ],
+    );
+  }
+}
+
+class _SettlementPlanPickerSheet extends StatelessWidget {
+  const _SettlementPlanPickerSheet({required this.plans});
+
+  final List<GroupPlanSummary> plans;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.lineSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('정산할 약속 선택', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '진행중이거나 이미 지난 약속만 정산을 시작할 수 있어요.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (final plan in plans) ...[
+                _SettlementPlanTile(
+                  plan: plan,
+                  statusLabel: plan.isOngoingAt(now) ? '진행중' : '지난 약속',
+                  onTap: () => Navigator.of(context).pop(plan),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettlementPlanTile extends StatelessWidget {
+  const _SettlementPlanTile({
+    required this.plan,
+    required this.statusLabel,
+    required this.onTap,
+  });
+
+  final GroupPlanSummary plan;
+  final String statusLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      onTap: onTap,
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(
+        children: [
+          const Icon(Icons.receipt_long_outlined, color: AppColors.primaryPink),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plan.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '${plan.displayDateTimeLabel} · ${plan.placeName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          OnmuChip(
+            label: statusLabel,
+            selected: plan.isOngoingAt(DateTime.now()),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -727,12 +863,16 @@ class _SettlementNoticeCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '${settlement.planTitle} 정산이 만들어졌어요.',
+                settlement.isDraft
+                    ? '${settlement.planTitle} 정산을 입력 중이에요.'
+                    : '${settlement.planTitle} 정산이 확정됐어요.',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                '총 ${settlement.totalAmountLabel} · ${settlement.displayFinalSummaryLabel}',
+                settlement.isDraft
+                    ? '${settlement.itemCountLabel} · 이어서 입력할 수 있어요.'
+                    : '총 ${settlement.totalAmountLabel} · ${settlement.displayFinalSummaryLabel}',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -752,7 +892,7 @@ class _SettlementNoticeCard extends StatelessWidget {
                 ),
                 onPressed: onTap,
                 icon: const Icon(Icons.payments_outlined, size: 16),
-                label: const Text('정산 확인하기'),
+                label: Text(settlement.isDraft ? '정산 이어쓰기' : '정산 확인하기'),
               ),
             ],
           ),

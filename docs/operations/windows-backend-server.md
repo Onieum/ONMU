@@ -278,9 +278,9 @@ $candidateBody = Join-Path $env:TEMP "onmu-place-candidate.json"
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/place-candidates -H "Content-Type: application/json" --data-binary "@$candidateBody"
 curl http://localhost:8080/api/v1/groups/1/votes/501
 $previewBody = Join-Path $env:TEMP "onmu-settlement-preview.json"
-[System.IO.File]::WriteAllText($previewBody, '{"items":[{"title":"커피","amountWon":12000,"payerUserId":"user-jimin","payerName":"지민","targetUserIds":["user-jimin","user-minsu"],"targetNames":["지민","민수"]}]}', [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($previewBody, '{"sections":[{"id":"extra","title":"기타 비용","payerUserId":"user-jimin","items":[{"title":"커피","amountWon":12000,"splitType":"menu","targetUserIds":["user-jimin","user-minsu"]}]}]}', [System.Text.UTF8Encoding]::new($false))
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary "@$previewBody"
-curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements/current
 ```
 
 다른 PC나 휴대폰에서는 아래처럼 확인합니다.

@@ -438,6 +438,17 @@ public class ApiController {
     return settlementApiService.settlementDraft(groupId, planId, user.userId());
   }
 
+  @PostMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
+  public ResponseEntity<Map<String, Object>> createSettlementDraft(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(
+      settlementApiService.createSettlementDraft(groupId, planId, user.userId())
+    );
+  }
+
   @PatchMapping("/groups/{groupId}/plans/{planId}/settlement-draft")
   public Map<String, Object> updateSettlementDraft(
     @PathVariable String groupId,
@@ -466,7 +477,7 @@ public class ApiController {
       planId,
       itemId,
       user.userId(),
-      request == null ? new UpdateSettlementItemTargetsRequest(List.of(), List.of()) : request
+      request == null ? new UpdateSettlementItemTargetsRequest(List.of()) : request
     );
   }
 
@@ -500,6 +511,15 @@ public class ApiController {
     ));
   }
 
+  @GetMapping("/groups/{groupId}/plans/{planId}/settlements/current")
+  public Map<String, Object> currentSettlement(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.currentSettlement(groupId, planId, user.userId());
+  }
+
   @GetMapping("/groups/{groupId}/plans/{planId}/settlements")
   public Map<String, Object> settlement(
     @PathVariable String groupId,
@@ -517,5 +537,37 @@ public class ApiController {
     @AuthenticationPrincipal AuthenticatedUser user
   ) {
     return settlementApiService.settlementById(groupId, planId, settlementId, user.userId());
+  }
+
+  @GetMapping("/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis")
+  public Map<String, Object> settlementBasis(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String settlementId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.settlementBasis(groupId, planId, settlementId, user.userId());
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent")
+  public Map<String, Object> markSettlementTransferSent(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String settlementId,
+    @PathVariable String transferId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.markTransferSent(groupId, planId, settlementId, transferId, user.userId());
+  }
+
+  @PostMapping("/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received")
+  public Map<String, Object> markSettlementTransferReceived(
+    @PathVariable String groupId,
+    @PathVariable String planId,
+    @PathVariable String settlementId,
+    @PathVariable String transferId,
+    @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    return settlementApiService.markTransferReceived(groupId, planId, settlementId, transferId, user.userId());
   }
 }

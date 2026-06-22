@@ -788,55 +788,64 @@
 
 # 7. Settlement
 
-## `settlement_drafts` (구현됨, 확장 필요)
+## `settlement_drafts` (구현됨)
 
-> 정산 생성 전 편집 상태다. 약속 단위로 하나의 draft를 우선한다.
+> 정산 확정 전 협업 편집 상태다. 약속 단위 active draft는 하나만 허용한다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 정산 Draft ID | UUID | 내부 draft 식별자 | PK |
-| `public_id` | 공개 Draft ID | Text | API contract용 안정 ID | Unique, 구현됨 |
+| `public_id` | 공개 Draft ID | Text | API contract용 안정 ID | Unique |
 | `group_id` | 모임 ID | UUID | 연결 모임 | FK, Not Null |
 | `plan_id` | 약속 ID | UUID | 연결 약속 | FK, Not Null |
-| `status` | Draft 상태 | Varchar(20) | `editing`, `previewed`, `submitted`, `discarded` | 목표 설계 |
-| `payload` | Draft payload | JSONB | scaffold 단계의 항목/대상자 snapshot | Not Null |
+| `status` | Draft 상태 | Varchar(20) | `draft`, `finalized` | Not Null |
+| `version` | Version | Bigint | 쓰기 충돌 감지 보조값 | Not Null |
+| `finalized_settlement_id` | 확정 정산 ID | UUID | draft가 finalized 된 결과 | FK, Nullable |
+| `payload` | Draft payload | JSONB | 화면 snapshot. 계산 source of truth 아님 | Not Null |
 | `created_by_user_id` | 생성자 ID | UUID | draft 생성 사용자 | FK |
-| `created_at` | 생성 시각 | Timestamptz | draft 생성 시각 | 목표 설계 |
+| `updated_by_user_id` | 수정자 ID | UUID | 마지막 수정 사용자 | FK |
+| `created_at` | 생성 시각 | Timestamptz | draft 생성 시각 | Not Null |
 | `updated_at` | 수정 시각 | Timestamptz | draft 수정 시각 | Not Null |
 
-> UNIQUE 후보: `(plan_id, status)`에서 active draft 1개를 application constraint로 관리한다.
+> UNIQUE: `status='draft'`인 `(plan_id)` active draft 1개.
 
-## `settlement_items` (구현됨, 확장 필요)
+## `settlement_sections` (구현됨)
 
-> 정산 결제 항목이다. 현재 Spring API는 이 table을 draft/result read model의 우선 원장으로 사용하고, `settlement_drafts.payload.items`와 `settlements.payload.items`는 compact fallback과 Flutter mock 호환 snapshot으로 유지한다.
+> 방문장소 또는 기타 비용 단위 정산 section이다. section 단위 결제자를 가진다.
+
+| 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
+| --- | --- | --- | --- | --- |
+| `id` | 정산 section ID | UUID | 내부 section 식별자 | PK |
+| `settlement_draft_id` | Draft ID | UUID | 편집 중 draft 연결 | FK, Nullable |
+| `settlement_id` | 정산 ID | UUID | 확정 정산 연결 | FK, Nullable |
+| `public_id` | 공개 section ID | Text | API contract용 안정 ID | Unique |
+| `schedule_place_id` | 방문장소 ID | UUID | 약속 방문장소 연결. 기타 비용이면 null | FK, Nullable |
+| `title` | section 제목 | Text | 방문장소명 또는 `기타 비용` | Not Null |
+| `payer_user_id` | 결제자 ID | UUID | 해당 section 결제자 | FK, Nullable |
+| `sort_order` | 정렬 순서 | Integer | 화면 표시 순서 | Not Null |
+| `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
+| `updated_at` | 수정 시각 | Timestamptz | row 수정 시각 | Not Null |
+
+## `settlement_items` (구현됨)
+
+> section 안의 결제 항목이다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 정산 항목 ID | UUID | 항목 row 식별자 | PK |
 | `settlement_draft_id` | Draft ID | UUID | 편집 중인 draft | FK, Nullable |
 | `settlement_id` | 정산 ID | UUID | 최종 정산 연결 | FK, Nullable |
+| `section_id` | section ID | UUID | 방문장소/기타 비용 section | FK |
+| `public_id` | 공개 항목 ID | Text | API contract용 안정 ID | Unique |
 | `title` | 항목명 | Text | 식사, 카페, 숙소 등 | Not Null |
-| `amount_cents` | 결제 금액 | Bigint | 항목 총액. 현재 물리 컬럼명은 `amount_cents`지만 API 의미는 KRW 원 단위 integer | Not Null, 0 이상 |
+| `amount_won` | 결제 금액 | Bigint | KRW 원 단위 정수 | Not Null, 0 이상 |
 | `currency` | 통화 | Varchar(3) | `KRW` 등 | Not Null |
-| `split_type` | 분할 방식 | Varchar(20) | `equal`, `custom` | Not Null |
-| `paid_at` | 결제 시각 | Timestamptz | 실제 결제 시각 | Nullable |
+| `split_type` | 분할 방식 | Varchar(20) | `equal`, `menu` | Not Null |
 | `memo` | 항목 메모 | Text | 영수증/설명 | Nullable |
-| `sort_order` | 정렬 순서 | Integer | 정산 화면 표시 순서 | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | 항목 생성 시각 | Not Null |
+| `updated_at` | 수정 시각 | Timestamptz | 항목 수정 시각 | Not Null |
 
-## `settlement_item_payers` (다음 구현)
-
-> 한 항목을 여러 명이 나누어 결제한 경우까지 지원한다.
-
-| 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
-| --- | --- | --- | --- | --- |
-| `id` | 결제자 row ID | UUID | row 식별자 | PK |
-| `settlement_item_id` | 정산 항목 ID | UUID | 연결 항목 | FK, Not Null |
-| `user_id` | 결제자 ID | UUID | 돈을 낸 사용자 | FK, Not Null |
-| `paid_amount` | 결제 금액 | Numeric(12,2) | 해당 사용자가 낸 금액 | Not Null |
-| `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
-
-## `settlement_item_targets` (구현됨, 확장 필요)
+## `settlement_item_targets` (구현됨)
 
 > 항목별 정산 대상자와 부담액을 저장한다.
 
@@ -845,41 +854,43 @@
 | `id` | 정산 대상 row ID | UUID | row 식별자 | PK |
 | `settlement_item_id` | 정산 항목 ID | UUID | 연결 항목 | FK, Not Null |
 | `user_id` | 대상자 ID | UUID | 비용을 부담하는 사용자 | FK, Not Null |
-| `amount_cents` | 부담 금액 | Bigint | 대상자별 부담 금액. 현재 API 의미는 KRW 원 단위 integer | Nullable |
+| `amount_won` | 부담 금액 | Bigint | KRW 원 단위 정수 | Nullable |
 | `status` | 대상 상태 | Varchar(30) | 현재 기본값 `pending` | Not Null |
 | `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
 
-## `settlements` (구현됨, 확장 필요)
+## `settlements` (구현됨)
 
-> 최종 생성된 정산 결과다. 약속 단위로 저장하고 채팅/알림에 공유된다.
+> 확정 또는 완료된 정산 결과다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 정산 ID | UUID | 내부 정산 식별자 | PK |
-| `public_id` | 공개 정산 ID | Text | API contract용 안정 ID | Unique, 구현됨 |
+| `public_id` | 공개 정산 ID | Text | API contract용 안정 ID | Unique |
 | `group_id` | 모임 ID | UUID | 연결 모임 | FK, Not Null |
 | `plan_id` | 약속 ID | UUID | 연결 약속 | FK, Not Null |
-| `status` | 정산 상태 | Varchar(20) | `created`, `shared`, `completed`, `canceled` | 목표 설계 |
-| `total_amount` | 총 정산 금액 | Numeric(12,2) | 최종 항목 합계 | 다음 구현 |
-| `currency` | 통화 | Varchar(3) | `KRW` 등 | 다음 구현 |
-| `payload` | 결과 payload | JSONB | scaffold 단계 결과 snapshot | Not Null |
-| `created_by_user_id` | 생성자 ID | UUID | 정산 생성 사용자 | FK |
-| `created_at` | 생성 시각 | Timestamptz | 정산 생성 시각 | Not Null |
-| `completed_at` | 완료 시각 | Timestamptz | 정산 완료 처리 시각 | Nullable |
+| `status` | 정산 상태 | Varchar(20) | `finalized`, `completed` | Not Null |
+| `payload` | 결과 payload | JSONB | 화면 snapshot. 계산 source of truth 아님 | Not Null |
+| `created_by_user_id` | 생성자 ID | UUID | 정산 확정 사용자 | FK |
+| `created_at` | 생성 시각 | Timestamptz | 정산 확정 시각 | Not Null |
+| `completed_at` | 완료 시각 | Timestamptz | 수취 확인 완료 시각 | Nullable |
 
-## `settlement_transfers` (구현됨, 확장 필요)
+> UNIQUE: `status='finalized'`인 `(plan_id)` active finalized settlement 1개.
 
-> 최종 정산 결과의 송금 요약이다. 실제 결제/송금 연동은 별도 범위다.
+## `settlement_transfers` (구현됨)
+
+> 최종 정산 결과의 최소 이체 목록이다. 실제 결제/송금 연동은 별도 범위다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
 | `id` | 송금 요약 ID | UUID | row 식별자 | PK |
+| `public_id` | 공개 transfer ID | Text | API contract용 안정 ID | Unique |
 | `settlement_id` | 정산 ID | UUID | 연결 정산 | FK, Not Null |
 | `from_user_id` | 보내는 사용자 ID | UUID | 돈을 보내야 하는 사용자 | FK, Not Null |
 | `to_user_id` | 받는 사용자 ID | UUID | 돈을 받아야 하는 사용자 | FK, Not Null |
-| `amount_cents` | 송금 금액 | Bigint | 송금 요약 금액. 현재 API 의미는 KRW 원 단위 integer | Not Null, 0 이상 |
-| `status` | 송금 상태 | Varchar(20) | `pending`, `confirmed`, `waived` | Not Null |
-| `confirmed_at` | 확인 시각 | Timestamptz | 송금 완료 확인 시각 | Nullable |
+| `amount_won` | 송금 금액 | Bigint | KRW 원 단위 정수 | Not Null, 0 이상 |
+| `currency` | 통화 | Varchar(3) | `KRW` 등 | Not Null |
+| `status` | 송금 상태 | Varchar(20) | `pending`, `sent`, `received` | Not Null |
+| `memo` | 메모 | Text | 송금 요약 메모 | Nullable |
 | `created_at` | 생성 시각 | Timestamptz | row 생성 시각 | Not Null |
 
 ## `settlement_receipts` (목표 설계)
@@ -898,28 +909,28 @@
 | `created_at` | 생성 시각 | Timestamptz | 업로드 시각 | Not Null |
 | `updated_at` | 수정 시각 | Timestamptz | 상태 수정 시각 | Not Null |
 
-## `settlement_confirmations` (목표 설계)
+## `settlement_confirmations` (구현됨)
 
-> 사용자별 정산 확인, 이의 제기, 송금 완료 표시를 관리한다.
+> transfer 단위 송금/수취 확인 이벤트다. 완료 처리는 되돌릴 수 없다.
 
 | 필드명(물리) | 필드명(논리) | 데이터 타입 | 설명 | 제약사항 |
 | --- | --- | --- | --- | --- |
-| `id` | 정산 확인 ID | UUID | confirmation row 식별자 | PK |
-| `settlement_id` | 정산 ID | UUID | 연결 정산 | FK, Not Null |
-| `user_id` | 사용자 ID | UUID | 확인 대상 사용자 | FK, Not Null |
-| `confirmation_type` | 확인 유형 | Varchar(30) | `viewed`, `agreed`, `paid`, `disputed` | Not Null |
+| `id` | 확인 ID | UUID | confirmation row 식별자 | PK |
+| `settlement_transfer_id` | 송금 요약 ID | UUID | 연결 transfer | FK, Not Null |
+| `user_id` | 사용자 ID | UUID | 확인 사용자 | FK, Not Null |
+| `confirmation_type` | 확인 유형 | Varchar(30) | `sent`, `received` | Not Null |
+| `status` | 확인 상태 | Varchar(30) | 현재 기본값 `confirmed` | Not Null |
+| `confirmed_at` | 확인 시각 | Timestamptz | 확인 이벤트 시각 | Not Null |
 | `comment` | 코멘트 | Text | 이의 제기/확인 메모 | Nullable |
-| `created_at` | 생성 시각 | Timestamptz | 확인 이벤트 시각 | Not Null |
 
-> UNIQUE 후보: `(settlement_id, user_id, confirmation_type)`
+> UNIQUE: `(settlement_transfer_id, user_id, confirmation_type)`
 
 현재 Settlement API의 source of truth 규칙:
 
-- `settlement_drafts`, `settlements`는 draft/result envelope와 compact payload snapshot을 보관한다.
-- `settlement_items`, `settlement_item_targets`, `settlement_transfers`는 draft/result 조회와 계산의 우선 원장이다.
-- `payload` JSON은 `payerShares`, 과거 mock field, 표시 snapshot fallback을 위해 유지한다. 장기적으로 query와 권한 판단이 필요한 값은 structured table로 옮긴다.
-- `payerUserId`, `targetUserIds`가 canonical 계약이고 `payerName`, `targetNames`는 dev seed/호환 fallback이다. 이름 fallback에서 동명이인이 있으면 `ambiguous_settlement_member_name`으로 실패해야 한다.
-- API 금액 필드 `amountWon`과 현재 물리 컬럼 `amount_cents`는 모두 KRW 원 단위 integer로 해석한다. 컬럼명은 legacy mismatch이며 rename 여부는 별도 migration decision으로 남긴다.
+- `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`가 계산과 조회의 우선 원장이다.
+- `settlement_drafts.payload`, `settlements.payload`는 화면 snapshot이며 사용자 resolve나 계산 source of truth가 아니다.
+- `payerUserId`, `targetUserIds`가 canonical 계약이다. 이름 필드는 요청 fallback으로 쓰지 않는다.
+- API 금액 필드와 DB 물리 컬럼은 각각 `amountWon`, `amount_won`만 사용한다.
 
 ---
 
@@ -1650,9 +1661,9 @@ Provider delivery로 이어질 `notification.requested` outbox payload는 `notif
 | `external_place_link_status` | `active`, `inactive`, `broken`, `hidden` |
 | `vote_type` | `PLACE`, `TIME`, `SETTLEMENT`, `GENERAL`, `CHECKLIST` |
 | `vote_status` | `open`, `closed`, `canceled` |
-| `settlement_draft_status` | 현재 `draft`, 목표 후보 `editing`, `previewed`, `submitted`, `discarded` |
-| `settlement_status` | `created`, `shared`, `completed`, `canceled` |
-| `settlement_split_type` | `equal`, `custom` |
+| `settlement_draft_status` | `draft`, `finalized` |
+| `settlement_status` | `finalized`, `completed` |
+| `settlement_split_type` | `equal`, `menu` |
 
 ## 기록/알림/Worker
 

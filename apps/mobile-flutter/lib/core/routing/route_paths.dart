@@ -104,11 +104,20 @@ class RoutePaths {
   static String planSettlementPreview(Object groupId, Object planId) =>
       '/groups/$groupId/plans/$planId/settlements/new/preview';
 
+  static String planSettlementCurrent(Object groupId, Object planId) =>
+      '/groups/$groupId/plans/$planId/settlements/current';
+
   static String planSettlementDetail(
     Object groupId,
     Object planId,
     Object settlementId,
   ) => '/groups/$groupId/plans/$planId/settlements/$settlementId';
+
+  static String planSettlementBasis(
+    Object groupId,
+    Object planId,
+    Object settlementId,
+  ) => '/groups/$groupId/plans/$planId/settlements/$settlementId/basis';
 
   static String recordDetail(String recordId) => '/records/$recordId';
 

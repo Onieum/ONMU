@@ -20,6 +20,13 @@ abstract interface class SettlementRepository {
     String? memo,
   });
 
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
+  });
+
   Future<SettlementSummary> updateSettlementDraftItemTargets({
     required Object groupId,
     required Object planId,
@@ -50,6 +57,53 @@ abstract interface class SettlementRepository {
     required Object planId,
     required Object settlementId,
   });
+
+  Future<SettlementBasis> fetchSettlementBasis({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  });
+
+  Future<SettlementSummary> markTransferSent({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  });
+
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  });
+}
+
+class SettlementDraftSectionInput {
+  const SettlementDraftSectionInput({
+    required this.id,
+    required this.title,
+    required this.payerUserId,
+    this.schedulePlaceId,
+    this.items = const [],
+  });
+
+  final Object id;
+  final String? schedulePlaceId;
+  final String title;
+  final String payerUserId;
+  final List<SettlementDraftItemInput> items;
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id.toString(),
+      if (schedulePlaceId != null && schedulePlaceId!.isNotEmpty)
+        'schedulePlaceId': schedulePlaceId,
+      'title': title,
+      if (payerUserId.isNotEmpty) 'payerUserId': payerUserId,
+      'items': items.map((item) => item.toJson()).toList(),
+    };
+  }
 }
 
 class SettlementDraftItemInput {
@@ -57,6 +111,9 @@ class SettlementDraftItemInput {
     this.id,
     required this.title,
     required this.amount,
+    this.sectionId,
+    this.sectionTitle,
+    this.schedulePlaceId,
     this.payerUserId,
     required this.payerName,
     this.splitType = SettlementSplitType.equal,
@@ -65,6 +122,9 @@ class SettlementDraftItemInput {
   });
 
   final Object? id;
+  final Object? sectionId;
+  final String? sectionTitle;
+  final String? schedulePlaceId;
   final String title;
   final int amount;
   final String? payerUserId;
@@ -77,14 +137,9 @@ class SettlementDraftItemInput {
     return {
       if (id != null) 'id': id.toString(),
       'title': title,
-      'amount': amount,
       'amountWon': amount,
-      if (payerUserId != null && payerUserId!.isNotEmpty)
-        'payerUserId': payerUserId,
-      'payerName': payerName,
-      'splitType': splitType == SettlementSplitType.custom ? 'custom' : 'equal',
+      'splitType': splitType == SettlementSplitType.equal ? 'equal' : 'menu',
       if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds,
-      'targetNames': targetNames,
     };
   }
 }
@@ -99,10 +154,18 @@ class ApiSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
   }) async {
-    final draft = await _client.getObject(
+    final draft = await _client.postObject(
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft',
+      body: const {},
     );
-    return _settlement(OnmuJson.asMap(draft['preview']));
+    final preview = _settlement(OnmuJson.asMap(draft['preview']));
+    final topLevelSections = _sections(OnmuJson.asMapList(draft['sections']));
+    return preview.copyWith(
+      id: _readId(draft, 'id'),
+      status: OnmuJson.readString(draft, 'status', 'draft'),
+      sections: topLevelSections.isEmpty ? preview.sections : topLevelSections,
+      preview: true,
+    );
   }
 
   @override
@@ -111,15 +174,37 @@ class ApiSettlementRepository implements SettlementRepository {
     required Object planId,
     required List<SettlementDraftItemInput> items,
     String? memo,
+  }) {
+    return updateSettlementDraftSections(
+      groupId: groupId,
+      planId: planId,
+      sections: _sectionsFromItems(items),
+      memo: memo,
+    );
+  }
+
+  @override
+  Future<SettlementSummary> updateSettlementDraftSections({
+    required Object groupId,
+    required Object planId,
+    required List<SettlementDraftSectionInput> sections,
+    String? memo,
   }) async {
     final draft = await _client.patchObject(
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft',
       body: {
-        ..._itemsBody(items),
+        'sections': sections.map((section) => section.toJson()).toList(),
         if (memo != null && memo.trim().isNotEmpty) 'memo': memo.trim(),
       },
     );
-    return _settlement(OnmuJson.asMap(draft['preview']));
+    final preview = _settlement(OnmuJson.asMap(draft['preview']));
+    final topLevelSections = _sections(OnmuJson.asMapList(draft['sections']));
+    return preview.copyWith(
+      id: _readId(draft, 'id'),
+      status: OnmuJson.readString(draft, 'status', 'draft'),
+      sections: topLevelSections.isEmpty ? preview.sections : topLevelSections,
+      preview: true,
+    );
   }
 
   @override
@@ -132,12 +217,16 @@ class ApiSettlementRepository implements SettlementRepository {
   }) async {
     final draft = await _client.patchObject(
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft/items/$itemId/targets',
-      body: {
-        if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds,
-        'targetNames': targetNames,
-      },
+      body: {if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds},
     );
-    return _settlement(OnmuJson.asMap(draft['preview']));
+    final preview = _settlement(OnmuJson.asMap(draft['preview']));
+    final topLevelSections = _sections(OnmuJson.asMapList(draft['sections']));
+    return preview.copyWith(
+      id: _readId(draft, 'id'),
+      status: OnmuJson.readString(draft, 'status', 'draft'),
+      sections: topLevelSections.isEmpty ? preview.sections : topLevelSections,
+      preview: true,
+    );
   }
 
   @override
@@ -148,7 +237,7 @@ class ApiSettlementRepository implements SettlementRepository {
   }) async {
     final settlement = await _client.postObject(
       '/api/v1/groups/$groupId/plans/$planId/settlements/preview',
-      body: _itemsBody(items),
+      body: _sectionsBody(_sectionsFromItems(items)),
     );
     return _settlement(settlement);
   }
@@ -161,7 +250,7 @@ class ApiSettlementRepository implements SettlementRepository {
   }) async {
     final settlement = await _client.postObject(
       '/api/v1/groups/$groupId/plans/$planId/settlements',
-      body: _itemsBody(items),
+      body: _sectionsBody(_sectionsFromItems(items)),
     );
     return _settlement(settlement);
   }
@@ -172,7 +261,7 @@ class ApiSettlementRepository implements SettlementRepository {
     required Object planId,
   }) async {
     final settlement = await _client.getObject(
-      '/api/v1/groups/$groupId/plans/$planId/settlements',
+      '/api/v1/groups/$groupId/plans/$planId/settlements/current',
     );
     return _settlement(settlement);
   }
@@ -189,25 +278,115 @@ class ApiSettlementRepository implements SettlementRepository {
     return _settlement(settlement);
   }
 
-  Map<String, Object?> _itemsBody(List<SettlementDraftItemInput> items) {
-    return {'items': items.map((item) => item.toJson()).toList()};
+  @override
+  Future<SettlementBasis> fetchSettlementBasis({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+  }) async {
+    final basis = await _client.getObject(
+      '/api/v1/groups/$groupId/plans/$planId/settlements/$settlementId/basis',
+    );
+    return _basis(basis);
+  }
+
+  @override
+  Future<SettlementSummary> markTransferSent({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async {
+    final settlement = await _client.postObject(
+      '/api/v1/groups/$groupId/plans/$planId/settlements/$settlementId/transfers/$transferId/sent',
+      body: const {},
+    );
+    return _settlement(settlement);
+  }
+
+  @override
+  Future<SettlementSummary> markTransferReceived({
+    required Object groupId,
+    required Object planId,
+    required Object settlementId,
+    required Object transferId,
+  }) async {
+    final settlement = await _client.postObject(
+      '/api/v1/groups/$groupId/plans/$planId/settlements/$settlementId/transfers/$transferId/received',
+      body: const {},
+    );
+    return _settlement(settlement);
+  }
+
+  Map<String, Object?> _sectionsBody(
+    List<SettlementDraftSectionInput> sections,
+  ) {
+    return {'sections': sections.map((section) => section.toJson()).toList()};
+  }
+
+  List<SettlementDraftSectionInput> _sectionsFromItems(
+    List<SettlementDraftItemInput> items,
+  ) {
+    final sections = <String, _MutableSectionInput>{};
+    for (final item in items) {
+      final payerKey = item.payerUserId?.trim().isNotEmpty == true
+          ? item.payerUserId!.trim()
+          : 'payer:${item.payerName.trim()}';
+      final sectionKey = item.sectionId?.toString().trim().isNotEmpty == true
+          ? item.sectionId.toString().trim()
+          : 'extra-$payerKey';
+      final key = '$sectionKey|$payerKey';
+      final section = sections.putIfAbsent(
+        key,
+        () => _MutableSectionInput(
+          id: sectionKey,
+          schedulePlaceId: item.schedulePlaceId,
+          title: item.sectionTitle?.trim().isNotEmpty == true
+              ? item.sectionTitle!.trim()
+              : '기타 비용',
+          payerUserId: item.payerUserId?.trim() ?? '',
+        ),
+      );
+      section.items.add(item);
+    }
+    return sections.values
+        .map(
+          (section) => SettlementDraftSectionInput(
+            id: section.id,
+            schedulePlaceId: section.schedulePlaceId,
+            title: section.title,
+            payerUserId: section.payerUserId,
+            items: List.unmodifiable(section.items),
+          ),
+        )
+        .toList(growable: false);
   }
 
   SettlementSummary _settlement(Map<String, dynamic> json) {
+    final sections = _sections(OnmuJson.asMapList(json['sections']));
+    final paymentItems = OnmuJson.asMapList(
+      json['paymentItems'],
+    ).map(_paymentItem).toList(growable: false);
     return SettlementSummary(
       id: _readId(json, 'id'),
+      status: OnmuJson.readString(json, 'status'),
       planTitle: OnmuJson.readString(json, 'planTitle', '약속 정산'),
+      totalAmountWon: OnmuJson.readInt(json, 'totalAmountWon'),
       totalAmountLabel: OnmuJson.readString(json, 'totalAmountLabel', '0원'),
       createdDateLabel: OnmuJson.readString(json, 'createdDateLabel', '미리보기'),
       itemCountLabel: OnmuJson.readString(json, 'itemCountLabel', '결제 항목 0개'),
       finalSummaryLabel: OnmuJson.readString(json, 'finalSummaryLabel'),
       mySummaryLabel: OnmuJson.readString(json, 'mySummaryLabel', '내 정산 없음'),
-      paymentItems: OnmuJson.asMapList(
-        json['paymentItems'],
-      ).map(_paymentItem).toList(growable: false),
+      paymentItems: paymentItems.isEmpty
+          ? sections.expand((section) => section.items).toList(growable: false)
+          : paymentItems,
+      sections: sections,
       memberResults: OnmuJson.asMapList(
         json['memberResults'],
       ).map(_memberResult).toList(growable: false),
+      participantStatuses: OnmuJson.asMapList(
+        json['participantStatuses'],
+      ).map(_participantStatus).toList(growable: false),
       transfers: OnmuJson.asMapList(
         json['transfers'],
       ).map(_transfer).toList(growable: false),
@@ -216,16 +395,49 @@ class ApiSettlementRepository implements SettlementRepository {
     );
   }
 
+  SettlementBasis _basis(Map<String, dynamic> json) {
+    return SettlementBasis(
+      settlementId: _readId(json, 'settlementId'),
+      planTitle: OnmuJson.readString(json, 'planTitle', '약속 정산'),
+      totalAmountLabel: OnmuJson.readString(json, 'totalAmountLabel', '0원'),
+      sections: _sections(OnmuJson.asMapList(json['sections'])),
+      participants: OnmuJson.asMapList(
+        json['participants'],
+      ).map(_memberResult).toList(growable: false),
+      transfers: OnmuJson.asMapList(
+        json['transfers'],
+      ).map(_transfer).toList(growable: false),
+      summary: OnmuJson.readString(json, 'summary'),
+    );
+  }
+
+  SettlementSection _section(Map<String, dynamic> json) {
+    return SettlementSection(
+      id: _readId(json, 'id'),
+      schedulePlaceId: OnmuJson.readString(json, 'schedulePlaceId'),
+      title: OnmuJson.readString(json, 'title', '기타 비용'),
+      payerUserId: OnmuJson.readString(json, 'payerUserId'),
+      payerName: OnmuJson.readString(json, 'payerName', '결제자'),
+      payerProfileImageUrl: _profileImageUrl(json, 'payerProfileImageUrl'),
+      sortOrder: OnmuJson.readInt(json, 'sortOrder'),
+      totalAmountWon: OnmuJson.readInt(json, 'totalAmountWon'),
+      items: OnmuJson.asMapList(
+        json['items'],
+      ).map(_paymentItem).toList(growable: false),
+    );
+  }
+
+  List<SettlementSection> _sections(List<Map<String, dynamic>> rawSections) {
+    return rawSections.map(_section).toList(growable: false);
+  }
+
   SettlementPaymentItem _paymentItem(Map<String, dynamic> json) {
     final splitType = OnmuJson.readString(json, 'splitType', 'equal');
     return SettlementPaymentItem(
       id: _readId(json, 'id'),
+      sectionId: OnmuJson.readString(json, 'sectionId'),
       title: OnmuJson.readString(json, 'title', '결제 항목'),
-      amount: OnmuJson.readInt(
-        json,
-        'amountWon',
-        OnmuJson.readInt(json, 'amount'),
-      ),
+      amount: OnmuJson.readInt(json, 'amountWon'),
       amountLabel: OnmuJson.readString(json, 'amountLabel', '0원'),
       payerShares: OnmuJson.asMapList(json['payerShares'])
           .map(
@@ -238,7 +450,7 @@ class ApiSettlementRepository implements SettlementRepository {
           )
           .toList(growable: false),
       targetLabel: OnmuJson.readString(json, 'targetLabel', '0명'),
-      splitType: splitType == 'custom'
+      splitType: splitType == 'menu' || splitType == 'custom'
           ? SettlementSplitType.custom
           : SettlementSplitType.equal,
       participants: OnmuJson.asMapList(json['participants'])
@@ -269,21 +481,45 @@ class ApiSettlementRepository implements SettlementRepository {
 
   SettlementMemberResult _memberResult(Map<String, dynamic> json) {
     return SettlementMemberResult(
+      userId: OnmuJson.readString(json, 'userId'),
       name: OnmuJson.readString(json, 'name', '참여자'),
       finalShareLabel: OnmuJson.readString(json, 'finalShareLabel', '0원'),
-      paidAmountLabel: OnmuJson.readString(json, 'paidAmountLabel', '0원'),
-      resultLabel: OnmuJson.readString(json, 'resultLabel', '정산 없음'),
+      paidAmountLabel: OnmuJson.readString(
+        json,
+        'paidAmountLabel',
+        OnmuJson.readString(json, 'paidTotalLabel', '0원'),
+      ),
+      resultLabel: OnmuJson.readString(
+        json,
+        'resultLabel',
+        OnmuJson.readString(json, 'netLabel', '정산 없음'),
+      ),
       isMe: OnmuJson.readBool(json, 'isMe'),
       willReceive: OnmuJson.readBool(json, 'willReceive'),
       profileImageUrl: _profileImageUrl(json),
     );
   }
 
+  SettlementParticipantStatus _participantStatus(Map<String, dynamic> json) {
+    return SettlementParticipantStatus(
+      userId: OnmuJson.readString(json, 'userId'),
+      name: OnmuJson.readString(json, 'name', '참여자'),
+      profileImageUrl: _profileImageUrl(json),
+      willReceive: OnmuJson.readBool(json, 'willReceive'),
+      completed: OnmuJson.readBool(json, 'completed'),
+    );
+  }
+
   SettlementTransferSummary _transfer(Map<String, dynamic> json) {
     return SettlementTransferSummary(
+      id: _readId(json, 'id'),
+      fromUserId: OnmuJson.readString(json, 'fromUserId'),
       fromName: OnmuJson.readString(json, 'fromName', '보내는 사람'),
+      toUserId: OnmuJson.readString(json, 'toUserId'),
       toName: OnmuJson.readString(json, 'toName', '받는 사람'),
+      amountWon: OnmuJson.readInt(json, 'amountWon'),
       amountLabel: OnmuJson.readString(json, 'amountLabel', '0원'),
+      status: OnmuJson.readString(json, 'status', 'pending'),
       fromProfileImageUrl: _profileImageUrl(json, 'fromProfileImageUrl'),
       toProfileImageUrl: _profileImageUrl(json, 'toProfileImageUrl'),
     );
@@ -307,4 +543,19 @@ class ApiSettlementRepository implements SettlementRepository {
       ),
     );
   }
+}
+
+class _MutableSectionInput {
+  _MutableSectionInput({
+    required this.id,
+    required this.title,
+    required this.payerUserId,
+    this.schedulePlaceId,
+  });
+
+  final String id;
+  final String? schedulePlaceId;
+  final String title;
+  final String payerUserId;
+  final List<SettlementDraftItemInput> items = [];
 }

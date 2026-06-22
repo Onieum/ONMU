@@ -89,6 +89,28 @@ Sentry 오류 이벤트 샘플링은 `OnmuReportPolicy.sampleRateFor`를 기준�
 
 Sentry tag로 보낼 수 있는 값은 `feature`, `kind`, `statusCode`, `method`, `endpoint_template`, `retryable`, `environment`처럼 안전한 메타데이터뿐이다. JWT, Authorization header, request/response body, nickname, email, 채팅/메모/기록 원문은 보고 필드에 넣지 않는다.
 
+## Settlement
+
+정산 화면은 Spring Boot Main API의 `groups/{groupId}/plans/{planId}` 하위 contract만 호출한다. Flutter는 입력 전달과 UI 상태 전환을 담당하고, 정산 계산과 원장 저장은 서버 응답을 source of truth로 사용한다.
+
+| 화면/액션 | API |
+| --- | --- |
+| 정산 draft 생성/조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 정산 draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 정산 draft 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 대상자 선택 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` |
+| 미리보기 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` |
+| 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` |
+| 현재 정산 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` |
+| 결과 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` |
+| 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` |
+| 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` |
+| 수취 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received` |
+
+정산 요청은 `sections[].payerUserId`, `items[].targetUserIds`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 다루며 사용자 resolve fallback으로 쓰지 않는다.
+
+정산 오류는 공통 `OnmuApiException`으로 매핑한다. `settlement_plan_not_eligible`, `active_settlement_exists`, `settlement_write_conflict`, `invalid_settlement_amount`, `missing_settlement_targets`, `settlement_confirmation_forbidden` 같은 400/409 계열은 snackbar 또는 inline 안내 중심으로 처리하고 기본 Sentry 보고 대상에서 제외한다. 5xx, `contractMismatch`, `unknown`은 `feature=settlement` tag로 보고한다.
+
 ## Mock to API 전환
 
 Flutter repository가 호출하는 실제 서버는 Spring Boot Main API다. FastAPI Worker 결과는 Spring Boot API read model을 통해 전달받고, Flutter 앱에서 Worker를 직접 호출하지 않는다.

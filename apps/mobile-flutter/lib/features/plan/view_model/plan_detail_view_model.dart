@@ -53,6 +53,15 @@ class PlanDetailState {
 
   bool get canShareArrivalStatus =>
       plan.isInProgressAt(currentTime ?? DateTime.now());
+
+  bool get canCreateSettlement {
+    final start =
+        plan.startsAt?.toLocal() ?? DateTime.tryParse(plan.dateTime)?.toLocal();
+    if (start == null) {
+      return false;
+    }
+    return !(currentTime ?? DateTime.now()).toLocal().isBefore(start);
+  }
 }
 
 class PlanDetailViewModel extends AsyncNotifier<PlanDetailState> {

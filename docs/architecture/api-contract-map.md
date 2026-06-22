@@ -237,20 +237,25 @@ Response:
 
 | 화면 | API |
 | --- | --- |
-| 정산 draft | `GET/PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 정산 draft 생성/조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 정산 draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
+| 정산 draft 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` |
 | 대상자 선택 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` |
 | 미리보기 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` |
-| 최종 생성 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` |
-| 최신 결과 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` |
+| 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` |
+| 현재 정산 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` |
 | 결과 보기 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` |
+| 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` |
+| 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` |
+| 수취 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received` |
 
-Spring Boot Main API는 정산 draft/result 응답을 `settlement_drafts`, `settlements`의 `payload`만으로 만들지 않고 `settlement_items`, `settlement_item_targets`, `settlement_transfers` read/write 결과를 우선 사용한다. `payload`는 payer user id 같은 표시/계산 보조 필드와 이전 Flutter mock contract 호환을 위한 compact 백업으로 유지한다.
+Spring Boot Main API는 `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers` read/write 결과를 정산 계산과 조회의 우선 원장으로 사용한다. `settlement_drafts.payload`와 `settlements.payload`는 화면 snapshot이며 사용자 resolve나 계산 source of truth가 아니다.
 
-정산 create/preview/update 요청은 `payerUserId`, `targetUserIds` 같은 안정적인 사용자 public id를 우선 사용한다. `payerName`, `targetNames`는 dev seed와 기존 mock 호환용 fallback이며, 이름이 중복되면 API는 조용히 오배정하지 않고 `400 ambiguous_settlement_member_name`을 반환한다. 금액 필드는 `amountWon`을 권장하고, 과거 `amount`는 호환용으로 허용한다. 현재 DB 컬럼명은 `amount_cents`지만 ONMU 정산 API에서는 KRW 원 단위 integer를 저장한다.
+정산 create/preview/update 요청은 section 단위 `payerUserId`, item 단위 `targetUserIds`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 내려주며 요청 fallback으로 쓰지 않는다. DB 물리 컬럼도 `amount_won`이다.
 
-`GET /settlement-draft`는 저장되지 않은 synthetic draft를 만들 수 있으며 이때 `persisted=false`, `targetPatchAvailable=false`를 반환한다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item이 생긴 뒤에만 가능하다.
+`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 draft를 반환한다. 시작 전 약속은 `settlement_plan_not_eligible`, 이미 active finalized settlement가 있으면 `active_settlement_exists`로 실패한다. `GET /settlement-draft`는 active draft가 없으면 `settlement_draft_not_found`를 반환한다.
 
-현재 `POST /settlements`는 `settlement.created`, `notification.requested` outbox를 남기지만 runtime create 경로에서 `chat_activity_events` 정산 카드나 사용자별 `notifications` row를 직접 만들지는 않는다. 현재 `channel=activity` 성격의 이벤트는 provider push delivery와 분리해서 해석한다. 목표 구조에서는 정산 생성 transaction에서 ChatActivity 카드와 notification row를 함께 만들고, provider delivery 대상 `notification.requested` payload에는 실제 `notificationId`를 포함한다.
+`POST /settlements`는 저장된 draft를 `finalized` settlement로 확정하고, 정산 카드용 `chat_activity_events`, 사용자별 notification, `settlement.finalized`, `notification.requested` outbox를 같은 domain transaction 안에서 남긴다. transfer가 없으면 즉시 `completed`로 전환하고 `settlement.completed` outbox를 남긴다.
 
 ## Chat
 

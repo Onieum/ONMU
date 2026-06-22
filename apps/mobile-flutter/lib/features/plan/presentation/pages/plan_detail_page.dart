@@ -143,6 +143,14 @@ class _DraftPlanDetailState extends State<_DraftPlanDetail> {
         _PlanScheduleCard(plan: widget.detail.plan),
         const SizedBox(height: AppSpacing.md),
         _PlanMemberSection(members: widget.detail.selectedMembers),
+        if (widget.detail.canCreateSettlement) ...[
+          const SizedBox(height: AppSpacing.md),
+          _SettlementEntryCard(
+            onPressed: () => context.push(
+              RoutePaths.planSettlementNew(widget.groupId, widget.planId),
+            ),
+          ),
+        ],
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
           _ArrivalStatusSection(
@@ -321,6 +329,14 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
         _PlanScheduleCard(plan: widget.detail.plan),
         const SizedBox(height: AppSpacing.md),
         _PlanMemberSection(members: widget.detail.selectedMembers),
+        if (widget.detail.canCreateSettlement) ...[
+          const SizedBox(height: AppSpacing.md),
+          _SettlementEntryCard(
+            onPressed: () => context.push(
+              RoutePaths.planSettlementNew(widget.groupId, widget.planId),
+            ),
+          ),
+        ],
         if (widget.detail.canShareArrivalStatus) ...[
           const SizedBox(height: AppSpacing.md),
           _ArrivalStatusSection(
@@ -438,6 +454,65 @@ class _PlanScheduleCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(rangeLabel, style: Theme.of(context).textTheme.titleSmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettlementEntryCard extends StatelessWidget {
+  const _SettlementEntryCard({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.linePink,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.primaryPinkSoft,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: AppColors.linePink),
+            ),
+            child: const SizedBox.square(
+              dimension: 44,
+              child: Icon(
+                Icons.receipt_long_outlined,
+                color: AppColors.primaryPink,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('정산', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '결제 항목을 입력하고 송금 내역을 확인해요.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OnmuSecondaryButton(
+                    label: '정산 만들기/보기',
+                    icon: Icons.arrow_forward,
+                    onPressed: onPressed,
+                  ),
+                ),
               ],
             ),
           ),

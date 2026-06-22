@@ -24,8 +24,8 @@ public class SettlementItemTargetEntity {
   @JoinColumn(name = "user_id", nullable = false)
   private UserEntity user;
 
-  @Column(name = "amount_cents")
-  private Long amountCents;
+  @Column(name = "amount_won")
+  private Long amountWon;
 
   @Column(nullable = false)
   private String status;
@@ -36,11 +36,11 @@ public class SettlementItemTargetEntity {
   protected SettlementItemTargetEntity() {
   }
 
-  public SettlementItemTargetEntity(SettlementItemEntity settlementItem, UserEntity user, long amountCents) {
+  public SettlementItemTargetEntity(SettlementItemEntity settlementItem, UserEntity user, long amountWon) {
     this.id = UUID.randomUUID();
     this.settlementItem = settlementItem;
     this.user = user;
-    this.amountCents = amountCents;
+    this.amountWon = amountWon;
     this.status = "pending";
   }
 
@@ -56,8 +56,8 @@ public class SettlementItemTargetEntity {
     return user;
   }
 
-  public Long getAmountCents() {
-    return amountCents;
+  public Long getAmountWon() {
+    return amountWon;
   }
 
   public String getStatus() {
