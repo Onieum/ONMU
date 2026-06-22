@@ -75,6 +75,19 @@ Provider console의 redirect/callback 설정은 환경별 host와 모바일 URL 
 
 Kakao Local API 사용 여부는 provider 권한/심사 상태를 별도 runbook으로 관리한다.
 
+### 5.1 Place reason worker / internal callback
+
+| Env var | Dev secret name 후보 | Staging secret name | Prod secret name 후보 | 대상 | Flutter 허용 |
+| --- | --- | --- | --- | --- | --- |
+| `ONMU_INTERNAL_SECRET` | `dev-internal-secret` 후보 | `staging-internal-secret` | `prod-internal-secret` 후보 | Spring/FastAPI internal callback | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_ENDPOINT_URL` | `dev-place-reason-openai-endpoint-url` 후보 | `staging-place-reason-openai-endpoint-url` | `prod-place-reason-openai-endpoint-url` 후보 | FastAPI worker | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_DEPLOYMENT_NAME` | `dev-place-reason-openai-deployment-name` 후보 | `staging-place-reason-openai-deployment-name` | `prod-place-reason-openai-deployment-name` 후보 | FastAPI worker | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_API_KEY` | `dev-place-reason-openai-api-key` 후보 | `staging-place-reason-openai-api-key` | `prod-place-reason-openai-api-key` 후보 | FastAPI worker | 아니오 |
+| `ONMU_PLACE_REASON_OPENAI_API_VERSION` | `dev-place-reason-openai-api-version` 후보 | `staging-place-reason-openai-api-version` | `prod-place-reason-openai-api-version` 후보 | FastAPI worker | 아니오 |
+| `ONMU_WORKER_AI_DATABASE_URL` | `dev-worker-ai-database-url` 후보 | `staging-worker-ai-database-url` | `prod-worker-ai-database-url` 후보 | FastAPI worker/Alembic | 아니오 |
+
+`ONMU_INTERNAL_CALLBACK_BASE_URL`과 `ONMU_PLACE_REASON_WORKER_URL`은 runtime URL config이며 secret value가 아니다. staging Terraform은 worker callback base URL을 `https://staging-api.onmu.cloud`로 두고, Spring은 ACA 내부 worker FQDN의 `/tasks/place-reason`을 사용한다. 실제 API key, internal secret, DB URL 값은 Key Vault와 runtime env에서만 다룬다.
+
 ## 6. Notification/push 후보
 
 | Env var | Dev secret name 후보 | Staging secret name 후보 | Prod secret name 후보 | 대상 | Flutter 허용 |

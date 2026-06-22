@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/place_models.dart';
 import '../../../shared/models/plan_models.dart';
 import '../../../shared/models/vote_models.dart';
@@ -239,7 +240,8 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
       if (current != null) {
         state = AsyncData(current.withUpdatedCandidate(updated));
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _report(error, stackTrace, feature: 'place_candidate_heart');
       state = AsyncData(value);
       rethrow;
     }
@@ -379,6 +381,12 @@ class PlaceCandidatesViewModel extends AsyncNotifier<PlaceCandidatesState> {
     final delta = nextHearted ? 1 : -1;
     final nextCount = candidate.heartCount + delta;
     return nextCount < 0 ? 0 : nextCount;
+  }
+
+  void _report(Object error, StackTrace stackTrace, {required String feature}) {
+    ref
+        .read(onmuErrorReporterProvider)
+        .captureException(error, stackTrace, feature: feature);
   }
 }
 

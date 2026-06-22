@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/character_model.dart';
 import '../../../shared/providers/state_providers.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -75,8 +75,8 @@ class MyProfileController {
     try {
       await _ref.read(friendRepositoryProvider).addFriend(publicId);
       _ref.invalidate(friendsProvider);
-    } on DioException catch (error) {
-      final friendError = FriendAddException.fromDio(error);
+    } on OnmuApiException catch (error) {
+      final friendError = FriendAddException.fromOnmu(error);
       if (friendError.kind == FriendAddErrorKind.alreadyFriend) {
         _ref.invalidate(friendsProvider);
       }
@@ -102,9 +102,11 @@ class FriendAddException implements Exception {
   final String message;
   final FriendAddErrorKind kind;
 
-  factory FriendAddException.fromDio(DioException error) {
-    final statusCode = error.response?.statusCode;
-    final reason = error.response?.data?.toString() ?? '';
+  factory FriendAddException.fromOnmu(OnmuApiException error) {
+    return FriendAddException.fromStatus(error.statusCode, error.serverReason);
+  }
+
+  factory FriendAddException.fromStatus(int? statusCode, String reason) {
     if (statusCode == 404) {
       return const FriendAddException(
         '없는 고유 ID예요.',

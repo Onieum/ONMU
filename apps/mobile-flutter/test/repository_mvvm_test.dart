@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onmu_mobile/core/observability/onmu_error_reporter.dart';
 import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/group/repository/media_repository.dart';
@@ -1600,12 +1601,14 @@ void main() {
 
   test('채팅 ViewModel은 메시지 작성 실패 시 실패 말풍선과 오류를 남긴다', () async {
     final repository = _FakeGroupRepository(throwOnSend: true);
+    final reporter = _RecordingOnmuErrorReporter();
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(repository),
         settlementRepositoryProvider.overrideWithValue(
           _ChatSettlementRepository(),
         ),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
       ],
     );
     addTearDown(container.dispose);
@@ -1620,6 +1623,8 @@ void main() {
     expect(updated.messages.single.message, '실패 요청');
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.failed);
     expect(updated.sendErrorMessage, '메시지를 보내지 못했어요.');
+    expect(reporter.reports.single.tags['feature'], 'group_chat_send');
+    expect(reporter.reports.single.tags['kind'], 'unknown');
   });
 
   test('채팅 ViewModel은 실패한 메시지를 재시도해 서버 응답으로 교체한다', () async {
@@ -1633,12 +1638,14 @@ void main() {
         isMine: true,
       ),
     );
+    final reporter = _RecordingOnmuErrorReporter();
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(repository),
         settlementRepositoryProvider.overrideWithValue(
           _ChatSettlementRepository(),
         ),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
       ],
     );
     addTearDown(container.dispose);
@@ -1659,6 +1666,7 @@ void main() {
     expect(updated.messages.single.message, '재시도 성공');
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
     expect(updated.sendErrorMessage, isNull);
+    expect(reporter.reports.single.tags['feature'], 'group_chat_send');
   });
 
   test('채팅 ViewModel은 realtime 메시지를 추가하고 중복 수신은 건너뛴다', () async {
@@ -1822,12 +1830,14 @@ void main() {
       ],
       realtimeMessages: realtime.stream,
     );
+    final reporter = _RecordingOnmuErrorReporter();
     final container = ProviderContainer(
       overrides: [
         groupRepositoryProvider.overrideWithValue(repository),
         settlementRepositoryProvider.overrideWithValue(
           _ChatSettlementRepository(),
         ),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
       ],
     );
     addTearDown(() async {
@@ -1843,6 +1853,7 @@ void main() {
     final updated = container.read(provider).requireValue;
     expect(updated.messages.single.message, '유지할 메시지');
     expect(updated.sendErrorMessage, isNull);
+    expect(reporter.reports.single.tags['feature'], 'group_chat_realtime');
   });
 
   test('채팅 ViewModel은 timestamp cursor가 없으면 afterCursor를 보내지 않는다', () async {
@@ -1916,6 +1927,26 @@ OotdRecord _recordForMutation({String? id}) {
       ),
     ],
   );
+}
+
+class _RecordingOnmuErrorReporter implements OnmuErrorReporter {
+  final reports = <OnmuErrorReport>[];
+
+  @override
+  void captureException(
+    Object error,
+    StackTrace stackTrace, {
+    String feature = 'app',
+  }) {
+    final report = OnmuErrorReportBuilder.build(
+      error,
+      stackTrace,
+      feature: feature,
+    );
+    if (report != null) {
+      reports.add(report);
+    }
+  }
 }
 
 class _FakeGroupRepository implements GroupRepository {

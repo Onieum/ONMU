@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../error/onmu_exception.dart';
+
 const defaultOnmuApiBaseUrl = 'https://staging-api.onmu.cloud';
 
 final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
@@ -64,7 +66,7 @@ class OnmuApiClient {
   }
 
   Future<Map<String, dynamic>> getObject(String path) async {
-    final response = await _dio.get<Object?>(path);
+    final response = await _request(() => _dio.get<Object?>(path), path: path);
     return OnmuJson.asMap(response.data);
   }
 
@@ -72,13 +74,16 @@ class OnmuApiClient {
     String path, {
     String accept = 'text/event-stream',
   }) async {
-    final response = await _dio.get<ResponseBody>(
-      path,
-      options: Options(
-        responseType: ResponseType.stream,
-        receiveTimeout: Duration.zero,
-        headers: {'Accept': accept},
+    final response = await _request(
+      () => _dio.get<ResponseBody>(
+        path,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: Duration.zero,
+          headers: {'Accept': accept},
+        ),
       ),
+      path: path,
     );
     final body = response.data;
     if (body == null) {
@@ -88,7 +93,7 @@ class OnmuApiClient {
   }
 
   Future<List<Map<String, dynamic>>> getList(String path) async {
-    final response = await _dio.get<Object?>(path);
+    final response = await _request(() => _dio.get<Object?>(path), path: path);
     return OnmuJson.asMapList(response.data);
   }
 
@@ -96,7 +101,10 @@ class OnmuApiClient {
     String path, {
     Map<String, Object?> body = const {},
   }) async {
-    final response = await _dio.post<Object?>(path, data: body);
+    final response = await _request(
+      () => _dio.post<Object?>(path, data: body),
+      path: path,
+    );
     return OnmuJson.asMap(response.data);
   }
 
@@ -110,15 +118,18 @@ class OnmuApiClient {
     final mediaType = contentType == null || contentType.trim().isEmpty
         ? null
         : DioMediaType.parse(contentType.trim());
-    final response = await _dio.post<Object?>(
-      path,
-      data: FormData.fromMap({
-        fieldName: await MultipartFile.fromFile(
-          filePath,
-          filename: fileName,
-          contentType: mediaType,
-        ),
-      }),
+    final response = await _request(
+      () async => _dio.post<Object?>(
+        path,
+        data: FormData.fromMap({
+          fieldName: await MultipartFile.fromFile(
+            filePath,
+            filename: fileName,
+            contentType: mediaType,
+          ),
+        }),
+      ),
+      path: path,
     );
     return OnmuJson.asMap(response.data);
   }
@@ -127,7 +138,10 @@ class OnmuApiClient {
     String path, {
     Map<String, Object?> body = const {},
   }) async {
-    final response = await _dio.put<Object?>(path, data: body);
+    final response = await _request(
+      () => _dio.put<Object?>(path, data: body),
+      path: path,
+    );
     return OnmuJson.asMap(response.data);
   }
 
@@ -135,7 +149,10 @@ class OnmuApiClient {
     String path, {
     Map<String, Object?> body = const {},
   }) async {
-    final response = await _dio.patch<Object?>(path, data: body);
+    final response = await _request(
+      () => _dio.patch<Object?>(path, data: body),
+      path: path,
+    );
     return OnmuJson.asMap(response.data);
   }
 
@@ -144,13 +161,13 @@ class OnmuApiClient {
     Map<String, Object?> body = const {},
   }) async {
     try {
-      final response = await _dio.delete<Object?>(
-        path,
-        data: body.isEmpty ? null : body,
+      final response = await _request(
+        () => _dio.delete<Object?>(path, data: body.isEmpty ? null : body),
+        path: path,
       );
       return OnmuJson.asMap(response.data);
-    } on DioException catch (error) {
-      if (error.response?.statusCode == 404) {
+    } on OnmuApiException catch (error) {
+      if (error.statusCode == 404) {
         return <String, dynamic>{};
       }
       rethrow;
@@ -175,12 +192,54 @@ class OnmuApiClient {
         contentType: contentType,
       ),
     });
-    final response = await _dio.post<Object?>(
-      path,
-      data: formData,
-      options: Options(contentType: 'multipart/form-data'),
+    final response = await _request(
+      () => _dio.post<Object?>(
+        path,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      ),
+      path: path,
     );
     return OnmuJson.asMap(response.data);
+  }
+
+  Future<Response<T>> _request<T>(
+    Future<Response<T>> Function() request, {
+    required String path,
+  }) async {
+    try {
+      return await request();
+    } on DioException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        OnmuApiException.fromDio(error, feature: _featureForPath(path)),
+        stackTrace,
+      );
+    }
+  }
+
+  String _featureForPath(String path) {
+    if (path.contains('/auth/') || path.contains('/users/me')) {
+      return 'auth';
+    }
+    if (path.contains('/groups')) {
+      return 'group';
+    }
+    if (path.contains('/plans')) {
+      return 'plan';
+    }
+    if (path.contains('/place') || path.contains('/routes')) {
+      return 'place';
+    }
+    if (path.contains('/memories') || path.contains('/ootd')) {
+      return 'record';
+    }
+    if (path.contains('/media')) {
+      return 'media';
+    }
+    if (path.contains('/devices') || path.contains('/notifications')) {
+      return 'notification';
+    }
+    return 'api';
   }
 }
 

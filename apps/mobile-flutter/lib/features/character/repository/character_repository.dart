@@ -1,7 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/character_model.dart';
 
 final characterRepositoryProvider = Provider<CharacterRepository>((ref) {
@@ -28,8 +28,8 @@ class ApiCharacterRepository implements CharacterRepository {
     try {
       final json = await _client.getObject('/api/v1/users/me/character');
       return CharacterDraft.fromApiJson(json);
-    } on DioException catch (error) {
-      if (error.response?.statusCode == 404) {
+    } on OnmuApiException catch (error) {
+      if (error.statusCode == 404) {
         return null;
       }
       rethrow;
