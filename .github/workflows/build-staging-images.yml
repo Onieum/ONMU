@@ -32,7 +32,7 @@ jobs:
     name: Docker build Spring API and worker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Build Spring API image
         run: |
@@ -66,7 +66,7 @@ jobs:
     env:
       STAGING_ACR_NAME: ${{ vars.STAGING_ACR_NAME || 'acronmustagingkrc001' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Validate Azure workflow variables
         env:
