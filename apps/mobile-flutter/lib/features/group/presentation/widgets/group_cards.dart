@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -8,6 +10,7 @@ import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../repository/media_repository.dart';
 
 class GroupSummaryCard extends StatelessWidget {
   const GroupSummaryCard({required this.group, required this.onTap, super.key});
@@ -449,21 +452,30 @@ class _ChatImageGrid extends StatelessWidget {
     return switch (visible.length) {
       1 => AspectRatio(
         aspectRatio: _aspectRatioFor(visible.first),
-        child: _ChatImageTile(attachment: visible.first),
+        child: _ChatImageTile(
+          attachment: visible.first,
+          onTap: () => _openImageViewer(context, 0),
+        ),
       ),
       2 => Row(
         children: [
           Expanded(
             child: AspectRatio(
               aspectRatio: 1,
-              child: _ChatImageTile(attachment: visible[0]),
+              child: _ChatImageTile(
+                attachment: visible[0],
+                onTap: () => _openImageViewer(context, 0),
+              ),
             ),
           ),
           const SizedBox(width: _gap),
           Expanded(
             child: AspectRatio(
               aspectRatio: 1,
-              child: _ChatImageTile(attachment: visible[1]),
+              child: _ChatImageTile(
+                attachment: visible[1],
+                onTap: () => _openImageViewer(context, 1),
+              ),
             ),
           ),
         ],
@@ -472,14 +484,30 @@ class _ChatImageGrid extends StatelessWidget {
         aspectRatio: 1.45,
         child: Row(
           children: [
-            Expanded(flex: 2, child: _ChatImageTile(attachment: visible[0])),
+            Expanded(
+              flex: 2,
+              child: _ChatImageTile(
+                attachment: visible[0],
+                onTap: () => _openImageViewer(context, 0),
+              ),
+            ),
             const SizedBox(width: _gap),
             Expanded(
               child: Column(
                 children: [
-                  Expanded(child: _ChatImageTile(attachment: visible[1])),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[1],
+                      onTap: () => _openImageViewer(context, 1),
+                    ),
+                  ),
                   const SizedBox(height: _gap),
-                  Expanded(child: _ChatImageTile(attachment: visible[2])),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[2],
+                      onTap: () => _openImageViewer(context, 2),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -493,9 +521,19 @@ class _ChatImageGrid extends StatelessWidget {
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: _ChatImageTile(attachment: visible[0])),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[0],
+                      onTap: () => _openImageViewer(context, 0),
+                    ),
+                  ),
                   const SizedBox(width: _gap),
-                  Expanded(child: _ChatImageTile(attachment: visible[1])),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[1],
+                      onTap: () => _openImageViewer(context, 1),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -503,12 +541,18 @@ class _ChatImageGrid extends StatelessWidget {
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: _ChatImageTile(attachment: visible[2])),
+                  Expanded(
+                    child: _ChatImageTile(
+                      attachment: visible[2],
+                      onTap: () => _openImageViewer(context, 2),
+                    ),
+                  ),
                   const SizedBox(width: _gap),
                   Expanded(
                     child: _ChatImageTile(
                       attachment: visible[3],
                       extraCount: extraCount,
+                      onTap: () => _openImageViewer(context, 3),
                     ),
                   ),
                 ],
@@ -518,6 +562,18 @@ class _ChatImageGrid extends StatelessWidget {
         ),
       ),
     };
+  }
+
+  void _openImageViewer(BuildContext context, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (context) => _ChatImageViewerPage(
+          attachments: attachments,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
   }
 
   double _aspectRatioFor(GroupMessageAttachment attachment) {
@@ -531,42 +587,309 @@ class _ChatImageGrid extends StatelessWidget {
 }
 
 class _ChatImageTile extends StatelessWidget {
-  const _ChatImageTile({required this.attachment, this.extraCount = 0});
+  const _ChatImageTile({
+    required this.attachment,
+    required this.onTap,
+    this.extraCount = 0,
+  });
 
   final GroupMessageAttachment attachment;
+  final VoidCallback onTap;
   final int extraCount;
 
   @override
   Widget build(BuildContext context) {
     final url = attachment.publicUrl;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          url.isEmpty
-              ? const _ChatImageFallback()
-              : Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const _ChatImageFallback(),
-                ),
-          if (extraCount > 0)
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.textMain.withAlpha(140),
+    return Tooltip(
+      message: '사진 크게 보기',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Material(
+          color: AppColors.bgPaper,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                url.isEmpty
+                    ? const _ChatImageFallback()
+                    : Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _ChatImageFallback(),
+                      ),
+                if (extraCount > 0)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.textMain.withAlpha(140),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '+$extraCount',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(color: AppColors.textInverse),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatImageViewerPage extends StatefulWidget {
+  const _ChatImageViewerPage({
+    required this.attachments,
+    required this.initialIndex,
+  });
+
+  final List<GroupMessageAttachment> attachments;
+  final int initialIndex;
+
+  @override
+  State<_ChatImageViewerPage> createState() => _ChatImageViewerPageState();
+}
+
+class _ChatImageViewerPageState extends State<_ChatImageViewerPage> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.attachments.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCount = widget.attachments.length;
+
+    return Scaffold(
+      backgroundColor: AppColors.textMain,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: totalCount,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              itemBuilder: (context, index) {
+                return Center(
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4,
+                    child: _ChatImageViewerImage(
+                      attachment: widget.attachments[index],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: AppSpacing.sm,
+              left: AppSpacing.sm,
+              right: AppSpacing.sm,
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: '닫기',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: AppColors.textInverse),
+                  ),
+                  const Spacer(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.textMain.withAlpha(160),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      child: Text(
+                        '${_currentIndex + 1} / $totalCount',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppColors.textInverse,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              child: Center(
-                child: Text(
-                  '+$extraCount',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textInverse,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatImageViewerImage extends StatelessWidget {
+  const _ChatImageViewerImage({required this.attachment});
+
+  final GroupMessageAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = attachment.publicUrl;
+    if (url.isEmpty) {
+      return const _ChatImageFallback();
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => const _ChatImageFallback(),
+    );
+  }
+}
+
+class ChatComposerImageTray extends StatelessWidget {
+  const ChatComposerImageTray({
+    required this.images,
+    required this.onAddImage,
+    required this.onRemoveImage,
+    required this.onClearImages,
+    super.key,
+    this.maxCount = maxChatImageAttachmentCount,
+  });
+
+  final List<PickedChatImage> images;
+  final VoidCallback onAddImage;
+  final ValueChanged<int> onRemoveImage;
+  final VoidCallback onClearImages;
+  final int maxCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (images.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.photo_library_outlined,
+                size: 18,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                '사진 ${images.length}장 선택됨',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: AppColors.textSub),
+              ),
+              const Spacer(),
+              if (images.length < maxCount)
+                IconButton(
+                  tooltip: '사진 더 추가',
+                  onPressed: onAddImage,
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                ),
+              TextButton(onPressed: onClearImages, child: const Text('전체 삭제')),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            height: 76,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: AppSpacing.xs),
+              itemBuilder: (context, index) => _ComposerImageTile(
+                image: images[index],
+                index: index,
+                onRemove: () => onRemoveImage(index),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComposerImageTile extends StatelessWidget {
+  const _ComposerImageTile({
+    required this.image,
+    required this.index,
+    required this.onRemove,
+  });
+
+  final PickedChatImage image;
+  final int index;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final fileName = image.fileName.trim();
+
+    return SizedBox(
+      width: 76,
+      height: 76,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(image.path),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const _ChatImageFallback(),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.textMain.withAlpha(170),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
+                child: InkWell(
+                  onTap: onRemove,
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Tooltip(
+                      message: fileName.isEmpty
+                          ? '사진 ${index + 1} 제거'
+                          : '$fileName 제거',
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: AppColors.textInverse,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

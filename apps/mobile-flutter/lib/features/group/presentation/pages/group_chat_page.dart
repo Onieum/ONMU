@@ -31,6 +31,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
 
+  List<PickedChatImage> _selectedImages = const [];
   int _lastRenderedMessageCount = 0;
   String _lastRenderedLastMessageKey = '';
   bool _showJumpToLatest = false;
@@ -51,18 +52,25 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   Future<void> _sendMessage(WidgetRef ref) async {
     final text = _messageController.text.trim();
+    final selectedImages = List<PickedChatImage>.of(_selectedImages);
 
-    if (text.isEmpty) {
+    if (text.isEmpty && selectedImages.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('메시지를 입력해 주세요.')));
+      ).showSnackBar(const SnackBar(content: Text('메시지나 사진을 추가해 주세요.')));
       return;
     }
 
     _messageController.clear();
-    final sendFuture = ref
-        .read(groupChatViewModelProvider(widget.groupId).notifier)
-        .sendMessage(text);
+    if (selectedImages.isNotEmpty) {
+      setState(() => _selectedImages = const []);
+    }
+    final chatViewModel = ref.read(
+      groupChatViewModelProvider(widget.groupId).notifier,
+    );
+    final sendFuture = selectedImages.isEmpty
+        ? chatViewModel.sendMessage(text)
+        : chatViewModel.sendImageMessages(selectedImages, text: text);
     _setJumpToLatestVisible(false);
     _scheduleScrollToBottom();
     final sent = await sendFuture;
@@ -71,14 +79,29 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
     if (!sent) {
       _messageController.text = text;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('메시지를 보내지 못했어요.')));
+      if (selectedImages.isNotEmpty) {
+        setState(() => _selectedImages = selectedImages);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            selectedImages.isEmpty ? '메시지를 보내지 못했어요.' : '사진을 보내지 못했어요.',
+          ),
+        ),
+      );
       return;
     }
   }
 
-  Future<void> _sendImageMessages(WidgetRef ref) async {
+  Future<void> _pickImagesForComposer() async {
+    final remainingCount = maxChatImageAttachmentCount - _selectedImages.length;
+    if (remainingCount <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사진은 한 번에 4장까지 보낼 수 있어요.')));
+      return;
+    }
+
     final pickedImages = await _imagePicker.pickMultiImage(
       imageQuality: 88,
       maxWidth: 1800,
@@ -88,7 +111,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
 
     final selectedImages = pickedImages
-        .take(maxChatImageAttachmentCount)
+        .take(remainingCount)
         .map(
           (picked) => PickedChatImage(
             path: picked.path,
@@ -97,30 +120,34 @@ class _GroupChatPageState extends State<GroupChatPage> {
           ),
         )
         .toList(growable: false);
-    if (pickedImages.length > maxChatImageAttachmentCount && mounted) {
+    if (selectedImages.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectedImages = [
+        ..._selectedImages,
+        ...selectedImages,
+      ].take(maxChatImageAttachmentCount).toList(growable: false);
+    });
+
+    if (pickedImages.length > remainingCount && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('사진은 한 번에 4장까지 보낼 수 있어요.')));
     }
+  }
 
-    final text = _messageController.text.trim();
-    _messageController.clear();
-    final sendFuture = ref
-        .read(groupChatViewModelProvider(widget.groupId).notifier)
-        .sendImageMessages(selectedImages, text: text);
-    _setJumpToLatestVisible(false);
-    _scheduleScrollToBottom();
-    final sent = await sendFuture;
-    if (!mounted) {
+  void _removeSelectedImage(int index) {
+    if (index < 0 || index >= _selectedImages.length) {
       return;
     }
-    if (!sent) {
-      _messageController.text = text;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('사진을 보내지 못했어요.')));
-      return;
-    }
+    final nextImages = [..._selectedImages]..removeAt(index);
+    setState(() => _selectedImages = nextImages);
+  }
+
+  void _clearSelectedImages() {
+    setState(() => _selectedImages = const []);
   }
 
   void _scheduleScrollToBottom() {
@@ -213,10 +240,13 @@ class _GroupChatPageState extends State<GroupChatPage> {
               state: state,
               messageController: _messageController,
               scrollController: _scrollController,
+              selectedImages: _selectedImages,
               showJumpToLatest: _showJumpToLatest,
               onJumpToLatest: _jumpToLatestMessage,
               onSend: () => _sendMessage(ref),
-              onPickImage: () => _sendImageMessages(ref),
+              onPickImage: _pickImagesForComposer,
+              onRemoveSelectedImage: _removeSelectedImage,
+              onClearSelectedImages: _clearSelectedImages,
               onLoadSettlementCandidatePlans: () => ref
                   .read(groupChatViewModelProvider(widget.groupId).notifier)
                   .loadSettlementCandidatePlans(),
@@ -260,10 +290,13 @@ class _ThreadContent extends StatelessWidget {
     required this.state,
     required this.messageController,
     required this.scrollController,
+    required this.selectedImages,
     required this.showJumpToLatest,
     required this.onJumpToLatest,
     required this.onSend,
     required this.onPickImage,
+    required this.onRemoveSelectedImage,
+    required this.onClearSelectedImages,
     required this.onLoadSettlementCandidatePlans,
     required this.onLoadOlderMessages,
     required this.onRetryMessage,
@@ -272,10 +305,13 @@ class _ThreadContent extends StatelessWidget {
   final GroupChatState state;
   final TextEditingController messageController;
   final ScrollController scrollController;
+  final List<PickedChatImage> selectedImages;
   final bool showJumpToLatest;
   final VoidCallback onJumpToLatest;
   final Future<void> Function() onSend;
   final Future<void> Function() onPickImage;
+  final ValueChanged<int> onRemoveSelectedImage;
+  final VoidCallback onClearSelectedImages;
   final Future<List<GroupPlanSummary>> Function()
   onLoadSettlementCandidatePlans;
   final Future<void> Function() onLoadOlderMessages;
@@ -344,8 +380,12 @@ class _ThreadContent extends StatelessWidget {
       ),
       bottom: _MessageInput(
         controller: messageController,
+        selectedImages: selectedImages,
         onSend: onSend,
         onOpenActions: () => _showChatActions(context),
+        onAddImage: onPickImage,
+        onRemoveImage: onRemoveSelectedImage,
+        onClearImages: onClearSelectedImages,
       ),
       floatingActionButton: showJumpToLatest
           ? FloatingActionButton.small(
@@ -1137,13 +1177,21 @@ class _DateDivider extends StatelessWidget {
 class _MessageInput extends StatelessWidget {
   const _MessageInput({
     required this.controller,
+    required this.selectedImages,
     required this.onSend,
     required this.onOpenActions,
+    required this.onAddImage,
+    required this.onRemoveImage,
+    required this.onClearImages,
   });
 
   final TextEditingController controller;
+  final List<PickedChatImage> selectedImages;
   final Future<void> Function() onSend;
   final VoidCallback onOpenActions;
+  final VoidCallback onAddImage;
+  final ValueChanged<int> onRemoveImage;
+  final VoidCallback onClearImages;
 
   @override
   Widget build(BuildContext context) {
@@ -1153,35 +1201,55 @@ class _MessageInput extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.lineSoft),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(width: AppSpacing.sm),
-          IconButton(
-            tooltip: '채팅 액션',
-            onPressed: onOpenActions,
-            icon: const Icon(
-              Icons.add_circle_outline,
-              color: AppColors.primaryPink,
+          if (selectedImages.isNotEmpty) ...[
+            ChatComposerImageTray(
+              images: selectedImages,
+              onAddImage: onAddImage,
+              onRemoveImage: onRemoveImage,
+              onClearImages: onClearImages,
             ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onSubmitted: (_) => onSend(),
-              decoration: InputDecoration(
-                hintText: '메시지를 입력해보세요',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
+            const Divider(height: 1, color: AppColors.lineSoft),
+          ],
+          Row(
+            children: [
+              const SizedBox(width: AppSpacing.sm),
+              IconButton(
+                tooltip: '채팅 액션',
+                onPressed: onOpenActions,
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  color: AppColors.primaryPink,
+                ),
               ),
-            ),
-          ),
-          IconButton(
-            tooltip: '전송',
-            onPressed: onSend,
-            icon: const Icon(Icons.send_outlined),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  onSubmitted: (_) => onSend(),
+                  decoration: InputDecoration(
+                    hintText: selectedImages.isEmpty
+                        ? '메시지를 입력해보세요'
+                        : '사진에 메시지를 더해보세요',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: '전송',
+                onPressed: onSend,
+                icon: Icon(
+                  selectedImages.isEmpty
+                      ? Icons.send_outlined
+                      : Icons.send_rounded,
+                ),
+              ),
+            ],
           ),
         ],
       ),
