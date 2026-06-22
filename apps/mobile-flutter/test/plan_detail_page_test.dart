@@ -32,6 +32,9 @@ void main() {
     await tester.pumpWidget(_planDetailTestApp(_PlanDetailTestRepository()));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('6/18 목'), 240);
+    await tester.pumpAndSettle();
+
     expect(find.text('6/18 목'), findsOneWidget);
     expect(find.text('6/7 토'), findsNothing);
   });
@@ -81,6 +84,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_planDetailTestApp(_PlanDetailTestRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('일정 타임라인'), 320);
     await tester.pumpAndSettle();
 
     expect(find.text('일정 타임라인'), findsOneWidget);

@@ -2039,7 +2039,7 @@ void main() {
     expect(find.text('저녁'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('카페'), 240);
     expect(find.text('카페'), findsOneWidget);
-    expect(find.text('개별 금액'), findsOneWidget);
+    expect(find.text('메뉴별'), findsOneWidget);
     expect(find.text('최종 정산 미리보기'), findsOneWidget);
     expect(find.textContaining('참여자별'), findsNothing);
   });

@@ -2,377 +2,170 @@
 
 ## 목적
 
-이 문서는 ONMU 정산 영역을 현재 구현, 목표 아키텍처, Current-to-Target Delta로 나누어 정리한다. 정산은 모임 전체 기능이 아니라 반드시 `groups/{groupId}/plans/{planId}` 하위의 약속 단위 도메인이다. 사용자는 한 약속에서 발생한 결제 항목을 입력하고, 항목별 대상자를 고른 뒤, 미리보기로 송금 방향을 확인하고, 최종 정산 결과를 채팅 카드와 알림으로 공유해야 한다.
+정산은 `groups/{groupId}/plans/{planId}` 하위의 약속 단위 협업 도메인이다. 사용자는 진행중이거나 지난 약속에서 방문장소별 지출을 입력하고, 서버가 계산한 최소 이체 결과를 확인한 뒤, 수취 완료 확인까지 처리한다.
 
-현재 구현은 Spring Boot Main API의 REST endpoint, PostgreSQL/Flyway core table, Flutter route/repository/ViewModel/screen mutation, ChatActivity 카드 append, 사용자별 notification row 생성까지 연결된 vertical slice다. 다만 실제 push provider delivery, custom split 금액 직접 입력, 송금 확인/분쟁 상태, production-grade idempotency는 아직 목표 구조와 차이가 있다.
+Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 source of truth는 Spring Boot Main API다.
 
-구현 근거는 `services/api-spring/src/main/java/com/onmu/api/web/ApiController.java`, `services/api-spring/src/main/java/com/onmu/api/service/SettlementApiService.java`, `services/api-spring/src/main/java/com/onmu/api/domain/Settlement*`, `services/api-spring/src/main/resources/db/migration/V1/V3/V4/V5/V9`, `apps/mobile-flutter/lib/features/settlement/**`, `apps/mobile-flutter/lib/features/group/presentation/pages/plan_settlement_*`, `apps/mobile-flutter/lib/shared/models/settlement_models.dart`를 기준으로 확인했다.
+## 상태 모델
 
-## 제품 원칙
-
-| 원칙 | 의미 |
-| --- | --- |
-| 정산은 약속 하위 도메인이다 | 정산 route, table 관계, 화면 이동은 모두 `group -> plan -> settlement` 경계를 따른다. |
-| draft, preview, create, result를 분리한다 | 편집 상태, 계산 검증, 최종 생성, 결과 read model은 서로 다른 API/상태로 다룬다. |
-| 구조화 table을 우선한다 | `settlement_items`, `settlement_item_targets`, `settlement_transfers`가 조회와 계산의 우선 원장이고, `payload` JSON은 compact fallback과 mock 호환 snapshot이다. |
-| 사용자 ID가 이름보다 우선한다 | `payerUserId`, `targetUserIds`가 canonical 계약이고, `payerName`, `targetNames`는 dev seed와 과거 mock 호환 fallback이다. |
-| 금액은 KRW 원 단위 정수다 | API의 `amountWon`과 현재 DB `amount_cents` 물리 컬럼은 모두 원 단위 integer로 해석한다. 컬럼명은 legacy mismatch다. |
-| 정산 생성은 side effect를 남긴다 | 최종 생성은 `settlement.created`와 `notification.requested`를 outbox에 남기고, 목표 구조에서는 ChatActivity 카드와 사용자별 알림 row까지 같은 domain transaction에서 만든다. |
-| 실제 결제/송금은 별도 범위다 | 현재 `settlement_transfers`는 송금 요약 projection이고, Toss Payments/PortOne 같은 실제 결제 연동은 목표 외부 후보로만 둔다. |
-
-## Current Implementation
-
-### Spring API
-
-현재 public route는 `ApiController`가 받고 `SettlementApiService`로 위임한다.
-
-| 기능 | API | 현재 동작 |
-| --- | --- | --- |
-| Draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | 저장된 draft가 있으면 table 기반 preview를 반환한다. 없으면 저장하지 않은 synthetic draft를 `persisted=false`, `targetPatchAvailable=false`로 반환한다. |
-| Draft 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | `items`를 필수로 받고 draft payload와 `settlement_items`, `settlement_item_targets`를 교체 저장한다. |
-| 항목 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft/item이 있을 때만 대상자를 교체하고 금액을 균등 분배한다. |
-| Preview | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 요청 items만으로 송금 방향을 계산한다. DB write와 outbox write는 하지 않는다. |
-| Create | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`, ChatActivity 카드, 사용자별 notification row를 저장하고 outbox event를 기록한다. |
-| Result 최신 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` | 최신 settlement가 있으면 결과를 반환하고, 없으면 draft 또는 빈 draft 기반 preview를 반환한다. |
-| Result ID 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | plan 하위 public settlement id로 결과를 조회한다. |
-
-요청 items가 없으면 `400 missing_settlement_items`를 반환한다. 음수 금액은 `400 invalid_settlement_amount`다. 사용자 public id가 없거나 이름 fallback 조회가 실패하면 `400 settlement_member_not_found`다. 이름 fallback에서 같은 표시 이름이 여러 사용자와 매칭되면 `400 ambiguous_settlement_member_name`이다.
-
-현재 `OnmuApiService`에도 과거 settlement helper가 남아 있지만, web route는 `SettlementApiService`를 사용한다. 문서 기준 Current Implementation은 `SettlementApiService`와 `ApiController` 경로를 canonical로 본다.
-
-### Spring Data / Flyway
-
-| Table | 현재 역할 | Source of truth 여부 |
-| --- | --- | --- |
-| `settlement_drafts` | 약속별 편집 draft row와 compact payload snapshot | draft envelope 원장 |
-| `settlements` | 최종 생성된 settlement envelope와 compact payload snapshot | result envelope 원장 |
-| `settlement_items` | draft 또는 settlement에 연결된 결제 항목 | 항목 read/calculation 우선 원장 |
-| `settlement_item_targets` | 항목별 부담 대상자와 분배 금액 | 대상자 read/calculation 우선 원장 |
-| `settlement_transfers` | 최종 정산 결과의 송금 요약 | result projection |
-| `settlement_confirmations` | 송금 확인 scaffold table | 현재 runtime 미사용, 후속 확인/분쟁 확장 후보 |
-| `outbox_events` | 정산 생성 후 side effect event | 비동기 side effect 원장 |
-
-`V1__core_schema_scaffold.sql`은 `settlement_drafts`, `settlements`를 만든다. `V3__vertical_slice_contract_tables.sql`은 public id와 초기 payload seed를 더한다. `V4__core_schema_data_dictionary.sql`은 `settlement_items`, `settlement_item_targets`, `settlement_transfers`, `settlement_confirmations`를 만든다. `V5__core_seed_data_dictionary.sql`과 `V9__screen_aligned_dev_seed.sql`은 screen/dev smoke용 정산 seed를 보강한다.
-
-조회는 structured table을 먼저 사용한다. `settlement_items`가 없으면 `payload.items`를 읽어 과거 Flutter mock payload와 V3 seed를 fallback으로 해석한다. payer 정보는 현재 별도 payer table이 없으므로 payload의 `payerShares`, `payerUserId`, `payerName`에서 읽는다.
-
-### Flutter 흐름
-
-Flutter route는 모두 plan 하위다.
-
-```text
-/groups/:groupId/plans/:planId/settlements/new
-/groups/:groupId/plans/:planId/settlements/new/items/:itemId/targets
-/groups/:groupId/plans/:planId/settlements/new/preview
-/groups/:groupId/plans/:planId/settlements/:settlementId
-```
-
-현재 `SettlementRepository`는 draft 조회, preview, create, result 조회 API 메서드를 제공한다. `SettlementDraftItemInput.toJson()`은 `amount`와 `amountWon`을 함께 보내고, `payerUserId`, `targetUserIds`가 있으면 포함한다.
-
-현재 화면 구현은 draft 편집과 결과 조회 ViewModel을 분리한다. 정산 만들기 화면은 그룹 멤버를 기반으로 결제 항목을 추가하고 `PATCH /settlement-draft`로 저장한다. 대상자 선택 화면은 `PATCH /settlement-draft/items/{itemId}/targets`를 호출한다. preview 화면의 `정산 만들기` 버튼은 `POST /settlements`를 호출한 뒤 생성된 settlement detail route로 이동한다.
-
-### ChatActivity / Notification 현재 경계
-
-`createSettlement`는 현재 같은 transaction 안에서 final settlement 원장, ChatActivity 카드, 사용자별 notification row, outbox를 기록한다.
-
-| Event | aggregate | payload 현재 필드 |
-| --- | --- | --- |
-| `settlement.created` | `settlement` | `groupId`, `planId`, `settlementId` |
-| `notification.requested` | `notification` | `groupId`, `planId`, `settlementId`, `notificationId`, `notificationType=settlement_created`, `channels=[push]` |
-
-runtime create 경로는 `chat_activity_events`에 `messageType=settlement_card`, `cardType=settlement` payload를 append하고, 정산 payer/target 참여자별 `notifications` row를 만든다. `notification.requested`는 실제 notification row의 UUID를 aggregate와 payload에 포함하므로 `NotificationDeliveryService`가 dev-safe `notification_deliveries` projection을 만들 수 있다. 실제 FCM/APNs provider 발송 성공은 별도 provider secret과 device readiness smoke 범위다. 알림 inbox, device registry, provider delivery의 자세한 목표 경계는 [Notification / Push / Devices 아키텍처](./notification-push-devices-architecture.md)를 따른다.
-
-## Target Architecture
-
-```mermaid
-flowchart LR
-    view["Flutter Settlement Views"]
-    vm["Settlement ViewModel"]
-    repo["Settlement Repository"]
-    api["Spring Boot Main API"]
-    db["PostgreSQL core tables"]
-    outbox["outbox_events"]
-    activity["chat_activity_events"]
-    inbox["notifications"]
-    deliveries["notification_deliveries"]
-    queue["Azure Event Hubs"]
-    notification["Notification Worker or Spring adapter"]
-    realtime["Realtime Gateway"]
-    monitor["Application Insights / Azure Monitor"]
-    kv["Azure Key Vault"]
-
-    view --> vm
-    vm --> repo
-    repo --> api
-    api --> db
-    api --> activity
-    api --> inbox
-    api --> outbox
-    outbox --> queue
-    queue --> notification
-    queue --> realtime
-    notification --> deliveries
-    api --> monitor
-    notification --> monitor
-    realtime --> monitor
-    kv --> api
-    kv --> notification
-```
-
-목표 구조에서 Flutter는 계속 Spring Boot Main API만 호출한다. Spring은 group membership, plan ownership, participant 권한을 확인한 뒤 draft 저장, preview 계산, create transaction을 처리한다. 최종 생성 transaction은 `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`, `chat_activity_events`, `notifications`, `outbox_events`를 일관되게 기록한다.
-
-Realtime Gateway와 Notification Worker는 outbox/queue의 소비자다. 이들은 정산 원장을 직접 만들거나 수정하지 않는다. FastAPI AI/Data Worker도 정산 core table을 직접 변경하지 않는다.
-
-## Current-to-Target Delta
-
-| 구분 | 현재 | 목표 | 소유 |
+| 상태 | 설명 | 변경 가능 여부 | 채팅 노출 |
 | --- | --- | --- | --- |
-| Flutter draft mutation | 구현됨 | ViewModel action이 `PATCH /settlement-draft`, item targets PATCH를 호출 | Flutter |
-| Flutter create mutation | 구현됨 | preview/detail 화면에서 `POST /settlements` 결과와 오류를 ViewModel state로 관리 | Flutter |
-| Auth viewer | `mySummaryLabel`, `isMe` 계산이 dev seed 첫 사용자 기준 | 인증된 viewer id 기준 계산 | Spring |
-| Payer normalization | payer table 없음, payload payerShares 의존 | `settlement_item_payers` 또는 item-level payer role table 도입 여부 결정 | Spring/Flyway |
-| ChatActivity card | 구현됨 | `settlement.created` 카드 snapshot을 `chat_activity_events`에 append | Spring |
-| Notification row | 구현됨 | 참여자별 inbox row 생성 후 `notification.requested` payload에 `notificationId` 포함 | Spring |
-| Outbox delivery | 구현됨 | provider delivery 대상 event는 aggregate `notification`과 payload `notificationId` 사용 | Spring/Worker |
-| Event stream | Spring scheduled outbox가 일부 event 직접 처리 | Event Hubs 기반 publisher/consumer, checkpoint/replay/idempotency | Spring/Terraform |
-| Amount naming | DB 컬럼이 `amount_cents`지만 원 단위 저장 | 컬럼 rename 또는 문서화된 legacy name 유지 결정 | Spring/Flyway |
-| Observability | dev smoke와 단위 테스트 중심 | create latency, outbox 상태, notification/card 생성 drift 지표 | Observability |
+| `draft` | 약속 참여자들이 장소/항목/대상자를 편집하는 상태 | 가능 | `정산 입력 중` 배너 |
+| `finalized` | 이체 방향과 금액이 확정된 상태 | 항목 편집 불가, transfer confirmation 가능 | 정산 공지 |
+| `completed` | 수취자 전원이 수취 완료를 확인한 상태 | 불가 | 숨김 |
+
+한 약속에는 활성 `draft` 또는 `finalized` 정산을 하나만 허용한다. `completed`는 결과 조회 대상이지만 채팅 상단 활성 공지에는 포함하지 않는다.
+
+## 생성 가능 조건
+
+정산 생성은 인증 사용자가 해당 모임 멤버이면서 해당 약속의 활성 참여자인 경우에만 가능하다.
+
+약속 시간 조건:
+
+- `startsAt`이 없으면 정산 생성 불가.
+- `now < startsAt`이면 `settlement_plan_not_eligible`.
+- `now >= startsAt`이면 진행중/지난 약속으로 보고 생성 가능.
+- `endsAt`이 없으면 `startsAt`만 기준으로 판단한다.
 
 ## API Contract
 
-### Public Flutter API
-
-| API | Caller | Response/side effect |
+| 기능 | API | 설명 |
 | --- | --- | --- |
-| `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | create screen | draft envelope와 `preview` summary를 반환한다. 저장 draft가 없으면 synthetic draft다. |
-| `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | draft edit ViewModel | items를 저장하고 structured item/target table을 교체한다. |
-| `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | target selection ViewModel | 저장된 draft item의 대상자를 교체한다. |
-| `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | preview ViewModel | write 없이 계산 결과를 반환한다. |
-| `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | create ViewModel | 최종 settlement를 만들고 side effect outbox를 기록한다. |
-| `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` | detail/chat auxiliary | 최신 result 또는 draft preview를 반환한다. |
-| `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | result screen | 특정 settlement result를 반환한다. |
+| draft 생성 또는 기존 draft 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active finalized가 있으면 `409 active_settlement_exists` |
+| active draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | active draft가 없으면 `404 settlement_draft_not_found` |
+| draft 전체 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | section/item/target 전체를 저장한다. 저장 요청 단위 pessimistic lock 적용 |
+| item 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft item의 대상자를 교체한다 |
+| preview 계산 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 저장된 draft 기준 계산. DB write 없음 |
+| 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | draft를 finalized settlement로 확정 |
+| 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft, finalized, completed 중 현재 상태 조회 |
+| 결과 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | 특정 settlement 결과 조회 |
+| 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` | section별 부담 계산과 transfer 근거 조회 |
+| 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` | 송금자만 호출 가능 |
+| 수취 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received` | 수취자만 호출 가능 |
 
-### Request item
+### Draft 저장 요청
 
 ```json
 {
-  "id": "401",
-  "title": "커피",
-  "amountWon": 12000,
-  "amount": 12000,
-  "payerUserId": "user-jimin",
-  "payerName": "지민",
-  "splitType": "equal",
-  "targetUserIds": ["user-jimin", "user-minsu"],
-  "targetNames": ["지민", "민수"]
+  "sections": [
+    {
+      "id": "section-extra",
+      "schedulePlaceId": "place-101",
+      "title": "퍼스트커피랩행궁",
+      "payerUserId": "user-jimin",
+      "items": [
+        {
+          "id": "item-401",
+          "title": "커피",
+          "amountWon": 12000,
+          "splitType": "menu",
+          "targetUserIds": ["user-jimin", "user-minsu"]
+        }
+      ]
+    }
+  ],
+  "memo": "선택 메모"
 }
 ```
 
-규칙:
+요청 규칙:
 
-- `amountWon`이 canonical 금액 필드다. `amount`는 Flutter/mock 호환 필드다.
-- 금액은 KRW 원 단위 integer다.
-- `payerUserId`, `targetUserIds`를 우선 사용한다.
-- public user id가 있으면 표시 이름은 fallback이나 화면 표시용 snapshot으로만 본다.
-- user id가 없을 때만 `payerName`, `targetNames` fallback을 사용한다.
-- 이름 fallback에서 동명이인이 있으면 `ambiguous_settlement_member_name`을 반환한다.
-- `splitType=custom`은 현재 저장/표시 label을 구분하지만, target별 금액 입력 UI와 API는 후속 보강이 필요하다.
+- 금액 필드는 `amountWon`만 사용한다.
+- 사용자 식별자는 DB UUID가 아니라 API public user id를 사용한다.
+- 이름 필드로 결제자나 대상자를 resolve하지 않는다.
+- `splitType`은 `equal`, `menu`만 허용한다.
+- `targetUserIds`가 비어 있으면 약속 활성 참여자 전체를 대상으로 본다.
+- `amountWon <= 0`이면 `invalid_settlement_amount`.
+- 대상자가 없으면 `missing_settlement_targets`.
 
-## Event / Outbox / Side Effect Model
+## DB Schema
 
-| Event | Current | Target |
-| --- | --- | --- |
-| `settlement.created` | create transaction에서 outbox에 기록된다. 현재 consumer 없음으로 `no_consumer`가 될 수 있다. | ChatActivity, notification, analytics fan-out의 domain event로 사용한다. |
-| `notification.requested` | create transaction에서 `aggregateType=notification`, `notificationId` 포함으로 기록된다. | 실제 push provider 발송은 device/provider secret readiness 뒤 검증한다. |
-| ChatActivity card | runtime create에서 정산 카드 `chat_activity_events`를 append한다. | Realtime fan-out과 카드 rendering smoke를 보강한다. |
-| Notification inbox | runtime create에서 참여자별 `notifications` row를 만든다. | 알림 tap, read/read-all, push preference smoke를 보강한다. |
-| Push delivery | `notification.requested`에 실제 `notifications.id`인 `notificationId`를 포함한다. | 결과는 `notification_deliveries`에 기록하며 실제 provider 성공은 별도 smoke로 판정한다. |
+| 테이블 | 역할 |
+| --- | --- |
+| `settlement_drafts` | 약속별 active draft envelope, status, version, finalized settlement link |
+| `settlements` | finalized/completed result envelope |
+| `settlement_sections` | 방문장소 또는 기타 비용 section, section-level payer |
+| `settlement_items` | section 안의 결제 항목, `amount_won`, split type |
+| `settlement_item_targets` | item별 부담 대상자와 `amount_won` |
+| `settlement_transfers` | finalized 결과의 최소 이체 목록과 transfer status |
+| `settlement_confirmations` | `sent`, `received` confirmation event |
 
-목표 transaction 순서:
+정산 금액 물리 컬럼은 `amount_won`이다. API도 `amountWon`만 노출한다.
 
-1. group/plan/member 권한을 검증한다.
-2. request items를 user id 기준으로 정규화한다.
-3. `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 저장한다.
-4. `chat_activity_events`에 정산 카드 snapshot을 append한다.
-5. 참여자별 `notifications` row를 만든다.
-6. `settlement.created`, `notification.requested` outbox를 기록한다. 이때 provider delivery 대상 `notification.requested`는 `notificationId`를 포함하고, ChatActivity/activity-only 이벤트와 구분한다.
-7. commit 이후 Realtime/Notification worker가 outbox를 소비한다.
+## Lock / Concurrency
 
-## Data Model and Source of Truth
+Draft mutation과 finalize는 plan의 active draft를 pessimistic write lock으로 조회한 뒤 처리한다.
 
-| 데이터 | Current source of truth | Target source of truth |
-| --- | --- | --- |
-| Draft envelope | `settlement_drafts` | 동일. plan당 active draft 정책 보강 |
-| Draft items | `settlement_items.settlement_draft_id` 우선, 없으면 `settlement_drafts.payload.items` fallback | structured table만 canonical, payload는 compatibility snapshot |
-| Final settlement envelope | `settlements` | 동일 |
-| Final items | `settlement_items.settlement_id` 우선, 없으면 `settlements.payload.items` fallback | structured table만 canonical |
-| Payer shares | payload `payerShares`/`payerUserId` | 별도 payer table 또는 item payer role 결정 필요 |
-| Targets | `settlement_item_targets` | 동일 |
-| Transfers | `settlement_transfers` | 동일. 실제 송금 완료 확인은 confirmation/status 확장 |
-| Chat card | `chat_activity_events` append-only stream | 동일. realtime/card rendering smoke 보강 |
-| In-app notification | `notifications` 사용자별 inbox | 동일. tap/read/read-all smoke 보강 |
-| Push delivery | `notification_deliveries` provider result projection | 실제 provider delivery readiness 보강 |
+정책:
 
-`payload` JSON에는 화면 fallback에 필요한 `items`, `payerShares`, `shareMessage` 등을 compact snapshot으로 남길 수 있다. 하지만 query, 권한, 정산 계산, migration 검증에 필요한 값은 structured table이 우선이다.
+- draft는 약속 참여자 누구나 전체 편집 가능하다.
+- 같은 draft에 대한 동시 저장은 서버 transaction에서 직렬화한다.
+- 동일 부분이 동시에 수정되면 마지막으로 commit된 저장 결과가 남는다.
+- Flutter는 `settlement_write_conflict` 또는 lock 관련 409를 받으면 최신 draft를 다시 조회하고 “다른 참여자의 변경을 반영했어요. 다시 확인해 주세요.”로 안내한다.
+
+## 계산 정책
+
+서버는 다음 순서로 계산한다.
+
+1. 각 item의 결제자는 section의 `payerUserId`다.
+2. `menu` item은 지정 대상자에게 균등 배분한다.
+3. `equal` item은 약속 활성 참여자 전체에게 균등 배분한다.
+4. 나머지 원 단위는 대상자의 `publicId` 오름차순으로 1원씩 배분한다.
+5. 사용자별 `paidTotal`, `owedTotal`, `net = paidTotal - owedTotal`을 계산한다.
+6. `net < 0`인 사용자를 debtor, `net > 0`인 사용자를 creditor로 나누고 public id 오름차순으로 greedy matching한다.
+7. 생성된 transfer가 없으면 finalize 즉시 `completed`로 전환한다.
+
+## Side Effect
+
+| 시점 | side effect |
+| --- | --- |
+| draft 생성 | 채팅 보조 상태에서 `정산 입력 중` 배너로 노출 가능 |
+| finalized | `chat_activity_events` 정산 카드, 사용자별 notification, `settlement.finalized`, `notification.requested` outbox 기록 |
+| completed | `settlement.completed` outbox 기록, 채팅 상단 정산 영역 숨김 |
+
+Push provider credential은 정산 도메인 범위가 아니다. 실제 provider delivery는 notification/push 문서의 secret boundary를 따른다.
 
 ## Flutter Boundary
 
 Flutter 책임:
 
-- `/groups/:groupId/plans/:planId/settlements/*` route의 화면 렌더링.
-- draft item 입력, 대상자 선택, preview/create button state.
-- `SettlementRepository`를 통한 Spring API 호출.
-- API 오류를 사용자-facing state로 변환.
-- Chat screen에서 정산 카드 tap 시 settlement result route로 이동.
+- 약속 상세에서 진행중/지난 약속에만 정산 CTA 노출.
+- 채팅 상단 draft 배너와 finalized 공지 표시.
+- `+ -> 정산 생성하기`에서 진행중/지난 약속 선택 후 정산 화면 이동.
+- 장소 section, 항목, 대상자 입력 UI.
+- preview/finalized/completed 화면 상태 전환.
+- transfer confirmation 버튼과 확인 dialog.
+- 정산 근거 화면 이동.
 
 Flutter 금지:
 
-- PostgreSQL, Event Hubs, Redis, Key Vault, Worker internal endpoint 직접 호출.
-- 정산 계산의 최종 source of truth를 local state로 확정.
-- JWT signing secret, DB password, provider credential, payment secret 저장.
-- 실제 정산/송금 데이터를 로그나 analytics custom field에 원문으로 남기기.
+- 로컬에서 최종 이체 결과를 source of truth로 확정하지 않는다.
+- 이름으로 사용자 dedupe/resolve를 하지 않는다.
+- request/response body, 메모, 메뉴명, 금액 상세를 Sentry에 보내지 않는다.
 
-현재 gap:
+## Error Contract
 
-- custom split은 label과 대상자 선택까지 가능하지만 대상자별 금액 직접 입력 UI는 없다.
-- `SettlementSummary.id`는 Flutter에서 string route id로 다루지만, 기존 seed와 일부 테스트 데이터는 숫자 문자열을 계속 사용한다.
-- 실제 모바일 smoke에서 채팅 카드 tap, 알림 tap, 앱 재시작 뒤 결과 재진입을 staging 기준으로 확인해야 한다.
-
-## Spring / Worker Boundary
-
-Spring Boot Main API 책임:
-
-- `groups/{groupId}/plans/{planId}` 하위 정산 route 제공.
-- group/plan membership 권한 검증.
-- request item normalization과 금액 검증.
-- structured table 저장과 read model 생성.
-- domain transaction과 outbox 기록.
-- Flutter-facing `/api/v1` contract 유지.
-
-현재 구현은 `groupId`, `planId` 존재와 plan이 해당 group에 속하는지만 확인하고, 인증 사용자별 plan participant/membership enforcement는 target gap으로 남아 있다. production 전에는 ChatActivity처럼 viewer identity를 주입해 `mySummaryLabel`, `isMe`, mutation 권한을 같은 기준으로 계산해야 한다.
-
-Worker / Realtime / Notification 책임:
-
-- outbox/queue message 소비.
-- ChatActivity fan-out, push delivery, retry/dead-letter 처리.
-- provider delivery 결과를 projection으로 남기기.
-
-Worker 금지:
-
-- 정산 core table의 DDL 소유.
-- Flutter-facing settlement API 제공.
-- Spring 권한 검증을 우회한 settlement mutation.
-
-## Terraform Resource Implications
-
-| 필요 기능 | 현재 구현 | 목표 구조 | Azure 리소스 후보 | Terraform 소유 여부 |
-| --- | --- | --- | --- | --- |
-| Public API runtime | Windows Spring dev runtime | ACA staging 또는 AKS production | Container Apps, AKS, ACR | 예 |
-| Core DB | Local/dev PostgreSQL + Flyway | PostgreSQL Flexible Server private access | Azure Database for PostgreSQL Flexible Server, VNet/private endpoint | 서버/네트워크만 |
-| Async side effect | Spring scheduled outbox | Event stream 기반 fan-out | Azure Event Hubs | 예 |
-| Realtime card delivery | Spring chat SSE vertical slice | Realtime Gateway + Redis | Azure Cache for Redis, ingress | 예 |
-| Notification delivery | dev-safe provider abstraction | Notification worker/provider adapter | Event Hubs, Container Apps/AKS service | 예 |
-| Observability | tests/log 중심 | trace/metric/log | Application Insights, Log Analytics, Azure Monitor | 예 |
-| Secret boundary | local env/Key Vault 문서화 | Managed Identity + Key Vault references | Azure Key Vault, Managed Identity | 예 |
-
-Terraform이 소유하지 않는 것:
-
-- `settlement_drafts`, `settlements`, `settlement_items`, `settlement_item_targets`, `settlement_transfers` DDL.
-- Flyway migration history.
-- seed data.
-- 정산 API request/response schema.
-- 정산 계산 로직.
-- 실제 사용자 정산 데이터.
-
-## Secret / Key Vault / Managed Identity Boundary
-
-정산 core 자체에는 별도 provider secret이 없다. 정산 API는 Spring runtime의 공통 DB/JWT/queue/observability secret boundary를 따른다.
-
-| 목적 | Env var 후보 | Key Vault secret name 후보 | Flutter 전달 여부 |
-| --- | --- | --- | --- |
-| Spring DB 접속 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_PASSWORD` | 환경별 DB password secret | 금지 |
-| ONMU access JWT 검증 | `ONMU_ACCESS_TOKEN_SECRET` | `dev-access-token-secret`, `int-access-token-secret`, `prod-access-token-secret` | 금지 |
-| Event stream publish/consume | Event Hubs connection 또는 Managed Identity 기반 설정 | 환경별 Event Hubs secret/reference 후보 | 금지 |
-| Worker URL fallback | `ONMU_WORKER_URL` | secret보다 config/env 후보 | 금지 |
-| Observability | `APPLICATIONINSIGHTS_CONNECTION_STRING` | 환경별 App Insights connection secret 후보 | 금지 |
-
-Managed Identity 기준:
-
-- Azure runtime이 Key Vault와 Event Hubs에 접근한다.
-- 일반 팀원 smoke는 secret 값을 출력하지 않고, 필요한 경우 로컬 프로세스 env 또는 git ignored dart-define 파일만 사용한다.
-- Terraform plan은 가능하지만 apply, Azure 리소스 생성/삭제, Key Vault secret 값 쓰기는 사람 승인 전 수행하지 않는다.
-
-## Observability and Smoke Test
-
-### 최소 지표
-
-| 지표 | 의미 |
+| code | 의미 |
 | --- | --- |
-| `settlement.draft.saved.count` | draft 저장량 |
-| `settlement.preview.requested.count` | preview 계산량 |
-| `settlement.created.count` | 최종 settlement 생성량 |
-| `settlement.create.latency_ms` | create transaction latency |
-| `settlement.outbox.created.count` | 생성 후 outbox 기록 수 |
-| `settlement.notification.missing_id.count` | provider 대상 notification id 누락 |
-| `settlement.chat_activity.created.count` | 정산 카드 append 수 |
-| `settlement.transfer.count` | 생성된 transfer 수 |
-| `settlement.validation_error.count` | amount/member/name ambiguity 오류 |
+| `settlement_plan_not_eligible` | 시작 전 약속이라 정산 생성 불가 |
+| `active_settlement_exists` | active finalized settlement가 이미 있음 |
+| `settlement_draft_not_found` | active draft 없음 |
+| `settlement_already_finalized` | draft가 이미 finalized |
+| `settlement_already_completed` | completed settlement 변경 시도 |
+| `settlement_write_conflict` | draft 동시 저장 충돌 또는 lock 충돌 |
+| `invalid_settlement_amount` | 금액이 0 이하 |
+| `missing_settlement_targets` | 부담 대상자 없음 |
+| `settlement_participant_not_found` | 요청 사용자 또는 대상자가 약속 활성 참여자가 아님 |
+| `settlement_transfer_not_found` | transfer 없음 |
+| `settlement_confirmation_forbidden` | transfer 송금자/수취자가 아닌 사용자의 확인 시도 |
 
-### Dev-safe smoke
+Sentry 정책은 `frontend-architecture.md`의 오류 처리와 관측성 규칙을 따른다. 400/409 계열은 사용자 안내 중심으로 처리하고, 5xx/contract mismatch/unknown은 보고한다.
 
-보호 API는 기존 Spring dev API mode처럼 짧은 수명 ONMU access JWT를 사용한다. token 값은 출력하지 않는다.
+## Smoke 기준
 
-1. `GET /api/v1/groups/1/plans/103/settlement-draft`로 draft envelope와 preview가 반환되는지 확인한다.
-2. `POST /api/v1/groups/1/plans/103/settlements/preview`에 `amountWon`, `payerUserId`, `targetUserIds`를 넣어 DB write 없이 계산되는지 확인한다.
-3. `POST /api/v1/groups/1/plans/103/settlements`가 `201 Created`와 settlement id를 반환하는지 확인한다.
-4. `GET /api/v1/groups/1/plans/103/settlements/{settlementId}`가 structured item/target/transfer 기반 결과를 반환하는지 확인한다.
-5. DB 또는 repository-level test에서 `settlement.created` outbox가 생성되는지 확인한다.
-6. 현재 runtime에서는 `notification.requested`가 실제 push 성공을 의미하지 않음을 확인한다.
-7. Flutter는 target 저장/create mutation이 붙기 전까지 화면 route smoke와 repository serialization test를 별도로 본다.
-
-## Migration Risks
-
-- `amount_cents` 컬럼명을 문자 그대로 해석하면 원 단위 금액을 100분의 1로 오해할 수 있다.
-- `payload` fallback을 canonical로 계속 사용하면 query, 권한, migration 검증이 어려워진다.
-- 이름 fallback을 production에서 허용하면 동명이인 오류와 잘못된 대상자 지정 위험이 커진다.
-- custom split 금액 입력 없이 `custom` label만 노출하면 사용자가 개별 금액 정산으로 오해할 수 있다.
-- `notification.requested`에는 `notificationId`가 포함되지만 실제 provider 발송 성공은 preference/device/provider secret readiness에 의존한다.
-- ChatActivity card row는 생성되지만 realtime/card rendering smoke가 없으면 사용자가 채팅에서 즉시 확인하는 흐름을 놓칠 수 있다.
-- Terraform이 core table DDL을 만들면 Spring Flyway와 schema ownership 충돌이 난다.
-- 실제 결제/송금 연동을 정산 MVP와 섞으면 보안, 법적 책임, PG credential 관리 범위가 급격히 커진다.
-
-## Decision Log
-
-| 결정 | 상태 | 근거 | 남은 질문 |
-| --- | --- | --- | --- |
-| 정산은 `groups/{groupId}/plans/{planId}` 하위 도메인 | 결정됨 | API map, route, Spring endpoint, Flutter route가 모두 plan 하위 | 없음 |
-| Spring Boot Main API가 정산 public API 소유 | 결정됨 | Flutter는 Spring `/api/v1`만 직접 호출 | 없음 |
-| DB schema는 Spring Flyway 소유 | 결정됨 | V1/V3/V4 migration과 Spring README | 없음 |
-| structured table 우선, payload fallback 유지 | 구현됨 | `SettlementApiService` read path | payload 제거/축소 시점 |
-| `payerUserId`, `targetUserIds` 우선 | 구현됨 | service/test 계약 | production에서 이름 fallback 허용 범위 |
-| `amount_cents`는 현재 원 단위 logical amount | 확인됨 | API/test/seed가 원 단위 integer로 사용 | 컬럼명 유지 vs rename |
-| Runtime create의 ChatActivity/Notification row 생성 | 구현됨 | create transaction에서 card row, notification row, `notificationId` outbox 기록 | provider/device smoke |
-| Flutter mutation ViewModel | 구현됨 | draft 저장, target patch, create action을 ViewModel으로 분리 | custom split 금액 입력 |
-| 실제 결제/송금 연동 | 보류 | 현재 transfer는 projection | PG 도입 여부 |
-
-## Roadmap
-
-| Phase | 목표 | 산출물 |
-| --- | --- | --- |
-| Phase 0 | Current-to-Target 문서화 | 이 문서, API/data/architecture 문서 보강 |
-| Phase 1 | Flutter mutation 연결 | 구현됨. draft save, target patch, create ViewModel action과 repository tests |
-| Phase 2 | Auth viewer 정합성 | `currentUser()` dev fallback 제거, 인증 사용자 기준 `isMe`/summary 계산 |
-| Phase 3 | Runtime side effect hardening | 구현됨. ChatActivity card append, notification row 생성, `notificationId` payload 통일 |
-| Phase 4 | Outbox/Event Hubs 전환 | Event Hubs publisher/consumer, idempotency, checkpoint/replay |
-| Phase 5 | Data model cleanup | payer table 결정, `amount_cents` rename 또는 compatibility 문서화, payload 축소 |
-| Phase 6 | Observability | metrics/log/trace, settlement smoke dashboard |
-| Phase 7 | Confirmation flow | 송금 완료/이의 제기/확인 상태와 retention 정책 |
-
-## Non-goals
-
-- 이 문서는 실제 결제, 자동 송금, PG 계약, 금융 규제 대응을 구현 범위로 삼지 않는다.
-- Flutter 앱이 Worker, Event Hubs, Redis, Key Vault, PostgreSQL을 직접 호출하지 않는다.
-- Terraform이 Spring core settlement table을 만들거나 수정하지 않는다.
-- 이 문서는 Terraform apply, Azure 리소스 생성/삭제, DNS 변경, Key Vault secret 값 쓰기를 수행하지 않는다.
-- secret, token, DB password, 실제 사용자 정산 데이터 값을 문서에 남기지 않는다.
-- 이름 기반 fallback을 production-grade identity contract로 격상하지 않는다.
+1. 진행중 또는 지난 약속에서 draft를 생성한다.
+2. 방문장소 section과 기타 비용 section에 항목을 추가한다.
+3. preview가 DB write 없이 계산되는지 확인한다.
+4. finalize 후 채팅 상단 공지와 notification/outbox가 생성되는지 확인한다.
+5. 송금자 `sent`, 수취자 `received` confirmation을 처리한다.
+6. 모든 수취자가 확인하면 `completed`로 전환되고 채팅 상단 공지가 사라지는지 확인한다.

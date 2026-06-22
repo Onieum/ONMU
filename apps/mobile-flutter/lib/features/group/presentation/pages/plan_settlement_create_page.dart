@@ -16,6 +16,7 @@ import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../repository/group_repository.dart';
 import '../../../settlement/repository/settlement_repository.dart';
 import '../../../settlement/view_model/settlement_view_model.dart';
+import 'plan_settlement_detail_page.dart';
 
 final _settlementGroupMembersProvider =
     FutureProvider.family<List<GroupMemberProfile>, String>((ref, groupId) {
@@ -40,20 +41,29 @@ class PlanSettlementCreatePage extends ConsumerWidget {
     final members = ref.watch(_settlementGroupMembersProvider(groupId));
 
     return state.when(
-      data: (settlement) => _SettlementCreateContent(
-        groupId: groupId,
-        planId: planId,
-        settlement: settlement,
-        members: members.asData?.value ?? const [],
-        onAddItem: (input) => ref
-            .read(
-              settlementDraftViewModelProvider((
-                groupId: groupId,
-                planId: planId,
-              )).notifier,
-            )
-            .addDraftItem(input),
-      ),
+      data: (settlement) {
+        if (!settlement.isDraft) {
+          return PlanSettlementDetailPage(
+            groupId: groupId,
+            planId: planId,
+            settlementId: settlement.id,
+          );
+        }
+        return _SettlementCreateContent(
+          groupId: groupId,
+          planId: planId,
+          settlement: settlement,
+          members: members.asData?.value ?? const [],
+          onAddItem: (input) => ref
+              .read(
+                settlementDraftViewModelProvider((
+                  groupId: groupId,
+                  planId: planId,
+                )).notifier,
+              )
+              .addDraftItem(input),
+        );
+      },
       loading: () => const OnmuScaffold(
         title: '약속 정산 만들기',
         children: [Center(child: CircularProgressIndicator())],
@@ -113,18 +123,93 @@ class _SettlementCreateContent extends StatelessWidget {
           trailing: '${settlement.paymentItems.length}개',
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final item in settlement.paymentItems) ...[
-          _PaymentItemSummaryCard(
-            item: item,
-            onTap: () => context.push(
-              RoutePaths.planSettlementTargets(groupId, planId, item.id),
+        if (settlement.sections.isNotEmpty)
+          for (final section in settlement.sections) ...[
+            _SettlementSectionCard(
+              section: section,
+              members: members,
+              onAddItem: onAddItem,
+              itemBuilder: (item) => _PaymentItemSummaryCard(
+                item: item,
+                onTap: () => context.push(
+                  RoutePaths.planSettlementTargets(groupId, planId, item.id),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.sm),
+          ]
+        else ...[
+          for (final item in settlement.paymentItems) ...[
+            _PaymentItemSummaryCard(
+              item: item,
+              onTap: () => context.push(
+                RoutePaths.planSettlementTargets(groupId, planId, item.id),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          _AddPaymentItemCard(members: members, onAddItem: onAddItem),
         ],
-        _AddPaymentItemCard(members: members, onAddItem: onAddItem),
         const SizedBox(height: AppSpacing.lg),
         const _SettlementGuideCard(),
+      ],
+    );
+  }
+}
+
+class _SettlementSectionCard extends StatelessWidget {
+  const _SettlementSectionCard({
+    required this.section,
+    required this.members,
+    required this.onAddItem,
+    required this.itemBuilder,
+  });
+
+  final SettlementSection section;
+  final List<GroupMemberProfile> members;
+  final Future<void> Function(SettlementDraftItemInput input) onAddItem;
+  final Widget Function(SettlementPaymentItem item) itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                section.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            OnmuChip(label: '${section.payerName} 결제'),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (section.items.isEmpty)
+          OnmuCard(
+            backgroundColor: AppColors.bgPaper,
+            borderColor: AppColors.lineSoft,
+            child: Text(
+              '아직 입력한 비용이 없어요.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            ),
+          )
+        else
+          for (final item in section.items) ...[
+            itemBuilder(item),
+            if (item != section.items.last)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+        const SizedBox(height: AppSpacing.sm),
+        _AddPaymentItemCard(
+          members: members,
+          onAddItem: onAddItem,
+          section: section,
+        ),
       ],
     );
   }
@@ -397,10 +482,15 @@ class _PaymentItemIcon extends StatelessWidget {
 }
 
 class _AddPaymentItemCard extends StatelessWidget {
-  const _AddPaymentItemCard({required this.members, required this.onAddItem});
+  const _AddPaymentItemCard({
+    required this.members,
+    required this.onAddItem,
+    this.section,
+  });
 
   final List<GroupMemberProfile> members;
   final Future<void> Function(SettlementDraftItemInput input) onAddItem;
+  final SettlementSection? section;
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +519,7 @@ class _AddPaymentItemCard extends StatelessWidget {
       return;
     }
     try {
-      await onAddItem(input);
+      await onAddItem(_attachSection(input));
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -442,6 +532,26 @@ class _AddPaymentItemCard extends StatelessWidget {
         ).showSnackBar(const SnackBar(content: Text('정산 항목 저장에 실패했어요.')));
       }
     }
+  }
+
+  SettlementDraftItemInput _attachSection(SettlementDraftItemInput input) {
+    final targetSection = section;
+    if (targetSection == null) {
+      return input;
+    }
+    return SettlementDraftItemInput(
+      id: input.id,
+      sectionId: targetSection.id,
+      sectionTitle: targetSection.title,
+      schedulePlaceId: targetSection.schedulePlaceId,
+      title: input.title,
+      amount: input.amount,
+      payerUserId: input.payerUserId,
+      payerName: input.payerName,
+      splitType: input.splitType,
+      targetUserIds: input.targetUserIds,
+      targetNames: input.targetNames,
+    );
   }
 }
 

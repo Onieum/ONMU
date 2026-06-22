@@ -24,14 +24,18 @@ public class SettlementItemEntity {
   @JoinColumn(name = "settlement_id")
   private SettlementEntity settlement;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "section_id")
+  private SettlementSectionEntity section;
+
   @Column(name = "public_id", nullable = false, unique = true)
   private String publicId;
 
   @Column(nullable = false)
   private String title;
 
-  @Column(name = "amount_cents", nullable = false)
-  private long amountCents;
+  @Column(name = "amount_won", nullable = false)
+  private long amountWon;
 
   @Column(nullable = false)
   private String currency;
@@ -53,21 +57,35 @@ public class SettlementItemEntity {
   public SettlementItemEntity(
     SettlementDraftEntity settlementDraft,
     SettlementEntity settlement,
+    SettlementSectionEntity section,
     String publicId,
     String title,
-    long amountCents,
+    long amountWon,
     String splitType,
     String memo
   ) {
     this.id = UUID.randomUUID();
     this.settlementDraft = settlementDraft;
     this.settlement = settlement;
+    this.section = section;
     this.publicId = publicId;
     this.title = title;
-    this.amountCents = amountCents;
+    this.amountWon = amountWon;
     this.currency = "KRW";
     this.splitType = splitType;
     this.memo = memo;
+  }
+
+  public SettlementItemEntity(
+    SettlementDraftEntity settlementDraft,
+    SettlementEntity settlement,
+    String publicId,
+    String title,
+    long amountWon,
+    String splitType,
+    String memo
+  ) {
+    this(settlementDraft, settlement, null, publicId, title, amountWon, splitType, memo);
   }
 
   public UUID getId() {
@@ -82,6 +100,10 @@ public class SettlementItemEntity {
     return settlement;
   }
 
+  public SettlementSectionEntity getSection() {
+    return section;
+  }
+
   public String getPublicId() {
     return publicId;
   }
@@ -90,8 +112,8 @@ public class SettlementItemEntity {
     return title;
   }
 
-  public long getAmountCents() {
-    return amountCents;
+  public long getAmountWon() {
+    return amountWon;
   }
 
   public String getCurrency() {
@@ -114,8 +136,8 @@ public class SettlementItemEntity {
     this.title = title;
   }
 
-  public void setAmountCents(long amountCents) {
-    this.amountCents = amountCents;
+  public void setAmountWon(long amountWon) {
+    this.amountWon = amountWon;
   }
 
   public void setSplitType(String splitType) {

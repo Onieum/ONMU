@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -29,9 +30,28 @@ public class SettlementDraftEntity {
   @JoinColumn(name = "plan_id", nullable = false)
   private PlanEntity plan;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "finalized_settlement_id")
+  private SettlementEntity finalizedSettlement;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb", nullable = false)
   private String payload;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "created_by_user_id")
+  private UserEntity createdByUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "updated_by_user_id")
+  private UserEntity updatedByUser;
+
+  @Column(nullable = false)
+  private String status;
+
+  @Version
+  @Column(nullable = false)
+  private long version;
 
   @Column(name = "updated_at", insertable = false)
   private Instant updatedAt;
@@ -45,6 +65,7 @@ public class SettlementDraftEntity {
     this.group = group;
     this.plan = plan;
     this.payload = payload;
+    this.status = "draft";
   }
 
   public UUID getId() {
@@ -69,5 +90,43 @@ public class SettlementDraftEntity {
 
   public void setPayload(String payload) {
     this.payload = payload;
+  }
+
+  public SettlementEntity getFinalizedSettlement() {
+    return finalizedSettlement;
+  }
+
+  public UserEntity getCreatedByUser() {
+    return createdByUser;
+  }
+
+  public UserEntity getUpdatedByUser() {
+    return updatedByUser;
+  }
+
+  public String getStatus() {
+    return status == null || status.isBlank() ? "draft" : status;
+  }
+
+  public long getVersion() {
+    return version;
+  }
+
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void markCreatedBy(UserEntity user) {
+    this.createdByUser = user;
+    this.updatedByUser = user;
+  }
+
+  public void markUpdatedBy(UserEntity user) {
+    this.updatedByUser = user;
+  }
+
+  public void markFinalized(SettlementEntity settlement) {
+    this.status = "finalized";
+    this.finalizedSettlement = settlement;
   }
 }

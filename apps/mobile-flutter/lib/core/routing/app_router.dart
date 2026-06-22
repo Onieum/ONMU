@@ -27,6 +27,7 @@ import '../../features/group/presentation/pages/group_plan_board_page.dart';
 import '../../features/group/presentation/pages/group_memory_board_page.dart';
 import '../../features/group/presentation/pages/group_memory_detail_page.dart';
 import '../../features/group/presentation/pages/plan_settlement_create_page.dart';
+import '../../features/group/presentation/pages/plan_settlement_basis_page.dart';
 import '../../features/group/presentation/pages/plan_settlement_detail_page.dart';
 import '../../features/group/presentation/pages/plan_settlement_target_selection_page.dart';
 import '../../features/group/presentation/pages/group_chat_page.dart';
@@ -394,6 +395,24 @@ final appRouter = GoRouter(
                                     groupId: state.pathParameters['groupId']!,
                                     planId: state.pathParameters['planId']!,
                                     preview: true,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/current',
+                              builder: (context, state) =>
+                                  PlanSettlementDetailPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                  ),
+                            ),
+                            GoRoute(
+                              path: 'settlements/:settlementId/basis',
+                              builder: (context, state) =>
+                                  PlanSettlementBasisPage(
+                                    groupId: state.pathParameters['groupId']!,
+                                    planId: state.pathParameters['planId']!,
+                                    settlementId:
+                                        state.pathParameters['settlementId']!,
                                   ),
                             ),
                             GoRoute(

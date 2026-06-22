@@ -21,6 +21,7 @@ class GroupChatState {
     required this.messages,
     required this.voteId,
     required this.planId,
+    this.settlementCandidatePlans = const [],
     this.vote,
     this.settlement,
     this.pinnedPlan,
@@ -34,6 +35,7 @@ class GroupChatState {
   final GroupSummary group;
   final GroupPinnedPlan? pinnedPlan;
   final List<GroupMessage> messages;
+  final List<GroupPlanSummary> settlementCandidatePlans;
   final VoteCard? vote;
   final int voteId;
   final int planId;
@@ -48,6 +50,7 @@ class GroupChatState {
     GroupPinnedPlan? pinnedPlan,
     bool clearPinnedPlan = false,
     List<GroupMessage>? messages,
+    List<GroupPlanSummary>? settlementCandidatePlans,
     VoteCard? vote,
     bool clearVote = false,
     int? voteId,
@@ -66,6 +69,8 @@ class GroupChatState {
       group: group,
       pinnedPlan: clearPinnedPlan ? null : pinnedPlan ?? this.pinnedPlan,
       messages: messages ?? this.messages,
+      settlementCandidatePlans:
+          settlementCandidatePlans ?? this.settlementCandidatePlans,
       vote: clearVote ? null : vote ?? this.vote,
       voteId: voteId ?? this.voteId,
       planId: planId ?? this.planId,
@@ -139,6 +144,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         ? null
         : _pinnedPlanFor(selectedPlan);
     final planId = selectedPlan?.id ?? 0;
+    final settlementCandidatePlans = _settlementCandidatePlans(plans, now);
     List<VoteSummary> votes = const [];
     try {
       if (planId > 0) {
@@ -197,6 +203,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       latest.copyWith(
         clearPinnedPlan: selectedPinnedPlan == null,
         pinnedPlan: selectedPinnedPlan,
+        settlementCandidatePlans: settlementCandidatePlans,
         planId: planId,
         clearVote: vote == null,
         vote: vote,
@@ -206,6 +213,38 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       ),
     );
     _scheduleVoteDeadlineDismissal(selectedVote, voteId);
+  }
+
+  List<GroupPlanSummary> _settlementCandidatePlans(
+    List<GroupPlanSummary> plans,
+    DateTime now,
+  ) {
+    final localNow = now.toLocal();
+    final candidates = plans
+        .where((plan) {
+          final startsAt = plan.startsAt?.toLocal();
+          return startsAt != null && !localNow.isBefore(startsAt);
+        })
+        .toList(growable: false);
+    return candidates..sort((left, right) {
+      final leftOngoing = left.isOngoingAt(localNow);
+      final rightOngoing = right.isOngoingAt(localNow);
+      if (leftOngoing != rightOngoing) {
+        return leftOngoing ? -1 : 1;
+      }
+      final leftStartsAt = left.startsAt?.toLocal();
+      final rightStartsAt = right.startsAt?.toLocal();
+      if (leftStartsAt == null && rightStartsAt == null) {
+        return left.id.compareTo(right.id);
+      }
+      if (leftStartsAt == null) {
+        return 1;
+      }
+      if (rightStartsAt == null) {
+        return -1;
+      }
+      return rightStartsAt.compareTo(leftStartsAt);
+    });
   }
 
   GroupPlanSummary? _selectPrimaryPlan(

@@ -33,6 +33,16 @@ public class SettlementEntity {
   @Column(columnDefinition = "jsonb", nullable = false)
   private String payload;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "created_by_user_id")
+  private UserEntity createdByUser;
+
+  @Column(nullable = false)
+  private String status;
+
+  @Column(name = "completed_at")
+  private Instant completedAt;
+
   @Column(name = "created_at", insertable = false, updatable = false)
   private Instant createdAt;
 
@@ -45,6 +55,7 @@ public class SettlementEntity {
     this.group = group;
     this.plan = plan;
     this.payload = payload;
+    this.status = "finalized";
   }
 
   public UUID getId() {
@@ -65,5 +76,26 @@ public class SettlementEntity {
 
   public String getPayload() {
     return payload;
+  }
+
+  public UserEntity getCreatedByUser() {
+    return createdByUser;
+  }
+
+  public String getStatus() {
+    return status == null || status.isBlank() ? "finalized" : status;
+  }
+
+  public Instant getCompletedAt() {
+    return completedAt;
+  }
+
+  public void markCreatedBy(UserEntity user) {
+    this.createdByUser = user;
+  }
+
+  public void markCompleted() {
+    this.status = "completed";
+    this.completedAt = Instant.now();
   }
 }

@@ -16,6 +16,9 @@ public class SettlementTransferEntity {
   @Id
   private UUID id;
 
+  @Column(name = "public_id", nullable = false, unique = true)
+  private String publicId;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "settlement_id", nullable = false)
   private SettlementEntity settlement;
@@ -28,8 +31,8 @@ public class SettlementTransferEntity {
   @JoinColumn(name = "to_user_id", nullable = false)
   private UserEntity toUser;
 
-  @Column(name = "amount_cents", nullable = false)
-  private long amountCents;
+  @Column(name = "amount_won", nullable = false)
+  private long amountWon;
 
   @Column(nullable = false)
   private String currency;
@@ -49,14 +52,15 @@ public class SettlementTransferEntity {
     SettlementEntity settlement,
     UserEntity fromUser,
     UserEntity toUser,
-    long amountCents,
+    long amountWon,
     String memo
   ) {
     this.id = UUID.randomUUID();
+    this.publicId = "stlt_" + this.id.toString().replace("-", "");
     this.settlement = settlement;
     this.fromUser = fromUser;
     this.toUser = toUser;
-    this.amountCents = amountCents;
+    this.amountWon = amountWon;
     this.currency = "KRW";
     this.status = "pending";
     this.memo = memo;
@@ -64,6 +68,10 @@ public class SettlementTransferEntity {
 
   public UUID getId() {
     return id;
+  }
+
+  public String getPublicId() {
+    return publicId;
   }
 
   public SettlementEntity getSettlement() {
@@ -78,8 +86,8 @@ public class SettlementTransferEntity {
     return toUser;
   }
 
-  public long getAmountCents() {
-    return amountCents;
+  public long getAmountWon() {
+    return amountWon;
   }
 
   public String getStatus() {
@@ -92,5 +100,15 @@ public class SettlementTransferEntity {
 
   public Instant getCreatedAt() {
     return createdAt;
+  }
+
+  public void markSent() {
+    if (!"received".equals(status)) {
+      status = "sent";
+    }
+  }
+
+  public void markReceived() {
+    status = "received";
   }
 }

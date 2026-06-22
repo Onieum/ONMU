@@ -21,13 +21,9 @@ void main() {
       expect(item.toJson(), {
         'id': '401',
         'title': '커피',
-        'amount': 12000,
         'amountWon': 12000,
-        'payerUserId': 'user-jimin',
-        'payerName': '지민',
-        'splitType': 'custom',
+        'splitType': 'menu',
         'targetUserIds': ['user-jimin', 'user-minsu'],
-        'targetNames': ['지민', '민수'],
       });
     });
   });

@@ -12,10 +12,14 @@ public interface SettlementItemRepository extends JpaRepository<SettlementItemEn
 
   List<SettlementItemEntity> findBySettlementDraft(SettlementDraftEntity settlementDraft);
 
+  List<SettlementItemEntity> findBySectionOrderByCreatedAtAsc(SettlementSectionEntity section);
+
   Optional<SettlementItemEntity> findBySettlementDraftAndPublicId(
     SettlementDraftEntity settlementDraft,
     String publicId
   );
 
   void deleteBySettlementDraft(SettlementDraftEntity settlementDraft);
+
+  void deleteBySectionIn(List<SettlementSectionEntity> sections);
 }

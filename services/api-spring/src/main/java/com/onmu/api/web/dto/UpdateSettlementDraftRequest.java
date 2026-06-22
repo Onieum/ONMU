@@ -3,7 +3,7 @@ package com.onmu.api.web.dto;
 import java.util.List;
 
 public record UpdateSettlementDraftRequest(
-  List<SettlementDraftItemRequest> items,
+  List<SettlementDraftSectionRequest> sections,
   String memo
 ) {
 }
