@@ -81,7 +81,9 @@ Flutter API 오류는 `OnmuApiClient`에서 `OnmuApiException`으로 정규화�
 | `contractMismatch` | 필수 JSON 필드 누락, enum 불일치 | fallback 또는 오류 UI | 반드시 보고 |
 | `backgroundSync` | push token, 채팅 읽음 동기화, 보조 카드 로딩 | 화면 유지 | reportable일 때만 보고 |
 
-보고 경계는 `core/observability/OnmuErrorReporter`로 감싼다. `SENTRY_DSN` dart-define이 있으면 `SentryOnmuErrorReporter`가 정책에 맞는 오류만 Sentry로 직접 전송하고, DSN이 없으면 `FlutterError.reportError` 기반 local reporter로 동작한다. Sentry DSN은 Key Vault secret `sentry-dsn`에서 git ignored `.dart_tool/*.defines.json` 또는 CI secret으로만 주입한다.
+보고 경계는 `core/observability/OnmuErrorReporter`로 감싼다. `SENTRY_DSN` dart-define이 있으면 `SentryOnmuErrorReporter`가 정책에 맞는 오류만 Sentry로 직접 전송하고, DSN이 없으면 `FlutterError.reportError` 기반 local reporter로 동작한다. Sentry DSN은 Key Vault secret `sentry-dsn`에서 git ignored `.dart_tool/*.defines.json` 또는 CI secret으로만 주입한다. 로컬 실행에서도 `--dart-define=SENTRY_DSN=...` inline 주입은 shell history와 process args 노출 위험이 있으므로 쓰지 않는다.
+
+iOS 시뮬레이터 smoke 기준 Sentry Flutter SDK는 `sentry_flutter` 9.x 이상을 사용한다. 8.x 계열은 최신 Xcode/iOS simulator 조합에서 iOS plugin compile error가 날 수 있으므로, iOS 26.2 이상 smoke가 필요한 브랜치에서는 9.x lockfile을 유지한다.
 
 Sentry 오류 이벤트 샘플링은 `OnmuReportPolicy.sampleRateFor`를 기준으로 한다. `server`, `unavailable`, `contractMismatch`, `unknown`은 1.0으로 전부 보고한다. `timeout`, `rateLimited`는 반복 노이즈를 줄이기 위해 0.2로 보고한다. `network`는 사용자 네트워크 환경 영향이 커서 0.05로 낮게 보고한다. validation, conflict, notFound, forbidden 같은 예상 가능한 사용자/권한 흐름은 0으로 보고하지 않는다.
 
