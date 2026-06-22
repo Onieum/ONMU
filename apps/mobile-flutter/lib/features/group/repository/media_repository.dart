@@ -4,6 +4,8 @@ import '../../../core/api/onmu_api_client.dart';
 import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/group_models.dart';
 
+const int maxChatImageAttachmentCount = 4;
+
 final mediaRepositoryProvider = Provider<MediaRepository>((ref) {
   return ApiMediaRepository(ref.watch(onmuApiClientProvider));
 });

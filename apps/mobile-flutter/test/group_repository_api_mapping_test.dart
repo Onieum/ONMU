@@ -783,6 +783,7 @@ void main() {
               requestOptions: options,
               data: {
                 'senderName': '나',
+                'senderProfileImageUrl': 'dev/avatars/me.png',
                 'message': '서버로 보내요',
                 'timeLabel': '방금',
                 'isMine': true,
@@ -800,6 +801,7 @@ void main() {
     expect(requestedPaths.single, '/api/v1/groups/1/chat/messages');
     expect(requestBodies.single, {'message': '서버로 보내요'});
     expect(message.sender, '나');
+    expect(message.senderProfileImageUrl, 'dev/avatars/me.png');
     expect(message.message, '서버로 보내요');
     expect(message.timeLabel, '방금');
     expect(message.isMine, isTrue);

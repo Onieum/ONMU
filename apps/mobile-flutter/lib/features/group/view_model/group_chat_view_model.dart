@@ -402,8 +402,12 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
-  Future<bool> sendImageMessage(
-    PickedChatImage image, {
+  Future<bool> sendImageMessage(PickedChatImage image, {String text = ''}) {
+    return sendImageMessages([image], text: text);
+  }
+
+  Future<bool> sendImageMessages(
+    List<PickedChatImage> images, {
     String text = '',
   }) async {
     final value = state.asData?.value;
@@ -412,11 +416,20 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
 
     final message = text.trim();
-    GroupMessageAttachment attachment;
+    final imagesToUpload = images
+        .take(maxChatImageAttachmentCount)
+        .toList(growable: false);
+    if (imagesToUpload.isEmpty && message.isEmpty) {
+      return false;
+    }
+
+    List<GroupMessageAttachment> attachments;
     try {
-      attachment = await ref
-          .read(mediaRepositoryProvider)
-          .uploadChatImage(image);
+      attachments = await Future.wait(
+        imagesToUpload.map(
+          (image) => ref.read(mediaRepositoryProvider).uploadChatImage(image),
+        ),
+      );
     } catch (error, stackTrace) {
       _report(error, stackTrace, feature: 'group_chat_media');
       final latest = state.asData?.value ?? value;
@@ -432,7 +445,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       timeLabel: '전송 중',
       isMine: true,
       sendStatus: GroupMessageSendStatus.sending,
-      attachments: [attachment],
+      attachments: attachments,
     );
     state = AsyncData(
       value.copyWith(
@@ -447,7 +460,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
           .sendMessage(
             groupId: groupId,
             message: message,
-            attachments: [attachment],
+            attachments: attachments,
           );
       final latest = state.asData?.value ?? value;
       state = AsyncData(

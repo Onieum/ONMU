@@ -66,8 +66,9 @@ ProviderScope onmuTestProviderScope({
   MyRepository? myRepository,
   RecordRepository? recordRepository,
   PreferenceProfile? preferenceProfile,
+  InMemoryOnmuStore? store,
 }) {
-  final store = InMemoryOnmuStore.seeded();
+  final testStore = store ?? InMemoryOnmuStore.seeded();
   return ProviderScope(
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
@@ -75,15 +76,15 @@ ProviderScope onmuTestProviderScope({
       if (user != null) authUserProvider.overrideWith((ref) => user),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
       groupRepositoryProvider.overrideWithValue(
-        groupRepository ?? TestGroupRepository(store),
+        groupRepository ?? TestGroupRepository(testStore),
       ),
-      planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
-      placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
+      planRepositoryProvider.overrideWithValue(TestPlanRepository(testStore)),
+      placeRepositoryProvider.overrideWithValue(TestPlaceRepository(testStore)),
       settlementRepositoryProvider.overrideWithValue(
-        settlementRepository ?? TestSettlementRepository(store),
+        settlementRepository ?? TestSettlementRepository(testStore),
       ),
       notificationRepositoryProvider.overrideWithValue(
-        TestNotificationRepository(store),
+        TestNotificationRepository(testStore),
       ),
       recordRepositoryProvider.overrideWithValue(
         recordRepository ?? TestRecordRepository(),
