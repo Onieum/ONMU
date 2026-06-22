@@ -56,12 +56,13 @@ def test_build_gpt_image_diary_card_prompt_contains_diary_sections():
     assert "#데이트룩" in prompt
 
 
-def test_gpt_image_client_posts_image_edit_request_with_bearer_auth():
+def test_gpt_image_client_posts_image_edit_request_with_azure_api_key_contract():
     seen: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
         seen["url"] = str(request.url)
         seen["authorization"] = request.headers.get("authorization")
+        seen["api_key"] = request.headers.get("api-key")
         seen["content_type"] = request.headers.get("content-type")
         body = await request.aread()
         seen["body"] = body.decode("utf-8", errors="ignore")
@@ -74,7 +75,7 @@ def test_gpt_image_client_posts_image_edit_request_with_bearer_auth():
         GptImageConfig(
             endpoint_url="https://example.openai.azure.com",
             api_key="secret-key",
-            api_version="2024-02-01",
+            api_version="2025-04-01",
             deployment_name="gpt-image-2",
         ),
         transport=httpx.MockTransport(handler),
@@ -95,19 +96,23 @@ def test_gpt_image_client_posts_image_edit_request_with_bearer_auth():
     assert result.request_id == "job-1"
     assert result.image_base64 == base64.b64encode(b"fake-png").decode("ascii")
     assert "/openai/deployments/gpt-image-2/images/edits" in str(seen["url"])
-    assert "api-version=2024-02-01" in str(seen["url"])
-    assert seen["authorization"] == "Bearer secret-key"
+    assert "api-version=2025-04-01" in str(seen["url"])
+    assert seen["authorization"] is None
+    assert seen["api_key"] == "secret-key"
     assert str(seen["content_type"]).startswith("multipart/form-data")
+    assert 'name="image[]"' in str(seen["body"])
+    assert 'name="model"' in str(seen["body"])
+    assert "gpt-image-2" in str(seen["body"])
     assert "ivory knit top and black skirt" in str(seen["body"])
 
 
-def test_gpt_image_client_retries_with_api_key_header_after_auth_failure():
+def test_gpt_image_client_retries_with_bearer_header_after_api_key_auth_failure():
     calls: list[str | None] = []
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.headers.get("authorization") or request.headers.get("api-key"))
+        calls.append(request.headers.get("api-key") or request.headers.get("authorization"))
         if len(calls) == 1:
-            return httpx.Response(401, json={"error": {"message": "bad bearer"}})
+            return httpx.Response(401, json={"error": {"message": "bad api key header"}})
         return httpx.Response(
             200,
             json={"data": [{"b64_json": base64.b64encode(b"ok").decode("ascii")}]},
@@ -117,7 +122,7 @@ def test_gpt_image_client_retries_with_api_key_header_after_auth_failure():
         GptImageConfig(
             endpoint_url="https://example.openai.azure.com",
             api_key="secret-key",
-            api_version="2024-02-01",
+            api_version="2025-04-01",
             deployment_name="gpt-image-2",
         ),
         transport=httpx.MockTransport(handler),
@@ -135,7 +140,7 @@ def test_gpt_image_client_retries_with_api_key_header_after_auth_failure():
     )
 
     assert result.status == "succeeded"
-    assert calls == ["Bearer secret-key", "secret-key"]
+    assert calls == ["secret-key", "Bearer secret-key"]
 
 
 def test_gpt_image_client_rejects_response_without_image_data():
