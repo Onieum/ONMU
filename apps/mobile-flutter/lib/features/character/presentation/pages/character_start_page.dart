@@ -480,7 +480,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             border: Border.all(color: AppColors.linePink),
           ),
           child: Text(
-            '이제 OOTD 기록을 시작해볼까요?\n캘린더에서 나만의 코디를 모아보세요.',
+            '이제 ??? 기록을 시작해볼까요?\n캘린더에서 나만의 코디를 모아보세요.',
             textAlign: TextAlign.center,
             style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.primaryPink,

@@ -91,6 +91,29 @@ class TimelineItem {
   });
 }
 
+class CrewOotdAppearance {
+  final String userId;
+  final String nickname;
+  final String source;
+  final String? ootdRecordId;
+  final String? ootdImageUrl;
+  final CharacterDraft? character;
+
+  const CrewOotdAppearance({
+    required this.userId,
+    required this.nickname,
+    required this.source,
+    this.ootdRecordId,
+    this.ootdImageUrl,
+    this.character,
+  });
+
+  bool get hasOotdImage {
+    final value = ootdImageUrl;
+    return value != null && value.trim().isNotEmpty;
+  }
+}
+
 class OotdRecord {
   final String? id;
   final DateTime date;
@@ -98,6 +121,8 @@ class OotdRecord {
   final List<String> imageUrls;
   final List<UploadedMedia> media;
   final CharacterDraft character;
+  final List<CharacterDraft> crewCharacters;
+  final List<CrewOotdAppearance> crewAppearances;
   final List<String> moodTags;
   final Map<String, String> brands;
   final String weather;
@@ -112,6 +137,8 @@ class OotdRecord {
     this.imageUrls = const [],
     this.media = const [],
     required this.character,
+    this.crewCharacters = const [],
+    this.crewAppearances = const [],
     required this.moodTags,
     required this.brands,
     this.weather = 'sunny',
@@ -128,6 +155,8 @@ class OotdRecord {
     List<String>? imageUrls,
     List<UploadedMedia>? media,
     CharacterDraft? character,
+    List<CharacterDraft>? crewCharacters,
+    List<CrewOotdAppearance>? crewAppearances,
     List<String>? moodTags,
     Map<String, String>? brands,
     String? weather,
@@ -142,6 +171,8 @@ class OotdRecord {
       imageUrls: imageUrls ?? this.imageUrls,
       media: media ?? this.media,
       character: character ?? this.character,
+      crewCharacters: crewCharacters ?? this.crewCharacters,
+      crewAppearances: crewAppearances ?? this.crewAppearances,
       moodTags: moodTags ?? this.moodTags,
       brands: brands ?? this.brands,
       weather: weather ?? this.weather,

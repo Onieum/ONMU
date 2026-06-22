@@ -7,6 +7,8 @@ import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.OotdFeatureEntity;
 import com.onmu.api.domain.OotdFeatureRepository;
 import com.onmu.api.domain.PlanEntity;
+import com.onmu.api.domain.PlanParticipantEntity;
+import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.RecordEntity;
 import com.onmu.api.domain.RecordMediaEntity;
@@ -22,8 +24,12 @@ import com.onmu.api.web.dto.RecordMediaInput;
 import com.onmu.api.domain.CharacterProfileEntity;
 import com.onmu.api.domain.CharacterProfileRepository;
 import com.onmu.api.web.dto.CreateMemoryRequest;
+import com.onmu.api.web.dto.CrewOotdAppearanceResponse;
 import com.onmu.api.web.dto.MemoryResponse;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -43,6 +49,7 @@ public class RecordService {
   private final OotdFeatureRepository ootdFeatureRepository;
   private final GroupRepository groupRepository;
   private final PlanRepository planRepository;
+  private final PlanParticipantRepository planParticipantRepository;
   private final UserRepository userRepository;
   private final OutboxService outboxService;
   private final ObjectMapper objectMapper;
@@ -55,6 +62,7 @@ public class RecordService {
     OotdFeatureRepository ootdFeatureRepository,
     GroupRepository groupRepository,
     PlanRepository planRepository,
+    PlanParticipantRepository planParticipantRepository,
     UserRepository userRepository,
     OutboxService outboxService,
     ObjectMapper objectMapper,
@@ -66,6 +74,7 @@ public class RecordService {
     this.ootdFeatureRepository = ootdFeatureRepository;
     this.groupRepository = groupRepository;
     this.planRepository = planRepository;
+    this.planParticipantRepository = planParticipantRepository;
     this.userRepository = userRepository;
     this.outboxService = outboxService;
     this.objectMapper = objectMapper;
@@ -383,6 +392,35 @@ public class RecordService {
   }
 
   @Transactional(readOnly = true)
+  public List<CrewOotdAppearanceResponse> getCrewOotdAppearances(
+      UUID userId,
+      String groupId,
+      String planId,
+      String date
+  ) {
+    UserEntity viewer = user(userId);
+    GroupEntity group = groupRepository.findByPublicId(groupId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "group_not_found"));
+    if (!groupRepository.isUserMember(groupId, viewer.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_group_member");
+    }
+
+    PlanEntity plan = planRepository.findByGroupAndPublicId(group, planId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plan_not_found"));
+    if (!planRepository.isUserParticipant(planId, viewer.getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not_plan_participant");
+    }
+
+    LocalDate targetDate = parseDateOnly(date);
+    return planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan).stream()
+        .filter(this::isActiveParticipant)
+        .map(PlanParticipantEntity::getUser)
+        .filter(participant -> participant != null && !participant.getId().equals(viewer.getId()))
+        .map(participant -> crewAppearance(participant, targetDate))
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public MemoryResponse getMemoryDetail(UUID userId, String memoryId) {
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "memory_not_found"));
@@ -696,6 +734,163 @@ public class RecordService {
         aiStatus,
         record.getCreatedAt()
     );
+  }
+
+  private CrewOotdAppearanceResponse crewAppearance(UserEntity crew, LocalDate targetDate) {
+    Map<String, Object> fallbackCharacter = characterSnapshotFor(crew);
+    RecordEntity ootdRecord = latestSuccessfulOotdRecordForDate(crew, targetDate);
+    if (ootdRecord == null) {
+      return new CrewOotdAppearanceResponse(
+          crew.getPublicId(),
+          nickname(crew),
+          "PROFILE_CHARACTER",
+          null,
+          null,
+          fallbackCharacter
+      );
+    }
+
+    String imageUrl = successfulOotdImageUrl(ootdRecord);
+    if (imageUrl == null || imageUrl.isBlank()) {
+      return new CrewOotdAppearanceResponse(
+          crew.getPublicId(),
+          nickname(crew),
+          "PROFILE_CHARACTER",
+          null,
+          null,
+          fallbackCharacter
+      );
+    }
+
+    Map<String, Object> payload = readObject(ootdRecord.getPayload());
+    Map<String, Object> character = payload.get("characterSnapshot") instanceof Map<?, ?>
+        ? new LinkedHashMap<>((Map<String, Object>) payload.get("characterSnapshot"))
+        : fallbackCharacter;
+
+    return new CrewOotdAppearanceResponse(
+        crew.getPublicId(),
+        nickname(crew),
+        "OOTD_IMAGE",
+        ootdRecord.getPublicId(),
+        imageUrl,
+        character
+    );
+  }
+
+  private RecordEntity latestSuccessfulOotdRecordForDate(UserEntity author, LocalDate targetDate) {
+    return recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(author).stream()
+        .filter(record -> {
+          Map<String, Object> payload = readObject(record.getPayload());
+          String type = text(payload.getOrDefault("recordType", "OOTD"));
+          String recordedAt = text(payload.get("recordedAt"));
+          String aiStatus = text(payload.get("aiStatus"));
+          return "OOTD".equalsIgnoreCase(type)
+              && "SUCCESS".equalsIgnoreCase(aiStatus)
+              && isSameRecordDate(recordedAt, targetDate);
+        })
+        .findFirst()
+        .orElse(null);
+  }
+
+  private String successfulOotdImageUrl(RecordEntity record) {
+    Map<String, Object> payload = readObject(record.getPayload());
+    String aiStatus = text(payload.get("aiStatus"));
+    if (!"SUCCESS".equalsIgnoreCase(aiStatus)) {
+      return null;
+    }
+
+    String payloadImageUrl = firstText(payload, "generatedImageUrl", "imageUrl", "publicUrl");
+    if (!payloadImageUrl.isBlank()) {
+      return payloadImageUrl;
+    }
+
+    return recordMediaRepository.findByRecordOrderBySortOrderAsc(record).stream()
+        .map(RecordMediaEntity::getPublicUrl)
+        .filter(url -> url != null && !url.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  private Map<String, Object> characterSnapshotFor(UserEntity user) {
+    CharacterProfileEntity characterProfile = characterProfileRepository.findByUserId(user.getId())
+        .orElseGet(() -> new CharacterProfileEntity(
+            user.getId(),
+            "female",
+            "type_warm",
+            "short_black",
+            "black",
+            "round",
+            "brown",
+            "casual_tshirt"
+        ));
+
+    Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("skin_tone", characterProfile.getSkinTone());
+    snapshot.put("hair_style", characterProfile.getHairStyle());
+    snapshot.put("hair_color", characterProfile.getHairColor());
+    snapshot.put("eye_style", characterProfile.getEyeStyle());
+    snapshot.put("eye_color", characterProfile.getEyeColor());
+    snapshot.put("clothes", "none");
+    return snapshot;
+  }
+
+  private boolean isActiveParticipant(PlanParticipantEntity participant) {
+    if (participant == null || participant.getUser() == null) {
+      return false;
+    }
+    String status = text(participant.getStatus()).toLowerCase();
+    String response = text(participant.getResponse()).toLowerCase();
+    return !List.of("left", "declined", "removed", "cancelled").contains(status)
+        && !List.of("declined", "rejected").contains(response);
+  }
+
+  private LocalDate parseDateOnly(String value) {
+    try {
+      return LocalDate.parse(text(value).substring(0, 10));
+    } catch (RuntimeException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_date");
+    }
+  }
+
+  private boolean isSameRecordDate(String value, LocalDate targetDate) {
+    String normalized = text(value);
+    if (normalized.isBlank()) {
+      return false;
+    }
+    if (normalized.length() >= 10) {
+      try {
+        return LocalDate.parse(normalized.substring(0, 10)).equals(targetDate);
+      } catch (RuntimeException ignored) {
+        // Fall through to timestamp parsing.
+      }
+    }
+    try {
+      return OffsetDateTime.parse(normalized).toLocalDate().equals(targetDate);
+    } catch (RuntimeException ignored) {
+      // Fall through to Instant parsing.
+    }
+    try {
+      return Instant.parse(normalized)
+          .atZone(ZoneId.of("Asia/Seoul"))
+          .toLocalDate()
+          .equals(targetDate);
+    } catch (RuntimeException ignored) {
+      return false;
+    }
+  }
+
+  private String firstText(Map<String, Object> source, String... keys) {
+    for (String key : keys) {
+      String value = text(source.get(key));
+      if (!value.isBlank()) {
+        return value;
+      }
+    }
+    return "";
+  }
+
+  private String text(Object value) {
+    return value == null ? "" : value.toString().trim();
   }
 
   private String nickname(UserEntity user) {

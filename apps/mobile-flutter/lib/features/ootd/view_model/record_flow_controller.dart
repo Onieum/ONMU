@@ -56,6 +56,44 @@ class RecordFlowController {
     return _ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName);
   }
 
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) {
+    return _ref.read(recordRepositoryProvider).fetchCrewOotdAppearances(
+      groupId: groupId,
+      planId: planId,
+      date: date,
+    );
+  }
+
+  Future<OotdRecord> saveRecordImage({
+    required OotdRecord record,
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final uploaded = await uploadMedia(bytes, fileName);
+    final compositePrefix = record.brands['recordType'] == 'daily'
+        ? 'dailyComposite'
+        : 'ootdComposite';
+    final updatedRecord = record.copyWith(
+      imageUrls: [...record.imageUrls, uploaded.publicUrl],
+      media: [
+        ...record.media,
+        uploaded.copyWith(sortOrder: record.media.length),
+      ],
+      brands: {
+        ...record.brands,
+        '${compositePrefix}ImageUrl': uploaded.publicUrl,
+        '${compositePrefix}StorageKey': uploaded.storageKey,
+      },
+    );
+    final saved = await saveRecord(updatedRecord);
+    refreshRecords();
+    return saved;
+  }
+
   Future<RecordMutationResult> deleteRecord(OotdRecord record) async {
     final id = record.id;
     if (id == null || id.isEmpty) {

@@ -492,6 +492,7 @@ final appRouter = GoRouter(
                         return;
                       }
                     },
+                    onSaveRecordImage: controller.saveRecordImage,
                     onNavigateToProfile: () =>
                         _showResetDialog(context, controller),
                   );
@@ -534,11 +535,16 @@ final appRouter = GoRouter(
           final ootdRecord = state.extra as OotdRecord?;
           final routeState = ref.watch(recordRouteStateProvider);
           final controller = ref.watch(recordFlowControllerProvider);
+          final groupId = state.uri.queryParameters['groupId'];
+          final planId = state.uri.queryParameters['planId'];
 
           return DailyRecordScreen(
             userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
+            groupId: groupId,
+            planId: planId,
+            onFetchCrewAppearances: controller.fetchCrewOotdAppearances,
             onSave: controller.saveRecord,
             onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {

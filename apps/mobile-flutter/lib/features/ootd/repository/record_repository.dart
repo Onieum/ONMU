@@ -38,6 +38,12 @@ abstract interface class RecordRepository {
   });
 
   Future<OotdAvatarGenerationJob> fetchAvatarGeneration(String jobId);
+
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  });
 }
 
 class ApiRecordRepository implements RecordRepository {
@@ -154,6 +160,19 @@ class ApiRecordRepository implements RecordRepository {
     return _avatarGenerationJob(json);
   }
 
+  @override
+  Future<List<CrewOotdAppearance>> fetchCrewOotdAppearances({
+    required String groupId,
+    required String planId,
+    required DateTime date,
+  }) async {
+    final items = await _client.getList(
+      '/api/v1/groups/$groupId/plans/$planId/crew-ootd-appearances'
+      '?date=${_dateOnly(date)}',
+    );
+    return items.map(_crewOotdAppearance).toList(growable: false);
+  }
+
   Map<String, Object?> _toMemoryBody(OotdRecord record) {
     final isDaily = record.brands['recordType'] == 'daily';
     final memo = _recordMemo(record);
@@ -263,6 +282,8 @@ class ApiRecordRepository implements RecordRepository {
       imageUrls: imageUrls,
       media: media,
       character: character,
+      crewCharacters: _crewCharactersFromPayload(payload),
+      crewAppearances: _crewAppearancesFromPayload(payload),
       moodTags: tags,
       brands: brands,
       weather: weather,
@@ -278,6 +299,10 @@ class ApiRecordRepository implements RecordRepository {
       'brands': record.brands,
       'mood': record.mood,
       'weather': record.weather,
+      if (record.crewAppearances.isNotEmpty)
+        'crewAppearances': record.crewAppearances
+            .map(_crewOotdAppearancePayload)
+            .toList(growable: false),
       'timeline': record.timeline
           .map(
             (item) => {
@@ -450,6 +475,110 @@ class ApiRecordRepository implements RecordRepository {
   String? _nullableImageUrl(String url) {
     final normalized = _absoluteApiUrl(url);
     return normalized.isEmpty ? null : normalized;
+  }
+
+  List<CharacterDraft> _crewCharactersFromPayload(Map<String, dynamic> payload) {
+    final fromAppearances = _crewAppearancesFromPayload(payload)
+        .map((appearance) => appearance.character)
+        .whereType<CharacterDraft>()
+        .toList(growable: false);
+    if (fromAppearances.isNotEmpty) return fromAppearances;
+    final raw = payload['crewCharacters'];
+    if (raw is! List) return const [];
+    return raw
+        .map(OnmuJson.asMap)
+        .map(_characterDraftFromJson)
+        .whereType<CharacterDraft>()
+        .toList(growable: false);
+  }
+
+  List<CrewOotdAppearance> _crewAppearancesFromPayload(
+    Map<String, dynamic> payload,
+  ) {
+    final raw = payload['crewAppearances'];
+    if (raw is! List) return const [];
+    return raw
+        .map(OnmuJson.asMap)
+        .map(_crewOotdAppearance)
+        .toList(growable: false);
+  }
+
+  CrewOotdAppearance _crewOotdAppearance(Map<String, dynamic> json) {
+    final characterJson = OnmuJson.asMap(json['character']);
+    final character = characterJson.isEmpty
+        ? null
+        : _characterDraftFromJson(characterJson);
+    final imageUrl = OnmuJson.readString(json, 'ootdImageUrl');
+    return CrewOotdAppearance(
+      userId: OnmuJson.readString(json, 'userId'),
+      nickname: OnmuJson.readString(json, 'nickname'),
+      source: OnmuJson.readString(json, 'source', 'PROFILE_CHARACTER'),
+      ootdRecordId: _blankToNull(OnmuJson.readString(json, 'ootdRecordId')),
+      ootdImageUrl: imageUrl.isEmpty ? null : _absoluteApiUrl(imageUrl),
+      character: character,
+    );
+  }
+
+  CharacterDraft? _characterDraftFromJson(Map<String, dynamic> json) {
+    if (json.isEmpty) return null;
+    return CharacterDraft(
+      skinToneIndex: _readIndexedValue(
+        json['skin_tone'] ?? json['skinTone'],
+        'skin',
+      ),
+      hairStyleIndex: _readIndexedValue(
+        json['hair_style'] ?? json['hairStyle'],
+        'hair_style',
+      ),
+      hairColorIndex: _readIndexedValue(
+        json['hair_color'] ?? json['hairColor'],
+        'hair_color',
+      ),
+      eyeShapeIndex: _readIndexedValue(
+        json['eye_style'] ?? json['eyeStyle'],
+        'eye_style',
+      ),
+      eyeColorIndex: _readIndexedValue(
+        json['eye_color'] ?? json['eyeColor'],
+        'eye_color',
+      ),
+      topStyleIndex: _readIndexedValue(
+        json['clothes'] ?? json['topStyle'],
+        'top',
+        fallback: -1,
+      ),
+    );
+  }
+
+  Map<String, Object?> _crewOotdAppearancePayload(
+    CrewOotdAppearance appearance,
+  ) {
+    return {
+      'userId': appearance.userId,
+      'nickname': appearance.nickname,
+      'source': appearance.source,
+      if (appearance.ootdRecordId != null)
+        'ootdRecordId': appearance.ootdRecordId,
+      if (appearance.ootdImageUrl != null) 'ootdImageUrl': appearance.ootdImageUrl,
+      if (appearance.character != null)
+        'character': _characterDraftPayload(appearance.character!),
+    };
+  }
+
+  Map<String, Object?> _characterDraftPayload(CharacterDraft character) {
+    return {
+      'skin_tone': 'skin_${character.skinToneIndex}',
+      'hair_style': 'hair_style_${character.hairStyleIndex}',
+      'hair_color': 'hair_color_${character.hairColorIndex}',
+      'eye_style': 'eye_style_${character.eyeShapeIndex}',
+      'eye_color': 'eye_color_${character.eyeColorIndex}',
+      'clothes': 'top_${character.topStyleIndex}',
+    };
+  }
+
+  String? _blankToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   OotdAvatarGenerationJob _avatarGenerationJob(Map<String, dynamic> json) {
