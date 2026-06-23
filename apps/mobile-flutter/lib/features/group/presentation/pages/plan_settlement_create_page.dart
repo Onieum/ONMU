@@ -756,7 +756,7 @@ class _AddPaymentItemCard extends StatelessWidget {
       payerName: input.payerName,
       splitType: input.splitType,
       targetUserIds: input.targetUserIds,
-      targetNames: input.targetNames,
+      targetShares: input.targetShares,
     );
   }
 }
@@ -884,7 +884,6 @@ class _AddSettlementItemDialogState extends State<_AddSettlementItemDialog> {
             ? SettlementSplitType.equal
             : SettlementSplitType.custom,
         targetUserIds: targets.map((member) => member.userId).toList(),
-        targetNames: targets.map((member) => member.name).toList(),
       ),
     );
   }

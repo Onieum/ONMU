@@ -172,13 +172,17 @@ Core API:
 - `POST /api/v1/groups/{groupId}/chat/messages`
 - `PUT /api/v1/groups/{groupId}/chat/read-state`
 - `GET /api/v1/groups/{groupId}/chat/events`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft`
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview`
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements`
-- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current`
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}`
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent`
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received`
 - `GET /api/v1/notifications`
 - `GET /api/v1/notifications/unread-count`
 - `PUT /api/v1/notifications/{notificationId}/read`
@@ -233,7 +237,8 @@ Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{
 - `place_candidate.created`
 - `place_candidate.heart_updated`
 - `schedule_place.created`
-- `settlement.created`
+- `settlement.finalized`
+- `settlement.completed`
 - `notification.requested`
 - `group.created`
 - `group.updated`
@@ -343,12 +348,16 @@ curl http://localhost:8080/api/v1/groups/1/chat/messages
 curl "http://localhost:8080/api/v1/groups/1/chat/messages?limit=20"
 curl.exe -X POST http://localhost:8080/api/v1/groups/1/chat/messages -H "Content-Type: application/json" --data-binary '{ "message": "채팅 API smoke" }'
 curl.exe -X PUT http://localhost:8080/api/v1/groups/1/chat/read-state -H "Content-Type: application/json" --data-binary '{ "lastReadMessageId": "메시지 UUID" }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
 curl http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft
-curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/103/settlement-draft/items/401/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }'
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
-curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{ "items": [{ "title": "커피", "amountWon": 12000, "payerUserId": "user-jimin", "payerName": "지민", "targetUserIds": ["user-jimin", "user-minsu"], "targetNames": ["지민", "민수"] }] }'
-curl http://localhost:8080/api/v1/groups/1/plans/101/settlements
-curl http://localhost:8080/api/v1/groups/1/plans/103/settlements/301
+curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft -H "Content-Type: application/json" --data-binary '{ "sections": [{ "id": "extra", "title": "기타 비용", "payerUserId": "<DB_USER_UUID>", "items": [{ "id": "coffee-1", "title": "커피", "amountWon": 12000, "splitType": "menu", "targetUserIds": ["<DB_USER_UUID>", "<DB_USER_UUID>"] }] }] }'
+curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft/items/coffee-1/targets -H "Content-Type: application/json" --data-binary '{ "targetUserIds": ["<DB_USER_UUID>", "<DB_USER_UUID>"] }'
+curl.exe -X PATCH http://localhost:8080/api/v1/groups/1/plans/101/settlement-draft/items/coffee-1/targets -H "Content-Type: application/json" --data-binary '{ "targetShares": [{ "userId": "<DB_USER_UUID>", "amountWon": 8000 }, { "userId": "<DB_USER_UUID>", "amountWon": 4000 }] }'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements/preview -H "Content-Type: application/json" --data-binary '{}'
+curl.exe -X POST http://localhost:8080/api/v1/groups/1/plans/101/settlements -H "Content-Type: application/json" --data-binary '{}'
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements/current
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements/301
+curl http://localhost:8080/api/v1/groups/1/plans/101/settlements/301/basis
 curl http://localhost:8080/api/v1/notifications
 curl http://localhost:8080/api/v1/notifications/unread-count
 curl.exe -X PUT http://localhost:8080/api/v1/notifications/00000000-0000-0000-0000-000000001211/read
@@ -359,12 +368,14 @@ curl.exe -X POST http://localhost:8080/api/v1/devices/push-token -H "Content-Typ
 curl.exe -X DELETE http://localhost:8080/api/v1/devices/push-token -H "Content-Type: application/json" --data-binary '{ "provider": "dev", "token": "synthetic-dev-push-token", "platform": "android" }'
 ```
 
-`POST /settlements/preview`, `POST /settlements`는 `items`가 비어 있으면 `400 missing_settlement_items`를 반환합니다. 기본 draft preview는 `GET /settlement-draft`로 확인합니다.
-정산 draft/result 응답은 `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 우선 읽고, JSON `payload`는 payer user id 같은 계산 보조 필드와 이전 Flutter mock contract 호환 용도로 유지합니다. 요청은 `payerUserId`, `targetUserIds`를 우선 사용하며, `payerName`, `targetNames`는 dev seed 호환 fallback입니다. 이름 fallback이 중복 이름을 만나면 `400 ambiguous_settlement_member_name`을 반환합니다.
+`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 active 정산을 반환합니다. `GET /settlement-draft`는 active draft가 없으면 `404 settlement_draft_not_found`를 반환합니다.
+정산 draft/result 응답은 `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 우선 읽고, JSON `payload`는 화면 snapshot과 이전 contract 호환 용도로 유지합니다. 요청은 `sections[].payerUserId`, `sections[].items[].amountWon`, `sections[].items[].targetUserIds` 또는 사람별 금액 직접 입력용 `sections[].items[].targetShares`를 사용하며 모두 DB UUID 기준입니다. 이름은 표시용 응답 필드로만 내려갑니다.
 
-`GET /settlement-draft`가 저장되지 않은 synthetic draft를 반환할 때는 `persisted=false`, `targetPatchAvailable=false`입니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다.
+`targetShares`가 있으면 `targetUserIds`보다 우선하며, `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 합니다. 합계가 다르면 `400 settlement_target_amount_mismatch`, 사람별 금액이 0 이하이면 `400 invalid_settlement_target_amount`, 대상자가 중복되면 `400 duplicate_settlement_target`을 반환합니다.
 
-현재 DB 컬럼명은 `amount_cents`지만 정산 API의 `amountWon`/호환 `amount` 값은 KRW 원 단위 integer입니다. `mySummaryLabel`과 `memberResults[].isMe`는 실제 사용자 인증 주입 전까지 dev seed의 첫 사용자 기준으로 계산되는 dev-only 한계가 있습니다.
+`POST /settlements/preview`, `POST /settlements`는 저장된 active draft 기준으로 계산합니다. 항목이 없으면 `400 missing_settlement_items`를 반환합니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다.
+
+정산 금액 DB 컬럼과 API 필드는 `amount_won`/`amountWon`이며 KRW 원 단위 integer입니다. `mySummaryLabel`과 `memberResults[].isMe`는 인증 사용자 기준으로 계산합니다.
 
 ## 인증과 CORS 기준
 

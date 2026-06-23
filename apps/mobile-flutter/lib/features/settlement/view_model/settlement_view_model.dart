@@ -140,8 +140,8 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
 
   Future<void> updateDraftItemTargets({
     required Object itemId,
-    required List<String> targetUserIds,
-    required List<String> targetNames,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) async {
     final previous = await future;
     try {
@@ -152,7 +152,7 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
             planId: scope.planId,
             itemId: itemId,
             targetUserIds: targetUserIds,
-            targetNames: targetNames,
+            targetShares: targetShares,
           );
       state = AsyncData(updated);
     } catch (error, stackTrace) {
@@ -263,9 +263,21 @@ class SettlementDraftViewModel extends AsyncNotifier<SettlementSummary> {
                 .map((participant) => participant.userId)
                 .where((userId) => userId.isNotEmpty)
                 .toList(growable: false),
-            targetNames: item.includedParticipants
-                .map((participant) => participant.name)
-                .toList(growable: false),
+            targetShares: item.usesCustomTargetAmounts
+                ? item.includedParticipants
+                      .where(
+                        (participant) =>
+                            participant.userId.isNotEmpty &&
+                            participant.owedAmountWon > 0,
+                      )
+                      .map(
+                        (participant) => SettlementTargetShareInput(
+                          userId: participant.userId,
+                          amountWon: participant.owedAmountWon,
+                        ),
+                      )
+                      .toList(growable: false)
+                : const [],
           );
         })
         .toList(growable: false);

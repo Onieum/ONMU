@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
@@ -12,7 +13,12 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../../settlement/repository/settlement_repository.dart';
 import '../../../settlement/view_model/settlement_view_model.dart';
+
+const _targetModeAll = '전체 참여자';
+const _targetModeManual = '직접 선택';
+const _targetModeCustom = '금액 다르게';
 
 class PlanSettlementTargetSelectionPage extends StatefulWidget {
   const PlanSettlementTargetSelectionPage({
@@ -35,36 +41,74 @@ class _PlanSettlementTargetSelectionPageState
     extends State<PlanSettlementTargetSelectionPage> {
   String? _mode;
   final Set<String> _selectedKeys = {};
+  final Map<String, String> _amountTexts = {};
 
   void _selectMode(String mode, SettlementPaymentItem item) {
     setState(() {
       _mode = mode;
-      if (mode == '전체 참여자') {
+      if (mode == _targetModeAll) {
         _selectedKeys
           ..clear()
           ..addAll(
             item.participants.map((participant) => participant.selectionKey),
           );
       }
+      if (mode == _targetModeCustom) {
+        _ensureAmountTexts(item);
+      }
     });
   }
 
-  void _toggleParticipant(
-    SettlementPaymentParticipant participant,
-    SettlementPaymentItem item,
-  ) {
-    if (_mode == '전체 참여자') {
-      _selectMode('직접 선택', item);
-    }
-
+  void _toggleParticipant(SettlementPaymentParticipant participant) {
     final selectionKey = participant.selectionKey;
     setState(() {
+      if (_mode == _targetModeAll) {
+        _mode = _targetModeManual;
+      }
       if (_selectedKeys.contains(selectionKey)) {
         _selectedKeys.remove(selectionKey);
         return;
       }
       _selectedKeys.add(selectionKey);
+      if (_mode == _targetModeCustom) {
+        _amountTexts[selectionKey] = _initialAmountText(participant);
+      }
     });
+  }
+
+  void _updateAmountText(String selectionKey, String value) {
+    setState(() {
+      _amountTexts[selectionKey] = value;
+    });
+  }
+
+  void _ensureInitialState(SettlementPaymentItem item) {
+    _mode ??= item.targetModeLabel;
+    if (_selectedKeys.isEmpty) {
+      _selectedKeys.addAll(
+        item.includedParticipants.map(
+          (participant) => participant.selectionKey,
+        ),
+      );
+    }
+    _ensureAmountTexts(item);
+  }
+
+  void _ensureAmountTexts(SettlementPaymentItem item) {
+    for (final participant in item.participants) {
+      _amountTexts.putIfAbsent(
+        participant.selectionKey,
+        () => _initialAmountText(participant),
+      );
+    }
+  }
+
+  String _initialAmountText(SettlementPaymentParticipant participant) {
+    final amount = participant.owedAmountWon;
+    if (amount > 0) {
+      return amount.toString();
+    }
+    return '0';
   }
 
   @override
@@ -100,14 +144,7 @@ class _PlanSettlementTargetSelectionPageState
               settlement.paymentItems,
               widget.itemId,
             );
-            _mode ??= item.targetModeLabel;
-            if (_selectedKeys.isEmpty) {
-              _selectedKeys.addAll(
-                item.includedParticipants.map(
-                  (participant) => participant.selectionKey,
-                ),
-              );
-            }
+            _ensureInitialState(item);
 
             return _SettlementTargetContent(
               groupId: widget.groupId,
@@ -116,10 +153,12 @@ class _PlanSettlementTargetSelectionPageState
               items: settlement.paymentItems,
               mode: _mode!,
               selectedKeys: _selectedKeys,
+              amountTexts: _amountTexts,
               onModeSelected: (mode) => _selectMode(mode, item),
               onParticipantSelected: (participant) =>
-                  _toggleParticipant(participant, item),
-              onSave: () async {
+                  _toggleParticipant(participant),
+              onAmountChanged: _updateAmountText,
+              onSave: ({required targetUserIds, required targetShares}) async {
                 final targets = item.participants
                     .where(
                       (participant) =>
@@ -135,13 +174,13 @@ class _PlanSettlementTargetSelectionPageState
                     )
                     .updateDraftItemTargets(
                       itemId: item.id,
-                      targetUserIds: targets
-                          .map((participant) => participant.userId)
-                          .where((userId) => userId.isNotEmpty)
-                          .toList(growable: false),
-                      targetNames: targets
-                          .map((participant) => participant.name)
-                          .toList(growable: false),
+                      targetUserIds: targetUserIds.isEmpty
+                          ? targets
+                                .map((participant) => participant.userId)
+                                .where((userId) => userId.isNotEmpty)
+                                .toList(growable: false)
+                          : targetUserIds,
+                      targetShares: targetShares,
                     );
               },
             );
@@ -185,8 +224,10 @@ class _SettlementTargetContent extends StatelessWidget {
     required this.items,
     required this.mode,
     required this.selectedKeys,
+    required this.amountTexts,
     required this.onModeSelected,
     required this.onParticipantSelected,
+    required this.onAmountChanged,
     required this.onSave,
   });
 
@@ -196,13 +237,48 @@ class _SettlementTargetContent extends StatelessWidget {
   final List<SettlementPaymentItem> items;
   final String mode;
   final Set<String> selectedKeys;
+  final Map<String, String> amountTexts;
   final ValueChanged<String> onModeSelected;
   final ValueChanged<SettlementPaymentParticipant> onParticipantSelected;
-  final Future<void> Function() onSave;
+  final void Function(String selectionKey, String value) onAmountChanged;
+  final Future<void> Function({
+    required List<String> targetUserIds,
+    required List<SettlementTargetShareInput> targetShares,
+  })
+  onSave;
 
   @override
   Widget build(BuildContext context) {
-    final selectedCount = selectedKeys.length;
+    final selectedParticipants = item.participants
+        .where((participant) => selectedKeys.contains(participant.selectionKey))
+        .toList(growable: false);
+    final selectedCount = selectedParticipants.length;
+    final isCustomAmountMode = mode == _targetModeCustom;
+    final targetShares = isCustomAmountMode
+        ? selectedParticipants
+              .map(
+                (participant) => SettlementTargetShareInput(
+                  userId: participant.userId,
+                  amountWon: _amountFrom(amountTexts[participant.selectionKey]),
+                ),
+              )
+              .toList(growable: false)
+        : const <SettlementTargetShareInput>[];
+    final customAmountTotal = targetShares.fold<int>(
+      0,
+      (total, share) => total + share.amountWon,
+    );
+    final hasMissingCustomAmount = targetShares.any(
+      (share) => share.userId.isEmpty || share.amountWon <= 0,
+    );
+    final customAmountValid =
+        !isCustomAmountMode ||
+        (!hasMissingCustomAmount && customAmountTotal == item.amount);
+    final saveEnabled = selectedCount > 0 && customAmountValid;
+    final selectedTargetUserIds = selectedParticipants
+        .map((participant) => participant.userId)
+        .where((userId) => userId.isNotEmpty)
+        .toList(growable: false);
 
     return OnmuScaffold(
       title: '정산 대상자 선택',
@@ -215,11 +291,14 @@ class _SettlementTargetContent extends StatelessWidget {
         icon: Icons.check_circle_outline,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
-        onPressed: selectedKeys.isEmpty
+        onPressed: !saveEnabled
             ? null
             : () async {
                 try {
-                  await onSave();
+                  await onSave(
+                    targetUserIds: selectedTargetUserIds,
+                    targetShares: isCustomAmountMode ? targetShares : const [],
+                  );
                   if (context.mounted) {
                     context.popOrGo(
                       RoutePaths.planSettlementNew(groupId, planId),
@@ -243,13 +322,19 @@ class _SettlementTargetContent extends StatelessWidget {
           selectedCount: selectedCount,
           totalAmountLabel: item.amountLabel,
           mode: mode,
+          customAmountTotal: customAmountTotal,
+          customAmountValid: customAmountValid,
+          showCustomAmountStatus: isCustomAmountMode,
         ),
         const SizedBox(height: AppSpacing.md),
         for (final participant in item.participants) ...[
           _TargetParticipantRow(
             participant: participant,
             selected: selectedKeys.contains(participant.selectionKey),
-            editableAmount: mode == '금액 다르게',
+            customAmountMode: isCustomAmountMode,
+            amountText: amountTexts[participant.selectionKey] ?? '0',
+            onAmountChanged: (value) =>
+                onAmountChanged(participant.selectionKey, value),
             onTap: () => onParticipantSelected(participant),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -326,7 +411,11 @@ class _TargetModeSegmentedControl extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  List<String> _createModes() => ['전체 참여자', '직접 선택', '금액 다르게'];
+  List<String> _createModes() => [
+    _targetModeAll,
+    _targetModeManual,
+    _targetModeCustom,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -399,34 +488,58 @@ class _TargetSummaryCard extends StatelessWidget {
     required this.selectedCount,
     required this.totalAmountLabel,
     required this.mode,
+    required this.customAmountTotal,
+    required this.customAmountValid,
+    required this.showCustomAmountStatus,
   });
 
   final int selectedCount;
   final String totalAmountLabel;
   final String mode;
+  final int customAmountTotal;
+  final bool customAmountValid;
+  final bool showCustomAmountStatus;
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = customAmountValid
+        ? AppColors.primaryPink
+        : AppColors.accentRed;
+
     return OnmuCard(
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
       padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.group_outlined, color: AppColors.primaryPink),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              '선택 $selectedCount명 · $mode',
-              style: Theme.of(context).textTheme.titleSmall,
+          Row(
+            children: [
+              const Icon(Icons.group_outlined, color: AppColors.primaryPink),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '선택 $selectedCount명 · $mode',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Text(
+                totalAmountLabel,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: AppColors.primaryPink),
+              ),
+            ],
+          ),
+          if (showCustomAmountStatus) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '입력 합계 ${_formatWon(customAmountTotal)} / 항목 총액 $totalAmountLabel',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: statusColor),
             ),
-          ),
-          Text(
-            totalAmountLabel,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AppColors.primaryPink),
-          ),
+          ],
         ],
       ),
     );
@@ -437,13 +550,17 @@ class _TargetParticipantRow extends StatelessWidget {
   const _TargetParticipantRow({
     required this.participant,
     required this.selected,
-    required this.editableAmount,
+    required this.customAmountMode,
+    required this.amountText,
+    required this.onAmountChanged,
     required this.onTap,
   });
 
   final SettlementPaymentParticipant participant;
   final bool selected;
-  final bool editableAmount;
+  final bool customAmountMode;
+  final String amountText;
+  final ValueChanged<String> onAmountChanged;
   final VoidCallback onTap;
 
   @override
@@ -484,18 +601,34 @@ class _TargetParticipantRow extends StatelessWidget {
               ],
             ),
           ),
-          if (editableAmount && selected) ...[
-            OnmuChip(label: amountLabel, icon: Icons.edit_outlined),
-            const SizedBox(width: AppSpacing.xs),
-          ] else ...[
+          if (customAmountMode && selected)
+            SizedBox(
+              width: 104,
+              child: TextFormField(
+                key: ValueKey('target-amount-${participant.selectionKey}'),
+                initialValue: amountText,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.end,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  suffixText: '원',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xs,
+                  ),
+                ),
+                onChanged: onAmountChanged,
+              ),
+            )
+          else
             Text(
               amountLabel,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: selected ? AppColors.primaryPink : AppColors.textMuted,
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
+          const SizedBox(width: AppSpacing.xs),
           Icon(
             selected ? Icons.check_circle : Icons.radio_button_unchecked,
             color: selected ? AppColors.primaryPink : AppColors.textMuted,
@@ -504,6 +637,21 @@ class _TargetParticipantRow extends StatelessWidget {
       ),
     );
   }
+}
+
+int _amountFrom(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return 0;
+  }
+  return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+}
+
+String _formatWon(int amount) {
+  final text = amount.toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (match) => ',',
+  );
+  return '$text원';
 }
 
 class _ItemTargetOverviewCard extends StatelessWidget {
