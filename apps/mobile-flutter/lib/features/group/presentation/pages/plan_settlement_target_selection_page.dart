@@ -139,9 +139,6 @@ class _PlanSettlementTargetSelectionPageState
                           .map((participant) => participant.userId)
                           .where((userId) => userId.isNotEmpty)
                           .toList(growable: false),
-                      targetNames: targets
-                          .map((participant) => participant.name)
-                          .toList(growable: false),
                     );
               },
             );
@@ -249,7 +246,6 @@ class _SettlementTargetContent extends StatelessWidget {
           _TargetParticipantRow(
             participant: participant,
             selected: selectedKeys.contains(participant.selectionKey),
-            editableAmount: mode == '금액 다르게',
             onTap: () => onParticipantSelected(participant),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -326,7 +322,7 @@ class _TargetModeSegmentedControl extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  List<String> _createModes() => ['전체 참여자', '직접 선택', '금액 다르게'];
+  List<String> _createModes() => ['전체 참여자', '직접 선택'];
 
   @override
   Widget build(BuildContext context) {
@@ -437,13 +433,11 @@ class _TargetParticipantRow extends StatelessWidget {
   const _TargetParticipantRow({
     required this.participant,
     required this.selected,
-    required this.editableAmount,
     required this.onTap,
   });
 
   final SettlementPaymentParticipant participant;
   final bool selected;
-  final bool editableAmount;
   final VoidCallback onTap;
 
   @override
@@ -484,18 +478,13 @@ class _TargetParticipantRow extends StatelessWidget {
               ],
             ),
           ),
-          if (editableAmount && selected) ...[
-            OnmuChip(label: amountLabel, icon: Icons.edit_outlined),
-            const SizedBox(width: AppSpacing.xs),
-          ] else ...[
-            Text(
-              amountLabel,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: selected ? AppColors.primaryPink : AppColors.textMuted,
-              ),
+          Text(
+            amountLabel,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: selected ? AppColors.primaryPink : AppColors.textMuted,
             ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
+          ),
+          const SizedBox(width: AppSpacing.xs),
           Icon(
             selected ? Icons.check_circle : Icons.radio_button_unchecked,
             color: selected ? AppColors.primaryPink : AppColors.textMuted,

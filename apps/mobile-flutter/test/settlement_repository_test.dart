@@ -15,7 +15,6 @@ void main() {
         payerName: '지민',
         splitType: SettlementSplitType.custom,
         targetUserIds: ['user-jimin', 'user-minsu'],
-        targetNames: ['지민', '민수'],
       );
 
       expect(item.toJson(), {

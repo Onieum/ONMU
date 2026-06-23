@@ -253,7 +253,7 @@ Spring Boot Main API는 `settlement_sections`, `settlement_items`, `settlement_i
 
 정산 create/preview/update 요청은 section 단위 `payerUserId`, item 단위 `targetUserIds`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 내려주며 요청 fallback으로 쓰지 않는다. DB 물리 컬럼도 `amount_won`이다.
 
-`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 draft를 반환한다. 시작 전 약속은 `settlement_plan_not_eligible`, 이미 active finalized settlement가 있으면 `active_settlement_exists`로 실패한다. `GET /settlement-draft`는 active draft가 없으면 `settlement_draft_not_found`를 반환한다.
+`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 active draft를 반환한다. 이미 active finalized settlement가 있으면 새 draft를 만들지 않고 기존 finalized 정산 카드를 반환한다. 시작 전 약속은 `settlement_plan_not_eligible`, `GET /settlement-draft`는 active draft가 없으면 `settlement_draft_not_found`를 반환한다. `GET /settlements/current`는 active draft 또는 active finalized만 반환하며, completed 정산만 남은 경우 채팅 상단 배너가 남지 않도록 `404 settlement_not_found`를 반환한다.
 
 `POST /settlements`는 저장된 draft를 `finalized` settlement로 확정하고, 정산 카드용 `chat_activity_events`, 사용자별 notification, `settlement.finalized`, `notification.requested` outbox를 같은 domain transaction 안에서 남긴다. transfer가 없으면 즉시 `completed`로 전환하고 `settlement.completed` outbox를 남긴다.
 
@@ -373,7 +373,8 @@ Daily diary UI 복원을 위해 `POST/PUT /api/v1/memories`는 선택 필드 `pa
 | `place_candidate.heart_updated` | 장소 후보 하트 변경 |
 | `vote.created` | 투표 생성 |
 | `vote.closed` | 투표 종료 |
-| `settlement.created` | 정산 최종 생성 |
+| `settlement.finalized` | 정산 확정 |
+| `settlement.completed` | 정산 완료 |
 | `record.created` | 기록 작성 |
 | `ai.summary.requested` | AI 요약/추천 설명 작업 요청 |
 | `notification.requested` | 알림 발송 요청 |

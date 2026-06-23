@@ -34,7 +34,6 @@ abstract interface class SettlementRepository {
     required Object planId,
     required Object itemId,
     required List<String> targetUserIds,
-    required List<String> targetNames,
   });
 
   Future<SettlementSummary> previewSettlement({
@@ -120,7 +119,6 @@ class SettlementDraftItemInput {
     required this.payerName,
     this.splitType = SettlementSplitType.equal,
     this.targetUserIds = const [],
-    required this.targetNames,
   });
 
   final Object? id;
@@ -133,7 +131,6 @@ class SettlementDraftItemInput {
   final String payerName;
   final SettlementSplitType splitType;
   final List<String> targetUserIds;
-  final List<String> targetNames;
 
   Map<String, Object?> toJson() {
     return {
@@ -215,7 +212,6 @@ class ApiSettlementRepository implements SettlementRepository {
     required Object planId,
     required Object itemId,
     required List<String> targetUserIds,
-    required List<String> targetNames,
   }) async {
     final draft = await _client.patchObject(
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft/items/$itemId/targets',

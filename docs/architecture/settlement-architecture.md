@@ -31,13 +31,13 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 
 | 기능 | API | 설명 |
 | --- | --- | --- |
-| draft 생성 또는 기존 draft 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active finalized가 있으면 `409 active_settlement_exists` |
+| draft 생성 또는 기존 active 정산 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active draft가 있으면 기존 draft를, active finalized가 있으면 기존 finalized 정산을 반환한다 |
 | active draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | active draft가 없으면 `404 settlement_draft_not_found` |
 | draft 전체 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | section/item/target 전체를 저장한다. 저장 요청 단위 pessimistic lock 적용 |
 | item 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft item의 대상자를 교체한다 |
 | preview 계산 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 저장된 draft 기준 계산. DB write 없음 |
 | 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | draft를 finalized settlement로 확정 |
-| 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft, finalized, completed 중 현재 상태 조회 |
+| 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft 또는 active finalized 조회. completed만 남은 경우 `404 settlement_not_found` |
 | 결과 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | 특정 settlement 결과 조회 |
 | 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` | section별 부담 계산과 transfer 근거 조회 |
 | 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` | 송금자만 호출 가능 |
@@ -81,6 +81,7 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 - `targetUserIds`가 비어 있으면 약속 활성 참여자 전체를 대상으로 본다.
 - `amountWon <= 0`이면 `invalid_settlement_amount`.
 - 대상자가 없으면 `missing_settlement_targets`.
+- 항목별 금액 직접 배분은 아직 canonical contract가 아니다. `menu`와 `equal` 모두 선택된 대상자 안에서 균등 배분한다.
 
 ## DB Schema
 
@@ -152,7 +153,6 @@ Flutter 금지:
 | code | 의미 |
 | --- | --- |
 | `settlement_plan_not_eligible` | 시작 전 약속이라 정산 생성 불가 |
-| `active_settlement_exists` | active finalized settlement가 이미 있음 |
 | `settlement_draft_not_found` | active draft 없음 |
 | `settlement_already_finalized` | draft가 이미 finalized |
 | `settlement_already_completed` | completed settlement 변경 시도 |
@@ -173,3 +173,4 @@ Sentry 정책은 `frontend-architecture.md`의 오류 처리와 관측성 규칙
 4. finalize 후 채팅 상단 공지와 notification/outbox가 생성되는지 확인한다.
 5. 송금자 `sent`, 수취자 `received` confirmation을 처리한다.
 6. 모든 수취자가 확인하면 `completed`로 전환되고 채팅 상단 공지가 사라지는지 확인한다.
+7. completed 이후 current 정산 조회는 `404 settlement_not_found`이고, 특정 결과는 settlement id로 다시 조회 가능한지 확인한다.

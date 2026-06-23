@@ -2104,7 +2104,7 @@ void main() {
 
     expect(find.text('정산 대상자 선택'), findsOneWidget);
     expect(find.text('직접 선택'), findsWidgets);
-    expect(find.text('금액 다르게'), findsOneWidget);
+    expect(find.text('금액 다르게'), findsNothing);
     expect(find.text('선택 4명 · 직접 선택'), findsOneWidget);
     expect(find.text('이 항목 대상자 저장'), findsOneWidget);
   });
