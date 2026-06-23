@@ -275,6 +275,42 @@ class PlaceSearchServiceTests {
   }
 
   @Test
+  void searchCrossFillsCatalogBeforeKakaoWhenNaverFanoutIsLimited() {
+    SingleResultPerQueryProvider naver = new SingleResultPerQueryProvider("naver");
+    CountingProvider catalog = new CountingProvider("onmu_catalog", true, java.util.stream.IntStream.rangeClosed(1, 15)
+      .mapToObj(index -> result(
+        "onmu_catalog",
+        "catalog-" + index,
+        "성수 catalog 식당 " + index,
+        "서울 성동구 catalog " + index,
+        37.54 + index / 10000.0,
+        127.05 + index / 10000.0
+      ))
+      .toList());
+    CountingProvider kakao = new CountingProvider("kakao", true, List.of(
+      result("kakao", "kakao-1", "카카오 식당", "서울 성동구", 37.60, 127.10)
+    ));
+    PlaceSearchService service = new PlaceSearchService(
+      List.of(kakao, catalog, naver),
+      new DevMockPlaceSearchProvider(),
+      new NoopCache(),
+      localEnvironment()
+    );
+
+    var results = service.search("성수", "1", "101", null, null, null, "음식점", List.of(), false);
+
+    assertThat(results).hasSize(20);
+    assertThat(results.subList(0, 5))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "naver"));
+    assertThat(results.subList(5, 20))
+      .allSatisfy(result -> assertThat(result).containsEntry("provider", "onmu_catalog"));
+    assertThat(naver.queries)
+      .containsExactly("성수 한식", "성수 양식", "성수 중식", "성수 일식", "성수 아시안식");
+    assertThat(catalog.invocations).isEqualTo(1);
+    assertThat(kakao.invocations).isZero();
+  }
+
+  @Test
   void searchFansOutNaverRestaurantCategoryAndDedupesToExpandedLimit() {
     QueryAwareProvider naver = new QueryAwareProvider("naver", true);
     MemoryCache cache = new MemoryCache();
@@ -604,6 +640,39 @@ class PlaceSearchServiceTests {
           127.00 + queries.size() / 100.0 + index / 10000.0
         ))
         .toList();
+    }
+  }
+
+  private static class SingleResultPerQueryProvider implements PlaceSearchProvider {
+    private final String provider;
+    private final List<String> queries = new java.util.ArrayList<>();
+
+    private SingleResultPerQueryProvider(String provider) {
+      this.provider = provider;
+    }
+
+    @Override
+    public String provider() {
+      return provider;
+    }
+
+    @Override
+    public boolean isAvailable() {
+      return true;
+    }
+
+    @Override
+    public List<PlaceSearchResult> search(PlaceSearchQuery query) {
+      queries.add(query.normalizedQuery());
+      int index = queries.size();
+      return List.of(result(
+        provider,
+        provider + "-" + index,
+        query.normalizedQuery() + " 후보",
+        "서울 성동구 " + query.normalizedQuery(),
+        37.50 + index / 10000.0,
+        127.00 + index / 10000.0
+      ));
     }
   }
 
