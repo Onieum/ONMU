@@ -1,0 +1,8 @@
+no-autoupdate: true
+protocol: quic
+ingress:
+  - hostname: onmu.cloud
+    service: http://localhost:4173
+  - hostname: www.onmu.cloud
+    service: http://localhost:4173
+  - service: http_status:404
