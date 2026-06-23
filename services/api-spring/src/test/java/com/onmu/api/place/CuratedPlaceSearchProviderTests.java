@@ -80,6 +80,21 @@ class CuratedPlaceSearchProviderTests {
       .satisfies(result -> assertThat(result.providerPlaceId()).isEqualTo("tour-near"));
   }
 
+  @Test
+  void searchSkipsCatalogRowsOutsideKoreaCoordinateBounds() {
+    when(repository.findByProviderAndCategoryInAndLatitudeIsNotNullAndLongitudeIsNotNull(eq("ONMU_CATALOG"), any(Collection.class)))
+      .thenReturn(List.of(
+        catalogPlace("tour-invalid", "서울 좌표 오류 공원", "관광명소", "서울 동작구", 19.6944275, 117.9925663, payload("서울", "공원", "산책로")),
+        catalogPlace("tour-zero", "서울 0좌표 공원", "관광명소", "서울 동작구", 0.0, 0.0, payload("서울", "공원", "산책로")),
+        catalogPlace("tour-valid", "서울 정상 공원", "관광명소", "서울 마포구", 37.528, 126.934, payload("서울", "공원", "산책로"))
+      ));
+
+    var results = provider.search(query("서울 공원", "가볼만한곳", null, null, null));
+
+    assertThat(results).singleElement()
+      .satisfies(result -> assertThat(result.providerPlaceId()).isEqualTo("tour-valid"));
+  }
+
   private static PlaceSearchQuery query(String value, String category, Double lat, Double lng, Integer radius) {
     return new PlaceSearchQuery(value, "group-1", "plan-1", lat, lng, radius, category, List.of(), false);
   }

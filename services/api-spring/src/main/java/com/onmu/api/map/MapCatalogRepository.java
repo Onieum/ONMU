@@ -17,6 +17,10 @@ public class MapCatalogRepository {
   static final String STORED_PROVIDER = "ONMU_CATALOG";
   private static final int POINT_LIMIT = 500;
   private static final int CLUSTER_LIMIT = 300;
+  private static final double MIN_KOREA_LATITUDE = 33.0;
+  private static final double MAX_KOREA_LATITUDE = 39.0;
+  private static final double MIN_KOREA_LONGITUDE = 124.0;
+  private static final double MAX_KOREA_LONGITUDE = 132.0;
 
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -39,6 +43,8 @@ public class MapCatalogRepository {
         from external_places
        where provider = :provider
          and place_point is not null
+         and latitude between :min_korea_latitude and :max_korea_latitude
+         and longitude between :min_korea_longitude and :max_korea_longitude
          and ST_Intersects(place_point, ST_MakeEnvelope(:west, :south, :east, :north, 4326))
       """ + parts.where() + """
        order by name asc, provider_place_id asc
@@ -60,6 +66,8 @@ public class MapCatalogRepository {
           from external_places
          where provider = :provider
            and place_point is not null
+           and latitude between :min_korea_latitude and :max_korea_latitude
+           and longitude between :min_korea_longitude and :max_korea_longitude
            and ST_Intersects(place_point, ST_MakeEnvelope(:west, :south, :east, :north, 4326))
       """ + parts.where() + """
       ),
@@ -118,7 +126,11 @@ public class MapCatalogRepository {
       .addValue("south", query.south())
       .addValue("west", query.west())
       .addValue("north", query.north())
-      .addValue("east", query.east());
+      .addValue("east", query.east())
+      .addValue("min_korea_latitude", MIN_KOREA_LATITUDE)
+      .addValue("max_korea_latitude", MAX_KOREA_LATITUDE)
+      .addValue("min_korea_longitude", MIN_KOREA_LONGITUDE)
+      .addValue("max_korea_longitude", MAX_KOREA_LONGITUDE);
     if (!query.category().isBlank()) {
       where.append(" and lower(category) = :category\n");
       params.addValue("category", query.category());
