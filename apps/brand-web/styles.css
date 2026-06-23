@@ -745,7 +745,7 @@ button:focus-visible {
 
 .mini-screen-image {
   width: 100%;
-  aspect-ratio: 390 / 844;
+  height: 250px;
   border: 5px solid #2d211d;
   border-radius: 24px;
   background: var(--white);
@@ -1278,6 +1278,68 @@ body.reveal-ready .reveal-item.is-visible {
   .hero-actions,
   .download-grid {
     display: grid;
+  }
+
+  .section-screens {
+    gap: 28px;
+  }
+
+  .screen-stage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .screen-stage .app-screenshot-frame {
+    justify-self: center;
+    width: 100%;
+    max-width: 168px;
+    border-width: 5px;
+    border-radius: 22px;
+    box-shadow: 0 16px 34px rgba(58, 42, 35, 0.16);
+  }
+
+  .screen-stage .screen-notes {
+    grid-column: 1 / -1;
+    gap: 10px;
+  }
+
+  .screen-notes article {
+    gap: 10px;
+    padding: 18px;
+  }
+
+  .screen-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .mini-screen-card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .mini-screen-card::before {
+    top: 10px;
+    right: 12px;
+    width: 32px;
+  }
+
+  .mini-screen-image {
+    height: 190px;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  .feature-card {
+    gap: 12px;
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .feature-illustration {
+    max-height: 168px;
+    aspect-ratio: 4 / 3;
   }
 
   .button-primary,
