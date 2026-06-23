@@ -257,12 +257,24 @@ class ApiRecordRepository implements RecordRepository {
       imageUrls,
       media,
     );
+    final generatedImageUrl = OnmuJson.readString(
+      payload,
+      'generatedImageUrl',
+      OnmuJson.readString(json, 'generatedImageUrl'),
+    );
+    final aiStatus = OnmuJson.readString(
+      json,
+      'aiStatus',
+      OnmuJson.readString(payload, 'aiStatus'),
+    );
     final brands = <String, String>{
       for (final entry in payloadBrands.entries)
         entry.key.toString(): entry.value?.toString() ?? '',
       'recordType': isDaily ? 'daily' : 'ootd',
       'visibility': OnmuJson.readString(json, 'visibility'),
-      'aiStatus': OnmuJson.readString(json, 'aiStatus'),
+      'aiStatus': aiStatus,
+      if (generatedImageUrl.isNotEmpty)
+        'generatedImageUrl': _absoluteApiUrl(generatedImageUrl),
     };
     final mood = OnmuJson.readString(
       payload,
@@ -477,7 +489,9 @@ class ApiRecordRepository implements RecordRepository {
     return normalized.isEmpty ? null : normalized;
   }
 
-  List<CharacterDraft> _crewCharactersFromPayload(Map<String, dynamic> payload) {
+  List<CharacterDraft> _crewCharactersFromPayload(
+    Map<String, dynamic> payload,
+  ) {
     final fromAppearances = _crewAppearancesFromPayload(payload)
         .map((appearance) => appearance.character)
         .whereType<CharacterDraft>()
@@ -559,7 +573,8 @@ class ApiRecordRepository implements RecordRepository {
       'source': appearance.source,
       if (appearance.ootdRecordId != null)
         'ootdRecordId': appearance.ootdRecordId,
-      if (appearance.ootdImageUrl != null) 'ootdImageUrl': appearance.ootdImageUrl,
+      if (appearance.ootdImageUrl != null)
+        'ootdImageUrl': appearance.ootdImageUrl,
       if (appearance.character != null)
         'character': _characterDraftPayload(appearance.character!),
     };

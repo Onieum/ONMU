@@ -12,7 +12,7 @@ class CharacterDraft {
 
   const CharacterDraft({
     this.gender = 'female',
-    this.nickname = '온뮤',
+    this.nickname = '온무',
     this.skinToneIndex = 0,
     this.eyeShapeIndex = 0,
     this.eyeColorIndex = 0,
@@ -118,7 +118,7 @@ class CharacterDraft {
 
   static CharacterDraft fromApiJson(
     Map<String, dynamic> json, {
-    String nickname = '온뮤',
+    String nickname = '온무',
   }) {
     return CharacterDraft(
       gender: _readString(json, 'gender', 'female'),

@@ -986,8 +986,8 @@ class TestSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
-    required List<String> targetNames,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) async {
     return fetchSettlement(groupId: groupId, planId: planId);
   }

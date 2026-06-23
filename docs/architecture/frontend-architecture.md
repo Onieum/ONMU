@@ -107,7 +107,9 @@ Sentry tag로 보낼 수 있는 값은 `feature`, `kind`, `statusCode`, `method`
 | 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` |
 | 수취 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/received` |
 
-정산 요청은 `sections[].payerUserId`, `items[].targetUserIds`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 다루며 사용자 resolve fallback으로 쓰지 않는다.
+정산 요청은 `sections[].payerUserId`, `items[].targetUserIds`, `items[].targetShares`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 다루며 사용자 resolve fallback으로 쓰지 않는다. `targetShares`는 사람별 부담 금액 직접 입력 모드에서만 사용하며, 합계는 item 금액과 정확히 같아야 한다.
+
+약속 상세의 정산 진입은 `POST /settlement-draft`를 사용하되, 서버가 finalized/completed 결과를 반환하면 새 draft 화면이 아니라 결과 화면으로 전환한다. completed 정산은 채팅 상단 current banner에서는 숨기지만 약속 상세에서는 결과로 다시 볼 수 있어야 한다.
 
 정산 오류는 공통 `OnmuApiException`으로 매핑한다. `settlement_plan_not_eligible`, `active_settlement_exists`, `settlement_write_conflict`, `invalid_settlement_amount`, `missing_settlement_targets`, `settlement_confirmation_forbidden` 같은 400/409 계열은 snackbar 또는 inline 안내 중심으로 처리하고 기본 Sentry 보고 대상에서 제외한다. 5xx, `contractMismatch`, `unknown`은 `feature=settlement` tag로 보고한다.
 

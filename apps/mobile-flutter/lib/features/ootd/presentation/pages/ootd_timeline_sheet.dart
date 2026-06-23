@@ -589,9 +589,11 @@ class _TimelineBottomSheetContentState
               SizedBox(
                 height: 170,
                 child: Center(
-                  child: PixelCharacterWidget(
-                    character: ootdRecord.character,
-                    size: 130,
+                  child: OotdGeneratedImageView(
+                    record: ootdRecord,
+                    characterSize: 130,
+                    height: 170,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
@@ -831,8 +833,9 @@ class _TimelineBottomSheetContentState
 
   Future<Uint8List> _captureRecordImageBytes() async {
     await WidgetsBinding.instance.endOfFrame;
-    final boundary = _recordImageCaptureKey.currentContext?.findRenderObject()
-        as RenderRepaintBoundary?;
+    final boundary =
+        _recordImageCaptureKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
     if (boundary == null) {
       throw StateError('저장할 결과 화면을 찾지 못했어요.');
     }
@@ -869,15 +872,15 @@ class _TimelineBottomSheetContentState
         _isSavingRecordImage = false;
       });
       widget.onSaveRecord(savedRecord);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('결과 이미지를 저장했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('결과 이미지를 저장했어요.')));
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSavingRecordImage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('이미지 저장에 실패했어요: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('이미지 저장에 실패했어요: $error')));
     }
   }
 }

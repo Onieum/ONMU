@@ -874,7 +874,7 @@
 | `created_at` | 생성 시각 | Timestamptz | 정산 확정 시각 | Not Null |
 | `completed_at` | 완료 시각 | Timestamptz | 수취 확인 완료 시각 | Nullable |
 
-> UNIQUE: `status='finalized'`인 `(plan_id)` active finalized settlement 1개.
+> UNIQUE: 현재 물리 제약은 `status='finalized'`인 `(plan_id)` active finalized settlement 1개다. 애플리케이션 정책은 finalized/completed 결과가 있으면 같은 약속에 새 draft/final result를 만들지 않는다.
 
 ## `settlement_transfers` (구현됨)
 
@@ -929,7 +929,8 @@
 
 - `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`가 계산과 조회의 우선 원장이다.
 - `settlement_drafts.payload`, `settlements.payload`는 화면 snapshot이며 사용자 resolve나 계산 source of truth가 아니다.
-- `payerUserId`, `targetUserIds`가 canonical 계약이다. 이름 필드는 요청 fallback으로 쓰지 않는다.
+- `payerUserId`, `targetUserIds`, `targetShares`가 canonical 계약이다. 이름 필드는 요청 fallback으로 쓰지 않는다.
+- `targetShares`는 사람별 부담 금액 직접 입력용이며, `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 한다.
 - API 금액 필드와 DB 물리 컬럼은 각각 `amountWon`, `amount_won`만 사용한다.
 
 ---

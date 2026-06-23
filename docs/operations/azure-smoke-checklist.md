@@ -107,12 +107,16 @@
 
 ## 8. Settlement smoke
 
-- `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` status와 draft/result field presence
+- `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` status와 active draft/finalized/completed field presence
+- `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` section/item/target 저장 status와 item count
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` status와 transfer/item count
 - preview는 DB write와 outbox write 없이 계산되는지 확인
+- `targetShares`를 쓰는 금액 다르게 항목은 입력 합계와 item `amountWon` 일치, 불일치 시 `settlement_target_amount_mismatch` 확인
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` status와 created id presence
-- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements` status와 latest result field presence
-- settlement create 후 `settlement.created` outbox count/status 확인
+- `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` status와 active draft/finalized result field presence
+- settlement create 후 `settlement.finalized`, 수취 완료 후 `settlement.completed` outbox count/status 확인
+- completed 이후 current settlement는 `404 settlement_not_found`로 채팅 상단 배너가 사라지는지 확인
+- completed 이후 약속 상세 정산 진입은 새 draft가 아니라 기존 completed 결과를 반환하는지 확인
 - provider delivery 대상 notification row가 없으면 push 성공으로 해석하지 않음
 - 금액/참여자 raw body, 실사용자 이름, 계좌/정산 개인정보 출력 금지
 

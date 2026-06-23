@@ -1,4 +1,4 @@
-part of 'my_page.dart';
+﻿part of 'my_page.dart';
 
 class _FriendsTab extends StatefulWidget {
   const _FriendsTab({
@@ -207,7 +207,7 @@ class _FriendsTabState extends State<_FriendsTab> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
-                    child: Text('검색 결과가 없어요', style: AppTextStyles.bodyMedium),
+                    child: Text('검색 결과가 없어요.', style: AppTextStyles.bodyMedium),
                   ),
                 ),
             ],
@@ -282,7 +282,7 @@ class _KeywordPreferenceCard extends StatelessWidget {
           _InfoRow(
             icon: Icons.no_meals_rounded,
             iconColor: AppColors.textSub,
-            label: '싫어하는 음식/메뉴',
+            label: '피하고 싶은 음식/메뉴',
             trailingWidget: _KeywordScroller(
               children: [
                 for (final keyword in profile.dislikedFoodTags.take(4))
@@ -678,7 +678,7 @@ class _AddFavoriteFriendButton extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '친구 추가',
+              '\uCE5C\uAD6C \uCD94\uAC00',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.labelMedium.copyWith(
@@ -777,7 +777,7 @@ class _FavoriteFriendPickerSheetState
                         padding: const EdgeInsets.symmetric(vertical: 28),
                         child: Center(
                           child: Text(
-                            '추가할 친구가 없어요',
+                            '추가할 친구가 없어요.',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textMuted,
                             ),

@@ -14,6 +14,7 @@ import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../widgets/ootd_generated_image_view.dart';
 import '../widgets/record_flow_navigation.dart';
 
 part 'daily_record_result.dart';
@@ -218,6 +219,11 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         }
       }
     }
+    if (!_hasLinkedPlanContext && !_isEditingSavedDaily) {
+      _crewCharacters = const <CharacterDraft>[];
+      _crewAppearances = const <CrewOotdAppearance>[];
+      _includeCrew = false;
+    }
     _loadCrewAppearances();
   }
 
@@ -238,17 +244,44 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   List<CrewOotdAppearance> get _selectedCrewAppearances =>
       _includeCrew ? _crewAppearances : const <CrewOotdAppearance>[];
 
-  bool get _hasCrew =>
+  bool get _isEditingSavedDaily =>
+      widget.ootdRecord?.brands['recordType'] == 'daily';
+
+  bool get _hasLinkedPlanContext {
+    final groupId = widget.groupId?.trim();
+    final planId = widget.planId?.trim();
+    return groupId != null &&
+        groupId.isNotEmpty &&
+        planId != null &&
+        planId.isNotEmpty;
+  }
+
+  bool get _hasCrewSource =>
       _crewAppearances.isNotEmpty || _crewCharacters.isNotEmpty;
 
-  bool get _shouldSkipCrewStep => !_hasCrew;
+  bool get _hasCrew =>
+      (_hasLinkedPlanContext || _isEditingSavedDaily) && _hasCrewSource;
+
+  bool get _shouldSkipCrewStep =>
+      (!_hasLinkedPlanContext && !_isEditingSavedDaily) ||
+      (!_isLoadingCrewAppearances && !_hasCrewSource);
 
   Future<void> _loadCrewAppearances() async {
     final fetch = widget.onFetchCrewAppearances;
     final groupId = widget.groupId;
     final planId = widget.planId;
-    if (fetch == null || groupId == null || planId == null) return;
-    if (groupId.trim().isEmpty || planId.trim().isEmpty) return;
+    if (fetch == null || groupId == null || planId == null) {
+      if (!_isEditingSavedDaily) {
+        _includeCrew = false;
+      }
+      return;
+    }
+    if (groupId.trim().isEmpty || planId.trim().isEmpty) {
+      if (!_isEditingSavedDaily) {
+        _includeCrew = false;
+      }
+      return;
+    }
 
     setState(() => _isLoadingCrewAppearances = true);
     try {
@@ -266,7 +299,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               .whereType<CharacterDraft>(),
         );
         _isLoadingCrewAppearances = false;
-        if (!_hasCrew) _includeCrew = false;
+        if (!_hasCrewSource) _includeCrew = false;
       });
     } catch (error) {
       debugPrint('Daily record crew appearance load failed: $error');
@@ -288,12 +321,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
   List<String> _memoryPlaceNamesFromRecord(OotdRecord record) {
     return _normalizePlaceNames(
-      record.timeline
-          .where((item) => item.category == 'place')
-          .map((item) {
-            final place = item.placeName.trim();
-            return place.isNotEmpty ? place : item.description;
-          }),
+      record.timeline.where((item) => item.category == 'place').map((item) {
+        final place = item.placeName.trim();
+        return place.isNotEmpty ? place : item.description;
+      }),
     );
   }
 
@@ -389,20 +420,22 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         _savedRecord = saved;
         _isSavingResultImage = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('하루 일과 결과 이미지를 저장했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('하루 일과 결과 이미지를 저장했어요.')));
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSavingResultImage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('이미지 저장에 실패했어요: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('이미지 저장에 실패했어요: $error')));
     }
   }
 
   Future<bool> _confirmMemoryForNoPlan() async {
-    if (_memoryPlaceNames.isNotEmpty || _askedMemoryForNoPlan) {
+    if (_memoryPlaceNames.isNotEmpty ||
+        _hasLinkedPlanContext ||
+        _askedMemoryForNoPlan) {
       return true;
     }
 
@@ -427,7 +460,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (!mounted) return false;
 
     if (wantsMemory != true) {
-      setState(() => _askedMemoryForNoPlan = true);
+      setState(() {
+        _askedMemoryForNoPlan = true;
+        _memoryPlaceNames = const <String>[];
+      });
       return true;
     }
 
@@ -437,10 +473,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
     setState(() {
       _askedMemoryForNoPlan = true;
-      _memoryPlaceNames = _normalizePlaceNames([
-        ..._memoryPlaceNames,
-        memory,
-      ]);
+      _memoryPlaceNames = _normalizePlaceNames([..._memoryPlaceNames, memory]);
     });
     return true;
   }
@@ -455,9 +488,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           controller: _memoryController,
           autofocus: true,
           maxLength: 40,
-          decoration: const InputDecoration(
-            hintText: '예: 혼자 카페에서 책 읽기',
-          ),
+          decoration: const InputDecoration(hintText: '예: 을지로 카페에서 책 읽기'),
         ),
         actions: [
           TextButton(
@@ -576,8 +607,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       mood: selectedMood,
       isPublic: false,
       timeline: const [],
-      crewCharacters: _includeCrew ? _crewCharacters : const [],
-      crewAppearances: _includeCrew ? _crewAppearances : const [],
+      crewCharacters: _selectedCrewCharacters,
+      crewAppearances: _selectedCrewAppearances,
     );
 
     setState(() => _isSaving = true);
@@ -658,8 +689,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         imageUrls: uploadedUrls,
         media: uploadedMedia,
         timeline: timelineWithImages,
-        crewCharacters: _includeCrew ? _crewCharacters : const [],
-        crewAppearances: _includeCrew ? _crewAppearances : const [],
+        crewCharacters: _selectedCrewCharacters,
+        crewAppearances: _selectedCrewAppearances,
       );
       final saved = await widget.onSave(recordWithImages);
       if (!mounted) return;

@@ -8,6 +8,7 @@ import '../../features/character/presentation/pages/character_start_page.dart';
 import '../../features/home/presentation/pages/home_notifications_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/home_recent_records_page.dart';
+import '../../features/home/view_model/home_view_model.dart';
 import '../../features/home/presentation/pages/upcoming_plans_page.dart';
 import '../../features/launch/splash_page.dart';
 import '../../features/launch/start_page.dart';
@@ -47,6 +48,7 @@ import '../../features/place/presentation/pages/place_search_filter_page.dart';
 import '../../features/place/presentation/pages/place_vote_create_page.dart';
 import '../../features/preferences/presentation/pages/preference_intro_page.dart';
 import '../../main_shell.dart';
+import '../../shared/models/group_models.dart';
 import '../../shared/models/ootd_model.dart';
 import '../../shared/models/preference_profile.dart';
 import '../../shared/providers/state_providers.dart';
@@ -106,14 +108,9 @@ final appRouter = GoRouter(
       redirect: _redirectCompletedOnboarding,
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
-          final preferenceReady =
-              ref.watch(preferenceProfileProvider) != null ||
-              ref.watch(skippedPreferenceProvider);
           return _OnboardingAccessGate(
             child: CharacterStartPage(
-              completionButtonLabel: preferenceReady
-                  ? '홈으로 가기'
-                  : '첫 설정 페이지로 돌아가기',
+              completionButtonLabel: '첫 설정 페이지로 돌아가기',
               onBackToOnboarding: () => context.popOrGo(RoutePaths.onboarding),
               onCompleted: (draft) async {
                 final router = GoRouter.of(context);
@@ -126,7 +123,9 @@ final appRouter = GoRouter(
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('캐릭터 저장에 실패했어요. API 연결 상태를 확인해 주세요.'),
+                        content: Text(
+                          '\uCE90\uB9AD\uD130 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC5B4\uC694. API \uC5F0\uACB0 \uC0C1\uD0DC\uB97C \uD655\uC778\uD574 \uC8FC\uC138\uC694.',
+                        ),
                       ),
                     );
                   }
@@ -443,6 +442,10 @@ final appRouter = GoRouter(
                 builder: (context, ref, child) {
                   final routeState = ref.watch(recordRouteStateProvider);
                   final controller = ref.watch(recordFlowControllerProvider);
+                  final homeState = ref
+                      .watch(homeViewModelProvider)
+                      .asData
+                      ?.value;
 
                   return OotdListPage(
                     userCharacter: routeState.character,
@@ -454,10 +457,21 @@ final appRouter = GoRouter(
                       );
                     },
                     onAddDailyRecord: (date, ootdRecord) {
-                      context.push(
-                        '${RoutePaths.recordNewDaily}?date=${date.toIso8601String()}',
-                        extra: ootdRecord,
+                      final dailyContext = _dailyRoutePlanContextFor(
+                        date,
+                        homeState,
                       );
+                      final uri = Uri(
+                        path: RoutePaths.recordNewDaily,
+                        queryParameters: {
+                          'date': date.toIso8601String(),
+                          if (dailyContext.groupId != null)
+                            'groupId': dailyContext.groupId!,
+                          if (dailyContext.planId != null)
+                            'planId': dailyContext.planId!,
+                        },
+                      );
+                      context.push(uri.toString(), extra: ootdRecord);
                     },
                     onViewOotdDetail: (record) {
                       context.push(
@@ -470,7 +484,9 @@ final appRouter = GoRouter(
                       if (controller.validateEditableRecord(record) ==
                           RecordMutationResult.missingId) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('저장된 기록만 수정할 수 있어요.')),
+                          const SnackBar(
+                            content: Text('이 기록은 아직 수정할 수 없어요. 다시 시도해 주세요.'),
+                          ),
                         );
                         return null;
                       }
@@ -487,7 +503,9 @@ final appRouter = GoRouter(
                           return;
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('삭제할 수 없는 기록이에요.')),
+                          const SnackBar(
+                            content: Text('이 기록은 아직 삭제할 수 없어요. 다시 시도해 주세요.'),
+                          ),
                         );
                         return;
                       }
@@ -535,13 +553,18 @@ final appRouter = GoRouter(
           final ootdRecord = state.extra as OotdRecord?;
           final routeState = ref.watch(recordRouteStateProvider);
           final controller = ref.watch(recordFlowControllerProvider);
-          final groupId = state.uri.queryParameters['groupId'];
-          final planId = state.uri.queryParameters['planId'];
+          final homeState = ref.watch(homeViewModelProvider).asData?.value;
+          final dailyContext = _dailyRoutePlanContextFor(date, homeState);
+          final groupId =
+              state.uri.queryParameters['groupId'] ?? dailyContext.groupId;
+          final planId =
+              state.uri.queryParameters['planId'] ?? dailyContext.planId;
 
           return DailyRecordScreen(
             userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
+            memoryPlaceNames: dailyContext.memoryPlaceNames,
             groupId: groupId,
             planId: planId,
             onFetchCrewAppearances: controller.fetchCrewOotdAppearances,
@@ -659,6 +682,83 @@ class _OnboardingAccessGate extends ConsumerWidget {
   }
 }
 
+class _DailyRoutePlanContext {
+  const _DailyRoutePlanContext({
+    required this.memoryPlaceNames,
+    this.groupId,
+    this.planId,
+  });
+
+  final List<String> memoryPlaceNames;
+  final String? groupId;
+  final String? planId;
+}
+
+_DailyRoutePlanContext _dailyRoutePlanContextFor(
+  DateTime date,
+  HomeState? homeState,
+) {
+  final plans =
+      homeState?.calendarPlans
+          .where((plan) => _planOccursOnDate(plan, date))
+          .toList(growable: false) ??
+      const <GroupPlanSummary>[];
+
+  if (plans.isEmpty) {
+    return const _DailyRoutePlanContext(memoryPlaceNames: []);
+  }
+
+  final orderedPlans = [...plans]
+    ..sort((a, b) {
+      final aStart = a.startsAt;
+      final bStart = b.startsAt;
+      if (aStart == null && bStart == null) return a.id.compareTo(b.id);
+      if (aStart == null) return 1;
+      if (bStart == null) return -1;
+      return aStart.compareTo(bStart);
+    });
+
+  final memoryPlaces = <String>[];
+  final seenPlaces = <String>{};
+  for (final plan in orderedPlans) {
+    final place = plan.placeName.trim();
+    if (place.isEmpty) continue;
+    final key = place.toLowerCase();
+    if (seenPlaces.add(key)) {
+      memoryPlaces.add(place);
+    }
+  }
+
+  return _DailyRoutePlanContext(
+    memoryPlaceNames: List<String>.unmodifiable(memoryPlaces),
+    groupId: homeState?.groupId?.toString(),
+    planId: orderedPlans.first.id.toString(),
+  );
+}
+
+bool _planOccursOnDate(GroupPlanSummary plan, DateTime date) {
+  if (plan.progressStatus == PlanProgressStatus.cancelled) {
+    return false;
+  }
+
+  final target = DateTime(date.year, date.month, date.day);
+  final start = plan.startsAt?.toLocal();
+  final end = plan.endsAt?.toLocal();
+
+  if (start == null && end == null) {
+    return false;
+  }
+
+  final firstDay = start == null
+      ? DateTime(end!.year, end.month, end.day)
+      : DateTime(start.year, start.month, start.day);
+  final lastDay = end == null
+      ? firstDay
+      : DateTime(end.year, end.month, end.day);
+
+  return !target.isBefore(firstDay) && !target.isAfter(lastDay);
+}
+
 DateTime _recordDateFromState(GoRouterState state) {
   final dateStr =
       state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String();
@@ -677,19 +777,24 @@ void _showResetDialog(BuildContext context, RecordFlowController controller) {
   showDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('캐릭터 재설정'),
-      content: const Text('캐릭터를 처음부터 다시 만들까요?'),
+      title: const Text('\uCE90\uB9AD\uD130 \uC7AC\uC124\uC815'),
+      content: const Text(
+        '\uCE90\uB9AD\uD130\uB97C \uCC98\uC74C\uBD80\uD130 \uB2E4\uC2DC \uB9CC\uB4E4\uAE4C\uC694?',
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('취소'),
+          child: const Text('\uCDE8\uC18C'),
         ),
         TextButton(
           onPressed: () {
             Navigator.of(dialogContext).pop();
             controller.resetCharacterDraft();
           },
-          child: const Text('초기화', style: TextStyle(color: Colors.red)),
+          child: const Text(
+            '\uCD08\uAE30\uD654',
+            style: TextStyle(color: Colors.red),
+          ),
         ),
       ],
     ),

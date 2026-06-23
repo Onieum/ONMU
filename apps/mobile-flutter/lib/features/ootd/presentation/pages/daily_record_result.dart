@@ -961,14 +961,18 @@ class _DiaryCharacterPair extends StatelessWidget {
           showShadow: false,
         ),
         if (includeCrew && crewAppearances.isNotEmpty)
-          ...crewAppearances.take(3).map(
+          ...crewAppearances
+              .take(3)
+              .map(
                 (appearance) => Padding(
                   padding: const EdgeInsets.only(left: 2),
                   child: _crewAppearanceAvatar(appearance, size: 48),
                 ),
               )
         else if (includeCrew)
-          ...crewCharacters.take(3).map(
+          ...crewCharacters
+              .take(3)
+              .map(
                 (character) => Padding(
                   padding: const EdgeInsets.only(left: 2),
                   child: PixelCharacterWidget(
@@ -990,7 +994,7 @@ class _DiaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekdays = ['일', '월', '화', '수', '목', '금', '토'];
     return Column(
       children: [
         Text(
@@ -999,7 +1003,7 @@ class _DiaryHeader extends StatelessWidget {
         ),
         SizedBox(height: 4),
         Text(
-          '하루 일과 기록',
+          '?섎（ ?쇨낵 湲곕줉',
           textAlign: TextAlign.center,
           style: AppTextStyles.headlineLarge.copyWith(
             color: AppColors.textMain,
@@ -1253,7 +1257,7 @@ class _DiaryEmptyPhotoCard extends StatelessWidget {
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Text(
-        '사진을 추가하지 않아 오늘의 메모만 기록했어요.',
+        '사진을 추가하지 않아 오늘은 메모만 기록했어요.',
         style: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSub,
           height: 1.45,
@@ -1323,10 +1327,12 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
     final visiblePlaces = places.take(4).toList(growable: false);
     final overflowCount = places.length - visiblePlaces.length;
     final rows = visiblePlaces.isEmpty
-        ? const ['No linked plan places']
+        ? const [
+            '\uC5F0\uACB0\uB41C \uC57D\uC18D \uC7A5\uC18C\uAC00 \uC5C6\uC5B4\uC694',
+          ]
         : [
             ...visiblePlaces,
-            if (overflowCount > 0) '+ $overflowCount more places',
+            if (overflowCount > 0) '+ $overflowCount\uAC1C \uC7A5\uC18C',
           ];
     return Container(
       padding: const EdgeInsets.all(11),
@@ -1519,7 +1525,12 @@ class _CleanOotdBlock extends StatelessWidget {
       ),
       child: Row(
         children: [
-          PixelCharacterWidget(character: ootdRecord.character, size: 62),
+          OotdGeneratedImageView(
+            record: ootdRecord,
+            characterSize: 62,
+            width: 78,
+            height: 78,
+          ),
           SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -1552,7 +1563,8 @@ class _CleanPeopleBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasCrew =
-        includeCrew && (crewAppearances.isNotEmpty || crewCharacters.isNotEmpty);
+        includeCrew &&
+        (crewAppearances.isNotEmpty || crewCharacters.isNotEmpty);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1564,14 +1576,18 @@ class _CleanPeopleBlock extends StatelessWidget {
         children: [
           PixelCharacterWidget(character: userCharacter, size: 58),
           if (hasCrew && crewAppearances.isNotEmpty)
-            ...crewAppearances.take(4).map(
+            ...crewAppearances
+                .take(4)
+                .map(
                   (appearance) => Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: _crewAppearanceAvatar(appearance, size: 52),
                   ),
                 )
           else if (hasCrew)
-            ...crewCharacters.take(4).map(
+            ...crewCharacters
+                .take(4)
+                .map(
                   (character) => Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: PixelCharacterWidget(character: character, size: 52),
@@ -1581,8 +1597,8 @@ class _CleanPeopleBlock extends StatelessWidget {
           Expanded(
             child: Text(
               hasCrew
-                  ? '함께한 크루와 오늘의 분위기를 기록에 담았어요.'
-                  : '??? ??? ????. ???? ??? ?????.',
+                  ? '\uD568\uAED8\uD55C \uD06C\uB8E8\uC640 \uC624\uB298\uC758 \uBD84\uC704\uAE30\uB97C \uAE30\uB85D\uD588\uC5B4\uC694.'
+                  : '\uD568\uAED8\uD55C \uD06C\uB8E8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD63C\uC790\uB9CC\uC758 \uD558\uB8E8\uB97C \uAE30\uB85D\uD588\uC5B4\uC694.',
 
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSub,
@@ -1613,7 +1629,7 @@ class _ResultMetaRow extends StatelessWidget {
       children: [
         Expanded(child: _meta('MOOD', mood, _dailyMoodIcon(mood))),
         Expanded(child: _meta('WEATHER', weather, _dailyWeatherIcon(weather))),
-        Expanded(child: _meta('PHOTO', '장', Icons.photo_library_outlined)),
+        Expanded(child: _meta('PHOTO', '사진', Icons.photo_library_outlined)),
       ],
     );
   }
@@ -1641,13 +1657,13 @@ class _ResultMetaRow extends StatelessWidget {
 
 IconData _dailyMoodIcon(String mood) {
   switch (mood) {
-    case '평온':
+    case '?됱삩':
       return Icons.self_improvement;
-    case '행복':
+    case '?됰났':
       return Icons.sentiment_very_satisfied;
-    case '신남':
+    case '?좊궓':
       return Icons.celebration;
-    case '피곤':
+    case '?쇨낀':
       return Icons.mode_night;
     default:
       return Icons.sentiment_satisfied_alt;

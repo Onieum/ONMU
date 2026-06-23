@@ -49,6 +49,7 @@ class SettlementPaymentParticipant {
     required this.name,
     required this.owedAmountLabel,
     this.userId = '',
+    this.owedAmountWon = 0,
     this.included = true,
     this.profileImageUrl = '',
     this.character,
@@ -57,6 +58,7 @@ class SettlementPaymentParticipant {
   final String userId;
   final String name;
   final String owedAmountLabel;
+  final int owedAmountWon;
   final bool included;
   final String profileImageUrl;
   final CharacterDraft? character;
@@ -92,11 +94,30 @@ class SettlementPaymentItem {
   List<SettlementPaymentParticipant> get includedParticipants =>
       participants.where((participant) => participant.included).toList();
 
-  String get targetModeLabel =>
-      splitType == SettlementSplitType.equal ? '전체 참여자' : '직접 선택';
+  bool get usesCustomTargetAmounts {
+    final included = includedParticipants;
+    if (included.length < 2) {
+      return false;
+    }
+    return included
+            .map((participant) => participant.owedAmountWon)
+            .toSet()
+            .length >
+        1;
+  }
 
-  String get splitTypeLabel =>
-      splitType == SettlementSplitType.equal ? '균등분할' : '메뉴별';
+  String get targetModeLabel {
+    if (usesCustomTargetAmounts) {
+      return '금액 다르게';
+    }
+    return splitType == SettlementSplitType.equal ? '전체 참여자' : '직접 선택';
+  }
+
+  String get splitTypeLabel => usesCustomTargetAmounts
+      ? '금액 다르게'
+      : splitType == SettlementSplitType.equal
+      ? '균등분할'
+      : '메뉴별';
 }
 
 class SettlementTransferSummary {
