@@ -28,6 +28,8 @@ class MapCatalogRepositoryTests {
     assertThat(captured.sql())
       .contains("ST_Intersects(place_point, ST_MakeEnvelope(:west, :south, :east, :north, 4326))")
       .contains("ST_SnapToGrid(place_point, :grid_size)")
+      .contains("latitude between :min_korea_latitude and :max_korea_latitude")
+      .contains("longitude between :min_korea_longitude and :max_korea_longitude")
       .contains("lower(category) = :category")
       .contains("provider_payload::text")
       .contains("group by grid_cell");
@@ -36,6 +38,10 @@ class MapCatalogRepositoryTests {
     assertThat(captured.params().getValue("filter")).isEqualTo("%rooftop%");
     assertThat(captured.params().getValue("query_0")).isEqualTo("%성수%");
     assertThat(captured.params().getValue("grid_size")).isEqualTo(0.03);
+    assertThat(captured.params().getValue("min_korea_latitude")).isEqualTo(33.0);
+    assertThat(captured.params().getValue("max_korea_latitude")).isEqualTo(39.0);
+    assertThat(captured.params().getValue("min_korea_longitude")).isEqualTo(124.0);
+    assertThat(captured.params().getValue("max_korea_longitude")).isEqualTo(132.0);
   }
 
   @Test
@@ -105,6 +111,8 @@ class MapCatalogRepositoryTests {
     CapturedQuery captured = capture(jdbcTemplate);
     assertThat(captured.sql())
       .contains("ST_Intersects(place_point, ST_MakeEnvelope(:west, :south, :east, :north, 4326))")
+      .contains("latitude between :min_korea_latitude and :max_korea_latitude")
+      .contains("longitude between :min_korea_longitude and :max_korea_longitude")
       .doesNotContain("ST_SnapToGrid")
       .contains("order by name asc, provider_place_id asc")
       .contains("limit :limit");
