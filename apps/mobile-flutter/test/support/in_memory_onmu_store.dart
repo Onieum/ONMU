@@ -1283,12 +1283,36 @@ class InMemoryOnmuStore {
 
   void _seedSettlement() {
     final allParticipants = [
-      SettlementPaymentParticipant(name: '지민', owedAmountLabel: '20,667원'),
-      SettlementPaymentParticipant(name: '민수', owedAmountLabel: '20,667원'),
-      SettlementPaymentParticipant(name: '소연', owedAmountLabel: '20,667원'),
-      SettlementPaymentParticipant(name: '현우', owedAmountLabel: '20,667원'),
-      SettlementPaymentParticipant(name: '준호', owedAmountLabel: '20,666원'),
-      SettlementPaymentParticipant(name: '혜진', owedAmountLabel: '20,666원'),
+      SettlementPaymentParticipant(
+        name: '지민',
+        owedAmountLabel: '20,667원',
+        owedAmountWon: 20667,
+      ),
+      SettlementPaymentParticipant(
+        name: '민수',
+        owedAmountLabel: '20,667원',
+        owedAmountWon: 20667,
+      ),
+      SettlementPaymentParticipant(
+        name: '소연',
+        owedAmountLabel: '20,667원',
+        owedAmountWon: 20667,
+      ),
+      SettlementPaymentParticipant(
+        name: '현우',
+        owedAmountLabel: '20,667원',
+        owedAmountWon: 20667,
+      ),
+      SettlementPaymentParticipant(
+        name: '준호',
+        owedAmountLabel: '20,666원',
+        owedAmountWon: 20666,
+      ),
+      SettlementPaymentParticipant(
+        name: '혜진',
+        owedAmountLabel: '20,666원',
+        owedAmountWon: 20666,
+      ),
     ];
 
     final settlement = SettlementSummary(
@@ -1327,18 +1351,22 @@ class InMemoryOnmuStore {
             SettlementPaymentParticipant(
               name: '지민',
               owedAmountLabel: '20,000원',
+              owedAmountWon: 20000,
             ),
             SettlementPaymentParticipant(
               name: '민수',
               owedAmountLabel: '18,000원',
+              owedAmountWon: 18000,
             ),
             SettlementPaymentParticipant(
               name: '소연',
               owedAmountLabel: '12,000원',
+              owedAmountWon: 12000,
             ),
             SettlementPaymentParticipant(
               name: '현우',
               owedAmountLabel: '12,000원',
+              owedAmountWon: 12000,
             ),
             SettlementPaymentParticipant(
               name: '준호',

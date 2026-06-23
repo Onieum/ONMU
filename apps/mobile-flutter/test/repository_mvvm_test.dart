@@ -1158,7 +1158,6 @@ void main() {
               payerUserId: 'user-1',
               payerName: '지우',
               targetUserIds: ['user-1'],
-              targetNames: ['지우'],
             ),
           ),
       throwsA(isA<StateError>()),
@@ -1195,7 +1194,6 @@ void main() {
             payerUserId: 'user-me',
             payerName: '나',
             targetUserIds: ['user-me', 'user-jimin'],
-            targetNames: ['나', '지민'],
           ),
         );
 
@@ -3442,8 +3440,8 @@ class _UnusedSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
-    required List<String> targetNames,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) {
     throw UnimplementedError();
   }
@@ -3654,8 +3652,8 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
-    required List<String> targetNames,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) async => _summary;
 
   @override

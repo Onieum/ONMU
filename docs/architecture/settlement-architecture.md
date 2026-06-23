@@ -31,13 +31,13 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 
 | 기능 | API | 설명 |
 | --- | --- | --- |
-| draft 생성 또는 기존 draft 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active finalized가 있으면 `409 active_settlement_exists` |
+| draft 생성 또는 기존 active 정산 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active draft가 있으면 기존 draft를, active finalized가 있으면 기존 finalized 정산을 반환한다 |
 | active draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | active draft가 없으면 `404 settlement_draft_not_found` |
 | draft 전체 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | section/item/target 전체를 저장한다. 저장 요청 단위 pessimistic lock 적용 |
 | item 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft item의 대상자를 교체한다 |
 | preview 계산 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 저장된 draft 기준 계산. DB write 없음 |
 | 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | draft를 finalized settlement로 확정 |
-| 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft, finalized, completed 중 현재 상태 조회 |
+| 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft 또는 active finalized 조회. completed만 남은 경우 `404 settlement_not_found` |
 | 결과 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | 특정 settlement 결과 조회 |
 | 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` | section별 부담 계산과 transfer 근거 조회 |
 | 송금 완료 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/transfers/{transferId}/sent` | 송금자만 호출 가능 |
@@ -62,6 +62,16 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
           "targetUserIds": [
             "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
             "7f3b1b60-2cf7-4dd3-a4d4-b56c6f4f2a7c"
+          ],
+          "targetShares": [
+            {
+              "userId": "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
+              "amountWon": 8000
+            },
+            {
+              "userId": "7f3b1b60-2cf7-4dd3-a4d4-b56c6f4f2a7c",
+              "amountWon": 4000
+            }
           ]
         }
       ]
@@ -79,8 +89,14 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 - 이름 필드로 결제자나 대상자를 resolve하지 않는다.
 - `splitType`은 `equal`, `menu`만 허용한다.
 - `targetUserIds`가 비어 있으면 약속 활성 참여자 전체를 대상으로 본다.
+- `targetShares`가 있으면 사람별 부담 금액 직접 입력으로 처리한다.
+- `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 한다.
+- `targetShares`와 `targetUserIds`가 함께 오면 `targetShares`가 우선한다.
 - `amountWon <= 0`이면 `invalid_settlement_amount`.
 - 대상자가 없으면 `missing_settlement_targets`.
+- 사람별 부담 금액이 0 이하이면 `invalid_settlement_target_amount`.
+- 같은 대상자가 중복되면 `duplicate_settlement_target`.
+- `targetShares` 합계가 item 금액과 다르면 `settlement_target_amount_mismatch`.
 
 ## DB Schema
 
@@ -112,12 +128,13 @@ Draft mutation과 finalize는 plan의 active draft를 pessimistic write lock으�
 서버는 다음 순서로 계산한다.
 
 1. 각 item의 결제자는 section의 `payerUserId`다.
-2. `menu` item은 지정 대상자에게 균등 배분한다.
-3. `equal` item은 약속 활성 참여자 전체에게 균등 배분한다.
-4. 나머지 원 단위는 대상자의 `publicId` 오름차순으로 1원씩 배분한다.
-5. 사용자별 `paidTotal`, `owedTotal`, `net = paidTotal - owedTotal`을 계산한다.
-6. `net < 0`인 사용자를 debtor, `net > 0`인 사용자를 creditor로 나누고 public id 오름차순으로 greedy matching한다.
-7. 생성된 transfer가 없으면 finalize 즉시 `completed`로 전환한다.
+2. `targetShares`가 있는 item은 지정된 사람별 부담 금액을 그대로 사용한다.
+3. `menu` item은 `targetShares`가 없으면 지정 대상자에게 균등 배분한다.
+4. `equal` item은 `targetShares`가 없으면 약속 활성 참여자 전체에게 균등 배분한다.
+5. 균등 배분의 나머지 원 단위는 대상자의 `publicId` 오름차순으로 1원씩 배분한다.
+6. 사용자별 `paidTotal`, `owedTotal`, `net = paidTotal - owedTotal`을 계산한다.
+7. `net < 0`인 사용자를 debtor, `net > 0`인 사용자를 creditor로 나누고 public id 오름차순으로 greedy matching한다.
+8. 생성된 transfer가 없으면 finalize 즉시 `completed`로 전환한다.
 
 ## Side Effect
 
@@ -152,7 +169,6 @@ Flutter 금지:
 | code | 의미 |
 | --- | --- |
 | `settlement_plan_not_eligible` | 시작 전 약속이라 정산 생성 불가 |
-| `active_settlement_exists` | active finalized settlement가 이미 있음 |
 | `settlement_draft_not_found` | active draft 없음 |
 | `settlement_already_finalized` | draft가 이미 finalized |
 | `settlement_already_completed` | completed settlement 변경 시도 |
@@ -160,6 +176,9 @@ Flutter 금지:
 | `invalid_settlement_amount` | 금액이 0 이하 |
 | `missing_settlement_targets` | 부담 대상자 없음 |
 | `settlement_participant_not_found` | 요청 사용자 또는 대상자가 약속 활성 참여자가 아님 |
+| `invalid_settlement_target_amount` | 사람별 부담 금액이 0 이하 |
+| `duplicate_settlement_target` | 같은 부담 대상자가 중복됨 |
+| `settlement_target_amount_mismatch` | 사람별 부담 금액 합계가 item 금액과 다름 |
 | `settlement_transfer_not_found` | transfer 없음 |
 | `settlement_confirmation_forbidden` | transfer 송금자/수취자가 아닌 사용자의 확인 시도 |
 
@@ -173,3 +192,4 @@ Sentry 정책은 `frontend-architecture.md`의 오류 처리와 관측성 규칙
 4. finalize 후 채팅 상단 공지와 notification/outbox가 생성되는지 확인한다.
 5. 송금자 `sent`, 수취자 `received` confirmation을 처리한다.
 6. 모든 수취자가 확인하면 `completed`로 전환되고 채팅 상단 공지가 사라지는지 확인한다.
+7. completed 이후 current 정산 조회는 `404 settlement_not_found`이고, 특정 결과는 settlement id로 다시 조회 가능한지 확인한다.
