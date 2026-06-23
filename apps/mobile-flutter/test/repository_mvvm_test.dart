@@ -3440,7 +3440,8 @@ class _UnusedSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) {
     throw UnimplementedError();
   }
@@ -3651,7 +3652,8 @@ class _ChatSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) async => _summary;
 
   @override

@@ -25,6 +25,33 @@ void main() {
         'targetUserIds': ['user-jimin', 'user-minsu'],
       });
     });
+
+    test('serializes custom target shares instead of target ids', () {
+      final item = SettlementDraftItemInput(
+        id: 401,
+        title: '커피',
+        amount: 12000,
+        payerUserId: 'user-jimin',
+        payerName: '지민',
+        splitType: SettlementSplitType.custom,
+        targetUserIds: ['user-jimin', 'user-minsu'],
+        targetShares: const [
+          SettlementTargetShareInput(userId: 'user-jimin', amountWon: 8000),
+          SettlementTargetShareInput(userId: 'user-minsu', amountWon: 4000),
+        ],
+      );
+
+      expect(item.toJson(), {
+        'id': '401',
+        'title': '커피',
+        'amountWon': 12000,
+        'splitType': 'menu',
+        'targetShares': [
+          {'userId': 'user-jimin', 'amountWon': 8000},
+          {'userId': 'user-minsu', 'amountWon': 4000},
+        ],
+      });
+    });
   });
 
   group('SettlementPaymentParticipant', () {
@@ -116,6 +143,73 @@ void main() {
 
     expect(settlement.preview, isTrue);
     expect(settlement.isCreated, isFalse);
+  });
+
+  test('maps target amount values for custom settlement mode', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'id': 'draft',
+                'planTitle': '성수 브런치',
+                'totalAmountLabel': '12,000원',
+                'createdDateLabel': '미리보기',
+                'itemCountLabel': '결제 항목 1개',
+                'paymentItems': [
+                  {
+                    'id': '401',
+                    'title': '커피',
+                    'amountWon': 12000,
+                    'amountLabel': '12,000원',
+                    'splitType': 'menu',
+                    'payerShares': [
+                      {
+                        'userId': 'user-jimin',
+                        'name': '지민',
+                        'amountLabel': '12,000원',
+                      },
+                    ],
+                    'targetLabel': '2명',
+                    'participants': [
+                      {
+                        'userId': 'user-jimin',
+                        'name': '지민',
+                        'amountWon': 8000,
+                        'owedAmountLabel': '8,000원',
+                        'included': true,
+                      },
+                      {
+                        'userId': 'user-minsu',
+                        'name': '민수',
+                        'amountWon': 4000,
+                        'owedAmountLabel': '4,000원',
+                        'included': true,
+                      },
+                    ],
+                  },
+                ],
+                'memberResults': [],
+                'transfers': [],
+                'preview': true,
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    final settlement = await ApiSettlementRepository(
+      OnmuApiClient(dio),
+    ).fetchSettlement(groupId: 1, planId: 101);
+    final item = settlement.paymentItems.single;
+
+    expect(item.targetModeLabel, '금액 다르게');
+    expect(item.splitTypeLabel, '금액 다르게');
+    expect(item.participants.first.owedAmountWon, 8000);
   });
 
   test(

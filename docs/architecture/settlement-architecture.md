@@ -62,6 +62,16 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
           "targetUserIds": [
             "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
             "7f3b1b60-2cf7-4dd3-a4d4-b56c6f4f2a7c"
+          ],
+          "targetShares": [
+            {
+              "userId": "b7f2c0e0-2b7a-4d58-9d5f-1c9965f2f2a1",
+              "amountWon": 8000
+            },
+            {
+              "userId": "7f3b1b60-2cf7-4dd3-a4d4-b56c6f4f2a7c",
+              "amountWon": 4000
+            }
           ]
         }
       ]
@@ -79,9 +89,14 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 - 이름 필드로 결제자나 대상자를 resolve하지 않는다.
 - `splitType`은 `equal`, `menu`만 허용한다.
 - `targetUserIds`가 비어 있으면 약속 활성 참여자 전체를 대상으로 본다.
+- `targetShares`가 있으면 사람별 부담 금액 직접 입력으로 처리한다.
+- `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 한다.
+- `targetShares`와 `targetUserIds`가 함께 오면 `targetShares`가 우선한다.
 - `amountWon <= 0`이면 `invalid_settlement_amount`.
 - 대상자가 없으면 `missing_settlement_targets`.
-- 항목별 금액 직접 배분은 아직 canonical contract가 아니다. `menu`와 `equal` 모두 선택된 대상자 안에서 균등 배분한다.
+- 사람별 부담 금액이 0 이하이면 `invalid_settlement_target_amount`.
+- 같은 대상자가 중복되면 `duplicate_settlement_target`.
+- `targetShares` 합계가 item 금액과 다르면 `settlement_target_amount_mismatch`.
 
 ## DB Schema
 
@@ -113,12 +128,13 @@ Draft mutation과 finalize는 plan의 active draft를 pessimistic write lock으�
 서버는 다음 순서로 계산한다.
 
 1. 각 item의 결제자는 section의 `payerUserId`다.
-2. `menu` item은 지정 대상자에게 균등 배분한다.
-3. `equal` item은 약속 활성 참여자 전체에게 균등 배분한다.
-4. 나머지 원 단위는 대상자의 `publicId` 오름차순으로 1원씩 배분한다.
-5. 사용자별 `paidTotal`, `owedTotal`, `net = paidTotal - owedTotal`을 계산한다.
-6. `net < 0`인 사용자를 debtor, `net > 0`인 사용자를 creditor로 나누고 public id 오름차순으로 greedy matching한다.
-7. 생성된 transfer가 없으면 finalize 즉시 `completed`로 전환한다.
+2. `targetShares`가 있는 item은 지정된 사람별 부담 금액을 그대로 사용한다.
+3. `menu` item은 `targetShares`가 없으면 지정 대상자에게 균등 배분한다.
+4. `equal` item은 `targetShares`가 없으면 약속 활성 참여자 전체에게 균등 배분한다.
+5. 균등 배분의 나머지 원 단위는 대상자의 `publicId` 오름차순으로 1원씩 배분한다.
+6. 사용자별 `paidTotal`, `owedTotal`, `net = paidTotal - owedTotal`을 계산한다.
+7. `net < 0`인 사용자를 debtor, `net > 0`인 사용자를 creditor로 나누고 public id 오름차순으로 greedy matching한다.
+8. 생성된 transfer가 없으면 finalize 즉시 `completed`로 전환한다.
 
 ## Side Effect
 
@@ -160,6 +176,9 @@ Flutter 금지:
 | `invalid_settlement_amount` | 금액이 0 이하 |
 | `missing_settlement_targets` | 부담 대상자 없음 |
 | `settlement_participant_not_found` | 요청 사용자 또는 대상자가 약속 활성 참여자가 아님 |
+| `invalid_settlement_target_amount` | 사람별 부담 금액이 0 이하 |
+| `duplicate_settlement_target` | 같은 부담 대상자가 중복됨 |
+| `settlement_target_amount_mismatch` | 사람별 부담 금액 합계가 item 금액과 다름 |
 | `settlement_transfer_not_found` | transfer 없음 |
 | `settlement_confirmation_forbidden` | transfer 송금자/수취자가 아닌 사용자의 확인 시도 |
 

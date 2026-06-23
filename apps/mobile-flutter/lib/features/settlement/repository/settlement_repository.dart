@@ -33,7 +33,8 @@ abstract interface class SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   });
 
   Future<SettlementSummary> previewSettlement({
@@ -119,6 +120,7 @@ class SettlementDraftItemInput {
     required this.payerName,
     this.splitType = SettlementSplitType.equal,
     this.targetUserIds = const [],
+    this.targetShares = const [],
   });
 
   final Object? id;
@@ -131,6 +133,7 @@ class SettlementDraftItemInput {
   final String payerName;
   final SettlementSplitType splitType;
   final List<String> targetUserIds;
+  final List<SettlementTargetShareInput> targetShares;
 
   Map<String, Object?> toJson() {
     return {
@@ -138,8 +141,25 @@ class SettlementDraftItemInput {
       'title': title,
       'amountWon': amount,
       'splitType': splitType == SettlementSplitType.equal ? 'equal' : 'menu',
-      if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds,
+      if (targetShares.isNotEmpty)
+        'targetShares': targetShares.map((share) => share.toJson()).toList()
+      else if (targetUserIds.isNotEmpty)
+        'targetUserIds': targetUserIds,
     };
+  }
+}
+
+class SettlementTargetShareInput {
+  const SettlementTargetShareInput({
+    required this.userId,
+    required this.amountWon,
+  });
+
+  final String userId;
+  final int amountWon;
+
+  Map<String, Object?> toJson() {
+    return {'userId': userId, 'amountWon': amountWon};
   }
 }
 
@@ -211,11 +231,17 @@ class ApiSettlementRepository implements SettlementRepository {
     required Object groupId,
     required Object planId,
     required Object itemId,
-    required List<String> targetUserIds,
+    List<String> targetUserIds = const [],
+    List<SettlementTargetShareInput> targetShares = const [],
   }) async {
     final draft = await _client.patchObject(
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft/items/$itemId/targets',
-      body: {if (targetUserIds.isNotEmpty) 'targetUserIds': targetUserIds},
+      body: {
+        if (targetShares.isNotEmpty)
+          'targetShares': targetShares.map((share) => share.toJson()).toList()
+        else if (targetUserIds.isNotEmpty)
+          'targetUserIds': targetUserIds,
+      },
     );
     final preview = _settlement(OnmuJson.asMap(draft['preview']));
     final topLevelSections = _sections(OnmuJson.asMapList(draft['sections']));
@@ -469,6 +495,7 @@ class ApiSettlementRepository implements SettlementRepository {
                 'owedAmountLabel',
                 '0원',
               ),
+              owedAmountWon: OnmuJson.readInt(participant, 'amountWon'),
               included: OnmuJson.readBool(participant, 'included', true),
               profileImageUrl: _profileImageUrl(participant),
               character: characterDraftFromJson(

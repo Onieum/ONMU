@@ -756,6 +756,7 @@ class _AddPaymentItemCard extends StatelessWidget {
       payerName: input.payerName,
       splitType: input.splitType,
       targetUserIds: input.targetUserIds,
+      targetShares: input.targetShares,
     );
   }
 }

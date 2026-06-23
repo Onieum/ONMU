@@ -111,6 +111,7 @@
 - `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` section/item/target 저장 status와 item count
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` status와 transfer/item count
 - preview는 DB write와 outbox write 없이 계산되는지 확인
+- `targetShares`를 쓰는 금액 다르게 항목은 입력 합계와 item `amountWon` 일치, 불일치 시 `settlement_target_amount_mismatch` 확인
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` status와 created id presence
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` status와 active draft/finalized result field presence
 - settlement create 후 `settlement.finalized`, 수취 완료 후 `settlement.completed` outbox count/status 확인

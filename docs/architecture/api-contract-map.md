@@ -251,7 +251,7 @@ Response:
 
 Spring Boot Main API는 `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers` read/write 결과를 정산 계산과 조회의 우선 원장으로 사용한다. `settlement_drafts.payload`와 `settlements.payload`는 화면 snapshot이며 사용자 resolve나 계산 source of truth가 아니다.
 
-정산 create/preview/update 요청은 section 단위 `payerUserId`, item 단위 `targetUserIds`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 내려주며 요청 fallback으로 쓰지 않는다. DB 물리 컬럼도 `amount_won`이다.
+정산 create/preview/update 요청은 section 단위 `payerUserId`, item 단위 `targetUserIds`, 사람별 부담 금액용 `targetShares`, `amountWon`을 canonical로 사용한다. 이름은 표시용 응답 필드로만 내려주며 요청 fallback으로 쓰지 않는다. DB 물리 컬럼도 `amount_won`이다. `targetShares` 합계는 item `amountWon`과 정확히 같아야 하며, 이 모드가 아니면 서버가 선택 대상자 안에서 균등 배분한다.
 
 `POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 active draft를 반환한다. 이미 active finalized settlement가 있으면 새 draft를 만들지 않고 기존 finalized 정산 카드를 반환한다. 시작 전 약속은 `settlement_plan_not_eligible`, `GET /settlement-draft`는 active draft가 없으면 `settlement_draft_not_found`를 반환한다. `GET /settlements/current`는 active draft 또는 active finalized만 반환하며, completed 정산만 남은 경우 채팅 상단 배너가 남지 않도록 `404 settlement_not_found`를 반환한다.
 
