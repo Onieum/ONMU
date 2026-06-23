@@ -95,11 +95,29 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
     String[] parts = value.replaceAll("[^\\p{IsHangul}\\p{IsAlphabetic}\\p{IsDigit}\\s]", " ").split("\\s+");
     List<String> tokens = new ArrayList<>();
     for (String part : parts) {
-      if (!part.isBlank()) {
-        tokens.add(part.trim());
+      String trimmed = part.trim();
+      if (!trimmed.isBlank() && !isRemovableTokenPart(trimmed, removable)) {
+        tokens.add(trimmed);
       }
     }
     return tokens;
+  }
+
+  private static boolean isRemovableTokenPart(String part, Set<String> removableTokens) {
+    String normalizedPart = normalize(part);
+    if (normalizedPart.isBlank()) {
+      return true;
+    }
+    for (String token : removableTokens) {
+      String normalizedToken = normalize(token);
+      if (normalizedToken.isBlank()) {
+        continue;
+      }
+      if (normalizedPart.equals(normalizedToken) || normalizedToken.contains(normalizedPart)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean containsAny(String source, List<String> tokens) {

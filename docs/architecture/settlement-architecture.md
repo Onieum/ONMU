@@ -14,7 +14,7 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 | `finalized` | 이체 방향과 금액이 확정된 상태 | 항목 편집 불가, transfer confirmation 가능 | 정산 공지 |
 | `completed` | 수취자 전원이 수취 완료를 확인한 상태 | 불가 | 숨김 |
 
-한 약속에는 최종 정산 결과를 하나만 허용한다. `completed`는 결과 조회 대상이지만 채팅 상단 활성 공지에는 포함하지 않는다.
+한 약속에는 최종 정산 결과를 하나만 허용한다. DB unique index도 `finalized` 또는 `completed` 상태의 `(plan_id)`를 하나로 제한한다. 기존 중복 결과는 마이그레이션에서 `superseded`로 보존하지만 신규 API 흐름에서는 생성하지 않는다. `completed`는 결과 조회 대상이지만 채팅 상단 활성 공지에는 포함하지 않는다.
 
 ## 생성 가능 조건
 
@@ -36,7 +36,7 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 | draft 전체 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | section/item/target 전체를 저장한다. 저장 요청 단위 pessimistic lock 적용 |
 | item 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft item의 대상자를 교체한다 |
 | preview 계산 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements/preview` | 저장된 draft 기준 계산. DB write 없음 |
-| 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | draft를 finalized settlement로 확정 |
+| 정산 확정 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` | draft를 finalized settlement로 확정. draft lock 이후 final result를 다시 확인해 동시 요청 중복 생성을 막는다 |
 | 현재 정산 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` | active draft 또는 active finalized 조회. completed만 남은 경우 `404 settlement_not_found` |
 | 결과 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}` | 특정 settlement 결과 조회 |
 | 정산 근거 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/{settlementId}/basis` | section별 부담 계산과 transfer 근거 조회 |

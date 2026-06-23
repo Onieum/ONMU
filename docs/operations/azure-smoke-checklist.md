@@ -115,6 +115,7 @@
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` status와 created id presence
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` status와 active draft/finalized result field presence
 - settlement create 후 `settlement.finalized`, 수취 완료 후 `settlement.completed` outbox count/status 확인
+- 정산 확정 알림은 `settlement_requested` type으로 저장되고, `settlement_requested/in_app=false`이면 notification row와 provider 대상 `notification.requested`가 생성되지 않는지 확인
 - completed 이후 current settlement는 `404 settlement_not_found`로 채팅 상단 배너가 사라지는지 확인
 - completed 이후 약속 상세 정산 진입은 새 draft가 아니라 기존 completed 결과를 반환하는지 확인
 - provider delivery 대상 notification row가 없으면 push 성공으로 해석하지 않음
@@ -152,6 +153,9 @@
 - edge cache를 사용하는 배포라면 CDN/Front Door purge 또는 cache invalidation 실행 여부를 status/count 중심으로 기록
 - place-search provider smoke는 status/result_count/provider_counts/source_counts/coordinate_count만 보고
 - Naver/Kakao provider availability를 분리
+- Kakao Local API가 unavailable/forbidden이어도 `서울 가볼만한 곳`, `강남 맛집`, `을지로 카페` smoke가 500 없이 응답하고, Naver 단일 호출 한계인 5개를 넘는 aggregation/catalog supplement 결과를 반환하는지 확인
+- Naver Local Search는 `display=5`, `start=1` 제약을 전제로 보고한다. 결과 수 확장은 `display` 상향이 아니라 query fan-out, dedupe, Redis cache, `onmu_catalog` supplement로 검증한다.
+- `scripts/sql/onmu_catalog_quality_gate.sql`로 `ONMU_CATALOG` row count, coordinate coverage, duplicate provider place id count, import batch id presence, image reference count를 확인한다. SQL 결과도 raw row 없이 count/status만 공유한다.
 - provider raw response, provider secret, 사용자 검색 raw body는 smoke artifact와 log에 남기지 않음
 - provider production readiness는 Kakao Local 심사/권한, Naver/Kakao quota, route provider quota/약관을 provider별로 분리 판정
 - route provider는 status/count/distance/duration presence 중심으로 보고

@@ -5,7 +5,7 @@
 포함해야 할 내용:
 
 - 제품 개념
-- 팀/프로젝트 소개
+- 팀/제품 소개
 - 앱 screenshot 또는 prototype 영상
 - 준비된 경우 store/download 링크
 - 개인정보 처리방침/contact 링크
@@ -14,28 +14,30 @@
 
 ## 현재 구현
 
-`onmu.cloud` 루트 도메인에서 바로 제공할 수 있는 의존성 없는 정적 페이지입니다.
+`onmu.cloud` 루트 도메인에서 바로 제공할 수 있는 의존성 없는 정적 브랜드 페이지입니다.
 
-- `index.html`: 제품/프로젝트 소개와 SEO 메타데이터
+- `index.html`: 제품 소개, 팀 서사, FAQ, SEO 메타데이터
 - `privacy/index.html`: 개인정보 처리방침
 - `terms/index.html`: 이용약관
 - `download/index.html`: iOS/Android 다운로드 안내와 QR
 - `download/ios/index.html`, `download/android/index.html`: 스토어 링크 연결 전 stable QR 목적지
 - `404.html`: 정적 호스팅용 오류 페이지
 - `styles.css`: ONMU 디자인 시스템을 반영한 반응형 스타일
-- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN은 빈 값으로 둡니다.
+- `brand-site.js`: 모바일 내비게이션 토글과 접근성을 해치지 않는 섹션 reveal 인터랙션
+- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN과 스토어 URL은 빈 값으로 둡니다.
 - `brand-observability.js`: Sentry Browser SDK를 조건부로 로드하는 오류 관측성 부트스트랩
 - `robots.txt`, `sitemap.xml`: 검색 엔진 수집 기준
 - `site.webmanifest`: 브라우저/PWA 기본 메타데이터
-- `assets/`: 모바일 앱의 브랜드 자산을 브랜드 웹용 크기로 복사한 이미지, WebP 변형, QR 자산
+- `assets/`: 모바일 앱의 브랜드 자산, 실제 Flutter 캡처 PNG, 생성 일러스트, WebP 변형, QR 자산
 
 ## 현재 공개 섹션
 
-- 문제/서사: 약속 전, 약속 중, 약속 후가 여러 앱에 흩어지는 문제를 설명합니다.
-- 제품 흐름: 약속 만들기, 장소 후보, 채팅과 결정, 기록 남기기 흐름을 소개합니다.
-- 앱 화면 데모: 실제 사용자 데이터 없이 CSS 기반 phone mock과 화면 갤러리로 제품 구조를 보여줍니다.
-- 기능: 온모임, 채팅, 장소 후보, 정산, 기록, 신뢰 기능을 현재/준비 상태와 함께 설명합니다.
-- 신뢰/로드맵: 공개하지 않는 정보 경계, 정책 초안, 스토어 링크 준비 상태를 명확히 둡니다.
+- 문제와 관점: 약속 하나를 위해 여러 앱을 오가는 문제와 ONieum의 관점을 설명합니다.
+- 약속 하루 흐름: 만나기, 장소 정하기, 대화와 결정, 남기기 흐름을 소개합니다.
+- 앱 미리 보기: 실제 사용자 데이터 없이 만든 Flutter 캡처 PNG로 제품 경험을 보여줍니다.
+- 기능: 온모임, 채팅, 장소 후보, 정산, 기록, 신뢰 기능을 사용자 혜택 중심으로 설명합니다.
+- 팀: ONMU를 만드는 ONieum의 비전과 역할을 소개합니다.
+- 신뢰/FAQ/로드맵: 사진, 위치, 정산 데이터의 사용자 관점 경계와 출시 전 질문, 앞으로의 방향을 안내합니다.
 - 다운로드: iOS/Android stable URL과 QR 코드를 제공합니다.
 
 ## 공개 링크 원칙
@@ -68,10 +70,27 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 - tag는 `feature`, `page`, `environment`, `kind`, `statusCode`, `method`, `endpoint_template`, `retryable`처럼 안전한 메타데이터만 남깁니다.
 - 기본 성능 trace sample rate는 `0`입니다.
 
+## 화면 캡처와 일러스트 자산
+
+- `assets/images/screenshots/`: 실제 ONMU Flutter 공용 위젯을 데모 데이터로 렌더링한 브라우저 캡처입니다.
+- `assets/images/illustrations/`: 생성 이미지 원본을 repo용으로 복사하고 섹션별로 자른 브랜드 일러스트입니다.
+- `assets/fonts/`: 브랜드 웹에서 제한적으로 쓰는 픽셀 wordmark용 폰트입니다. 본문에는 적용하지 않습니다.
+- `onmu-team-pixel.webp`: 팀 섹션에서 우선 로드하는 경량 팀 일러스트입니다.
+- `onmu-social-preview.svg`: 공유 카드 이미지를 재생성하기 위한 원본입니다.
+- `onmu-social-preview.png`: Open Graph와 Twitter card에서 사용하는 1200x630 공유 이미지입니다.
+- `onmu-social-preview.webp`: 같은 공유 이미지의 경량 WebP 변형입니다. 외부 공유 메타는 호환성을 위해 PNG를 우선합니다.
+- `onmu-illustration-suite.png`, `onmu-illustration-support-suite.png`: 원본 보관용 생성 이미지입니다.
+- `onmu-illustration-*.png`: 원본 또는 보관용 일러스트입니다.
+- `onmu-illustration-*.webp`: 브랜드 웹에서 우선 로드하는 경량 배포용 일러스트입니다.
+- 캡처와 일러스트에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치, 실제 정산 데이터를 넣지 않습니다.
+- 캡처 갱신에는 임시 Flutter web capture target을 사용할 수 있지만, 최종 커밋에는 생성된 PNG와 브랜드 웹 소스만 남깁니다.
+
 ```bash
 export ONMU_BRAND_SENTRY_DSN="<Key Vault sentry-dsn에서 읽은 값>"
 export ONMU_BRAND_SENTRY_ENVIRONMENT="production"
 export ONMU_BRAND_SENTRY_RELEASE="$(git rev-parse --short HEAD)"
+export ONMU_BRAND_IOS_STORE_URL=""
+export ONMU_BRAND_ANDROID_STORE_URL=""
 ```
 
 ## Cloudflare Tunnel 배포
@@ -104,3 +123,4 @@ scripts/macos/deploy-brand-web-cloudflared.sh
 - `ONMU_BRAND_TUNNEL_NAME`: Cloudflare named tunnel. 기본값은 `onmu-brand-web`입니다.
 - `ONMU_BRAND_ROUTE_DNS=true`: 실행 중 DNS route를 함께 갱신합니다.
 - `ONMU_BRAND_QUICK_TUNNEL=true`: 루트 도메인이 아닌 임시 trycloudflare URL로 smoke할 때만 사용합니다.
+- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 스토어 공개 후 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.

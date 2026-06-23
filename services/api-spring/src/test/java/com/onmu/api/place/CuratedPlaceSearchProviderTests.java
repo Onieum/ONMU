@@ -35,6 +35,22 @@ class CuratedPlaceSearchProviderTests {
   }
 
   @Test
+  void searchTreatsSpacedAttractionQueryAsBroadCatalogSearch() {
+    when(repository.findByProviderAndCategoryInAndLatitudeIsNotNullAndLongitudeIsNotNull(eq("ONMU_CATALOG"), any(Collection.class)))
+      .thenReturn(List.of(
+        catalogPlace("tour-1", "서울 한강공원", "관광명소", "서울 영등포구", 37.528, 126.934, payload("서울", "공원", "산책로")),
+        catalogPlace("tour-2", "부산 해변 산책로", "관광명소", "부산 해운대구", 35.159, 129.160, payload("부산", "해수욕장", "산책로"))
+      ));
+
+    var results = provider.search(query("서울 가볼만한 곳", null, null, null, null));
+
+    assertThat(results).singleElement()
+      .satisfies(result -> assertThat(result)
+        .extracting(PlaceSearchResult::providerPlaceId, PlaceSearchResult::name)
+        .containsExactly("tour-1", "서울 한강공원"));
+  }
+
+  @Test
   void searchKeepsCafeSupplementToCafeTaggedRows() {
     when(repository.findByProviderAndCategoryInAndLatitudeIsNotNullAndLongitudeIsNotNull(eq("ONMU_CATALOG"), any(Collection.class)))
       .thenReturn(List.of(

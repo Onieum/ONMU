@@ -48,7 +48,7 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 `PlaceSearchService`의 현재 흐름:
 
 1. `PlaceSearchQuery`가 query, groupId, planId, lat, lng, radius, category, providers, compare를 normalize한다.
-2. 요청 provider가 없으면 category별 provider 순서를 사용한다. `가볼만한곳`/관광 계열은 `onmu_catalog`, `naver`, `kakao` 순서이고, 음식점/카페 계열은 `naver`, `kakao`, `onmu_catalog` 순서다.
+2. 요청 provider가 없으면 category별 provider 순서를 사용한다. `가볼만한곳`/관광 계열은 `onmu_catalog`, `naver`, `kakao` 순서이고, 음식점/카페 계열은 Kakao Local 심사 지연 중에도 결과 수를 안정적으로 확보하기 위해 `naver`, `onmu_catalog`, `kakao` 순서다.
 3. provider별 `isAvailable()`로 credential 주입 여부를 확인한다.
 4. Redis `place-search:v4:*` cache를 조회한다. cache key에는 query, 위치, category, Naver fan-out signature, 요청 provider, 실제 available provider, compare, dev mock fallback 여부와 추천 설명 rule version이 포함된다.
 5. available provider가 있으면 provider를 호출하고 이름/주소 기반으로 중복 제거한다.
@@ -66,8 +66,8 @@ provider별 현재 경계:
 
 현재 provider별 역할:
 
-- 음식점: Naver query fan-out을 1차로 사용한다. `한식`, `양식`, `중식`, `일식`, `아시안식` 세부 query를 최대 5개 실행하고, 결과가 부족하면 `onmu_catalog`의 `식당` category를 supplement로 사용한다.
-- 카페: Naver query fan-out을 1차로 사용한다. `카페`, `디저트`, `베이커리` query를 실행하고, 결과가 부족하면 `onmu_catalog`의 `식당` 행 중 cafe-like tag/summary가 있는 row만 supplement로 사용한다.
+- 음식점: Naver query fan-out을 1차로 사용한다. Naver Local Search는 요청당 `display=5`, `start=1` 제약이 있으므로 `한식`, `양식`, `중식`, `일식`, `아시안식` 세부 query를 최대 5개 실행하고, 결과가 부족하면 Kakao 호출보다 먼저 `onmu_catalog`의 `식당` category를 supplement로 사용한다.
+- 카페: Naver query fan-out을 1차로 사용한다. `카페`, `디저트`, `베이커리` query를 실행하고, 결과가 부족하면 Kakao 호출보다 먼저 `onmu_catalog`의 `식당` 행 중 cafe-like tag/summary가 있는 row만 supplement로 사용한다.
 - 가볼만한곳: Kakao Local API 승인 전에도 안정적인 결과 수를 확보하기 위해 `onmu_catalog`를 1차 provider로 사용한다. catalog는 `관광명소`, `문화공간`, `행사` category와 `공원`, `해수욕장`, `박물관`, `미술관`, `전시`, `전망대`, `산책로` 같은 tag/summary를 사용해 필터링한다.
 - Kakao provider는 승인/availability가 확인될 때만 보조 provider로 참여한다.
 

@@ -32,6 +32,23 @@ Dev snapshot dump/restore rehearsal은 지금 수행하지 않는다. Clean stag
 
 보고에는 row 원문, provider raw payload, 실제 사용자 위치/검색 원문을 출력하지 않는다.
 
+시현 전 catalog 품질 gate는 read-only SQL인 `scripts/sql/onmu_catalog_quality_gate.sql`로 확인한다. 실행 결과는 count/status 중심으로만 보고하고 DB URL, password, raw row, provider payload 원문은 출력하지 않는다.
+
+```bash
+psql "$ONMU_STAGING_DATABASE_URL" -f scripts/sql/onmu_catalog_quality_gate.sql
+```
+
+품질 gate의 최소 확인 기준:
+
+| 항목 | 기준 |
+| --- | --- |
+| Total catalog rows | 시현 타겟 지역/키워드 기준 충분한 row count |
+| Coordinate coverage | 지도 노출에 필요한 coordinate row count와 `place_point` count |
+| Duplicate provider place id | duplicate count가 0이거나 import batch에서 의도한 alias인지 설명 가능 |
+| Import batch id | 새로 적재한 row는 `provider_payload.importBatchId` presence count로 추적 가능 |
+| Image reference | image/homepage URL은 count/presence만 확인하고 broken URL은 적재 전 필터링 또는 placeholder 처리 |
+| Smoke keyword counts | `서울 가볼만한곳`, `강남 맛집`, `을지로 카페` 후보 count가 시현 기준을 만족 |
+
 ## 2. Redis rehearsal
 
 Redis는 migration 대상이 아니다.

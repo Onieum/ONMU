@@ -18,17 +18,37 @@
     <meta property="og:description" content="ONMU Android 앱은 Google Play 공개 후 이 URL에서 연결됩니다.">
     <meta property="og:url" content="https://onmu.cloud/download/android/">
     <meta property="og:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="ONMU Android 다운로드 안내 브랜드 이미지">
     <meta name="twitter:card" content="summary_large_image">
-    <link rel="stylesheet" href="/styles.css">
+    <meta name="twitter:title" content="ONMU Android 다운로드 안내">
+    <meta name="twitter:description" content="ONMU Android 앱은 Google Play 공개 후 이 URL에서 연결됩니다.">
+    <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
+    <meta name="twitter:image:alt" content="ONMU Android 다운로드 안내 브랜드 이미지">
+    <link rel="stylesheet" href="/styles.css?v=20260623-about-story-reveal">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
+    <script src="/brand-site.js?v=20260623-about-story-reveal" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ONMU",
+        "alternateName": ["온뮤", "오늘밋업"],
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Android",
+        "url": "https://onmu.cloud/download/android/",
+        "downloadUrl": "https://onmu.cloud/download/android/",
+        "description": "ONMU Android 앱 다운로드 안내 페이지입니다. Google Play 공개 후 이 URL에서 연결됩니다."
+      }
+    </script>
   </head>
-  <body class="subpage">
+  <body class="subpage" data-download-page="android">
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
     <header class="site-header" aria-label="ONMU Android 다운로드 페이지 상단">
       <a class="brand-mark" href="/" aria-label="ONMU 홈">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <span>ONMU</span>
+        <img class="brand-logo" src="/assets/images/onmu-logo-wordmark.png" alt="" width="620" height="300" decoding="async">
       </a>
       <nav class="site-nav" aria-label="다운로드와 정책">
         <a href="/">홈</a>
@@ -45,14 +65,16 @@
             ONMU Android 앱은 공개 준비 중입니다. Google Play 링크가 확정되면 이 페이지에서
             바로 연결됩니다.
           </p>
-          <span class="status-pill">Android 링크 준비 중</span>
+          <span class="status-pill" data-store-status="android">Android 링크 준비 중</span>
           <div class="hero-actions">
-            <a class="button-primary" href="/download/">전체 다운로드 보기</a>
+            <a class="button-primary" href="/download/" data-download-platform="android">
+              <span data-store-label>전체 다운로드 보기</span>
+            </a>
             <a class="button-secondary" href="/">ONMU 소개 보기</a>
           </div>
         </div>
         <div class="download-qr">
-          <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="220" height="220">
+          <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="220" height="220" decoding="async">
           <strong>https://onmu.cloud/download/android/</strong>
         </div>
       </section>
