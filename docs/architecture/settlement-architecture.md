@@ -14,7 +14,7 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 | `finalized` | 이체 방향과 금액이 확정된 상태 | 항목 편집 불가, transfer confirmation 가능 | 정산 공지 |
 | `completed` | 수취자 전원이 수취 완료를 확인한 상태 | 불가 | 숨김 |
 
-한 약속에는 활성 `draft` 또는 `finalized` 정산을 하나만 허용한다. `completed`는 결과 조회 대상이지만 채팅 상단 활성 공지에는 포함하지 않는다.
+한 약속에는 최종 정산 결과를 하나만 허용한다. `completed`는 결과 조회 대상이지만 채팅 상단 활성 공지에는 포함하지 않는다.
 
 ## 생성 가능 조건
 
@@ -31,7 +31,7 @@ Flutter는 입력과 화면 상태만 담당하고, 계산과 원장 저장의 s
 
 | 기능 | API | 설명 |
 | --- | --- | --- |
-| draft 생성 또는 기존 active 정산 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active draft가 있으면 기존 draft를, active finalized가 있으면 기존 finalized 정산을 반환한다 |
+| draft 생성 또는 기존 정산 조회 | `POST /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | eligible plan에서 draft를 만든다. active draft가 있으면 기존 draft를, finalized/completed 결과가 있으면 기존 결과 정산을 반환한다 |
 | active draft 조회 | `GET /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | active draft가 없으면 `404 settlement_draft_not_found` |
 | draft 전체 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft` | section/item/target 전체를 저장한다. 저장 요청 단위 pessimistic lock 적용 |
 | item 대상자 저장 | `PATCH /api/v1/groups/{groupId}/plans/{planId}/settlement-draft/items/{itemId}/targets` | 저장된 draft item의 대상자를 교체한다 |

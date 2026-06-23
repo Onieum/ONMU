@@ -549,7 +549,7 @@ class _SettlementEntryCard extends StatelessWidget {
                 Text('정산', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '결제 항목을 입력하고 송금 내역을 확인해요.',
+                  '결제 항목을 입력하거나 확정된 송금 내역을 확인해요.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
@@ -558,7 +558,7 @@ class _SettlementEntryCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OnmuSecondaryButton(
-                    label: '정산 만들기/보기',
+                    label: '정산 만들기/결과 보기',
                     icon: Icons.arrow_forward,
                     onPressed: onPressed,
                   ),

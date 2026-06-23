@@ -177,7 +177,11 @@ class ApiSettlementRepository implements SettlementRepository {
       '/api/v1/groups/$groupId/plans/$planId/settlement-draft',
       body: const {},
     );
-    final preview = _settlement(OnmuJson.asMap(draft['preview']));
+    final previewJson = OnmuJson.asMap(draft['preview']);
+    if (previewJson.isEmpty) {
+      return _settlement(draft);
+    }
+    final preview = _settlement(previewJson);
     final topLevelSections = _sections(OnmuJson.asMapList(draft['sections']));
     return preview.copyWith(
       id: _readId(draft, 'id'),

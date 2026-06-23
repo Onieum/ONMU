@@ -197,7 +197,7 @@ class SettlementApiServiceTests {
     SettlementEntity finalized = new SettlementEntity("302", group, plan, "{}");
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(plan, List.of("finalized")))
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(plan, List.of("finalized", "completed")))
       .thenReturn(Optional.of(finalized));
     when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(finalized)).thenReturn(List.of());
     when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(finalized)).thenReturn(List.of());
@@ -207,6 +207,27 @@ class SettlementApiServiceTests {
 
     assertThat(result.value("id")).isEqualTo("302");
     assertThat(result.value("status")).isEqualTo("finalized");
+    verify(settlementDraftRepository, never()).save(any());
+  }
+
+  @Test
+  void createSettlementDraftReturnsCompletedSettlementInsteadOfCreatingNewDraft() {
+    SettlementEntity completed = new SettlementEntity("302", group, plan, "{}");
+    completed.markCompleted();
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      plan,
+      List.of("finalized", "completed")
+    )).thenReturn(Optional.of(completed));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(completed)).thenReturn(List.of());
+    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+
+    MapLike result = new MapLike(service.createSettlementDraft("1", "101", me.getId()));
+
+    assertThat(result.value("id")).isEqualTo("302");
+    assertThat(result.value("status")).isEqualTo("completed");
     verify(settlementDraftRepository, never()).save(any());
   }
 
@@ -396,6 +417,27 @@ class SettlementApiServiceTests {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(exception.getReason()).isEqualTo("settlement_not_found");
       });
+  }
+
+  @Test
+  void finalizeSettlementReturnsExistingCompletedSettlementInsteadOfCreatingAnotherResult() {
+    SettlementEntity completed = new SettlementEntity("302", group, plan, "{}");
+    completed.markCompleted();
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      plan,
+      List.of("finalized", "completed")
+    )).thenReturn(Optional.of(completed));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(completed)).thenReturn(List.of());
+    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+
+    MapLike result = new MapLike(service.finalizeSettlement("1", "101", me.getId()));
+
+    assertThat(result.value("id")).isEqualTo("302");
+    assertThat(result.value("status")).isEqualTo("completed");
+    verify(settlementRepository, never()).save(any(SettlementEntity.class));
   }
 
   @Test
