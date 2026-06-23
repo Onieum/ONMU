@@ -34,8 +34,29 @@ class MapCatalogRepositoryTests {
     assertThat(captured.params().getValue("provider")).isEqualTo("ONMU_CATALOG");
     assertThat(captured.params().getValue("category")).isEqualTo("카페");
     assertThat(captured.params().getValue("filter")).isEqualTo("%rooftop%");
-    assertThat(captured.params().getValue("query")).isEqualTo("%성수%");
+    assertThat(captured.params().getValue("query_0")).isEqualTo("%성수%");
     assertThat(captured.params().getValue("grid_size")).isEqualTo(0.03);
+  }
+
+  @Test
+  void queryFilterMatchesAllWhitespaceSeparatedTokensAcrossCatalogText() {
+    @SuppressWarnings("unchecked")
+    NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+    when(jdbcTemplate.query(any(String.class), any(SqlParameterSource.class), any(RowMapper.class)))
+      .thenReturn(List.of());
+    MapCatalogRepository repository = new MapCatalogRepository(jdbcTemplate);
+
+    repository.findPoints(query(16, "식당", "all", "을지로 카페"));
+
+    CapturedQuery captured = capture(jdbcTemplate);
+    assertThat(captured.sql())
+      .contains("lower(name) like :query_0")
+      .contains("lower(coalesce(provider_payload::text, '')) like :query_0")
+      .contains("lower(name) like :query_1")
+      .contains("lower(coalesce(provider_payload::text, '')) like :query_1");
+    assertThat(captured.params().getValue("query_0")).isEqualTo("%을지로%");
+    assertThat(captured.params().getValue("query_1")).isEqualTo("%카페%");
+    assertThat(captured.params().hasValue("query")).isFalse();
   }
 
   @Test
