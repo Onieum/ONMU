@@ -115,6 +115,7 @@
 - `POST /api/v1/groups/{groupId}/plans/{planId}/settlements` status와 created id presence
 - `GET /api/v1/groups/{groupId}/plans/{planId}/settlements/current` status와 active draft/finalized result field presence
 - settlement create 후 `settlement.finalized`, 수취 완료 후 `settlement.completed` outbox count/status 확인
+- 정산 확정 알림은 `settlement_requested` type으로 저장되고, `settlement_requested/in_app=false`이면 notification row와 provider 대상 `notification.requested`가 생성되지 않는지 확인
 - completed 이후 current settlement는 `404 settlement_not_found`로 채팅 상단 배너가 사라지는지 확인
 - completed 이후 약속 상세 정산 진입은 새 draft가 아니라 기존 completed 결과를 반환하는지 확인
 - provider delivery 대상 notification row가 없으면 push 성공으로 해석하지 않음

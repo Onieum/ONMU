@@ -60,6 +60,7 @@ public class SettlementApiService {
   private static final String STATUS_DRAFT = "draft";
   private static final String STATUS_FINALIZED = "finalized";
   private static final String STATUS_COMPLETED = "completed";
+  private static final String SETTLEMENT_NOTIFICATION_TYPE = "settlement_requested";
   private static final String EXTRA_SECTION_ID = "extra";
 
   private final GroupRepository groupRepository;
@@ -78,6 +79,7 @@ public class SettlementApiService {
   @SuppressWarnings("unused")
   private final GroupMemberRepository groupMemberRepository;
   private final NotificationRepository notificationRepository;
+  private final NotificationPreferenceService notificationPreferenceService;
   private final OutboxService outboxService;
   private final UserAvatarReadModelMapper userAvatarReadModelMapper;
   private final ObjectMapper objectMapper;
@@ -98,6 +100,7 @@ public class SettlementApiService {
     ChatActivityEventRepository chatActivityEventRepository,
     GroupMemberRepository groupMemberRepository,
     NotificationRepository notificationRepository,
+    NotificationPreferenceService notificationPreferenceService,
     OutboxService outboxService,
     UserAvatarReadModelMapper userAvatarReadModelMapper,
     ObjectMapper objectMapper
@@ -117,6 +120,7 @@ public class SettlementApiService {
     this.chatActivityEventRepository = chatActivityEventRepository;
     this.groupMemberRepository = groupMemberRepository;
     this.notificationRepository = notificationRepository;
+    this.notificationPreferenceService = notificationPreferenceService;
     this.outboxService = outboxService;
     this.userAvatarReadModelMapper = userAvatarReadModelMapper;
     this.objectMapper = objectMapper;
@@ -223,15 +227,24 @@ public class SettlementApiService {
   @Transactional
   public Map<String, Object> finalizeSettlement(String groupId, String planId, UUID userId) {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
-    Optional<SettlementEntity> existingFinalSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
-      access.plan(),
-      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
-    );
+    Optional<SettlementEntity> existingFinalSettlement = findFinalSettlement(access.plan());
     if (existingFinalSettlement.isPresent()) {
       return settlementCard(existingFinalSettlement.get(), false, access.user());
     }
-    SettlementDraftEntity draft = settlementDraftRepository.findActiveByPlanForUpdate(access.plan())
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_draft_not_found"));
+    Optional<SettlementDraftEntity> draftForUpdate = settlementDraftRepository.findByPlanForUpdate(access.plan());
+    if (draftForUpdate.isEmpty()) {
+      return findFinalSettlement(access.plan())
+        .map(settlement -> settlementCard(settlement, false, access.user()))
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_draft_not_found"));
+    }
+    SettlementDraftEntity draft = draftForUpdate.get();
+    Optional<SettlementEntity> finalSettlementAfterLock = findFinalSettlement(access.plan());
+    if (finalSettlementAfterLock.isPresent()) {
+      return settlementCard(finalSettlementAfterLock.get(), false, access.user());
+    }
+    if (!STATUS_DRAFT.equals(draft.getStatus())) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "settlement_already_finalized");
+    }
     List<SectionView> sections = sectionViewsForDraft(draft);
     List<ItemView> items = itemViews(sections);
     if (items.isEmpty()) {
@@ -467,11 +480,14 @@ public class SettlementApiService {
     ));
 
     for (UserEntity recipient : settlementRecipients(sections)) {
+      if (!notificationPreferenceService.isEnabled(recipient.getId(), SETTLEMENT_NOTIFICATION_TYPE, "in_app")) {
+        continue;
+      }
       NotificationEntity notification = notificationRepository.save(new NotificationEntity(
         recipient,
         group,
         plan,
-        "settlement_created",
+        SETTLEMENT_NOTIFICATION_TYPE,
         plan.getTitle() + " 정산이 확정됐어요",
         "약속 정산 송금 내역을 확인해 주세요.",
         toJson(settlementEventPayload(group, plan, settlement)),
@@ -488,6 +504,13 @@ public class SettlementApiService {
         "channels", List.of("push")
       ));
     }
+  }
+
+  private Optional<SettlementEntity> findFinalSettlement(PlanEntity plan) {
+    return settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      plan,
+      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
+    );
   }
 
   private void createSettlementCompletedActivity(
