@@ -100,15 +100,22 @@
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
+        if (!entry.isIntersecting && entry.intersectionRatio <= 0) {
           return;
         }
         entry.target.classList.add("is-visible");
         observer.unobserve(entry.target);
       });
     },
-    { rootMargin: "0px 0px -12% 0px", threshold: 0.12 },
+    { rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
   );
 
-  revealItems.forEach((item) => observer.observe(item));
+  revealItems.forEach((item) => {
+    const rect = item.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      item.classList.add("is-visible");
+      return;
+    }
+    observer.observe(item);
+  });
 })();
