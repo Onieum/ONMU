@@ -6,25 +6,25 @@
 
 :root {
   color-scheme: light;
-  --bg: #fffdf9;
-  --paper: #fff8ef;
-  --paper-strong: #ffece1;
+  --bg: #fff7ef;
+  --paper: #fffdf9;
+  --paper-strong: #f6e4d7;
   --white: #ffffff;
   --coral: #e86d75;
   --coral-dark: #c94c56;
   --coral-button: #c94c56;
   --coral-button-hover: #a83a48;
   --berry: #8f3d52;
-  --pink-soft: #ffe3e8;
-  --blue-soft: #e7f5fb;
-  --green-soft: #edf5e7;
-  --yellow-soft: #fff5d8;
+  --pink-soft: #fff3f5;
+  --blue-soft: #fffdf9;
+  --green-soft: #fffdf9;
+  --yellow-soft: #fff8ea;
   --text: #3a2a23;
   --sub: #725b51;
   --muted: #7d6358;
   --line: #ead8cc;
   --line-strong: #c9a995;
-  --shadow: 0 18px 48px rgba(58, 42, 35, 0.13);
+  --shadow: 0 18px 42px rgba(58, 42, 35, 0.08);
   --inner: minmax(0, 1160px);
   --pixel-font: "ONMUPixel", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   font-family:
@@ -227,7 +227,7 @@ button:focus-visible {
 }
 
 .site-nav a:hover {
-  background: var(--pink-soft);
+  background: var(--paper);
   color: var(--coral-dark);
 }
 
@@ -244,8 +244,8 @@ button:focus-visible {
   background:
     linear-gradient(rgba(255, 229, 218, 0.34) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 229, 218, 0.34) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 248, 239, 0.94), rgba(255, 253, 249, 0.98)),
-    var(--paper);
+    linear-gradient(180deg, rgba(255, 253, 249, 0.88), rgba(255, 247, 239, 0.96)),
+    var(--bg);
   background-size:
     28px 28px,
     28px 28px,
@@ -277,8 +277,7 @@ button:focus-visible {
   inset: auto 0 0;
   z-index: -1;
   height: 120px;
-  background: var(--white);
-  opacity: 0.56;
+  background: linear-gradient(180deg, rgba(255, 247, 239, 0), var(--bg));
 }
 
 .hero-art {
@@ -450,7 +449,7 @@ button:focus-visible {
   background:
     linear-gradient(rgba(255, 229, 218, 0.22) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 229, 218, 0.22) 1px, transparent 1px),
-    var(--white);
+    var(--bg);
   background-size: 30px 30px, 30px 30px, auto;
   padding-right: max(24px, calc((100vw - 1160px) / 2));
   padding-left: max(24px, calc((100vw - 1160px) / 2));
@@ -470,7 +469,7 @@ button:focus-visible {
   background:
     linear-gradient(rgba(255, 229, 218, 0.18) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 229, 218, 0.18) 1px, transparent 1px),
-    var(--white);
+    var(--bg);
   background-size: 32px 32px, 32px 32px, auto;
 }
 
@@ -511,16 +510,10 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
-.about-card:nth-child(1) {
-  background: var(--paper);
-}
-
-.about-card:nth-child(2) {
-  background: var(--pink-soft);
-}
-
+.about-card:nth-child(1),
+.about-card:nth-child(2),
 .about-card:nth-child(3) {
-  background: var(--green-soft);
+  background: var(--white);
 }
 
 .about-card span {
@@ -597,19 +590,19 @@ button:focus-visible {
 }
 
 .flow-steps li:first-child {
-  background: var(--paper);
+  background: var(--white);
 }
 
 .flow-steps li:nth-child(2) {
-  background: var(--blue-soft);
+  background: var(--white);
 }
 
 .flow-steps li:nth-child(3) {
-  background: var(--pink-soft);
+  background: var(--white);
 }
 
 .flow-steps li:nth-child(4) {
-  background: var(--green-soft);
+  background: var(--white);
 }
 
 .flow-steps span,
@@ -647,7 +640,7 @@ button:focus-visible {
 }
 
 .section-screens {
-  background: var(--white);
+  background: var(--bg);
 }
 
 .screen-stage {
@@ -661,7 +654,7 @@ button:focus-visible {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
 }
 
 .memory-paper img {
@@ -694,7 +687,7 @@ button:focus-visible {
   gap: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
   padding: 18px;
   box-shadow: 0 14px 34px rgba(58, 42, 35, 0.08);
 }
@@ -729,7 +722,7 @@ button:focus-visible {
 }
 
 .section-features {
-  background: var(--paper);
+  background: var(--bg);
 }
 
 .feature-grid {
@@ -751,7 +744,7 @@ button:focus-visible {
   height: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
   object-fit: contain;
   object-position: center;
 }
@@ -762,13 +755,10 @@ button:focus-visible {
 }
 
 .feature-card:nth-child(2),
-.feature-card:nth-child(5) {
-  background: var(--blue-soft);
-}
-
 .feature-card:nth-child(3),
+.feature-card:nth-child(5),
 .feature-card:nth-child(6) {
-  background: var(--green-soft);
+  background: var(--white);
 }
 
 .section-trust {
@@ -777,7 +767,7 @@ button:focus-visible {
 
 .section-faq,
 .section-roadmap {
-  background: var(--white);
+  background: var(--bg);
 }
 
 .trust-grid,
@@ -828,15 +818,15 @@ button:focus-visible {
 
 .faq-list article:nth-child(1),
 .faq-list article:nth-child(4) {
-  background: var(--paper);
+  background: var(--white);
 }
 
 .faq-list article:nth-child(2) {
-  background: var(--blue-soft);
+  background: var(--white);
 }
 
 .faq-list article:nth-child(3) {
-  background: var(--pink-soft);
+  background: var(--white);
 }
 
 .faq-list h3 {
@@ -853,19 +843,19 @@ button:focus-visible {
 }
 
 .roadmap-list li:nth-child(1) {
-  background: var(--paper);
+  background: var(--white);
 }
 
 .roadmap-list li:nth-child(2) {
-  background: var(--blue-soft);
+  background: var(--white);
 }
 
 .roadmap-list li:nth-child(3) {
-  background: var(--pink-soft);
+  background: var(--white);
 }
 
 .roadmap-list li:nth-child(4) {
-  background: var(--green-soft);
+  background: var(--white);
 }
 
 .team-stage {
@@ -878,7 +868,7 @@ button:focus-visible {
 .team-stage > img {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
   box-shadow: var(--shadow);
 }
 
@@ -891,7 +881,7 @@ button:focus-visible {
 .role-grid span {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
   padding: 22px;
   color: var(--text);
   font-weight: 900;
@@ -928,7 +918,7 @@ button:focus-visible {
   aspect-ratio: 1 / 1;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--white);
   object-fit: contain;
   object-position: center;
   box-shadow: var(--shadow);
