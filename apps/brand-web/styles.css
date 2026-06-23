@@ -479,7 +479,6 @@ button:focus-visible {
   background-size: 32px 32px, 32px 32px, auto;
 }
 
-.section-team::before,
 .section-download::before {
   content: "";
   position: absolute;
@@ -495,12 +494,6 @@ button:focus-visible {
       rgba(255, 245, 216, 0.52) 8px 16px
     );
   pointer-events: none;
-}
-
-.section-team::before {
-  top: 84px;
-  right: max(18px, calc((100vw - 1160px) / 2));
-  transform: rotate(5deg);
 }
 
 .section-download::before {
