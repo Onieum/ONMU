@@ -14,6 +14,7 @@ import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../widgets/ootd_generated_image_view.dart';
 import '../widgets/record_flow_navigation.dart';
 
 part 'daily_record_result.dart';

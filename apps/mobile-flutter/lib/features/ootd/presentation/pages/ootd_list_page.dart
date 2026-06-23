@@ -9,13 +9,15 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../../../../shared/widgets/pixel_character.dart';
+import '../widgets/ootd_generated_image_view.dart';
 import 'daily_record_screen.dart';
 part 'ootd_timeline_sheet.dart';
-typedef SaveRecordImageCallback = Future<OotdRecord> Function({
-  required OotdRecord record,
-  required Uint8List bytes,
-  required String fileName,
-});
+typedef SaveRecordImageCallback =
+    Future<OotdRecord> Function({
+      required OotdRecord record,
+      required Uint8List bytes,
+      required String fileName,
+    });
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
   @override
@@ -50,14 +52,12 @@ class OotdListPage extends StatefulWidget {
   @override
   State<OotdListPage> createState() => _OotdListPageState();
 }
-
 class _OotdListPageState extends State<OotdListPage> {
   late DateTime _currentMonth;
   late DateTime _selectedDay;
   final List<OotdRecord> _allRecords = [];
   final Set<String> _locallyDeletedRecordIds = {};
   double _calendarHorizontalDragDelta = 0;
-
   final List<Color> _bgColors = [
     AppColors.calendarDatePinkBg,
     AppColors.calendarDatePurpleBg,
@@ -65,7 +65,6 @@ class _OotdListPageState extends State<OotdListPage> {
     AppColors.calendarDateYellowBg,
     AppColors.calendarDateBlueBg,
   ];
-
   // 달력 셀 테두리용 파스텔 컬러 팔레트
   final List<Color> _pastelBorders = [
     AppColors.accentBlue,
@@ -74,7 +73,6 @@ class _OotdListPageState extends State<OotdListPage> {
     AppColors.accentGreen,
     AppColors.primaryPurple,
   ];
-
   @override
   void initState() {
     super.initState();
@@ -82,7 +80,6 @@ class _OotdListPageState extends State<OotdListPage> {
     _currentMonth = DateTime(today.year, today.month, 1);
     _selectedDay = DateTime(today.year, today.month, today.day);
   }
-
   int get _firstWeekday =>
       DateTime(_currentMonth.year, _currentMonth.month, 1).weekday % 7;
   int get _totalDaysInMonth =>

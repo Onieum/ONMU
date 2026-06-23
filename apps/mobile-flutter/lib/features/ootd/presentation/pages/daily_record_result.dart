@@ -227,7 +227,7 @@ class DailyRecordResultScreen extends StatelessWidget {
       record: record,
       photoItems: limitedPhotoItems,
       imageUrls: imageUrls,
-      dailyMemo: dailyMemo ?? '?ㅻ뒛???뚯쨷???쒓컙??湲곕줉?덉뼱??',
+      dailyMemo: dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
       includeCrew: includeCrew,
       userCharacter: userCharacter,
       memoryPlaces: _memoryPlaceNamesFromTimeline(record.timeline),
@@ -276,7 +276,7 @@ class DailyRecordResultScreen extends StatelessWidget {
         SizedBox(height: 22),
         if (photoItems.isNotEmpty) ...[
           Text(
-            '?ъ쭊 湲곕줉',
+            '사진 기록',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
           SizedBox(height: 12),
@@ -308,7 +308,7 @@ class DailyRecordResultScreen extends StatelessWidget {
             border: Border.all(color: AppColors.lineSoft),
           ),
           child: Text(
-            dailyMemo ?? '?ㅻ뒛???뚯쨷???쒓컙??湲곕줉?덉뼱??',
+            dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textMain,
               height: 1.45,
@@ -318,7 +318,7 @@ class DailyRecordResultScreen extends StatelessWidget {
         if (ootdRecord != null) ...[
           SizedBox(height: 20),
           Text(
-            '?④퍡 湲곕줉??OOTD',
+            '함께 기록한 OOTD',
             style: AppTextStyles.titleSmall.copyWith(color: AppColors.textMain),
           ),
           SizedBox(height: 12),
@@ -1257,7 +1257,7 @@ class _DiaryEmptyPhotoCard extends StatelessWidget {
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Text(
-        '?ъ쭊??異붽??섏? ?딆븘 ?ㅻ뒛??硫붾え留?湲곕줉?덉뼱??',
+        '사진을 추가하지 않아 오늘은 메모만 기록했어요.',
         style: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSub,
           height: 1.45,
@@ -1525,7 +1525,12 @@ class _CleanOotdBlock extends StatelessWidget {
       ),
       child: Row(
         children: [
-          PixelCharacterWidget(character: ootdRecord.character, size: 62),
+          OotdGeneratedImageView(
+            record: ootdRecord,
+            characterSize: 62,
+            width: 78,
+            height: 78,
+          ),
           SizedBox(width: 14),
           Expanded(
             child: Text(

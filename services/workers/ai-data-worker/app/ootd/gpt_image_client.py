@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import base64
 import os
+import re
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Any
 
 import httpx
+from PIL import Image
+from PIL import ImageChops
 
 from app.ootd.azureml_client import _optional_int
 
@@ -14,6 +19,9 @@ from app.ootd.azureml_client import _optional_int
 DEFAULT_IMAGE_SIZE = "1024x1024"
 DEFAULT_IMAGE_QUALITY = "low"
 MAX_OUTFIT_BRIEF_CHARS = 900
+DIARY_CANVAS_SIZE = 1024
+AVATAR_TARGET_HEIGHT = 560
+AVATAR_MAX_WIDTH = 430
 
 
 @dataclass(frozen=True)
@@ -82,12 +90,53 @@ class GptImageOotdClient:
 
         request_id = str(request.get("requestId") or "")
         mode = str(request.get("mode") or request.get("inputType") or "").upper()
-        prompt = build_gpt_image_avatar_prompt(request)
+        avatar_prompt = build_gpt_image_avatar_prompt(request)
+        diary_prompt = build_gpt_image_diary_card_prompt(_diary_metadata_from_request(request))
         url = (
             f"{self._config.endpoint_url}/openai/deployments/"
             f"{self._config.deployment_name}/images/generations"
         )
         params = {"api-version": self._config.api_version}
+
+        async with httpx.AsyncClient(
+            timeout=self._config.timeout_seconds,
+            transport=self._transport,
+        ) as client:
+            avatar_base64, avatar_ms = await self._post_generation(
+                client,
+                url,
+                params,
+                prompt=avatar_prompt,
+            )
+            diary_base64, diary_ms = await self._post_generation(
+                client,
+                url,
+                params,
+                prompt=diary_prompt,
+            )
+
+        image_base64 = _compose_ootd_diary_image(diary_base64, avatar_base64)
+        duration_ms = _sum_optional_ints(avatar_ms, diary_ms)
+        return GptImageResult(
+            status="succeeded",
+            mode=mode,
+            request_id=request_id,
+            image_base64=image_base64,
+            mime_type="image/png",
+            dry_run=False,
+            duration_ms=duration_ms,
+            error_code=None,
+            message=None,
+        )
+
+    async def _post_generation(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        params: dict[str, str],
+        *,
+        prompt: str,
+    ) -> tuple[str, int | None]:
         body = {
             "prompt": prompt,
             "size": DEFAULT_IMAGE_SIZE,
@@ -96,50 +145,34 @@ class GptImageOotdClient:
             "output_format": "png",
             "n": 1,
         }
-
-        async with httpx.AsyncClient(
-            timeout=self._config.timeout_seconds,
-            transport=self._transport,
-        ) as client:
+        response = await client.post(
+            url,
+            params=params,
+            headers={
+                "Authorization": f"Bearer {self._config.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+        if response.status_code in {401, 403, 404}:
             response = await client.post(
                 url,
                 params=params,
                 headers={
-                    "Authorization": f"Bearer {self._config.api_key}",
+                    "api-key": self._config.api_key,
                     "Content-Type": "application/json",
                 },
                 json=body,
             )
-            if response.status_code in {401, 403, 404}:
-                response = await client.post(
-                    url,
-                    params=params,
-                    headers={
-                        "api-key": self._config.api_key,
-                        "Content-Type": "application/json",
-                    },
-                    json=body,
-                )
 
         if response.status_code >= 400:
             raise RuntimeError(_redact_secret(f"GPT Image endpoint returned HTTP {response.status_code}: {response.text}"))
 
-        image_base64 = _extract_image_base64(response.json())
-        return GptImageResult(
-            status="succeeded",
-            mode=mode,
-            request_id=request_id,
-            image_base64=image_base64,
-            mime_type="image/png",
-            dry_run=False,
-            duration_ms=_optional_int(response.headers.get("x-ms-processing-ms")),
-            error_code=None,
-            message=None,
-        )
+        return _extract_image_base64(response.json()), _optional_int(response.headers.get("x-ms-processing-ms"))
 
 
 def build_gpt_image_avatar_prompt(request: dict[str, Any]) -> str:
-    """Build the prompt used by GPT Image for the OOTD character image."""
+    """Build the prompt used by GPT Image for the OOTD diary result image."""
 
     mode = str(request.get("mode") or request.get("inputType") or "").upper()
     style_brief = _outfit_brief_from_request(request)
@@ -147,14 +180,15 @@ def build_gpt_image_avatar_prompt(request: dict[str, Any]) -> str:
 
     if mode == "PHOTO_REFERENCE":
         return f"""
-Create a full-body ONMU OOTD character image.
+Generate only the full-body ONMU OOTD avatar sticker.
 
 Source priority:
 1. Use the visible OOTD photo analysis as the primary evidence for every visible feature.
-2. Preserve visible outfit, headwear, hair shape, hair color, visible skin tone, pose, silhouette, shoes, bags, and accessories from the photo analysis.
-3. Use the ONMU profile fallback only for details that are hidden, cropped out, blurry, or not described.
-4. If the photo shows a hairstyle or hat that ONMU profile parts do not have, use the photo hairstyle or hat anyway.
-5. Do not force the profile character hairstyle, hair color, eye color, skin tone, or outfit over visible photo evidence.
+2. Preserve visible outfit, headwear, hairstyle, hair color, visible skin tone, pose, silhouette, shoes, bags, and accessories from the photo analysis.
+3. Use the ONMU profile fallback only for details that are hidden, cropped out, blurry, or not described in the photo.
+4. If the photo shows a hairstyle, hat, glasses, bag, or accessory that ONMU profile parts do not have, still use the photo feature.
+5. Do not force profile hair, eye, skin, face, or outfit details over visible photo evidence.
+6. If the face or eyes are hidden, keep a cute ONMU avatar face using the profile eye color/style and skin tone.
 
 Visible OOTD photo/style analysis:
 {style_brief}
@@ -163,20 +197,22 @@ Profile fallback for hidden or missing details:
 {profile_brief}
 
 Rendering requirements:
-- Cute Korean diary-app character.
-- Full-body, centered, front-facing or near-front pose.
-- Clean pixel-art inspired avatar style with readable sprite proportions.
-- The result should look like one coherent OOTD character, not a pasted collage.
-- Plain transparent or simple light neutral background.
-- No diary page, no UI frame, no labels, no captions, no text.
+- One single full-body ONMU avatar character sticker, centered.
+- No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
+- Plain transparent, white, or very light neutral background is acceptable because this sticker will be composited onto a diary card later.
+- Keep the character readable and charming, cute Korean diary-app style, softly pixel-art inspired but polished.
+- Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
+- Preserve visible photo identity cues, and use the profile only for hidden or missing facial/character details.
+- Full body visible from head to shoes, clean silhouette, no cropped feet, no extra characters.
 """.strip()
 
     return f"""
-Create a full-body ONMU OOTD character image from the user's text description.
+Generate only the full-body ONMU OOTD avatar sticker from the user's text description.
 
 Use the text description as the outfit and styling source.
-Use the ONMU profile fallback for details the text does not specify, such as hair, eyes, mouth, skin tone, body proportions, or overall character mood.
+Use the ONMU profile fallback as the character identity for details the text does not specify, such as hairstyle, hair color, eye style, eye color, mouth, skin tone, body proportions, and overall character mood.
 If the text explicitly describes hair, eyes, accessories, or pose, the text wins over the profile fallback.
+If the text only describes clothes, preserve the profile hairstyle, profile hair color, profile eye color, profile skin tone, and profile face.
 
 Outfit and style request:
 {style_brief}
@@ -185,12 +221,13 @@ Profile fallback for missing text details:
 {profile_brief}
 
 Rendering requirements:
-- Cute Korean diary-app character.
-- Full-body, centered, front-facing or near-front pose.
-- Clean pixel-art inspired avatar style with readable sprite proportions.
+- One single full-body ONMU avatar character sticker, centered.
+- No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
+- Plain transparent, white, or very light neutral background is acceptable because this sticker will be composited onto a diary card later.
+- Keep the character readable and charming, cute Korean diary-app style, softly pixel-art inspired but polished.
 - Apply the described outfit, shoes, bags, and accessories clearly.
-- Plain transparent or simple light neutral background.
-- No diary page, no UI frame, no labels, no captions, no text.
+- Preserve the profile hairstyle, hair color, eye color, skin tone, and face unless the text explicitly changes them.
+- Full body visible from head to shoes, clean silhouette, no cropped feet, no extra characters.
 """.strip()
 
 
@@ -206,8 +243,10 @@ def build_gpt_image_diary_card_prompt(metadata: dict[str, Any]) -> str:
         "Create a cute Korean mobile diary scrapbook card image for an OOTD record. "
         "Use a warm ivory paper background with a subtle square grid notebook pattern, "
         "soft beige and pink tones, tape stickers, paper clips, hearts, sparkles, arrows, and small doodles. "
-        "Reserve a clean empty center area where the ONMU character sticker will be composited later. "
-        "Do not draw a full character in the center area. "
+        "Reserve a large clean empty center area where the ONMU character sticker will be composited later. "
+        "The empty center should be light, unobstructed, and sized for one full-body character sticker. "
+        "Do not draw a person, avatar, mannequin, clothing model, face, or body in the center area. "
+        "Do not place text, stickers, arrows, cards, or tape over the center area. "
         "Do not include phone status bars, app navigation buttons, edit buttons, or delete buttons. "
         "Add legible Korean diary handwriting inside separate memo cards. "
         f"Today's Look: {todays_look}. "
@@ -220,6 +259,41 @@ def build_gpt_image_diary_card_prompt(metadata: dict[str, Any]) -> str:
         "Keep all text inside cards, avoid cropped stickers, and keep the center character area unobstructed."
     )
 
+
+
+def _diary_metadata_from_request(request: dict[str, Any]) -> dict[str, Any]:
+    descriptor = request.get("outfitDescriptor")
+    diary = descriptor.get("outfit_info_for_diary") if isinstance(descriptor, dict) else None
+    metadata: dict[str, Any] = diary.copy() if isinstance(diary, dict) else {}
+
+    for source_key, target_key in [
+        ("todayLook", "todaysLook"),
+        ("todaysLook", "todaysLook"),
+        ("hairNote", "hairNote"),
+        ("weather", "weatherText"),
+        ("weatherText", "weatherText"),
+        ("mood", "moodText"),
+        ("moodText", "moodText"),
+        ("point", "pointText"),
+        ("pointText", "pointText"),
+        ("tags", "tags"),
+        ("rating", "rating"),
+    ]:
+        value = request.get(source_key)
+        if value not in (None, "", []):
+            metadata[target_key] = value
+
+    if "outfitInfo" not in metadata:
+        if isinstance(descriptor, dict):
+            outfit_info = descriptor.get("outfit_info") or descriptor.get("outfitInfo")
+            if outfit_info:
+                metadata["outfitInfo"] = outfit_info
+        if "outfitInfo" not in metadata:
+            metadata["outfitInfo"] = _outfit_brief_from_request(request)
+
+    if "todaysLook" not in metadata:
+        metadata["todaysLook"] = _clip_text(_outfit_brief_from_request(request), 180)
+    return metadata
 
 def _outfit_brief_from_request(request: dict[str, Any]) -> str:
     descriptor = request.get("outfitDescriptor")
@@ -286,22 +360,113 @@ def _profile_reference_brief(profile: Any) -> str:
     if not isinstance(profile, dict):
         return "Use the user's ONMU profile character settings only for hidden or missing details."
 
-    fields = []
-    for key in (
-        "skinToneIndex",
-        "hairStyleIndex",
-        "hairColorIndex",
-        "eyeStyleIndex",
-        "eyeColorIndex",
-        "mouthIndex",
-        "topIndex",
-        "bottomIndex",
-    ):
-        if key in profile and profile.get(key) is not None:
-            fields.append(f"{key}: {profile.get(key)}")
-    if not fields:
+    skin_index = _indexed_profile_value(profile, "skinTone", "skinToneIndex", "skin")
+    hair_style_index = _indexed_profile_value(profile, "hairStyle", "hairStyleIndex", "hair_style")
+    hair_color_index = _indexed_profile_value(profile, "hairColor", "hairColorIndex", "hair_color")
+    eye_style_index = _indexed_profile_value(profile, "eyeStyle", "eyeStyleIndex", "eye_style")
+    eye_color_index = _indexed_profile_value(profile, "eyeColor", "eyeColorIndex", "eye_color")
+    clothes_index = _indexed_profile_value(profile, "clothes", "topStyleIndex", "top")
+
+    details: list[str] = []
+    if skin_index is not None:
+        details.append(f"skin tone: {_skin_tone_description(skin_index)}")
+    if hair_style_index is not None:
+        details.append(f"hairstyle: {_hair_style_description(hair_style_index)}")
+    if hair_color_index is not None:
+        details.append(f"hair color: {_hair_color_description(hair_color_index)}")
+    if eye_style_index is not None:
+        details.append(f"eye style: {_eye_style_description(eye_style_index)}")
+    if eye_color_index is not None:
+        details.append(f"eye color: {_eye_color_description(eye_color_index)}")
+    if clothes_index is not None:
+        details.append(f"default profile outfit slot: {clothes_index}")
+
+    if not details:
         return "Use the user's ONMU profile character settings only for hidden or missing details."
-    return "Profile character part indices for fallback only: " + ", ".join(fields)
+
+    return (
+        "ONMU profile fallback details for hidden or unspecified character features: "
+        + "; ".join(details)
+        + ". Use these details strongly for text-only requests and only as fallback for photo requests."
+    )
+
+
+def _indexed_profile_value(profile: dict[str, Any], string_key: str, index_key: str, prefix: str) -> int | None:
+    if index_key in profile and profile.get(index_key) is not None:
+        try:
+            return int(profile.get(index_key))
+        except (TypeError, ValueError):
+            pass
+    value = profile.get(string_key)
+    if value is None:
+        return None
+    match = re.search(rf"{re.escape(prefix)}_(-?\d+)", str(value))
+    if match:
+        try:
+            return int(match.group(1))
+        except ValueError:
+            return None
+    return None
+
+
+def _skin_tone_description(index: int) -> str:
+    return {
+        0: "very fair peach skin (#FEE7DA)",
+        1: "light warm peach skin (#F5CDA7)",
+        2: "warm tan skin (#E0A96D)",
+        3: "deep warm brown skin (#96613F)",
+        4: "dark brown skin (#4D2C19)",
+    }.get(index, f"profile skin tone slot {index}")
+
+
+def _hair_color_description(index: int) -> str:
+    return {
+        0: "black hair (#1E1E1E)",
+        1: "brown hair (#7A5230)",
+        2: "blonde hair (#E7D08B)",
+        3: "white or silver hair (#F5F5F5)",
+        4: "soft pink hair (#E6A3C6)",
+        5: "red hair (#C94B4B)",
+        6: "blue hair (#7FA9E6)",
+        7: "mint hair (#7ED8B6)",
+        8: "purple/violet hair (#9A79D8)",
+        9: "lime green hair (#9AD64D)",
+    }.get(index, f"profile hair color slot {index}")
+
+
+def _eye_color_description(index: int) -> str:
+    return {
+        0: "black or dark gray eyes (#3A3A3A)",
+        1: "brown eyes (#8B5A3C)",
+        2: "blue eyes (#4F8FD9)",
+        3: "pink eyes (#D86A9C)",
+        4: "green eyes (#6FA45A)",
+        5: "gray eyes (#7A7A7A)",
+        6: "purple/violet eyes (#8A6BB8)",
+        7: "gold or amber eyes (#C99652)",
+    }.get(index, f"profile eye color slot {index}")
+
+
+def _hair_style_description(index: int) -> str:
+    return {
+        0: "long straight center-part hair",
+        1: "soft long wavy hair",
+        2: "layered long hair",
+        3: "short bob or medium-length hair",
+        4: "asymmetric tied side ponytail hair",
+        5: "twin-tail or decorated long hair",
+    }.get(index, f"profile hairstyle slot {index}")
+
+
+def _eye_style_description(index: int) -> str:
+    return {
+        0: "soft round anime eyes",
+        1: "slim gentle eyes",
+        2: "bright rounded eyes",
+        3: "sleepy downturned eyes",
+        4: "sharp cat-like eyes",
+        5: "cute smiling eyes",
+    }.get(index, f"profile eye style slot {index}")
 
 
 def _compact_descriptor_value(label: str, value: Any) -> str:
@@ -377,6 +542,70 @@ def _clip_text(value: str, max_chars: int) -> str:
         return value
     return value[:max_chars].rsplit(" ", 1)[0].rstrip(" ,.;:")
 
+
+
+def _compose_ootd_diary_image(diary_base64: str, avatar_base64: str) -> str:
+    diary = _decode_png(diary_base64).convert("RGBA").resize((DIARY_CANVAS_SIZE, DIARY_CANVAS_SIZE))
+    avatar = _trim_avatar_background(_decode_png(avatar_base64).convert("RGBA"))
+    avatar = _resize_avatar_for_diary(avatar)
+
+    x = (DIARY_CANVAS_SIZE - avatar.width) // 2
+    y = max(210, min(360, (DIARY_CANVAS_SIZE - avatar.height) // 2 + 40))
+    diary.alpha_composite(avatar, (x, y))
+
+    buffer = BytesIO()
+    diary.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _decode_png(image_base64: str) -> Image.Image:
+    try:
+        return Image.open(BytesIO(base64.b64decode(image_base64))).convert("RGBA")
+    except Exception as exc:  # pragma: no cover - defensive guard for provider payloads
+        raise RuntimeError("GPT Image response contained invalid PNG base64") from exc
+
+
+def _trim_avatar_background(image: Image.Image) -> Image.Image:
+    alpha = image.getchannel("A")
+    if alpha.getextrema()[0] < 255:
+        bbox = alpha.getbbox()
+        if bbox:
+            return image.crop(_pad_bbox(bbox, image.size, 12))
+
+    background = Image.new("RGBA", image.size, image.getpixel((0, 0)))
+    diff = ImageChops.difference(image, background).convert("L")
+    mask = diff.point(lambda value: 255 if value > 18 else 0)
+    bbox = mask.getbbox()
+    if not bbox:
+        return image
+    return image.crop(_pad_bbox(bbox, image.size, 12))
+
+
+def _pad_bbox(bbox: tuple[int, int, int, int], size: tuple[int, int], padding: int) -> tuple[int, int, int, int]:
+    left, top, right, bottom = bbox
+    width, height = size
+    return (
+        max(0, left - padding),
+        max(0, top - padding),
+        min(width, right + padding),
+        min(height, bottom + padding),
+    )
+
+
+def _resize_avatar_for_diary(avatar: Image.Image) -> Image.Image:
+    if avatar.height <= 0 or avatar.width <= 0:
+        return avatar
+    scale = AVATAR_TARGET_HEIGHT / avatar.height
+    if avatar.width * scale > AVATAR_MAX_WIDTH:
+        scale = AVATAR_MAX_WIDTH / avatar.width
+    width = max(1, int(avatar.width * scale))
+    height = max(1, int(avatar.height * scale))
+    return avatar.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def _sum_optional_ints(*values: int | None) -> int | None:
+    present = [value for value in values if value is not None]
+    return sum(present) if present else None
 
 def _redact_secret(value: str) -> str:
     for env_name in [

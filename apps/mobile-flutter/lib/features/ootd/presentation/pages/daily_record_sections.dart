@@ -308,7 +308,11 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                   ),
                 ),
                 SizedBox(height: 14),
-                PixelCharacterWidget(character: ootd.character, size: 96),
+                OotdGeneratedImageView(
+                  record: ootd,
+                  characterSize: 96,
+                  height: 120,
+                ),
                 SizedBox(height: 12),
                 Wrap(
                   spacing: 6,
@@ -542,9 +546,10 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    PixelCharacterWidget(
-                      character: widget.userCharacter,
-                      size: 78,
+                    OotdGeneratedImageView(
+                      record: _linkedOotdRecord!,
+                      characterSize: 78,
+                      height: 96,
                     ),
                     if (_selectedCrewAppearances.isNotEmpty)
                       ..._selectedCrewAppearances

@@ -1,10 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
-import '../../../../shared/widgets/pixel_character.dart';
+import '../widgets/ootd_generated_image_view.dart';
 
 class OotdDetailScreen extends StatelessWidget {
   final OotdRecord record;
@@ -22,10 +22,7 @@ class OotdDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_horiz),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}),
         ],
       ),
       body: SafeArea(
@@ -70,7 +67,9 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           _brand(record, 'title', fallback: 'OOTD 기록'),
-          style: AppTextStyles.headlineLarge.copyWith(color: AppColors.textMain),
+          style: AppTextStyles.headlineLarge.copyWith(
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -80,14 +79,19 @@ class _Header extends StatelessWidget {
           children: record.moodTags
               .map(
                 (tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryPinkSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     tag,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryPink),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primaryPink,
+                    ),
                   ),
                 ),
               )
@@ -137,7 +141,11 @@ class _ScrapbookBoard extends StatelessWidget {
             );
             final hair = _PaperNote(
               title: 'HAIR',
-              body: _brand(record, 'hairNote', fallback: '오늘만 선택한 헤어 스타일과 컬러를 반영했어요.'),
+              body: _brand(
+                record,
+                'hairNote',
+                fallback: '오늘만 선택한 헤어 스타일과 컬러를 반영했어요.',
+              ),
               tapeColor: const Color(0xFFFFD6C8),
             );
             final weather = _MiniStatusCard(
@@ -167,7 +175,13 @@ class _ScrapbookBoard extends StatelessWidget {
                   const SizedBox(height: 18),
                   hair,
                   const SizedBox(height: 12),
-                  Row(children: [Expanded(child: mood), const SizedBox(width: 10), Expanded(child: weather)]),
+                  Row(
+                    children: [
+                      Expanded(child: mood),
+                      const SizedBox(width: 10),
+                      Expanded(child: weather),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   point,
                   const SizedBox(height: 16),
@@ -224,7 +238,6 @@ class _AvatarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = _brand(record, 'generatedImageUrl');
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
       decoration: BoxDecoration(
@@ -233,15 +246,11 @@ class _AvatarCard extends StatelessWidget {
         border: Border.all(color: AppColors.lineSoft),
       ),
       alignment: Alignment.center,
-      child: imageUrl.isEmpty
-          ? PixelCharacterWidget(character: record.character, size: 220)
-          : Image.network(
-              imageUrl,
-              height: 260,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) =>
-                  PixelCharacterWidget(character: record.character, size: 220),
-            ),
+      child: OotdGeneratedImageView(
+        record: record,
+        characterSize: 220,
+        height: 260,
+      ),
     );
   }
 }
@@ -278,13 +287,20 @@ class _PaperNote extends StatelessWidget {
               Text(
                 title,
                 style: titleStyle == _NoteTitleStyle.hand
-                    ? AppTextStyles.headlineMedium.copyWith(color: AppColors.primaryPink)
-                    : AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
+                    ? AppTextStyles.headlineMedium.copyWith(
+                        color: AppColors.primaryPink,
+                      )
+                    : AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textMain,
+                      ),
               ),
               const SizedBox(height: 10),
               Text(
                 body,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.55),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textMain,
+                  height: 1.55,
+                ),
               ),
             ],
           ),
@@ -316,7 +332,11 @@ class _MiniStatusCard extends StatelessWidget {
   final IconData icon;
   final String value;
 
-  const _MiniStatusCard({required this.title, required this.icon, required this.value});
+  const _MiniStatusCard({
+    required this.title,
+    required this.icon,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,13 +350,23 @@ class _MiniStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSub)),
+          Text(
+            title,
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSub),
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
               Icon(icon, color: AppColors.primaryPink, size: 24),
               const SizedBox(width: 8),
-              Expanded(child: Text(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain))),
+              Expanded(
+                child: Text(
+                  value,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -353,11 +383,31 @@ class _OutfitInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _OutfitItem(Icons.checkroom_outlined, 'outer', _brand(record, 'outfitInfoOuter', fallback: 'AI 분석 대기 중')),
-      _OutfitItem(Icons.dry_cleaning_outlined, 'top', _brand(record, 'outfitInfoTop', fallback: 'AI 분석 대기 중')),
-      _OutfitItem(Icons.accessibility_new_outlined, 'bottom', _brand(record, 'outfitInfoBottom', fallback: 'AI 분석 대기 중')),
-      _OutfitItem(Icons.work_outline, 'bag', _brand(record, 'outfitInfoBag', fallback: 'AI 분석 대기 중')),
-      _OutfitItem(Icons.ice_skating_outlined, 'shoes', _brand(record, 'outfitInfoShoes', fallback: 'AI 분석 대기 중')),
+      _OutfitItem(
+        Icons.checkroom_outlined,
+        'outer',
+        _brand(record, 'outfitInfoOuter', fallback: 'AI 분석 대기 중'),
+      ),
+      _OutfitItem(
+        Icons.dry_cleaning_outlined,
+        'top',
+        _brand(record, 'outfitInfoTop', fallback: 'AI 분석 대기 중'),
+      ),
+      _OutfitItem(
+        Icons.accessibility_new_outlined,
+        'bottom',
+        _brand(record, 'outfitInfoBottom', fallback: 'AI 분석 대기 중'),
+      ),
+      _OutfitItem(
+        Icons.work_outline,
+        'bag',
+        _brand(record, 'outfitInfoBag', fallback: 'AI 분석 대기 중'),
+      ),
+      _OutfitItem(
+        Icons.ice_skating_outlined,
+        'shoes',
+        _brand(record, 'outfitInfoShoes', fallback: 'AI 분석 대기 중'),
+      ),
     ];
 
     return Container(
@@ -377,30 +427,45 @@ class _OutfitInfoCard extends StatelessWidget {
               color: AppColors.primaryPinkSoft,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text('OUTFIT INFO', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+            child: Text(
+              'OUTFIT INFO',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textMain,
+              ),
+            ),
           ),
           const SizedBox(height: 14),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(item.icon, size: 22, color: AppColors.textSub),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.35),
-                          children: [
-                            TextSpan(text: '${item.label}\n', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
-                            TextSpan(text: item.value),
-                          ],
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(item.icon, size: 22, color: AppColors.textSub),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textMain,
+                          height: 1.35,
                         ),
+                        children: [
+                          TextSpan(
+                            text: '${item.label}\n',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                          TextSpan(text: item.value),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -426,12 +491,17 @@ class _TagSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.only(top: 18),
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.lineSoft, style: BorderStyle.solid)),
+        border: Border(
+          top: BorderSide(color: AppColors.lineSoft, style: BorderStyle.solid),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("TODAY'S TAG", style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain)),
+          Text(
+            "TODAY'S TAG",
+            style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -439,12 +509,20 @@ class _TagSection extends StatelessWidget {
             children: tags
                 .map(
                   (tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryPinkSoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(tag, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMain)),
+                    child: Text(
+                      tag,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textMain,
+                      ),
+                    ),
                   ),
                 )
                 .toList(growable: false),
@@ -478,7 +556,12 @@ class _RatingAndSuggestion extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('오늘 코디는 어땠나요?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSub)),
+                Text(
+                  '오늘 코디는 어땠나요?',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSub,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 2,
@@ -493,7 +576,10 @@ class _RatingAndSuggestion extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(rating.toStringAsFixed(1), style: AppTextStyles.labelSmall),
+                    Text(
+                      rating.toStringAsFixed(1),
+                      style: AppTextStyles.labelSmall,
+                    ),
                   ],
                 ),
               ],
@@ -503,7 +589,10 @@ class _RatingAndSuggestion extends StatelessWidget {
           Expanded(
             child: Text(
               _brand(record, 'nextSuggestion', fallback: '다음 코디 메모를 남겨보세요.'),
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMain, height: 1.45),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textMain,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -525,7 +614,9 @@ class _BottomActions extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: () {
               if (recordId != null && recordId!.isNotEmpty) {
-                Navigator.of(context).pushNamed('${RoutePaths.records}/$recordId/edit');
+                Navigator.of(
+                  context,
+                ).pushNamed('${RoutePaths.records}/$recordId/edit');
               }
             },
             icon: const Icon(Icons.edit_outlined),
