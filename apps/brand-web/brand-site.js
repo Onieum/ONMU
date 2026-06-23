@@ -96,6 +96,16 @@
 
   document.body.classList.add("reveal-ready");
   revealItems.forEach((item) => item.classList.add("reveal-item"));
+  revealItems.forEach((item) => {
+    item
+      .querySelectorAll(
+        ".about-card, .flow-steps li, .feature-card, .screen-notes article, .mini-screen-card, .trust-grid article, .faq-list article, .roadmap-list li, .download-card",
+      )
+      .forEach((child, index) => {
+        child.classList.add("reveal-child");
+        child.style.setProperty("--reveal-index", String(Math.min(index, 5)));
+      });
+  });
 
   const observer = new IntersectionObserver(
     (entries) => {
