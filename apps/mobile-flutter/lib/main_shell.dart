@@ -22,7 +22,13 @@ class MainShell extends StatelessWidget {
         currentIndex: navigationShell.currentIndex,
         onTap: (index) {
           final isCurrentBranch = index == navigationShell.currentIndex;
+          final isRecordBranch = index == 2;
           final isMyBranch = index == 3;
+
+          if (isCurrentBranch && isRecordBranch) {
+            navigationShell.goBranch(index, initialLocation: true);
+            return;
+          }
 
           if (isCurrentBranch && isMyBranch) {
             navigationShell.goBranch(index, initialLocation: true);

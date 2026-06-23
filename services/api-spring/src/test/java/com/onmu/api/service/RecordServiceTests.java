@@ -176,6 +176,7 @@ class RecordServiceTests {
       features,
       List.of("청바지", "티셔츠"),
       "http://new-image-url",
+      null,
       "SUCCESS",
       null
     ));
@@ -204,6 +205,7 @@ class RecordServiceTests {
 
     var updated = service.processOotdCallback(new OotdCallbackRequest(
       "rec_123",
+      null,
       null,
       null,
       null,

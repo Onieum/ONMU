@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -43,8 +43,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   final _descriptionController = TextEditingController();
   final _memoController = TextEditingController();
   final _tagController = TextEditingController();
-  final _pointController = TextEditingController();
-  final _nextSuggestionController = TextEditingController();
 
   int _step = 0;
   int _inputMode = _photoMode;
@@ -87,8 +85,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     _memoController.text = existing?.timeline.isNotEmpty == true
         ? existing!.timeline.first.description
         : '';
-    _pointController.text = brands['point'] ?? '';
-    _nextSuggestionController.text = brands['nextSuggestion'] ?? '';
   }
 
   @override
@@ -97,8 +93,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     _descriptionController.dispose();
     _memoController.dispose();
     _tagController.dispose();
-    _pointController.dispose();
-    _nextSuggestionController.dispose();
     super.dispose();
   }
 
@@ -168,8 +162,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       children: [
         const _SectionTitle(
           title: 'AI OOTD 생성 방식',
-          subtitle:
-              '사진은 보이는 스타일을 우선 반영하고, 가려진 부분만 프로필 캐릭터 설정을 참고해요.',
+          subtitle: '사진은 보이는 스타일을 우선 반영하고, 가려진 부분만 프로필 캐릭터 설정을 참고해요.',
         ),
         const SizedBox(height: 20),
         _ModeCard(
@@ -190,7 +183,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         const SizedBox(height: 18),
         const _InfoBox(
           icon: Icons.info_outline,
-          text: '프로필 캐릭터는 기준 이미지가 아니라 보이지 않거나 설명이 부족한 부분을 보완하는 참고값이에요. 사진에서 보이는 헤어, 모자, 의상, 소품은 사진을 우선 반영해요.',
+          text:
+              '프로필 캐릭터는 기준 이미지가 아니라 보이지 않거나 설명이 부족한 부분을 보완하는 참고값이에요. 사진에서 보이는 헤어, 모자, 의상, 소품은 사진을 우선 반영해요.',
         ),
       ],
     );
@@ -328,15 +322,17 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   Widget _buildStylePage() {
-    final previewCharacter = _isTextMode ? _effectiveCharacter : widget.userCharacter;
+    final previewCharacter = _isTextMode
+        ? _effectiveCharacter
+        : widget.userCharacter;
     final styleSubtitle = _isPhotoMode
         ? '사진에서 보이지 않는 얼굴, 눈, 입 같은 부분만 프로필 캐릭터 설정을 참고해요.'
         : '텍스트 설명에 없는 헤어/눈 컬러를 오늘 코디에 맞게 바꿀 수 있어요.';
     final styleInfoText = _isPhotoMode
         ? '사진에서 보이는 머리, 모자, 소품, 의상은 사진을 우선 반영하고, 눈이나 입처럼 보이지 않는 부분만 프로필 설정을 참고해요.'
         : _changeStyle
-            ? '텍스트에 없는 머리/눈 정보는 오늘만 바꾼 스타일을 참고해요.'
-            : '텍스트에 없는 머리/눈/피부 정보는 프로필 캐릭터 설정을 참고해요.';
+        ? '텍스트에 없는 머리/눈 정보는 오늘만 바꾼 스타일을 참고해요.'
+        : '텍스트에 없는 머리/눈/피부 정보는 프로필 캐릭터 설정을 참고해요.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,10 +386,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        _InfoBox(
-          icon: Icons.auto_awesome,
-          text: styleInfoText,
-        ),
+        _InfoBox(icon: Icons.auto_awesome, text: styleInfoText),
         const SizedBox(height: 24),
         _OptionGroup(
           title: '오늘 날씨',
@@ -427,21 +420,12 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         ),
         const SizedBox(height: 14),
         TextField(
-          key: const ValueKey('pointField'),
-          controller: _pointController,
-          decoration: const InputDecoration(
-            labelText: '오늘 코디 포인트',
-            hintText: '예: 가방으로 포인트 주기',
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          key: const ValueKey('nextSuggestionField'),
-          controller: _nextSuggestionController,
+          key: const ValueKey('outfitMemoField'),
+          controller: _memoController,
           maxLines: 2,
           decoration: const InputDecoration(
-            labelText: '다음엔 이렇게 입고 싶어요',
-            hintText: '예: 니트에 청바지 조합도 좋을 것 같아요',
+            labelText: '코디 메모',
+            hintText: '오늘 코디에 대한 메모를 남겨보세요.',
           ),
         ),
       ],
@@ -841,14 +825,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       'aiStatus': 'PENDING',
       'title': 'OOTD 기록',
       'outfitDescription': outfitDescription,
-      'todayLook': _todayLook(outfitDescription),
-      'hairNote': _hairNote,
-      'point': _pointController.text.trim().isEmpty
-          ? _defaultPoint(outfitDescription)
-          : _pointController.text.trim(),
-      'nextSuggestion': _nextSuggestionController.text.trim().isEmpty
-          ? _defaultNextSuggestion
-          : _nextSuggestionController.text.trim(),
       'rating': _rating.toStringAsFixed(1),
       'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',
       'styleHairColor': 'hair_color_${_effectiveCharacter.hairColorIndex}',
@@ -874,20 +850,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       ? _descriptionController.text.trim()
       : '선택한 OOTD 사진에서 Vision AI가 보이는 스타일과 의상 디테일을 분석합니다.';
 
-  String _todayLook(String outfitDescription) {
-    if (_isPhotoMode) {
-      return '오늘 선택한 사진을 바탕으로 보이는 코디와 스타일을 우선 분석했어요.';
-    }
-    return '$outfitDescription 조합으로 오늘만의 분위기를 담은 OOTD예요.';
-  }
-
-  String get _hairNote {
-    if (_isPhotoMode) {
-      return '사진에서 보이는 헤어와 모자는 사진을 우선 반영하고, 가려진 부분만 프로필 설정을 참고해요.';
-    }
-    return '오늘 선택한 스타일과 컬러를 참고해 캐릭터 분위기를 조정했어요.';
-  }
-
   CharacterDraft get _effectiveCharacter {
     if (_isPhotoMode) return widget.userCharacter;
     return _changeStyle ? _styleCharacter : widget.userCharacter;
@@ -899,16 +861,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         a.eyeShapeIndex == b.eyeShapeIndex &&
         a.eyeColorIndex == b.eyeColorIndex;
   }
-
-  String _defaultPoint(String outfitDescription) {
-    if (outfitDescription.contains('가방')) return '가방으로 포인트 주기';
-    if (outfitDescription.contains('신발') || outfitDescription.contains('로퍼')) {
-      return '신발로 스타일 마무리하기';
-    }
-    return '전체 코디의 색감 맞추기';
-  }
-
-  String get _defaultNextSuggestion => '다음에는 다른 색감의 아이템과도 함께 매치해 보고 싶어요.';
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(
