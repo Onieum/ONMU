@@ -135,33 +135,24 @@ button:focus-visible {
 .brand-mark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 112px;
-  font-size: 1.1rem;
-  font-weight: 900;
-  white-space: nowrap;
+  min-width: 92px;
+  height: 38px;
 }
 
-.brand-mark span,
 .flow-steps span,
 .screen-notes span,
 .roadmap-list span {
   font-family: var(--pixel-font);
 }
 
-.brand-nowrap {
-  white-space: nowrap;
+.brand-logo {
+  display: block;
+  width: 92px;
+  height: auto;
 }
 
-.brand-dot {
-  width: 18px;
-  height: 18px;
-  border: 3px solid var(--coral-dark);
-  background: var(--pink-soft);
-  box-shadow:
-    6px 0 0 var(--coral),
-    0 6px 0 var(--coral),
-    6px 6px 0 var(--coral-dark);
+.brand-nowrap {
+  white-space: nowrap;
 }
 
 .site-nav {
