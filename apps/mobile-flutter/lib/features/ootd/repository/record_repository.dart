@@ -262,6 +262,11 @@ class ApiRecordRepository implements RecordRepository {
       'generatedImageUrl',
       OnmuJson.readString(json, 'generatedImageUrl'),
     );
+    final avatarImageUrl = OnmuJson.readString(
+      payload,
+      'avatarImageUrl',
+      OnmuJson.readString(json, 'avatarImageUrl'),
+    );
     final aiStatus = OnmuJson.readString(
       json,
       'aiStatus',
@@ -275,6 +280,8 @@ class ApiRecordRepository implements RecordRepository {
       'aiStatus': aiStatus,
       if (generatedImageUrl.isNotEmpty)
         'generatedImageUrl': _absoluteApiUrl(generatedImageUrl),
+      if (avatarImageUrl.isNotEmpty)
+        'avatarImageUrl': _absoluteApiUrl(avatarImageUrl),
     };
     final mood = OnmuJson.readString(
       payload,
@@ -599,7 +606,11 @@ class ApiRecordRepository implements RecordRepository {
   OotdAvatarGenerationJob _avatarGenerationJob(Map<String, dynamic> json) {
     final createdAt = DateTime.tryParse(OnmuJson.readString(json, 'createdAt'));
     final updatedAt = DateTime.tryParse(OnmuJson.readString(json, 'updatedAt'));
-    final generatedImageUrl = OnmuJson.readString(json, 'generatedImageUrl');
+    final generatedImageUrl = OnmuJson.readString(
+      json,
+      'avatarImageUrl',
+      OnmuJson.readString(json, 'generatedImageUrl'),
+    );
     final errorCode = OnmuJson.readString(json, 'errorCode');
     return OotdAvatarGenerationJob(
       jobId: OnmuJson.readString(json, 'jobId'),

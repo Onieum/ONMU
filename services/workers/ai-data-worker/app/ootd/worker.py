@@ -94,6 +94,11 @@ async def handle_ootd_avatar_generation(
             payload=payload,
             vision_client=vision_client,
         )
+        payload = await _with_text_descriptor(
+            event_id=event_id,
+            payload=payload,
+            vision_client=vision_client,
+        )
         azureml_request = build_azureml_request(event_id, payload)
         logger.info(
             "ootd worker generation request starting event_id=%s job_id=%s provider=%s has_descriptor=%s",
@@ -280,6 +285,48 @@ async def _with_vision_descriptor(
     enriched_payload = dict(payload)
     enriched_payload["outfitDescriptor"] = descriptor.descriptor
     enriched_payload["visionMetadata"] = {
+        "provider": "azure-openai",
+        "deployment": descriptor.model,
+        "apiVersion": descriptor.api_version,
+        "rawTextLength": len(descriptor.raw_text),
+    }
+    return enriched_payload
+
+
+async def _with_text_descriptor(
+    *,
+    event_id: str,
+    payload: dict[str, Any],
+    vision_client: AzureOpenAiVisionClient,
+) -> dict[str, Any]:
+    input_type = str(payload.get("inputType") or payload.get("mode") or "").upper()
+    if input_type != "TEXT_PROMPT":
+        return payload
+    if payload.get("outfitDescriptor"):
+        return payload
+    if not vision_client.is_configured:
+        logger.info("ootd text analysis skipped because client is not configured event_id=%s", event_id)
+        return payload
+
+    outfit_text = str(payload.get("outfitDescription") or "").strip()
+    if not outfit_text:
+        logger.info("ootd text analysis skipped because outfit text is unavailable event_id=%s", event_id)
+        return payload
+
+    logger.info("ootd text analysis starting event_id=%s request_id=%s", event_id, payload.get("jobId"))
+    descriptor = await vision_client.analyze_text_outfit(
+        request_id=str(payload.get("jobId") or event_id),
+        outfit_text=outfit_text,
+    )
+    logger.info(
+        "ootd text analysis completed event_id=%s request_id=%s descriptor_keys=%s",
+        event_id,
+        payload.get("jobId"),
+        sorted(descriptor.descriptor.keys()),
+    )
+    enriched_payload = dict(payload)
+    enriched_payload["outfitDescriptor"] = descriptor.descriptor
+    enriched_payload["textAnalysisMetadata"] = {
         "provider": "azure-openai",
         "deployment": descriptor.model,
         "apiVersion": descriptor.api_version,

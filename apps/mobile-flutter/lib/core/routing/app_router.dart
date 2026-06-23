@@ -469,6 +469,10 @@ final appRouter = GoRouter(
                             'groupId': dailyContext.groupId!,
                           if (dailyContext.planId != null)
                             'planId': dailyContext.planId!,
+                          if (dailyContext.memoryPlaceNames.isNotEmpty)
+                            'memoryPlaces': _encodeDailyMemoryPlaces(
+                              dailyContext.memoryPlaceNames,
+                            ),
                         },
                       );
                       context.push(uri.toString(), extra: ootdRecord);
@@ -559,12 +563,18 @@ final appRouter = GoRouter(
               state.uri.queryParameters['groupId'] ?? dailyContext.groupId;
           final planId =
               state.uri.queryParameters['planId'] ?? dailyContext.planId;
+          final queryMemoryPlaceNames = _decodeDailyMemoryPlaces(
+            state.uri.queryParameters['memoryPlaces'],
+          );
+          final memoryPlaceNames = queryMemoryPlaceNames.isNotEmpty
+              ? queryMemoryPlaceNames
+              : dailyContext.memoryPlaceNames;
 
           return DailyRecordScreen(
             userCharacter: routeState.character,
             recordDate: date,
             ootdRecord: ootdRecord,
-            memoryPlaceNames: dailyContext.memoryPlaceNames,
+            memoryPlaceNames: memoryPlaceNames,
             groupId: groupId,
             planId: planId,
             onFetchCrewAppearances: controller.fetchCrewOotdAppearances,
@@ -692,6 +702,32 @@ class _DailyRoutePlanContext {
   final List<String> memoryPlaceNames;
   final String? groupId;
   final String? planId;
+}
+
+const _dailyMemoryPlaceSeparator = '\u001F';
+
+String _encodeDailyMemoryPlaces(List<String> places) {
+  return places
+      .map((place) => place.trim())
+      .where((place) => place.isNotEmpty)
+      .join(_dailyMemoryPlaceSeparator);
+}
+
+List<String> _decodeDailyMemoryPlaces(String? encoded) {
+  if (encoded == null || encoded.trim().isEmpty) {
+    return const [];
+  }
+  final seen = <String>{};
+  final places = <String>[];
+  for (final rawPlace in encoded.split(_dailyMemoryPlaceSeparator)) {
+    final place = rawPlace.trim();
+    if (place.isEmpty) continue;
+    final key = place.toLowerCase();
+    if (seen.add(key)) {
+      places.add(place);
+    }
+  }
+  return List<String>.unmodifiable(places);
 }
 
 _DailyRoutePlanContext _dailyRoutePlanContextFor(

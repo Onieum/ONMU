@@ -17,6 +17,124 @@ Core rules:
 - Output valid JSON only. Do not wrap the JSON in Markdown.
 """
 
+
+TEXT_OUTFIT_DESCRIPTOR_SYSTEM_RULES = """
+You are a professional outfit prompt analyst for an ONMU avatar generation pipeline.
+
+Your job is to convert a user's text outfit request into a precise structured style descriptor.
+
+Important distinction:
+- If the user explicitly describes a visible/style feature, preserve that feature.
+- If the user does NOT explicitly describe hair, hair color, eye shape, eye color, skin tone, mouth, body proportions, pose, or gender presentation, mark that feature as profile fallback.
+- Do not infer character identity features from outfit mood.
+- Do not invent missing character features.
+- Clothing and wearable accessories should come from the user text.
+- Character identity fallback should come from the ONMU profile, which will be added by the caller.
+
+Return valid JSON only.
+""".strip()
+
+
+TEXT_OUTFIT_DESCRIPTOR_PROMPT = """
+Analyze this text-only OOTD request.
+
+User outfit request:
+{outfit_text}
+
+Extract every explicitly mentioned fashion and character feature.
+If a feature is not explicitly mentioned, mark it as "use_profile".
+
+For clothing and accessories, extract:
+1. item category
+2. subtype
+3. color
+4. material
+5. silhouette and fit
+6. graphics, logos, lettering, prints, embroidery, patches, ribbons
+7. construction details such as pleats, pockets, seams, ruffles, cuffs, hems, distressing
+8. footwear details
+9. bags and carried items
+10. styling notes
+
+For character features, decide whether the user explicitly specified:
+- gender presentation
+- hair style
+- hair color
+- eye shape
+- eye color
+- skin tone
+- mouth/facial expression
+- body proportions
+- pose
+
+Output schema:
+{
+  "source_type": "text_prompt",
+  "overall_aesthetic": "",
+  "style_summary": "",
+  "explicit_character_features": {
+    "gender_presentation": "",
+    "hair": "",
+    "hair_color": "",
+    "eyes": "",
+    "eye_color": "",
+    "skin_tone": "",
+    "mouth": "",
+    "body_proportions": "",
+    "pose": ""
+  },
+  "fallback_to_profile_character": {
+    "gender_presentation": "use_text or use_profile",
+    "hair": "use_text or use_profile",
+    "hair_color": "use_text or use_profile",
+    "eyes": "use_text or use_profile",
+    "eye_color": "use_text or use_profile",
+    "skin_tone": "use_text or use_profile",
+    "mouth": "use_text or use_profile",
+    "body_proportions": "use_text or use_profile",
+    "pose": "use_text or use_profile",
+    "reasoning": ""
+  },
+  "upper_body": {},
+  "lower_body": {},
+  "one_piece": {},
+  "outerwear": {},
+  "shoes": {},
+  "socks": {},
+  "headwear": {},
+  "bags_and_carried_items": [],
+  "jewelry_and_accessories": [],
+  "logos_text_graphics": [],
+  "construction_details": [],
+  "materials": [],
+  "colors": [],
+  "styling_notes": "",
+  "pixel_avatar_translation": {
+    "generation_brief": "",
+    "must_use_text_features": [],
+    "must_use_profile_fallback_for": [],
+    "do_not_invent": []
+  },
+  "outfit_info_for_diary": {
+    "outer": "",
+    "top": "",
+    "bottom": "",
+    "dress": "",
+    "bag": "",
+    "shoes": "",
+    "accessories": ""
+  }
+}
+
+Rules for pixel_avatar_translation:
+- generation_brief must be a natural language outfit description suitable for image generation.
+- must_use_text_features must list all explicitly described clothing and character features.
+- must_use_profile_fallback_for must list every missing character feature that should come from the ONMU profile.
+- do_not_invent must include missing fashion categories that the user did not request.
+
+Return valid JSON only. Do not include markdown.
+""".strip()
+
 VISION_OUTFIT_DESCRIPTOR_PROMPT = """Analyze this OOTD photo and return a detailed JSON object for ONMU avatar generation.
 
 The generated avatar should follow the photo for every visible visual feature, not just clothing. The user's profile character should only fill missing or hidden details.

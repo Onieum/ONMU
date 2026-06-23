@@ -9,6 +9,7 @@ public record OotdCallbackRequest(
   Map<String, Object> features,
   List<String> tags,
   String imageUrl,
+  String avatarImageUrl,
   String status,
   String errorMessage
 ) {
