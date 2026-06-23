@@ -446,6 +446,73 @@ void main() {
     );
   });
 
+  test('does not refit camera for catalog layer refresh only', () {
+    const oldCatalogPoints = [
+      OnmuCatalogMapPoint(
+        id: 'catalog-1',
+        category: '카페',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+    ];
+    const nextCatalogPoints = [
+      OnmuCatalogMapPoint(
+        id: 'catalog-1',
+        category: '카페',
+        coordinate: OnmuLatLng(lat: 37.5665, lng: 126.978),
+      ),
+      OnmuCatalogMapPoint(
+        id: 'catalog-2',
+        category: '식당',
+        coordinate: OnmuLatLng(lat: 37.5651, lng: 126.9895),
+      ),
+    ];
+    const oldCatalogClusters = [
+      OnmuCatalogMapCluster(
+        id: 'cluster-1',
+        count: 8,
+        coordinate: OnmuLatLng(lat: 37.566, lng: 126.98),
+        bounds: OnmuMapBounds(
+          south: 37.56,
+          west: 126.97,
+          north: 37.57,
+          east: 126.99,
+        ),
+      ),
+    ];
+    const nextCatalogClusters = [
+      OnmuCatalogMapCluster(
+        id: 'cluster-1',
+        count: 12,
+        coordinate: OnmuLatLng(lat: 37.566, lng: 126.98),
+        bounds: OnmuMapBounds(
+          south: 37.56,
+          west: 126.97,
+          north: 37.57,
+          east: 126.99,
+        ),
+      ),
+    ];
+
+    expect(
+      haveSameCatalogLayerPoints(oldCatalogPoints, nextCatalogPoints),
+      isFalse,
+    );
+    expect(
+      haveSameCatalogLayerClusters(oldCatalogClusters, nextCatalogClusters),
+      isFalse,
+    );
+    expect(
+      shouldFitCameraForMapUpdate(
+        pointsChanged: false,
+        routeGeometryChanged: false,
+        centerChanged: false,
+        zoomChanged: false,
+        styleLoaded: false,
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('renders fallback map state when manifest fetch fails', (
     tester,
   ) async {
