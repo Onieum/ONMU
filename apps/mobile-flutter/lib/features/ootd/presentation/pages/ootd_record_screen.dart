@@ -67,8 +67,11 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   void initState() {
     super.initState();
     final existing = widget.existingRecord;
+    final brands = existing?.brands ?? const <String, String>{};
+    _inputMode = brands['inputType'] == 'TEXT_PROMPT' ? _textMode : _photoMode;
     _styleCharacter = existing?.character ?? widget.userCharacter;
     _changeStyle =
+        _isTextMode &&
         existing != null &&
         !_sameCharacterStyle(_styleCharacter, widget.userCharacter);
     _weather = existing?.weather.isNotEmpty == true
@@ -80,7 +83,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         ? List<String>.from(existing!.moodTags)
         : ['#OOTD'];
 
-    final brands = existing?.brands ?? const <String, String>{};
     _descriptionController.text = brands['outfitDescription'] ?? '';
     _memoController.text = existing?.timeline.isNotEmpty == true
         ? existing!.timeline.first.description
@@ -887,6 +889,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   CharacterDraft get _effectiveCharacter {
+    if (_isPhotoMode) return widget.userCharacter;
     return _changeStyle ? _styleCharacter : widget.userCharacter;
   }
 
