@@ -32,7 +32,7 @@ public class PlaceSearchService {
   private static final int RESULT_LIMIT = 20;
   private static final int NAVER_FANOUT_QUERY_LIMIT = 5;
   private static final String CURATED_PROVIDER = "onmu_catalog";
-  private static final List<String> DEFAULT_PROVIDER_ORDER = List.of("naver", "kakao", CURATED_PROVIDER);
+  private static final List<String> DEFAULT_PROVIDER_ORDER = List.of("naver", CURATED_PROVIDER, "kakao");
   private static final List<String> ATTRACTION_PROVIDER_ORDER = List.of(CURATED_PROVIDER, "naver", "kakao");
   private static final List<String> FOOD_FANOUT_KEYWORDS = List.of("한식", "양식", "중식", "일식", "아시안식");
   private static final List<String> CAFE_FANOUT_KEYWORDS = List.of("카페", "디저트", "베이커리");
