@@ -6,7 +6,7 @@
     <title>ONMU(온뮤) | 약속과 기록을 하나로 잇는 오늘밋업 앱</title>
     <meta
       name="description"
-      content="ONMU는 ONieum(온이음) 팀이 만드는 모바일 프로젝트입니다. 약속, 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임 안에서 연결합니다.">
+      content="ONMU(온뮤)는 ONieum(온이음)이 만드는 오늘밋업 앱입니다. 약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지 한 앱에서 이어줍니다.">
     <meta
       name="keywords"
       content="ONMU, 온뮤, 오늘밋업, 온이음, 약속 앱, 모임 앱, 장소 후보, 모임 장소, 모임 정산, 라이프로그, 픽셀 캐릭터">
@@ -17,7 +17,7 @@
     <link rel="icon" href="/assets/icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="manifest" href="/site.webmanifest">
-    <link rel="preload" as="image" href="/assets/images/illustrations/onmu-illustration-suite-wide.png">
+    <link rel="preload" as="image" href="/assets/images/illustrations/onmu-illustration-suite-wide.webp" type="image/webp">
     <link rel="preload" as="image" href="/assets/images/screenshots/onmu-chat.png">
 
     <meta property="og:locale" content="ko_KR">
@@ -26,7 +26,7 @@
     <meta property="og:title" content="ONMU(온뮤) | 약속과 기록을 하나로 잇는 오늘밋업 앱">
     <meta
       property="og:description"
-      content="채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임 안에서 연결하는 ONieum(온이음)의 모바일 프로젝트입니다.">
+      content="약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지 한 앱에서 이어주는 오늘밋업 앱입니다.">
     <meta property="og:url" content="https://onmu.cloud/">
     <meta property="og:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta property="og:image:width" content="1200">
@@ -36,7 +36,7 @@
     <meta name="twitter:title" content="ONMU(온뮤) | 오늘밋업 앱">
     <meta
       name="twitter:description"
-      content="약속 전, 약속 중, 약속 후의 기록을 하나의 온모임으로 잇는 모바일 앱 프로젝트입니다.">
+      content="약속 전, 약속 중, 약속 후의 기록을 하나의 온모임으로 잇는 오늘밋업 앱입니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
 
     <link rel="stylesheet" href="/styles.css">
@@ -51,7 +51,8 @@
             "@id": "https://onmu.cloud/#organization",
             "name": "ONieum",
             "alternateName": "온이음",
-            "url": "https://onmu.cloud/"
+            "url": "https://onmu.cloud/",
+            "slogan": "흩어진 만남의 조각을 하나의 약속 경험으로 잇습니다."
           },
           {
             "@type": "SoftwareApplication",
@@ -62,7 +63,7 @@
             "operatingSystem": "iOS, Android",
             "url": "https://onmu.cloud/",
             "creator": { "@id": "https://onmu.cloud/#organization" },
-            "description": "ONMU는 약속, 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임 안에서 연결하는 모바일 프로젝트입니다.",
+            "description": "ONMU는 약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지 한 앱에서 이어주는 오늘밋업 앱입니다.",
             "featureList": ["온모임", "채팅", "장소 후보", "공동 정산", "사진 기록"],
             "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png"
           },
@@ -73,6 +74,44 @@
             "url": "https://onmu.cloud/",
             "publisher": { "@id": "https://onmu.cloud/#organization" },
             "inLanguage": "ko-KR"
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://onmu.cloud/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "ONMU는 출시했나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "현재 출시를 준비 중입니다. App Store와 Google Play 안내가 열리면 같은 다운로드 URL과 QR에서 확인할 수 있습니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "정산은 직접 송금인가요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "아니요. ONMU는 약속 안에서 금액을 정리하고 확인하는 보조 기능을 제공합니다. 자동 송금이나 결제 대행을 의미하지 않습니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "사진과 위치는 어디에 쓰이나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "사진과 위치는 약속과 기록 경험 안에서 쓰이도록 설계합니다. 약속 밖 광고나 외부 제공 목적으로 쓰지 않는 방향을 기준으로 합니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "어떤 앱인가요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "ONMU는 약속 만들기, 장소 선택, 채팅, 정산, 사진 기록을 하나의 온모임 안에서 이어주는 모바일 앱입니다."
+                }
+              }
+            ]
           }
         ]
       }
@@ -90,7 +129,8 @@
         <a href="#flow">흐름</a>
         <a href="#screens">앱 화면</a>
         <a href="#features">기능</a>
-        <a href="#roadmap">로드맵</a>
+        <a href="#team">팀</a>
+        <a href="#faq">FAQ</a>
         <a href="#download">다운로드</a>
       </nav>
     </header>
@@ -99,25 +139,25 @@
       <section class="hero" aria-labelledby="hero-title">
         <img
           class="hero-art"
-          src="/assets/images/illustrations/onmu-illustration-suite-wide.png"
+          src="/assets/images/illustrations/onmu-illustration-suite-wide.webp"
           alt="채팅, 장소 후보, 정산, 기록으로 이어지는 ONMU 브랜드 일러스트"
           width="1100"
           height="619"
           fetchpriority="high">
         <div class="hero-copy">
-          <p class="eyebrow">ONieum(온이음) project</p>
+          <p class="eyebrow">ONieum(온이음)</p>
           <span class="status-pill hero-status">출시 준비 중</span>
           <h1 id="hero-title">ONMU</h1>
           <span class="sr-only">약속과 기록을 하나로 잇는 오늘밋업 앱</span>
           <p class="hero-subtitle">약속과 기록을 하나로 잇는 오늘밋업 앱</p>
+          <p class="hero-belief">흩어진 만남의 조각을 하나의 약속 경험으로 잇습니다.</p>
           <p class="hero-description">
-            ONMU(온뮤)는 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임 안에서
-            연결합니다. 약속을 정하는 순간부터 다시 꺼내 보는 기억까지, 흩어지는
-            만남의 조각을 한 흐름으로 남깁니다.
+            약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지
+            한 앱에서 자연스럽게 이어집니다.
           </p>
           <div class="hero-actions">
             <a class="button-primary" href="#flow">앱 흐름 보기</a>
-            <a class="button-secondary" href="/download/">다운로드 준비 중</a>
+            <a class="button-secondary" href="/download/">다운로드 안내 보기</a>
           </div>
         </div>
         <figure class="hero-phone app-screenshot-frame app-screenshot-hero" aria-label="ONMU 채팅 화면 실제 Flutter 캡처">
@@ -132,15 +172,18 @@
 
       <section id="story" class="story-band" aria-labelledby="story-title">
         <div class="story-copy">
-          <p class="eyebrow">Why ONMU</p>
+          <p class="eyebrow">흩어진 약속</p>
           <h2 id="story-title">약속 하나를 위해 너무 많은 앱을 오가니까.</h2>
           <p>
             대화는 채팅방에, 장소는 지도 앱에, 일정은 캘린더에, 정산은 송금 앱에,
-            사진은 각자의 앨범에 흩어집니다. ONMU는 이 조각들을 하나의 온모임으로
-            묶어 약속 전, 약속 중, 약속 후의 맥락을 이어줍니다.
+            사진은 각자의 앨범에 흩어집니다.
+          </p>
+          <p>
+            <span class="brand-nowrap">ONieum(온이음)</span>은 이 조각들이 하나의 약속 안에서
+            이어지도록 모았습니다. 그 결과가 <span class="brand-nowrap">ONMU(온뮤)</span>입니다.
           </p>
         </div>
-        <div class="story-metrics" aria-label="ONMU가 연결하는 약속 경험">
+        <div class="story-metrics" role="group" aria-label="ONMU가 연결하는 약속 경험">
           <div>
             <strong>Before</strong>
             <span>일정, 장소 후보, 취향</span>
@@ -158,44 +201,44 @@
 
       <section id="flow" class="section section-flow" aria-labelledby="flow-title">
         <div class="section-copy">
-          <p class="eyebrow">Product Flow</p>
-          <h2 id="flow-title">일정 확정은 끝이 아니라, 온모임의 시작입니다.</h2>
+          <p class="eyebrow">약속 하루 흐름</p>
+          <h2 id="flow-title">약속이 확정되면, 온모임이 시작됩니다.</h2>
           <p>
-            ONMU는 약속을 만드는 순간부터 장소 후보를 고르고, 대화 속 액션 카드를
-            확인하고, 만남 이후의 정산과 기록까지 이어지는 모바일 경험을 목표로 합니다.
+            만나기 전 준비부터 대화 속 결정, 만남 이후의 정산과 기록까지
+            하나의 시간축으로 이어집니다.
           </p>
         </div>
         <ol class="flow-steps">
           <li>
             <span>01</span>
-            <strong>약속 만들기</strong>
-            <p>온모임 안에서 일정과 참여자를 정하고 오늘의 만남을 준비합니다.</p>
+            <strong>만나기</strong>
+            <p>온모임에서 일정과 함께할 사람을 정해 오늘의 만남을 준비합니다.</p>
           </li>
           <li>
             <span>02</span>
-            <strong>장소 고르기</strong>
-            <p>장소 후보와 지도 흐름으로 약속 장소를 정하는 과정을 돕습니다.</p>
+            <strong>장소 정하기</strong>
+            <p>후보를 모으고 지도 흐름으로 비교하며 약속 장소를 좁혀갑니다.</p>
           </li>
           <li>
             <span>03</span>
             <strong>대화와 결정</strong>
-            <p>채팅 안에서 사진, 투표, 정산, 약속 변경을 같은 시간축으로 확인합니다.</p>
+            <p>사진, 투표, 정산 같은 결정이 대화 한 줄 흐름에 남습니다.</p>
           </li>
           <li>
             <span>04</span>
-            <strong>기록 남기기</strong>
-            <p>사진과 메모를 픽셀 캐릭터가 담긴 다이어리식 기억으로 보관합니다.</p>
+            <strong>남기기</strong>
+            <p>사진과 메모를 픽셀 캐릭터가 있는 기억 카드로 보관합니다.</p>
           </li>
         </ol>
       </section>
 
       <section id="screens" class="section section-screens" aria-labelledby="screens-title">
         <div class="section-copy">
-          <p class="eyebrow">App Experience</p>
+          <p class="eyebrow">앱 미리 보기</p>
           <h2 id="screens-title">채팅 속 사진, 투표, 정산이 한 화면 흐름에 남습니다.</h2>
           <p>
-            실제 제품 경험은 iOS와 Android Flutter 앱에서 제공되는 것을 목표로 합니다.
-            공개 웹에서는 민감정보가 없는 데모 데이터를 실제 Flutter 화면으로 렌더링해 핵심 화면 구조를 보여줍니다.
+            지금은 출시 전이라, 예시 화면으로 ONMU의 흐름을 먼저 보여드려요.
+            왼쪽은 약속방 대화, 오른쪽은 만남 이후의 기록 화면입니다.
           </p>
         </div>
         <div class="screen-stage">
@@ -211,7 +254,8 @@
               src="/assets/images/screenshots/onmu-record.png"
               alt="ONMU 기록 화면 실제 Flutter 캡처"
               width="390"
-              height="844">
+              height="844"
+              decoding="async">
           </figure>
           <div class="screen-notes">
             <article>
@@ -231,34 +275,34 @@
             </article>
           </div>
         </div>
-        <div class="screen-strip" aria-label="ONMU 앱 화면 실제 Flutter 캡처 갤러리">
+        <div class="screen-strip" role="group" aria-label="ONMU 앱 화면 실제 Flutter 캡처 갤러리">
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-onboarding.png" alt="ONMU 온보딩 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-onboarding.png" alt="ONMU 온보딩 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>온보딩</h3>
             <p>처음 만나는 사용자가 캐릭터와 취향을 설정하는 흐름입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-home.png" alt="ONMU 홈 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-home.png" alt="ONMU 홈 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>홈</h3>
             <p>오늘 약속, 알림, 최근 기록을 한눈에 확인하는 중심 화면입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-group.png" alt="ONMU 온모임 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-group.png" alt="ONMU 온모임 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>온모임</h3>
             <p>사람, 일정, 장소 후보, 채팅이 모이는 약속방 맥락입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-chat.png" alt="ONMU 채팅 사진 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-chat.png" alt="ONMU 채팅 사진 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>채팅 사진</h3>
             <p>여러 장의 사진을 그리드와 상세 보기로 자연스럽게 연결합니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-settlement.png" alt="ONMU 공동 정산 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-settlement.png" alt="ONMU 공동 정산 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>공동 정산</h3>
             <p>정산은 약속 하위 맥락에서 입력과 결과를 다시 확인하게 합니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-record.png" alt="ONMU 기록 화면 캡처" width="390" height="844" loading="lazy">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-record.png" alt="ONMU 기록 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>기록</h3>
             <p>사진과 메모를 픽셀 캐릭터가 있는 다이어리식 기억으로 남깁니다.</p>
           </article>
@@ -267,62 +311,56 @@
 
       <section id="features" class="section section-features" aria-labelledby="features-title">
         <div class="section-copy">
-          <p class="eyebrow">Features</p>
+          <p class="eyebrow">다르게 이어지는 기능</p>
           <h2 id="features-title">실용적인 약속 도구에, 다시 보고 싶은 기록을 더합니다.</h2>
         </div>
         <div class="feature-grid">
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-team.png" alt="" width="627" height="627" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-team.png" alt="" width="627" height="627" loading="lazy" decoding="async">
             <span class="feature-number">온모임</span>
-            <span class="feature-status">현재 앱 구조</span>
             <h3>사람과 약속이 모이는 공간</h3>
             <p>친구, 일정, 장소 후보, 대화를 하나의 약속방 맥락으로 정리합니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-chat.png" alt="" width="836" height="470" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-chat.png" alt="" width="836" height="470" loading="lazy" decoding="async">
             <span class="feature-number">채팅</span>
-            <span class="feature-status">구현 축</span>
             <h3>대화 위의 액션 카드</h3>
             <p>투표, 정산, 기록 같은 이벤트를 채팅 시간축에서 바로 확인합니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-map.png" alt="" width="836" height="470" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-map.png" alt="" width="836" height="470" loading="lazy" decoding="async">
             <span class="feature-number">장소</span>
-            <span class="feature-status">후보 선택 중심</span>
             <h3>후보와 이동 흐름 비교</h3>
             <p>장소 후보를 모으고 지도 기반 흐름으로 약속 장소를 정하는 과정을 돕습니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-settlement.png" alt="" width="836" height="470" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-settlement.png" alt="" width="836" height="470" loading="lazy" decoding="async">
             <span class="feature-number">정산</span>
-            <span class="feature-status">서버 원장 기반</span>
             <h3>약속 맥락 안의 공동 정산</h3>
-            <p>입력 기반 정산을 약속 하위 흐름으로 보관하고 결과를 다시 확인합니다.</p>
+            <p>함께 쓴 금액을 약속 안에서 정리하고, 결과를 다시 확인할 수 있게 돕습니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-memory.png" alt="" width="836" height="470" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-memory.png" alt="" width="836" height="470" loading="lazy" decoding="async">
             <span class="feature-number">기록</span>
-            <span class="feature-status">순차 확장</span>
             <h3>사진과 메모의 기억 카드</h3>
             <p>만남 이후 사진과 메모를 다이어리처럼 남기고 다시 꺼내 봅니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-trust.png" alt="" width="627" height="627" loading="lazy">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-trust.png" alt="" width="627" height="627" loading="lazy" decoding="async">
             <span class="feature-number">신뢰</span>
-            <span class="feature-status">정책 공개</span>
             <h3>개인정보와 공개 범위 관리</h3>
-            <p>사진, 위치, 정산, 알림 데이터의 처리 경계를 명확히 두는 제품을 지향합니다.</p>
+            <p>사진, 위치, 정산 데이터가 약속 안에서 쓰이도록 경계를 분명히 합니다.</p>
           </article>
         </div>
       </section>
 
       <section id="team" class="section section-team" aria-labelledby="team-title">
         <div class="section-copy">
-          <p class="eyebrow">ONieum Team</p>
-          <h2 id="team-title">ONieum은 만남의 앞뒤를 모두 잇는 팀입니다.</h2>
+          <p class="eyebrow">ONMU를 만드는 ONieum(온이음)</p>
+          <h2 id="team-title">흩어지는 만남의 조각을, 하나의 기록으로.</h2>
           <p>
-            ONieum(온이음)은 모바일 앱, Spring API, 데이터 원장, 미디어와 알림 흐름을
-            나누어 설계하면서도 사용자가 느끼는 경험은 하나의 온모임으로 이어지게 만듭니다.
+            ONieum은 기획, 디자인, 개발, 운영이 한 팀에서 돌아가도록 만들고,
+            사용자에게는 하나의 약속 경험으로 전달합니다.
           </p>
         </div>
         <div class="team-stage">
@@ -330,80 +368,107 @@
             src="/assets/images/onmu-team-pixel.png"
             alt="ONMU 픽셀 캐릭터가 노트북과 노트를 들고 있는 팀 소개 이미지"
             width="900"
-            height="600">
+            height="600"
+            loading="lazy"
+            decoding="async">
           <div class="role-grid">
-            <span>Product & Auth</span>
-            <span>Core App & API</span>
-            <span>Settlement & Realtime</span>
-            <span>Record & Media</span>
+            <span>제품 기획 · 로그인/계정</span>
+            <span>앱 화면 · 약속/온모임</span>
+            <span>정산 · 채팅 · 알림</span>
+            <span>사진 기록 · 미디어</span>
           </div>
         </div>
       </section>
 
-      <section class="section section-trust" aria-labelledby="trust-title">
+      <section id="trust" class="section section-trust" aria-labelledby="trust-title">
         <div class="section-copy">
-          <p class="eyebrow">Trust</p>
-          <h2 id="trust-title">공개되는 정보와 내부 자료의 경계를 분명히 둡니다.</h2>
+          <p class="eyebrow">함께 지키는 신뢰</p>
+          <h2 id="trust-title">사진, 위치, 정산 데이터를 약속 안에서만 씁니다.</h2>
           <p>
-            ONMU 브랜드 웹은 제품 소개와 공개 정책만 다룹니다. 실제 사용자 데이터,
-            내부 협업 링크, 개발 환경 주소, provider 원문 응답은 공개 사이트에 두지 않습니다.
+            ONMU는 만남을 더 편하게 만들기 위해 필요한 정보만 다루고,
+            약속 밖으로 새어나가지 않도록 공개 범위를 신중하게 설계합니다.
           </p>
         </div>
         <div class="trust-grid">
           <article>
-            <span>Policy</span>
-            <strong>개인정보 처리방침과 이용약관</strong>
-            <p>출시 전 초안 버전으로 공개하고, 운영 및 법무 검토 뒤 버전과 시행일을 갱신합니다.</p>
+            <span>약속 안에서만</span>
+            <strong>참여한 사람 안에서 보이도록</strong>
+            <p>사진과 위치는 그 약속에 함께한 사람을 중심으로 보이도록 설계합니다.</p>
           </article>
           <article>
-            <span>Download</span>
-            <strong>스토어 경유 다운로드</strong>
-            <p>QR은 stable URL을 향하고, 앱 파일을 공개 Blob 링크로 직접 배포하지 않습니다.</p>
+            <span>내가 지우는 기록</span>
+            <strong>기록 삭제 흐름까지 고려합니다</strong>
+            <p>기록을 지우면 연결된 사진과 메모도 함께 정리되는 경험을 목표로 합니다.</p>
           </article>
           <article>
-            <span>Data</span>
-            <strong>데모 데이터만 사용</strong>
-            <p>웹 캡처와 설명에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치를 쓰지 않습니다.</p>
+            <span>광고 없이</span>
+            <strong>약속 데이터를 팔지 않습니다</strong>
+            <p>약속과 기록 정보는 광고나 외부 제공 목적이 아니라 제품 경험 안에서만 씁니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="section section-faq" aria-labelledby="faq-title">
+        <div class="section-copy">
+          <p class="eyebrow">자주 묻는 질문</p>
+          <h2 id="faq-title">궁금한 점을 미리 정리했어요.</h2>
+        </div>
+        <div class="faq-list">
+          <article>
+            <h3>ONMU는 출시했나요?</h3>
+            <p>현재 출시를 준비 중입니다. App Store와 Google Play 안내가 열리면 같은 다운로드 URL과 QR에서 확인할 수 있습니다.</p>
+          </article>
+          <article>
+            <h3>정산은 직접 송금인가요?</h3>
+            <p>아니요. 약속 안에서 금액을 정리하고 확인하는 보조 기능이며, 자동 송금이나 결제 대행을 의미하지 않습니다.</p>
+          </article>
+          <article>
+            <h3>사진과 위치는 어디에 쓰이나요?</h3>
+            <p>약속과 기록 경험 안에서 쓰이도록 설계합니다. 약속 밖 광고나 외부 제공 목적으로 쓰지 않는 방향을 기준으로 합니다.</p>
+          </article>
+          <article>
+            <h3>어떤 앱인가요?</h3>
+            <p>약속 만들기, 장소 선택, 채팅, 정산, 사진 기록을 하나의 온모임 안에서 이어주는 모바일 앱입니다.</p>
           </article>
         </div>
       </section>
 
       <section id="roadmap" class="section section-roadmap" aria-labelledby="roadmap-title">
         <div class="section-copy">
-          <p class="eyebrow">Launch Roadmap</p>
-          <h2 id="roadmap-title">지금은 소개와 정책, 다음은 실제 앱 공개입니다.</h2>
+          <p class="eyebrow">앞으로의 ONMU</p>
+          <h2 id="roadmap-title">지금은 흐름을 다듬고, 다음은 더 가까운 출시입니다.</h2>
           <p>
-            아직 스토어 링크와 일부 운영 연동은 준비 중입니다. 공개 사이트는 먼저 안정적인
-            정보 구조를 열고, 앱 공개 단계마다 같은 URL 안에서 연결을 확장합니다.
+            출시 준비 과정에서도 ONMU가 지키려는 방향은 같습니다. 약속을 더 편하게 만들고,
+            만남이 끝난 뒤에도 다시 보고 싶은 기록으로 남기는 일입니다.
           </p>
         </div>
         <ol class="roadmap-list">
           <li>
             <span>01</span>
-            <strong>공개 사이트 완성</strong>
-            <p>브랜드 서사, 정책, 다운로드 안내, QR, SEO 메타데이터를 먼저 정리합니다.</p>
+            <strong>브랜드와 정책 정리</strong>
+            <p>ONMU가 어떤 약속 경험을 만들고 싶은지와 기본 정책을 먼저 공개합니다.</p>
           </li>
           <li>
             <span>02</span>
-            <strong>실제 앱 화면 교체</strong>
-            <p>데모 데이터 기반 Flutter 화면을 캡처해 공개 이미지 품질을 계속 갱신합니다.</p>
+            <strong>앱 화면 품질 개선</strong>
+            <p>출시 전에도 실제 앱 흐름에 가까운 화면으로 소개 품질을 계속 높입니다.</p>
           </li>
           <li>
             <span>03</span>
             <strong>스토어 링크 연결</strong>
-            <p>App Store, TestFlight, Google Play 링크가 확정되면 기존 QR 목적지에서 연결합니다.</p>
+            <p>App Store와 Google Play 안내가 확정되면 같은 다운로드 페이지에서 연결합니다.</p>
           </li>
           <li>
             <span>04</span>
-            <strong>알림과 정책 정식화</strong>
-            <p>실제 push provider 연동과 정책 최종 검토가 끝나면 상태 문구를 갱신합니다.</p>
+            <strong>알림과 기록 확장</strong>
+            <p>채팅, 정산, 기록 알림이 필요한 순간에 자연스럽게 이어지도록 다듬습니다.</p>
           </li>
         </ol>
       </section>
 
       <section id="download" class="section section-download" aria-labelledby="download-title">
         <div class="section-copy">
-          <p class="eyebrow">Download</p>
+          <p class="eyebrow">다운로드 안내</p>
           <h2 id="download-title">ONMU 앱 공개를 준비하고 있습니다.</h2>
           <p>
             iOS와 Android 다운로드 링크는 스토어 공개 후 같은 QR과 같은 URL에 연결됩니다.
@@ -420,8 +485,10 @@
             src="/assets/images/illustrations/onmu-illustration-download.png"
             alt=""
             width="627"
-            height="627">
-          <div class="download-grid" aria-label="iOS와 Android QR 코드">
+            height="627"
+            loading="lazy"
+            decoding="async">
+          <div class="download-grid" role="group" aria-label="iOS와 Android QR 코드">
             <a class="download-card" href="/download/ios/">
               <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180">
               <span>iPhone</span>
@@ -440,7 +507,7 @@
     <footer class="site-footer">
       <div>
         <strong>ONMU by ONieum(온이음)</strong>
-        <p>모바일 앱 중심의 약속, 채팅, 장소, 정산, 기록 프로젝트</p>
+        <p>약속, 채팅, 장소, 정산, 기록을 하나로 잇는 오늘밋업 앱</p>
       </div>
       <nav aria-label="정책과 문의">
         <a href="/privacy/">개인정보 처리방침</a>
