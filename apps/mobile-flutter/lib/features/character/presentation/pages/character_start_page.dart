@@ -480,7 +480,7 @@ class _CharacterStartPageState extends State<CharacterStartPage> {
             border: Border.all(color: AppColors.linePink),
           ),
           child: Text(
-            '이제 ??? 기록을 시작해볼까요?\n캘린더에서 나만의 코디를 모아보세요.',
+            '프로필 캐릭터 설정이 완료됐어요.\n마이페이지에서 언제든 다시 수정할 수 있어요.',
             textAlign: TextAlign.center,
             style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.primaryPink,

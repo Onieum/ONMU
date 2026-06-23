@@ -386,6 +386,36 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
   }
 
   Widget _buildCrewPage() {
+    if (_shouldSkipCrewStep) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(
+            '\uD568\uAED8\uD55C \uD06C\uB8E8',
+            '\uC624\uB298 \uC5F0\uACB0\uB41C \uC57D\uC18D \uBA64\uBC84\uAC00 \uC5C6\uC5B4 \uD06C\uB8E8 \uC120\uD0DD\uC744 \uAC74\uB108\uB701\uC5B4\uC694.',
+          ),
+          SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: AppColors.bgDefault,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.lineSoft),
+            ),
+            child: Text(
+              '\uD568\uAED8\uD55C \uD06C\uB8E8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD63C\uC790\uB9CC\uC758 \uD558\uB8E8\uB97C \uAE30\uB85D\uD560\uAC8C\uC694.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSub,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -431,7 +461,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
         if (_includeCrew && !_isLoadingCrewAppearances && !_hasCrew) ...[
           SizedBox(height: 18),
           Text(
-            'No crew character was found for plans on this date.',
+            '\uC624\uB298 \uC57D\uC18D\uC5D0\uC11C \uBD88\uB7EC\uC62C \uD06C\uB8E8 \uCE90\uB9AD\uD130\uAC00 \uC5C6\uC5B4\uC694.',
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSub),
           ),
@@ -517,7 +547,9 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                       size: 78,
                     ),
                     if (_selectedCrewAppearances.isNotEmpty)
-                      ..._selectedCrewAppearances.take(3).map(
+                      ..._selectedCrewAppearances
+                          .take(3)
+                          .map(
                             (appearance) => Padding(
                               padding: const EdgeInsets.only(left: 10),
                               child: _crewAppearanceAvatar(
@@ -527,7 +559,9 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                             ),
                           )
                     else if (_selectedCrewCharacters.isNotEmpty)
-                      ..._selectedCrewCharacters.take(3).map(
+                      ..._selectedCrewCharacters
+                          .take(3)
+                          .map(
                             (character) => Padding(
                               padding: const EdgeInsets.only(left: 10),
                               child: PixelCharacterWidget(
