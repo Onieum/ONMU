@@ -456,6 +456,10 @@ button:focus-visible {
   padding-left: max(24px, calc((100vw - 1160px) / 2));
 }
 
+.story-about {
+  align-items: start;
+}
+
 .section-team,
 .section-download {
   position: relative;
@@ -492,30 +496,50 @@ button:focus-visible {
   line-height: 1.82;
 }
 
-.story-metrics {
+.about-cards {
   display: grid;
-  gap: 1px;
+  gap: 14px;
+}
+
+.about-card {
+  display: grid;
+  gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  overflow: hidden;
-  background: var(--line);
+  background: var(--white);
+  padding: 24px;
   box-shadow: var(--shadow);
 }
 
-.story-metrics div {
-  display: grid;
-  gap: 8px;
+.about-card:nth-child(1) {
   background: var(--paper);
-  padding: 24px;
 }
 
-.story-metrics strong {
+.about-card:nth-child(2) {
+  background: var(--pink-soft);
+}
+
+.about-card:nth-child(3) {
+  background: var(--green-soft);
+}
+
+.about-card span {
   color: var(--coral-dark);
-  font-size: 1.05rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
-.story-metrics span {
+.about-card strong {
+  color: var(--text);
+  font-size: 1.14rem;
+  line-height: 1.45;
+}
+
+.about-card p {
+  margin: 0;
   color: var(--sub);
+  line-height: 1.68;
 }
 
 .section-flow {
