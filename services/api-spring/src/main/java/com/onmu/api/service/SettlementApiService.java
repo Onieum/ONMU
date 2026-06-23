@@ -125,12 +125,12 @@ public class SettlementApiService {
   @Transactional
   public Map<String, Object> createSettlementDraft(String groupId, String planId, UUID userId) {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
-    Optional<SettlementEntity> activeSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+    Optional<SettlementEntity> finalSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
       access.plan(),
-      List.of(STATUS_FINALIZED)
+      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
     );
-    if (activeSettlement.isPresent()) {
-      return settlementCard(activeSettlement.get(), false, access.user());
+    if (finalSettlement.isPresent()) {
+      return settlementCard(finalSettlement.get(), false, access.user());
     }
     validateSettlementEligible(access.plan());
     return settlementDraftRepository.findActiveByPlan(access.plan())
@@ -223,6 +223,13 @@ public class SettlementApiService {
   @Transactional
   public Map<String, Object> finalizeSettlement(String groupId, String planId, UUID userId) {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
+    Optional<SettlementEntity> existingFinalSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      access.plan(),
+      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
+    );
+    if (existingFinalSettlement.isPresent()) {
+      return settlementCard(existingFinalSettlement.get(), false, access.user());
+    }
     SettlementDraftEntity draft = settlementDraftRepository.findActiveByPlanForUpdate(access.plan())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_draft_not_found"));
     List<SectionView> sections = sectionViewsForDraft(draft);
