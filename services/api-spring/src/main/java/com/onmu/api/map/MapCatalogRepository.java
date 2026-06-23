@@ -132,7 +132,7 @@ public class MapCatalogRepository {
         """);
       params.addValue("filter", "%" + query.filter() + "%");
     }
-    List<String> queryTokens = queryTokens(query.query());
+    List<String> queryTokens = queryTokens(query.query(), query.category(), query.filter());
     for (int index = 0; index < queryTokens.size(); index++) {
       String paramName = "query_" + index;
       where.append("""
@@ -149,7 +149,7 @@ public class MapCatalogRepository {
     return new SqlParts(where.toString(), params);
   }
 
-  private static List<String> queryTokens(String query) {
+  private static List<String> queryTokens(String query, String category, String filter) {
     if (query == null || query.isBlank()) {
       return List.of();
     }
@@ -159,11 +159,34 @@ public class MapCatalogRepository {
     List<String> tokens = new ArrayList<>();
     for (String part : parts) {
       String token = part.trim().toLowerCase(Locale.ROOT);
-      if (!token.isBlank() && !tokens.contains(token)) {
+      if (!token.isBlank()
+        && !isBroadIntentToken(token, category, filter)
+        && !tokens.contains(token)) {
         tokens.add(token);
       }
     }
     return tokens;
+  }
+
+  private static boolean isBroadIntentToken(String token, String category, String filter) {
+    if (List.of("장소", "추천", "근처", "주변", "일대").contains(token)) {
+      return true;
+    }
+    String normalizedCategory = category == null ? "" : category.trim().toLowerCase(Locale.ROOT);
+    String normalizedFilter = filter == null ? "" : filter.trim().toLowerCase(Locale.ROOT);
+    if ("식당".equals(normalizedCategory) && List.of("맛집", "음식점", "식당").contains(token)) {
+      return true;
+    }
+    if ("관광명소".equals(normalizedCategory)
+      && List.of("가볼만한", "가볼만한곳", "곳", "관광", "관광지").contains(token)) {
+      return true;
+    }
+    if (!normalizedFilter.isBlank()
+      && !"all".equals(normalizedFilter)
+      && normalizedFilter.equals(token)) {
+      return true;
+    }
+    return false;
   }
 
   private record SqlParts(String where, MapSqlParameterSource params) {
