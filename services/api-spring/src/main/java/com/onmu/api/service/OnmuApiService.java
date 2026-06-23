@@ -1,6 +1,7 @@
 package com.onmu.api.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onmu.api.domain.AuthIdentityEntity;
 import com.onmu.api.domain.AuthIdentityRepository;
@@ -33,6 +34,7 @@ import com.onmu.api.domain.VoteOptionRepository;
 import com.onmu.api.domain.VoteResponseEntity;
 import com.onmu.api.domain.VoteResponseRepository;
 import com.onmu.api.domain.VoteRepository;
+import com.onmu.api.place.PlaceImageSupport;
 import com.onmu.api.web.dto.AddPlanParticipantRequest;
 import com.onmu.api.web.dto.CreatePlaceCandidateRequest;
 import com.onmu.api.web.dto.CreatePlanRequest;
@@ -1140,6 +1142,7 @@ public class OnmuApiService {
 
   private Map<String, Object> externalPlacePayload(CreatePlaceCandidateRequest request) {
     Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("imageUrl", blankToNull(request.imageUrl()));
     payload.put("sourceUrl", blankToNull(request.sourceUrl()));
     payload.put("fetchedAt", blankToNull(request.fetchedAt()));
     payload.put("selectedSnapshot", true);
@@ -1171,6 +1174,7 @@ public class OnmuApiService {
       "promptKind", "place_reason"
     ));
     payload.put("roadAddress", blankToNull(request.roadAddress()));
+    payload.put("imageUrl", blankToNull(request.imageUrl()));
     payload.put("sourceUrl", blankToNull(request.sourceUrl()));
     payload.put("lat", firstNonNull(request.latitude(), request.lat()));
     payload.put("lng", firstNonNull(request.longitude(), request.lng()));
@@ -1235,6 +1239,7 @@ public class OnmuApiService {
     String provider = stringOrDefault(asString(payload.get("provider")), externalPlace == null ? null : externalPlace.getProvider());
     String providerPlaceId = stringOrDefault(asString(payload.get("providerPlaceId")), externalPlace == null ? null : externalPlace.getProviderPlaceId());
     String roadAddress = stringOrDefault(asString(payload.get("roadAddress")), externalPlace == null ? null : externalPlace.getRoadAddress());
+    String imageUrl = resolvePlaceCandidateImageUrl(payload, externalPlace);
     String sourceUrl = stringOrDefault(asString(payload.get("sourceUrl")), externalPlace == null ? null : externalPlace.getHomepageUrl());
     int heartCount = candidateHeartCount(candidate);
     boolean myHearted = placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user);
@@ -1259,6 +1264,7 @@ public class OnmuApiService {
     value.put("provider", provider);
     value.put("providerPlaceId", providerPlaceId);
     value.put("roadAddress", roadAddress);
+    value.put("imageUrl", imageUrl);
     value.put("sourceUrl", sourceUrl);
     value.put("lat", lat);
     value.put("lng", lng);
@@ -1272,6 +1278,21 @@ public class OnmuApiService {
     value.put("reasons", stringList(payload.get("reasons")));
     value.put("recommendation", payload.get("recommendation"));
     return value;
+  }
+
+  private String resolvePlaceCandidateImageUrl(Map<String, Object> payload, ExternalPlaceEntity externalPlace) {
+    String payloadImageUrl = blankToNull(asString(payload.get("imageUrl")));
+    if (payloadImageUrl != null) {
+      return payloadImageUrl;
+    }
+    if (externalPlace == null || !PlaceImageSupport.supportsPublicProxy(externalPlace.getProvider())) {
+      return null;
+    }
+    String remoteImageUrl = PlaceImageSupport.firstImageReference(readJsonNode(externalPlace.getProviderPayload()));
+    if (remoteImageUrl.isBlank()) {
+      return null;
+    }
+    return PlaceImageSupport.publicImagePath(externalPlace.getProvider(), externalPlace.getProviderPlaceId());
   }
 
   private int candidateHeartCount(PlaceCandidateEntity candidate) {
@@ -1687,6 +1708,14 @@ public class OnmuApiService {
       return value;
     } catch (JsonProcessingException exception) {
       return new LinkedHashMap<>();
+    }
+  }
+
+  private JsonNode readJsonNode(String payload) {
+    try {
+      return objectMapper.readTree(payload == null ? "{}" : payload);
+    } catch (JsonProcessingException exception) {
+      return objectMapper.createObjectNode();
     }
   }
 

@@ -246,6 +246,9 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
     }
 
     private PlaceSearchResult toResult() {
+      String imageUrl = PlaceImageSupport.firstImageReference(payload).isBlank()
+        ? null
+        : PlaceImageSupport.publicImagePath(API_PROVIDER, place.getProviderPlaceId());
       return new PlaceSearchResult(
         API_PROVIDER,
         place.getProviderPlaceId(),
@@ -256,6 +259,7 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
         place.getLatitude(),
         place.getLongitude(),
         place.getHomepageUrl(),
+        imageUrl,
         Instant.now()
       );
     }

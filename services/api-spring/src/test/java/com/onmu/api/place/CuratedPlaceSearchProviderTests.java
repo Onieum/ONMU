@@ -30,8 +30,18 @@ class CuratedPlaceSearchProviderTests {
 
     assertThat(results).singleElement()
       .satisfies(result -> assertThat(result)
-        .extracting(PlaceSearchResult::provider, PlaceSearchResult::providerPlaceId, PlaceSearchResult::name)
-        .containsExactly("onmu_catalog", "tour-1", "망원 한강공원"));
+        .extracting(
+          PlaceSearchResult::provider,
+          PlaceSearchResult::providerPlaceId,
+          PlaceSearchResult::name,
+          PlaceSearchResult::imageUrl
+        )
+        .containsExactly(
+          "onmu_catalog",
+          "tour-1",
+          "망원 한강공원",
+          "/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-1"
+        ));
   }
 
   @Test
@@ -116,12 +126,13 @@ class CuratedPlaceSearchProviderTests {
       {
         "region": "%s",
         "summary": "%s 추천 장소",
+        "firstimage": "https://tong.visitkorea.or.kr/cms/resource/%s.jpg",
         "tags": [%s],
         "purposeTags": [%s],
         "preferenceTags": [],
         "reasons": []
       }
-      """.formatted(region, region, quoted(tags), quoted(tags));
+      """.formatted(region, region, region, quoted(tags), quoted(tags));
   }
 
   private static String quoted(String[] values) {

@@ -21,6 +21,7 @@ public record CreatePlaceCandidateRequest(
   Double lng,
   Double latitude,
   Double longitude,
+  String imageUrl,
   String sourceUrl,
   String fetchedAt
 ) {
@@ -31,6 +32,6 @@ public record CreatePlaceCandidateRequest(
     String summary,
     List<String> tags
   ) {
-    this(name, category, address, summary, tags, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(name, category, address, summary, tags, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 }

@@ -238,7 +238,15 @@ class PlaceSearchServiceTests {
       List.of(
         new FakeProvider("naver", true, List.of(result("naver", "naver-1", "네이버 후보", "서울 마포구", 37.55, 126.90))),
         new FakeProvider("onmu_catalog", true, List.of(
-          result("onmu_catalog", "catalog-1", "망원 한강공원", "서울 마포구 망원동", 37.555, 126.895),
+          result(
+            "onmu_catalog",
+            "catalog-1",
+            "망원 한강공원",
+            "서울 마포구 망원동",
+            37.555,
+            126.895,
+            "/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=catalog-1"
+          ),
           result("onmu_catalog", "catalog-2", "망원 전시공간", "서울 마포구 망원동", 37.556, 126.896)
         ))
       ),
@@ -252,6 +260,10 @@ class PlaceSearchServiceTests {
     assertThat(results).hasSize(3);
     assertThat(results.subList(0, 2))
       .allSatisfy(result -> assertThat(result).containsEntry("provider", "onmu_catalog"));
+    assertThat(results.getFirst()).containsEntry(
+      "imageUrl",
+      "/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=catalog-1"
+    );
     assertThat(results.get(2)).containsEntry("provider", "naver");
   }
 
@@ -525,6 +537,30 @@ class PlaceSearchServiceTests {
     Double lng
   ) {
     return new PlaceSearchResult(provider, providerPlaceId, name, "카페", address, address, lat, lng, null, Instant.parse("2026-06-10T00:00:00Z"));
+  }
+
+  private static PlaceSearchResult result(
+    String provider,
+    String providerPlaceId,
+    String name,
+    String address,
+    Double lat,
+    Double lng,
+    String imageUrl
+  ) {
+    return new PlaceSearchResult(
+      provider,
+      providerPlaceId,
+      name,
+      "카페",
+      address,
+      address,
+      lat,
+      lng,
+      null,
+      imageUrl,
+      Instant.parse("2026-06-10T00:00:00Z")
+    );
   }
 
   private static MockEnvironment localEnvironment() {

@@ -140,6 +140,8 @@ class ApiPlaceRepository implements PlaceRepository {
           'providerPlaceId': candidate.providerPlaceId.trim(),
         if (candidate.roadAddress.trim().isNotEmpty)
           'roadAddress': candidate.roadAddress.trim(),
+        if (candidate.imageUrl.trim().isNotEmpty)
+          'imageUrl': candidate.imageUrl.trim(),
         if (candidate.latitude != null) 'lat': candidate.latitude,
         if (candidate.longitude != null) 'lng': candidate.longitude,
         if (candidate.latitude != null) 'latitude': candidate.latitude,
@@ -313,6 +315,7 @@ class ApiPlaceRepository implements PlaceRepository {
       provider: OnmuJson.readString(json, 'provider'),
       providerPlaceId: OnmuJson.readString(json, 'providerPlaceId'),
       roadAddress: OnmuJson.readString(json, 'roadAddress'),
+      imageUrl: OnmuJson.readString(json, 'imageUrl'),
       sourceUrl: OnmuJson.readString(json, 'sourceUrl'),
       latitude:
           _readNullableDouble(json, 'lat') ??

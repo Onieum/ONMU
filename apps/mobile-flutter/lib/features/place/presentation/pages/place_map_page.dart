@@ -15,6 +15,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../features/map/model/map_models.dart';
 import '../../../../features/map/view_model/map_catalog_view_model.dart';
 import '../../../../features/map/widgets/onmu_map_view.dart';
+import '../../../../core/api/onmu_media_url.dart';
 import '../../../../shared/models/place_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
@@ -2556,6 +2557,7 @@ class _PlacePhoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedImageUrl = resolveOnmuMediaUrl(candidate.imageUrl);
     return Semantics(
       label: '${candidate.name} 대표 사진',
       image: true,
@@ -2565,71 +2567,88 @@ class _PlacePhoto extends StatelessWidget {
         child: SizedBox(
           width: 56,
           height: 68,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: _photoColors,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (resolvedImageUrl.isNotEmpty)
+                Image.network(
+                  resolvedImageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _fallbackPhotoSurface(),
+                )
+              else
+                _fallbackPhotoSurface(),
+              Positioned(
+                left: 8,
+                top: 8,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgDefault.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.primaryPink,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -10,
-                  top: -8,
-                  child: Icon(
-                    Icons.circle,
-                    size: 34,
-                    color: AppColors.bgDefault.withValues(alpha: 0.36),
-                  ),
-                ),
-                Positioned(
-                  left: 10,
-                  bottom: 12,
-                  child: Icon(
-                    _photoIcon,
-                    color: AppColors.textInverse,
-                    size: 22,
-                  ),
-                ),
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.bgDefault.withValues(alpha: 0.86),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: 2,
-                      ),
-                      child: Text(
-                        '${index + 1}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.primaryPink,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  bottom: 8,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.bgDefault.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: const SizedBox.square(dimension: 10),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _fallbackPhotoSurface() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _photoColors,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            top: -8,
+            child: Icon(
+              Icons.circle,
+              size: 34,
+              color: AppColors.bgDefault.withValues(alpha: 0.36),
+            ),
+          ),
+          Positioned(
+            left: 10,
+            bottom: 12,
+            child: Icon(
+              _photoIcon,
+              color: AppColors.textInverse,
+              size: 22,
+            ),
+          ),
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.bgDefault.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: const SizedBox.square(dimension: 10),
+            ),
+          ),
+        ],
       ),
     );
   }

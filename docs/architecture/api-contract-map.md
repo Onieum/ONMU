@@ -123,6 +123,7 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 | 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` |
 | 내 후보 하트 설정 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` |
 | 장소 검색 | `POST /api/v1/place-search` |
+| 장소 대표 이미지 공개 proxy | `GET /api/v1/place-images/public` |
 | 지도 catalog points/clusters | `POST /api/v1/map-points` |
 | 동선 추천 | `POST /api/v1/routes/recommend` |
 | 일정에 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` |
@@ -130,9 +131,9 @@ Provider delivery 대상 `notification.requested` payload는 실제 `notificatio
 
 장소 검색은 취향, 태그, 참여자 선호, 지도 bounds, 날짜/시간 조건이 함께 들어올 수 있으므로 `POST /api/v1/place-search`를 canonical로 둔다. 단순 `GET /api/v1/place-search?query=...`는 dev stub 또는 호환용으로만 둘 수 있다.
 
-장소 검색 응답은 기존 `query`, `canonical`, `results` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`를 유지하고, 외부 provider 연결을 위해 `provider`, `providerPlaceId`, `roadAddress`, `latitude`, `longitude`, `sourceUrl`, `providerLink`, `fetchedAt`을 추가할 수 있다. Spring은 `summary`, `tags`, `reasons`, `distanceLabel`, `recommendation`을 rule-based 추천 설명 read model로 함께 내려준다. Flutter는 provider/source 진단값을 사용자-facing 텍스트로 노출하지 않고, `reasons`만 추천 근거로 표시한다.
+장소 검색 응답은 기존 `query`, `canonical`, `results` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`를 유지하고, 외부 provider 연결을 위해 `provider`, `providerPlaceId`, `roadAddress`, `latitude`, `longitude`, `sourceUrl`, `providerLink`, `imageUrl`, `fetchedAt`을 추가할 수 있다. Spring은 `summary`, `tags`, `reasons`, `distanceLabel`, `recommendation`을 rule-based 추천 설명 read model로 함께 내려준다. Flutter는 provider/source 진단값을 사용자-facing 텍스트로 노출하지 않고, `reasons`만 추천 근거로 표시한다. `imageUrl`은 원본 TourAPI URL을 직접 노출하지 않고 ONMU 공개 proxy path를 사용한다.
 
-후보 저장 요청 `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`는 검색 결과에서 내려온 `reasons`, `distanceLabel`, `travelTimeLabel`, `priceLabel`, `openingLabel`을 선택적으로 받을 수 있다. Spring은 해당 값을 `place_candidates.payload`에 보존하고 `place_candidate.created` outbox payload에는 `reasonCount`, `recommendationVersion`, `hasCoordinate`, `sourceType` 같은 작업용 metadata만 넣는다.
+후보 저장 요청 `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates`는 검색 결과에서 내려온 `reasons`, `distanceLabel`, `travelTimeLabel`, `priceLabel`, `openingLabel`, `imageUrl`을 선택적으로 받을 수 있다. Spring은 해당 값을 `place_candidates.payload`에 보존하고 `place_candidate.created` outbox payload에는 `reasonCount`, `recommendationVersion`, `hasCoordinate`, `sourceType` 같은 작업용 metadata만 넣는다.
 
 지도 catalog API는 하단 top20 장소 검색 결과와 분리한다. `POST /api/v1/map-points`는 같은 `groupId`, `planId` membership guard를 거친 뒤 정적 catalog를 지도 context용 cluster/dot으로 반환한다. 낮은 zoom에서는 `clusters[]`, 높은 zoom(현재 15 이상)에서는 `points[]`만 채운다. 이 응답을 top20 숫자 marker나 후보 검색 결과로 사용하지 않는다.
 

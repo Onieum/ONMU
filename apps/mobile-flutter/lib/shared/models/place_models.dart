@@ -22,6 +22,7 @@ class PlaceCandidate {
     this.provider = '',
     this.providerPlaceId = '',
     this.roadAddress = '',
+    this.imageUrl = '',
     this.sourceUrl = '',
     this.latitude,
     this.longitude,
@@ -52,6 +53,7 @@ class PlaceCandidate {
   final String provider;
   final String providerPlaceId;
   final String roadAddress;
+  final String imageUrl;
   final String sourceUrl;
   final double? latitude;
   final double? longitude;
@@ -104,6 +106,7 @@ class PlaceCandidate {
     String? provider,
     String? providerPlaceId,
     String? roadAddress,
+    String? imageUrl,
     String? sourceUrl,
     double? latitude,
     double? longitude,
@@ -134,6 +137,7 @@ class PlaceCandidate {
       provider: provider ?? this.provider,
       providerPlaceId: providerPlaceId ?? this.providerPlaceId,
       roadAddress: roadAddress ?? this.roadAddress,
+      imageUrl: imageUrl ?? this.imageUrl,
       sourceUrl: sourceUrl ?? this.sourceUrl,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
