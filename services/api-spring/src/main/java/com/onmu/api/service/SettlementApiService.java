@@ -34,6 +34,7 @@ import com.onmu.api.domain.UserRepository;
 import com.onmu.api.web.dto.SettlementDraftItemRequest;
 import com.onmu.api.web.dto.SettlementDraftSectionRequest;
 import com.onmu.api.web.dto.SettlementPreviewRequest;
+import com.onmu.api.web.dto.SettlementTargetShareRequest;
 import com.onmu.api.web.dto.UpdateSettlementDraftRequest;
 import com.onmu.api.web.dto.UpdateSettlementItemTargetsRequest;
 import java.time.Instant;
@@ -124,12 +125,12 @@ public class SettlementApiService {
   @Transactional
   public Map<String, Object> createSettlementDraft(String groupId, String planId, UUID userId) {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
-    Optional<SettlementEntity> activeSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+    Optional<SettlementEntity> finalSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
       access.plan(),
-      List.of(STATUS_FINALIZED)
+      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
     );
-    if (activeSettlement.isPresent()) {
-      return settlementCard(activeSettlement.get(), false, access.user());
+    if (finalSettlement.isPresent()) {
+      return settlementCard(finalSettlement.get(), false, access.user());
     }
     validateSettlementEligible(access.plan());
     return settlementDraftRepository.findActiveByPlan(access.plan())
@@ -185,16 +186,15 @@ public class SettlementApiService {
     SettlementItemEntity item = settlementItemRepository.findBySettlementDraftAndPublicId(draft, itemId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_item_not_found"));
     List<UserEntity> participants = activeParticipants(access.plan());
-    List<UserEntity> targets = usersByUserIds(
-      request == null || request.targetUserIds() == null || request.targetUserIds().isEmpty()
-        ? participants.stream().map(user -> user.getId().toString()).toList()
-        : request.targetUserIds(),
+    List<TargetShare> targetShares = targetSharesFromRequest(
+      item.getAmountWon(),
+      request == null ? List.of() : request.targetShares(),
+      request == null ? List.of() : request.targetUserIds(),
       participants
     );
     settlementItemTargetRepository.deleteBySettlementItem(item);
-    List<Long> targetAmounts = splitAmount(item.getAmountWon(), targets);
-    for (int index = 0; index < targets.size(); index++) {
-      settlementItemTargetRepository.save(new SettlementItemTargetEntity(item, targets.get(index), targetAmounts.get(index)));
+    for (TargetShare target : targetShares) {
+      settlementItemTargetRepository.save(new SettlementItemTargetEntity(item, target.user(), target.amountWon()));
     }
     draft.markUpdatedBy(access.user());
     draft.setPayload(toJson(payloadFromSectionViews(access.plan(), sectionViewsForDraft(draft), "")));
@@ -223,6 +223,13 @@ public class SettlementApiService {
   @Transactional
   public Map<String, Object> finalizeSettlement(String groupId, String planId, UUID userId) {
     SettlementAccess access = settlementAccess(groupId, planId, userId);
+    Optional<SettlementEntity> existingFinalSettlement = settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      access.plan(),
+      List.of(STATUS_FINALIZED, STATUS_COMPLETED)
+    );
+    if (existingFinalSettlement.isPresent()) {
+      return settlementCard(existingFinalSettlement.get(), false, access.user());
+    }
     SettlementDraftEntity draft = settlementDraftRepository.findActiveByPlanForUpdate(access.plan())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "settlement_draft_not_found"));
     List<SectionView> sections = sectionViewsForDraft(draft);
@@ -609,6 +616,12 @@ public class SettlementApiService {
     value.put("amountLabel", amountLabel(item.amountWon()));
     value.put("splitType", item.splitType());
     value.put("targetUserIds", item.targets().stream().map(target -> target.user().getId().toString()).toList());
+    value.put("targetShares", item.targets().stream().map(target -> {
+      Map<String, Object> targetShare = new LinkedHashMap<>();
+      targetShare.put("userId", userId(target.user()));
+      targetShare.put("amountWon", target.amountWon());
+      return targetShare;
+    }).toList());
     value.put("participants", item.targets().stream().map(target -> {
       Map<String, Object> participant = new LinkedHashMap<>();
       participant.put("name", target.name());
@@ -760,15 +773,12 @@ public class SettlementApiService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_settlement_amount");
     }
     String splitType = normalizeSplitType(request.splitType());
-    List<UserEntity> targets = "equal".equals(splitType) || request.targetUserIds() == null || request.targetUserIds().isEmpty()
-      ? participants
-      : usersByUserIds(request.targetUserIds(), participants);
-    List<Long> targetAmounts = splitAmount(amount, targets);
-    List<TargetShare> targetShares = new ArrayList<>();
-    for (int index = 0; index < targets.size(); index++) {
-      UserEntity target = targets.get(index);
-      targetShares.add(new TargetShare(target, targetAmounts.get(index)));
-    }
+    List<TargetShare> targetShares = targetSharesFromRequest(
+      amount,
+      request.targetShares(),
+      "equal".equals(splitType) ? List.of() : request.targetUserIds(),
+      participants
+    );
     return new ItemView(
       stringOrDefault(request.id(), "stli_" + UUID.randomUUID().toString().replace("-", "")),
       sectionId,
@@ -778,6 +788,62 @@ public class SettlementApiService {
       payer,
       targetShares
     );
+  }
+
+  private List<TargetShare> targetSharesFromRequest(
+    long amount,
+    List<SettlementTargetShareRequest> rawShares,
+    List<String> targetUserIds,
+    List<UserEntity> participants
+  ) {
+    if (rawShares != null && !rawShares.isEmpty()) {
+      return customTargetShares(amount, rawShares, participants);
+    }
+    List<UserEntity> targets = targetUserIds == null || targetUserIds.isEmpty()
+      ? participants
+      : usersByUserIds(targetUserIds, participants);
+    List<Long> targetAmounts = splitAmount(amount, targets);
+    List<TargetShare> targetShares = new ArrayList<>();
+    for (int index = 0; index < targets.size(); index++) {
+      targetShares.add(new TargetShare(targets.get(index), targetAmounts.get(index)));
+    }
+    return targetShares;
+  }
+
+  private List<TargetShare> customTargetShares(
+    long amount,
+    List<SettlementTargetShareRequest> rawShares,
+    List<UserEntity> participants
+  ) {
+    Map<String, UserEntity> participantsByUserId = participantsByUserId(participants);
+    Set<String> seenUserIds = new LinkedHashSet<>();
+    List<TargetShare> targetShares = new ArrayList<>();
+    long total = 0;
+    for (SettlementTargetShareRequest share : rawShares) {
+      String userId = share == null ? "" : stringOrDefault(share.userId(), "");
+      if (userId.isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "settlement_participant_not_found");
+      }
+      if (!seenUserIds.add(userId)) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "duplicate_settlement_target");
+      }
+      UserEntity user = userFromParticipant(userId, participantsByUserId);
+      long shareAmount = share.amountWon() == null ? 0 : share.amountWon();
+      if (shareAmount <= 0) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_settlement_target_amount");
+      }
+      total += shareAmount;
+      targetShares.add(new TargetShare(user, shareAmount));
+    }
+    if (targetShares.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_targets");
+    }
+    if (total != amount) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "settlement_target_amount_mismatch");
+    }
+    return targetShares.stream()
+      .sorted(Comparator.comparing(target -> target.user().getPublicId()))
+      .toList();
   }
 
   private List<SectionView> sectionViewsForDraft(SettlementDraftEntity draft) {
@@ -867,12 +933,7 @@ public class SettlementApiService {
               ? nullableParticipant(firstString(itemMap, "payerUserId"), participantsByUserId)
               : payer;
             long amount = longValue(itemMap.get("amountWon"), 0);
-            List<UserEntity> targets = usersByUserIds(stringList(itemMap.get("targetUserIds")), participants);
-            List<Long> amounts = splitAmount(amount, targets);
-            List<TargetShare> targetShares = new ArrayList<>();
-            for (int index = 0; index < targets.size(); index++) {
-              targetShares.add(new TargetShare(targets.get(index), amounts.get(index)));
-            }
+            List<TargetShare> targetShares = targetSharesFromPayload(amount, itemMap, participants);
             items.add(new ItemView(
               stringOrDefault(firstString(itemMap, "id"), "stli_" + UUID.randomUUID().toString().replace("-", "")),
               sectionId,
@@ -895,6 +956,28 @@ public class SettlementApiService {
       ));
     }
     return sections;
+  }
+
+  private List<TargetShare> targetSharesFromPayload(
+    long amount,
+    Map<?, ?> itemMap,
+    List<UserEntity> participants
+  ) {
+    Object rawTargetShares = itemMap.get("targetShares");
+    if (rawTargetShares instanceof List<?> shareItems && !shareItems.isEmpty()) {
+      List<SettlementTargetShareRequest> shares = new ArrayList<>();
+      for (Object rawShare : shareItems) {
+        if (!(rawShare instanceof Map<?, ?> shareMap)) {
+          continue;
+        }
+        shares.add(new SettlementTargetShareRequest(
+          firstString(shareMap, "userId"),
+          longValue(shareMap.get("amountWon"), 0)
+        ));
+      }
+      return targetSharesFromRequest(amount, shares, List.of(), participants);
+    }
+    return targetSharesFromRequest(amount, null, stringList(itemMap.get("targetUserIds")), participants);
   }
 
   private List<ItemView> itemViews(List<SectionView> sections) {

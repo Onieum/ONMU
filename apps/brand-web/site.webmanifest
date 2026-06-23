@@ -1,0 +1,25 @@
+{
+  "name": "ONMU(온뮤)",
+  "short_name": "ONMU",
+  "description": "ONieum(온이음)이 만드는 약속과 기록을 하나로 잇는 오늘밋업 앱",
+  "lang": "ko-KR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFDF9",
+  "theme_color": "#C94C56",
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
