@@ -12,7 +12,7 @@ class OnmuBottomNavBar extends StatelessWidget {
     this.onMyTabReselected,
   }) : assert(
          navigationShell != null || (currentIndex != null && onTap != null),
-         'navigationShell 또는 currentIndex/onTap을 전달해야 합니다.',
+         'navigationShell 또는 currentIndex/onTap이 필요합니다.',
        );
 
   final StatefulNavigationShell? navigationShell;
@@ -76,7 +76,13 @@ class OnmuBottomNavBar extends StatelessWidget {
                     if (navigationShell != null) {
                       final isCurrentBranch =
                           index == navigationShell!.currentIndex;
+                      final isRecordBranch = index == 2;
                       final isMyBranch = index == 3;
+
+                      if (isCurrentBranch && isRecordBranch) {
+                        navigationShell!.goBranch(index, initialLocation: true);
+                        return;
+                      }
 
                       if (isCurrentBranch && isMyBranch) {
                         navigationShell!.goBranch(index, initialLocation: true);

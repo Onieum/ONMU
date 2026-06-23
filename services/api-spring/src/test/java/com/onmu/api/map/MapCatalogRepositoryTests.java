@@ -60,6 +60,39 @@ class MapCatalogRepositoryTests {
   }
 
   @Test
+  void queryFilterSkipsBroadAttractionIntentTokens() {
+    @SuppressWarnings("unchecked")
+    NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+    when(jdbcTemplate.query(any(String.class), any(SqlParameterSource.class), any(RowMapper.class)))
+      .thenReturn(List.of());
+    MapCatalogRepository repository = new MapCatalogRepository(jdbcTemplate);
+
+    repository.findClusters(query(12, "관광명소", "all", "서울 가볼만한 곳"));
+
+    CapturedQuery captured = capture(jdbcTemplate);
+    assertThat(captured.params().getValue("category")).isEqualTo("관광명소");
+    assertThat(captured.params().getValue("query_0")).isEqualTo("%서울%");
+    assertThat(captured.params().hasValue("query_1")).isFalse();
+  }
+
+  @Test
+  void queryFilterSkipsTokenAlreadyRepresentedBySelectedFilter() {
+    @SuppressWarnings("unchecked")
+    NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+    when(jdbcTemplate.query(any(String.class), any(SqlParameterSource.class), any(RowMapper.class)))
+      .thenReturn(List.of());
+    MapCatalogRepository repository = new MapCatalogRepository(jdbcTemplate);
+
+    repository.findPoints(query(16, "식당", "카페", "을지로 카페"));
+
+    CapturedQuery captured = capture(jdbcTemplate);
+    assertThat(captured.params().getValue("category")).isEqualTo("식당");
+    assertThat(captured.params().getValue("filter")).isEqualTo("%카페%");
+    assertThat(captured.params().getValue("query_0")).isEqualTo("%을지로%");
+    assertThat(captured.params().hasValue("query_1")).isFalse();
+  }
+
+  @Test
   void pointQueryUsesPostgisBboxWithoutClusterAggregation() {
     @SuppressWarnings("unchecked")
     NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);

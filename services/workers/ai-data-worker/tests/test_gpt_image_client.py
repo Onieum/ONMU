@@ -146,7 +146,7 @@ async def _assert_gpt_image_client_posts_avatar_and_diary_generation_requests_wi
         assert item["headers"]["authorization"] == "Bearer secret-key"
         body = item["body"]
         assert isinstance(body, dict)
-        assert body["size"] == "1024x1024"
+        assert body["size"] == "1024x1536"
         assert body["quality"] == "low"
         assert body["output_format"] == "png"
         assert body["output_compression"] == 100
@@ -159,7 +159,7 @@ async def _assert_gpt_image_client_posts_avatar_and_diary_generation_requests_wi
     assert "Reserve a large clean empty center area" in diary_prompt
     assert "burgundy bag point" in diary_prompt
     decoded = Image.open(BytesIO(base64.b64decode(result.image_base64)))
-    assert decoded.size == (1024, 1024)
+    assert decoded.size == (1024, 1536)
 
 
 def test_gpt_image_client_retries_with_api_key_for_openai_account_style_auth() -> None:

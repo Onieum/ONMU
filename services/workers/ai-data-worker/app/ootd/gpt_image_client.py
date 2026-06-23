@@ -12,16 +12,18 @@ from typing import Any
 import httpx
 from PIL import Image
 from PIL import ImageChops
+from PIL import ImageOps
 
 from app.ootd.azureml_client import _optional_int
 
 
-DEFAULT_IMAGE_SIZE = "1024x1024"
+DEFAULT_IMAGE_SIZE = "1024x1536"
 DEFAULT_IMAGE_QUALITY = "low"
 MAX_OUTFIT_BRIEF_CHARS = 900
-DIARY_CANVAS_SIZE = 1024
-AVATAR_TARGET_HEIGHT = 560
-AVATAR_MAX_WIDTH = 430
+DIARY_CANVAS_WIDTH = 1024
+DIARY_CANVAS_HEIGHT = 1536
+AVATAR_TARGET_HEIGHT = 720
+AVATAR_MAX_WIDTH = 560
 
 
 @dataclass(frozen=True)
@@ -196,11 +198,22 @@ Visible OOTD photo/style analysis:
 Profile fallback for hidden or missing details:
 {profile_brief}
 
+Outfit lock:
+- The visible outfit analysis is a strict clothing specification, not a loose inspiration.
+- Do not replace garment categories. If the photo has pants, generate pants, not a skirt or dress. If the photo has a skirt, generate a skirt, not pants or a dress. If the photo has a dress, generate a dress, not separated top and bottom.
+- Do not replace footwear categories. Sneakers must stay sneakers, loafers must stay loafers, boots must stay boots, sandals must stay sandals.
+- Do not replace outerwear, tops, bottoms, bags, hats, glasses, belts, socks, jewelry, or handheld items with different item types.
+- Preserve the exact visible color family, color placement, fabric/material impression, fit, length, rise, volume, sleeve shape, neckline/collar, hem shape, layering order, and silhouette.
+- Preserve visible graphics, logos, lettering, patches, stripes, checks, embroidery, lace, buttons, zippers, pockets, seams, straps, chains, charms, and decorative details.
+- Do not simplify, beautify, feminize, masculinize, formalize, casualize, or restyle the outfit into a different fashion look.
+- If a detail is uncertain, keep it understated rather than inventing a new fashion item.
+
 Rendering requirements:
-- One single full-body ONMU avatar character sticker, centered.
+- One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
 - Plain transparent, white, or very light neutral background is acceptable because this sticker will be composited onto a diary card later.
-- Keep the character readable and charming, cute Korean diary-app style, softly pixel-art inspired but polished.
+- After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, rounded chibi proportions, large expressive eyes, small simple mouth, compact head-to-body ratio, clean black/dark pixel outlines, flat colors, limited soft pixel shading, visible square pixel blocks, simple readable silhouette.
+- Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
 - Preserve visible photo identity cues, and use the profile only for hidden or missing facial/character details.
 - Full body visible from head to shoes, clean silhouette, no cropped feet, no extra characters.
@@ -220,11 +233,22 @@ Outfit and style request:
 Profile fallback for missing text details:
 {profile_brief}
 
+Outfit lock:
+- The user's text description is a strict clothing specification, not a loose inspiration.
+- Do not replace garment categories. If the text says pants, generate pants, not a skirt or dress. If the text says skirt, generate a skirt, not pants or a dress. If the text says dress, generate a dress, not separated top and bottom.
+- Do not replace footwear categories. Sneakers must stay sneakers, loafers must stay loafers, boots must stay boots, sandals must stay sandals.
+- Do not replace outerwear, tops, bottoms, bags, hats, glasses, belts, socks, jewelry, or handheld items with different item types.
+- Preserve the requested color family, color placement, fabric/material impression, fit, length, rise, volume, sleeve shape, neckline/collar, hem shape, layering order, and silhouette.
+- Preserve requested graphics, logos, lettering, patches, stripes, checks, embroidery, lace, buttons, zippers, pockets, seams, straps, chains, charms, and decorative details.
+- Do not simplify, beautify, feminize, masculinize, formalize, casualize, or restyle the outfit into a different fashion look.
+- If a detail is not specified, use the ONMU profile fallback for character features and keep clothing details simple rather than inventing a different outfit.
+
 Rendering requirements:
-- One single full-body ONMU avatar character sticker, centered.
+- One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
 - Plain transparent, white, or very light neutral background is acceptable because this sticker will be composited onto a diary card later.
-- Keep the character readable and charming, cute Korean diary-app style, softly pixel-art inspired but polished.
+- After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, rounded chibi proportions, large expressive eyes, small simple mouth, compact head-to-body ratio, clean black/dark pixel outlines, flat colors, limited soft pixel shading, visible square pixel blocks, simple readable silhouette.
+- Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the described outfit, shoes, bags, and accessories clearly.
 - Preserve the profile hairstyle, hair color, eye color, skin tone, and face unless the text explicitly changes them.
 - Full body visible from head to shoes, clean silhouette, no cropped feet, no extra characters.
@@ -316,11 +340,17 @@ def _descriptor_to_brief(descriptor: dict[str, Any]) -> str:
         if generation_brief:
             parts = [generation_brief]
             photo_features = _string_list(translation.get("must_use_photo_features"))
+            text_features = _string_list(translation.get("must_use_text_features"))
             fallback_features = _string_list(translation.get("must_use_profile_fallback_for"))
             if photo_features:
                 parts.append("Visible photo features that must be preserved: " + "; ".join(photo_features))
+            if text_features:
+                parts.append("Explicit text features that must be preserved: " + "; ".join(text_features))
             if fallback_features:
-                parts.append("Use profile fallback only for: " + "; ".join(fallback_features))
+                parts.append(
+                    "Use the ONMU profile fallback as mandatory identity lock only for: "
+                    + "; ".join(fallback_features)
+                )
             return "\n".join(parts)
 
     diary = descriptor.get("outfit_info_for_diary")
@@ -360,6 +390,7 @@ def _profile_reference_brief(profile: Any) -> str:
     if not isinstance(profile, dict):
         return "Use the user's ONMU profile character settings only for hidden or missing details."
 
+    gender = _clean_text(profile.get("gender"))
     skin_index = _indexed_profile_value(profile, "skinTone", "skinToneIndex", "skin")
     hair_style_index = _indexed_profile_value(profile, "hairStyle", "hairStyleIndex", "hair_style")
     hair_color_index = _indexed_profile_value(profile, "hairColor", "hairColorIndex", "hair_color")
@@ -368,6 +399,8 @@ def _profile_reference_brief(profile: Any) -> str:
     clothes_index = _indexed_profile_value(profile, "clothes", "topStyleIndex", "top")
 
     details: list[str] = []
+    if gender:
+        details.append(f"gender presentation: {_gender_description(gender)}")
     if skin_index is not None:
         details.append(f"skin tone: {_skin_tone_description(skin_index)}")
     if hair_style_index is not None:
@@ -387,7 +420,8 @@ def _profile_reference_brief(profile: Any) -> str:
     return (
         "ONMU profile fallback details for hidden or unspecified character features: "
         + "; ".join(details)
-        + ". Use these details strongly for text-only requests and only as fallback for photo requests."
+        + ". Exact profile colors and identity locks above are mandatory whenever a feature is listed as profile fallback. "
+        + "Use these details strongly for text-only requests and only as fallback for photo requests."
     )
 
 
@@ -407,6 +441,18 @@ def _indexed_profile_value(profile: dict[str, Any], string_key: str, index_key: 
         except ValueError:
             return None
     return None
+
+
+def _gender_description(value: str) -> str:
+    normalized = value.strip().lower()
+    return {
+        "male": "male-presenting ONMU avatar",
+        "man": "male-presenting ONMU avatar",
+        "boy": "male-presenting ONMU avatar",
+        "female": "female-presenting ONMU avatar",
+        "woman": "female-presenting ONMU avatar",
+        "girl": "female-presenting ONMU avatar",
+    }.get(normalized, f"{value} ONMU avatar presentation")
 
 
 def _skin_tone_description(index: int) -> str:
@@ -545,12 +591,16 @@ def _clip_text(value: str, max_chars: int) -> str:
 
 
 def _compose_ootd_diary_image(diary_base64: str, avatar_base64: str) -> str:
-    diary = _decode_png(diary_base64).convert("RGBA").resize((DIARY_CANVAS_SIZE, DIARY_CANVAS_SIZE))
+    diary = ImageOps.fit(
+        _decode_png(diary_base64).convert("RGBA"),
+        (DIARY_CANVAS_WIDTH, DIARY_CANVAS_HEIGHT),
+        method=Image.Resampling.LANCZOS,
+    )
     avatar = _trim_avatar_background(_decode_png(avatar_base64).convert("RGBA"))
     avatar = _resize_avatar_for_diary(avatar)
 
-    x = (DIARY_CANVAS_SIZE - avatar.width) // 2
-    y = max(210, min(360, (DIARY_CANVAS_SIZE - avatar.height) // 2 + 40))
+    x = (DIARY_CANVAS_WIDTH - avatar.width) // 2
+    y = int(DIARY_CANVAS_HEIGHT * 0.28)
     diary.alpha_composite(avatar, (x, y))
 
     buffer = BytesIO()

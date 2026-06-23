@@ -352,17 +352,17 @@ String _abbreviatedCount(int count) {
 CircleLayerProperties catalogClusterCircleLayerProperties() {
   return const CircleLayerProperties(
     circleColor: '#FF8FA3',
-    circleOpacity: 0.82,
+    circleOpacity: 0.9,
     circleStrokeColor: '#FFFFFF',
-    circleStrokeWidth: 3,
+    circleStrokeWidth: 3.5,
     circleRadius: [
       'step',
       ['get', 'point_count'],
-      18,
+      20,
       10,
-      22,
+      24,
       50,
-      28,
+      30,
     ],
   );
 }
@@ -383,10 +383,10 @@ SymbolLayerProperties catalogClusterCountLayerProperties() {
 CircleLayerProperties catalogDotLayerProperties() {
   return const CircleLayerProperties(
     circleColor: '#E86D75',
-    circleOpacity: 0.72,
-    circleRadius: 4.2,
+    circleOpacity: 0.9,
+    circleRadius: 5.2,
     circleStrokeColor: '#FFFFFF',
-    circleStrokeWidth: 1.6,
+    circleStrokeWidth: 2,
   );
 }
 

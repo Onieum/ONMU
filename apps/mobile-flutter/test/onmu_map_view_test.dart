@@ -173,10 +173,12 @@ void main() {
       37.5665,
     ]);
     expect(clusterLayer['circle-color'], '#FF8FA3');
+    expect(clusterLayer['circle-opacity'], 0.9);
     expect(clusterLayer['circle-radius'], isA<List>());
     expect(clusterCountLayer['text-field'], ['get', 'point_count_abbreviated']);
     expect(dotLayer['circle-radius'], lessThan(8));
-    expect(dotLayer['circle-radius'], 4.2);
+    expect(dotLayer['circle-radius'], 5.2);
+    expect(dotLayer['circle-opacity'], 0.9);
   });
 
   test('filters coordinates before native camera and annotation calls', () {

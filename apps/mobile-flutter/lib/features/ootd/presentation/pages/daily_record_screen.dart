@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/routing/navigation_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/media/gallery_image_saver.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
@@ -21,7 +22,7 @@ part 'daily_record_result.dart';
 part 'daily_record_sections.dart';
 
 String _dateLabel(DateTime date) {
-  final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
   return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} (${weekdays[date.weekday - 1]})';
 }
 
@@ -402,6 +403,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       final fileName =
           "daily-record-${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}.png";
       final uploaded = await widget.onUploadMedia(bytes, fileName);
+      final savedToGallery = await GalleryImageSaver.savePng(
+        bytes,
+        fileName: fileName,
+      );
       final updatedRecord = currentRecord.copyWith(
         imageUrls: [...currentRecord.imageUrls, uploaded.publicUrl],
         media: [
@@ -420,9 +425,15 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         _savedRecord = saved;
         _isSavingResultImage = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('하루 일과 결과 이미지를 저장했어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            savedToGallery
+                ? '하루 일과 결과 이미지를 갤러리에 저장했어요.'
+                : '하루 일과 결과 이미지를 서버에 저장했어요.',
+          ),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSavingResultImage = false);
@@ -653,7 +664,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         }
         photoTimeline.add(
           TimelineItem(
-            time: '사진 ',
+            time: '사진',
             placeName: imageUrl == null ? '사진 없음' : '추가한 사진',
             category: 'photo',
             description: _limitedPhotoComment(photo.controller.text).isEmpty

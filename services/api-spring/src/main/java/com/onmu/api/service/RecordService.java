@@ -799,7 +799,7 @@ public class RecordService {
       return null;
     }
 
-    String payloadImageUrl = firstText(payload, "generatedImageUrl", "imageUrl", "publicUrl");
+    String payloadImageUrl = firstText(payload, "avatarImageUrl", "generatedAvatarImageUrl", "generatedImageUrl", "imageUrl", "publicUrl");
     if (!payloadImageUrl.isBlank()) {
       return payloadImageUrl;
     }
