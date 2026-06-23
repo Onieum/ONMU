@@ -41,10 +41,10 @@
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU 픽셀 캐릭터가 약속과 기록을 준비하는 브랜드 이미지">
 
-    <link rel="stylesheet" href="/styles.css?v=20260623-image-fit-v2">
+    <link rel="stylesheet" href="/styles.css?v=20260623-about-story-reveal">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
-    <script src="/brand-site.js?v=20260623-image-fit-v2" defer></script>
+    <script src="/brand-site.js?v=20260623-about-story-reveal" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -129,8 +129,7 @@
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
     <header class="site-header site-header--interactive" aria-label="ONMU 브랜드 사이트 상단">
       <a class="brand-mark" href="/" aria-label="ONMU 홈">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <span>ONMU</span>
+        <img class="brand-logo" src="/assets/images/onmu-logo-wordmark.png" alt="" width="620" height="300" decoding="async">
       </a>
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
         <span class="nav-toggle-bar" aria-hidden="true"></span>
@@ -195,32 +194,44 @@
         </div>
       </section>
 
-      <section id="story" class="story-band" aria-labelledby="story-title">
+      <section id="story" class="story-band story-about" aria-labelledby="story-title">
         <div class="story-copy">
-          <p class="eyebrow">흩어진 약속</p>
-          <h2 id="story-title">약속 하나를 위해 너무 많은 앱을 오가니까.</h2>
+          <p class="eyebrow">ABOUT ONieum</p>
+          <h2 id="story-title">모두를 이어, 더 가까운 오늘을 만듭니다.</h2>
           <p>
-            대화는 채팅방에, 장소는 지도 앱에, 일정은 캘린더에, 정산은 송금 앱에,
-            사진은 각자의 앨범에 흩어집니다.
+            ONieum은 기획, 디자인, 개발, 운영이 한 팀에서 돌아가도록 만들고,
+            사용자에게는 하나의 약속 경험으로 전달합니다.
           </p>
           <p>
-            <span class="brand-nowrap">ONieum(온이음)</span>은 이 조각들이 하나의 약속 안에서
-            이어지도록 모았습니다. 그 결과가 <span class="brand-nowrap">ONMU(온뮤)</span>입니다.
+            우리가 바라보는 약속은 일정 하나가 아니라, 사람의 마음과 선택,
+            대화와 기록이 모여 가까운 오늘을 만드는 일입니다.
           </p>
         </div>
-        <div class="story-metrics" role="group" aria-label="ONMU가 연결하는 약속 경험">
-          <div>
-            <strong>Before</strong>
-            <span>일정, 장소 후보, 취향</span>
-          </div>
-          <div>
-            <strong>During</strong>
-            <span>채팅, 투표, 사진 공유</span>
-          </div>
-          <div>
-            <strong>After</strong>
-            <span>정산, 기록, 기억 카드</span>
-          </div>
+        <div class="about-cards" role="group" aria-label="ONieum과 ONMU 소개">
+          <article class="about-card">
+            <span>ABOUT ONieum</span>
+            <strong>좋은 약속 경험을 한 팀에서 만듭니다.</strong>
+            <p>
+              온이음은 흩어진 기능을 단순히 모으는 팀이 아니라,
+              사용자의 하루가 자연스럽게 이어지는 방식을 함께 설계하는 팀입니다.
+            </p>
+          </article>
+          <article class="about-card">
+            <span>ABOUT ONMU</span>
+            <strong>ONMU는 오늘의 만남을 잇는 오늘밋업 앱입니다.</strong>
+            <p>
+              대화, 장소, 정산, 사진 기록처럼 약속마다 흩어지던 일을
+              하나의 온모임 안에서 부드럽게 이어줍니다.
+            </p>
+          </article>
+          <article class="about-card">
+            <span>OUR PHILOSOPHY</span>
+            <strong>작은 연결이 오래 남는 기록이 되도록.</strong>
+            <p>
+              더 많은 앱을 오가게 하기보다, 사람 사이의 결정과 기억이
+              필요한 순간에 조용히 이어지는 경험을 지향합니다.
+            </p>
+          </article>
         </div>
       </section>
 
@@ -572,7 +583,7 @@
             alt=""
             width="627"
             height="627"
-            loading="lazy"
+            loading="eager"
             decoding="async">
           <div class="download-grid" role="group" aria-label="iOS와 Android QR 코드">
             <a class="download-card" href="/download/ios/">

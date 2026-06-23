@@ -135,33 +135,24 @@ button:focus-visible {
 .brand-mark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 112px;
-  font-size: 1.1rem;
-  font-weight: 900;
-  white-space: nowrap;
+  min-width: 92px;
+  height: 38px;
 }
 
-.brand-mark span,
 .flow-steps span,
 .screen-notes span,
 .roadmap-list span {
   font-family: var(--pixel-font);
 }
 
-.brand-nowrap {
-  white-space: nowrap;
+.brand-logo {
+  display: block;
+  width: 92px;
+  height: auto;
 }
 
-.brand-dot {
-  width: 18px;
-  height: 18px;
-  border: 3px solid var(--coral-dark);
-  background: var(--pink-soft);
-  box-shadow:
-    6px 0 0 var(--coral),
-    0 6px 0 var(--coral),
-    6px 6px 0 var(--coral-dark);
+.brand-nowrap {
+  white-space: nowrap;
 }
 
 .site-nav {
@@ -433,7 +424,8 @@ button:focus-visible {
 }
 
 .app-screenshot-secondary {
-  transform: rotate(-1deg);
+  transform: translateY(10px) rotate(4deg);
+  transform-origin: center bottom;
 }
 
 .app-screenshot-frame img {
@@ -464,6 +456,10 @@ button:focus-visible {
   padding-left: max(24px, calc((100vw - 1160px) / 2));
 }
 
+.story-about {
+  align-items: start;
+}
+
 .section-team,
 .section-download {
   position: relative;
@@ -476,36 +472,6 @@ button:focus-visible {
     linear-gradient(90deg, rgba(255, 229, 218, 0.18) 1px, transparent 1px),
     var(--white);
   background-size: 32px 32px, 32px 32px, auto;
-}
-
-.section-team::before,
-.section-download::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  width: 128px;
-  height: 34px;
-  border: 1px solid rgba(201, 169, 149, 0.42);
-  border-radius: 8px;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      rgba(255, 227, 232, 0.52) 0 8px,
-      rgba(255, 245, 216, 0.52) 8px 16px
-    );
-  pointer-events: none;
-}
-
-.section-team::before {
-  top: 84px;
-  right: max(18px, calc((100vw - 1160px) / 2));
-  transform: rotate(5deg);
-}
-
-.section-download::before {
-  top: 78px;
-  left: max(18px, calc((100vw - 1160px) / 2));
-  transform: rotate(-6deg);
 }
 
 .section-team > *,
@@ -530,30 +496,50 @@ button:focus-visible {
   line-height: 1.82;
 }
 
-.story-metrics {
+.about-cards {
   display: grid;
-  gap: 1px;
+  gap: 14px;
+}
+
+.about-card {
+  display: grid;
+  gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  overflow: hidden;
-  background: var(--line);
+  background: var(--white);
+  padding: 24px;
   box-shadow: var(--shadow);
 }
 
-.story-metrics div {
-  display: grid;
-  gap: 8px;
+.about-card:nth-child(1) {
   background: var(--paper);
-  padding: 24px;
 }
 
-.story-metrics strong {
+.about-card:nth-child(2) {
+  background: var(--pink-soft);
+}
+
+.about-card:nth-child(3) {
+  background: var(--green-soft);
+}
+
+.about-card span {
   color: var(--coral-dark);
-  font-size: 1.05rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
-.story-metrics span {
+.about-card strong {
+  color: var(--text);
+  font-size: 1.14rem;
+  line-height: 1.45;
+}
+
+.about-card p {
+  margin: 0;
   color: var(--sub);
+  line-height: 1.68;
 }
 
 .section-flow {
@@ -600,21 +586,6 @@ button:focus-visible {
 .policy-card,
 .download-qr {
   position: relative;
-}
-
-.feature-card::before,
-.mini-screen-card::before {
-  content: "";
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  width: 42px;
-  height: 14px;
-  border: 1px solid rgba(201, 169, 149, 0.34);
-  border-radius: 4px;
-  background: rgba(255, 245, 216, 0.7);
-  transform: rotate(4deg);
-  pointer-events: none;
 }
 
 .flow-steps li {
@@ -682,7 +653,7 @@ button:focus-visible {
 .screen-stage {
   display: grid;
   grid-template-columns: 320px 320px minmax(0, 1fr);
-  gap: 28px;
+  gap: 52px;
   align-items: center;
 }
 
@@ -1123,19 +1094,6 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
-.download-qr::before {
-  content: "";
-  position: absolute;
-  top: 16px;
-  left: 18px;
-  width: 46px;
-  height: 16px;
-  border: 1px solid rgba(201, 169, 149, 0.34);
-  border-radius: 4px;
-  background: rgba(255, 227, 232, 0.72);
-  transform: rotate(-5deg);
-}
-
 .download-qr img {
   width: 220px;
   height: 220px;
@@ -1327,12 +1285,6 @@ body.reveal-ready .reveal-item.is-visible {
   .mini-screen-card {
     gap: 10px;
     padding: 12px;
-  }
-
-  .mini-screen-card::before {
-    top: 10px;
-    right: 12px;
-    width: 32px;
   }
 
   .mini-screen-image {
