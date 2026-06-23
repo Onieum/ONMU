@@ -2,6 +2,7 @@ package com.onmu.api.map;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -131,19 +132,38 @@ public class MapCatalogRepository {
         """);
       params.addValue("filter", "%" + query.filter() + "%");
     }
-    if (!query.query().isBlank()) {
+    List<String> queryTokens = queryTokens(query.query());
+    for (int index = 0; index < queryTokens.size(); index++) {
+      String paramName = "query_" + index;
       where.append("""
          and (
-           lower(name) like :query
-           or lower(coalesce(category, '')) like :query
-           or lower(coalesce(address, '')) like :query
-           or lower(coalesce(road_address, '')) like :query
-           or lower(coalesce(provider_payload::text, '')) like :query
+           lower(name) like :%1$s
+           or lower(coalesce(category, '')) like :%1$s
+           or lower(coalesce(address, '')) like :%1$s
+           or lower(coalesce(road_address, '')) like :%1$s
+           or lower(coalesce(provider_payload::text, '')) like :%1$s
          )
-        """);
-      params.addValue("query", "%" + query.query() + "%");
+        """.formatted(paramName));
+      params.addValue(paramName, "%" + queryTokens.get(index) + "%");
     }
     return new SqlParts(where.toString(), params);
+  }
+
+  private static List<String> queryTokens(String query) {
+    if (query == null || query.isBlank()) {
+      return List.of();
+    }
+    String[] parts = query
+      .replaceAll("[^\\p{IsHangul}\\p{IsAlphabetic}\\p{IsDigit}\\s]", " ")
+      .split("\\s+");
+    List<String> tokens = new ArrayList<>();
+    for (String part : parts) {
+      String token = part.trim().toLowerCase(Locale.ROOT);
+      if (!token.isBlank() && !tokens.contains(token)) {
+        tokens.add(token);
+      }
+    }
+    return tokens;
   }
 
   private record SqlParts(String where, MapSqlParameterSource params) {
