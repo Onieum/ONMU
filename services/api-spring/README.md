@@ -373,7 +373,7 @@ curl.exe -X DELETE http://localhost:8080/api/v1/devices/push-token -H "Content-T
 
 `targetShares`가 있으면 `targetUserIds`보다 우선하며, `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 합니다. 합계가 다르면 `400 settlement_target_amount_mismatch`, 사람별 금액이 0 이하이면 `400 invalid_settlement_target_amount`, 대상자가 중복되면 `400 duplicate_settlement_target`을 반환합니다.
 
-`POST /settlements/preview`, `POST /settlements`는 저장된 active draft 기준으로 계산합니다. 항목이 없으면 `400 missing_settlement_items`를 반환합니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다.
+`POST /settlements/preview`, `POST /settlements`는 저장된 active draft 기준으로 계산합니다. 항목이 없으면 `400 missing_settlement_items`를 반환합니다. 항목별 target PATCH는 `PATCH /settlement-draft`로 저장된 draft/item을 만든 뒤에만 사용합니다. DB는 `finalized` 또는 `completed` 상태의 final result를 약속당 하나만 허용하며, 동시 finalize 요청은 draft lock 이후 existing final result를 다시 확인합니다. 정산 확정 알림은 `settlement_requested` type을 사용하고, `settlement_requested/in_app=false`이면 inbox notification row와 push 대상 `notification.requested`를 만들지 않습니다.
 
 정산 금액 DB 컬럼과 API 필드는 `amount_won`/`amountWon`이며 KRW 원 단위 integer입니다. `mySummaryLabel`과 `memberResults[].isMe`는 인증 사용자 기준으로 계산합니다.
 

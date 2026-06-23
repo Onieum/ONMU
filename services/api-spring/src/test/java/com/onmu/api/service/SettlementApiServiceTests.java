@@ -95,6 +95,8 @@ class SettlementApiServiceTests {
   @Mock
   private NotificationRepository notificationRepository;
   @Mock
+  private NotificationPreferenceService notificationPreferenceService;
+  @Mock
   private OutboxService outboxService;
   @Mock
   private CharacterProfileRepository characterProfileRepository;
@@ -124,10 +126,13 @@ class SettlementApiServiceTests {
       chatActivityEventRepository,
       groupMemberRepository,
       notificationRepository,
+      notificationPreferenceService,
       outboxService,
       new UserAvatarReadModelMapper(characterProfileRepository, new ObjectMapper()),
       new ObjectMapper()
     );
+    lenient().when(notificationPreferenceService.isEnabled(any(UUID.class), any(String.class), any(String.class)))
+      .thenReturn(true);
     group = new GroupEntity("1", "ONMU 개발 모임", null);
     plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "scheduled");
     me = user("user-me", "나");
@@ -261,8 +266,12 @@ class SettlementApiServiceTests {
       .thenAnswer(invocation -> invocation.getArgument(0));
 
     service.createSettlementDraft("1", "101", me.getId());
+    com.onmu.api.domain.SettlementDraftEntity draft =
+      new com.onmu.api.domain.SettlementDraftEntity("301", group, pastPlan, "{}");
     when(settlementDraftRepository.findActiveByPlanForUpdate(pastPlan))
-      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, pastPlan, "{}")));
+      .thenReturn(Optional.of(draft));
+    when(settlementDraftRepository.findByPlanForUpdate(pastPlan))
+      .thenReturn(Optional.of(draft));
     when(settlementItemRepository.findBySettlementDraft(any())).thenReturn(List.of());
     when(settlementRepository.findAll()).thenReturn(List.of());
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -429,6 +438,30 @@ class SettlementApiServiceTests {
       plan,
       List.of("finalized", "completed")
     )).thenReturn(Optional.of(completed));
+    when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(completed)).thenReturn(List.of());
+    when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+    when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
+
+    MapLike result = new MapLike(service.finalizeSettlement("1", "101", me.getId()));
+
+    assertThat(result.value("id")).isEqualTo("302");
+    assertThat(result.value("status")).isEqualTo("completed");
+    verify(settlementRepository, never()).save(any(SettlementEntity.class));
+  }
+
+  @Test
+  void finalizeSettlementRechecksFinalResultAfterDraftLock() {
+    SettlementEntity completed = new SettlementEntity("302", group, plan, "{}");
+    completed.markCompleted();
+    com.onmu.api.domain.SettlementDraftEntity draft =
+      new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, "{}");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+      plan,
+      List.of("finalized", "completed")
+    )).thenReturn(Optional.empty(), Optional.of(completed));
+    when(settlementDraftRepository.findByPlanForUpdate(plan)).thenReturn(Optional.of(draft));
     when(settlementSectionRepository.findBySettlementOrderBySortOrderAsc(completed)).thenReturn(List.of());
     when(settlementItemRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
     when(settlementTransferRepository.findBySettlementOrderByCreatedAtAsc(completed)).thenReturn(List.of());
@@ -654,7 +687,7 @@ class SettlementApiServiceTests {
   void createSettlementPersistsItemsTargetsTransfersAndOutboxEvents() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(settlementDraftRepository.findActiveByPlanForUpdate(plan))
+    when(settlementDraftRepository.findByPlanForUpdate(plan))
       .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
     when(settlementRepository.findAll()).thenReturn(List.of(new SettlementEntity("301", group, plan, "{}")));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -679,7 +712,7 @@ class SettlementApiServiceTests {
     verify(chatActivityEventRepository).save(argThat(event -> "settlement.finalized".equals(event.getEventType())
       && event.getPlan() == plan));
     verify(notificationRepository, times(2)).save(argThat(notification ->
-      "settlement_created".equals(notification.getNotificationType())
+      "settlement_requested".equals(notification.getNotificationType())
         && notification.getPlan() == plan
         && "queued".equals(notification.getStatus())));
     verify(outboxService).record(eq("settlement.finalized"), eq("settlement"), any(),
@@ -687,7 +720,33 @@ class SettlementApiServiceTests {
     verify(outboxService, times(2)).record(eq("notification.requested"), eq("notification"), any(),
       argThat(payload -> "302".equals(payload.get("settlementId"))
         && payload.containsKey("notificationId")
-        && "settlement_created".equals(payload.get("notificationType"))));
+        && "settlement_requested".equals(payload.get("notificationType"))));
+  }
+
+  @Test
+  void createSettlementSkipsInboxNotificationWhenSettlementPreferenceIsDisabled() {
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(settlementDraftRepository.findByPlanForUpdate(plan))
+      .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
+    when(settlementRepository.findAll()).thenReturn(List.of(new SettlementEntity("301", group, plan, "{}")));
+    when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(settlementTransferRepository.save(any(SettlementTransferEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(chatActivityEventRepository.save(any(ChatActivityEventEntity.class)))
+      .thenAnswer(invocation -> invocation.getArgument(0));
+    when(notificationPreferenceService.isEnabled(any(UUID.class), eq("settlement_requested"), eq("in_app")))
+      .thenReturn(false);
+
+    MapLike created = new MapLike(service.createSettlement("1", "101", me.getId(), request()));
+
+    assertThat(created.value("status")).isEqualTo("finalized");
+    verify(notificationRepository, never()).save(any(NotificationEntity.class));
+    verify(outboxService, never()).record(eq("notification.requested"), eq("notification"), any(), any());
+    verify(outboxService).record(eq("settlement.finalized"), eq("settlement"), any(), any());
   }
 
   @Test

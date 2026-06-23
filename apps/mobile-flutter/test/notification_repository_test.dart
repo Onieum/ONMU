@@ -25,8 +25,8 @@ void main() {
               data: [
                 {
                   'id': 'notification-1',
-                  'type': 'settlement_created',
-                  'notificationType': 'settlement_created',
+                  'type': 'settlement_requested',
+                  'notificationType': 'settlement_requested',
                   'title': '정산이 생성됐어요',
                   'body': '한강 피크닉 정산을 확인해 주세요.',
                   'status': 'queued',
@@ -56,7 +56,7 @@ void main() {
     expect(requestedPaths.single, '/api/v1/notifications?limit=25');
     expect(notifications, hasLength(1));
     expect(notifications.single.id, 'notification-1');
-    expect(notifications.single.notificationType, 'settlement_created');
+    expect(notifications.single.notificationType, 'settlement_requested');
     expect(notifications.single.title, '정산이 생성됐어요');
     expect(notifications.single.groupId, '1');
     expect(notifications.single.planId, '103');

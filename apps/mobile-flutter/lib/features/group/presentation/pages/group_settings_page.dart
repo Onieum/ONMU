@@ -598,6 +598,16 @@ class _NotificationSheetState extends ConsumerState<_NotificationSheet> {
                     title: const Text('약속 알림'),
                     subtitle: const Text('약속 시간과 장소 알림을 받을게요.'),
                   ),
+                  SwitchListTile(
+                    value: state.enabledFor('settlement_requested', 'in_app'),
+                    onChanged: (value) => _setEnabled(
+                      notificationType: 'settlement_requested',
+                      channel: 'in_app',
+                      enabled: value,
+                    ),
+                    title: const Text('정산 알림'),
+                    subtitle: const Text('정산이 확정되면 알림함에서 확인해요.'),
+                  ),
                 ],
               ),
               loading: () => const Padding(
