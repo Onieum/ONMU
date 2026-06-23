@@ -17,4 +17,8 @@ public interface SettlementDraftRepository extends JpaRepository<SettlementDraft
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select draft from SettlementDraftEntity draft where draft.plan = :plan and draft.status = 'draft'")
   Optional<SettlementDraftEntity> findActiveByPlanForUpdate(@Param("plan") PlanEntity plan);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select draft from SettlementDraftEntity draft where draft.plan = :plan")
+  Optional<SettlementDraftEntity> findByPlanForUpdate(@Param("plan") PlanEntity plan);
 }

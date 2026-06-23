@@ -868,13 +868,13 @@
 | `public_id` | 공개 정산 ID | Text | API contract용 안정 ID | Unique |
 | `group_id` | 모임 ID | UUID | 연결 모임 | FK, Not Null |
 | `plan_id` | 약속 ID | UUID | 연결 약속 | FK, Not Null |
-| `status` | 정산 상태 | Varchar(20) | `finalized`, `completed` | Not Null |
+| `status` | 정산 상태 | Varchar(20) | `finalized`, `completed`, `superseded` | Not Null |
 | `payload` | 결과 payload | JSONB | 화면 snapshot. 계산 source of truth 아님 | Not Null |
 | `created_by_user_id` | 생성자 ID | UUID | 정산 확정 사용자 | FK |
 | `created_at` | 생성 시각 | Timestamptz | 정산 확정 시각 | Not Null |
 | `completed_at` | 완료 시각 | Timestamptz | 수취 확인 완료 시각 | Nullable |
 
-> UNIQUE: 현재 물리 제약은 `status='finalized'`인 `(plan_id)` active finalized settlement 1개다. 애플리케이션 정책은 finalized/completed 결과가 있으면 같은 약속에 새 draft/final result를 만들지 않는다.
+> UNIQUE: `status in ('finalized', 'completed')`인 `(plan_id)` final result 1개. `superseded`는 과거 중복 결과를 삭제하지 않고 보존하기 위한 migration-only 상태이며 신규 API 흐름에서 생성하지 않는다.
 
 ## `settlement_transfers` (구현됨)
 

@@ -262,7 +262,7 @@ Source of truth:
 Flutter 책임:
 
 - 사용자가 보는 inbox UI와 읽음 action.
-- 알림 설정 toggle.
+- 알림 설정 toggle. 정산 확정 알림은 `settlement_requested` type을 사용하며, `settlement_requested/in_app=false`이면 inbox notification row와 provider delivery 대상 `notification.requested` 이벤트를 만들지 않는다.
 - 로그인/session lifecycle에서 현재 기기 push token 등록/비활성화 시도.
 - ONMU access/refresh token을 secure storage에 저장.
 - provider 공개 client id나 redirect URI 같은 공개 설정만 dart-define으로 받는다.
