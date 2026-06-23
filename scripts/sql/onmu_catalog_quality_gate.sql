@@ -3,13 +3,29 @@
 select
   count(*) as catalog_row_count,
   count(*) filter (where latitude is not null and longitude is not null) as coordinate_row_count,
-  count(*) filter (where place_point is not null) as map_visible_point_count,
+  count(*) filter (
+    where latitude between 33 and 39
+      and longitude between 124 and 132
+  ) as map_eligible_coordinate_count,
+  count(*) filter (
+    where place_point is not null
+      and latitude between 33 and 39
+      and longitude between 124 and 132
+  ) as map_visible_point_count,
   count(*) filter (where provider_payload ? 'importBatchId') as import_batch_id_count
 from external_places
 where provider = 'ONMU_CATALOG';
 
 select
-  count(*) as invalid_coordinate_count
+  count(*) filter (where latitude is null or longitude is null) as null_coordinate_count,
+  count(*) filter (
+    where latitude is not null
+      and longitude is not null
+      and (
+        latitude not between 33 and 39
+        or longitude not between 124 and 132
+      )
+  ) as invalid_non_null_coordinate_count
 from external_places
 where provider = 'ONMU_CATALOG'
   and (
@@ -32,7 +48,11 @@ from (
 select
   category,
   count(*) as row_count,
-  count(*) filter (where latitude is not null and longitude is not null) as coordinate_row_count
+  count(*) filter (where latitude is not null and longitude is not null) as coordinate_row_count,
+  count(*) filter (
+    where latitude between 33 and 39
+      and longitude between 124 and 132
+  ) as map_eligible_coordinate_count
 from external_places
 where provider = 'ONMU_CATALOG'
 group by category
@@ -67,6 +87,8 @@ with catalog as (
   where provider = 'ONMU_CATALOG'
     and latitude is not null
     and longitude is not null
+    and latitude between 33 and 39
+    and longitude between 124 and 132
 )
 select
   '서울 가볼만한곳' as smoke_case,
