@@ -3,21 +3,23 @@ import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import '../../../../core/media/gallery_image_saver.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/onmu_date_picker.dart';
-import '../../../../shared/widgets/pixel_character.dart';
 import '../widgets/ootd_generated_image_view.dart';
 import 'daily_record_screen.dart';
 part 'ootd_timeline_sheet.dart';
+
 typedef SaveRecordImageCallback =
     Future<OotdRecord> Function({
       required OotdRecord record,
       required Uint8List bytes,
       required String fileName,
     });
+
 class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
   const _BottomSheetScrollBehavior();
   @override
@@ -27,6 +29,7 @@ class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
     PointerDeviceKind.stylus,
   };
 }
+
 class OotdListPage extends StatefulWidget {
   final CharacterDraft userCharacter;
   final List<OotdRecord> customRecords;
@@ -52,6 +55,7 @@ class OotdListPage extends StatefulWidget {
   @override
   State<OotdListPage> createState() => _OotdListPageState();
 }
+
 class _OotdListPageState extends State<OotdListPage> {
   late DateTime _currentMonth;
   late DateTime _selectedDay;
@@ -80,6 +84,7 @@ class _OotdListPageState extends State<OotdListPage> {
     _currentMonth = DateTime(today.year, today.month, 1);
     _selectedDay = DateTime(today.year, today.month, today.day);
   }
+
   int get _firstWeekday =>
       DateTime(_currentMonth.year, _currentMonth.month, 1).weekday % 7;
   int get _totalDaysInMonth =>
@@ -895,11 +900,9 @@ class _OotdListPageState extends State<OotdListPage> {
                         left: 0,
                         right: 0,
                         child: Center(
-                          child: PixelCharacterWidget(
-                            character: ootdRecord.character,
-                            size: availableCellWidth
-                                .clamp(26.0, 38.0)
-                                .toDouble(),
+                          child: OotdCalendarPreview(
+                            record: ootdRecord,
+                            size: availableCellWidth,
                           ),
                         ),
                       ),

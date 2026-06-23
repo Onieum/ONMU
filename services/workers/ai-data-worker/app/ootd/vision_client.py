@@ -10,6 +10,8 @@ from typing import Any
 import httpx
 
 from app.ootd.prompts import (
+    TEXT_OUTFIT_DESCRIPTOR_PROMPT,
+    TEXT_OUTFIT_DESCRIPTOR_SYSTEM_RULES,
     VISION_OUTFIT_DESCRIPTOR_PROMPT,
     VISION_OUTFIT_DESCRIPTOR_SYSTEM_RULES,
 )
@@ -138,6 +140,76 @@ class AzureOpenAiVisionClient:
             raise RuntimeError(
                 _redact_secret(
                     f"Azure OpenAI Vision returned HTTP {response.status_code}: {response.text}"
+                )
+            )
+
+        raw_text = _extract_message_text(response.json())
+        descriptor = _parse_descriptor(raw_text)
+        return VisionOutfitDescriptor(
+            descriptor=descriptor,
+            raw_text=raw_text,
+            model=self._config.deployment_name,
+            api_version=self._config.api_version,
+        )
+
+    async def analyze_text_outfit(
+        self,
+        *,
+        request_id: str,
+        outfit_text: str,
+    ) -> VisionOutfitDescriptor:
+        if self._config is None:
+            raise RuntimeError("Azure OpenAI Vision client is not configured")
+        if not outfit_text.strip():
+            raise ValueError("outfit_text is required")
+
+        url = (
+            f"{self._config.endpoint_url}/openai/deployments/"
+            f"{self._config.deployment_name}/chat/completions"
+        )
+        headers = {
+            "api-key": self._config.api_key,
+            "Content-Type": "application/json",
+        }
+        prompt = TEXT_OUTFIT_DESCRIPTOR_PROMPT.replace("{outfit_text}", outfit_text.strip())
+        body = {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": TEXT_OUTFIT_DESCRIPTOR_SYSTEM_RULES,
+                },
+                {
+                    "role": "user",
+                    "content": f"{prompt}\n\nrequest_id: {request_id}",
+                },
+            ],
+            "max_tokens": 3072,
+            "temperature": 0.1,
+            "top_p": 0.2,
+            "response_format": {"type": "json_object"},
+        }
+
+        async with httpx.AsyncClient(timeout=self._config.timeout_seconds) as client:
+            response = await client.post(
+                url,
+                params={"api-version": self._config.api_version},
+                headers=headers,
+                json=body,
+            )
+            if response.status_code >= 400 and "response_format" in response.text:
+                fallback_body = dict(body)
+                fallback_body.pop("response_format", None)
+                response = await client.post(
+                    url,
+                    params={"api-version": self._config.api_version},
+                    headers=headers,
+                    json=fallback_body,
+                )
+
+        if response.status_code >= 400:
+            raise RuntimeError(
+                _redact_secret(
+                    f"Azure OpenAI text outfit analysis returned HTTP {response.status_code}: {response.text}"
                 )
             )
 

@@ -167,7 +167,7 @@ class _TimelineBottomSheetContentState
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '오늘 하루의 소중한 기록을 채워보세요',
+                        '오늘 하루의 소중한 기록을 채워보세요.',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodySmall.copyWith(
@@ -512,22 +512,6 @@ class _TimelineBottomSheetContentState
     );
   }
 
-  Widget _buildMetaCol(String label, String val) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.tiny.copyWith(color: AppColors.textMuted),
-        ),
-        SizedBox(height: 4),
-        Text(
-          val,
-          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMain),
-        ),
-      ],
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // [탭 2: OOTD 기록 상세 구현] - (Figma OOTD 기록 예시 반영 및 화이트 테마)
   // ---------------------------------------------------------------------------
@@ -551,10 +535,9 @@ class _TimelineBottomSheetContentState
     final tags = ootdRecord.moodTags.isEmpty
         ? const ['#OOTD']
         : ootdRecord.moodTags;
-    final mood = ootdRecord.brands['mood'] ?? ootdRecord.mood;
-    final weather = ootdRecord.brands['weather'] ?? ootdRecord.weather;
     final style =
         ootdRecord.brands['style'] ?? ootdRecord.brands['outfit'] ?? '오늘의 코디';
+    final rating = double.tryParse(ootdRecord.brands['rating'] ?? '') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,6 +577,7 @@ class _TimelineBottomSheetContentState
                     characterSize: 130,
                     height: 170,
                     fit: BoxFit.contain,
+                    showFallbackCharacter: false,
                   ),
                 ),
               ),
@@ -623,20 +607,37 @@ class _TimelineBottomSheetContentState
                         height: 1.45,
                       ),
                     ),
+                    if (rating > 0) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          ...List.generate(
+                            5,
+                            (index) => Icon(
+                              index < rating.round()
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: const Color(0xFFFFB84D),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            _buildMetaCol('MOOD', mood),
-            _buildMetaCol('WEATHER', weather),
-            _buildMetaCol('STYLE', style),
-          ],
-        ),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -861,6 +862,10 @@ class _TimelineBottomSheetContentState
       final date = activeRecord.date;
       final fileName =
           "$type-record-${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}.png";
+      final savedToGallery = await GalleryImageSaver.savePng(
+        bytes,
+        fileName: fileName,
+      );
       final savedRecord = await widget.onSaveRecordImage(
         record: activeRecord,
         bytes: bytes,
@@ -872,9 +877,13 @@ class _TimelineBottomSheetContentState
         _isSavingRecordImage = false;
       });
       widget.onSaveRecord(savedRecord);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('결과 이미지를 저장했어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            savedToGallery ? '결과 이미지를 갤러리에 저장했어요.' : '결과 이미지를 서버에 저장했어요.',
+          ),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSavingRecordImage = false);

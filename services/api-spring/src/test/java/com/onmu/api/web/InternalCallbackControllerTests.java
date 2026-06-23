@@ -60,6 +60,7 @@ class InternalCallbackControllerTests {
       Collections.emptyMap(),
       Collections.emptyList(),
       "http://image",
+      null,
       "SUCCESS",
       null
     );
@@ -77,6 +78,7 @@ class InternalCallbackControllerTests {
       Collections.emptyMap(),
       Collections.emptyList(),
       "http://image",
+      null,
       "SUCCESS",
       null
     );
@@ -95,6 +97,7 @@ class InternalCallbackControllerTests {
       Collections.emptyMap(),
       Collections.emptyList(),
       "http://image",
+      null,
       "SUCCESS",
       null
     );
