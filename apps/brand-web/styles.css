@@ -270,156 +270,32 @@ button:focus-visible {
   justify-content: center;
 }
 
-.phone-demo {
+.app-screenshot-frame {
+  display: block;
   width: min(100%, 324px);
-  min-height: 620px;
+  aspect-ratio: 390 / 844;
+  margin: 0;
+  overflow: hidden;
   border: 9px solid #2d211d;
   border-radius: 36px;
   background: var(--white);
   box-shadow: 0 28px 72px rgba(58, 42, 35, 0.24);
-  overflow: hidden;
 }
 
-.phone-demo-hero {
+.hero-phone.app-screenshot-frame {
+  justify-self: center;
   transform: rotate(1.5deg);
 }
 
-.phone-demo-light {
-  background: #fffaf5;
+.app-screenshot-secondary {
+  transform: rotate(-1deg);
 }
 
-.phone-status {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 18px 10px;
-  color: var(--sub);
-  font-size: 0.8rem;
-  font-weight: 900;
-}
-
-.phone-content {
-  padding: 14px 18px 22px;
-}
-
-.phone-content.compact {
-  padding-top: 8px;
-}
-
-.phone-content h2 {
-  margin: 4px 0 14px;
-  color: var(--text);
-  font-size: 1.45rem;
-  line-height: 1.18;
-}
-
-.demo-label {
-  margin: 0 0 6px;
-  color: var(--coral-dark);
-  font-size: 0.84rem;
-  font-weight: 900;
-}
-
-.demo-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0 0 18px;
-}
-
-.demo-chip-row span {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--paper);
-  padding: 7px 10px;
-  color: var(--sub);
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.chat-preview {
-  display: grid;
-  gap: 10px;
-}
-
-.bubble {
-  margin: 0;
-  border-radius: 18px;
-  padding: 12px 13px;
-  font-size: 0.88rem;
-  line-height: 1.48;
-}
-
-.bubble.friend {
-  justify-self: start;
-  max-width: 86%;
-  background: var(--paper);
-  color: var(--text);
-}
-
-.bubble.mine {
-  justify-self: end;
-  max-width: 84%;
-  background: var(--coral-button);
-  color: var(--white);
-}
-
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-  width: 184px;
-  overflow: hidden;
-  border-radius: 16px;
-}
-
-.photo-grid.large {
+.app-screenshot-frame img {
   width: 100%;
-}
-
-.photo-grid span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
-  background:
-    linear-gradient(135deg, rgba(232, 109, 117, 0.22), rgba(231, 245, 251, 0.95)),
-    var(--blue-soft);
-  color: var(--berry);
-  font-weight: 900;
-}
-
-.photo-grid span:nth-child(2) {
-  background: linear-gradient(135deg, var(--yellow-soft), var(--pink-soft));
-}
-
-.photo-grid span:nth-child(3) {
-  background: linear-gradient(135deg, var(--green-soft), var(--paper));
-}
-
-.photo-grid span:nth-child(4) {
-  background: var(--berry);
-  color: var(--white);
-}
-
-.action-card {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--yellow-soft);
-  padding: 14px;
-}
-
-.action-card span {
-  color: var(--coral-dark);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.action-card strong {
-  color: var(--text);
-  font-size: 0.98rem;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .story-band,
@@ -643,64 +519,15 @@ button:focus-visible {
   line-height: 1.58;
 }
 
-.mini-phone {
-  display: grid;
-  align-content: end;
-  gap: 8px;
-  min-height: 188px;
+.mini-screen-image {
+  width: 100%;
+  aspect-ratio: 390 / 844;
   border: 5px solid #2d211d;
   border-radius: 24px;
   background: var(--white);
-  padding: 14px;
-  overflow: hidden;
-}
-
-.mini-phone span {
-  color: var(--coral-dark);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.mini-phone strong {
-  color: var(--text);
-  line-height: 1.25;
-}
-
-.mini-start {
-  background:
-    linear-gradient(180deg, rgba(255, 227, 232, 0.72), rgba(255, 248, 239, 0.96)),
-    var(--paper);
-}
-
-.mini-home {
-  background:
-    linear-gradient(180deg, transparent 0 46px, var(--yellow-soft) 46px 88px, transparent 88px),
-    var(--white);
-}
-
-.mini-group {
-  background:
-    radial-gradient(circle at 34% 34%, var(--pink-soft) 0 20px, transparent 21px),
-    radial-gradient(circle at 68% 52%, var(--blue-soft) 0 18px, transparent 19px),
-    var(--paper);
-}
-
-.mini-chat {
-  background:
-    linear-gradient(90deg, var(--pink-soft) 0 50%, var(--blue-soft) 50%),
-    var(--white);
-}
-
-.mini-settlement {
-  background:
-    linear-gradient(180deg, var(--green-soft) 0 40%, var(--white) 40% 100%),
-    var(--white);
-}
-
-.mini-record {
-  background:
-    linear-gradient(135deg, var(--yellow-soft), var(--pink-soft)),
-    var(--paper);
+  object-fit: cover;
+  object-position: top center;
+  box-shadow: 0 12px 26px rgba(58, 42, 35, 0.12);
 }
 
 .section-features {
@@ -719,6 +546,16 @@ button:focus-visible {
   gap: 16px;
   min-height: 226px;
   padding: 26px;
+}
+
+.feature-illustration {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  object-fit: cover;
+  object-position: center;
 }
 
 .feature-status {
@@ -857,6 +694,22 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.download-showcase {
+  display: grid;
+  gap: 16px;
+}
+
+.download-illustration {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  object-fit: cover;
+  object-position: center;
+  box-shadow: var(--shadow);
 }
 
 .download-card {
@@ -1055,7 +908,8 @@ button:focus-visible {
     justify-content: flex-start;
   }
 
-  .phone-demo-hero {
+  .hero-phone.app-screenshot-frame,
+  .app-screenshot-secondary {
     transform: none;
   }
 
@@ -1127,9 +981,8 @@ button:focus-visible {
     padding-bottom: 72px;
   }
 
-  .phone-demo {
+  .app-screenshot-frame {
     width: min(100%, 308px);
-    min-height: 588px;
   }
 
   .download-grid,

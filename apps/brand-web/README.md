@@ -27,13 +27,13 @@
 - `brand-observability.js`: Sentry Browser SDK를 조건부로 로드하는 오류 관측성 부트스트랩
 - `robots.txt`, `sitemap.xml`: 검색 엔진 수집 기준
 - `site.webmanifest`: 브라우저/PWA 기본 메타데이터
-- `assets/`: 모바일 앱의 브랜드 자산을 브랜드 웹용 크기로 복사한 이미지, WebP 변형, QR 자산
+- `assets/`: 모바일 앱의 브랜드 자산, 실제 Flutter 캡처 PNG, 생성 일러스트, WebP 변형, QR 자산
 
 ## 현재 공개 섹션
 
 - 문제/서사: 약속 전, 약속 중, 약속 후가 여러 앱에 흩어지는 문제를 설명합니다.
 - 제품 흐름: 약속 만들기, 장소 후보, 채팅과 결정, 기록 남기기 흐름을 소개합니다.
-- 앱 화면 데모: 실제 사용자 데이터 없이 CSS 기반 phone mock과 화면 갤러리로 제품 구조를 보여줍니다.
+- 앱 화면 데모: 실제 사용자 데이터 없이 Flutter 화면을 브라우저에서 렌더링해 캡처한 PNG로 제품 구조를 보여줍니다.
 - 기능: 온모임, 채팅, 장소 후보, 정산, 기록, 신뢰 기능을 현재/준비 상태와 함께 설명합니다.
 - 신뢰/로드맵: 공개하지 않는 정보 경계, 정책 초안, 스토어 링크 준비 상태를 명확히 둡니다.
 - 다운로드: iOS/Android stable URL과 QR 코드를 제공합니다.
@@ -67,6 +67,16 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 - console breadcrumb는 전송하지 않습니다.
 - tag는 `feature`, `page`, `environment`, `kind`, `statusCode`, `method`, `endpoint_template`, `retryable`처럼 안전한 메타데이터만 남깁니다.
 - 기본 성능 trace sample rate는 `0`입니다.
+
+## 화면 캡처와 일러스트 자산
+
+- `assets/images/screenshots/`: 실제 ONMU Flutter 공용 위젯을 데모 데이터로 렌더링한 브라우저 캡처입니다.
+- `assets/images/illustrations/`: 생성 이미지 원본을 repo용으로 복사하고 섹션별로 자른 브랜드 일러스트입니다.
+- `onmu-illustration-suite.png`, `onmu-illustration-support-suite.png`: 원본 보관용 생성 이미지입니다.
+- `onmu-illustration-chat/map/settlement/memory.png`: 기능 섹션용 와이드 일러스트입니다.
+- `onmu-illustration-download/team/trust/notification.png`: 다운로드, 팀, 신뢰, 알림 흐름에 재사용할 수 있는 보조 일러스트입니다.
+- 캡처와 일러스트에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치, 실제 정산 데이터를 넣지 않습니다.
+- 캡처 갱신에는 임시 Flutter web capture target을 사용할 수 있지만, 최종 커밋에는 생성된 PNG와 브랜드 웹 소스만 남깁니다.
 
 ```bash
 export ONMU_BRAND_SENTRY_DSN="<Key Vault sentry-dsn에서 읽은 값>"

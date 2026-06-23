@@ -17,7 +17,8 @@
     <link rel="icon" href="/assets/icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="manifest" href="/site.webmanifest">
-    <link rel="preload" as="image" href="/assets/images/onmu-hero.webp">
+    <link rel="preload" as="image" href="/assets/images/illustrations/onmu-illustration-suite-wide.png">
+    <link rel="preload" as="image" href="/assets/images/screenshots/onmu-chat.png">
 
     <meta property="og:locale" content="ko_KR">
     <meta property="og:type" content="website">
@@ -63,7 +64,7 @@
             "creator": { "@id": "https://onmu.cloud/#organization" },
             "description": "ONMU는 약속, 채팅, 장소 선택, 정산, 사진 기록을 하나의 온모임 안에서 연결하는 모바일 프로젝트입니다.",
             "featureList": ["온모임", "채팅", "장소 후보", "공동 정산", "사진 기록"],
-            "screenshot": "https://onmu.cloud/assets/images/onmu-preview.png"
+            "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png"
           },
           {
             "@type": "WebSite",
@@ -98,10 +99,10 @@
       <section class="hero" aria-labelledby="hero-title">
         <img
           class="hero-art"
-          src="/assets/images/onmu-hero.webp"
-          alt="ONMU 픽셀 캐릭터들이 약속을 준비하는 브랜드 이미지"
-          width="1200"
-          height="1049"
+          src="/assets/images/illustrations/onmu-illustration-suite-wide.png"
+          alt="채팅, 장소 후보, 정산, 기록으로 이어지는 ONMU 브랜드 일러스트"
+          width="1100"
+          height="619"
           fetchpriority="high">
         <div class="hero-copy">
           <p class="eyebrow">ONieum(온이음) project</p>
@@ -119,37 +120,14 @@
             <a class="button-secondary" href="/download/">다운로드 준비 중</a>
           </div>
         </div>
-        <div class="hero-phone" aria-label="ONMU 앱 주요 흐름 데모">
-          <div class="phone-demo phone-demo-hero">
-            <div class="phone-status">
-              <span>9:41</span>
-              <span>ONMU</span>
-            </div>
-            <div class="phone-content">
-              <p class="demo-label">오늘의 온모임</p>
-              <h2>성수 나들이</h2>
-              <div class="demo-chip-row">
-                <span>장소 후보 4</span>
-                <span>사진 6</span>
-                <span>정산 대기</span>
-              </div>
-              <div class="chat-preview">
-                <p class="bubble friend">오늘 카페 후보 여기에 모아둘게!</p>
-                <p class="bubble mine">좋아, 사진도 같이 올려둘게.</p>
-                <div class="photo-grid" aria-label="사진 4장 미리보기">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span>+2</span>
-                </div>
-              </div>
-              <div class="action-card">
-                <span>투표 진행 중</span>
-                <strong>성수역 근처 후보를 골라요</strong>
-              </div>
-            </div>
-          </div>
-        </div>
+        <figure class="hero-phone app-screenshot-frame app-screenshot-hero" aria-label="ONMU 채팅 화면 실제 Flutter 캡처">
+          <img
+            src="/assets/images/screenshots/onmu-chat.png"
+            alt="ONMU 채팅 화면에서 고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 Flutter 캡처"
+            width="390"
+            height="844"
+            fetchpriority="high">
+        </figure>
       </section>
 
       <section id="story" class="story-band" aria-labelledby="story-title">
@@ -217,53 +195,24 @@
           <h2 id="screens-title">채팅 속 사진, 투표, 정산이 한 화면 흐름에 남습니다.</h2>
           <p>
             실제 제품 경험은 iOS와 Android Flutter 앱에서 제공되는 것을 목표로 합니다.
-            공개 웹에서는 민감정보가 없는 데모 흐름으로 ONMU의 핵심 화면 구조를 먼저 보여줍니다.
+            공개 웹에서는 민감정보가 없는 데모 데이터를 실제 Flutter 화면으로 렌더링해 핵심 화면 구조를 보여줍니다.
           </p>
         </div>
         <div class="screen-stage">
-          <div class="phone-demo">
-            <div class="phone-status">
-              <span>9:41</span>
-              <span>채팅</span>
-            </div>
-            <div class="phone-content compact">
-              <p class="demo-label">성수 나들이</p>
-              <p class="bubble friend">후보 3개 올렸어. 다들 가까운 곳 골라줘!</p>
-              <div class="action-card">
-                <span>장소 투표</span>
-                <strong>성수역 10분 이내 후보</strong>
-              </div>
-              <p class="bubble mine">사진 여러 장도 한 번에 올릴게.</p>
-              <div class="photo-grid large" aria-label="채팅 사진 그리드 데모">
-                <span></span>
-                <span></span>
-                <span></span>
-                <span>+3</span>
-              </div>
-            </div>
-          </div>
-          <div class="phone-demo phone-demo-light">
-            <div class="phone-status">
-              <span>9:41</span>
-              <span>기록</span>
-            </div>
-            <div class="phone-content compact">
-              <p class="demo-label">오늘의 기억</p>
-              <h2>성수에서 만난 하루</h2>
-              <div class="memory-paper">
-                <img
-                  src="/assets/images/onmu-preview.png"
-                  alt="ONMU 픽셀 캐릭터와 캘린더가 있는 기록 미리보기"
-                  width="900"
-                  height="559">
-              </div>
-              <div class="demo-chip-row">
-                <span>사진</span>
-                <span>메모</span>
-                <span>정산 완료</span>
-              </div>
-            </div>
-          </div>
+          <figure class="app-screenshot-frame">
+            <img
+              src="/assets/images/screenshots/onmu-chat.png"
+              alt="ONMU 채팅 화면 실제 Flutter 캡처"
+              width="390"
+              height="844">
+          </figure>
+          <figure class="app-screenshot-frame app-screenshot-secondary">
+            <img
+              src="/assets/images/screenshots/onmu-record.png"
+              alt="ONMU 기록 화면 실제 Flutter 캡처"
+              width="390"
+              height="844">
+          </figure>
           <div class="screen-notes">
             <article>
               <span>01</span>
@@ -282,52 +231,34 @@
             </article>
           </div>
         </div>
-        <div class="screen-strip" aria-label="ONMU 앱 화면 구성 데모">
+        <div class="screen-strip" aria-label="ONMU 앱 화면 실제 Flutter 캡처 갤러리">
           <article class="mini-screen-card">
-            <div class="mini-phone mini-start">
-              <span>ONMU</span>
-              <strong>오늘의 만남 시작</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-onboarding.png" alt="ONMU 온보딩 화면 캡처" width="390" height="844" loading="lazy">
             <h3>온보딩</h3>
             <p>처음 만나는 사용자가 캐릭터와 취향을 설정하는 흐름입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <div class="mini-phone mini-home">
-              <span>오늘 약속</span>
-              <strong>성수 나들이</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-home.png" alt="ONMU 홈 화면 캡처" width="390" height="844" loading="lazy">
             <h3>홈</h3>
             <p>오늘 약속, 알림, 최근 기록을 한눈에 확인하는 중심 화면입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <div class="mini-phone mini-group">
-              <span>온모임</span>
-              <strong>친구 5명</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-group.png" alt="ONMU 온모임 화면 캡처" width="390" height="844" loading="lazy">
             <h3>온모임</h3>
             <p>사람, 일정, 장소 후보, 채팅이 모이는 약속방 맥락입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <div class="mini-phone mini-chat">
-              <span>사진 4장</span>
-              <strong>+3</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-chat.png" alt="ONMU 채팅 사진 화면 캡처" width="390" height="844" loading="lazy">
             <h3>채팅 사진</h3>
             <p>여러 장의 사진을 그리드와 상세 보기로 자연스럽게 연결합니다.</p>
           </article>
           <article class="mini-screen-card">
-            <div class="mini-phone mini-settlement">
-              <span>정산</span>
-              <strong>입력 기반 결과</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-settlement.png" alt="ONMU 공동 정산 화면 캡처" width="390" height="844" loading="lazy">
             <h3>공동 정산</h3>
             <p>정산은 약속 하위 맥락에서 입력과 결과를 다시 확인하게 합니다.</p>
           </article>
           <article class="mini-screen-card">
-            <div class="mini-phone mini-record">
-              <span>기록</span>
-              <strong>기억 카드</strong>
-            </div>
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-record.png" alt="ONMU 기록 화면 캡처" width="390" height="844" loading="lazy">
             <h3>기록</h3>
             <p>사진과 메모를 픽셀 캐릭터가 있는 다이어리식 기억으로 남깁니다.</p>
           </article>
@@ -341,36 +272,42 @@
         </div>
         <div class="feature-grid">
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-team.png" alt="" width="627" height="627" loading="lazy">
             <span class="feature-number">온모임</span>
             <span class="feature-status">현재 앱 구조</span>
             <h3>사람과 약속이 모이는 공간</h3>
             <p>친구, 일정, 장소 후보, 대화를 하나의 약속방 맥락으로 정리합니다.</p>
           </article>
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-chat.png" alt="" width="836" height="470" loading="lazy">
             <span class="feature-number">채팅</span>
             <span class="feature-status">구현 축</span>
             <h3>대화 위의 액션 카드</h3>
             <p>투표, 정산, 기록 같은 이벤트를 채팅 시간축에서 바로 확인합니다.</p>
           </article>
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-map.png" alt="" width="836" height="470" loading="lazy">
             <span class="feature-number">장소</span>
             <span class="feature-status">후보 선택 중심</span>
             <h3>후보와 이동 흐름 비교</h3>
             <p>장소 후보를 모으고 지도 기반 흐름으로 약속 장소를 정하는 과정을 돕습니다.</p>
           </article>
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-settlement.png" alt="" width="836" height="470" loading="lazy">
             <span class="feature-number">정산</span>
             <span class="feature-status">서버 원장 기반</span>
             <h3>약속 맥락 안의 공동 정산</h3>
             <p>입력 기반 정산을 약속 하위 흐름으로 보관하고 결과를 다시 확인합니다.</p>
           </article>
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-memory.png" alt="" width="836" height="470" loading="lazy">
             <span class="feature-number">기록</span>
             <span class="feature-status">순차 확장</span>
             <h3>사진과 메모의 기억 카드</h3>
             <p>만남 이후 사진과 메모를 다이어리처럼 남기고 다시 꺼내 봅니다.</p>
           </article>
           <article class="feature-card">
+            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-trust.png" alt="" width="627" height="627" loading="lazy">
             <span class="feature-number">신뢰</span>
             <span class="feature-status">정책 공개</span>
             <h3>개인정보와 공개 범위 관리</h3>
@@ -426,7 +363,7 @@
           <article>
             <span>Data</span>
             <strong>데모 데이터만 사용</strong>
-            <p>웹 목업과 설명에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치를 쓰지 않습니다.</p>
+            <p>웹 캡처와 설명에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치를 쓰지 않습니다.</p>
           </article>
         </div>
       </section>
@@ -449,7 +386,7 @@
           <li>
             <span>02</span>
             <strong>실제 앱 화면 교체</strong>
-            <p>seed 데이터 기반 iOS/Android 화면을 캡처해 데모 목업을 실제 이미지로 교체합니다.</p>
+            <p>데모 데이터 기반 Flutter 화면을 캡처해 공개 이미지 품질을 계속 갱신합니다.</p>
           </li>
           <li>
             <span>03</span>
@@ -477,17 +414,25 @@
             <a class="button-secondary" href="/privacy/">개인정보 처리방침</a>
           </div>
         </div>
-        <div class="download-grid" aria-label="iOS와 Android QR 코드">
-          <a class="download-card" href="/download/ios/">
-            <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180">
-            <span>iPhone</span>
-            <strong>iOS 다운로드 안내</strong>
-          </a>
-          <a class="download-card" href="/download/android/">
-            <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180">
-            <span>Android</span>
-            <strong>Android 다운로드 안내</strong>
-          </a>
+        <div class="download-showcase">
+          <img
+            class="download-illustration"
+            src="/assets/images/illustrations/onmu-illustration-download.png"
+            alt=""
+            width="627"
+            height="627">
+          <div class="download-grid" aria-label="iOS와 Android QR 코드">
+            <a class="download-card" href="/download/ios/">
+              <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180">
+              <span>iPhone</span>
+              <strong>iOS 다운로드 안내</strong>
+            </a>
+            <a class="download-card" href="/download/android/">
+              <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180">
+              <span>Android</span>
+              <strong>Android 다운로드 안내</strong>
+            </a>
+          </div>
         </div>
       </section>
     </main>
