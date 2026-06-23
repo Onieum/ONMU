@@ -12,14 +12,13 @@
       content="ONMU, 온뮤, 오늘밋업, 온이음, 약속 앱, 모임 앱, 장소 후보, 모임 장소, 모임 정산, 라이프로그, 픽셀 캐릭터">
     <meta name="author" content="ONieum(온이음)">
     <meta name="robots" content="index,follow">
-    <meta name="theme-color" content="#C94C56">
+    <meta name="theme-color" content="#C94C56" media="(prefers-color-scheme: light)">
     <link rel="canonical" href="https://onmu.cloud/">
     <link rel="alternate" hreflang="ko-KR" href="https://onmu.cloud/">
     <link rel="icon" href="/assets/icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="manifest" href="/site.webmanifest">
-    <link rel="preload" as="image" href="/assets/images/illustrations/onmu-illustration-suite-wide.webp" type="image/webp">
-    <link rel="preload" as="image" href="/assets/images/screenshots/onmu-chat.png?v=20260623-cafe-photos">
+    <link rel="preload" as="image" href="/assets/images/screenshots/onmu-chat.webp" type="image/webp" fetchpriority="high">
 
     <meta property="og:locale" content="ko_KR">
     <meta property="og:type" content="website">
@@ -41,10 +40,10 @@
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU 픽셀 캐릭터가 약속과 기록을 준비하는 브랜드 이미지">
 
-    <link rel="stylesheet" href="/styles.css?v=20260623-soft-beige">
+    <link rel="stylesheet" href="/styles.css?v=0.3.0">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
-    <script src="/brand-site.js?v=20260623-about-story-reveal" defer></script>
+    <script src="/brand-site.js?v=0.3.0" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -69,7 +68,7 @@
             "creator": { "@id": "https://onmu.cloud/#organization" },
             "description": "ONMU는 약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지 한 앱에서 이어주는 오늘밋업 앱입니다.",
             "featureList": ["온모임", "채팅", "장소 후보", "공동 정산", "사진 기록"],
-            "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png?v=20260623-cafe-photos",
+            "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png",
             "downloadUrl": [
               "https://onmu.cloud/download/ios/",
               "https://onmu.cloud/download/android/"
@@ -151,10 +150,11 @@
         <img
           class="hero-art"
           src="/assets/images/illustrations/onmu-illustration-suite-wide.webp"
-          alt="채팅, 장소 후보, 정산, 기록으로 이어지는 ONMU 브랜드 일러스트"
+          alt=""
+          aria-hidden="true"
           width="1100"
           height="619"
-          fetchpriority="high"
+          loading="eager"
           decoding="async">
         <div class="hero-copy">
           <p class="eyebrow">ONieum(온이음)</p>
@@ -175,21 +175,23 @@
         <div class="hero-phone-stack" role="group" aria-label="ONMU 앱 화면 미리 보기">
           <figure class="app-screenshot-frame hero-phone-secondary" aria-label="ONMU 홈 화면 실제 Flutter 캡처">
             <img
-              src="/assets/images/screenshots/onmu-home.png"
+              src="/assets/images/screenshots/onmu-home.webp"
               alt="ONMU 홈 화면에서 오늘 약속과 최근 기록이 보이는 Flutter 캡처"
               width="390"
               height="844"
-              loading="lazy"
+              loading="eager"
               decoding="async">
+            <figcaption class="sr-only">오늘 약속과 최근 기록이 보이는 ONMU 홈 화면</figcaption>
           </figure>
           <figure class="app-screenshot-frame app-screenshot-hero" aria-label="ONMU 채팅 화면 실제 Flutter 캡처">
             <img
-              src="/assets/images/screenshots/onmu-chat.png?v=20260623-cafe-photos"
+              src="/assets/images/screenshots/onmu-chat.webp"
               alt="ONMU 채팅 화면에서 고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 Flutter 캡처"
               width="390"
               height="844"
               fetchpriority="high"
               decoding="async">
+            <figcaption class="sr-only">고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 ONMU 채팅 화면</figcaption>
           </figure>
         </div>
       </section>
@@ -280,12 +282,13 @@
         <div class="screen-stage">
           <figure class="app-screenshot-frame">
             <img
-              src="/assets/images/screenshots/onmu-chat.png?v=20260623-cafe-photos"
+              src="/assets/images/screenshots/onmu-chat.webp"
               alt="ONMU 채팅 화면 실제 Flutter 캡처"
               width="390"
               height="844"
               loading="lazy"
               decoding="async">
+            <figcaption class="sr-only">ONMU 약속방 대화와 사진 공유 화면</figcaption>
           </figure>
           <figure class="app-screenshot-frame app-screenshot-secondary">
             <img
@@ -295,6 +298,7 @@
               height="844"
               loading="lazy"
               decoding="async">
+            <figcaption class="sr-only">ONMU 만남 이후 기록 화면</figcaption>
           </figure>
           <div class="screen-notes">
             <article>
@@ -321,7 +325,7 @@
             <p>처음 만나는 사용자가 캐릭터와 취향을 설정하는 흐름입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-home.png" alt="ONMU 홈 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-home.webp" alt="ONMU 홈 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>홈</h3>
             <p>오늘 약속, 알림, 최근 기록을 한눈에 확인하는 중심 화면입니다.</p>
           </article>
@@ -331,7 +335,7 @@
             <p>사람, 일정, 장소 후보, 채팅이 모이는 약속방 맥락입니다.</p>
           </article>
           <article class="mini-screen-card">
-            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-chat.png?v=20260623-cafe-photos" alt="ONMU 채팅 사진 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
+            <img class="mini-screen-image" src="/assets/images/screenshots/onmu-chat.webp" alt="ONMU 채팅 사진 화면 캡처" width="390" height="844" loading="lazy" decoding="async">
             <h3>채팅 사진</h3>
             <p>여러 장의 사진을 그리드와 상세 보기로 자연스럽게 연결합니다.</p>
           </article>
