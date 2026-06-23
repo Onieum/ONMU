@@ -433,7 +433,8 @@ button:focus-visible {
 }
 
 .app-screenshot-secondary {
-  transform: rotate(-1deg);
+  transform: translateY(10px) rotate(4deg);
+  transform-origin: center bottom;
 }
 
 .app-screenshot-frame img {
@@ -682,7 +683,7 @@ button:focus-visible {
 .screen-stage {
   display: grid;
   grid-template-columns: 320px 320px minmax(0, 1fr);
-  gap: 28px;
+  gap: 52px;
   align-items: center;
 }
 
