@@ -1017,6 +1017,7 @@ class InMemoryOnmuStore {
       provider: candidate.provider,
       providerPlaceId: candidate.providerPlaceId,
       roadAddress: candidate.roadAddress,
+      imageUrl: candidate.imageUrl,
       sourceUrl: candidate.sourceUrl,
       latitude: candidate.latitude,
       longitude: candidate.longitude,

@@ -1160,6 +1160,7 @@ class OnmuApiServiceTests {
         127.001,
         null,
         null,
+        null,
         "https://place.map.kakao.com/123",
         "2026-06-10T00:00:00Z"
       )
@@ -1268,6 +1269,49 @@ class OnmuApiServiceTests {
       .containsEntry("latitude", 37.5002)
       .containsEntry("longitude", 126.9002);
     assertThat(detail.get("externalPlaceId")).isEqualTo(externalPlace.getPublicId());
+  }
+
+  @Test
+  void placeCandidateDetailBuildsCatalogProxyImageUrlFromExternalPlacePayload() {
+    UserEntity user = user("00000000-0000-0000-0000-000000000001", "테스트 사용자");
+    ExternalPlaceEntity externalPlace = new ExternalPlaceEntity(
+      "ONMU_CATALOG",
+      "tour-201",
+      "서울 숲 산책로",
+      "관광명소",
+      "서울 성동구",
+      "서울 성동구",
+      37.5447,
+      127.0374,
+      "https://example.test/place/seoul-forest",
+      "{\"firstimage\":\"https://tong.visitkorea.or.kr/cms/resource/seoul-forest.jpg\"}"
+    );
+    PlaceCandidateEntity candidate = new PlaceCandidateEntity(
+      "201",
+      group,
+      plan,
+      externalPlace,
+      "서울 숲 산책로",
+      "관광명소",
+      "서울 성동구",
+      "{\"favoriteCount\":1}"
+    );
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(placeCandidateRepository.findByPlanAndPublicId(plan, "201")).thenReturn(Optional.of(candidate));
+    when(userRepository.findByIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(user));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(placeCandidateHeartRepository.countByCandidate(candidate)).thenReturn(1L);
+    when(placeCandidateHeartRepository.existsByCandidateAndUser(candidate, user)).thenReturn(false);
+
+    var detail = service.placeCandidate("1", "101", "201", user.getId());
+
+    assertThat(detail)
+      .containsEntry("provider", "ONMU_CATALOG")
+      .containsEntry(
+        "imageUrl",
+        "/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-201"
+      );
   }
 
   @Test

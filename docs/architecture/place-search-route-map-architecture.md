@@ -36,10 +36,11 @@ Place / Search / Route / Map 영역은 약속 장소를 찾고, 후보로 모으
 | 후보 추가 | `POST /api/v1/groups/{groupId}/plans/{planId}/place-candidates` | 검색 결과 또는 수동 입력을 후보로 저장하고 external place snapshot을 연결할 수 있다. |
 | 후보 상세 | `GET /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}` | 후보 단건 read model을 반환한다. |
 | 후보 하트 | `PUT /api/v1/groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` | body의 `hearted=false`면 끄고, 생략 또는 true면 켠다. |
+| 장소 대표 이미지 공개 proxy | `GET /api/v1/place-images/public` | `onmu_catalog` image reference를 ONMU 경유 URL로 반환한다. |
 | 일정 장소 등록 | `POST /api/v1/groups/{groupId}/plans/{planId}/schedule-places` | `candidateId` 기반 등록과 직접 장소명 등록을 모두 허용한다. |
 | 일정 장소 목록 | `GET /api/v1/groups/{groupId}/plans/{planId}/schedule-places` | plan의 일정 등록 장소를 sort order 기준으로 반환한다. |
 
-`POST /api/v1/place-search` 응답은 `query`, `canonical`, `results`, `provider_counts`, `source_counts`, `coordinate_count` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`와 provider 연결용 `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `providerLink`, `fetchedAt`을 포함할 수 있다.
+`POST /api/v1/place-search` 응답은 `query`, `canonical`, `results`, `provider_counts`, `source_counts`, `coordinate_count` wrapper를 유지한다. `results[]`는 기존 `id`, `name`, `category`, `address`, `lat`, `lng`, `heartCount`, `myHearted`, `canAddCandidate`와 provider 연결용 `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `providerLink`, `imageUrl`, `fetchedAt`을 포함할 수 있다.
 
 `POST /api/v1/routes/recommend` 응답은 `provider`, `stops`, `geometry`, `distanceMeters`, `durationSeconds`, `travelMode`, `fetchedAt`을 포함한다. `geometry`는 Flutter에서 `[lng, lat]` pair list로 decode된다.
 
@@ -92,7 +93,7 @@ Staging 배포 전에는 PostgreSQL Flexible Server에서 `postgis` extension이
 
 ### Candidate / Schedule / Heart Flow
 
-후보 추가는 `CreatePlaceCandidateRequest`로 name, category, address, summary, tags와 provider snapshot 필드를 받을 수 있다. provider와 providerPlaceId가 있으면 `ExternalPlaceEntity`를 찾아 재사용하거나 새로 저장한다. 후보에는 external place FK와 payload snapshot이 함께 저장된다.
+후보 추가는 `CreatePlaceCandidateRequest`로 name, category, address, summary, tags와 provider snapshot 필드를 받을 수 있다. provider와 providerPlaceId가 있으면 `ExternalPlaceEntity`를 찾아 재사용하거나 새로 저장한다. 후보에는 external place FK와 payload snapshot이 함께 저장된다. `imageUrl`은 raw TourAPI URL 대신 ONMU 공개 proxy path를 저장한다.
 
 후보 card 응답에는 다음 정보가 포함된다.
 
@@ -101,7 +102,7 @@ Staging 배포 전에는 PostgreSQL Flexible Server에서 `postgis` extension이
 | `id`, `groupId`, `planId` | Flutter route/API contract용 public id |
 | `name`, `category`, `address`, `summary` | 사용자 표시 최소 정보 |
 | `heartCount`, `myHearted` | 후보 선호 표시 |
-| `provider`, `providerPlaceId`, `roadAddress`, `sourceUrl`, `lat`, `lng`, `fetchedAt` | 내부 저장/지도/동선 연결용 provider snapshot |
+| `provider`, `providerPlaceId`, `roadAddress`, `imageUrl`, `sourceUrl`, `lat`, `lng`, `fetchedAt` | 내부 저장/지도/동선 연결용 provider snapshot |
 | `sourceLabel` | 현재 API에는 남지만 제품 UI에서는 provider명을 직접 노출하지 않는 기준을 지킨다. |
 
 `schedule_places`는 `candidateId`가 있으면 후보와 연결하고, 없으면 직접 장소명으로 등록한다. 이 구조는 "후보에 넣어야만 일정에 등록할 수 있다"는 제약을 피하기 위한 현재 구현이다.
@@ -291,7 +292,7 @@ Response:
 }
 ```
 
-`provider`, `providerPlaceId`, `sourceUrl`, `fetchedAt`은 후보 저장과 운영 진단을 위한 필드다. Flutter 제품 UI는 provider명을 직접 chip/text로 노출하지 않는다.
+`provider`, `providerPlaceId`, `sourceUrl`, `imageUrl`, `fetchedAt`은 후보 저장과 운영 진단을 위한 필드다. Flutter 제품 UI는 provider명을 직접 chip/text로 노출하지 않는다. `imageUrl`은 현재 `onmu_catalog`에 한해 `/api/v1/place-images/public` proxy path를 사용하고, raw TourAPI 이미지 URL을 앱에 직접 노출하지 않는다.
 
 ### `POST /api/v1/routes/recommend`
 
@@ -328,7 +329,7 @@ Response:
 | API | Request/response 기준 |
 | --- | --- |
 | `GET /groups/{groupId}/plans/{planId}/place-candidates` | plan의 후보 pool을 반환한다. 날짜 탭 기준이 아니다. |
-| `POST /groups/{groupId}/plans/{planId}/place-candidates` | name은 필수다. provider snapshot, 좌표, sourceUrl, fetchedAt은 optional이다. |
+| `POST /groups/{groupId}/plans/{planId}/place-candidates` | name은 필수다. provider snapshot, 좌표, imageUrl, sourceUrl, fetchedAt은 optional이다. |
 | `PUT /groups/{groupId}/plans/{planId}/place-candidates/{candidateId}/heart` | `hearted` 생략/true는 heart on, false는 off다. |
 | `POST /groups/{groupId}/plans/{planId}/schedule-places` | `candidateId` 기반 등록 또는 직접 `name` 등록을 허용한다. |
 | `GET /groups/{groupId}/plans/{planId}/schedule-places` | 일정 등록 장소 list를 sort order 기준으로 반환한다. |
