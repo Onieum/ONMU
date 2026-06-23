@@ -118,10 +118,8 @@ PY
 stop_pid_file "$cloudflared_pid_file"
 stop_pid_file "$http_pid_file"
 
-(
-  cd "$deploy_dir"
-  python3 -m http.server "$port" --bind "$host"
-) >"$http_log" 2>&1 &
+nohup bash -c 'cd "$1" && exec python3 -m http.server "$2" --bind "$3"' \
+  _ "$deploy_dir" "$port" "$host" >"$http_log" 2>&1 &
 echo "$!" >"$http_pid_file"
 
 for _ in {1..30}; do
@@ -152,9 +150,9 @@ if [[ "${ONMU_BRAND_ROUTE_DNS:-false}" == "true" ]]; then
 fi
 
 if [[ "${ONMU_BRAND_QUICK_TUNNEL:-false}" == "true" ]]; then
-  cloudflared --config "$config_file" tunnel --url "$local_url" >"$cloudflared_log" 2>&1 &
+  nohup cloudflared --config "$config_file" tunnel --url "$local_url" >"$cloudflared_log" 2>&1 &
 else
-  cloudflared --config "$config_file" tunnel run "$tunnel_name" >"$cloudflared_log" 2>&1 &
+  nohup cloudflared --config "$config_file" tunnel run "$tunnel_name" >"$cloudflared_log" 2>&1 &
 fi
 echo "$!" >"$cloudflared_pid_file"
 
