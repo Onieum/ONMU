@@ -14,6 +14,7 @@
     <meta name="robots" content="index,follow">
     <meta name="theme-color" content="#C94C56">
     <link rel="canonical" href="https://onmu.cloud/">
+    <link rel="alternate" hreflang="ko-KR" href="https://onmu.cloud/">
     <link rel="icon" href="/assets/icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="manifest" href="/site.webmanifest">
@@ -149,7 +150,8 @@
           alt="채팅, 장소 후보, 정산, 기록으로 이어지는 ONMU 브랜드 일러스트"
           width="1100"
           height="619"
-          fetchpriority="high">
+          fetchpriority="high"
+          decoding="async">
         <div class="hero-copy">
           <p class="eyebrow">ONieum(온이음)</p>
           <span class="status-pill hero-status">출시 준비 중</span>
@@ -182,7 +184,8 @@
               alt="ONMU 채팅 화면에서 고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 Flutter 캡처"
               width="390"
               height="844"
-              fetchpriority="high">
+              fetchpriority="high"
+              decoding="async">
           </figure>
         </div>
       </section>
@@ -264,7 +267,9 @@
               src="/assets/images/screenshots/onmu-chat.png"
               alt="ONMU 채팅 화면 실제 Flutter 캡처"
               width="390"
-              height="844">
+              height="844"
+              loading="lazy"
+              decoding="async">
           </figure>
           <figure class="app-screenshot-frame app-screenshot-secondary">
             <img
@@ -272,6 +277,7 @@
               alt="ONMU 기록 화면 실제 Flutter 캡처"
               width="390"
               height="844"
+              loading="lazy"
               decoding="async">
           </figure>
           <div class="screen-notes">
@@ -333,37 +339,91 @@
         </div>
         <div class="feature-grid">
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-team.png" alt="" width="627" height="627" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-team.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-team.webp 627w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="627"
+              height="627"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">온모임</span>
             <h3>사람과 약속이 모이는 공간</h3>
             <p>친구, 일정, 장소 후보, 대화를 하나의 약속방 맥락으로 정리합니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-chat.png" alt="" width="836" height="470" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-chat.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-chat.webp 836w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="836"
+              height="470"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">채팅</span>
             <h3>대화 위의 액션 카드</h3>
             <p>투표, 정산, 기록 같은 이벤트를 채팅 시간축에서 바로 확인합니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-map.png" alt="" width="836" height="470" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-map.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-map.webp 836w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="836"
+              height="470"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">장소</span>
             <h3>후보와 이동 흐름 비교</h3>
             <p>장소 후보를 모으고 지도 기반 흐름으로 약속 장소를 정하는 과정을 돕습니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-settlement.png" alt="" width="836" height="470" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-settlement.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-settlement.webp 836w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="836"
+              height="470"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">정산</span>
             <h3>약속 맥락 안의 공동 정산</h3>
             <p>함께 쓴 금액을 약속 안에서 정리하고, 결과를 다시 확인할 수 있게 돕습니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-memory.png" alt="" width="836" height="470" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-memory.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-memory.webp 836w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="836"
+              height="470"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">기록</span>
             <h3>사진과 메모의 기억 카드</h3>
             <p>만남 이후 사진과 메모를 다이어리처럼 남기고 다시 꺼내 봅니다.</p>
           </article>
           <article class="feature-card">
-            <img class="feature-illustration" src="/assets/images/illustrations/onmu-illustration-trust.png" alt="" width="627" height="627" loading="lazy" decoding="async">
+            <img
+              class="feature-illustration"
+              src="/assets/images/illustrations/onmu-illustration-trust.webp"
+              srcset="/assets/images/illustrations/onmu-illustration-trust.webp 627w"
+              sizes="(max-width: 760px) calc(100vw - 48px), 320px"
+              alt=""
+              width="627"
+              height="627"
+              loading="lazy"
+              decoding="async">
             <span class="feature-number">신뢰</span>
             <h3>개인정보와 공개 범위 관리</h3>
             <p>사진, 위치, 정산 데이터가 약속 안에서 쓰이도록 경계를 분명히 합니다.</p>
@@ -499,7 +559,9 @@
         <div class="download-showcase">
           <img
             class="download-illustration"
-            src="/assets/images/illustrations/onmu-illustration-download.png"
+            src="/assets/images/illustrations/onmu-illustration-download.webp"
+            srcset="/assets/images/illustrations/onmu-illustration-download.webp 627w"
+            sizes="(max-width: 760px) calc(100vw - 48px), 320px"
             alt=""
             width="627"
             height="627"
@@ -507,12 +569,12 @@
             decoding="async">
           <div class="download-grid" role="group" aria-label="iOS와 Android QR 코드">
             <a class="download-card" href="/download/ios/">
-              <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180">
+              <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
               <span>iPhone</span>
               <strong>iOS 다운로드 안내</strong>
             </a>
             <a class="download-card" href="/download/android/">
-              <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180">
+              <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
               <span>Android</span>
               <strong>Android 다운로드 안내</strong>
             </a>

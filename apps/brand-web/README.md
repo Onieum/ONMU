@@ -75,8 +75,8 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 - `assets/images/screenshots/`: 실제 ONMU Flutter 공용 위젯을 데모 데이터로 렌더링한 브라우저 캡처입니다.
 - `assets/images/illustrations/`: 생성 이미지 원본을 repo용으로 복사하고 섹션별로 자른 브랜드 일러스트입니다.
 - `onmu-illustration-suite.png`, `onmu-illustration-support-suite.png`: 원본 보관용 생성 이미지입니다.
-- `onmu-illustration-chat/map/settlement/memory.png`: 기능 섹션용 와이드 일러스트입니다.
-- `onmu-illustration-download/team/trust/notification.png`: 다운로드, 팀, 신뢰, 알림 흐름에 재사용할 수 있는 보조 일러스트입니다.
+- `onmu-illustration-*.png`: 원본 또는 보관용 일러스트입니다.
+- `onmu-illustration-*.webp`: 브랜드 웹에서 우선 로드하는 경량 배포용 일러스트입니다.
 - 캡처와 일러스트에는 실제 사용자 이름, 실제 채팅, 실제 사진, 실제 위치, 실제 정산 데이터를 넣지 않습니다.
 - 캡처 갱신에는 임시 Flutter web capture target을 사용할 수 있지만, 최종 커밋에는 생성된 PNG와 브랜드 웹 소스만 남깁니다.
 
