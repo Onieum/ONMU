@@ -41,10 +41,10 @@
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU 픽셀 캐릭터가 약속과 기록을 준비하는 브랜드 이미지">
 
-    <link rel="stylesheet" href="/styles.css?v=20260623-brand-polish">
+    <link rel="stylesheet" href="/styles.css?v=20260623-final-polish">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
-    <script src="/brand-site.js?v=20260623-brand-polish" defer></script>
+    <script src="/brand-site.js?v=20260623-final-polish" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -55,6 +55,7 @@
             "name": "ONieum",
             "alternateName": "온이음",
             "url": "https://onmu.cloud/",
+            "email": "hello@onmu.cloud",
             "slogan": "흩어진 만남의 조각을 하나의 약속 경험으로 잇습니다."
           },
           {
@@ -68,7 +69,11 @@
             "creator": { "@id": "https://onmu.cloud/#organization" },
             "description": "ONMU는 약속을 정하고, 장소를 고르고, 함께 정산하고, 사진으로 남기기까지 한 앱에서 이어주는 오늘밋업 앱입니다.",
             "featureList": ["온모임", "채팅", "장소 후보", "공동 정산", "사진 기록"],
-            "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png"
+            "screenshot": "https://onmu.cloud/assets/images/screenshots/onmu-chat.png",
+            "downloadUrl": [
+              "https://onmu.cloud/download/ios/",
+              "https://onmu.cloud/download/android/"
+            ]
           },
           {
             "@type": "WebSite",
@@ -442,7 +447,9 @@
         </div>
         <div class="team-stage">
           <img
-            src="/assets/images/onmu-team-pixel.png"
+            src="/assets/images/onmu-team-pixel.webp"
+            srcset="/assets/images/onmu-team-pixel.webp 900w"
+            sizes="(max-width: 1080px) min(100vw - 48px, 680px), 480px"
             alt="ONMU 픽셀 캐릭터가 노트북과 노트를 들고 있는 팀 소개 이미지"
             width="900"
             height="600"

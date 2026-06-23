@@ -107,6 +107,10 @@ config = {
         "ONMU_BRAND_SENTRY_SDK_URL",
         "https://browser.sentry-cdn.com/10.59.0/bundle.min.js",
     ).strip(),
+    "downloads": {
+        "iosUrl": os.environ.get("ONMU_BRAND_IOS_STORE_URL", "").strip(),
+        "androidUrl": os.environ.get("ONMU_BRAND_ANDROID_STORE_URL", "").strip(),
+    },
 }
 
 with open(target, "w", encoding="utf-8") as handle:

@@ -1,3 +1,9 @@
+@font-face {
+  font-family: "ONMUPixel";
+  src: url("/assets/fonts/Mona10x12-Bold.otf") format("opentype");
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --bg: #fffdf9;
@@ -20,6 +26,7 @@
   --line-strong: #c9a995;
   --shadow: 0 18px 48px rgba(58, 42, 35, 0.13);
   --inner: minmax(0, 1160px);
+  --pixel-font: "ONMUPixel", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   font-family:
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui,
     -apple-system, BlinkMacSystemFont, sans-serif;
@@ -134,6 +141,13 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.brand-mark span,
+.flow-steps span,
+.screen-notes span,
+.roadmap-list span {
+  font-family: var(--pixel-font);
+}
+
 .brand-nowrap {
   white-space: nowrap;
 }
@@ -245,6 +259,24 @@ button:focus-visible {
     28px 28px,
     auto,
     auto;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 104px;
+  right: max(24px, calc((100vw - 1160px) / 2));
+  z-index: -1;
+  width: min(34vw, 360px);
+  height: 210px;
+  opacity: 0.52;
+  background:
+    linear-gradient(90deg, transparent 0 22px, rgba(201, 76, 86, 0.18) 22px 30px, transparent 30px),
+    linear-gradient(transparent 0 22px, rgba(255, 143, 163, 0.16) 22px 30px, transparent 30px),
+    radial-gradient(circle at 24px 22px, rgba(201, 76, 86, 0.22) 0 4px, transparent 5px),
+    radial-gradient(circle at 122px 82px, rgba(168, 197, 139, 0.22) 0 5px, transparent 6px);
+  background-size: 62px 62px, 62px 62px, 160px 140px, 180px 160px;
+  pointer-events: none;
 }
 
 .hero::after {
@@ -378,6 +410,7 @@ button:focus-visible {
   justify-self: center;
   width: min(100%, 430px);
   min-height: 676px;
+  animation: phone-float 6s ease-in-out infinite;
 }
 
 .app-screenshot-hero {
@@ -428,6 +461,56 @@ button:focus-visible {
   background-size: 30px 30px, 30px 30px, auto;
   padding-right: max(24px, calc((100vw - 1160px) / 2));
   padding-left: max(24px, calc((100vw - 1160px) / 2));
+}
+
+.section-team,
+.section-download {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-team {
+  background:
+    linear-gradient(rgba(255, 229, 218, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 229, 218, 0.18) 1px, transparent 1px),
+    var(--white);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+.section-team::before,
+.section-download::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: 128px;
+  height: 34px;
+  border: 1px solid rgba(201, 169, 149, 0.42);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 227, 232, 0.52) 0 8px,
+      rgba(255, 245, 216, 0.52) 8px 16px
+    );
+  pointer-events: none;
+}
+
+.section-team::before {
+  top: 84px;
+  right: max(18px, calc((100vw - 1160px) / 2));
+  transform: rotate(5deg);
+}
+
+.section-download::before {
+  top: 78px;
+  left: max(18px, calc((100vw - 1160px) / 2));
+  transform: rotate(-6deg);
+}
+
+.section-team > *,
+.section-download > * {
+  position: relative;
+  z-index: 1;
 }
 
 .story-copy h2,
@@ -507,6 +590,32 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
+.feature-card,
+.mini-screen-card,
+.trust-grid article,
+.faq-list article,
+.roadmap-list li,
+.download-card,
+.policy-card,
+.download-qr {
+  position: relative;
+}
+
+.feature-card::before,
+.mini-screen-card::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  width: 42px;
+  height: 14px;
+  border: 1px solid rgba(201, 169, 149, 0.34);
+  border-radius: 4px;
+  background: rgba(255, 245, 216, 0.7);
+  transform: rotate(4deg);
+  pointer-events: none;
+}
+
 .flow-steps li {
   display: grid;
   align-content: start;
@@ -565,8 +674,7 @@ button:focus-visible {
   line-height: 1.7;
 }
 
-.section-screens,
-.section-team {
+.section-screens {
   background: var(--white);
 }
 
@@ -814,7 +922,11 @@ button:focus-visible {
 .section-download {
   grid-template-columns: minmax(0, 0.95fr) minmax(300px, 0.74fr);
   align-items: center;
-  background: var(--bg);
+  background:
+    linear-gradient(rgba(255, 229, 218, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 229, 218, 0.18) 1px, transparent 1px),
+    var(--bg);
+  background-size: 32px 32px, 32px 32px, auto;
   padding-right: max(24px, calc((100vw - 1160px) / 2));
   padding-left: max(24px, calc((100vw - 1160px) / 2));
 }
@@ -1001,6 +1113,19 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
+.download-qr::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  width: 46px;
+  height: 16px;
+  border: 1px solid rgba(201, 169, 149, 0.34);
+  border-radius: 4px;
+  background: rgba(255, 227, 232, 0.72);
+  transform: rotate(-5deg);
+}
+
 .download-qr img {
   width: 220px;
   height: 220px;
@@ -1034,6 +1159,17 @@ body.reveal-ready .reveal-item {
 body.reveal-ready .reveal-item.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+@keyframes phone-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 @media (max-width: 1080px) {
@@ -1189,5 +1325,13 @@ body.reveal-ready .reveal-item.is-visible {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .hero-phone-stack {
+    animation: none;
+  }
+
+  body.reveal-ready .reveal-item {
+    transition: none;
   }
 }
