@@ -479,29 +479,6 @@ button:focus-visible {
   background-size: 32px 32px, 32px 32px, auto;
 }
 
-.section-download::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  width: 128px;
-  height: 34px;
-  border: 1px solid rgba(201, 169, 149, 0.42);
-  border-radius: 8px;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      rgba(255, 227, 232, 0.52) 0 8px,
-      rgba(255, 245, 216, 0.52) 8px 16px
-    );
-  pointer-events: none;
-}
-
-.section-download::before {
-  top: 78px;
-  left: max(18px, calc((100vw - 1160px) / 2));
-  transform: rotate(-6deg);
-}
-
 .section-team > *,
 .section-download > * {
   position: relative;
@@ -594,21 +571,6 @@ button:focus-visible {
 .policy-card,
 .download-qr {
   position: relative;
-}
-
-.feature-card::before,
-.mini-screen-card::before {
-  content: "";
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  width: 42px;
-  height: 14px;
-  border: 1px solid rgba(201, 169, 149, 0.34);
-  border-radius: 4px;
-  background: rgba(255, 245, 216, 0.7);
-  transform: rotate(4deg);
-  pointer-events: none;
 }
 
 .flow-steps li {
@@ -1117,19 +1079,6 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
-.download-qr::before {
-  content: "";
-  position: absolute;
-  top: 16px;
-  left: 18px;
-  width: 46px;
-  height: 16px;
-  border: 1px solid rgba(201, 169, 149, 0.34);
-  border-radius: 4px;
-  background: rgba(255, 227, 232, 0.72);
-  transform: rotate(-5deg);
-}
-
 .download-qr img {
   width: 220px;
   height: 220px;
@@ -1321,12 +1270,6 @@ body.reveal-ready .reveal-item.is-visible {
   .mini-screen-card {
     gap: 10px;
     padding: 12px;
-  }
-
-  .mini-screen-card::before {
-    top: 10px;
-    right: 12px;
-    width: 32px;
   }
 
   .mini-screen-image {
