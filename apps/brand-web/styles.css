@@ -157,6 +157,61 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
+.nav-toggle {
+  display: none;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--text);
+}
+
+.nav-toggle-bar,
+.nav-toggle-bar::before,
+.nav-toggle-bar::after {
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.nav-toggle-bar {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.nav-toggle-bar::before,
+.nav-toggle-bar::after {
+  content: "";
+}
+
+.nav-toggle-bar::before {
+  top: -6px;
+}
+
+.nav-toggle-bar::after {
+  top: 6px;
+}
+
+.site-header.nav-open .nav-toggle-bar {
+  background: transparent;
+}
+
+.site-header.nav-open .nav-toggle-bar::before {
+  top: 0;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.site-header.nav-open .nav-toggle-bar::after {
+  top: 0;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
 .site-nav a {
   border-radius: 8px;
   padding: 10px 12px;
@@ -181,8 +236,15 @@ button:focus-visible {
   align-items: center;
   padding: 118px max(24px, calc((100vw - 1160px) / 2)) 84px;
   background:
+    linear-gradient(rgba(255, 229, 218, 0.34) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 229, 218, 0.34) 1px, transparent 1px),
     linear-gradient(180deg, rgba(255, 248, 239, 0.94), rgba(255, 253, 249, 0.98)),
     var(--paper);
+  background-size:
+    28px 28px,
+    28px 28px,
+    auto,
+    auto;
 }
 
 .hero::after {
@@ -299,11 +361,6 @@ button:focus-visible {
   background: var(--white);
 }
 
-.hero-phone {
-  display: flex;
-  justify-content: center;
-}
-
 .app-screenshot-frame {
   display: block;
   width: min(100%, 324px);
@@ -316,9 +373,29 @@ button:focus-visible {
   box-shadow: 0 28px 72px rgba(58, 42, 35, 0.24);
 }
 
-.hero-phone.app-screenshot-frame {
+.hero-phone-stack {
+  position: relative;
   justify-self: center;
-  transform: rotate(1.5deg);
+  width: min(100%, 430px);
+  min-height: 676px;
+}
+
+.app-screenshot-hero {
+  position: relative;
+  z-index: 2;
+  margin-left: auto;
+  transform: rotate(1.4deg);
+}
+
+.hero-phone-secondary {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  z-index: 1;
+  width: min(100%, 292px);
+  opacity: 0.72;
+  transform: rotate(-5deg);
+  box-shadow: 0 22px 54px rgba(58, 42, 35, 0.16);
 }
 
 .app-screenshot-secondary {
@@ -344,7 +421,11 @@ button:focus-visible {
   grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.7fr);
   gap: 56px;
   align-items: center;
-  background: var(--white);
+  background:
+    linear-gradient(rgba(255, 229, 218, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 229, 218, 0.22) 1px, transparent 1px),
+    var(--white);
+  background-size: 30px 30px, 30px 30px, auto;
   padding-right: max(24px, calc((100vw - 1160px) / 2));
   padding-left: max(24px, calc((100vw - 1160px) / 2));
 }
@@ -942,6 +1023,19 @@ button:focus-visible {
   font-weight: 900;
 }
 
+body.reveal-ready .reveal-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 520ms ease,
+    transform 520ms ease;
+}
+
+body.reveal-ready .reveal-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @media (max-width: 1080px) {
   .hero,
   .story-band,
@@ -952,13 +1046,18 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .hero-phone {
-    justify-content: flex-start;
+  .hero-phone-stack {
+    justify-self: start;
   }
 
-  .hero-phone.app-screenshot-frame,
+  .app-screenshot-hero,
   .app-screenshot-secondary {
     transform: none;
+  }
+
+  .hero-phone-secondary {
+    left: 36px;
+    opacity: 0.42;
   }
 
   .flow-steps,
@@ -974,10 +1073,35 @@ button:focus-visible {
 
 @media (max-width: 760px) {
   .site-header {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
     gap: 10px;
     padding: 14px 20px;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+  }
+
+  .site-header--interactive .site-nav {
+    position: absolute;
+    top: calc(100% + 1px);
+    right: 12px;
+    left: 12px;
+    display: none;
+    justify-content: flex-start;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 253, 249, 0.98);
+    padding: 10px;
+    box-shadow: var(--shadow);
+  }
+
+  .site-header--interactive.nav-open .site-nav {
+    display: flex;
   }
 
   .site-nav {
@@ -991,7 +1115,7 @@ button:focus-visible {
 
   .hero {
     min-height: auto;
-    padding-top: 150px;
+    padding-top: 118px;
     padding-bottom: 56px;
   }
 
@@ -1033,6 +1157,17 @@ button:focus-visible {
 
   .app-screenshot-frame {
     width: min(100%, 308px);
+  }
+
+  .hero-phone-stack {
+    min-height: 570px;
+  }
+
+  .hero-phone-secondary {
+    top: 36px;
+    left: 10px;
+    width: min(72%, 240px);
+    opacity: 0.28;
   }
 
   .download-grid,

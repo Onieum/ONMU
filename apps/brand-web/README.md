@@ -23,6 +23,7 @@
 - `download/ios/index.html`, `download/android/index.html`: 스토어 링크 연결 전 stable QR 목적지
 - `404.html`: 정적 호스팅용 오류 페이지
 - `styles.css`: ONMU 디자인 시스템을 반영한 반응형 스타일
+- `brand-site.js`: 모바일 내비게이션 토글과 접근성을 해치지 않는 섹션 reveal 인터랙션
 - `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN은 빈 값으로 둡니다.
 - `brand-observability.js`: Sentry Browser SDK를 조건부로 로드하는 오류 관측성 부트스트랩
 - `robots.txt`, `sitemap.xml`: 검색 엔진 수집 기준

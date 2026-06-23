@@ -38,10 +38,12 @@
       name="twitter:description"
       content="약속 전, 약속 중, 약속 후의 기록을 하나의 온모임으로 잇는 오늘밋업 앱입니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
+    <meta name="twitter:image:alt" content="ONMU 픽셀 캐릭터가 약속과 기록을 준비하는 브랜드 이미지">
 
     <link rel="stylesheet" href="/styles.css">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
+    <script src="/brand-site.js" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -119,12 +121,16 @@
   </head>
   <body>
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
-    <header class="site-header" aria-label="ONMU 브랜드 사이트 상단">
+    <header class="site-header site-header--interactive" aria-label="ONMU 브랜드 사이트 상단">
       <a class="brand-mark" href="/" aria-label="ONMU 홈">
         <span class="brand-dot" aria-hidden="true"></span>
         <span>ONMU</span>
       </a>
-      <nav class="site-nav" aria-label="주요 섹션">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="nav-toggle-bar" aria-hidden="true"></span>
+        <span class="sr-only">메뉴 열기</span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="주요 섹션">
         <a href="#story">소개</a>
         <a href="#flow">흐름</a>
         <a href="#screens">앱 화면</a>
@@ -160,14 +166,25 @@
             <a class="button-secondary" href="/download/">다운로드 안내 보기</a>
           </div>
         </div>
-        <figure class="hero-phone app-screenshot-frame app-screenshot-hero" aria-label="ONMU 채팅 화면 실제 Flutter 캡처">
-          <img
-            src="/assets/images/screenshots/onmu-chat.png"
-            alt="ONMU 채팅 화면에서 고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 Flutter 캡처"
-            width="390"
-            height="844"
-            fetchpriority="high">
-        </figure>
+        <div class="hero-phone-stack" role="group" aria-label="ONMU 앱 화면 미리 보기">
+          <figure class="app-screenshot-frame hero-phone-secondary" aria-label="ONMU 홈 화면 실제 Flutter 캡처">
+            <img
+              src="/assets/images/screenshots/onmu-home.png"
+              alt="ONMU 홈 화면에서 오늘 약속과 최근 기록이 보이는 Flutter 캡처"
+              width="390"
+              height="844"
+              loading="lazy"
+              decoding="async">
+          </figure>
+          <figure class="app-screenshot-frame app-screenshot-hero" aria-label="ONMU 채팅 화면 실제 Flutter 캡처">
+            <img
+              src="/assets/images/screenshots/onmu-chat.png"
+              alt="ONMU 채팅 화면에서 고정 약속, 투표 카드, 여러 장 사진 메시지가 보이는 Flutter 캡처"
+              width="390"
+              height="844"
+              fetchpriority="high">
+          </figure>
+        </div>
       </section>
 
       <section id="story" class="story-band" aria-labelledby="story-title">
