@@ -73,6 +73,7 @@ h2,
 img {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 a {
@@ -744,12 +745,14 @@ button:focus-visible {
 }
 
 .mini-screen-image {
-  width: 100%;
-  height: 250px;
+  justify-self: center;
+  width: min(100%, 118px);
+  height: auto;
+  aspect-ratio: 390 / 844;
   border: 5px solid #2d211d;
   border-radius: 24px;
   background: var(--white);
-  object-fit: cover;
+  object-fit: contain;
   object-position: top center;
   box-shadow: 0 12px 26px rgba(58, 42, 35, 0.12);
 }
@@ -774,12 +777,17 @@ button:focus-visible {
 
 .feature-illustration {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+}
+
+.feature-illustration--square {
+  justify-self: center;
+  width: min(100%, 260px);
 }
 
 .feature-card:nth-child(2),
@@ -943,12 +951,14 @@ button:focus-visible {
 }
 
 .download-illustration {
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  justify-self: center;
+  width: min(100%, 360px);
+  height: auto;
+  aspect-ratio: 1 / 1;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   box-shadow: var(--shadow);
 }
@@ -1326,7 +1336,7 @@ body.reveal-ready .reveal-item.is-visible {
   }
 
   .mini-screen-image {
-    height: 190px;
+    width: min(100%, 96px);
     border-width: 4px;
     border-radius: 18px;
   }
@@ -1338,8 +1348,11 @@ body.reveal-ready .reveal-item.is-visible {
   }
 
   .feature-illustration {
-    max-height: 168px;
-    aspect-ratio: 4 / 3;
+    max-height: none;
+  }
+
+  .feature-illustration--square {
+    width: min(100%, 220px);
   }
 
   .button-primary,

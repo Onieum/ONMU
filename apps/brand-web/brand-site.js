@@ -110,5 +110,12 @@
     { rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
   );
 
-  revealItems.forEach((item) => observer.observe(item));
+  revealItems.forEach((item) => {
+    const rect = item.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      item.classList.add("is-visible");
+      return;
+    }
+    observer.observe(item);
+  });
 })();
