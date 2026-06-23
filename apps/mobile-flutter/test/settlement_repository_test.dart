@@ -145,6 +145,48 @@ void main() {
     expect(settlement.isCreated, isFalse);
   });
 
+  test(
+    'maps finalized settlement returned from draft endpoint as result',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                data: {
+                  'id': '302',
+                  'status': 'completed',
+                  'preview': false,
+                  'planTitle': '성수 브런치',
+                  'totalAmountWon': 12000,
+                  'totalAmountLabel': '12,000원',
+                  'createdDateLabel': '정산 완료',
+                  'itemCountLabel': '결제 항목 1개',
+                  'finalSummaryLabel': '이체할 내역이 없어요',
+                  'mySummaryLabel': '나는 정산 완료',
+                  'paymentItems': [],
+                  'memberResults': [],
+                  'transfers': [],
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final settlement = await ApiSettlementRepository(
+        OnmuApiClient(dio),
+      ).fetchSettlementDraft(groupId: 1, planId: 101);
+
+      expect(settlement.id, '302');
+      expect(settlement.status, 'completed');
+      expect(settlement.preview, isFalse);
+      expect(settlement.isDraft, isFalse);
+    },
+  );
+
   test('maps target amount values for custom settlement mode', () async {
     final dio = Dio();
     dio.interceptors.add(

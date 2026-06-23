@@ -368,7 +368,7 @@ curl.exe -X POST http://localhost:8080/api/v1/devices/push-token -H "Content-Typ
 curl.exe -X DELETE http://localhost:8080/api/v1/devices/push-token -H "Content-Type: application/json" --data-binary '{ "provider": "dev", "token": "synthetic-dev-push-token", "platform": "android" }'
 ```
 
-`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 active 정산을 반환합니다. `GET /settlement-draft`는 active draft가 없으면 `404 settlement_draft_not_found`를 반환합니다.
+`POST /settlement-draft`는 eligible plan에서 active draft를 생성하거나 기존 finalized/completed 정산 결과를 반환합니다. `GET /settlement-draft`는 active draft가 없으면 `404 settlement_draft_not_found`를 반환합니다.
 정산 draft/result 응답은 `settlement_sections`, `settlement_items`, `settlement_item_targets`, `settlement_transfers`를 우선 읽고, JSON `payload`는 화면 snapshot과 이전 contract 호환 용도로 유지합니다. 요청은 `sections[].payerUserId`, `sections[].items[].amountWon`, `sections[].items[].targetUserIds` 또는 사람별 금액 직접 입력용 `sections[].items[].targetShares`를 사용하며 모두 DB UUID 기준입니다. 이름은 표시용 응답 필드로만 내려갑니다.
 
 `targetShares`가 있으면 `targetUserIds`보다 우선하며, `targetShares[].amountWon` 합계는 item `amountWon`과 정확히 같아야 합니다. 합계가 다르면 `400 settlement_target_amount_mismatch`, 사람별 금액이 0 이하이면 `400 invalid_settlement_target_amount`, 대상자가 중복되면 `400 duplicate_settlement_target`을 반환합니다.

@@ -874,7 +874,7 @@
 | `created_at` | 생성 시각 | Timestamptz | 정산 확정 시각 | Not Null |
 | `completed_at` | 완료 시각 | Timestamptz | 수취 확인 완료 시각 | Nullable |
 
-> UNIQUE: `status='finalized'`인 `(plan_id)` active finalized settlement 1개.
+> UNIQUE: 현재 물리 제약은 `status='finalized'`인 `(plan_id)` active finalized settlement 1개다. 애플리케이션 정책은 finalized/completed 결과가 있으면 같은 약속에 새 draft/final result를 만들지 않는다.
 
 ## `settlement_transfers` (구현됨)
 
