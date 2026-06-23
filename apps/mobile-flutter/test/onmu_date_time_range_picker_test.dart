@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+﻿import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
@@ -367,8 +367,12 @@ void main() {
     expect(find.text('추천 날짜'), findsOneWidget);
     expect(find.text('선택한 날짜의 추천 시간대'), findsOneWidget);
     expect(find.text('추천/비추천 시간대'), findsNothing);
+    final expectedRecommendedDateKey =
+        '${expectedRecommendedDate.year}-'
+        '${expectedRecommendedDate.month.toString().padLeft(2, '0')}-'
+        '${expectedRecommendedDate.day.toString().padLeft(2, '0')}';
     expect(
-      find.textContaining(_expectedDateLabel(expectedRecommendedDate)),
+      find.byKey(ValueKey('recommended-date-$expectedRecommendedDateKey')),
       findsOneWidget,
     );
     expect(

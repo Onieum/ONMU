@@ -83,6 +83,7 @@ flutter:
     - assets/images/character/male/eyes/
     - assets/images/character/male/hair/
     - assets/images/character/male/clothes/
+    - assets/images/diary_decorate/
     - assets/images/diary_decorate/background/
     - assets/images/diary_decorate/clip/
     - assets/images/diary_decorate/masking_tape/

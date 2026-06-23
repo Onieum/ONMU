@@ -308,10 +308,17 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                   ),
                 ),
                 SizedBox(height: 14),
-                OotdGeneratedImageView(
-                  record: ootd,
-                  characterSize: 96,
-                  height: 120,
+                SizedBox(
+                  width: 116,
+                  height: 136,
+                  child: OotdGeneratedImageView(
+                    record: ootd,
+                    characterSize: 104,
+                    preferAvatarImage: true,
+                    avatarOnly: true,
+                    showFallbackCharacter: false,
+                    compactStatus: true,
+                  ),
                 ),
                 SizedBox(height: 12),
                 Wrap(
@@ -546,10 +553,17 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    OotdGeneratedImageView(
-                      record: _linkedOotdRecord!,
-                      characterSize: 78,
-                      height: 96,
+                    SizedBox(
+                      width: 88,
+                      height: 104,
+                      child: OotdGeneratedImageView(
+                        record: _linkedOotdRecord!,
+                        characterSize: 78,
+                        preferAvatarImage: true,
+                        avatarOnly: true,
+                        showFallbackCharacter: false,
+                        compactStatus: true,
+                      ),
                     ),
                     if (_selectedCrewAppearances.isNotEmpty)
                       ..._selectedCrewAppearances
