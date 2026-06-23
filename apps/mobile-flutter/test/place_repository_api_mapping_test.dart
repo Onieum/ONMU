@@ -207,10 +207,12 @@ void main() {
                 'summary': 'provider 검색 결과에서 저장된 후보',
                 'address': '서울 성동구 테스트로 1',
                 'sourceLabel': '외부 검색',
-                'provider': 'KAKAO',
-                'providerPlaceId': 'kakao-204',
+                'provider': 'ONMU_CATALOG',
+                'providerPlaceId': 'tour-204',
                 'roadAddress': '서울 성동구 테스트로 1',
-                'sourceUrl': 'https://example.com/place/204',
+                'imageUrl':
+                    '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-204',
+                'sourceUrl': 'https://example.com/place/tour-204',
                 'lat': 37.544,
                 'lng': 127.055,
                 'fetchedAt': '2026-06-12T00:00:00Z',
@@ -249,10 +251,12 @@ void main() {
         tags: const ['카페', '조용함'],
         reasons: const ['지도 후보로 저장됨'],
         risks: const [],
-        provider: 'KAKAO',
-        providerPlaceId: 'kakao-204',
+        provider: 'ONMU_CATALOG',
+        providerPlaceId: 'tour-204',
         roadAddress: '서울 성동구 테스트로 1',
-        sourceUrl: 'https://example.com/place/204',
+        imageUrl:
+            '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-204',
+        sourceUrl: 'https://example.com/place/tour-204',
         latitude: 37.544,
         longitude: 127.055,
         fetchedAt: DateTime.utc(2026, 6, 12),
@@ -264,8 +268,12 @@ void main() {
       '/api/v1/groups/1/plans/104/place-candidates',
     );
     expect(requestedBodies.single['name'], '성수 테스트 카페');
-    expect(requestedBodies.single['provider'], 'KAKAO');
-    expect(requestedBodies.single['providerPlaceId'], 'kakao-204');
+    expect(requestedBodies.single['provider'], 'ONMU_CATALOG');
+    expect(requestedBodies.single['providerPlaceId'], 'tour-204');
+    expect(
+      requestedBodies.single['imageUrl'],
+      '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-204',
+    );
     expect(requestedBodies.single['lat'], 37.544);
     expect(requestedBodies.single['lng'], 127.055);
     expect(requestedBodies.single['tags'], ['카페', '조용함']);
@@ -274,6 +282,10 @@ void main() {
     expect(requestedBodies.single['travelTimeLabel'], '도보 5분');
     expect(saved.id, 204);
     expect(saved.sourceLabel, '외부 검색');
+    expect(
+      saved.imageUrl,
+      '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-204',
+    );
     expect(saved.latitude, 37.544);
     expect(saved.longitude, 127.055);
     expect(saved.distanceLabel, '약 300m');
@@ -299,8 +311,10 @@ void main() {
                     'id': '301',
                     'name': '성수 지도 카페',
                     'category': '카페',
-                    'provider': 'NAVER',
-                    'providerPlaceId': 'naver-301',
+                    'provider': 'ONMU_CATALOG',
+                    'providerPlaceId': 'tour-301',
+                    'imageUrl':
+                        '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-301',
                     'lat': 37.544,
                     'lng': 127.055,
                     'summary': '현 지도 기준으로 비교할 수 있는 카페 후보입니다.',
@@ -337,6 +351,10 @@ void main() {
     });
     expect(results.single.name, '성수 지도 카페');
     expect(results.single.summary, '현 지도 기준으로 비교할 수 있는 카페 후보입니다.');
+    expect(
+      results.single.imageUrl,
+      '/api/v1/place-images/public?provider=onmu_catalog&providerPlaceId=tour-301',
+    );
     expect(results.single.reasons, [
       '카페 필터와 잘 맞아요.',
       '주소 정보가 있어 일정 장소로 저장하기 좋아요.',

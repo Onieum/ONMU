@@ -14,8 +14,24 @@ public record PlaceSearchResult(
   Double latitude,
   Double longitude,
   String sourceUrl,
+  String imageUrl,
   Instant fetchedAt
 ) {
+  public PlaceSearchResult(
+    String provider,
+    String providerPlaceId,
+    String name,
+    String category,
+    String address,
+    String roadAddress,
+    Double latitude,
+    Double longitude,
+    String sourceUrl,
+    Instant fetchedAt
+  ) {
+    this(provider, providerPlaceId, name, category, address, roadAddress, latitude, longitude, sourceUrl, null, fetchedAt);
+  }
+
   public Map<String, Object> toApiMap(Map<String, Object> context) {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", provider + ":" + providerPlaceId);
@@ -28,6 +44,7 @@ public record PlaceSearchResult(
     value.put("source", provider);
     value.put("sourceUrl", sourceUrl);
     value.put("providerLink", sourceUrl);
+    value.put("imageUrl", imageUrl);
     value.put("lat", latitude);
     value.put("lng", longitude);
     value.put("latitude", latitude);

@@ -19,6 +19,10 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
   private static final String STORED_PROVIDER = "ONMU_CATALOG";
   private static final int RESULT_LIMIT = 20;
   private static final double EARTH_RADIUS_METERS = 6_371_000.0;
+  private static final double MIN_KOREA_LATITUDE = 33.0;
+  private static final double MAX_KOREA_LATITUDE = 39.0;
+  private static final double MIN_KOREA_LONGITUDE = 124.0;
+  private static final double MAX_KOREA_LONGITUDE = 132.0;
   private static final List<String> FOOD_CATEGORIES = List.of("식당");
   private static final List<String> ATTRACTION_CATEGORIES = List.of("관광명소", "문화공간", "행사");
   private static final List<String> FOOD_TOKENS = List.of("음식점", "식당", "맛집", "한식", "양식", "중식", "일식", "아시안식", "분식");
@@ -58,6 +62,7 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
         bucket.categories()
       ).stream()
       .map(place -> Candidate.from(place, parsePayload(place.getProviderPayload()), query))
+      .filter(Candidate::hasUsableCoordinate)
       .filter(candidate -> candidate.matchesBucket(bucket, query))
       .filter(candidate -> candidate.matchesTokens(meaningfulTokens))
       .filter(Candidate::withinRadius)
@@ -231,7 +236,19 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
       return distanceMeters == null || radiusMeters == null || radiusMeters <= 0 || distanceMeters <= radiusMeters;
     }
 
+    private boolean hasUsableCoordinate() {
+      return place.getLatitude() != null
+        && place.getLongitude() != null
+        && place.getLatitude() >= MIN_KOREA_LATITUDE
+        && place.getLatitude() <= MAX_KOREA_LATITUDE
+        && place.getLongitude() >= MIN_KOREA_LONGITUDE
+        && place.getLongitude() <= MAX_KOREA_LONGITUDE;
+    }
+
     private PlaceSearchResult toResult() {
+      String imageUrl = PlaceImageSupport.firstImageReference(payload).isBlank()
+        ? null
+        : PlaceImageSupport.publicImagePath(API_PROVIDER, place.getProviderPlaceId());
       return new PlaceSearchResult(
         API_PROVIDER,
         place.getProviderPlaceId(),
@@ -242,6 +259,7 @@ public class CuratedPlaceSearchProvider implements PlaceSearchProvider {
         place.getLatitude(),
         place.getLongitude(),
         place.getHomepageUrl(),
+        imageUrl,
         Instant.now()
       );
     }
