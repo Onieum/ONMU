@@ -26,11 +26,25 @@
     <meta name="twitter:description" content="ONMU iOS 앱은 App Store 또는 TestFlight 공개 후 이 URL에서 연결됩니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU iOS 다운로드 안내 브랜드 이미지">
-    <link rel="stylesheet" href="/styles.css?v=20260623-brand-polish">
+    <link rel="stylesheet" href="/styles.css?v=20260623-final-polish">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
+    <script src="/brand-site.js?v=20260623-final-polish" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ONMU",
+        "alternateName": ["온뮤", "오늘밋업"],
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS",
+        "url": "https://onmu.cloud/download/ios/",
+        "downloadUrl": "https://onmu.cloud/download/ios/",
+        "description": "ONMU iOS 앱 다운로드 안내 페이지입니다. App Store 또는 TestFlight 공개 후 이 URL에서 연결됩니다."
+      }
+    </script>
   </head>
-  <body class="subpage">
+  <body class="subpage" data-download-page="ios">
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
     <header class="site-header" aria-label="ONMU iOS 다운로드 페이지 상단">
       <a class="brand-mark" href="/" aria-label="ONMU 홈">
@@ -52,9 +66,11 @@
             ONMU iOS 앱은 공개 준비 중입니다. App Store 또는 TestFlight 링크가 확정되면
             이 페이지에서 바로 연결됩니다.
           </p>
-          <span class="status-pill">iOS 링크 준비 중</span>
+          <span class="status-pill" data-store-status="ios">iOS 링크 준비 중</span>
           <div class="hero-actions">
-            <a class="button-primary" href="/download/">전체 다운로드 보기</a>
+            <a class="button-primary" href="/download/" data-download-platform="ios">
+              <span data-store-label>전체 다운로드 보기</span>
+            </a>
             <a class="button-secondary" href="/">ONMU 소개 보기</a>
           </div>
         </div>

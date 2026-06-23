@@ -26,9 +26,26 @@
     <meta name="twitter:description" content="ONMU iOS와 Android 다운로드 링크는 스토어 공개 후 이 페이지와 QR 코드에 연결됩니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU 앱 다운로드 안내 브랜드 이미지">
-    <link rel="stylesheet" href="/styles.css?v=20260623-brand-polish">
+    <link rel="stylesheet" href="/styles.css?v=20260623-final-polish">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
+    <script src="/brand-site.js?v=20260623-final-polish" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ONMU",
+        "alternateName": ["온뮤", "오늘밋업"],
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS, Android",
+        "url": "https://onmu.cloud/download/",
+        "downloadUrl": [
+          "https://onmu.cloud/download/ios/",
+          "https://onmu.cloud/download/android/"
+        ],
+        "description": "ONMU는 약속 만들기, 장소 선택, 채팅, 정산, 사진 기록을 하나의 온모임 안에서 이어주는 모바일 앱입니다."
+      }
+    </script>
   </head>
   <body class="subpage">
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -57,15 +74,15 @@
       <section class="download-section" aria-labelledby="download-options">
         <h2 id="download-options">다운로드 안내</h2>
         <div class="download-page-grid">
-          <a class="download-card" href="/download/ios/">
+          <a class="download-card" href="/download/ios/" data-download-platform="ios">
             <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
             <span>iPhone</span>
-            <strong>iOS 다운로드 안내</strong>
+            <strong data-store-label>iOS 다운로드 안내</strong>
           </a>
-          <a class="download-card" href="/download/android/">
+          <a class="download-card" href="/download/android/" data-download-platform="android">
             <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
             <span>Android</span>
-            <strong>Android 다운로드 안내</strong>
+            <strong data-store-label>Android 다운로드 안내</strong>
           </a>
         </div>
       </section>

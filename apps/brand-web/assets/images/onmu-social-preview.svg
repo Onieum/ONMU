@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">ONMU social preview</title>
+  <desc id="desc">ONMU 브랜드 공유 이미지. 약속, 채팅, 장소, 정산, 기록을 하나로 잇는 오늘밋업 앱을 소개한다.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#f3dcd1" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#3a2a23" flood-opacity="0.18"/>
+    </filter>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fffdf9"/>
+      <stop offset="100%" stop-color="#fff2e8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#paper)"/>
+  <rect width="1200" height="630" fill="url(#grid)" opacity="0.72"/>
+
+  <g opacity="0.5">
+    <rect x="770" y="62" width="136" height="34" rx="8" fill="#ffe3e8" stroke="#c9a995" transform="rotate(5 838 79)"/>
+    <rect x="96" y="494" width="142" height="34" rx="8" fill="#fff5d8" stroke="#c9a995" transform="rotate(-6 167 511)"/>
+    <circle cx="1026" cy="492" r="8" fill="#e86d75"/>
+    <circle cx="1054" cy="492" r="8" fill="#ff8fa3"/>
+    <circle cx="1082" cy="492" r="8" fill="#a8c58b"/>
+  </g>
+
+  <g transform="translate(82 78)">
+    <g transform="translate(0 0)">
+      <rect x="0" y="0" width="22" height="22" fill="#ffe3e8" stroke="#c94c56" stroke-width="5"/>
+      <rect x="22" y="0" width="11" height="22" fill="#e86d75"/>
+      <rect x="0" y="22" width="22" height="11" fill="#e86d75"/>
+      <rect x="22" y="22" width="11" height="11" fill="#c94c56"/>
+      <text x="48" y="28" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="32" font-weight="900" fill="#3a2a23">ONMU</text>
+    </g>
+
+    <text x="0" y="118" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="28" font-weight="900" fill="#c94c56">ONieum(온이음)</text>
+    <rect x="0" y="144" width="142" height="42" rx="21" fill="#fff5d8" stroke="#c9a995"/>
+    <text x="24" y="172" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="19" font-weight="900" fill="#c94c56">출시 준비 중</text>
+
+    <text x="0" y="270" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="108" font-weight="900" fill="#3a2a23" letter-spacing="-2">ONMU</text>
+    <text x="2" y="326" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="38" font-weight="900" fill="#3a2a23">약속과 기록을 하나로 잇는 오늘밋업 앱</text>
+    <text x="2" y="384" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="28" font-weight="900" fill="#c94c56">흩어진 만남의 조각을 하나의 약속 경험으로 잇습니다.</text>
+    <text x="2" y="438" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="24" font-weight="700" fill="#725b51">약속 만들기 · 장소 선택 · 채팅 · 정산 · 사진 기록</text>
+  </g>
+
+  <g filter="url(#shadow)" transform="translate(744 86) rotate(1.5 178 230)">
+    <rect x="0" y="0" width="356" height="488" rx="42" fill="#2d211d"/>
+    <rect x="14" y="14" width="328" height="460" rx="32" fill="#fffdf9"/>
+    <rect x="40" y="44" width="46" height="46" rx="14" fill="#ffe3e8" stroke="#ff9cad"/>
+    <text x="102" y="76" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="26" font-weight="900" fill="#3a2a23">채팅</text>
+    <rect x="48" y="118" width="260" height="104" rx="14" fill="#fff8ef" stroke="#f0cbbd"/>
+    <text x="70" y="154" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="20" font-weight="900" fill="#3a2a23">성수 카페 투어</text>
+    <text x="70" y="188" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="17" font-weight="700" fill="#725b51">오늘 오후 3:00</text>
+    <rect x="64" y="238" width="216" height="74" rx="14" fill="#ffffff" stroke="#ead8cc"/>
+    <text x="84" y="278" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="18" font-weight="800" fill="#725b51">투표가 열렸어요</text>
+    <rect x="58" y="332" width="248" height="104" rx="18" fill="#ffe3e8" stroke="#ff9cad"/>
+    <rect x="82" y="354" width="76" height="58" rx="12" fill="#ffffff"/>
+    <rect x="170" y="354" width="76" height="58" rx="12" fill="#ffffff"/>
+    <circle cx="120" cy="382" r="17" fill="#e86d75"/>
+    <circle cx="208" cy="382" r="17" fill="#a8c58b"/>
+    <text x="84" y="430" font-family="Apple SD Gothic Neo, Noto Sans KR, Arial, sans-serif" font-size="17" font-weight="700" fill="#725b51">사진 여러 장도 한 번에</text>
+  </g>
+
+  <g transform="translate(678 200) rotate(-6 120 180)" opacity="0.74">
+    <rect x="0" y="0" width="242" height="348" rx="30" fill="#ffffff" stroke="#2d211d" stroke-width="10"/>
+    <rect x="28" y="42" width="62" height="22" rx="11" fill="#ffe3e8"/>
+    <rect x="28" y="92" width="178" height="58" rx="12" fill="#fff8ef" stroke="#ead8cc"/>
+    <rect x="28" y="172" width="178" height="58" rx="12" fill="#fff8ef" stroke="#ead8cc"/>
+    <rect x="28" y="252" width="178" height="58" rx="12" fill="#fff8ef" stroke="#ead8cc"/>
+  </g>
+</svg>

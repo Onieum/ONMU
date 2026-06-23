@@ -24,7 +24,7 @@
 - `404.html`: 정적 호스팅용 오류 페이지
 - `styles.css`: ONMU 디자인 시스템을 반영한 반응형 스타일
 - `brand-site.js`: 모바일 내비게이션 토글과 접근성을 해치지 않는 섹션 reveal 인터랙션
-- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN은 빈 값으로 둡니다.
+- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN과 스토어 URL은 빈 값으로 둡니다.
 - `brand-observability.js`: Sentry Browser SDK를 조건부로 로드하는 오류 관측성 부트스트랩
 - `robots.txt`, `sitemap.xml`: 검색 엔진 수집 기준
 - `site.webmanifest`: 브라우저/PWA 기본 메타데이터
@@ -74,6 +74,11 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 
 - `assets/images/screenshots/`: 실제 ONMU Flutter 공용 위젯을 데모 데이터로 렌더링한 브라우저 캡처입니다.
 - `assets/images/illustrations/`: 생성 이미지 원본을 repo용으로 복사하고 섹션별로 자른 브랜드 일러스트입니다.
+- `assets/fonts/`: 브랜드 웹에서 제한적으로 쓰는 픽셀 wordmark용 폰트입니다. 본문에는 적용하지 않습니다.
+- `onmu-team-pixel.webp`: 팀 섹션에서 우선 로드하는 경량 팀 일러스트입니다.
+- `onmu-social-preview.svg`: 공유 카드 이미지를 재생성하기 위한 원본입니다.
+- `onmu-social-preview.png`: Open Graph와 Twitter card에서 사용하는 1200x630 공유 이미지입니다.
+- `onmu-social-preview.webp`: 같은 공유 이미지의 경량 WebP 변형입니다. 외부 공유 메타는 호환성을 위해 PNG를 우선합니다.
 - `onmu-illustration-suite.png`, `onmu-illustration-support-suite.png`: 원본 보관용 생성 이미지입니다.
 - `onmu-illustration-*.png`: 원본 또는 보관용 일러스트입니다.
 - `onmu-illustration-*.webp`: 브랜드 웹에서 우선 로드하는 경량 배포용 일러스트입니다.
@@ -84,6 +89,8 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 export ONMU_BRAND_SENTRY_DSN="<Key Vault sentry-dsn에서 읽은 값>"
 export ONMU_BRAND_SENTRY_ENVIRONMENT="production"
 export ONMU_BRAND_SENTRY_RELEASE="$(git rev-parse --short HEAD)"
+export ONMU_BRAND_IOS_STORE_URL=""
+export ONMU_BRAND_ANDROID_STORE_URL=""
 ```
 
 ## Cloudflare Tunnel 배포
@@ -116,3 +123,4 @@ scripts/macos/deploy-brand-web-cloudflared.sh
 - `ONMU_BRAND_TUNNEL_NAME`: Cloudflare named tunnel. 기본값은 `onmu-brand-web`입니다.
 - `ONMU_BRAND_ROUTE_DNS=true`: 실행 중 DNS route를 함께 갱신합니다.
 - `ONMU_BRAND_QUICK_TUNNEL=true`: 루트 도메인이 아닌 임시 trycloudflare URL로 smoke할 때만 사용합니다.
+- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 스토어 공개 후 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.
