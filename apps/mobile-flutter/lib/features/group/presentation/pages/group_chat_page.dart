@@ -414,6 +414,13 @@ class _ThreadContent extends StatelessWidget {
           : null,
       scrollController: scrollController,
       children: [
+        _ChatRoomContextCard(
+          group: group,
+          onMembersTap: () => context.push(RoutePaths.groupMembers(group.id)),
+          onPlansTap: () => context.push(RoutePaths.groupPlans(group.id)),
+          onSettingsTap: () => context.push(RoutePaths.groupSettings(group.id)),
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (state.pinnedPlan != null)
           _PlanChatAnchor(
             plan: state.pinnedPlan!,
@@ -1063,6 +1070,127 @@ class _UnreadDivider extends StatelessWidget {
         OnmuChip(label: '$count개의 새 메시지', selected: true),
         const SizedBox(width: AppSpacing.sm),
         const Expanded(child: Divider(color: AppColors.linePink)),
+      ],
+    );
+  }
+}
+
+class _ChatRoomContextCard extends StatelessWidget {
+  const _ChatRoomContextCard({
+    required this.group,
+    required this.onMembersTap,
+    required this.onPlansTap,
+    required this.onSettingsTap,
+  });
+
+  final GroupSummary group;
+  final VoidCallback onMembersTap;
+  final VoidCallback onPlansTap;
+  final VoidCallback onSettingsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = group.description.trim();
+    final pinnedPlanTitle = group.pinnedPlanTitle.trim();
+    final lastMessage = group.lastMessage.trim();
+
+    return Semantics(
+      container: true,
+      label: '${group.name} 채팅방 정보',
+      child: OnmuCard(
+        backgroundColor: AppColors.bgDefault,
+        borderColor: AppColors.lineSoft,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GroupAvatarCluster(
+                  members: group.displayMemberAvatars,
+                  avatarSize: 36,
+                  overlap: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        description.isEmpty ? '함께 대화를 이어가 보세요.' : description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (pinnedPlanTitle.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        _ChatRoomMetaLine(
+                          icon: Icons.event_note_outlined,
+                          label: pinnedPlanTitle,
+                        ),
+                      ],
+                      if (lastMessage.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        _ChatRoomMetaLine(
+                          icon: Icons.chat_bubble_outline,
+                          label: lastMessage,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                OnmuChip(
+                  label: '멤버 ${group.members.length}명',
+                  icon: Icons.groups_2_outlined,
+                  onTap: onMembersTap,
+                ),
+                OnmuChip(
+                  label: '약속 보기',
+                  icon: Icons.event_note_outlined,
+                  onTap: onPlansTap,
+                ),
+                OnmuChip(
+                  label: '모임 설정',
+                  icon: Icons.tune_outlined,
+                  onTap: onSettingsTap,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatRoomMetaLine extends StatelessWidget {
+  const _ChatRoomMetaLine({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textMuted),
+        const SizedBox(width: AppSpacing.xxs),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+        ),
       ],
     );
   }

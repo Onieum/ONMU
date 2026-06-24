@@ -2085,6 +2085,54 @@ void main() {
     expect(find.text('첫 메시지를 입력해보세요'), findsOneWidget);
   });
 
+  testWidgets('group chat shows room context summary and quick actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('우리, 또 하나의 추억을 만들자'), findsOneWidget);
+    expect(find.text('제주도 여행 D-7'), findsOneWidget);
+    expect(find.text('제주도 준비물 체크리스트를 고정해뒀어요.'), findsOneWidget);
+    expect(find.text('멤버 8명'), findsOneWidget);
+    expect(find.text('약속 보기'), findsOneWidget);
+    expect(find.text('모임 설정'), findsOneWidget);
+  });
+
+  testWidgets('group chat context member chip opens member list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('멤버 8명'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('모임원'), findsOneWidget);
+    expect(find.text('대학 동기 여행단 · 8명'), findsOneWidget);
+  });
+
+  testWidgets('group chat context plan chip opens group plan list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('약속 보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('약속 만들기'), findsOneWidget);
+  });
+
   testWidgets('group chat send button stays disabled until message is ready', (
     tester,
   ) async {
@@ -2457,6 +2505,12 @@ void main() {
 
     expect(store.fetchUnreadNotificationCount(), 2);
     expect(find.text('대학 동기 여행단'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'), findsOneWidget);
   });
 

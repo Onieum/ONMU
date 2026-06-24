@@ -35,7 +35,7 @@ class GroupSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _AvatarCluster(members: group.displayMemberAvatars),
+              GroupAvatarCluster(members: group.displayMemberAvatars),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -1043,27 +1043,41 @@ class FinalSettlementResultRow extends StatelessWidget {
   }
 }
 
-class _AvatarCluster extends StatelessWidget {
-  const _AvatarCluster({required this.members});
+class GroupAvatarCluster extends StatelessWidget {
+  const GroupAvatarCluster({
+    required this.members,
+    super.key,
+    this.maxMembers = 3,
+    this.avatarSize = 34,
+    this.overlap = 18,
+  });
 
   final List<GroupPlanMemberAvatar> members;
+  final int maxMembers;
+  final double avatarSize;
+  final double overlap;
 
   @override
   Widget build(BuildContext context) {
+    final displayMembers = members.isEmpty
+        ? const [GroupPlanMemberAvatar(name: '온')]
+        : members.take(maxMembers).toList(growable: false);
+    final width = avatarSize + overlap * (displayMembers.length - 1);
+
     return SizedBox(
-      width: 72,
-      height: 34,
+      width: width,
+      height: avatarSize,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (var index = 0; index < members.take(3).length; index += 1)
+          for (var index = 0; index < displayMembers.length; index += 1)
             Positioned(
-              left: index * 18,
+              left: index * overlap,
               child: PixelAvatar(
-                label: members[index].name,
-                profileImageUrl: members[index].profileImageUrl,
-                character: members[index].character,
-                size: 34,
+                label: displayMembers[index].name,
+                profileImageUrl: displayMembers[index].profileImageUrl,
+                character: displayMembers[index].character,
+                size: avatarSize,
               ),
             ),
         ],
