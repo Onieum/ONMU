@@ -35,7 +35,7 @@ class GroupSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _AvatarCluster(members: group.displayMemberAvatars),
+              GroupAvatarCluster(members: group.displayMemberAvatars),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -204,35 +204,53 @@ class PinnedPlanCard extends StatelessWidget {
 }
 
 class ChatMessageBubble extends StatelessWidget {
-  const ChatMessageBubble({required this.message, this.onRetry, super.key});
+  const ChatMessageBubble({
+    required this.message,
+    this.showAvatar = true,
+    this.showSenderName = true,
+    this.onRetry,
+    super.key,
+  });
 
   final GroupMessage message;
+  final bool showAvatar;
+  final bool showSenderName;
   final VoidCallback? onRetry;
+
+  static const double _avatarSize = 32;
 
   @override
   Widget build(BuildContext context) {
     if (!message.isMine) {
       return Align(
         alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PixelAvatar(
-              label: message.sender,
-              size: 32,
-              profileImageUrl: message.senderProfileImageUrl,
-              character: message.senderCharacter,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: _ChatMessageContent(
-                message: message,
-                maxWidth: 246,
-                onRetry: onRetry,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: showAvatar ? 0 : _avatarSize + AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showAvatar) ...[
+                PixelAvatar(
+                  label: message.sender,
+                  size: _avatarSize,
+                  profileImageUrl: message.senderProfileImageUrl,
+                  character: message.senderCharacter,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+              ],
+              Flexible(
+                child: _ChatMessageContent(
+                  message: message,
+                  maxWidth: 246,
+                  showSenderName: showSenderName,
+                  onRetry: onRetry,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -242,6 +260,7 @@ class ChatMessageBubble extends StatelessWidget {
       child: _ChatMessageContent(
         message: message,
         maxWidth: 286,
+        showSenderName: false,
         onRetry: onRetry,
       ),
     );
@@ -353,11 +372,13 @@ class _ChatMessageContent extends StatelessWidget {
   const _ChatMessageContent({
     required this.message,
     required this.maxWidth,
+    required this.showSenderName,
     this.onRetry,
   });
 
   final GroupMessage message;
   final double maxWidth;
+  final bool showSenderName;
   final VoidCallback? onRetry;
 
   @override
@@ -379,7 +400,7 @@ class _ChatMessageContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!message.isMine) ...[
+              if (!message.isMine && showSenderName) ...[
                 Text(
                   message.sender,
                   style: Theme.of(
@@ -400,15 +421,17 @@ class _ChatMessageContent extends StatelessWidget {
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
                 ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                message.timeLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: message.isMine
-                      ? AppColors.textSub
-                      : AppColors.textMuted,
+              if (message.timeLabel.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  message.timeLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: message.isMine
+                        ? AppColors.textSub
+                        : AppColors.textMuted,
+                  ),
                 ),
-              ),
+              ],
               if (message.isMine &&
                   message.sendStatus != GroupMessageSendStatus.sent)
                 _SendStatusRow(message: message, onRetry: onRetry),
@@ -1020,27 +1043,41 @@ class FinalSettlementResultRow extends StatelessWidget {
   }
 }
 
-class _AvatarCluster extends StatelessWidget {
-  const _AvatarCluster({required this.members});
+class GroupAvatarCluster extends StatelessWidget {
+  const GroupAvatarCluster({
+    required this.members,
+    super.key,
+    this.maxMembers = 3,
+    this.avatarSize = 34,
+    this.overlap = 18,
+  });
 
   final List<GroupPlanMemberAvatar> members;
+  final int maxMembers;
+  final double avatarSize;
+  final double overlap;
 
   @override
   Widget build(BuildContext context) {
+    final displayMembers = members.isEmpty
+        ? const [GroupPlanMemberAvatar(name: '온')]
+        : members.take(maxMembers).toList(growable: false);
+    final width = avatarSize + overlap * (displayMembers.length - 1);
+
     return SizedBox(
-      width: 72,
-      height: 34,
+      width: width,
+      height: avatarSize,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (var index = 0; index < members.take(3).length; index += 1)
+          for (var index = 0; index < displayMembers.length; index += 1)
             Positioned(
-              left: index * 18,
+              left: index * overlap,
               child: PixelAvatar(
-                label: members[index].name,
-                profileImageUrl: members[index].profileImageUrl,
-                character: members[index].character,
-                size: 34,
+                label: displayMembers[index].name,
+                profileImageUrl: displayMembers[index].profileImageUrl,
+                character: displayMembers[index].character,
+                size: avatarSize,
               ),
             ),
         ],

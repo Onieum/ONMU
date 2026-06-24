@@ -100,6 +100,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   Timer? _reconnectTimer;
   Timer? _catchUpTimer;
   Timer? _voteDeadlineTimer;
+  Timer? _planBoundaryTimer;
   bool _realtimeDisposed = false;
   bool _isCatchingUpLatestMessages = false;
   String? _lastReadSyncMessageId;
@@ -154,6 +155,12 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         : _pinnedPlanFor(selectedPlan);
     final planId = selectedPlan?.id ?? 0;
     final settlementCandidatePlans = _settlementCandidatePlans(plans, now);
+    _schedulePlanBoundaryRefresh(
+      groupRepository,
+      settlementRepository,
+      plans,
+      now,
+    );
     List<VoteSummary> votes = const [];
     try {
       if (planId > 0) {
@@ -241,6 +248,18 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     }
   }
 
+  Future<void> refreshAuxiliaryState() async {
+    await _loadAuxiliaryChatState(
+      ref.read(groupRepositoryProvider),
+      ref.read(settlementRepositoryProvider),
+    );
+  }
+
+  Future<void> refreshVisibleState() async {
+    await refreshLatestMessages();
+    await refreshAuxiliaryState();
+  }
+
   List<GroupPlanSummary> _settlementCandidatePlans(
     List<GroupPlanSummary> plans,
     DateTime now,
@@ -290,16 +309,32 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   }
 
   GroupPinnedPlan _pinnedPlanFor(GroupPlanSummary plan) {
+    final now = DateTime.now();
     return GroupPinnedPlan(
       id: plan.id,
       title: plan.title,
       dateLabel: plan.displayDateTimeLabel,
       placeName: plan.placeName,
-      statusLabel: plan.statusType.trim().isNotEmpty
-          ? plan.statusType
-          : plan.statusLabel,
+      statusLabel: _pinnedPlanStatusLabel(plan, now),
       voteSummary: '',
     );
+  }
+
+  String _pinnedPlanStatusLabel(GroupPlanSummary plan, DateTime now) {
+    if (plan.isOngoingAt(now)) {
+      return PlanProgressStatus.active.label;
+    }
+    if (plan.isUpcomingFrom(now)) {
+      return PlanProgressStatus.scheduled.label;
+    }
+    if (plan.hasDisplayStatus) {
+      return plan.displayStatusLabel;
+    }
+    final statusType = plan.statusType.trim();
+    if (statusType.isNotEmpty) {
+      return statusType;
+    }
+    return plan.statusLabel;
   }
 
   VoteSummary? _selectAuxiliaryVote(
@@ -340,6 +375,54 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       }
       state = AsyncData(latest.copyWith(clearVote: true, voteId: 0));
     });
+  }
+
+  void _schedulePlanBoundaryRefresh(
+    GroupRepository groupRepository,
+    SettlementRepository settlementRepository,
+    List<GroupPlanSummary> plans,
+    DateTime now,
+  ) {
+    _planBoundaryTimer?.cancel();
+    _planBoundaryTimer = null;
+
+    final nextBoundary = _nextPlanBoundaryAfter(plans, now);
+    if (nextBoundary == null) {
+      return;
+    }
+
+    final delay = nextBoundary.difference(now.toLocal());
+    if (delay <= Duration.zero) {
+      return;
+    }
+
+    _planBoundaryTimer = Timer(delay + const Duration(milliseconds: 250), () {
+      if (_realtimeDisposed) {
+        return;
+      }
+      unawaited(_loadAuxiliaryChatState(groupRepository, settlementRepository));
+    });
+  }
+
+  DateTime? _nextPlanBoundaryAfter(List<GroupPlanSummary> plans, DateTime now) {
+    final localNow = now.toLocal();
+    final boundaries = <DateTime>[];
+    for (final plan in plans) {
+      final startsAt = plan.startsAt?.toLocal();
+      if (startsAt != null && startsAt.isAfter(localNow)) {
+        boundaries.add(startsAt);
+      }
+
+      final endsAt = plan.endsAt?.toLocal();
+      if (endsAt != null && endsAt.isAfter(localNow)) {
+        boundaries.add(endsAt);
+      }
+    }
+    if (boundaries.isEmpty) {
+      return null;
+    }
+    boundaries.sort();
+    return boundaries.first;
   }
 
   bool _voteSummaryMatchesPlan(VoteSummary vote, int planId) {
@@ -705,6 +788,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     _reconnectTimer?.cancel();
     _catchUpTimer?.cancel();
     _voteDeadlineTimer?.cancel();
+    _planBoundaryTimer?.cancel();
     _realtimeSubscription?.cancel();
   }
 

@@ -1971,6 +1971,64 @@ void main() {
     expect(unreadDividerTop, lessThan(firstUnreadTop));
   });
 
+  testWidgets(
+    'group chat renders ongoing pinned plan with active status chip',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            groupRepositoryProvider.overrideWithValue(
+              _OngoingPlanGroupRepository(),
+            ),
+            settlementRepositoryProvider.overrideWithValue(
+              TestSettlementRepository(InMemoryOnmuStore.seeded()),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const GroupChatPage(groupId: '4'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('지금 진행 중인 약속'), findsOneWidget);
+      expect(find.text('진행 중'), findsOneWidget);
+      expect(find.text('예정'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'group chat groups consecutive incoming messages from same sender',
+    (tester) async {
+      final store = InMemoryOnmuStore.seeded();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            groupRepositoryProvider.overrideWithValue(
+              _GroupedTimelineGroupRepository(store),
+            ),
+            settlementRepositoryProvider.overrideWithValue(
+              TestSettlementRepository(store),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const GroupChatPage(groupId: '1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('첫 번째 묶음 메시지'), findsOneWidget);
+      expect(find.text('두 번째 묶음 메시지'), findsOneWidget);
+      expect(find.text('묶음테스터'), findsOneWidget);
+      expect(find.text('19:00'), findsNothing);
+      expect(find.text('19:01'), findsOneWidget);
+    },
+  );
+
   testWidgets('group chat renders input without vote or settlement cards', (
     tester,
   ) async {
@@ -1998,6 +2056,228 @@ void main() {
     expect(find.text('메시지를 입력해보세요'), findsOneWidget);
     expect(find.text('투표 보기'), findsNothing);
     expect(find.text('정산 확인하기'), findsNothing);
+  });
+
+  testWidgets('group chat shows empty state when there are no messages', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _EmptyTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('아직 대화가 없어요.'), findsOneWidget);
+    expect(find.text('첫 메시지를 입력해보세요'), findsOneWidget);
+  });
+
+  testWidgets('group chat shows room context summary and quick actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    expect(find.text('우리, 또 하나의 추억을 만들자'), findsOneWidget);
+    expect(find.text('제주도 여행 D-7'), findsOneWidget);
+    expect(find.text('제주도 준비물 체크리스트를 고정해뒀어요.'), findsOneWidget);
+    expect(find.text('멤버 8명'), findsOneWidget);
+    expect(find.text('약속 보기'), findsOneWidget);
+    expect(find.text('모임 설정'), findsOneWidget);
+  });
+
+  testWidgets('group chat context member chip opens member list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('멤버 8명'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('모임원'), findsOneWidget);
+    expect(find.text('대학 동기 여행단 · 8명'), findsOneWidget);
+  });
+
+  testWidgets('group chat context plan chip opens group plan list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testOnmuApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+
+    appRouter.go(RoutePaths.groupChat(_groupId));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('약속 보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('약속 만들기'), findsOneWidget);
+  });
+
+  testWidgets('group chat search finds messages and navigates matches', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _SearchTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 검색'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('group-chat-search-field')),
+      '카페',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('다음 검색 결과'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('검색 닫기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('group-chat-search-field')), findsNothing);
+  });
+
+  testWidgets('group chat failed notice retries failed messages in batch', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+    final repository = _RetryNoticeGroupRepository(store);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(repository),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('전송 실패한 메시지 1개'), findsOneWidget);
+
+    await tester.tap(find.text('전체 재시도'));
+    await tester.pumpAndSettle();
+
+    expect(repository.retrySendCount, 1);
+    expect(find.text('전송 실패한 메시지 1개'), findsNothing);
+    expect(find.text('전송 실패'), findsNothing);
+  });
+
+  testWidgets('group chat send button stays disabled until message is ready', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _EmptyTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final sendButtonFinder = find.byWidgetPredicate(
+      (widget) => widget is IconButton && widget.tooltip == '전송',
+    );
+
+    var sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.pump();
+
+    sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), '보낼 메시지');
+    await tester.pump();
+
+    sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNotNull);
+  });
+
+  testWidgets('group chat shows retry state when initial load fails', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _ChatLoadErrorGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('채팅을 불러오지 못했어요.'), findsOneWidget);
+    expect(find.text('다시 불러오기'), findsOneWidget);
   });
 
   testWidgets('group chat action launcher shows core actions', (tester) async {
@@ -2302,6 +2582,12 @@ void main() {
 
     expect(store.fetchUnreadNotificationCount(), 2);
     expect(find.text('대학 동기 여행단'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('다들 안녕! 드디어 다음 주에 제주도네 날씨도 좋아 보이더라구.'), findsOneWidget);
   });
 
@@ -2396,6 +2682,19 @@ class _NoAuxGroupRepository extends TestGroupRepository {
   }) async => [];
 }
 
+class _EmptyTimelineGroupRepository extends _NoAuxGroupRepository {
+  _EmptyTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(messages: []);
+  }
+}
+
 class _TimelineGroupRepository extends _NoAuxGroupRepository {
   _TimelineGroupRepository(super.store);
 
@@ -2434,6 +2733,132 @@ class _TimelineGroupRepository extends _NoAuxGroupRepository {
         ),
       ],
     );
+  }
+}
+
+class _GroupedTimelineGroupRepository extends _NoAuxGroupRepository {
+  _GroupedTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'grouped-message-1',
+          cursor: '2026-06-09T19:00:00+09:00',
+          sender: '묶음테스터',
+          message: '첫 번째 묶음 메시지',
+          timeLabel: '19:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'grouped-message-2',
+          cursor: '2026-06-09T19:01:00+09:00',
+          sender: '묶음테스터',
+          message: '두 번째 묶음 메시지',
+          timeLabel: '19:01',
+          isMine: false,
+        ),
+      ],
+    );
+  }
+}
+
+class _SearchTimelineGroupRepository extends _NoAuxGroupRepository {
+  _SearchTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'search-message-1',
+          cursor: '2026-06-09T18:00:00+09:00',
+          sender: '민서',
+          message: '오늘 카페 먼저 들를까?',
+          timeLabel: '18:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'search-message-2',
+          cursor: '2026-06-09T18:02:00+09:00',
+          sender: '나',
+          message: '좋아, 카페에서 만나자',
+          timeLabel: '18:02',
+          isMine: true,
+        ),
+        GroupMessage(
+          id: 'search-message-3',
+          cursor: '2026-06-09T18:05:00+09:00',
+          sender: '현우',
+          message: '그러면 식당은 나중에 정하자',
+          timeLabel: '18:05',
+          isMine: false,
+        ),
+      ],
+    );
+  }
+}
+
+class _RetryNoticeGroupRepository extends _NoAuxGroupRepository {
+  _RetryNoticeGroupRepository(super.store);
+
+  var retrySendCount = 0;
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'failed-message-1',
+          cursor: '2026-06-09T20:30:00+09:00',
+          sender: '나',
+          message: '다시 보내야 하는 메시지',
+          timeLabel: '전송 실패',
+          isMine: true,
+          sendStatus: GroupMessageSendStatus.failed,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+    List<GroupMessageAttachment> attachments = const [],
+  }) async {
+    retrySendCount += 1;
+    return GroupMessage(
+      id: 'retried-message-$retrySendCount',
+      cursor: '2026-06-09T20:31:00+09:00',
+      sender: '나',
+      message: message,
+      timeLabel: '방금',
+      isMine: true,
+      attachments: attachments,
+    );
+  }
+}
+
+class _ChatLoadErrorGroupRepository extends _NoAuxGroupRepository {
+  _ChatLoadErrorGroupRepository(super.store);
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) {
+    throw StateError('chat load failed');
   }
 }
 
