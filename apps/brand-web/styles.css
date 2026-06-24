@@ -403,31 +403,34 @@ button:focus-visible {
 }
 
 .hero-phone-stack {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: end;
+  position: relative;
   justify-self: center;
-  width: min(100%, 486px);
-  gap: 18px;
-  min-height: auto;
+  width: min(100%, 430px);
+  min-height: 676px;
+  animation: phone-float 6s ease-in-out infinite;
 }
 
 .app-screenshot-hero {
+  position: relative;
   z-index: 2;
-  justify-self: end;
-  transform: none;
+  margin-left: auto;
+  transform: rotate(1.4deg);
 }
 
 .hero-phone-secondary {
+  position: absolute;
+  top: 46px;
+  left: 0;
   z-index: 1;
-  width: min(100%, 306px);
-  opacity: 1;
-  transform: translateY(38px);
-  box-shadow: 0 18px 42px rgba(58, 42, 35, 0.14);
+  width: min(100%, 292px);
+  opacity: 0.72;
+  transform: rotate(-5deg);
+  box-shadow: 0 22px 54px rgba(58, 42, 35, 0.16);
 }
 
 .app-screenshot-secondary {
-  transform: none;
+  transform: translateY(10px) rotate(4deg);
+  transform-origin: center bottom;
 }
 
 .app-screenshot-frame img {
@@ -1164,6 +1167,17 @@ button:focus-visible {
   font-weight: 800;
 }
 
+@keyframes phone-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 body.reveal-ready .reveal-item {
   transform: translateY(14px);
   transition: transform 360ms ease;
@@ -1218,12 +1232,18 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
     justify-self: start;
   }
 
-  .app-screenshot-secondary {
-    transform: none;
+  .hero-phone-secondary {
+    left: 24px;
+    opacity: 0.56;
+    transform: rotate(-4.5deg);
   }
 
-  .hero-phone-secondary {
-    transform: translateY(26px);
+  .app-screenshot-hero {
+    transform: rotate(1.8deg);
+  }
+
+  .app-screenshot-secondary {
+    transform: translateY(8px) rotate(3deg);
   }
 
   .screen-showcase {
@@ -1440,13 +1460,15 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
 
   .hero-phone-stack {
     width: min(100%, 342px);
-    min-height: auto;
+    min-height: 570px;
     justify-self: center;
-    gap: 0;
   }
 
   .hero-phone-secondary {
-    display: none;
+    top: 36px;
+    left: 10px;
+    width: min(72%, 240px);
+    opacity: 0.28;
   }
 
   .app-screenshot-hero {
@@ -1472,6 +1494,10 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .hero-phone-stack {
+    animation: none;
   }
 
   body.reveal-ready .reveal-item {
