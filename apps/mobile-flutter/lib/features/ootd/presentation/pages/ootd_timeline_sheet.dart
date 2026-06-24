@@ -570,12 +570,12 @@ class _TimelineBottomSheetContentState
               ),
               const SizedBox(height: 16),
               SizedBox(
-                height: 170,
+                height: 260,
                 child: Center(
                   child: OotdGeneratedImageView(
                     record: ootdRecord,
-                    characterSize: 130,
-                    height: 170,
+                    characterSize: 190,
+                    height: 260,
                     fit: BoxFit.contain,
                     showFallbackCharacter: false,
                   ),
@@ -850,12 +850,43 @@ class _TimelineBottomSheetContentState
     return bytes;
   }
 
+  Future<Uint8List> _downloadGeneratedRecordImageBytes(
+    OotdRecord activeRecord,
+  ) async {
+    final generatedUrl = generatedOotdImageUrl(activeRecord);
+    final avatarUrl = generatedOotdAvatarImageUrl(activeRecord);
+    final imageUrl = generatedUrl.isNotEmpty ? generatedUrl : avatarUrl;
+    if (imageUrl.isEmpty) {
+      return _captureRecordImageBytes();
+    }
+
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(Uri.parse(imageUrl));
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('생성 이미지 다운로드에 실패했어요. (${response.statusCode})');
+      }
+      return consolidateHttpClientResponseBytes(response);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<Uint8List> _recordImageBytesForSave(OotdRecord activeRecord) {
+    final isDaily = activeRecord.brands['recordType'] == 'daily';
+    if (isDaily) {
+      return _captureRecordImageBytes();
+    }
+    return _downloadGeneratedRecordImageBytes(activeRecord);
+  }
+
   Future<void> _saveActiveRecordImage(OotdRecord activeRecord) async {
     if (_isSavingRecordImage) return;
     setState(() => _isSavingRecordImage = true);
 
     try {
-      final bytes = await _captureRecordImageBytes();
+      final bytes = await _recordImageBytesForSave(activeRecord);
       final type = activeRecord.brands['recordType'] == 'daily'
           ? 'daily'
           : 'ootd';
