@@ -98,7 +98,7 @@ class _GroupHomeContentState extends ConsumerState<_GroupHomeContent> {
               key: const ValueKey('group-home-create-plan-fab'),
               tooltip: '약속 만들기',
               onPressed: () => context.push(RoutePaths.planNew(group.id)),
-              backgroundColor: AppColors.primaryPurple,
+              backgroundColor: AppColors.primaryPink,
               foregroundColor: AppColors.textInverse,
               child: const Icon(Icons.add),
             )
