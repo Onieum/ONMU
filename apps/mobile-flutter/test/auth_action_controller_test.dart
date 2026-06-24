@@ -277,11 +277,55 @@ void main() {
       expect(await tokenStore.read(), isNull);
     },
   );
+
+  test(
+    'signOut clears local session without touching provider session',
+    () async {
+      final tokenStore = InMemoryAuthTokenStore();
+      final apiClient = OnmuApiClient(
+        Dio(BaseOptions(baseUrl: defaultOnmuApiBaseUrl)),
+      );
+      final repository = RecordingAuthRepository();
+      final socialAuthService = RecordingSignOutSocialAuthService();
+      final container = ProviderContainer(
+        overrides: [
+          socialAuthServiceProvider.overrideWithValue(socialAuthService),
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(tokenStore),
+          onmuApiClientProvider.overrideWithValue(apiClient),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tokenStore.save(
+        const OnmuAuthTokens(
+          accessToken: 'onmu-access-jwt',
+          refreshToken: 'onmu-refresh-token',
+        ),
+      );
+      apiClient.setAccessToken('onmu-access-jwt');
+      container.read(authUserProvider.notifier).state = const AuthUser(
+        id: 'usr_kakao',
+        publicId: 'usr_kakao',
+        provider: 'KAKAO',
+        nickname: '카카오 사용자',
+      );
+
+      await container.read(authActionProvider).signOut();
+
+      expect(repository.lastLogoutRefreshToken, 'onmu-refresh-token');
+      expect(socialAuthService.signOutCallCount, 0);
+      expect(container.read(authUserProvider), isNull);
+      expect(apiClient.authorizationHeader, isNull);
+      expect(await tokenStore.read(), isNull);
+    },
+  );
 }
 
 class RecordingAuthRepository implements AuthRepository {
   OAuthProviderCredential? lastCredential;
   AuthUser? currentUser;
+  String? lastLogoutRefreshToken;
 
   @override
   Future<AuthUser?> fetchCurrentUser() async => currentUser;
@@ -308,8 +352,19 @@ class RecordingAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> logout(String? refreshToken) async {}
+  Future<void> logout(String? refreshToken) async {
+    lastLogoutRefreshToken = refreshToken;
+  }
 
   @override
   Future<void> withdraw() async {}
+}
+
+class RecordingSignOutSocialAuthService extends SocialAuthService {
+  int signOutCallCount = 0;
+
+  @override
+  Future<void> signOut({String? provider, String? onmuApiBaseUrl}) async {
+    signOutCallCount += 1;
+  }
 }

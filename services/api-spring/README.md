@@ -93,12 +93,14 @@ Object storage는 provider abstraction을 사용한다. local/dev 기본값은 `
 | `ONMU_ACCESS_TOKEN_SECRET` | 로컬 dev 기본값 | HS256 access JWT 서명 secret. 공유 dev/integration은 Key Vault의 `dev-access-token-secret` 또는 `int-access-token-secret`에서 주입 |
 | `ONMU_API_ACCESS_TOKEN` | 없음 | legacy 정적 token 이름. 현재 Spring 인증 필터는 이 값을 access token으로 검증하지 않음 |
 | `ONMU_API_REFRESH_TOKEN` | 없음 | legacy refresh smoke token 이름. refresh token 저장/회전 구현 검증 외에는 Flutter 실행 token으로 쓰지 않음 |
+| `ONMU_PUBLIC_BASE_URL` | `http://localhost:8080` | Kakao logout redirect URI처럼 provider console에 등록하는 public callback URL의 base. `KAKAO_OAUTH_LOGOUT_REDIRECT_URI`가 없으면 `${ONMU_PUBLIC_BASE_URL}/api/v1/auth/oauth/kakao/logout/callback`를 사용 |
 | `ONMU_CORS_ORIGINS` | 없음 | dev/integration 공통 CORS origin 목록. `ONMU_DEV_CORS_ORIGINS`은 dev fallback |
 | `ONMU_OAUTH_KAKAO_USER_INFO_URL` | `https://kapi.kakao.com/v2/user/me` | Kakao provider access token 검증용 user info endpoint override |
 | `ONMU_OAUTH_NAVER_USER_INFO_URL` | `https://openapi.naver.com/v1/nid/me` | Naver provider access token 검증용 user info endpoint override |
 | `KAKAO_REST_API_KEY` | 없음 | Kakao authorization code token exchange에 필요한 OAuth client id이자 Kakao Local Keyword Search 서버 전용 REST API key. Flutter에 전달하지 않음 |
 | `KAKAO_CLIENT_SECRET` | 없음 | Kakao authorization code token exchange에 필요한 서버 전용 OAuth secret. Key Vault secret name은 `dev-kakao-client-secret` 또는 `int-kakao-client-secret`이며 Flutter에 넣지 않음 |
 | `KAKAO_OAUTH_REDIRECT_URI` | `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback` | Kakao token exchange에 사용하는 redirect URI |
+| `KAKAO_OAUTH_LOGOUT_REDIRECT_URI` | 없음 | Kakao 계정 로그아웃 후 Spring callback으로 돌아오는 public redirect URI. 없으면 `ONMU_PUBLIC_BASE_URL` 기준 callback path를 사용 |
 | `KAKAO_OAUTH_TOKEN_URL` | `https://kauth.kakao.com/oauth/token` | Kakao authorization code token endpoint override |
 | `KAKAO_OAUTH_MOBILE_CALLBACK_URI` | `io.onieum.onmu://oauth/kakao/callback` | Spring callback이 Flutter 앱으로 code/state를 넘길 때 사용하는 mobile deep link |
 | `NAVER_OAUTH_CLIENT_ID` | 없음 | Naver authorization code token exchange에 필요한 서버 전용 OAuth client id |
@@ -215,6 +217,15 @@ Kakao redirect URI 후보:
 - `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 - prod later: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
 
+ONMU의 기본 로그아웃은 refresh token 폐기와 로컬 세션 정리까지만 수행합니다. Kakao 계정 로그아웃까지 함께 처리하는 동작은 별도 선택형 액션으로 분리하고, 그때는 `GET /api/v1/auth/oauth/kakao/logout`을 브라우저로 열어 시작합니다. Spring은 Kakao 계정 로그아웃 URL로 redirect하고, Kakao Developers 콘솔에는 아래 redirect URI를 등록합니다.
+
+- `http://localhost:8080/api/v1/auth/oauth/kakao/logout/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/logout/callback`
+- `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/logout/callback`
+- future prod: `https://api.onmu.cloud/api/v1/auth/oauth/kakao/logout/callback`
+
+선택형 Kakao 계정 로그아웃 callback은 `KAKAO_OAUTH_MOBILE_CALLBACK_URI` deep link로 `logout=true`, `provider=kakao` query를 붙여 앱으로 복귀합니다.
+
 Naver authorization code token exchange도 같은 exchange seam을 사용합니다. 서버 전용 설정은 `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`을 사용합니다. `GET /api/v1/auth/oauth/naver/callback`은 Naver callback에서 받은 `code`, `state`, `error`를 `NAVER_OAUTH_MOBILE_CALLBACK_URI` deep link로 넘기며, token 발급은 Flutter가 다시 호출하는 `POST /api/v1/auth/oauth/naver`에서 수행합니다.
 
 Naver redirect URI 후보:
@@ -223,6 +234,13 @@ Naver redirect URI 후보:
 - `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
 - `https://int-api.onmu.cloud/api/v1/auth/oauth/naver/callback`
 - future prod: `https://api.onmu.cloud/api/v1/auth/oauth/naver/callback`
+
+Naver Developers의 연결 끊기 Callback URL은 계정 연동 해제 또는 회원탈퇴 같은 별도 액션을 위한 public endpoint로 아래 값을 사용합니다.
+
+- `http://localhost:8080/api/v1/auth/oauth/naver/disconnect/callback`
+- `https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/disconnect/callback`
+- `https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/disconnect/callback`
+- future prod: `https://api.onmu.cloud/api/v1/auth/oauth/naver/disconnect/callback`
 
 Spring Boot는 canonical route를 우선 구현합니다. `POST /api/v1/groups/{groupId}/plans/{planId}/votes`와 `GET /api/v1/place-search?query=...` 같은 과거 compatibility route는 이 Spring scaffold에 추가하지 않았습니다.
 

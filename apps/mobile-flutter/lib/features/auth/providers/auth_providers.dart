@@ -151,7 +151,6 @@ class AuthActionController {
     if (deactivateDevice) {
       await _deactivateCurrentDevice();
     }
-    await _ref.read(socialAuthServiceProvider).signOut();
     await _ref.read(authTokenStoreProvider).clear();
     _ref.read(onmuApiClientProvider).clearAccessToken();
     _ref.read(authUserProvider.notifier).state = null;
