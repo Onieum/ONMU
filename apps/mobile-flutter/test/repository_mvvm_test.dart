@@ -1590,6 +1590,7 @@ void main() {
     expect(state.planId, 102);
     expect(state.pinnedPlan?.id, 102);
     expect(state.pinnedPlan?.title, '가장 가까운 미래 약속');
+    expect(state.pinnedPlan?.displayStatusLabel, '예정');
   });
 
   test('채팅 ViewModel은 진행 중인 약속을 미래 약속보다 먼저 보조 카드로 선택한다', () async {
@@ -1644,6 +1645,7 @@ void main() {
     final state = container.read(provider).requireValue;
     expect(state.planId, 201);
     expect(state.pinnedPlan?.title, '지금 진행 중인 약속');
+    expect(state.pinnedPlan?.displayStatusLabel, '진행 중');
   });
 
   test('채팅 ViewModel은 지나지 않은 약속이 없으면 보조 약속 카드를 숨긴다', () async {

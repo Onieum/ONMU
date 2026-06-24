@@ -290,16 +290,32 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   }
 
   GroupPinnedPlan _pinnedPlanFor(GroupPlanSummary plan) {
+    final now = DateTime.now();
     return GroupPinnedPlan(
       id: plan.id,
       title: plan.title,
       dateLabel: plan.displayDateTimeLabel,
       placeName: plan.placeName,
-      statusLabel: plan.statusType.trim().isNotEmpty
-          ? plan.statusType
-          : plan.statusLabel,
+      statusLabel: _pinnedPlanStatusLabel(plan, now),
       voteSummary: '',
     );
+  }
+
+  String _pinnedPlanStatusLabel(GroupPlanSummary plan, DateTime now) {
+    if (plan.isOngoingAt(now)) {
+      return PlanProgressStatus.active.label;
+    }
+    if (plan.isUpcomingFrom(now)) {
+      return PlanProgressStatus.scheduled.label;
+    }
+    if (plan.hasDisplayStatus) {
+      return plan.displayStatusLabel;
+    }
+    final statusType = plan.statusType.trim();
+    if (statusType.isNotEmpty) {
+      return statusType;
+    }
+    return plan.statusLabel;
   }
 
   VoteSummary? _selectAuxiliaryVote(

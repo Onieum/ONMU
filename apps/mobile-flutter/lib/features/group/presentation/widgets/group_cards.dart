@@ -204,35 +204,53 @@ class PinnedPlanCard extends StatelessWidget {
 }
 
 class ChatMessageBubble extends StatelessWidget {
-  const ChatMessageBubble({required this.message, this.onRetry, super.key});
+  const ChatMessageBubble({
+    required this.message,
+    this.showAvatar = true,
+    this.showSenderName = true,
+    this.onRetry,
+    super.key,
+  });
 
   final GroupMessage message;
+  final bool showAvatar;
+  final bool showSenderName;
   final VoidCallback? onRetry;
+
+  static const double _avatarSize = 32;
 
   @override
   Widget build(BuildContext context) {
     if (!message.isMine) {
       return Align(
         alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PixelAvatar(
-              label: message.sender,
-              size: 32,
-              profileImageUrl: message.senderProfileImageUrl,
-              character: message.senderCharacter,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: _ChatMessageContent(
-                message: message,
-                maxWidth: 246,
-                onRetry: onRetry,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: showAvatar ? 0 : _avatarSize + AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showAvatar) ...[
+                PixelAvatar(
+                  label: message.sender,
+                  size: _avatarSize,
+                  profileImageUrl: message.senderProfileImageUrl,
+                  character: message.senderCharacter,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+              ],
+              Flexible(
+                child: _ChatMessageContent(
+                  message: message,
+                  maxWidth: 246,
+                  showSenderName: showSenderName,
+                  onRetry: onRetry,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -242,6 +260,7 @@ class ChatMessageBubble extends StatelessWidget {
       child: _ChatMessageContent(
         message: message,
         maxWidth: 286,
+        showSenderName: false,
         onRetry: onRetry,
       ),
     );
@@ -353,11 +372,13 @@ class _ChatMessageContent extends StatelessWidget {
   const _ChatMessageContent({
     required this.message,
     required this.maxWidth,
+    required this.showSenderName,
     this.onRetry,
   });
 
   final GroupMessage message;
   final double maxWidth;
+  final bool showSenderName;
   final VoidCallback? onRetry;
 
   @override
@@ -379,7 +400,7 @@ class _ChatMessageContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!message.isMine) ...[
+              if (!message.isMine && showSenderName) ...[
                 Text(
                   message.sender,
                   style: Theme.of(

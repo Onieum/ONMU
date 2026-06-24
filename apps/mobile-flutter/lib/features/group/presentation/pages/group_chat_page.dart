@@ -12,6 +12,7 @@ import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/settlement_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../repository/media_repository.dart';
 import '../../view_model/group_chat_view_model.dart';
@@ -448,16 +449,39 @@ class _ThreadContent extends StatelessWidget {
   List<Widget> _timelineChildren(BuildContext context) {
     final children = <Widget>[];
     final fallbackDate = DateTime.now();
+    final messages = state.messages;
     final unreadStartIndex = _unreadStartIndex(
-      state.messages.length,
+      messages.length,
       state.unreadCount,
     );
     String? previousDateKey;
 
-    for (var index = 0; index < state.messages.length; index += 1) {
-      final message = state.messages[index];
+    for (var index = 0; index < messages.length; index += 1) {
+      final message = messages[index];
       final messageDate = _localDateForMessage(message, fallbackDate);
       final dateKey = _dateKey(messageDate);
+      final previousMessage = index > 0 ? messages[index - 1] : null;
+      final previousMessageDate = previousMessage == null
+          ? null
+          : _localDateForMessage(previousMessage, fallbackDate);
+      final nextMessage = index + 1 < messages.length
+          ? messages[index + 1]
+          : null;
+      final nextMessageDate = nextMessage == null
+          ? null
+          : _localDateForMessage(nextMessage, fallbackDate);
+      final groupedWithPrevious = _canGroupTimelineMessages(
+        previousMessage,
+        message,
+        previousDate: previousMessageDate,
+        currentDate: messageDate,
+      );
+      final groupedWithNext = _canGroupTimelineMessages(
+        message,
+        nextMessage,
+        previousDate: messageDate,
+        currentDate: nextMessageDate,
+      );
       if (dateKey != previousDateKey) {
         children
           ..add(_DateDivider(label: _dateDividerLabel(messageDate)))
@@ -470,14 +494,28 @@ class _ThreadContent extends StatelessWidget {
           ..add(const SizedBox(height: AppSpacing.md));
       }
       children
-        ..add(_messageWidget(context, message))
-        ..add(const SizedBox(height: AppSpacing.sm));
+        ..add(
+          _messageWidget(
+            context,
+            message,
+            showAvatar: !groupedWithPrevious,
+            showSenderName: !groupedWithPrevious,
+          ),
+        )
+        ..add(
+          SizedBox(height: groupedWithNext ? AppSpacing.xxs : AppSpacing.sm),
+        );
     }
 
     return children;
   }
 
-  Widget _messageWidget(BuildContext context, GroupMessage message) {
+  Widget _messageWidget(
+    BuildContext context,
+    GroupMessage message, {
+    required bool showAvatar,
+    required bool showSenderName,
+  }) {
     if (message.isActivity) {
       return ChatActivityCard(
         message: message,
@@ -486,8 +524,47 @@ class _ThreadContent extends StatelessWidget {
     }
     return ChatMessageBubble(
       message: message,
+      showAvatar: showAvatar,
+      showSenderName: showSenderName,
       onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
     );
+  }
+
+  bool _canGroupTimelineMessages(
+    GroupMessage? previous,
+    GroupMessage? current, {
+    required DateTime? previousDate,
+    required DateTime? currentDate,
+  }) {
+    if (previous == null ||
+        current == null ||
+        previousDate == null ||
+        currentDate == null) {
+      return false;
+    }
+    if (previous.isActivity || current.isActivity) {
+      return false;
+    }
+    if (!_isSameLocalDate(previousDate, currentDate)) {
+      return false;
+    }
+    if (previous.isMine != current.isMine) {
+      return false;
+    }
+    if (current.isMine) {
+      return true;
+    }
+    final previousSender = previous.sender.trim();
+    final currentSender = current.sender.trim();
+    return previousSender.isNotEmpty && previousSender == currentSender;
+  }
+
+  bool _isSameLocalDate(DateTime left, DateTime right) {
+    final leftLocal = left.toLocal();
+    final rightLocal = right.toLocal();
+    return leftLocal.year == rightLocal.year &&
+        leftLocal.month == rightLocal.month &&
+        leftLocal.day == rightLocal.day;
   }
 
   int _unreadStartIndex(int messageCount, int unreadCount) {
@@ -996,7 +1073,10 @@ class _PlanChatAnchor extends StatelessWidget {
             ),
           ),
           if (plan.hasDisplayStatus) ...[
-            OnmuChip(label: plan.displayStatusLabel, selected: true),
+            OnmuPlanStatusChip(
+              status: plan.progressStatus,
+              label: plan.displayStatusLabel,
+            ),
             const SizedBox(width: AppSpacing.xs),
           ],
           const Icon(Icons.chevron_right, color: AppColors.textMuted),
