@@ -812,12 +812,6 @@ button:focus-visible {
   object-position: center;
 }
 
-.feature-illustration--square {
-  justify-self: center;
-  width: min(100%, 210px);
-  height: 180px;
-}
-
 .section-trust {
   background: var(--bg);
 }
