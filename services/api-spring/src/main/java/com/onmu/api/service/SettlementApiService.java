@@ -251,7 +251,7 @@ public class SettlementApiService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_settlement_items");
     }
 
-    String publicId = nextPublicId(settlementRepository.findAll().stream().map(SettlementEntity::getPublicId).toList(), 301);
+    String publicId = nextPublicId(settlementRepository.findPublicIds(), 301);
     SettlementEntity settlement = new SettlementEntity(
       publicId,
       access.group(),
@@ -360,7 +360,7 @@ public class SettlementApiService {
 
   private Map<String, Object> createInitialDraft(SettlementAccess access) {
     SettlementDraftEntity draft = new SettlementDraftEntity(
-      nextPublicId(settlementDraftRepository.findAll().stream().map(SettlementDraftEntity::getPublicId).toList(), 301),
+      nextPublicId(settlementDraftRepository.findPublicIds(), 301),
       access.group(),
       access.plan(),
       "{}"

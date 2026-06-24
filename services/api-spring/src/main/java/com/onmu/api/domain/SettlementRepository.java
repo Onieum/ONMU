@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SettlementRepository extends JpaRepository<SettlementEntity, UUID> {
+  @Query("select settlement.publicId from SettlementEntity settlement")
+  List<String> findPublicIds();
+
   List<SettlementEntity> findByPlanOrderByCreatedAtDesc(PlanEntity plan);
 
   Optional<SettlementEntity> findFirstByPlanOrderByCreatedAtDesc(PlanEntity plan);

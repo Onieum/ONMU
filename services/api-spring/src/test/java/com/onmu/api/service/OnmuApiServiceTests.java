@@ -141,6 +141,12 @@ class OnmuApiServiceTests {
       new ObjectMapper()
     );
     org.mockito.Mockito.lenient().when(userCodeService.findActiveCode(any())).thenReturn(Optional.empty());
+    org.mockito.Mockito.lenient()
+      .when(voteResponseRepository.findByVoteOptionWithUserOrderByCreatedAtAsc(any(VoteOptionEntity.class)))
+      .thenReturn(List.of());
+    org.mockito.Mockito.lenient()
+      .when(settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(any(PlanEntity.class), any()))
+      .thenReturn(Optional.empty());
     group = new GroupEntity("1", "ONMU 개발 모임", null);
     plan = new PlanEntity("101", group, "ONMU API 계약 검증", Instant.parse("2026-06-12T01:00:00Z"), "scheduled");
     vote = new VoteEntity("501", group, "PLAN", "101", "PLACE", "장소 후보 선호 투표", "{\"options\":[\"카페\",\"식당\"]}");
@@ -178,6 +184,8 @@ class OnmuApiServiceTests {
         assertThat(viewerValue)
           .containsEntry("nickname", "인증 사용자")
           .doesNotContainKey("displayName"));
+    assertThat(summary.get("upcomingPlans")).asList().hasSize(1);
+    assertThat(summary).containsEntry("activePlan", null).containsEntry("settlementId", null);
   }
 
   @Test
@@ -718,6 +726,8 @@ class OnmuApiServiceTests {
     when(voteResponseRepository.countDistinctUsersByVote(vote)).thenReturn(3L);
     when(voteResponseRepository.countByVote(vote)).thenReturn(4L);
     when(voteResponseRepository.countByVoteOption(option)).thenReturn(3L);
+    when(voteResponseRepository.findByVoteOptionWithUserOrderByCreatedAtAsc(option))
+      .thenReturn(List.of(new VoteResponseEntity(vote, option, user("00000000-0000-0000-0000-000000000201", "도윤"), "{}")));
 
     var detail = service.vote("1", "501");
 
@@ -735,6 +745,13 @@ class OnmuApiServiceTests {
         assertThat(optionMap.get("responseCount")).isEqualTo(3);
         assertThat(optionMap.get("countLabel")).isEqualTo("3표");
         assertThat(optionMap.get("progress")).isEqualTo(0.75);
+        assertThat(optionMap.get("voters")).asList()
+          .singleElement()
+          .satisfies(rawVoter -> {
+            java.util.Map<?, ?> voterMap = (java.util.Map<?, ?>) rawVoter;
+            assertThat(voterMap.get("name")).isEqualTo("도윤");
+            assertThat(voterMap.get("nickname")).isEqualTo("도윤");
+          });
       });
   }
 
@@ -1632,9 +1649,7 @@ class OnmuApiServiceTests {
   void creatingSettlementRecordsSettlementAndNotificationOutboxEvents() {
     when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
-    when(settlementRepository.findAll()).thenReturn(List.of(
-      new SettlementEntity("301", group, plan, "{}")
-    ));
+    when(settlementRepository.findPublicIds()).thenReturn(List.of("301"));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     var created = service.createSettlement("1", "101", settlementRequest());
