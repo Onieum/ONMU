@@ -44,6 +44,8 @@ abstract interface class GroupRepository {
     required String userId,
   });
 
+  Future<void> leaveGroup(Object groupId);
+
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId);
 
   Future<GroupMemoryRecord> createGroupMemory({
@@ -52,6 +54,20 @@ abstract interface class GroupRepository {
     required String title,
     required String memo,
     DateTime? date,
+  });
+
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  });
+
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
   });
 
   Future<List<GroupMessage>> fetchMessages(Object groupId);
@@ -214,6 +230,11 @@ class ApiGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {
+    await _client.deleteObject('/api/v1/groups/$groupId/members/me');
+  }
+
+  @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
     final memories = await _client.getList('/api/v1/groups/$groupId/memories');
     return memories.map(_groupMemoryRecord).toList(growable: false);
@@ -248,6 +269,46 @@ class ApiGroupRepository implements GroupRepository {
       },
     );
     return _groupMemoryRecord(memory);
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    final normalizedTitle = title.trim();
+    final normalizedMemo = memo.trim();
+    final memory = await _client.patchObject(
+      '/api/v1/groups/$groupId/memories/$memoryId',
+      body: {
+        'type': type.apiType,
+        'title': normalizedTitle.isEmpty
+            ? (type == GroupMemoryKind.memo ? '메모' : '기록')
+            : normalizedTitle,
+        'memo': normalizedMemo,
+        'date': _dateOnly(date ?? DateTime.now()),
+        'tags': [type == GroupMemoryKind.memo ? '메모' : '기록'],
+        'imageUrls': const <String>[],
+        'visibility': 'GROUP_ONLY',
+        'payload': {
+          'brands': {'recordType': type.recordType},
+          'memoryKind': type.recordType,
+        },
+      },
+    );
+    return _groupMemoryRecord(memory);
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) async {
+    await _client.deleteObject('/api/v1/groups/$groupId/memories/$memoryId');
   }
 
   @override

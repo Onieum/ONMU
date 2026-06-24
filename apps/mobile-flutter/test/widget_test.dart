@@ -1,4 +1,3 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -3249,6 +3248,9 @@ class _SingleMemberGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {}
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async => const [_group];
 
   @override
@@ -3298,6 +3300,26 @@ class _SingleMemberGroupRepository implements GroupRepository {
     required String title,
     required String memo,
     DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
   }) {
     throw UnimplementedError();
   }

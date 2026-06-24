@@ -13,7 +13,9 @@ import '../../../../shared/widgets/onmu_chip.dart';
 import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../repository/group_repository.dart';
 import '../../view_model/group_home_view_model.dart';
+import '../widgets/group_memory_photo.dart';
 
 class GroupHomePage extends ConsumerWidget {
   const GroupHomePage({required this.groupId, super.key});
@@ -43,8 +45,228 @@ class GroupHomePage extends ConsumerWidget {
   }
 }
 
-class _GroupHomeContent extends StatelessWidget {
+enum _GroupHomeTab {
+  plans('약속'),
+  memories('기록');
+
+  const _GroupHomeTab(this.label);
+
+  final String label;
+}
+
+enum _GroupHomeMemoryFilter {
+  all('전체'),
+  record('기록'),
+  memo('메모');
+
+  const _GroupHomeMemoryFilter(this.label);
+
+  final String label;
+
+  bool accepts(GroupMemoryRecord memory) {
+    return switch (this) {
+      _GroupHomeMemoryFilter.all => true,
+      _GroupHomeMemoryFilter.record => memory.isRecord,
+      _GroupHomeMemoryFilter.memo => memory.isMemo,
+    };
+  }
+}
+
+class _GroupHomeContent extends ConsumerStatefulWidget {
   const _GroupHomeContent({required this.state});
+
+  final GroupHomeState state;
+
+  @override
+  ConsumerState<_GroupHomeContent> createState() => _GroupHomeContentState();
+}
+
+class _GroupHomeContentState extends ConsumerState<_GroupHomeContent> {
+  var _selectedTab = _GroupHomeTab.plans;
+  var _memoryFilter = _GroupHomeMemoryFilter.all;
+  final Set<String> _likedMemoryIds = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final group = state.group;
+
+    return OnmuScaffold(
+      useWarmBackground: false,
+      floatingActionButton: _selectedTab == _GroupHomeTab.plans
+          ? FloatingActionButton(
+              key: const ValueKey('group-home-create-plan-fab'),
+              tooltip: '약속 만들기',
+              onPressed: () => context.push(RoutePaths.planNew(group.id)),
+              backgroundColor: AppColors.primaryPurple,
+              foregroundColor: AppColors.textInverse,
+              child: const Icon(Icons.add),
+            )
+          : FloatingActionButton(
+              key: const ValueKey('group-home-create-memory-fab'),
+              tooltip: '기록 추가',
+              onPressed: () => _showCreateMemorySheet(context, group.id),
+              backgroundColor: AppColors.primaryPink,
+              foregroundColor: AppColors.textInverse,
+              child: const Icon(Icons.add),
+            ),
+      children: [
+        _GroupHomeHeader(group: group),
+        const SizedBox(height: AppSpacing.md),
+        _GroupTabs(
+          selected: _selectedTab,
+          onChanged: (tab) => setState(() => _selectedTab = tab),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: _selectedTab == _GroupHomeTab.plans
+              ? _GroupPlansTab(
+                  key: const ValueKey('group-plans-tab'),
+                  state: state,
+                )
+              : _GroupMemoriesTab(
+                  key: const ValueKey('group-memories-tab'),
+                  group: group,
+                  memories: state.memories,
+                  selectedFilter: _memoryFilter,
+                  likedMemoryIds: _likedMemoryIds,
+                  onFilterChanged: (filter) =>
+                      setState(() => _memoryFilter = filter),
+                  onToggleLike: (memory) => setState(() {
+                    if (!_likedMemoryIds.add(memory.routeId)) {
+                      _likedMemoryIds.remove(memory.routeId);
+                    }
+                  }),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showCreateMemorySheet(
+    BuildContext context,
+    Object groupId,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final kind = await showModalBottomSheet<GroupMemoryKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('기록 작성'),
+              subtitle: const Text('사진이 있는 모임 기록을 추가해요.'),
+              onTap: () => Navigator.of(context).pop(GroupMemoryKind.record),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sticky_note_2_outlined),
+              title: const Text('메모 작성'),
+              subtitle: const Text('메모장처럼 짧은 내용을 남겨요.'),
+              onTap: () => Navigator.of(context).pop(GroupMemoryKind.memo),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (kind == null || !context.mounted) return;
+
+    final input = await _showMemoryInputDialog(context, kind);
+    if (input == null || !context.mounted) return;
+
+    try {
+      await ref
+          .read(groupRepositoryProvider)
+          .createGroupMemory(
+            groupId: groupId,
+            type: kind,
+            title: input.title,
+            memo: input.description,
+            date: DateTime.now(),
+          );
+      ref.invalidate(groupHomeViewModelProvider(groupId.toString()));
+      if (context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              kind == GroupMemoryKind.memo ? '메모를 추가했어요.' : '기록을 추가했어요.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('모임방 기록을 저장하지 못했어요.')),
+      );
+    }
+  }
+
+  Future<_GroupHomeMemoryDraft?> _showMemoryInputDialog(
+    BuildContext context,
+    GroupMemoryKind kind,
+  ) {
+    final titleController = TextEditingController();
+    final memoController = TextEditingController();
+    return showDialog<_GroupHomeMemoryDraft>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(kind == GroupMemoryKind.memo ? '메모 작성' : '기록 작성'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: InputDecoration(
+                labelText: kind == GroupMemoryKind.memo ? '메모 제목' : '기록 제목',
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: memoController,
+              decoration: InputDecoration(
+                labelText: kind == GroupMemoryKind.memo ? '메모' : '내용',
+              ),
+              minLines: 3,
+              maxLines: 5,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop(
+                _GroupHomeMemoryDraft(
+                  title: titleController.text,
+                  description: memoController.text,
+                ),
+              );
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupHomeMemoryDraft {
+  const _GroupHomeMemoryDraft({required this.title, required this.description});
+
+  final String title;
+  final String description;
+}
+
+class _GroupPlansTab extends StatelessWidget {
+  const _GroupPlansTab({required this.state, super.key});
 
   final GroupHomeState state;
 
@@ -54,21 +276,9 @@ class _GroupHomeContent extends StatelessWidget {
     final ongoingPlan = state.ongoingPlan;
     final upcomingPlan = state.upcomingPlan;
 
-    return OnmuScaffold(
-      useWarmBackground: false,
-      floatingActionButton: FloatingActionButton(
-        key: const ValueKey('group-home-create-plan-fab'),
-        tooltip: '약속 만들기',
-        onPressed: () => context.push(RoutePaths.planNew(group.id)),
-        backgroundColor: AppColors.primaryPurple,
-        foregroundColor: AppColors.textInverse,
-        child: const Icon(Icons.add),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _GroupHomeHeader(group: group),
-        const SizedBox(height: AppSpacing.md),
-        _GroupTabs(group: group),
-        const SizedBox(height: AppSpacing.md),
         if (ongoingPlan != null) ...[
           _UpcomingPlanCard(
             plan: ongoingPlan,
@@ -116,6 +326,369 @@ class _GroupHomeContent extends StatelessWidget {
   }
 }
 
+class _GroupMemoriesTab extends StatelessWidget {
+  const _GroupMemoriesTab({
+    required this.group,
+    required this.memories,
+    required this.selectedFilter,
+    required this.likedMemoryIds,
+    required this.onFilterChanged,
+    required this.onToggleLike,
+    super.key,
+  });
+
+  final GroupSummary group;
+  final List<GroupMemoryRecord> memories;
+  final _GroupHomeMemoryFilter selectedFilter;
+  final Set<String> likedMemoryIds;
+  final ValueChanged<_GroupHomeMemoryFilter> onFilterChanged;
+  final ValueChanged<GroupMemoryRecord> onToggleLike;
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = memories.where(selectedFilter.accepts).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GroupMemoryFilterRow(
+          selected: selectedFilter,
+          onChanged: onFilterChanged,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (filtered.isEmpty)
+          OnmuEmptyStateCard(title: '${selectedFilter.label} 기록이 아직 없어요.')
+        else
+          GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.md,
+            childAspectRatio: 0.63,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (var index = 0; index < filtered.length; index += 1)
+                _GroupHomeMemoryCard(
+                  groupId: group.id,
+                  memory: filtered[index],
+                  photoIndex: index,
+                  isLiked: likedMemoryIds.contains(filtered[index].routeId),
+                  onToggleLike: () => onToggleLike(filtered[index]),
+                ),
+            ],
+          ),
+        const SizedBox(height: 88),
+      ],
+    );
+  }
+}
+
+class _GroupMemoryFilterRow extends StatelessWidget {
+  const _GroupMemoryFilterRow({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final _GroupHomeMemoryFilter selected;
+  final ValueChanged<_GroupHomeMemoryFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (
+            var index = 0;
+            index < _GroupHomeMemoryFilter.values.length;
+            index += 1
+          ) ...[
+            _GroupMemoryFilterChip(
+              label: _GroupHomeMemoryFilter.values[index].label,
+              selected: selected == _GroupHomeMemoryFilter.values[index],
+              onTap: () => onChanged(_GroupHomeMemoryFilter.values[index]),
+            ),
+            if (index != _GroupHomeMemoryFilter.values.length - 1)
+              const SizedBox(width: AppSpacing.xs),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupMemoryFilterChip extends StatelessWidget {
+  const _GroupMemoryFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? AppColors.bgDefault : AppColors.bgWarm,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(
+            color: selected ? AppColors.lineBrown : AppColors.lineSoft,
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: selected ? AppColors.textMain : AppColors.textSub,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupHomeMemoryCard extends StatelessWidget {
+  const _GroupHomeMemoryCard({
+    required this.groupId,
+    required this.memory,
+    required this.photoIndex,
+    required this.isLiked,
+    required this.onToggleLike,
+  });
+
+  final int groupId;
+  final GroupMemoryRecord memory;
+  final int photoIndex;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      onTap: () =>
+          context.push(RoutePaths.groupMemoryDetail(groupId, memory.routeId)),
+      backgroundColor: AppColors.bgDefault,
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xxs,
+              AppSpacing.xxs,
+              AppSpacing.xxs,
+              0,
+            ),
+            child: Row(
+              children: [
+                PixelAvatar(
+                  label: memory.author,
+                  size: 24,
+                  profileImageUrl: memory.authorProfileImageUrl,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    memory.author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+            child: Text(
+              memory.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+            child: Text(
+              memory.dateLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Expanded(
+            child: memory.isMemo
+                ? _GroupHomeMemoPreview(memory: memory)
+                : _GroupHomeRecordPreview(
+                    memory: memory,
+                    photoIndex: photoIndex,
+                    isLiked: isLiked,
+                    onToggleLike: onToggleLike,
+                    onComment: () => context.push(
+                      RoutePaths.groupMemoryDetail(groupId, memory.routeId),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupHomeRecordPreview extends StatelessWidget {
+  const _GroupHomeRecordPreview({
+    required this.memory,
+    required this.photoIndex,
+    required this.isLiked,
+    required this.onToggleLike,
+    required this.onComment,
+  });
+
+  final GroupMemoryRecord memory;
+  final int photoIndex;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
+  final VoidCallback onComment;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          GroupMemoryPhoto(index: photoIndex, imageUrl: memory.primaryImageUrl),
+          Positioned(
+            right: AppSpacing.xs,
+            bottom: AppSpacing.xs,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _GroupMemoryOverlayAction(
+                  tooltip: isLiked ? '좋아요 취소' : '좋아요',
+                  icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? AppColors.accentRed : AppColors.textMain,
+                  onTap: onToggleLike,
+                ),
+                const SizedBox(width: AppSpacing.xxs),
+                _GroupMemoryOverlayAction(
+                  tooltip: '댓글',
+                  icon: Icons.chat_bubble_outline,
+                  color: AppColors.primaryPink,
+                  onTap: onComment,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupMemoryOverlayAction extends StatelessWidget {
+  const _GroupMemoryOverlayAction({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.bgDefault.withValues(alpha: 0.9),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox.square(
+            dimension: 34,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupHomeMemoPreview extends StatelessWidget {
+  const _GroupHomeMemoPreview({required this.memory});
+
+  final GroupMemoryRecord memory;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgPaper,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Icon(
+                Icons.sticky_note_2_outlined,
+                color: AppColors.textSub,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                memory.description,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMain,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _GroupHomeHeader extends StatelessWidget {
   const _GroupHomeHeader({required this.group});
 
@@ -127,36 +700,42 @@ class _GroupHomeHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Row(
-          children: [
-            IconButton(
-              tooltip: '온모임 목록으로 이동',
-              onPressed: () => context.popOrGo(RoutePaths.groups),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            Expanded(
-              child: Text(
-                group.name,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall,
+        SizedBox(
+          height: 52,
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: '온모임 목록으로 이동',
+                onPressed: () => context.popOrGo(RoutePaths.groups),
+                icon: const Icon(Icons.arrow_back),
               ),
-            ),
-            IconButton(
-              tooltip: '채팅',
-              onPressed: () => context.push(RoutePaths.groupChat(group.id)),
-              icon: const Icon(
-                Icons.chat_bubble_outline,
-                color: AppColors.primaryPink,
+              const Spacer(),
+              IconButton(
+                tooltip: '채팅',
+                onPressed: () => context.push(RoutePaths.groupChat(group.id)),
+                icon: const Icon(
+                  Icons.chat_bubble_outline,
+                  color: AppColors.primaryPink,
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: '모임 옵션',
-              onPressed: () => context.push(RoutePaths.groupSettings(group.id)),
-              icon: const Icon(Icons.more_vert),
-            ),
-          ],
+              IconButton(
+                tooltip: '모임 옵션',
+                onPressed: () =>
+                    context.push(RoutePaths.groupSettings(group.id)),
+                icon: const Icon(Icons.more_vert),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: Text(
+            group.name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
         ),
         if (description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xxs),
@@ -207,19 +786,24 @@ class _GroupHomeHeader extends StatelessWidget {
 }
 
 class _GroupTabs extends StatelessWidget {
-  const _GroupTabs({required this.group});
+  const _GroupTabs({required this.selected, required this.onChanged});
 
-  final GroupSummary group;
+  final _GroupHomeTab selected;
+  final ValueChanged<_GroupHomeTab> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _GroupTab(label: '약속', selected: true, onTap: () {}),
         _GroupTab(
-          label: '기록',
-          selected: false,
-          onTap: () => context.push(RoutePaths.groupMemories(group.id)),
+          label: _GroupHomeTab.plans.label,
+          selected: selected == _GroupHomeTab.plans,
+          onTap: () => onChanged(_GroupHomeTab.plans),
+        ),
+        _GroupTab(
+          label: _GroupHomeTab.memories.label,
+          selected: selected == _GroupHomeTab.memories,
+          onTap: () => onChanged(_GroupHomeTab.memories),
         ),
       ],
     );

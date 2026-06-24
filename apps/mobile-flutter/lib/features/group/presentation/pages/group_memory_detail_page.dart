@@ -10,6 +10,9 @@ import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../repository/group_repository.dart';
+import '../../view_model/group_home_view_model.dart';
+import '../../view_model/group_list_view_model.dart';
 import '../../view_model/group_memory_view_model.dart';
 import '../widgets/group_memory_photo.dart';
 
@@ -52,43 +55,50 @@ class GroupMemoryDetailPage extends ConsumerWidget {
   }
 }
 
-class _GroupMemoryDetailContent extends StatelessWidget {
+enum _MemoryDetailAction { edit, delete }
+
+class _GroupMemoryDetailContent extends ConsumerWidget {
   const _GroupMemoryDetailContent({required this.groupId, required this.state});
 
   final String groupId;
   final GroupMemoryDetailState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final memory = state.memory;
 
     return OnmuScaffold(
       title: '기록',
       showBackButton: true,
       onBack: () => context.popOrGo(RoutePaths.groupMemories(groupId)),
-      action: IconButton(
+      action: PopupMenuButton<_MemoryDetailAction>(
         tooltip: '기록 옵션',
-        onPressed: () {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('기록 옵션은 이후에 연결할게요.')));
+        icon: const Icon(Icons.more_vert),
+        onSelected: (action) => switch (action) {
+          _MemoryDetailAction.edit => _editMemory(context, ref, memory),
+          _MemoryDetailAction.delete => _deleteMemory(context, ref, memory),
         },
-        icon: const Icon(Icons.more_horiz),
+        itemBuilder: (context) => const [
+          PopupMenuItem(value: _MemoryDetailAction.edit, child: Text('수정하기')),
+          PopupMenuItem(value: _MemoryDetailAction.delete, child: Text('삭제하기')),
+        ],
       ),
       useWarmBackground: false,
       bottom: const _CommentInput(),
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: AspectRatio(
-            aspectRatio: 1.36,
-            child: GroupMemoryPhoto(
-              index: state.photoIndex,
-              imageUrl: memory.primaryImageUrl,
+        if (!memory.isMemo) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: AspectRatio(
+              aspectRatio: 1.36,
+              child: GroupMemoryPhoto(
+                index: state.photoIndex,
+                imageUrl: memory.primaryImageUrl,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
+        ],
         _MemoryBody(memory: memory),
         const SizedBox(height: AppSpacing.lg),
         const Divider(color: AppColors.lineSoft),
@@ -100,6 +110,137 @@ class _GroupMemoryDetailContent extends StatelessWidget {
       ],
     );
   }
+
+  Future<void> _editMemory(
+    BuildContext context,
+    WidgetRef ref,
+    GroupMemoryRecord memory,
+  ) async {
+    final result = await _showMemoryEditDialog(context, memory);
+    if (result == null || !context.mounted) return;
+    final repository = ref.read(groupRepositoryProvider);
+    await repository.updateGroupMemory(
+      groupId: groupId,
+      memoryId: memory.routeId,
+      type: memory.kind,
+      title: result.title,
+      memo: result.memo,
+      date: _dateFromLabel(memory.dateLabel),
+    );
+    ref.invalidate(groupMemoryBoardViewModelProvider(groupId));
+    ref.invalidate(
+      groupMemoryDetailViewModelProvider((
+        groupId: groupId,
+        memoryId: memory.routeId,
+      )),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('수정했어요.')));
+  }
+
+  Future<void> _deleteMemory(
+    BuildContext context,
+    WidgetRef ref,
+    GroupMemoryRecord memory,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('삭제하기'),
+        content: const Text('이 기록을 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final repository = ref.read(groupRepositoryProvider);
+    await repository.deleteGroupMemory(
+      groupId: groupId,
+      memoryId: memory.routeId,
+    );
+    ref
+      ..invalidate(groupMemoryBoardViewModelProvider(groupId))
+      ..invalidate(groupHomeViewModelProvider(groupId))
+      ..invalidate(groupListViewModelProvider);
+    if (!context.mounted) return;
+    context.popOrGo(RoutePaths.groupMemories(groupId));
+  }
+}
+
+class _MemoryEditDraft {
+  const _MemoryEditDraft({required this.title, required this.memo});
+
+  final String title;
+  final String memo;
+}
+
+Future<_MemoryEditDraft?> _showMemoryEditDialog(
+  BuildContext context,
+  GroupMemoryRecord memory,
+) {
+  final titleController = TextEditingController(text: memory.title);
+  final memoController = TextEditingController(text: memory.description);
+  return showDialog<_MemoryEditDraft>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('수정하기'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: titleController,
+            decoration: const InputDecoration(labelText: '제목'),
+            maxLength: 40,
+          ),
+          TextField(
+            controller: memoController,
+            decoration: const InputDecoration(labelText: '내용'),
+            minLines: 3,
+            maxLines: 5,
+            maxLength: 300,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(
+            _MemoryEditDraft(
+              title: titleController.text.trim(),
+              memo: memoController.text.trim(),
+            ),
+          ),
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  ).whenComplete(() {
+    titleController.dispose();
+    memoController.dispose();
+  });
+}
+
+DateTime? _dateFromLabel(String value) {
+  final match = RegExp(r'(\d{4})\.(\d{2})\.(\d{2})').firstMatch(value);
+  if (match == null) return null;
+  final year = int.tryParse(match.group(1) ?? '');
+  final month = int.tryParse(match.group(2) ?? '');
+  final day = int.tryParse(match.group(3) ?? '');
+  if (year == null || month == null || day == null) return null;
+  return DateTime(year, month, day);
 }
 
 class _MemoryBody extends StatelessWidget {

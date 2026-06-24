@@ -36,6 +36,8 @@ abstract interface class RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,
@@ -136,6 +138,8 @@ class ApiRecordRepository implements RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,
@@ -144,6 +148,10 @@ class ApiRecordRepository implements RecordRepository {
     final body = <String, Object?>{
       'recordId': recordId,
       'inputType': inputType,
+      'weather': weather,
+      'weatherText': weather,
+      'mood': mood,
+      'moodText': mood,
     };
     if (outfitPhotoMediaId != null) {
       body['outfitPhotoMediaId'] = outfitPhotoMediaId;
@@ -156,6 +164,8 @@ class ApiRecordRepository implements RecordRepository {
     }
     if (characterOverrides != null) {
       body['characterOverrides'] = {
+        'gender': characterOverrides.gender,
+        'skinTone': 'skin_${characterOverrides.skinToneIndex}',
         'hairStyle': 'hair_style_${characterOverrides.hairStyleIndex}',
         'hairColor': 'hair_color_${characterOverrides.hairColorIndex}',
         'eyeStyle': 'eye_style_${characterOverrides.eyeShapeIndex}',
@@ -643,11 +653,7 @@ class ApiRecordRepository implements RecordRepository {
   OotdAvatarGenerationJob _avatarGenerationJob(Map<String, dynamic> json) {
     final createdAt = DateTime.tryParse(OnmuJson.readString(json, 'createdAt'));
     final updatedAt = DateTime.tryParse(OnmuJson.readString(json, 'updatedAt'));
-    final generatedImageUrl = OnmuJson.readString(
-      json,
-      'avatarImageUrl',
-      OnmuJson.readString(json, 'generatedImageUrl'),
-    );
+    final generatedImageUrl = OnmuJson.readString(json, 'generatedImageUrl');
     final errorCode = OnmuJson.readString(json, 'errorCode');
     return OotdAvatarGenerationJob(
       jobId: OnmuJson.readString(json, 'jobId'),

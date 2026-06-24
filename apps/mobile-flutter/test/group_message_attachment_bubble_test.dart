@@ -4,10 +4,13 @@ import 'package:onmu_mobile/features/group/repository/media_repository.dart';
 import 'package:onmu_mobile/features/group/presentation/widgets/group_cards.dart';
 import 'package:onmu_mobile/shared/models/group_models.dart';
 
+final _testTheme = ThemeData(useMaterial3: false);
+
 void main() {
   testWidgets('첨부 이미지 말풍선은 텍스트 없이도 fallback preview를 렌더링한다', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatMessageBubble(
             message: GroupMessage(
@@ -34,7 +37,8 @@ void main() {
 
   testWidgets('내 채팅 말풍선은 sender 이름 라벨을 숨긴다', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatMessageBubble(
             message: GroupMessage(
@@ -55,7 +59,8 @@ void main() {
 
   testWidgets('여러 첨부 이미지는 하나의 그리드 말풍선으로 렌더링한다', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatMessageBubble(
             message: GroupMessage(
@@ -92,7 +97,8 @@ void main() {
 
   testWidgets('첨부 이미지를 탭하면 전체 화면 viewer를 연다', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatMessageBubble(
             message: GroupMessage(
@@ -132,6 +138,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatComposerImageTray(
             images: const [
@@ -169,6 +176,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: ChatActivityCard(
             message: const GroupMessage(

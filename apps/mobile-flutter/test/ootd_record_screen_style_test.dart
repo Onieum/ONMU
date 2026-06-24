@@ -16,6 +16,8 @@ class _FakeRecordRepository implements RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,

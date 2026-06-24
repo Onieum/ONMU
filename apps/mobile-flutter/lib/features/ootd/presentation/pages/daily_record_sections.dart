@@ -431,11 +431,28 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('함께한 크루', '오늘을 함께한 크루를 선택해 주세요.'),
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
           children: [
-            Expanded(child: _toggleCard('크루와 함께', Icons.groups_outlined, true)),
-            SizedBox(width: 12),
-            Expanded(child: _toggleCard('나만 넣기', Icons.person_outline, false)),
+            _toggleCard(
+              '크루와 함께',
+              Icons.groups_outlined,
+              includeCrew: true,
+              includeUser: true,
+            ),
+            _toggleCard(
+              '나만 넣기',
+              Icons.person_outline,
+              includeCrew: false,
+              includeUser: true,
+            ),
+            _toggleCard(
+              '아무도 안 넣기',
+              Icons.block_outlined,
+              includeCrew: false,
+              includeUser: false,
+            ),
           ],
         ),
         SizedBox(height: 28),
@@ -450,10 +467,11 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                   runSpacing: 14,
                   alignment: WrapAlignment.center,
                   children: [
-                    PixelCharacterWidget(
-                      character: widget.userCharacter,
-                      size: 86,
-                    ),
+                    if (_includeUserCharacter)
+                      PixelCharacterWidget(
+                        character: widget.userCharacter,
+                        size: 86,
+                      ),
                     if (_includeCrew && _crewAppearances.isNotEmpty)
                       ..._crewAppearances.map(
                         (appearance) =>
@@ -773,35 +791,48 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
     );
   }
 
-  Widget _toggleCard(String title, IconData icon, bool value) {
-    final selected = _includeCrew == value;
+  Widget _toggleCard(
+    String title,
+    IconData icon, {
+    required bool includeCrew,
+    required bool includeUser,
+  }) {
+    final selected =
+        _includeCrew == includeCrew && _includeUserCharacter == includeUser;
     return GestureDetector(
-      onTap: () => _updateState(() => _includeCrew = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-            width: selected ? 2 : 1,
+      onTap: () => _updateState(() {
+        _includeCrew = includeCrew;
+        _includeUserCharacter = includeUser;
+      }),
+      child: SizedBox(
+        width: 132,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+              width: selected ? 2 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: selected ? AppColors.primaryPink : AppColors.textMuted,
-              size: 28,
-            ),
-            SizedBox(height: 8),
-            Text(
-              title,
-              style: AppTextStyles.labelLarge.copyWith(
-                color: AppColors.textMain,
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: selected ? AppColors.primaryPink : AppColors.textMuted,
+                size: 28,
               ),
-            ),
-          ],
+              SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.textMain,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

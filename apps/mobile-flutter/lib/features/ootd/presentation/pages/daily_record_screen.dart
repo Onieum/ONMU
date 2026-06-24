@@ -116,6 +116,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   int _selectedWeather = 0;
   int _selectedTheme = 0;
   bool _includeCrew = true;
+  bool _includeUserCharacter = true;
   bool _isSaving = false;
   bool _isSavingResultImage = false;
   OotdRecord? _linkedOotdRecord;
@@ -184,7 +185,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       );
       if (_selectedWeather == -1) _selectedWeather = 0;
       _selectedTheme = r.brands['theme'] == 'diary' ? 0 : 1;
-      _includeCrew = r.brands['crew'] == 'included';
+      final crewMode = r.brands['crew'];
+      _includeCrew = crewMode == 'included';
+      _includeUserCharacter = crewMode != 'none';
 
       _hashtags.clear();
       _hashtags.addAll(r.moodTags);
@@ -227,6 +230,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       _crewCharacters = const <CharacterDraft>[];
       _crewAppearances = const <CrewOotdAppearance>[];
       _includeCrew = false;
+      _includeUserCharacter = true;
     }
     _loadCrewAppearances();
   }
@@ -277,12 +281,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (fetch == null || groupId == null || planId == null) {
       if (!_isEditingSavedDaily) {
         _includeCrew = false;
+        _includeUserCharacter = true;
       }
       return;
     }
     if (groupId.trim().isEmpty || planId.trim().isEmpty) {
       if (!_isEditingSavedDaily) {
         _includeCrew = false;
+        _includeUserCharacter = true;
       }
       return;
     }
@@ -487,21 +493,26 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
     setState(() {
       _askedMemoryForNoPlan = true;
-      _memoryPlaceNames = _normalizePlaceNames([..._memoryPlaceNames, memory]);
+      _memoryPlaceNames = _normalizePlaceNames([
+        ..._memoryPlaceNames,
+        ...memory,
+      ]);
     });
     return true;
   }
 
-  Future<String?> _promptManualMemory() {
+  Future<List<String>?> _promptManualMemory() {
     _memoryController.clear();
-    return showDialog<String>(
+    return showDialog<List<String>>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("TODAY'S MEMORY"),
         content: TextField(
           controller: _memoryController,
           autofocus: true,
-          maxLength: 40,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 160,
           decoration: const InputDecoration(hintText: '예: 을지로 카페에서 책 읽기'),
         ),
         actions: [
@@ -510,8 +521,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             child: const Text('취소'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.of(context).pop(_memoryController.text.trim()),
+            onPressed: () {
+              final memories = _memoryController.text
+                  .split(RegExp(r'[\r\n]+'))
+                  .map((value) => value.trim())
+                  .where((value) => value.isNotEmpty)
+                  .toList(growable: false);
+              Navigator.of(context).pop(memories);
+            },
             child: const Text('저장'),
           ),
         ],
@@ -601,6 +618,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     final selectedWeather = _weathers[_selectedWeather].label;
     final memo = _dayMemoController.text.trim();
     final themeLabel = _selectedTheme == 0 ? 'diary' : 'clean';
+    final crewMode = !_includeUserCharacter
+        ? 'none'
+        : (_includeCrew ? 'included' : 'userOnly');
     final uploadedUrls = <String>[];
     final uploadedMedia = <UploadedMedia>[];
 
@@ -614,7 +634,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         'mood': selectedMood,
         'weather': selectedWeather,
         'theme': themeLabel,
-        'crew': _includeCrew ? 'included' : 'userOnly',
+        'crew': crewMode,
         if (_linkedOotdRecord != null) 'linkedOotd': 'true',
       },
       weather: selectedWeather,

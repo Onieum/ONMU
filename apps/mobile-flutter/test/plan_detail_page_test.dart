@@ -594,6 +594,11 @@ class _PlanDetailGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<GroupSummary> createGroup(GroupCreateInput input) {
     throw UnimplementedError();
   }
@@ -633,6 +638,26 @@ class _PlanDetailGroupRepository implements GroupRepository {
     required String title,
     required String memo,
     DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
   }) {
     throw UnimplementedError();
   }

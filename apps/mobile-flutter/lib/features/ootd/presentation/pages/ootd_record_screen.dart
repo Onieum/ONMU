@@ -753,6 +753,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       final job = await repository.createAvatarGeneration(
         recordId: savedId,
         inputType: inputType,
+        weather: _weather,
+        mood: _mood,
         outfitPhotoMediaId: _isPhotoMode ? savedOutfitPhotoMediaId : null,
         outfitPhotoStorageKey: _isPhotoMode ? savedOutfitPhotoStorageKey : null,
         outfitDescription: _isTextMode
@@ -768,9 +770,12 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           'ootd_avatar_generation_failed:${resolved.errorCode ?? 'unknown'}',
         );
       }
+      final visibleRecord = resolved.isPending
+          ? saved
+          : await _recordWithGenerationResult(repository, saved, resolved);
       if (!mounted) return;
       setState(() {
-        _savedRecord = saved;
+        _savedRecord = visibleRecord;
         _generationJob = resolved;
         _isSaving = false;
         _step = 3;
@@ -825,6 +830,16 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         setState(() => _generationJob = latest);
         if (!latest.isPending) {
           timer.cancel();
+          final currentRecord = _savedRecord;
+          if (currentRecord != null) {
+            final visibleRecord = await _recordWithGenerationResult(
+              repository,
+              currentRecord,
+              latest,
+            );
+            if (!mounted) return;
+            setState(() => _savedRecord = visibleRecord);
+          }
           ref.invalidate(ootdRecordsProvider);
           ref.invalidate(homeRecentRecordsProvider);
         }
@@ -836,6 +851,40 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     });
   }
 
+  Future<OotdRecord> _recordWithGenerationResult(
+    RecordRepository repository,
+    OotdRecord fallback,
+    OotdAvatarGenerationJob job,
+  ) async {
+    final recordId = job.recordId.isNotEmpty ? job.recordId : fallback.id;
+    if (recordId != null && recordId.isNotEmpty) {
+      try {
+        return await repository.fetchRecord(recordId);
+      } catch (error) {
+        debugPrint('Failed to refresh generated OOTD record: $error');
+      }
+    }
+
+    final generatedUrl = job.generatedImageUrl;
+    if (generatedUrl == null || generatedUrl.trim().isEmpty) {
+      return fallback.copyWith(
+        brands: {
+          ...fallback.brands,
+          'aiStatus': job.isFailed
+              ? 'FAILED'
+              : fallback.brands['aiStatus'] ?? '',
+        },
+      );
+    }
+    return fallback.copyWith(
+      brands: {
+        ...fallback.brands,
+        'aiStatus': job.isFailed ? 'FAILED' : 'SUCCESS',
+        'generatedImageUrl': generatedUrl,
+      },
+    );
+  }
+
   Map<String, String> _buildBrands(String inputType, UploadedMedia? uploaded) {
     final outfitDescription = _outfitDescription;
     final outfitInfo = _outfitInfo(outfitDescription);
@@ -845,6 +894,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       'inputType': inputType,
       'aiStatus': 'PENDING',
       'title': 'OOTD 기록',
+      'weather': _weather,
+      'weatherText': _weather,
+      'mood': _mood,
+      'moodText': _mood,
       'outfitDescription': outfitDescription,
       'rating': _rating.toStringAsFixed(1),
       'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',

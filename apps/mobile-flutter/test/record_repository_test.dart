@@ -100,4 +100,53 @@ void main() {
       expect(saved.id, 'memory-shared-1');
     },
   );
+
+  test('createAvatarGeneration posts character profile overrides', () async {
+    final requestBodies = <Map<String, dynamic>>[];
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestBodies.add(Map<String, dynamic>.from(options.data as Map));
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              statusCode: 201,
+              data: {
+                'jobId': 'ootd_job_test',
+                'recordId': 'record-test',
+                'status': 'QUEUED',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiRecordRepository(OnmuApiClient(dio));
+
+    await repository.createAvatarGeneration(
+      recordId: 'record-test',
+      inputType: 'TEXT_PROMPT',
+      weather: 'rainy',
+      mood: 'tired',
+      outfitDescription: 'black hoodie and jeans',
+      characterOverrides: const CharacterDraft(
+        gender: 'male',
+        skinToneIndex: 2,
+        hairStyleIndex: 3,
+        hairColorIndex: 4,
+        eyeShapeIndex: 1,
+        eyeColorIndex: 5,
+      ),
+    );
+
+    final overrides =
+        requestBodies.single['characterOverrides'] as Map<String, dynamic>;
+    expect(overrides['gender'], 'male');
+    expect(overrides['skinTone'], 'skin_2');
+    expect(overrides['hairStyle'], 'hair_style_3');
+    expect(overrides['hairColor'], 'hair_color_4');
+    expect(overrides['eyeStyle'], 'eye_style_1');
+    expect(overrides['eyeColor'], 'eye_color_5');
+  });
 }

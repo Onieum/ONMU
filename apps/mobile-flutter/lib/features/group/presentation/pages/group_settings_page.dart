@@ -13,6 +13,9 @@ import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
 import '../../../home/view_model/notification_preferences_view_model.dart';
+import '../../repository/group_repository.dart';
+import '../../view_model/group_home_view_model.dart';
+import '../../view_model/group_list_view_model.dart';
 import '../../view_model/group_members_view_model.dart';
 
 class GroupSettingsPage extends StatefulWidget {
@@ -45,7 +48,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
               groupDescription: _groupDescription!,
               onRename: () => _showRenameSheet(ref),
               onNotification: _showNotificationSheet,
-              onLeave: _confirmLeaveGroup,
+              onLeave: () => _confirmLeaveGroup(ref),
             );
           },
           loading: () => const OnmuScaffold(
@@ -112,7 +115,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     );
   }
 
-  Future<void> _confirmLeaveGroup() async {
+  Future<void> _confirmLeaveGroup(WidgetRef ref) async {
     final shouldLeave = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -144,6 +147,25 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       return;
     }
 
+    try {
+      await ref.read(groupRepositoryProvider).leaveGroup(widget.groupId);
+      ref
+        ..invalidate(groupListViewModelProvider)
+        ..invalidate(groupHomeViewModelProvider(widget.groupId))
+        ..invalidate(groupMembersViewModelProvider(widget.groupId));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('모임을 나가지 못했어요.')));
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
     context.go(RoutePaths.groups);
   }
 }

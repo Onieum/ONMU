@@ -2423,6 +2423,9 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {}
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async => [_group];
 
   @override
@@ -2460,6 +2463,32 @@ class _FakeGroupRepository implements GroupRepository {
       kind: type,
     );
   }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    return GroupMemoryRecord(
+      id: int.tryParse(memoryId.toString()) ?? 9001,
+      author: 'ONMU',
+      title: title,
+      description: memo,
+      dateLabel: '2026.06.24',
+      tags: [type.recordType],
+      kind: type,
+    );
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) async {}
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
@@ -2742,6 +2771,9 @@ class _EmptyGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {}
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async => [];
 
   @override
@@ -2788,6 +2820,26 @@ class _EmptyGroupRepository implements GroupRepository {
     required String title,
     required String memo,
     DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
   }) {
     throw UnimplementedError();
   }
@@ -3522,6 +3574,8 @@ class _RecordingRecordRepository implements RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,

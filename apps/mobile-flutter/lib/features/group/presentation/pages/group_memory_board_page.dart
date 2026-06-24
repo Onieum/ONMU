@@ -75,6 +75,7 @@ class _GroupMemoryBoardContent extends ConsumerStatefulWidget {
 class _GroupMemoryBoardContentState
     extends ConsumerState<_GroupMemoryBoardContent> {
   _MemoryFilter _filter = _MemoryFilter.all;
+  final Set<String> _likedMemoryIds = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -85,16 +86,12 @@ class _GroupMemoryBoardContentState
 
     return OnmuScaffold(
       title: group.name,
+      titleSubtitle: _GroupTitleSubtitle(group: group),
       showBackButton: true,
       onBack: () => context.popOrGo(RoutePaths.groupDetail(group.id)),
       action: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            tooltip: '기록 추가',
-            onPressed: () => _showCreateMemorySheet(context, group.id),
-            icon: const Icon(Icons.add_circle_outline),
-          ),
           IconButton(
             tooltip: '채팅',
             onPressed: () => context.push(RoutePaths.groupChat(group.id)),
@@ -109,6 +106,14 @@ class _GroupMemoryBoardContentState
             icon: const Icon(Icons.more_vert),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'group-memory-create-${group.id}',
+        onPressed: () => _showCreateMemorySheet(context, group.id),
+        backgroundColor: AppColors.primaryPink,
+        foregroundColor: AppColors.textInverse,
+        icon: const Icon(Icons.add),
+        label: const Text('기록 추가'),
       ),
       useWarmBackground: false,
       children: [
@@ -135,6 +140,13 @@ class _GroupMemoryBoardContentState
                   groupId: group.id,
                   memory: memories[index],
                   photoIndex: index,
+                  isLiked: _likedMemoryIds.contains(memories[index].routeId),
+                  onToggleLike: () => setState(() {
+                    final routeId = memories[index].routeId;
+                    if (!_likedMemoryIds.add(routeId)) {
+                      _likedMemoryIds.remove(routeId);
+                    }
+                  }),
                 ),
             ],
           ),
@@ -262,6 +274,30 @@ class _MemoryDraftInput {
 
   final String title;
   final String memo;
+}
+
+class _GroupTitleSubtitle extends StatelessWidget {
+  const _GroupTitleSubtitle({required this.group});
+
+  final GroupSummary group;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = group.description.trim();
+    final memberLabel = '멤버 ${group.members.length}명';
+    final text = description.isEmpty
+        ? memberLabel
+        : '$description · $memberLabel';
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+    );
+  }
 }
 
 class _GroupTabs extends StatelessWidget {
@@ -434,11 +470,15 @@ class _MemoryCard extends StatelessWidget {
     required this.groupId,
     required this.memory,
     required this.photoIndex,
+    required this.isLiked,
+    required this.onToggleLike,
   });
 
   final int groupId;
   final GroupMemoryRecord memory;
   final int photoIndex;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
 
   @override
   Widget build(BuildContext context) {
@@ -501,7 +541,15 @@ class _MemoryCard extends StatelessWidget {
           Expanded(
             child: memory.isMemo
                 ? _MemoPreview(memory: memory)
-                : _RecordPreview(memory: memory, photoIndex: photoIndex),
+                : _RecordPreview(
+                    memory: memory,
+                    photoIndex: photoIndex,
+                    isLiked: isLiked,
+                    onToggleLike: onToggleLike,
+                    onComment: () => context.push(
+                      RoutePaths.groupMemoryDetail(groupId, memory.routeId),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -510,10 +558,19 @@ class _MemoryCard extends StatelessWidget {
 }
 
 class _RecordPreview extends StatelessWidget {
-  const _RecordPreview({required this.memory, required this.photoIndex});
+  const _RecordPreview({
+    required this.memory,
+    required this.photoIndex,
+    required this.isLiked,
+    required this.onToggleLike,
+    required this.onComment,
+  });
 
   final GroupMemoryRecord memory;
   final int photoIndex;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
+  final VoidCallback onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -526,24 +583,59 @@ class _RecordPreview extends StatelessWidget {
           Positioned(
             right: AppSpacing.xs,
             bottom: AppSpacing.xs,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.bgDefault.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxs),
-                child: Icon(
-                  Icons.favorite,
-                  size: 18,
-                  color: photoIndex == 3
-                      ? AppColors.accentRed
-                      : AppColors.textInverse,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _MemoryOverlayAction(
+                  tooltip: isLiked ? '좋아요 취소' : '좋아요',
+                  icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? AppColors.accentRed : AppColors.textMain,
+                  onTap: onToggleLike,
                 ),
-              ),
+                const SizedBox(width: AppSpacing.xxs),
+                _MemoryOverlayAction(
+                  tooltip: '댓글',
+                  icon: Icons.chat_bubble_outline,
+                  color: AppColors.primaryPink,
+                  onTap: onComment,
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemoryOverlayAction extends StatelessWidget {
+  const _MemoryOverlayAction({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.bgDefault.withValues(alpha: 0.9),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox.square(
+            dimension: 34,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
       ),
     );
   }
@@ -558,25 +650,32 @@ class _MemoPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.bgWarm,
+        color: AppColors.bgPaper,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.sticky_note_2_outlined, color: AppColors.textSub),
-            const SizedBox(height: AppSpacing.sm),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Icon(
+                Icons.sticky_note_2_outlined,
+                color: AppColors.textSub,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Expanded(
               child: Text(
                 memory.description,
-                maxLines: 6,
+                maxLines: 5,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSub,
-                  height: 1.35,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMain,
+                  height: 1.45,
                 ),
               ),
             ),
