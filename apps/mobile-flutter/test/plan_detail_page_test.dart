@@ -627,6 +627,17 @@ class _PlanDetailGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) {
     throw UnimplementedError();
   }

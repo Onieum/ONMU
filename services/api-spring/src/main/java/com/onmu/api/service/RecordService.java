@@ -228,6 +228,12 @@ public class RecordService {
     // Update record payload with SUCCESS status
     Map<String, Object> payloadMap = readObject(record.getPayload());
     payloadMap.put("aiStatus", "SUCCESS");
+    if (request.avatarImageUrl() != null && !request.avatarImageUrl().isBlank()) {
+      payloadMap.put("avatarImageUrl", request.avatarImageUrl());
+    }
+    if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+      payloadMap.put("generatedImageUrl", request.imageUrl());
+    }
     record.setPayload(toJson(payloadMap));
     recordRepository.save(record);
 
@@ -715,6 +721,21 @@ public class RecordService {
     List<RecordTagEntity> tagEntities = recordTagRepository.findByRecord(record);
     List<String> tags = tagEntities.stream().map(RecordTagEntity::getTagValue).toList();
 
+    String authorProfileImageUrl = record.getAuthor().getProfileImageUrl();
+    if (date != null && !date.isBlank()) {
+      try {
+        LocalDate recordDate = parseDateOnly(date);
+        RecordEntity authorOotd = latestSuccessfulOotdRecordForDate(record.getAuthor(), recordDate);
+        if (authorOotd != null) {
+          String ootdAvatarUrl = successfulOotdImageUrl(authorOotd);
+          if (ootdAvatarUrl != null && !ootdAvatarUrl.isBlank()) {
+            authorProfileImageUrl = ootdAvatarUrl;
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+
     return new MemoryResponse(
         record.getId(),
         record.getPublicId(),
@@ -724,6 +745,7 @@ public class RecordService {
         date,
         record.getAuthor().getId(),
         nickname(record.getAuthor()),
+        authorProfileImageUrl,
         record.getGroup() != null ? record.getGroup().getId() : null,
         tags,
         imageUrls,

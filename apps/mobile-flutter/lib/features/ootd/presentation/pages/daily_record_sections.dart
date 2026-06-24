@@ -376,7 +376,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                     if (!mounted || saved == null) return;
                     _updateState(() {
                       _linkedOotdRecord = saved;
-                      _includeCrew = true;
+                      _includeCrew = _hasLinkedPlanContext;
                     });
                   },
                   icon: const Icon(Icons.add),

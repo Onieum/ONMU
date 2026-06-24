@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/pixel_character.dart';
@@ -128,14 +128,16 @@ class OotdGeneratedImageView extends StatelessWidget {
       );
     }
 
-    if (isOotdGenerationPending(record) || hasOotdGenerationStarted(record)) {
-      return isOotdGenerationFailed(record)
-          ? _GenerationMessage(
-              title: '이미지 생성 실패',
-              body: '다시 생성하거나 잠시 후 확인해 주세요.',
-              compact: compactStatus,
-            )
-          : OotdGenerationLoadingView(compact: compactStatus);
+    if (isOotdGenerationPending(record)) {
+      return OotdGenerationLoadingView(compact: compactStatus);
+    }
+
+    if (isOotdGenerationFailed(record)) {
+      return _GenerationMessage(
+        title: '이미지 생성 실패',
+        body: '다시 생성하거나 잠시 후 확인해 주세요.',
+        compact: compactStatus,
+      );
     }
 
     return _fallbackContent(context);

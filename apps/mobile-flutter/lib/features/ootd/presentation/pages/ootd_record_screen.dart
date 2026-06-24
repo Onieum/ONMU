@@ -13,6 +13,8 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../repository/record_repository.dart';
+import '../../view_model/record_flow_controller.dart';
+import '../../../home/view_model/home_view_model.dart';
 import '../widgets/record_flow_navigation.dart';
 
 class OotdRecordScreen extends ConsumerStatefulWidget {
@@ -50,6 +52,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   Uint8List? _photoBytes;
   String? _photoFileName;
   OotdAvatarGenerationJob? _generationJob;
+  OotdRecord? _savedRecord;
   Timer? _generationPollTimer;
   late CharacterDraft _styleCharacter;
   late bool _changeStyle;
@@ -138,6 +141,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   String get _primaryLabel {
+    if (!_isSaving && _step == 3 && widget.isDailyRecord) {
+      return '일과 작성으로 돌아가기';
+    }
     if (_isSaving) return '저장 중...';
     return switch (_step) {
       0 => '다음',
@@ -177,7 +183,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: null,
+          subtitle: '입력하신 텍스트 설명을 기반으로 어울리는 의상과 소품을 입힌 OOTD 캐릭터를 만들어요.',
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
@@ -616,7 +622,11 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   void _nextStep() {
     if (_step == 3) {
-      context.go(RoutePaths.records);
+      if (widget.isDailyRecord && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(_savedRecord);
+      } else {
+        context.go(RoutePaths.records);
+      }
       return;
     }
     if (_step == 1 && !_validateInput()) return;
@@ -760,11 +770,20 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       }
       if (!mounted) return;
       setState(() {
+        _savedRecord = saved;
         _generationJob = resolved;
         _isSaving = false;
         _step = 3;
       });
-      _startGenerationPolling(resolved.jobId);
+      if (resolved.isPending) {
+        ref
+            .read(recordFlowControllerProvider)
+            .startBackgroundPolling(resolved.jobId);
+        _startGenerationPolling(resolved.jobId);
+      } else {
+        ref.invalidate(ootdRecordsProvider);
+        ref.invalidate(homeRecentRecordsProvider);
+      }
     } catch (error) {
       if (!generationAccepted) {
         await cleanupCreatedRecord();
@@ -806,6 +825,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         setState(() => _generationJob = latest);
         if (!latest.isPending) {
           timer.cancel();
+          ref.invalidate(ootdRecordsProvider);
+          ref.invalidate(homeRecentRecordsProvider);
         }
       } catch (_) {
         if (!mounted) {

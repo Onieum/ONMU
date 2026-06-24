@@ -144,6 +144,34 @@ class InMemoryOnmuStore {
     return List.unmodifiable(_memoriesByGroupId[_parseId(groupId)] ?? []);
   }
 
+  GroupMemoryRecord createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    final parsedGroupId = _parseId(groupId);
+    final memories = _memoriesByGroupId.putIfAbsent(parsedGroupId, () => []);
+    final localDate = date ?? DateTime.now();
+    final nextId = memories.isEmpty
+        ? 1
+        : memories.map((memory) => memory.id).reduce((a, b) => a > b ? a : b) +
+              1;
+    final memory = GroupMemoryRecord(
+      id: nextId,
+      author: 'ONMU',
+      title: title.trim().isEmpty ? type.recordType : title.trim(),
+      description: memo.trim(),
+      dateLabel:
+          '${localDate.year}.${localDate.month.toString().padLeft(2, '0')}.${localDate.day.toString().padLeft(2, '0')}',
+      tags: [type.recordType],
+      kind: type,
+    );
+    memories.insert(0, memory);
+    return memory;
+  }
+
   GroupMemoryRecord fetchMemory({
     required Object groupId,
     required Object memoryId,

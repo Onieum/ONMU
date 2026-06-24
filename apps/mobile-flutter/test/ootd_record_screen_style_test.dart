@@ -72,6 +72,12 @@ class _FakeRecordRepository implements RecordRepository {
   Future<OotdRecord> createRecord(OotdRecord record) async => record;
 
   @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) async => record;
+
+  @override
   Future<OotdRecord> updateRecord(String id, OotdRecord record) async => record;
 }
 
@@ -134,6 +140,93 @@ void main() {
     expect(repository.lastOverrides?.hairColorIndex, 4);
     expect(repository.lastOverrides?.eyeColorIndex, 2);
   });
+
+  testWidgets('daily OOTD completion returns to daily record flow', (
+    tester,
+  ) async {
+    final repository = _FakeRecordRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [recordRepositoryProvider.overrideWithValue(repository)],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: _DailyOotdHost(
+            onSave: (record) async => record.copyWith(id: 'record-1'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('OOTD 열기'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('텍스트 설명으로 생성'));
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('ootdDescriptionField')),
+      '아이보리 니트, 블랙 롱스커트, 버건디 숄더백, 로퍼',
+    );
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    await _tapVisible(tester, find.byKey(const ValueKey('weather-sunny')));
+    await tester.tap(find.text('생성 요청하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('일과 작성으로 돌아가기'), findsOneWidget);
+
+    await tester.tap(find.text('일과 작성으로 돌아가기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('returned: record-1'), findsOneWidget);
+  });
+}
+
+class _DailyOotdHost extends StatefulWidget {
+  const _DailyOotdHost({required this.onSave});
+
+  final Future<OotdRecord> Function(OotdRecord) onSave;
+
+  @override
+  State<_DailyOotdHost> createState() => _DailyOotdHostState();
+}
+
+class _DailyOotdHostState extends State<_DailyOotdHost> {
+  String? returnedRecordId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('returned: ${returnedRecordId ?? 'none'}'),
+            ElevatedButton(
+              onPressed: () async {
+                final record = await Navigator.of(context).push<OotdRecord>(
+                  MaterialPageRoute(
+                    builder: (context) => OotdRecordScreen(
+                      userCharacter: const CharacterDraft(gender: 'female'),
+                      recordDate: DateTime(2026, 10, 3),
+                      isDailyRecord: true,
+                      onSave: widget.onSave,
+                    ),
+                  ),
+                );
+                if (!mounted) return;
+                setState(() => returnedRecordId = record?.id);
+              },
+              child: const Text('OOTD 열기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {

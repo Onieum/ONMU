@@ -2443,6 +2443,25 @@ class _FakeGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    return GroupMemoryRecord(
+      id: 9001,
+      author: 'ONMU',
+      title: title,
+      description: memo,
+      dateLabel: '2026.06.24',
+      tags: [type.recordType],
+      kind: type,
+    );
+  }
+
+  @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async => [];
 
   @override
@@ -2761,6 +2780,17 @@ class _EmptyGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async => [];
+
+  @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => [];
@@ -3453,6 +3483,15 @@ class _RecordingRecordRepository implements RecordRepository {
   Future<OotdRecord> createRecord(OotdRecord record) async {
     createdRecords.add(record);
     return record.copyWith(id: 'record-created');
+  }
+
+  @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) async {
+    createdRecords.add(record);
+    return record.copyWith(id: 'group-record-created');
   }
 
   @override

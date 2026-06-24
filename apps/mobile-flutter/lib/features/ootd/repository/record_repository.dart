@@ -20,6 +20,11 @@ abstract interface class RecordRepository {
 
   Future<OotdRecord> createRecord(OotdRecord record);
 
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  });
+
   Future<OotdRecord> fetchRecord(String id);
 
   Future<OotdRecord> updateRecord(String id, OotdRecord record);
@@ -62,6 +67,18 @@ class ApiRecordRepository implements RecordRepository {
     final json = await _client.postObject(
       '/api/v1/memories',
       body: _toMemoryBody(record),
+    );
+    return _fromMemory(json);
+  }
+
+  @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) async {
+    final json = await _client.postObject(
+      '/api/v1/groups/$groupId/memories',
+      body: _toMemoryBody(record, visibilityOverride: 'GROUP_ONLY'),
     );
     return _fromMemory(json);
   }
@@ -173,7 +190,10 @@ class ApiRecordRepository implements RecordRepository {
     return items.map(_crewOotdAppearance).toList(growable: false);
   }
 
-  Map<String, Object?> _toMemoryBody(OotdRecord record) {
+  Map<String, Object?> _toMemoryBody(
+    OotdRecord record, {
+    String? visibilityOverride,
+  }) {
     final isDaily = record.brands['recordType'] == 'daily';
     final memo = _recordMemo(record);
     final imageUrls = record.imageUrls.isNotEmpty
@@ -206,7 +226,8 @@ class ApiRecordRepository implements RecordRepository {
       'tags': record.moodTags,
       'imageUrls': imageUrls,
       if (media.isNotEmpty) 'media': media,
-      'visibility': record.isPublic ? 'PUBLIC' : 'PRIVATE',
+      'visibility':
+          visibilityOverride ?? (record.isPublic ? 'PUBLIC' : 'PRIVATE'),
       'hairStyle': 'hair_style_${record.character.hairStyleIndex}',
       'hairColor': 'hair_color_${record.character.hairColorIndex}',
       'eyeStyle': 'eye_style_${record.character.eyeShapeIndex}',
@@ -525,7 +546,12 @@ class ApiRecordRepository implements RecordRepository {
   }
 
   CrewOotdAppearance _crewOotdAppearance(Map<String, dynamic> json) {
-    final characterJson = OnmuJson.asMap(json['character']);
+    final characterJson = _firstMap([
+      json['character'],
+      json['profileCharacter'],
+      json['characterSnapshot'],
+      json['avatar'],
+    ]);
     final character = characterJson.isEmpty
         ? null
         : _characterDraftFromJson(characterJson);
@@ -564,11 +590,22 @@ class ApiRecordRepository implements RecordRepository {
         'eye_color',
       ),
       topStyleIndex: _readIndexedValue(
-        json['clothes'] ?? json['topStyle'],
+        json['clothes'] ??
+            json['topStyle'] ??
+            json['top_style'] ??
+            json['topStyleIndex'],
         'top',
         fallback: -1,
       ),
     );
+  }
+
+  Map<String, dynamic> _firstMap(List<Object?> values) {
+    for (final value in values) {
+      final map = OnmuJson.asMap(value);
+      if (map.isNotEmpty) return map;
+    }
+    return const {};
   }
 
   Map<String, Object?> _crewOotdAppearancePayload(

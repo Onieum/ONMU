@@ -48,7 +48,7 @@ public class OotdAvatarGenerationCompletionService {
     String status = text(body.get("status")).toLowerCase(Locale.ROOT);
     if ("failed".equals(status)) {
       job.markFailed(firstText(body, "errorCode", "message", "error"), isRetryable(body));
-      updateRecordPayload(job, "", "", "FAILED");
+      updateRecordPayload(job, "", "", "", "", "FAILED");
       jobRepository.save(job);
       return;
     }
@@ -68,14 +68,30 @@ public class OotdAvatarGenerationCompletionService {
       publicUrl = uploaded.publicUrl();
     }
 
+    String avatarImageUrl = "";
+    String avatarImageStorageKey = "";
+    String avatarBase64 = firstText(body, "avatarBase64", "generatedAvatarBase64");
+    if (StringUtils.hasText(avatarBase64)) {
+      try {
+        UploadMediaResponse uploadedAvatar = mediaService.uploadGeneratedImage(
+          decodeImageBase64(avatarBase64),
+          "image/png"
+        );
+        avatarImageStorageKey = uploadedAvatar.storageKey();
+        avatarImageUrl = uploadedAvatar.publicUrl();
+      } catch (Exception e) {
+        System.err.println("Failed to upload avatar-only image: " + e.getMessage());
+      }
+    }
+
     if (!StringUtils.hasText(publicUrl)) {
       job.markFailed("GENERATION_RESULT_MISSING", true);
-      updateRecordPayload(job, "", "", "FAILED");
+      updateRecordPayload(job, "", "", "", "", "FAILED");
       jobRepository.save(job);
       return;
     }
     job.markCompleted(storageKey, publicUrl);
-    updateRecordPayload(job, storageKey, publicUrl, "SUCCESS");
+    updateRecordPayload(job, storageKey, publicUrl, avatarImageStorageKey, avatarImageUrl, "SUCCESS");
     jobRepository.save(job);
   }
 
@@ -83,6 +99,8 @@ public class OotdAvatarGenerationCompletionService {
     OotdAvatarGenerationJobEntity job,
     String storageKey,
     String publicUrl,
+    String avatarStorageKey,
+    String avatarPublicUrl,
     String aiStatus
   ) {
     Map<String, Object> payload = readMap(job.getRecord().getPayload());
@@ -92,6 +110,12 @@ public class OotdAvatarGenerationCompletionService {
     }
     if (StringUtils.hasText(storageKey)) {
       payload.put("generatedImageStorageKey", storageKey);
+    }
+    if (StringUtils.hasText(avatarPublicUrl)) {
+      payload.put("avatarImageUrl", avatarPublicUrl);
+    }
+    if (StringUtils.hasText(avatarStorageKey)) {
+      payload.put("avatarImageStorageKey", avatarStorageKey);
     }
     try {
       job.getRecord().setPayload(objectMapper.writeValueAsString(payload));

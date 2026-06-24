@@ -319,6 +319,14 @@ class TestRecordRepository implements RecordRepository {
   }
 
   @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) {
+    return createRecord(record);
+  }
+
+  @override
   Future<OotdRecord> fetchRecord(String id) async {
     return _records.firstWhere((record) => record.id == id);
   }
@@ -510,6 +518,23 @@ class TestGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
     return _store.fetchMemories(groupId);
+  }
+
+  @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    return _store.createGroupMemory(
+      groupId: groupId,
+      type: type,
+      title: title,
+      memo: memo,
+      date: date,
+    );
   }
 
   @override

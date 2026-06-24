@@ -123,46 +123,40 @@ class _GroupHomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const sideActionWidth = 104.0;
     final description = group.description.trim();
 
     return Column(
       children: [
         Row(
           children: [
-            SizedBox(
-              width: sideActionWidth,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  tooltip: '온모임 목록으로 이동',
-                  onPressed: () => context.popOrGo(RoutePaths.groups),
-                  icon: const Icon(Icons.arrow_back),
-                ),
+            IconButton(
+              tooltip: '온모임 목록으로 이동',
+              onPressed: () => context.popOrGo(RoutePaths.groups),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Expanded(
+              child: Text(
+                group.name,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            Expanded(child: _HeaderAvatarCluster(members: group.memberAvatars)),
-            SizedBox(
-              width: sideActionWidth,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    tooltip: '모임 설정',
-                    onPressed: () =>
-                        context.push(RoutePaths.groupSettings(group.id)),
-                    icon: const Icon(Icons.settings_outlined),
-                  ),
-                ],
+            IconButton(
+              tooltip: '채팅',
+              onPressed: () => context.push(RoutePaths.groupChat(group.id)),
+              icon: const Icon(
+                Icons.chat_bubble_outline,
+                color: AppColors.primaryPink,
               ),
+            ),
+            IconButton(
+              tooltip: '모임 옵션',
+              onPressed: () => context.push(RoutePaths.groupSettings(group.id)),
+              icon: const Icon(Icons.more_vert),
             ),
           ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          group.name,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall,
         ),
         if (description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xxs),
@@ -212,51 +206,6 @@ class _GroupHomeHeader extends StatelessWidget {
   }
 }
 
-class _HeaderAvatarCluster extends StatelessWidget {
-  const _HeaderAvatarCluster({required this.members});
-
-  final List<GroupPlanMemberAvatar> members;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayMembers = members.isEmpty
-        ? const [GroupPlanMemberAvatar(name: '온')]
-        : members.take(3).toList(growable: false);
-
-    return Center(
-      child: SizedBox(
-        width: 126,
-        height: 46,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            for (var index = 0; index < displayMembers.length; index += 1)
-              Positioned(
-                left: _avatarLeftOffset(index, displayMembers.length),
-                child: PixelAvatar(
-                  label: displayMembers[index].name,
-                  profileImageUrl: displayMembers[index].profileImageUrl,
-                  character: displayMembers[index].character,
-                  size: index == 1 ? 46 : 42,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double _avatarLeftOffset(int index, int count) {
-    if (count == 1) {
-      return 42;
-    }
-    if (count == 2) {
-      return index == 0 ? 30 : 58;
-    }
-    return index == 0 ? 0 : (index == 1 ? 40 : 84);
-  }
-}
-
 class _GroupTabs extends StatelessWidget {
   const _GroupTabs({required this.group});
 
@@ -271,11 +220,6 @@ class _GroupTabs extends StatelessWidget {
           label: '기록',
           selected: false,
           onTap: () => context.push(RoutePaths.groupMemories(group.id)),
-        ),
-        _GroupTab(
-          label: '채팅',
-          selected: false,
-          onTap: () => context.push(RoutePaths.groupChat(group.id)),
         ),
       ],
     );

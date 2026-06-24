@@ -113,6 +113,14 @@ class _DetailMissingRecordRepository implements RecordRepository {
   }
 
   @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<OotdRecord> updateRecord(String id, OotdRecord record) {
     throw UnimplementedError();
   }

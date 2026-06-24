@@ -46,6 +46,7 @@ class GptImageResult:
     duration_ms: int | None
     error_code: str | None
     message: str | None
+    avatar_base64: str | None = None
 
 
 class GptImageOotdClient:
@@ -117,7 +118,7 @@ class GptImageOotdClient:
                 prompt=diary_prompt,
             )
 
-        image_base64 = _compose_ootd_diary_image(diary_base64, avatar_base64)
+        image_base64, avatar_base64_trimmed = _compose_ootd_diary_image(diary_base64, avatar_base64)
         duration_ms = _sum_optional_ints(avatar_ms, diary_ms)
         return GptImageResult(
             status="succeeded",
@@ -129,6 +130,7 @@ class GptImageOotdClient:
             duration_ms=duration_ms,
             error_code=None,
             message=None,
+            avatar_base64=avatar_base64_trimmed,
         )
 
     async def _post_generation(
@@ -211,7 +213,7 @@ Outfit lock:
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Plain transparent or warm ivory paper background is acceptable because this sticker will be composited onto a diary card later.
+- warm ivory paper background is acceptable because this sticker will be composited onto a diary card later.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering visible intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are present in the photo analysis) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
@@ -590,22 +592,30 @@ def _clip_text(value: str, max_chars: int) -> str:
 
 
 
-def _compose_ootd_diary_image(diary_base64: str, avatar_base64: str) -> str:
+def _compose_ootd_diary_image(diary_base64: str, avatar_base64: str) -> tuple[str, str]:
     diary = ImageOps.fit(
         _decode_png(diary_base64).convert("RGBA"),
         (DIARY_CANVAS_WIDTH, DIARY_CANVAS_HEIGHT),
         method=Image.Resampling.LANCZOS,
     )
-    avatar = _trim_avatar_background(_decode_png(avatar_base64).convert("RGBA"))
-    avatar = _resize_avatar_for_diary(avatar)
+    trimmed_avatar = _trim_avatar_background(_decode_png(avatar_base64).convert("RGBA"))
+    avatar = _resize_avatar_for_diary(trimmed_avatar)
 
     x = (DIARY_CANVAS_WIDTH - avatar.width) // 2
     y = int(DIARY_CANVAS_HEIGHT * 0.28)
     diary.alpha_composite(avatar, (x, y))
 
-    buffer = BytesIO()
-    diary.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode("ascii")
+    # Save diary composite
+    diary_buffer = BytesIO()
+    diary.save(diary_buffer, format="PNG")
+    diary_result = base64.b64encode(diary_buffer.getvalue()).decode("ascii")
+
+    # Save trimmed transparent avatar
+    avatar_buffer = BytesIO()
+    trimmed_avatar.save(avatar_buffer, format="PNG")
+    avatar_result = base64.b64encode(avatar_buffer.getvalue()).decode("ascii")
+
+    return diary_result, avatar_result
 
 
 def _decode_png(image_base64: str) -> Image.Image:

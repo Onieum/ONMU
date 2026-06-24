@@ -11,6 +11,7 @@ import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../../../shared/widgets/pixel_avatar.dart';
+import '../../repository/group_repository.dart';
 import '../../view_model/group_memory_view_model.dart';
 import '../widgets/group_memory_photo.dart';
 
@@ -24,7 +25,7 @@ class GroupMemoryBoardPage extends ConsumerWidget {
     final state = ref.watch(groupMemoryBoardViewModelProvider(groupId));
 
     return state.when(
-      data: (state) => _GroupMemoryBoardContent(state: state),
+      data: (state) => _GroupMemoryBoardContent(groupId: groupId, state: state),
       loading: () => const OnmuScaffold(
         title: '기록',
         children: [Center(child: CircularProgressIndicator())],
@@ -42,14 +43,45 @@ class GroupMemoryBoardPage extends ConsumerWidget {
   }
 }
 
-class _GroupMemoryBoardContent extends StatelessWidget {
-  const _GroupMemoryBoardContent({required this.state});
+enum _MemoryFilter {
+  all('전체'),
+  record('기록'),
+  memo('메모');
 
+  const _MemoryFilter(this.label);
+
+  final String label;
+
+  bool accepts(GroupMemoryRecord memory) {
+    return switch (this) {
+      _MemoryFilter.all => true,
+      _MemoryFilter.record => memory.isRecord,
+      _MemoryFilter.memo => memory.isMemo,
+    };
+  }
+}
+
+class _GroupMemoryBoardContent extends ConsumerStatefulWidget {
+  const _GroupMemoryBoardContent({required this.groupId, required this.state});
+
+  final String groupId;
   final GroupMemoryBoardState state;
 
   @override
+  ConsumerState<_GroupMemoryBoardContent> createState() =>
+      _GroupMemoryBoardContentState();
+}
+
+class _GroupMemoryBoardContentState
+    extends ConsumerState<_GroupMemoryBoardContent> {
+  _MemoryFilter _filter = _MemoryFilter.all;
+
+  @override
   Widget build(BuildContext context) {
-    final group = state.group;
+    final group = widget.state.group;
+    final memories = widget.state.memories
+        .where(_filter.accepts)
+        .toList(growable: false);
 
     return OnmuScaffold(
       title: group.name,
@@ -59,13 +91,17 @@ class _GroupMemoryBoardContent extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: '기록 검색',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('기록 검색은 다음 단계에서 연결할게요.')),
-              );
-            },
-            icon: const Icon(Icons.search),
+            tooltip: '기록 추가',
+            onPressed: () => _showCreateMemorySheet(context, group.id),
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+          IconButton(
+            tooltip: '채팅',
+            onPressed: () => context.push(RoutePaths.groupChat(group.id)),
+            icon: const Icon(
+              Icons.chat_bubble_outline,
+              color: AppColors.primaryPink,
+            ),
           ),
           IconButton(
             tooltip: '기록 옵션',
@@ -78,28 +114,154 @@ class _GroupMemoryBoardContent extends StatelessWidget {
       children: [
         _GroupTabs(group: group),
         const SizedBox(height: AppSpacing.md),
-        const _MemoryFilterRow(),
-        const SizedBox(height: AppSpacing.md),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.md,
-          childAspectRatio: 0.63,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            for (var index = 0; index < state.memories.length; index += 1)
-              _MemoryCard(
-                groupId: group.id,
-                memory: state.memories[index],
-                photoIndex: index,
-              ),
-          ],
+        _MemoryFilterRow(
+          selected: _filter,
+          onChanged: (filter) => setState(() => _filter = filter),
         ),
+        const SizedBox(height: AppSpacing.md),
+        if (memories.isEmpty)
+          _EmptyMemoryFilterState(filter: _filter)
+        else
+          GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.md,
+            childAspectRatio: 0.63,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (var index = 0; index < memories.length; index += 1)
+                _MemoryCard(
+                  groupId: group.id,
+                  memory: memories[index],
+                  photoIndex: index,
+                ),
+            ],
+          ),
         const SizedBox(height: 72),
       ],
     );
   }
+
+  Future<void> _showCreateMemorySheet(
+    BuildContext context,
+    Object groupId,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final kind = await showModalBottomSheet<GroupMemoryKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('기록 작성'),
+              subtitle: const Text('모임방에 남길 기록을 추가해요.'),
+              onTap: () => Navigator.of(context).pop(GroupMemoryKind.record),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sticky_note_2_outlined),
+              title: const Text('메모 작성'),
+              subtitle: const Text('메모장처럼 짧은 내용을 남겨요.'),
+              onTap: () => Navigator.of(context).pop(GroupMemoryKind.memo),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (kind == null || !mounted) return;
+
+    final input = await _showMemoryInputDialog(kind);
+    if (input == null || !mounted) return;
+
+    try {
+      await ref
+          .read(groupRepositoryProvider)
+          .createGroupMemory(
+            groupId: groupId,
+            type: kind,
+            title: input.title,
+            memo: input.memo,
+          );
+      ref.invalidate(groupMemoryBoardViewModelProvider(widget.groupId));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            kind == GroupMemoryKind.memo ? '메모를 추가했어요.' : '기록을 추가했어요.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('모임방 기록을 저장하지 못했어요.')),
+      );
+    }
+  }
+
+  Future<_MemoryDraftInput?> _showMemoryInputDialog(GroupMemoryKind kind) {
+    final titleController = TextEditingController();
+    final memoController = TextEditingController();
+    return showDialog<_MemoryDraftInput>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(kind == GroupMemoryKind.memo ? '메모 작성' : '기록 작성'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: kind == GroupMemoryKind.memo ? '메모 제목' : '기록 제목',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: memoController,
+              minLines: 4,
+              maxLines: 6,
+              decoration: InputDecoration(
+                labelText: kind == GroupMemoryKind.memo ? '메모' : '내용',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final memo = memoController.text.trim();
+              if (memo.isEmpty) return;
+              Navigator.of(context).pop(
+                _MemoryDraftInput(
+                  title: titleController.text.trim(),
+                  memo: memo,
+                ),
+              );
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      titleController.dispose();
+      memoController.dispose();
+    });
+  }
+}
+
+class _MemoryDraftInput {
+  const _MemoryDraftInput({required this.title, required this.memo});
+
+  final String title;
+  final String memo;
 }
 
 class _GroupTabs extends StatelessWidget {
@@ -117,11 +279,6 @@ class _GroupTabs extends StatelessWidget {
           onTap: () => context.push(RoutePaths.groupDetail(group.id)),
         ),
         _GroupTab(label: '기록', selected: true, onTap: () {}),
-        _GroupTab(
-          label: '채팅',
-          selected: false,
-          onTap: () => context.push(RoutePaths.groupChat(group.id)),
-        ),
       ],
     );
   }
@@ -169,19 +326,28 @@ class _GroupTab extends StatelessWidget {
 }
 
 class _MemoryFilterRow extends StatelessWidget {
-  const _MemoryFilterRow();
+  const _MemoryFilterRow({required this.selected, required this.onChanged});
+
+  final _MemoryFilter selected;
+  final ValueChanged<_MemoryFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final filters = ['전체', '사진', '카페', '여행', '기타'];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (var index = 0; index < filters.length; index += 1) ...[
-            _MemoryFilterChip(label: filters[index], selected: index == 0),
-            if (index != filters.length - 1)
+          for (
+            var index = 0;
+            index < _MemoryFilter.values.length;
+            index += 1
+          ) ...[
+            _MemoryFilterChip(
+              label: _MemoryFilter.values[index].label,
+              selected: selected == _MemoryFilter.values[index],
+              onTap: () => onChanged(_MemoryFilter.values[index]),
+            ),
+            if (index != _MemoryFilter.values.length - 1)
               const SizedBox(width: AppSpacing.xs),
           ],
         ],
@@ -191,41 +357,72 @@ class _MemoryFilterRow extends StatelessWidget {
 }
 
 class _MemoryFilterChip extends StatelessWidget {
-  const _MemoryFilterChip({required this.label, required this.selected});
+  const _MemoryFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: selected ? AppColors.bgDefault : AppColors.bgWarm,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(
-          color: selected ? AppColors.lineBrown : AppColors.lineSoft,
-          width: selected ? 1.4 : 1,
-        ),
-        boxShadow: selected
-            ? const [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: selected ? AppColors.textMain : AppColors.textSub,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? AppColors.bgDefault : AppColors.bgWarm,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(
+            color: selected ? AppColors.lineBrown : AppColors.lineSoft,
+            width: selected ? 1.4 : 1,
           ),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: selected ? AppColors.textMain : AppColors.textSub,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyMemoryFilterState extends StatelessWidget {
+  const _EmptyMemoryFilterState({required this.filter});
+
+  final _MemoryFilter filter;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Text(
+          '${filter.label} 항목이 아직 없어요.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSub),
         ),
       ),
     );
@@ -268,9 +465,13 @@ class _MemoryCard extends StatelessWidget {
                   profileImageUrl: memory.authorProfileImageUrl,
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Text(
-                  memory.author,
-                  style: Theme.of(context).textTheme.labelMedium,
+                Expanded(
+                  child: Text(
+                    memory.author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
                 ),
               ],
             ),
@@ -298,40 +499,89 @@ class _MemoryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  GroupMemoryPhoto(
-                    index: photoIndex,
-                    imageUrl: memory.primaryImageUrl,
-                  ),
-                  Positioned(
-                    right: AppSpacing.xs,
-                    bottom: AppSpacing.xs,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppColors.bgDefault.withValues(alpha: 0.88),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.xxs),
-                        child: Icon(
-                          Icons.favorite,
-                          size: 18,
-                          color: photoIndex == 3
-                              ? AppColors.accentRed
-                              : AppColors.textInverse,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            child: memory.isMemo
+                ? _MemoPreview(memory: memory)
+                : _RecordPreview(memory: memory, photoIndex: photoIndex),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecordPreview extends StatelessWidget {
+  const _RecordPreview({required this.memory, required this.photoIndex});
+
+  final GroupMemoryRecord memory;
+  final int photoIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          GroupMemoryPhoto(index: photoIndex, imageUrl: memory.primaryImageUrl),
+          Positioned(
+            right: AppSpacing.xs,
+            bottom: AppSpacing.xs,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.bgDefault.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xxs),
+                child: Icon(
+                  Icons.favorite,
+                  size: 18,
+                  color: photoIndex == 3
+                      ? AppColors.accentRed
+                      : AppColors.textInverse,
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemoPreview extends StatelessWidget {
+  const _MemoPreview({required this.memory});
+
+  final GroupMemoryRecord memory;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.bgWarm,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.lineSoft),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.sticky_note_2_outlined, color: AppColors.textSub),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                memory.description,
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSub,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

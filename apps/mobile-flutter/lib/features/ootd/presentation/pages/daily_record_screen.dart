@@ -83,6 +83,8 @@ class DailyRecordScreen extends StatefulWidget {
   })?
   onFetchCrewAppearances;
   final Future<OotdRecord> Function(OotdRecord) onSave;
+  final Future<OotdRecord> Function(String groupId, OotdRecord record)?
+  onShareToGroup;
   final Future<UploadedMedia> Function(Uint8List bytes, String fileName)
   onUploadMedia;
   final Future<OotdRecord?> Function() onCreateOotd;
@@ -94,6 +96,7 @@ class DailyRecordScreen extends StatefulWidget {
     required this.onSave,
     required this.onUploadMedia,
     required this.onCreateOotd,
+    this.onShareToGroup,
     this.ootdRecord,
     this.memoryPlaceNames = const [],
     this.crewCharacters = const [],
@@ -705,6 +708,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       );
       final saved = await widget.onSave(recordWithImages);
       if (!mounted) return;
+      await _maybeShareWithGroup(saved);
+      if (!mounted) return;
       setState(() {
         _isSaving = false;
         _savedRecord = saved;
@@ -727,6 +732,51 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     }
     if (!mounted) return;
     setState(() => _isSaving = false);
+  }
+
+  Future<void> _maybeShareWithGroup(OotdRecord record) async {
+    final share = widget.onShareToGroup;
+    final groupId = widget.groupId?.trim();
+    if (!_hasLinkedPlanContext ||
+        share == null ||
+        groupId == null ||
+        groupId.isEmpty) {
+      return;
+    }
+
+    final shouldShare = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('모임방에도 공유할까요?'),
+        content: const Text('오늘 날짜에 연결된 약속이 있어요. 이 기록을 모임방 기록에도 올릴 수 있어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('아니오'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('공유하기'),
+          ),
+        ],
+      ),
+    );
+    if (shouldShare != true || !mounted) {
+      return;
+    }
+
+    try {
+      await share(groupId, record);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('모임방 기록에 공유했어요.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모임방 공유에 실패했어요. 기록은 저장되어 있어요.')),
+      );
+    }
   }
 
   Widget _buildStepIndicator() {

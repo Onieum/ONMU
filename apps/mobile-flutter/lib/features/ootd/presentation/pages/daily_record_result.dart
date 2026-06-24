@@ -1,4 +1,4 @@
-﻿part of 'daily_record_screen.dart';
+part of 'daily_record_screen.dart';
 
 class DailyRecordResultScreen extends StatelessWidget {
   final OotdRecord record;
@@ -964,17 +964,26 @@ class _DiaryCharacterPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
+    final width = MediaQuery.sizeOf(context).width;
+    final userSize = width < 360 ? 46.0 : 52.0;
+    final crewSize = width < 360 ? 42.0 : 48.0;
+    final generatedWidth = width < 360 ? 52.0 : 58.0;
+    final generatedHeight = width < 360 ? 68.0 : 74.0;
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      runAlignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: 2,
+      runSpacing: 4,
       children: [
         if (ootdRecord != null)
           SizedBox(
-            width: 58,
-            height: 74,
+            width: generatedWidth,
+            height: generatedHeight,
             child: OotdGeneratedImageView(
               record: ootdRecord!,
-              characterSize: 54,
+              characterSize: width < 360 ? 48 : 54,
               preferAvatarImage: true,
               avatarOnly: true,
               showFallbackCharacter: false,
@@ -984,29 +993,24 @@ class _DiaryCharacterPair extends StatelessWidget {
         else
           PixelCharacterWidget(
             character: userCharacter,
-            size: 52,
+            size: userSize,
             showShadow: false,
           ),
         if (includeCrew && crewAppearances.isNotEmpty)
           ...crewAppearances
               .take(3)
               .map(
-                (appearance) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: _crewAppearanceAvatar(appearance, size: 48),
-                ),
+                (appearance) =>
+                    _crewAppearanceAvatar(appearance, size: crewSize),
               )
         else if (includeCrew)
           ...crewCharacters
               .take(3)
               .map(
-                (character) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: PixelCharacterWidget(
-                    character: character,
-                    size: 48,
-                    showShadow: false,
-                  ),
+                (character) => PixelCharacterWidget(
+                  character: character,
+                  size: crewSize,
+                  showShadow: false,
                 ),
               ),
       ],
@@ -1600,6 +1604,11 @@ class _CleanPeopleBlock extends StatelessWidget {
     final hasCrew =
         includeCrew &&
         (crewAppearances.isNotEmpty || crewCharacters.isNotEmpty);
+    final width = MediaQuery.sizeOf(context).width;
+    final userSize = width < 360 ? 50.0 : 58.0;
+    final crewSize = width < 360 ? 44.0 : 52.0;
+    final generatedWidth = width < 360 ? 58.0 : 66.0;
+    final generatedHeight = width < 360 ? 74.0 : 82.0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1609,40 +1618,52 @@ class _CleanPeopleBlock extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (ootdRecord != null)
-            SizedBox(
-              width: 66,
-              height: 82,
-              child: OotdGeneratedImageView(
-                record: ootdRecord!,
-                characterSize: 60,
-                preferAvatarImage: true,
-                avatarOnly: true,
-                showFallbackCharacter: false,
-                compactStatus: true,
-              ),
-            )
-          else
-            PixelCharacterWidget(character: userCharacter, size: 58),
-          if (hasCrew && crewAppearances.isNotEmpty)
-            ...crewAppearances
-                .take(4)
-                .map(
-                  (appearance) => Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _crewAppearanceAvatar(appearance, size: 52),
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (ootdRecord != null)
+                  SizedBox(
+                    width: generatedWidth,
+                    height: generatedHeight,
+                    child: OotdGeneratedImageView(
+                      record: ootdRecord!,
+                      characterSize: width < 360 ? 54 : 60,
+                      preferAvatarImage: true,
+                      avatarOnly: true,
+                      showFallbackCharacter: false,
+                      compactStatus: true,
+                    ),
+                  )
+                else
+                  PixelCharacterWidget(
+                    character: userCharacter,
+                    size: userSize,
                   ),
-                )
-          else if (hasCrew)
-            ...crewCharacters
-                .take(4)
-                .map(
-                  (character) => Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: PixelCharacterWidget(character: character, size: 52),
-                  ),
-                ),
-          SizedBox(width: 14),
+                if (hasCrew && crewAppearances.isNotEmpty)
+                  ...crewAppearances
+                      .take(4)
+                      .map(
+                        (appearance) =>
+                            _crewAppearanceAvatar(appearance, size: crewSize),
+                      )
+                else if (hasCrew)
+                  ...crewCharacters
+                      .take(4)
+                      .map(
+                        (character) => PixelCharacterWidget(
+                          character: character,
+                          size: crewSize,
+                        ),
+                      ),
+              ],
+            ),
+          ),
+          SizedBox(width: width < 360 ? 8 : 14),
           Expanded(
             child: Text(
               hasCrew

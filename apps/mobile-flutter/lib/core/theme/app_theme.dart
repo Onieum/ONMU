@@ -17,6 +17,7 @@ class AppTheme {
         error: AppColors.accentRed,
       ),
       scaffoldBackgroundColor: AppColors.bgDefault,
+      splashFactory: InkRipple.splashFactory,
       fontFamily: AppFontFamilies.body,
       fontFamilyFallback: AppFontFamilies.fallback,
       textTheme: const TextTheme(

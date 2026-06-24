@@ -40,6 +40,7 @@ import '../../features/ootd/presentation/pages/daily_record_edit_screen.dart';
 import '../../features/ootd/presentation/pages/daily_record_screen.dart';
 import '../../features/ootd/presentation/pages/ootd_record_screen.dart';
 import '../../features/ootd/view_model/record_flow_controller.dart';
+import '../../features/ootd/repository/record_repository.dart';
 import '../../features/group/presentation/pages/group_vote_list_page.dart';
 import '../../features/place/presentation/pages/place_candidate_page.dart';
 import '../../features/place/presentation/pages/place_detail_page.dart';
@@ -450,6 +451,12 @@ final appRouter = GoRouter(
                   return OotdListPage(
                     userCharacter: routeState.character,
                     customRecords: routeState.records.value ?? const [],
+                    onRefresh: () async {
+                      controller.refreshRecords();
+                      try {
+                        await ref.read(ootdRecordsProvider.future);
+                      } catch (_) {}
+                    },
                     onAddOotd: (date, ootdRecord) {
                       context.push(
                         '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}',
@@ -579,6 +586,7 @@ final appRouter = GoRouter(
             planId: planId,
             onFetchCrewAppearances: controller.fetchCrewOotdAppearances,
             onSave: controller.saveRecord,
+            onShareToGroup: controller.shareRecordToGroup,
             onUploadMedia: controller.uploadMedia,
             onCreateOotd: () {
               return context.push<OotdRecord>(
@@ -757,11 +765,16 @@ _DailyRoutePlanContext _dailyRoutePlanContextFor(
   final memoryPlaces = <String>[];
   final seenPlaces = <String>{};
   for (final plan in orderedPlans) {
-    final place = plan.placeName.trim();
-    if (place.isEmpty) continue;
-    final key = place.toLowerCase();
-    if (seenPlaces.add(key)) {
-      memoryPlaces.add(place);
+    final planPlaces = plan.memoryPlaceNames.isNotEmpty
+        ? plan.memoryPlaceNames
+        : [plan.placeName];
+    for (final rawPlace in planPlaces) {
+      final place = rawPlace.trim();
+      if (place.isEmpty) continue;
+      final key = place.toLowerCase();
+      if (seenPlaces.add(key)) {
+        memoryPlaces.add(place);
+      }
     }
   }
 

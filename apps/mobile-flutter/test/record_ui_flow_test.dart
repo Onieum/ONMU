@@ -158,6 +158,7 @@ OotdListPage _listPage({required List<OotdRecord> records}) {
     onSaveRecordImage:
         ({required record, required bytes, required fileName}) async => record,
     onNavigateToProfile: () {},
+    onRefresh: () async {},
   );
 }
 
