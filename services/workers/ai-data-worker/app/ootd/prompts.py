@@ -180,6 +180,14 @@ For every visible item, extract:
 - bags and carried items
 - jewelry and accessories
 
+Detail fidelity requirements:
+- Describe clothing colors precisely, including main color, accent color, trim color, gradients, wash, fading, and color placement.
+- Describe lengths precisely: mini/midi/maxi skirt, shorts length, cropped/full-length pants, sleeve length, coat/cardigan length, sock height, and visible hem position.
+- Describe fit and silhouette precisely: tight, straight, slim, oversized, boxy, flared, pleated, wide-leg, A-line, gathered, layered, tucked, untucked, high-waisted, low-rise.
+- Describe materials and construction details precisely: denim wash, knit ribbing, leather, cotton, sheer fabric, lace, pleats, seams, buttons, zippers, pockets, cuffs, collars, straps, bows, frays, distressing.
+- Describe graphics and patterns precisely: stripes, checks, lettering, logos, patches, embroidery, prints, motifs, color blocks, and their placement.
+- If a detail is ambiguous, mark confidence or uncertainty instead of replacing it with a generic item.
+
 5. Styling interpretation
 - overall aesthetic
 - styling point
