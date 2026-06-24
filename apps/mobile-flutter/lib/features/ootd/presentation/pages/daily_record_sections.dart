@@ -289,10 +289,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          '오늘의 OOTD',
-          'OOTD가 없어도 오늘의 분위기와 기본 코디 감성으로 기록을 이어갈 수 있어요.',
-        ),
+        _sectionTitle('오늘의 OOTD', 'OOTD를 만들지 않아도 기본 캐릭터로 하루일과를 기록할 수 있어요.'),
         if (ootd != null)
           Container(
             width: double.infinity,
@@ -359,14 +356,14 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'OOTD 없이 기록을 이어가요.',
+                  '기본 캐릭터로 기록해요.',
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '오늘의 맞춤 코디가 없어도 기분과 날씨에 맞춘 기본 분위기로 하루 일과가 완성돼요.',
+                  '오늘의 OOTD가 없어도 프로필의 기본 캐릭터와 기분/날씨로 하루일과가 완성돼요.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSub,
@@ -387,7 +384,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  '필요하면 OOTD를 먼저 만들고 돌아올 수 있어요.',
+                  '원하면 OOTD 이미지를 먼저 만들고 돌아올 수 있어요.',
                   style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textMuted,
                   ),
