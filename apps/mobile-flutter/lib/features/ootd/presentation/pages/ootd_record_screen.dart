@@ -622,7 +622,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   void _nextStep() {
     if (_step == 3) {
-      if (widget.isDailyRecord && Navigator.of(context).canPop()) {
+      if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(_savedRecord);
       } else {
         context.go(RoutePaths.records);

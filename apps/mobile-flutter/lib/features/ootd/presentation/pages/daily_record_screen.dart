@@ -270,10 +270,6 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   bool get _hasCrew =>
       (_hasLinkedPlanContext || _isEditingSavedDaily) && _hasCrewSource;
 
-  bool get _shouldSkipCrewStep =>
-      (!_hasLinkedPlanContext && !_isEditingSavedDaily) ||
-      (!_isLoadingCrewAppearances && !_hasCrewSource);
-
   Future<void> _loadCrewAppearances() async {
     final fetch = widget.onFetchCrewAppearances;
     final groupId = widget.groupId;
@@ -348,13 +344,6 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       _handleSaveStep();
       return;
     }
-    if (_currentStep == 3 && _shouldSkipCrewStep) {
-      setState(() {
-        _includeCrew = false;
-        _currentStep = 5;
-      });
-      return;
-    }
     setState(() => _currentStep++);
   }
 
@@ -362,10 +351,6 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
     if (_currentStep == 0) {
       context.popOrGo(RoutePaths.records);
-      return;
-    }
-    if (_currentStep == 5 && _shouldSkipCrewStep) {
-      setState(() => _currentStep = 3);
       return;
     }
     setState(() => _currentStep--);

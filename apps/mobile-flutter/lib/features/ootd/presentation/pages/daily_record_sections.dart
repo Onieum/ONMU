@@ -289,7 +289,10 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('오늘의 OOTD', '오늘 입은 코디도 함께 기록할 수 있어요. 건너뛰면 하루 일과만 저장됩니다.'),
+        _sectionTitle(
+          '오늘의 OOTD',
+          'OOTD가 없어도 오늘의 분위기와 기본 코디 감성으로 기록을 이어갈 수 있어요.',
+        ),
         if (ootd != null)
           Container(
             width: double.infinity,
@@ -356,14 +359,14 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  '건너뛰면 하루 일과만 저장됩니다.',
+                  'OOTD 없이 기록을 이어가요.',
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textMain,
                   ),
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'OOTD를 기록하면 오늘의 일과에 함께 남길 수 있어요.',
+                  '오늘의 맞춤 코디가 없어도 기분과 날씨에 맞춘 기본 분위기로 하루 일과가 완성돼요.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSub,
@@ -384,7 +387,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  '건너뛰면 하루 일과만 저장됩니다.',
+                  '필요하면 OOTD를 먼저 만들고 돌아올 수 있어요.',
                   style: AppTextStyles.labelSmall.copyWith(
                     color: AppColors.textMuted,
                   ),
@@ -397,58 +400,34 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
   }
 
   Widget _buildCrewPage() {
-    if (_shouldSkipCrewStep) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionTitle(
-            '\uD568\uAED8\uD55C \uD06C\uB8E8',
-            '\uC624\uB298 \uC5F0\uACB0\uB41C \uC57D\uC18D \uBA64\uBC84\uAC00 \uC5C6\uC5B4 \uD06C\uB8E8 \uC120\uD0DD\uC744 \uAC74\uB108\uB701\uC5B4\uC694.',
-          ),
-          SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            decoration: BoxDecoration(
-              color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.lineSoft),
-            ),
-            child: Text(
-              '\uD568\uAED8\uD55C \uD06C\uB8E8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD63C\uC790\uB9CC\uC758 \uD558\uB8E8\uB97C \uAE30\uB85D\uD560\uAC8C\uC694.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSub,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
+    final canIncludeCrew = _hasLinkedPlanContext || _hasCrewSource;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('함께한 크루', '오늘을 함께한 크루를 선택해 주세요.'),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
+        Column(
           children: [
-            _toggleCard(
-              '크루와 함께',
-              Icons.groups_outlined,
-              includeCrew: true,
-              includeUser: true,
-            ),
+            if (canIncludeCrew) ...[
+              _toggleCard(
+                '크루와 함께',
+                '모두를 기록에 함께 담아요',
+                Icons.groups_outlined,
+                includeCrew: true,
+                includeUser: true,
+              ),
+              SizedBox(height: 10),
+            ],
             _toggleCard(
               '나만 넣기',
+              '나의 하루를 집중해서 기록해요',
               Icons.person_outline,
               includeCrew: false,
               includeUser: true,
             ),
+            SizedBox(height: 10),
             _toggleCard(
               '아무도 안 넣기',
+              '캐릭터 없이 담백하게 기록해요',
               Icons.block_outlined,
               includeCrew: false,
               includeUser: false,
@@ -793,6 +772,7 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
 
   Widget _toggleCard(
     String title,
+    String subtitle,
     IconData icon, {
     required bool includeCrew,
     required bool includeUser,
@@ -804,35 +784,87 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
         _includeCrew = includeCrew;
         _includeUserCharacter = includeUser;
       }),
-      child: SizedBox(
-        width: 132,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-              width: selected ? 2 : 1,
-            ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryPinkSoft.withOpacity(0.45)
+              : AppColors.bgDefault,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+            width: selected ? 2 : 1,
           ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                color: selected ? AppColors.primaryPink : AppColors.textMuted,
-                size: 28,
-              ),
-              SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.textMain,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.bgDefault.withOpacity(selected ? 0.92 : 0.65),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.linePink
+                      : AppColors.lineSoft.withOpacity(0.8),
                 ),
               ),
-            ],
-          ),
+              child: Icon(
+                icon,
+                color: selected ? AppColors.primaryPink : AppColors.textMuted,
+                size: 34,
+              ),
+            ),
+            SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSub,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 14),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? AppColors.primaryPink : AppColors.bgDefault,
+                border: Border.all(
+                  color: selected ? AppColors.primaryPink : AppColors.lineSoft,
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: AppColors.textInverse,
+                      size: 28,
+                    )
+                  : null,
+            ),
+          ],
         ),
       ),
     );

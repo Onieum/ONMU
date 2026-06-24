@@ -149,4 +149,52 @@ void main() {
     expect(overrides['eyeStyle'], 'eye_style_1');
     expect(overrides['eyeColor'], 'eye_color_5');
   });
+
+  test('fetchCrewOotdAppearances preserves character gender', () async {
+    final requestedPaths = <String>[];
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestedPaths.add(options.path);
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'userId': 'usr-minsu',
+                  'nickname': '민수',
+                  'source': 'PROFILE_CHARACTER',
+                  'character': {
+                    'gender': 'male',
+                    'skin_tone': 'skin_2',
+                    'hair_style': 'hair_style_2',
+                    'hair_color': 'hair_color_1',
+                    'eye_style': 'eye_style_1',
+                    'eye_color': 'eye_color_1',
+                    'clothes': 'top_1',
+                  },
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiRecordRepository(OnmuApiClient(dio));
+
+    final appearances = await repository.fetchCrewOotdAppearances(
+      groupId: '1',
+      planId: '101',
+      date: DateTime(2026, 6, 25),
+    );
+
+    expect(
+      requestedPaths.single,
+      '/api/v1/groups/1/plans/101/crew-ootd-appearances?date=2026-06-25',
+    );
+    expect(appearances.single.character?.gender, 'male');
+    expect(appearances.single.character?.hairStyleIndex, 2);
+    expect(appearances.single.character?.hairColorIndex, 1);
+  });
 }
