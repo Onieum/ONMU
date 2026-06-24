@@ -7,6 +7,7 @@ import '../../../shared/models/ootd_model.dart';
 import '../../../shared/providers/state_providers.dart';
 import '../../character/repository/character_repository.dart';
 import '../repository/record_repository.dart';
+import '../../home/view_model/home_view_model.dart';
 
 final recordFlowControllerProvider = Provider<RecordFlowController>(
   (ref) => RecordFlowController(ref),
@@ -52,6 +53,17 @@ class RecordFlowController {
     return saved;
   }
 
+  Future<OotdRecord> shareRecordToGroup(
+    String groupId,
+    OotdRecord record,
+  ) async {
+    final saved = await _ref
+        .read(recordRepositoryProvider)
+        .createGroupRecord(groupId: groupId, record: record);
+    _ref.invalidate(ootdRecordsProvider);
+    return saved;
+  }
+
   Future<UploadedMedia> uploadMedia(Uint8List bytes, String fileName) {
     return _ref.read(recordRepositoryProvider).uploadMedia(bytes, fileName);
   }
@@ -61,11 +73,9 @@ class RecordFlowController {
     required String planId,
     required DateTime date,
   }) {
-    return _ref.read(recordRepositoryProvider).fetchCrewOotdAppearances(
-      groupId: groupId,
-      planId: planId,
-      date: date,
-    );
+    return _ref
+        .read(recordRepositoryProvider)
+        .fetchCrewOotdAppearances(groupId: groupId, planId: planId, date: date);
   }
 
   Future<OotdRecord> saveRecordImage({
@@ -118,5 +128,28 @@ class RecordFlowController {
   void resetCharacterDraft() {
     _ref.read(userCharacterProvider.notifier).state = null;
     _ref.read(skippedCharacterProvider.notifier).state = false;
+  }
+
+  void startBackgroundPolling(String jobId) {
+    Future<void> poll() async {
+      try {
+        final repository = _ref.read(recordRepositoryProvider);
+        var attempts = 0;
+        while (attempts < 30) {
+          await Future<void>.delayed(const Duration(seconds: 3));
+          final latest = await repository.fetchAvatarGeneration(jobId);
+          if (!latest.isPending) {
+            _ref.invalidate(ootdRecordsProvider);
+            _ref.invalidate(homeRecentRecordsProvider);
+            break;
+          }
+          attempts++;
+        }
+      } catch (_) {
+        // 백그라운드 스레드에서 무음 실패 처리
+      }
+    }
+
+    poll();
   }
 }

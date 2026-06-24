@@ -1292,6 +1292,53 @@ void main() {
       'http://127.0.0.1:8080/api/v1/media/public?key=dev%2Fmedia%2Frecords%2Fmemory-1004%2Fimage-1.jpg',
     );
   });
+
+  test(
+    'createGroupMemory posts memo payload to group memories endpoint',
+    () async {
+      final requestedPaths = <String>[];
+      final requestBodies = <Map<String, dynamic>>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:8080'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requestedPaths.add(options.path);
+            requestBodies.add(Map<String, dynamic>.from(options.data as Map));
+            handler.resolve(
+              Response<Object?>(
+                requestOptions: options,
+                statusCode: 201,
+                data: {
+                  'publicId': 'memory-memo-1',
+                  'type': 'MEMO',
+                  'authorName': 'ONMU',
+                  'title': '회의 메모',
+                  'memo': '다음 모임은 7시에 만나기',
+                  'date': '2026-06-24',
+                  'tags': ['메모'],
+                  'imageUrls': <String>[],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+      final memory = await repository.createGroupMemory(
+        groupId: '1',
+        type: GroupMemoryKind.memo,
+        title: '회의 메모',
+        memo: '다음 모임은 7시에 만나기',
+      );
+
+      expect(requestedPaths.single, '/api/v1/groups/1/memories');
+      expect(requestBodies.single['type'], 'MEMO');
+      expect(requestBodies.single['visibility'], 'GROUP_ONLY');
+      expect(memory.isMemo, isTrue);
+      expect(memory.title, '회의 메모');
+    },
+  );
 }
 
 String _localTimeLabel(String value) {

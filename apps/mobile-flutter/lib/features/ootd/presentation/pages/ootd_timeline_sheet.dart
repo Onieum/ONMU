@@ -495,6 +495,7 @@ class _TimelineBottomSheetContentState
     final result = DailyRecordResultScreen(
       record: dailyRecord,
       userCharacter: widget.userCharacter,
+      ootdRecord: _ootdRecord,
       includeCrew: _ootdRecord != null,
       photoCount: photoItems.length,
       onEdit: () {
@@ -796,22 +797,21 @@ class _TimelineBottomSheetContentState
             SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    await widget.onDeleteRecord(activeRecord);
-                    if (!mounted) return;
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('기록을 삭제했어요.')));
-                  } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                onPressed: () {
+                  Navigator.pop(context);
+                  
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('기록을 삭제했어요.')),
+                  );
+
+                  widget.onDeleteRecord(activeRecord).catchError((_) {
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Text('기록을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.'),
                       ),
                     );
-                  }
+                  });
                 },
                 icon: const Icon(Icons.delete_outline, size: 16),
                 label: Text('삭제하기'),

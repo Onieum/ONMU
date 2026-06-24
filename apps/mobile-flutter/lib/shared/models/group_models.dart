@@ -94,6 +94,7 @@ class GroupPlanSummary {
     required this.isPast,
     this.memberAvatars = const [],
     this.thumbnailImageUrl = '',
+    this.memoryPlaceNames = const [],
     this.startsAt,
     this.endsAt,
   });
@@ -112,6 +113,7 @@ class GroupPlanSummary {
   final bool isPast;
   final List<GroupPlanMemberAvatar> memberAvatars;
   final String thumbnailImageUrl;
+  final List<String> memoryPlaceNames;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
@@ -495,6 +497,21 @@ class GroupMessagePage {
   final int unreadCount;
 }
 
+enum GroupMemoryKind {
+  record,
+  memo;
+
+  String get apiType => switch (this) {
+    GroupMemoryKind.record => 'DAILY',
+    GroupMemoryKind.memo => 'MEMO',
+  };
+
+  String get recordType => switch (this) {
+    GroupMemoryKind.record => 'daily',
+    GroupMemoryKind.memo => 'memo',
+  };
+}
+
 class GroupMemoryRecord {
   const GroupMemoryRecord({
     required this.id,
@@ -506,6 +523,7 @@ class GroupMemoryRecord {
     this.apiId = '',
     this.imageUrls = const [],
     this.authorProfileImageUrl = '',
+    this.kind = GroupMemoryKind.record,
   });
 
   final int id;
@@ -517,10 +535,15 @@ class GroupMemoryRecord {
   final List<String> tags;
   final List<String> imageUrls;
   final String authorProfileImageUrl;
+  final GroupMemoryKind kind;
 
   String get routeId => apiId.isEmpty ? id.toString() : apiId;
 
   String? get primaryImageUrl => imageUrls.isEmpty ? null : imageUrls.first;
+
+  bool get isMemo => kind == GroupMemoryKind.memo;
+
+  bool get isRecord => kind == GroupMemoryKind.record;
 }
 
 class VoteCard {

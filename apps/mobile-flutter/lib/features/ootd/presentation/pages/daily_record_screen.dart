@@ -83,6 +83,8 @@ class DailyRecordScreen extends StatefulWidget {
   })?
   onFetchCrewAppearances;
   final Future<OotdRecord> Function(OotdRecord) onSave;
+  final Future<OotdRecord> Function(String groupId, OotdRecord record)?
+  onShareToGroup;
   final Future<UploadedMedia> Function(Uint8List bytes, String fileName)
   onUploadMedia;
   final Future<OotdRecord?> Function() onCreateOotd;
@@ -94,6 +96,7 @@ class DailyRecordScreen extends StatefulWidget {
     required this.onSave,
     required this.onUploadMedia,
     required this.onCreateOotd,
+    this.onShareToGroup,
     this.ootdRecord,
     this.memoryPlaceNames = const [],
     this.crewCharacters = const [],
@@ -113,6 +116,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   int _selectedWeather = 0;
   int _selectedTheme = 0;
   bool _includeCrew = true;
+  bool _includeUserCharacter = true;
   bool _isSaving = false;
   bool _isSavingResultImage = false;
   OotdRecord? _linkedOotdRecord;
@@ -181,7 +185,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       );
       if (_selectedWeather == -1) _selectedWeather = 0;
       _selectedTheme = r.brands['theme'] == 'diary' ? 0 : 1;
-      _includeCrew = r.brands['crew'] == 'included';
+      final crewMode = r.brands['crew'];
+      _includeCrew = crewMode == 'included';
+      _includeUserCharacter = crewMode != 'none';
 
       _hashtags.clear();
       _hashtags.addAll(r.moodTags);
@@ -224,6 +230,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       _crewCharacters = const <CharacterDraft>[];
       _crewAppearances = const <CrewOotdAppearance>[];
       _includeCrew = false;
+      _includeUserCharacter = true;
     }
     _loadCrewAppearances();
   }
@@ -274,12 +281,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (fetch == null || groupId == null || planId == null) {
       if (!_isEditingSavedDaily) {
         _includeCrew = false;
+        _includeUserCharacter = true;
       }
       return;
     }
     if (groupId.trim().isEmpty || planId.trim().isEmpty) {
       if (!_isEditingSavedDaily) {
         _includeCrew = false;
+        _includeUserCharacter = true;
       }
       return;
     }
@@ -484,21 +493,26 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
     setState(() {
       _askedMemoryForNoPlan = true;
-      _memoryPlaceNames = _normalizePlaceNames([..._memoryPlaceNames, memory]);
+      _memoryPlaceNames = _normalizePlaceNames([
+        ..._memoryPlaceNames,
+        ...memory,
+      ]);
     });
     return true;
   }
 
-  Future<String?> _promptManualMemory() {
+  Future<List<String>?> _promptManualMemory() {
     _memoryController.clear();
-    return showDialog<String>(
+    return showDialog<List<String>>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("TODAY'S MEMORY"),
         content: TextField(
           controller: _memoryController,
           autofocus: true,
-          maxLength: 40,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 160,
           decoration: const InputDecoration(hintText: '예: 을지로 카페에서 책 읽기'),
         ),
         actions: [
@@ -507,8 +521,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             child: const Text('취소'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.of(context).pop(_memoryController.text.trim()),
+            onPressed: () {
+              final memories = _memoryController.text
+                  .split(RegExp(r'[\r\n]+'))
+                  .map((value) => value.trim())
+                  .where((value) => value.isNotEmpty)
+                  .toList(growable: false);
+              Navigator.of(context).pop(memories);
+            },
             child: const Text('저장'),
           ),
         ],
@@ -598,6 +618,9 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     final selectedWeather = _weathers[_selectedWeather].label;
     final memo = _dayMemoController.text.trim();
     final themeLabel = _selectedTheme == 0 ? 'diary' : 'clean';
+    final crewMode = !_includeUserCharacter
+        ? 'none'
+        : (_includeCrew ? 'included' : 'userOnly');
     final uploadedUrls = <String>[];
     final uploadedMedia = <UploadedMedia>[];
 
@@ -611,7 +634,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
         'mood': selectedMood,
         'weather': selectedWeather,
         'theme': themeLabel,
-        'crew': _includeCrew ? 'included' : 'userOnly',
+        'crew': crewMode,
         if (_linkedOotdRecord != null) 'linkedOotd': 'true',
       },
       weather: selectedWeather,
@@ -705,6 +728,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       );
       final saved = await widget.onSave(recordWithImages);
       if (!mounted) return;
+      await _maybeShareWithGroup(saved);
+      if (!mounted) return;
       setState(() {
         _isSaving = false;
         _savedRecord = saved;
@@ -727,6 +752,51 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     }
     if (!mounted) return;
     setState(() => _isSaving = false);
+  }
+
+  Future<void> _maybeShareWithGroup(OotdRecord record) async {
+    final share = widget.onShareToGroup;
+    final groupId = widget.groupId?.trim();
+    if (!_hasLinkedPlanContext ||
+        share == null ||
+        groupId == null ||
+        groupId.isEmpty) {
+      return;
+    }
+
+    final shouldShare = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('모임방에도 공유할까요?'),
+        content: const Text('오늘 날짜에 연결된 약속이 있어요. 이 기록을 모임방 기록에도 올릴 수 있어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('아니오'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('공유하기'),
+          ),
+        ],
+      ),
+    );
+    if (shouldShare != true || !mounted) {
+      return;
+    }
+
+    try {
+      await share(groupId, record);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('모임방 기록에 공유했어요.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모임방 공유에 실패했어요. 기록은 저장되어 있어요.')),
+      );
+    }
   }
 
   Widget _buildStepIndicator() {

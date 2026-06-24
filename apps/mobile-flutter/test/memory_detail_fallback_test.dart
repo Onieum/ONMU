@@ -113,6 +113,14 @@ class _DetailMissingRecordRepository implements RecordRepository {
   }
 
   @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<OotdRecord> updateRecord(String id, OotdRecord record) {
     throw UnimplementedError();
   }
@@ -131,6 +139,8 @@ class _DetailMissingRecordRepository implements RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,

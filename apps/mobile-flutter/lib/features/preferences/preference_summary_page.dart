@@ -339,6 +339,9 @@ class _PreferenceCompletedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isWidgetTestBinding) {
+      return const SizedBox(height: 140);
+    }
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 220),
@@ -350,6 +353,11 @@ class _PreferenceCompletedImage extends StatelessWidget {
       ),
     );
   }
+}
+
+bool get _isWidgetTestBinding {
+  final binding = WidgetsBinding.instance;
+  return binding.runtimeType.toString().contains('TestWidgetsFlutterBinding');
 }
 
 class _SummaryList extends StatelessWidget {

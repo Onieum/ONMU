@@ -1,5 +1,5 @@
-﻿import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,8 @@ import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/onmu_date_picker.dart';
 import '../widgets/ootd_generated_image_view.dart';
 import 'daily_record_screen.dart';
+part 'ootd_calendar_helpers.dart';
+part 'ootd_monthly_overview.dart';
 part 'ootd_timeline_sheet.dart';
 
 typedef SaveRecordImageCallback =
@@ -41,6 +43,7 @@ class OotdListPage extends StatefulWidget {
   final Future<void> Function(OotdRecord) onDeleteRecord;
   final SaveRecordImageCallback onSaveRecordImage;
   final VoidCallback onNavigateToProfile;
+  final Future<void> Function() onRefresh;
   const OotdListPage({
     super.key,
     required this.userCharacter,
@@ -52,6 +55,7 @@ class OotdListPage extends StatefulWidget {
     required this.onDeleteRecord,
     required this.onSaveRecordImage,
     required this.onNavigateToProfile,
+    required this.onRefresh,
   });
   @override
   State<OotdListPage> createState() => _OotdListPageState();
@@ -62,6 +66,7 @@ class _OotdListPageState extends State<OotdListPage> {
   late DateTime _selectedDay;
   final List<OotdRecord> _allRecords = [];
   final Set<String> _locallyDeletedRecordIds = {};
+  final Set<String> _locallyDeletedRecordKeys = {};
   double _calendarHorizontalDragDelta = 0;
   final List<Color> _bgColors = [
     AppColors.calendarDatePinkBg,
@@ -414,39 +419,12 @@ class _OotdListPageState extends State<OotdListPage> {
     }
   }
 
-  IconData _weatherIcon(String weather) {
-    final normalized = weather.toLowerCase();
-    if (normalized.contains('rain') || weather.contains('비')) {
-      return Icons.umbrella_outlined;
-    }
-    if (normalized.contains('snow') || weather.contains('눈')) {
-      return Icons.ac_unit;
-    }
-    if (normalized.contains('cloud') || weather.contains('흐')) {
-      return Icons.cloud_outlined;
-    }
-    return Icons.wb_sunny_outlined;
-  }
-
-  Color _weatherColor(String weather) {
-    final normalized = weather.toLowerCase();
-    if (normalized.contains('rain') || weather.contains('비')) {
-      return AppColors.accentBlue;
-    }
-    if (normalized.contains('snow') || weather.contains('눈')) {
-      return AppColors.primaryPurple;
-    }
-    if (normalized.contains('cloud') || weather.contains('흐')) {
-      return AppColors.textMuted;
-    }
-    return AppColors.accentOrange;
-  }
-
   void _removeRecordImmediately(OotdRecord deletedRecord) {
     final deletedId = deletedRecord.id;
     if (deletedId != null && deletedId.isNotEmpty) {
       _locallyDeletedRecordIds.add(deletedId);
     }
+    _locallyDeletedRecordKeys.add(_recordKey(deletedRecord));
     _allRecords.removeWhere((record) {
       final sameId =
           deletedId != null &&
@@ -487,9 +465,14 @@ class _OotdListPageState extends State<OotdListPage> {
     final visibleCustomRecords = widget.customRecords
         .where((record) {
           final id = record.id;
-          return id == null ||
-              id.isEmpty ||
-              !_locallyDeletedRecordIds.contains(id);
+          final isIdDeleted =
+              id != null &&
+              id.isNotEmpty &&
+              _locallyDeletedRecordIds.contains(id);
+          final isKeyDeleted = _locallyDeletedRecordKeys.contains(
+            _recordKey(record),
+          );
+          return !isIdDeleted && !isKeyDeleted;
         })
         .toList(growable: false);
     final remoteIds = visibleCustomRecords
@@ -510,15 +493,17 @@ class _OotdListPageState extends State<OotdListPage> {
         (item) =>
             item.id != null && item.id!.isNotEmpty && item.id == record.id,
       );
-      final sameDateTypeIndex = _allRecords.indexWhere(
-        (item) => _recordKey(item) == dateKey,
-      );
       if (existingIndex >= 0) {
         _allRecords[existingIndex] = record;
-      } else if (sameDateTypeIndex >= 0) {
-        _allRecords[sameDateTypeIndex] = record;
       } else {
-        _allRecords.add(record);
+        final sameDateTypeIndex = _allRecords.indexWhere(
+          (item) => _recordKey(item) == dateKey,
+        );
+        if (sameDateTypeIndex >= 0) {
+          _allRecords[sameDateTypeIndex] = record;
+        } else {
+          _allRecords.add(record);
+        }
       }
     }
 
@@ -536,14 +521,21 @@ class _OotdListPageState extends State<OotdListPage> {
 
               // 3. 달력 격자 뷰
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    children: [
-                      _buildSwipeableCalendarGrid(),
-                      SizedBox(height: 32),
-                    ],
+                child: RefreshIndicator(
+                  onRefresh: widget.onRefresh,
+                  color: AppColors.primaryPink,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: ClampingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      children: [
+                        _buildSwipeableCalendarGrid(),
+                        _buildCalendarMonthSummary(),
+                        SizedBox(height: 96),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -793,6 +785,7 @@ class _OotdListPageState extends State<OotdListPage> {
       ),
     );
   }
+
   Widget _buildCalendarGrid() {
     final firstWeekday = _firstWeekday;
     final totalDays = _totalDaysInMonth;
@@ -804,6 +797,7 @@ class _OotdListPageState extends State<OotdListPage> {
     final availableCellWidth =
         (screenWidth - (horizontalPadding * 2) - (crossSpacing * 6)) / 7;
     final cellHeight = availableCellWidth.clamp(68.0, 104.0).toDouble();
+
     return ClipRect(
       child: GridView.builder(
         shrinkWrap: true,
@@ -823,6 +817,7 @@ class _OotdListPageState extends State<OotdListPage> {
           if (index < firstWeekday) {
             return const SizedBox();
           }
+
           final day = index - firstWeekday + 1;
           final cellDate = DateTime(
             _currentMonth.year,
@@ -843,7 +838,9 @@ class _OotdListPageState extends State<OotdListPage> {
               ootdRecord?.weather ??
               '';
           final borderColor = _pastelBorders[day % _pastelBorders.length];
+
           final cellBgColor = _calendarCellBackgroundColor(record);
+
           return MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -929,6 +926,7 @@ class _OotdListPageState extends State<OotdListPage> {
       ),
     );
   }
+
   Color _calendarCellBackgroundColor(OotdRecord? record) {
     final rawIndex = record?.brands['bgColorIndex'];
     final bgColorIndex = int.tryParse(rawIndex ?? '');
@@ -940,6 +938,7 @@ class _OotdListPageState extends State<OotdListPage> {
     return _bgColors[bgColorIndex].withOpacity(0.4);
   }
 }
+
 // -----------------------------------------------------------------------------
 // [슬라이드식 바텀시트 콘텐츠 위젯]
 // -----------------------------------------------------------------------------

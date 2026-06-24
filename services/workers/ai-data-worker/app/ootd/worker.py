@@ -62,6 +62,8 @@ async def handle_ootd_avatar_generation(
             "mimeType": reference.mime_type,
             "imageBase64": reference.image_base64,
             "imageBase64Length": len(reference.image_base64),
+            "avatarBase64": reference.image_base64,
+            "avatarBase64Length": len(reference.image_base64),
             "characterReference": reference.metadata,
             "message": "Azure ML endpoint env vars are not configured; completed with character reference mock image.",
         }
@@ -180,6 +182,8 @@ async def handle_ootd_avatar_generation(
         "mimeType": result.mime_type,
         "imageBase64": result.image_base64,
         "imageBase64Length": len(result.image_base64),
+        "avatarBase64": result.avatar_base64,
+        "avatarBase64Length": len(result.avatar_base64) if result.avatar_base64 else 0,
         "durationMs": result.duration_ms,
         "characterReference": payload.get("characterReferenceMetadata"),
     }

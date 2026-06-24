@@ -95,7 +95,7 @@ public class OotdAvatarGenerationService {
     }
 
     String publicId = "ootd_job_" + UUID.randomUUID().toString().replace("-", "");
-    Map<String, Object> payload = buildPayload(record, user, inputType, outfitPhotoMedia, outfitDescription, request.characterOverrides());
+    Map<String, Object> payload = buildPayload(record, user, inputType, outfitPhotoMedia, outfitDescription, request);
     OotdAvatarGenerationJobEntity job = new OotdAvatarGenerationJobEntity(
       publicId,
       record,
@@ -203,7 +203,7 @@ public class OotdAvatarGenerationService {
     String inputType,
     RecordMediaEntity outfitPhotoMedia,
     String outfitDescription,
-    Map<String, Object> requestCharacterOverrides
+    OotdAvatarGenerationRequest request
   ) {
     Map<String, Object> recordPayload = readObject(record.getPayload());
     Map<String, Object> characterProfile = characterProfileRepository.findByUserId(user.getId())
@@ -211,7 +211,7 @@ public class OotdAvatarGenerationService {
       .orElseGet(() -> new LinkedHashMap<String, Object>());
     Map<String, Object> characterOverrides = mergeCharacterOverrides(
       extractRecordCharacterOverrides(recordPayload),
-      sanitizeCharacterOverrides(requestCharacterOverrides)
+      sanitizeCharacterOverrides(request.characterOverrides())
     );
     characterProfile.putAll(characterOverrides);
 
@@ -220,6 +220,10 @@ public class OotdAvatarGenerationService {
     payload.put("userId", user.getId().toString());
     payload.put("inputType", inputType);
     payload.put("outfitDescription", outfitDescription);
+    putText(payload, "weather", firstText(request.weather(), request.weatherText(), payloadText(recordPayload, "weather")));
+    putText(payload, "weatherText", firstText(request.weatherText(), request.weather(), payloadText(recordPayload, "weatherText")));
+    putText(payload, "mood", firstText(request.mood(), request.moodText(), payloadText(recordPayload, "mood")));
+    putText(payload, "moodText", firstText(request.moodText(), request.mood(), payloadText(recordPayload, "moodText")));
     payload.put("recordPayload", recordPayload);
     payload.put("characterProfile", characterProfile);
     if (!characterOverrides.isEmpty()) {
@@ -254,6 +258,8 @@ public class OotdAvatarGenerationService {
       return Map.of();
     }
     Map<String, Object> overrides = new LinkedHashMap<>();
+    putStringOverride(overrides, "gender", snapshotMap.get("gender"));
+    putStringOverride(overrides, "skinTone", snapshotMap.get("skin_tone"));
     putStringOverride(overrides, "hairStyle", snapshotMap.get("hair_style"));
     putStringOverride(overrides, "hairColor", snapshotMap.get("hair_color"));
     putStringOverride(overrides, "eyeStyle", snapshotMap.get("eye_style"));
@@ -266,11 +272,43 @@ public class OotdAvatarGenerationService {
       return Map.of();
     }
     Map<String, Object> overrides = new LinkedHashMap<>();
+    putStringOverride(overrides, "gender", rawOverrides.get("gender"));
+    putStringOverride(overrides, "skinTone", rawOverrides.get("skinTone"));
     putStringOverride(overrides, "hairStyle", rawOverrides.get("hairStyle"));
     putStringOverride(overrides, "hairColor", rawOverrides.get("hairColor"));
     putStringOverride(overrides, "eyeStyle", rawOverrides.get("eyeStyle"));
     putStringOverride(overrides, "eyeColor", rawOverrides.get("eyeColor"));
     return overrides;
+  }
+
+  private String firstText(String... values) {
+    for (String value : values) {
+      if (hasText(value)) {
+        return value.trim();
+      }
+    }
+    return "";
+  }
+
+  private String payloadText(Map<String, Object> payload, String key) {
+    Object value = payload.get(key);
+    if (value instanceof String stringValue) {
+      return stringValue;
+    }
+    Object brands = payload.get("brands");
+    if (brands instanceof Map<?, ?> brandMap) {
+      Object brandValue = brandMap.get(key);
+      if (brandValue instanceof String stringValue) {
+        return stringValue;
+      }
+    }
+    return "";
+  }
+
+  private void putText(Map<String, Object> target, String key, String value) {
+    if (hasText(value)) {
+      target.put(key, value.trim());
+    }
   }
 
   private Map<String, Object> mergeCharacterOverrides(Map<String, Object> recordOverrides, Map<String, Object> requestOverrides) {

@@ -13,6 +13,8 @@ import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
 import '../../../../shared/widgets/pixel_character.dart';
 import '../../repository/record_repository.dart';
+import '../../view_model/record_flow_controller.dart';
+import '../../../home/view_model/home_view_model.dart';
 import '../widgets/record_flow_navigation.dart';
 
 class OotdRecordScreen extends ConsumerStatefulWidget {
@@ -50,6 +52,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   Uint8List? _photoBytes;
   String? _photoFileName;
   OotdAvatarGenerationJob? _generationJob;
+  OotdRecord? _savedRecord;
   Timer? _generationPollTimer;
   late CharacterDraft _styleCharacter;
   late bool _changeStyle;
@@ -138,6 +141,9 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   String get _primaryLabel {
+    if (!_isSaving && _step == 3 && widget.isDailyRecord) {
+      return '일과 작성으로 돌아가기';
+    }
     if (_isSaving) return '저장 중...';
     return switch (_step) {
       0 => '다음',
@@ -177,7 +183,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: null,
+          subtitle: '입력하신 텍스트 설명을 기반으로 어울리는 의상과 소품을 입힌 OOTD 캐릭터를 만들어요.',
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
@@ -616,7 +622,11 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   void _nextStep() {
     if (_step == 3) {
-      context.go(RoutePaths.records);
+      if (widget.isDailyRecord && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(_savedRecord);
+      } else {
+        context.go(RoutePaths.records);
+      }
       return;
     }
     if (_step == 1 && !_validateInput()) return;
@@ -743,6 +753,8 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       final job = await repository.createAvatarGeneration(
         recordId: savedId,
         inputType: inputType,
+        weather: _weather,
+        mood: _mood,
         outfitPhotoMediaId: _isPhotoMode ? savedOutfitPhotoMediaId : null,
         outfitPhotoStorageKey: _isPhotoMode ? savedOutfitPhotoStorageKey : null,
         outfitDescription: _isTextMode
@@ -758,13 +770,25 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           'ootd_avatar_generation_failed:${resolved.errorCode ?? 'unknown'}',
         );
       }
+      final visibleRecord = resolved.isPending
+          ? saved
+          : await _recordWithGenerationResult(repository, saved, resolved);
       if (!mounted) return;
       setState(() {
+        _savedRecord = visibleRecord;
         _generationJob = resolved;
         _isSaving = false;
         _step = 3;
       });
-      _startGenerationPolling(resolved.jobId);
+      if (resolved.isPending) {
+        ref
+            .read(recordFlowControllerProvider)
+            .startBackgroundPolling(resolved.jobId);
+        _startGenerationPolling(resolved.jobId);
+      } else {
+        ref.invalidate(ootdRecordsProvider);
+        ref.invalidate(homeRecentRecordsProvider);
+      }
     } catch (error) {
       if (!generationAccepted) {
         await cleanupCreatedRecord();
@@ -806,6 +830,18 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         setState(() => _generationJob = latest);
         if (!latest.isPending) {
           timer.cancel();
+          final currentRecord = _savedRecord;
+          if (currentRecord != null) {
+            final visibleRecord = await _recordWithGenerationResult(
+              repository,
+              currentRecord,
+              latest,
+            );
+            if (!mounted) return;
+            setState(() => _savedRecord = visibleRecord);
+          }
+          ref.invalidate(ootdRecordsProvider);
+          ref.invalidate(homeRecentRecordsProvider);
         }
       } catch (_) {
         if (!mounted) {
@@ -813,6 +849,40 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         }
       }
     });
+  }
+
+  Future<OotdRecord> _recordWithGenerationResult(
+    RecordRepository repository,
+    OotdRecord fallback,
+    OotdAvatarGenerationJob job,
+  ) async {
+    final recordId = job.recordId.isNotEmpty ? job.recordId : fallback.id;
+    if (recordId != null && recordId.isNotEmpty) {
+      try {
+        return await repository.fetchRecord(recordId);
+      } catch (error) {
+        debugPrint('Failed to refresh generated OOTD record: $error');
+      }
+    }
+
+    final generatedUrl = job.generatedImageUrl;
+    if (generatedUrl == null || generatedUrl.trim().isEmpty) {
+      return fallback.copyWith(
+        brands: {
+          ...fallback.brands,
+          'aiStatus': job.isFailed
+              ? 'FAILED'
+              : fallback.brands['aiStatus'] ?? '',
+        },
+      );
+    }
+    return fallback.copyWith(
+      brands: {
+        ...fallback.brands,
+        'aiStatus': job.isFailed ? 'FAILED' : 'SUCCESS',
+        'generatedImageUrl': generatedUrl,
+      },
+    );
   }
 
   Map<String, String> _buildBrands(String inputType, UploadedMedia? uploaded) {
@@ -824,6 +894,10 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       'inputType': inputType,
       'aiStatus': 'PENDING',
       'title': 'OOTD 기록',
+      'weather': _weather,
+      'weatherText': _weather,
+      'mood': _mood,
+      'moodText': _mood,
       'outfitDescription': outfitDescription,
       'rating': _rating.toStringAsFixed(1),
       'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',

@@ -13,8 +13,12 @@ import 'package:onmu_mobile/shared/models/group_models.dart';
 import 'support/in_memory_onmu_store.dart';
 import 'support/test_onmu_repositories.dart';
 
+final _testTheme = ThemeData(useMaterial3: false);
+
 Widget _testMaterialApp(Widget child) {
-  return onmuTestProviderScope(child: MaterialApp(home: child));
+  return onmuTestProviderScope(
+    child: MaterialApp(theme: _testTheme, home: child),
+  );
 }
 
 Widget _testMaterialAppWithFriends(Widget child) {
@@ -37,12 +41,14 @@ Widget _testMaterialAppWithFriends(Widget child) {
         ),
       ],
     ),
-    child: MaterialApp(home: child),
+    child: MaterialApp(theme: _testTheme, home: child),
   );
 }
 
 Widget _testRouterApp(GoRouter router) {
-  return onmuTestProviderScope(child: MaterialApp.router(routerConfig: router));
+  return onmuTestProviderScope(
+    child: MaterialApp.router(theme: _testTheme, routerConfig: router),
+  );
 }
 
 void main() {
@@ -115,7 +121,7 @@ void main() {
           profileImageUrl: 'https://example.test/me.png',
           onboardingStatus: 'COMPLETED',
         ),
-        child: const MaterialApp(home: GroupCreatePage()),
+        child: MaterialApp(theme: _testTheme, home: const GroupCreatePage()),
       ),
     );
     await tester.pumpAndSettle();
@@ -230,6 +236,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          theme: _testTheme,
           home: Scaffold(
             body: GroupSummaryCard(
               group: const GroupSummary(
@@ -258,6 +265,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: _testTheme,
         home: Scaffold(
           body: GroupSummaryCard(
             group: const GroupSummary(

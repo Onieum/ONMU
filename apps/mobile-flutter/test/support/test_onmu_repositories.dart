@@ -319,6 +319,14 @@ class TestRecordRepository implements RecordRepository {
   }
 
   @override
+  Future<OotdRecord> createGroupRecord({
+    required Object groupId,
+    required OotdRecord record,
+  }) {
+    return createRecord(record);
+  }
+
+  @override
   Future<OotdRecord> fetchRecord(String id) async {
     return _records.firstWhere((record) => record.id == id);
   }
@@ -352,6 +360,8 @@ class TestRecordRepository implements RecordRepository {
   Future<OotdAvatarGenerationJob> createAvatarGeneration({
     required String recordId,
     required String inputType,
+    required String weather,
+    required String mood,
     String? outfitPhotoMediaId,
     String? outfitPhotoStorageKey,
     String? outfitDescription,
@@ -498,6 +508,9 @@ class TestGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {}
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async {
     return _store.fetchGroups();
   }
@@ -511,6 +524,49 @@ class TestGroupRepository implements GroupRepository {
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async {
     return _store.fetchMemories(groupId);
   }
+
+  @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    return _store.createGroupMemory(
+      groupId: groupId,
+      type: type,
+      title: title,
+      memo: memo,
+      date: date,
+    );
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) async {
+    return GroupMemoryRecord(
+      id: int.tryParse(memoryId.toString()) ?? 1,
+      author: '테스트 사용자',
+      title: title,
+      description: memo,
+      dateLabel: '2026.06.24',
+      tags: [type.recordType],
+      kind: type,
+    );
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) async {}
 
   @override
   Future<List<GroupMemberProfile>> fetchMembers(Object groupId) async {

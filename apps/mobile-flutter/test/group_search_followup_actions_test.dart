@@ -89,7 +89,7 @@ void main() {
     },
   );
 
-  testWidgets('group memories search works together with tag filter chips', (
+  testWidgets('group memories filter switches between records and memos', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -98,24 +98,26 @@ void main() {
     appRouter.go(RoutePaths.groupMemories(1));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('기록 검색'));
+    expect(find.text('전체'), findsOneWidget);
+    expect(find.text('기록'), findsWidgets);
+    expect(find.text('메모'), findsOneWidget);
+    expect(find.text('제주 바다'), findsOneWidget);
+    expect(find.text('메모 항목이 아직 없어요.'), findsNothing);
+
+    await tester.tap(find.text('메모'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey('group-memory-search-field')),
-      '바다',
-    );
-    await tester.pumpAndSettle();
+    expect(find.text('제주 바다'), findsNothing);
+    expect(find.text('메모 항목이 아직 없어요.'), findsOneWidget);
 
-    await tester.tap(find.text('여행'));
+    await tester.tap(find.text('전체'));
     await tester.pumpAndSettle();
 
     expect(find.text('제주 바다'), findsOneWidget);
-    expect(find.text('한강 피크닉'), findsNothing);
-    expect(find.text('1개 결과'), findsOneWidget);
+    expect(find.text('메모 항목이 아직 없어요.'), findsNothing);
   });
 
-  testWidgets('group memories no-result state differs from empty board state', (
+  testWidgets('group memories empty board and empty filter states differ', (
     tester,
   ) async {
     await tester.pumpWidget(_testOnmuApp());
@@ -124,23 +126,16 @@ void main() {
     appRouter.go(RoutePaths.groupMemories(3));
     await tester.pumpAndSettle();
 
-    expect(find.text('아직 모임 기록이 없어요.'), findsOneWidget);
-    expect(find.text('검색 결과가 없어요.'), findsNothing);
+    expect(find.text('전체 항목이 아직 없어요.'), findsOneWidget);
 
-    appRouter.go(RoutePaths.groupMemories(1));
+    appRouter.go(RoutePaths.groupMemories(2));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('기록 검색'));
+    await tester.tap(find.text('메모'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey('group-memory-search-field')),
-      '없는 기록',
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('검색 결과가 없어요.'), findsOneWidget);
-    expect(find.text('아직 모임 기록이 없어요.'), findsNothing);
+    expect(find.text('메모 항목이 아직 없어요.'), findsOneWidget);
+    expect(find.text('사의동 산책'), findsNothing);
   });
 
   testWidgets(

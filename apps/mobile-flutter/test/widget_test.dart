@@ -1,9 +1,9 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onmu_mobile/main.dart' as app;
 import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/routing/app_router.dart';
 import 'package:onmu_mobile/core/routing/route_paths.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
@@ -3248,6 +3248,9 @@ class _SingleMemberGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<void> leaveGroup(Object groupId) async {}
+
+  @override
   Future<List<GroupSummary>> fetchGroups() async => const [_group];
 
   @override
@@ -3289,6 +3292,37 @@ class _SingleMemberGroupRepository implements GroupRepository {
   @override
   Future<List<GroupMemoryRecord>> fetchMemories(Object groupId) async =>
       const [];
+
+  @override
+  Future<GroupMemoryRecord> createGroupMemory({
+    required Object groupId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<GroupMemoryRecord> updateGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+    required GroupMemoryKind type,
+    required String title,
+    required String memo,
+    DateTime? date,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteGroupMemory({
+    required Object groupId,
+    required Object memoryId,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<List<GroupMessage>> fetchMessages(Object groupId) async => const [];

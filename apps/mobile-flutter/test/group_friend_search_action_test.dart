@@ -24,25 +24,27 @@ void main() {
     expect(find.text('모임, 멤버, 약속 검색'), findsOneWidget);
   });
 
-  testWidgets('friend search action appears only in memories and chat', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_testOnmuApp());
-    await tester.pumpAndSettle(const Duration(milliseconds: 5000));
+  testWidgets(
+    'group quick actions expose chat from memories and search in chat',
+    (tester) async {
+      await tester.pumpWidget(_testOnmuApp());
+      await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
-    appRouter.go(RoutePaths.groupDetail(_groupId));
-    await tester.pumpAndSettle();
+      appRouter.go(RoutePaths.groupDetail(_groupId));
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('모임 검색'), findsNothing);
+      expect(find.byTooltip('모임 검색'), findsNothing);
 
-    appRouter.go(RoutePaths.groupMemories(_groupId));
-    await tester.pumpAndSettle();
+      appRouter.go(RoutePaths.groupMemories(_groupId));
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('기록 검색'), findsOneWidget);
+      expect(find.byTooltip('기록 검색'), findsNothing);
+      expect(find.byTooltip('채팅'), findsOneWidget);
 
-    appRouter.go(RoutePaths.groupChat(_groupId));
-    await tester.pumpAndSettle();
+      appRouter.go(RoutePaths.groupChat(_groupId));
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('채팅 검색'), findsOneWidget);
-  });
+      expect(find.byTooltip('채팅 검색'), findsOneWidget);
+    },
+  );
 }

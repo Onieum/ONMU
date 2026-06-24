@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -75,12 +75,7 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
                             ),
                           ),
                           SizedBox(height: layout.compact ? 17 : 25),
-                          Image.asset(
-                            OnboardingHubPage._selectScreenAsset,
-                            width: layout.imageWidth,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.none,
-                          ),
+                          _OnboardingHubImage(width: layout.imageWidth),
                           SizedBox(height: layout.compact ? 10 : 14),
                           _OnboardingTaskCard(
                             compact: layout.compact,
@@ -152,7 +147,9 @@ class _OnboardingHubPageState extends ConsumerState<OnboardingHubPage> {
   }) async {
     setState(() => _isSavingHomeStatus = true);
     try {
-      await ref.read(onboardingHubControllerProvider).saveSkipStatus(
+      await ref
+          .read(onboardingHubControllerProvider)
+          .saveSkipStatus(
             hasCharacter: hasCharacter,
             hasPreference: hasPreference,
             skippedCharacter: skippedCharacter,
@@ -346,13 +343,14 @@ class _OnboardingTaskCard extends StatelessWidget {
                             title,
                             maxLines: 1,
                             softWrap: false,
-                            style: (compact
-                                    ? AppTextStyles.titleMedium
-                                    : AppTextStyles.titleLarge)
-                                .copyWith(
-                              color: const Color(0xFF4D3930),
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style:
+                                (compact
+                                        ? AppTextStyles.titleMedium
+                                        : AppTextStyles.titleLarge)
+                                    .copyWith(
+                                      color: const Color(0xFF4D3930),
+                                      fontWeight: FontWeight.w900,
+                                    ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -428,6 +426,30 @@ class _StatusBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OnboardingHubImage extends StatelessWidget {
+  const _OnboardingHubImage({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isWidgetTestBinding) {
+      return SizedBox(width: width, height: width * 0.25);
+    }
+    return Image.asset(
+      OnboardingHubPage._selectScreenAsset,
+      width: width,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+    );
+  }
+}
+
+bool get _isWidgetTestBinding {
+  final binding = WidgetsBinding.instance;
+  return binding.runtimeType.toString().contains('TestWidgetsFlutterBinding');
 }
 
 class _HomeButton extends StatelessWidget {

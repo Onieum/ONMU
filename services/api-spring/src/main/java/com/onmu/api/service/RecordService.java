@@ -228,6 +228,12 @@ public class RecordService {
     // Update record payload with SUCCESS status
     Map<String, Object> payloadMap = readObject(record.getPayload());
     payloadMap.put("aiStatus", "SUCCESS");
+    if (request.avatarImageUrl() != null && !request.avatarImageUrl().isBlank()) {
+      payloadMap.put("avatarImageUrl", request.avatarImageUrl());
+    }
+    if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+      payloadMap.put("generatedImageUrl", request.imageUrl());
+    }
     record.setPayload(toJson(payloadMap));
     recordRepository.save(record);
 
@@ -550,6 +556,18 @@ public class RecordService {
   }
 
   @Transactional
+  public MemoryResponse updateGroupMemory(UUID userId, String groupId, String memoryId, CreateMemoryRequest request) {
+    getGroupMemoryDetail(userId, groupId, memoryId);
+    return updateMemory(userId, memoryId, request);
+  }
+
+  @Transactional
+  public void deleteGroupMemory(UUID userId, String groupId, String memoryId) {
+    getGroupMemoryDetail(userId, groupId, memoryId);
+    deleteMemory(userId, memoryId);
+  }
+
+  @Transactional
   public MemoryResponse updateMemory(UUID userId, String memoryId, CreateMemoryRequest request) {
     UserEntity author = user(userId);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)
@@ -715,6 +733,21 @@ public class RecordService {
     List<RecordTagEntity> tagEntities = recordTagRepository.findByRecord(record);
     List<String> tags = tagEntities.stream().map(RecordTagEntity::getTagValue).toList();
 
+    String authorProfileImageUrl = record.getAuthor().getProfileImageUrl();
+    if (date != null && !date.isBlank()) {
+      try {
+        LocalDate recordDate = parseDateOnly(date);
+        RecordEntity authorOotd = latestSuccessfulOotdRecordForDate(record.getAuthor(), recordDate);
+        if (authorOotd != null) {
+          String ootdAvatarUrl = successfulOotdImageUrl(authorOotd);
+          if (ootdAvatarUrl != null && !ootdAvatarUrl.isBlank()) {
+            authorProfileImageUrl = ootdAvatarUrl;
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+
     return new MemoryResponse(
         record.getId(),
         record.getPublicId(),
@@ -724,6 +757,7 @@ public class RecordService {
         date,
         record.getAuthor().getId(),
         nickname(record.getAuthor()),
+        authorProfileImageUrl,
         record.getGroup() != null ? record.getGroup().getId() : null,
         tags,
         imageUrls,

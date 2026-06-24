@@ -19,14 +19,17 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
         on gm.group = g
         and gm.user.id = :userId
         and gm.status in ('active', 'joined')
-    where g.ownerUser.id = :userId
-      or gm.id is not null
+      left join GroupMemberEntity userMembership
+        on userMembership.group = g
+        and userMembership.user.id = :userId
+    where gm.id is not null
+      or (g.ownerUser.id = :userId and userMembership.id is null)
     order by g.createdAt asc
     """)
   List<GroupEntity> findVisibleForUserOrderByCreatedAtAsc(@Param("userId") UUID userId);
 
   @org.springframework.data.jpa.repository.Query(
-    value = "SELECT EXISTS(SELECT 1 FROM group_members gm JOIN groups g ON gm.group_id = g.id WHERE g.public_id = :groupPublicId AND gm.user_id = :userId AND gm.status IN ('active', 'joined')) OR EXISTS(SELECT 1 FROM groups WHERE public_id = :groupPublicId AND owner_user_id = :userId)",
+    value = "SELECT EXISTS(SELECT 1 FROM group_members gm JOIN groups g ON gm.group_id = g.id WHERE g.public_id = :groupPublicId AND gm.user_id = :userId AND gm.status IN ('active', 'joined')) OR (EXISTS(SELECT 1 FROM groups WHERE public_id = :groupPublicId AND owner_user_id = :userId) AND NOT EXISTS(SELECT 1 FROM group_members gm JOIN groups g ON gm.group_id = g.id WHERE g.public_id = :groupPublicId AND gm.user_id = :userId))",
     nativeQuery = true
   )
   boolean isUserMember(String groupPublicId, java.util.UUID userId);

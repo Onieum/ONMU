@@ -14,6 +14,7 @@ public record MemoryResponse(
   String date,
   UUID authorId,
   String authorName,
+  String authorProfileImageUrl,
   UUID groupId,
   List<String> tags,
   List<String> imageUrls,

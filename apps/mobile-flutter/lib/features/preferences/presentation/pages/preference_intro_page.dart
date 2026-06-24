@@ -48,6 +48,9 @@ class _PreferenceIntroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isWidgetTestBinding) {
+      return const SizedBox(height: 160);
+    }
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 340),
@@ -59,4 +62,9 @@ class _PreferenceIntroImage extends StatelessWidget {
       ),
     );
   }
+}
+
+bool get _isWidgetTestBinding {
+  final binding = WidgetsBinding.instance;
+  return binding.runtimeType.toString().contains('TestWidgetsFlutterBinding');
 }

@@ -976,6 +976,13 @@ public class OnmuApiService {
 
   private Map<String, Object> planCard(PlanEntity plan) {
     List<Map<String, Object>> participants = activeParticipantCards(plan);
+    List<SchedulePlaceEntity> schedulePlaces = schedulePlaceRepository.findByPlanOrderBySortOrderAsc(plan);
+    List<String> memoryPlaceNames = schedulePlaces.stream()
+      .map(SchedulePlaceEntity::getName)
+      .filter(name -> name != null && !name.isBlank())
+      .map(String::trim)
+      .distinct()
+      .toList();
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("id", plan.getPublicId());
     value.put("groupId", plan.getGroup().getPublicId());
@@ -991,6 +998,11 @@ public class OnmuApiService {
     value.put("members", participants.stream().map(this::memberCard).toList());
     value.put("memberCount", participants.size());
     value.put("memberCountLabel", participants.size() + "명");
+    value.put("schedulePlaces", schedulePlaces.stream()
+      .map(schedulePlace -> schedulePlaceCard(plan.getGroup(), plan, schedulePlace))
+      .toList());
+    value.put("memoryPlaceNames", memoryPlaceNames);
+    value.put("placeNames", memoryPlaceNames);
     return value;
   }
 

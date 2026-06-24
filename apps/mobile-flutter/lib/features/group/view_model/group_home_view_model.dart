@@ -13,6 +13,7 @@ class GroupHomeState {
     required this.group,
     required this.ongoingPlan,
     required this.upcomingPlan,
+    required this.memories,
     required this.recentMemories,
     required this.recentMessage,
   });
@@ -20,6 +21,7 @@ class GroupHomeState {
   final GroupSummary group;
   final GroupPlanSummary? ongoingPlan;
   final GroupPlanSummary? upcomingPlan;
+  final List<GroupMemoryRecord> memories;
   final List<GroupMemoryRecord> recentMemories;
   final GroupMessage? recentMessage;
 }
@@ -45,6 +47,7 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
       group: group,
       ongoingPlan: _currentOngoingPlan(plans),
       upcomingPlan: _nearestUpcomingPlan(plans),
+      memories: List.unmodifiable(memories),
       recentMemories: List.unmodifiable(memories.take(4)),
       recentMessage: messages.isEmpty ? null : messages.last,
     );
