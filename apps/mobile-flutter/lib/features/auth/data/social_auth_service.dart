@@ -2,22 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/oauth_provider_credential.dart';
 import 'kakao_oauth_credential_loader.dart';
 import 'naver_oauth_credential_loader.dart';
 
 typedef OAuthCredentialLoader = Future<OAuthProviderCredential> Function();
+typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
 
 class SocialAuthService {
   SocialAuthService({
     OAuthCredentialLoader? kakaoCredentialLoader,
     this.googleCredentialLoader,
     OAuthCredentialLoader? naverCredentialLoader,
+    ExternalUrlLauncher? externalUrlLauncher,
   }) : _kakaoCredentialLoader =
            kakaoCredentialLoader ?? _defaultKakaoCredentialLoader,
        _naverCredentialLoader =
-           naverCredentialLoader ?? _defaultNaverCredentialLoader;
+           naverCredentialLoader ?? _defaultNaverCredentialLoader,
+       _externalUrlLauncher = externalUrlLauncher ?? _launchExternalUrl;
 
   static const _googleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
   static const _googleServerClientId = String.fromEnvironment(
@@ -27,6 +31,7 @@ class SocialAuthService {
   final OAuthCredentialLoader _kakaoCredentialLoader;
   final OAuthCredentialLoader? googleCredentialLoader;
   final OAuthCredentialLoader _naverCredentialLoader;
+  final ExternalUrlLauncher _externalUrlLauncher;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   Future<void>? _googleInitializeFuture;
 
@@ -108,9 +113,38 @@ class SocialAuthService {
     return _naverCredentialLoader();
   }
 
-  Future<void> signOut() async {
-    await initializeGoogleSignIn();
-    await _googleSignIn.signOut();
+  Future<void> signOut({String? provider, String? onmuApiBaseUrl}) async {
+    switch (provider?.trim().toLowerCase()) {
+      case 'google':
+        await _signOutGoogle();
+        return;
+      case 'kakao':
+        await _signOutKakao(onmuApiBaseUrl);
+        return;
+      default:
+        return;
+    }
+  }
+
+  Future<void> _signOutGoogle() async {
+    try {
+      await initializeGoogleSignIn();
+      await _googleSignIn.signOut();
+    } catch (error) {
+      debugPrint('Google provider sign-out skipped: $error');
+    }
+  }
+
+  Future<void> _signOutKakao(String? onmuApiBaseUrl) async {
+    final baseUri = _parseHttpUri(onmuApiBaseUrl);
+    if (baseUri == null) {
+      return;
+    }
+    final logoutUri = baseUri.resolve('/api/v1/auth/oauth/kakao/logout');
+    final launched = await _externalUrlLauncher(logoutUri);
+    if (!launched) {
+      debugPrint('Kakao provider sign-out launch unavailable.');
+    }
   }
 
   OAuthProviderCredential _credentialFromGoogleAccount(
@@ -135,6 +169,20 @@ class SocialAuthService {
     return trimmed.isEmpty ? null : trimmed;
   }
 
+  static Uri? _parseHttpUri(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) {
+      return null;
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return null;
+    }
+    return uri;
+  }
+
   static String get _googleClientIdValue => _googleClientId.trim();
 
   static String get _googleServerClientIdValue => _googleServerClientId.trim();
@@ -149,6 +197,10 @@ class SocialAuthService {
 
   static Future<OAuthProviderCredential> _defaultNaverCredentialLoader() async {
     return NaverOAuthCredentialLoader().call();
+  }
+
+  static Future<bool> _launchExternalUrl(Uri uri) {
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 

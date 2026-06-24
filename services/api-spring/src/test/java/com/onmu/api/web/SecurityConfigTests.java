@@ -45,7 +45,9 @@ import org.springframework.web.server.ResponseStatusException;
 @TestPropertySource(properties = {
   "ONMU_API_ACCESS_TOKEN=test-access-token",
   "ONMU_API_REFRESH_TOKEN=test-refresh-token",
+  "ONMU_PUBLIC_BASE_URL=https://staging-api.onmu.cloud",
   "ONMU_CORS_ORIGINS=http://localhost:5173",
+  "KAKAO_REST_API_KEY=test-kakao-rest-api-key",
   "onmu.security.access-token=test-access-token",
   "onmu.security.refresh-token=test-refresh-token",
   "onmu.security.dev-access-token=test-access-token",
@@ -279,6 +281,45 @@ class SecurityConfigTests {
         HttpHeaders.LOCATION,
         "io.onieum.onmu://oauth/kakao/callback?code=auth-code&state=state-123"
       ));
+  }
+
+  @Test
+  void kakaoLogoutKickoffIsPublicAndRedirectsToKakaoAccountLogout() throws Exception {
+    mvc.perform(get("/api/v1/auth/oauth/kakao/logout"))
+      .andExpect(status().isFound())
+      .andExpect(header().string(
+        HttpHeaders.LOCATION,
+        Matchers.containsString("https://kauth.kakao.com/oauth/logout")
+      ))
+      .andExpect(header().string(
+        HttpHeaders.LOCATION,
+        Matchers.containsString("client_id=test-kakao-rest-api-key")
+      ))
+      .andExpect(header().string(
+        HttpHeaders.LOCATION,
+        Matchers.containsString(
+          "logout_redirect_uri=https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/logout/callback"
+        )
+      ));
+  }
+
+  @Test
+  void kakaoLogoutCallbackReturnsToMobileSchemeWithLogoutFlag() throws Exception {
+    mvc.perform(get("/api/v1/auth/oauth/kakao/logout/callback"))
+      .andExpect(status().isFound())
+      .andExpect(header().string(
+        HttpHeaders.LOCATION,
+        "io.onieum.onmu://oauth/kakao/callback?logout=true&provider=kakao"
+      ));
+  }
+
+  @Test
+  void naverDisconnectCallbackIsPublic() throws Exception {
+    mvc.perform(get("/api/v1/auth/oauth/naver/disconnect/callback"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.ok").value(true))
+      .andExpect(jsonPath("$.provider").value("naver"))
+      .andExpect(jsonPath("$.disconnectReceived").value(true));
   }
 
   @Test

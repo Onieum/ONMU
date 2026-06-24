@@ -44,6 +44,8 @@ Kakao 설정:
 - Key Vault secret name: `staging-kakao-rest-api-key`, `staging-kakao-client-secret`, `staging-kakao-oauth-redirect-uri`, `staging-kakao-oauth-mobile-callback-uri`
 - ACA secret env: `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`
 - Kakao Developers redirect URI: `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+- Kakao Developers logout redirect URI: `https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/logout/callback` (선택형 provider 계정 로그아웃 전용)
+- provider sign-out kickoff endpoint: `GET /api/v1/auth/oauth/kakao/logout` (일반 ONMU 로그아웃에는 자동 사용하지 않음)
 - Android deep link: `io.onieum.onmu://oauth/kakao/callback`
 - iOS URL scheme: `io.onieum.onmu`
 
@@ -53,6 +55,7 @@ Naver 설정:
 - Spring 서버 env: `NAVER_OAUTH_CLIENT_ID`, `NAVER_OAUTH_CLIENT_SECRET`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
 - Key Vault secret name: `staging-naver-oauth-client-id`, `staging-naver-oauth-client-secret`, `staging-naver-oauth-redirect-uri`, `staging-naver-oauth-mobile-callback-uri`
 - ACA secret env: `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`
+- Naver Developers 연결 끊기 Callback URL: `https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/disconnect/callback` (연결 해제/회원탈퇴 같은 별도 액션 전용)
 - Android deep link: `io.onieum.onmu://oauth/naver/callback`
 - iOS URL scheme: `io.onieum.onmu`
 
