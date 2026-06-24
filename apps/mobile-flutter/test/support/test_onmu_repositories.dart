@@ -12,6 +12,7 @@ import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
 import 'package:onmu_mobile/features/character/repository/character_repository.dart';
 import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/home/repository/home_repository.dart';
 import 'package:onmu_mobile/features/home/repository/notification_repository.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/repository/friend_repository.dart';
@@ -35,12 +36,16 @@ import 'in_memory_onmu_store.dart';
 
 ProviderContainer createOnmuTestContainer() {
   final store = InMemoryOnmuStore.seeded();
+  final groupRepository = TestGroupRepository(store);
   return ProviderContainer(
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(const TestAuthRepository()),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
-      groupRepositoryProvider.overrideWithValue(TestGroupRepository(store)),
+      groupRepositoryProvider.overrideWithValue(groupRepository),
+      homeRepositoryProvider.overrideWithValue(
+        TestHomeRepository(groupRepository),
+      ),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(store)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(store)),
       settlementRepositoryProvider.overrideWithValue(
@@ -69,14 +74,17 @@ ProviderScope onmuTestProviderScope({
   InMemoryOnmuStore? store,
 }) {
   final testStore = store ?? InMemoryOnmuStore.seeded();
+  final resolvedGroupRepository =
+      groupRepository ?? TestGroupRepository(testStore);
   return ProviderScope(
     overrides: [
       authTokenStoreProvider.overrideWithValue(InMemoryAuthTokenStore()),
       authRepositoryProvider.overrideWithValue(TestAuthRepository(user)),
       if (user != null) authUserProvider.overrideWith((ref) => user),
       socialAuthServiceProvider.overrideWithValue(testSocialAuthService()),
-      groupRepositoryProvider.overrideWithValue(
-        groupRepository ?? TestGroupRepository(testStore),
+      groupRepositoryProvider.overrideWithValue(resolvedGroupRepository),
+      homeRepositoryProvider.overrideWithValue(
+        TestHomeRepository(resolvedGroupRepository),
       ),
       planRepositoryProvider.overrideWithValue(TestPlanRepository(testStore)),
       placeRepositoryProvider.overrideWithValue(TestPlaceRepository(testStore)),
@@ -101,6 +109,39 @@ ProviderScope onmuTestProviderScope({
     ],
     child: child,
   );
+}
+
+class TestHomeRepository implements HomeRepository {
+  TestHomeRepository(this._groupRepository);
+
+  final GroupRepository _groupRepository;
+
+  @override
+  Future<HomeSummary> fetchSummary() async {
+    final groups = await _groupRepository.fetchGroups();
+    final plans = <GroupPlanSummary>[];
+    for (final group in groups) {
+      plans.addAll(await _groupRepository.fetchPlans(group.id));
+    }
+    plans.sort(GroupPlanSummary.compareUpcoming);
+
+    final now = DateTime.now();
+    GroupPlanSummary? activePlan;
+    for (final plan in plans) {
+      if (plan.isOngoingAt(now)) {
+        activePlan = plan;
+        break;
+      }
+    }
+
+    return HomeSummary(
+      groups: groups,
+      upcomingPlans: plans,
+      nextPlan: plans.isEmpty ? null : plans.first,
+      activePlan: activePlan,
+      settlementId: activePlan?.settlementId ?? '',
+    );
+  }
 }
 
 class TestMyRepository implements MyRepository {
