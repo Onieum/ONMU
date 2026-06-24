@@ -50,11 +50,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('아직 장소 후보 리스트가 비어있어요!'), findsOneWidget);
-    expect(find.text('후보를 추가하면 이 공간에 카드로 정리돼요.'), findsOneWidget);
+    expect(find.text('아직 만날 장소 후보가 없어요'), findsOneWidget);
+    expect(find.text('검색으로 후보를 담으면 이곳에서 비교하고 투표할 수 있어요.'), findsOneWidget);
 
     final voteButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '투표 만들기'),
+      find.widgetWithText(TextButton, '투표로 정하기'),
     );
     expect(voteButton.onPressed, isNull);
   });
@@ -90,7 +90,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, '일정에 등록'));
+    await tester.tap(find.widgetWithText(TextButton, '이 장소로 일정 만들기'));
     await tester.pumpAndSettle();
 
     expect(find.text(_dateButtonLabel(planStart)), findsOneWidget);

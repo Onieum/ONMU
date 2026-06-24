@@ -230,12 +230,45 @@ class _DraftPlaceActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        OnmuCard(
+          backgroundColor: AppColors.bgPaper,
+          borderColor: AppColors.linePink,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.add_location_alt_outlined,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '어디서 만날까요?',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '검색으로 후보를 담고, 투표나 일정 등록으로 만날 장소를 확정해요.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         SizedBox(
           key: const ValueKey('plan-place-action-search'),
           height: _buttonHeight,
           child: OnmuPrimaryButton(
-            label: '장소 검색하기',
-            icon: Icons.add_location_alt_outlined,
+            label: '장소 정하기',
+            icon: Icons.map_outlined,
             color: AppColors.primaryPink,
             foregroundColor: AppColors.textInverse,
             onPressed: onSearchPressed,
@@ -246,7 +279,7 @@ class _DraftPlaceActions extends StatelessWidget {
           key: const ValueKey('plan-place-action-candidates'),
           height: _buttonHeight,
           child: OnmuSecondaryButton(
-            label: '후보 리스트 보기',
+            label: '후보 비교하기',
             icon: Icons.favorite_border,
             onPressed: onCandidatesPressed,
           ),
@@ -412,7 +445,7 @@ class _ConfirmedPlanDetailState extends State<_ConfirmedPlanDetail> {
           children: [
             Expanded(
               child: OnmuSecondaryButton(
-                label: '후보 리스트 보기',
+                label: '장소 정하기',
                 icon: Icons.favorite_border,
                 onPressed: () => context.push(
                   RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),

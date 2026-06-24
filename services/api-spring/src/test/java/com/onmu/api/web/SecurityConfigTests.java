@@ -109,6 +109,24 @@ class SecurityConfigTests {
   }
 
   @Test
+  void homeSummaryRouteDelegatesWithValidBearerToken() throws Exception {
+    UserEntity user = authenticatedUser();
+    when(onmuApiService.homeSummary(user.getId()))
+      .thenReturn(Map.of(
+        "groups", List.of(Map.of("id", "2", "name", "내 모임")),
+        "upcomingPlans", List.of(),
+        "activeVotes", List.of()
+      ));
+
+    mvc.perform(get("/api/v1/home/summary")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.groups[0].id").value("2"));
+
+    verify(onmuApiService).homeSummary(eq(user.getId()));
+  }
+
+  @Test
   void routeRecommendDelegatesWithValidBearerToken() throws Exception {
     UserEntity user = authenticatedUser();
     when(routeRecommendationService.recommend("1", "101", "walk", user.getId()))

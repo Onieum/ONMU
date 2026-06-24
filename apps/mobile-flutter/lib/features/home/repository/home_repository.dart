@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/onmu_api_client.dart';
+import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/group_models.dart';
 
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
@@ -34,8 +35,59 @@ class ApiHomeRepository implements HomeRepository {
 
   @override
   Future<HomeSummary> fetchSummary() async {
-    final response = await _client.getObject('/api/v1/home/summary');
-    return _homeSummary(response);
+    try {
+      final response = await _client.getObject('/api/v1/home/summary');
+      return _homeSummary(response);
+    } on OnmuApiException catch (error) {
+      if (error.statusCode != 404) {
+        rethrow;
+      }
+      return _legacyHomeSummary();
+    }
+  }
+
+  Future<HomeSummary> _legacyHomeSummary() async {
+    final groups = (await _client.getList(
+      '/api/v1/groups',
+    )).map(_groupSummary).toList(growable: false);
+    final plans = <GroupPlanSummary>[];
+
+    for (final group in groups) {
+      try {
+        final summary = await _client.getObject(
+          '/api/v1/groups/${group.id}/summary',
+        );
+        plans.addAll(
+          OnmuJson.asMapList(
+            summary['plans'],
+          ).map((plan) => _groupPlanSummary(plan, fallbackGroupId: group.id)),
+        );
+      } on OnmuApiException {
+        final groupPlans = await _client.getList(
+          '/api/v1/groups/${group.id}/plans',
+        );
+        plans.addAll(
+          groupPlans.map(
+            (plan) => _groupPlanSummary(plan, fallbackGroupId: group.id),
+          ),
+        );
+      }
+    }
+
+    plans.sort(GroupPlanSummary.compareUpcoming);
+    final now = DateTime.now();
+    final activePlan = _firstWhereOrNull(
+      plans,
+      (plan) => plan.isOngoingAt(now),
+    );
+    final nextPlan = plans.isEmpty ? null : plans.first;
+    return HomeSummary(
+      groups: groups,
+      upcomingPlans: List.unmodifiable(plans),
+      nextPlan: nextPlan,
+      activePlan: activePlan,
+      settlementId: activePlan?.settlementId ?? nextPlan?.settlementId ?? '',
+    );
   }
 
   HomeSummary _homeSummary(Map<String, dynamic> json) {
@@ -115,10 +167,13 @@ class ApiHomeRepository implements HomeRepository {
     return _groupPlanSummary(json);
   }
 
-  GroupPlanSummary _groupPlanSummary(Map<String, dynamic> json) {
+  GroupPlanSummary _groupPlanSummary(
+    Map<String, dynamic> json, {
+    int? fallbackGroupId,
+  }) {
     return GroupPlanSummary(
       id: OnmuJson.readInt(json, 'id'),
-      groupId: _optionalInt(json, 'groupId'),
+      groupId: _optionalInt(json, 'groupId') ?? fallbackGroupId,
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
@@ -169,5 +224,17 @@ class ApiHomeRepository implements HomeRepository {
           );
         })
         .toList(growable: false);
+  }
+
+  GroupPlanSummary? _firstWhereOrNull(
+    List<GroupPlanSummary> plans,
+    bool Function(GroupPlanSummary plan) test,
+  ) {
+    for (final plan in plans) {
+      if (test(plan)) {
+        return plan;
+      }
+    }
+    return null;
   }
 }
