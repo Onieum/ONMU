@@ -127,4 +127,25 @@ public class MemoryController {
     MemoryResponse response = recordService.getGroupMemoryDetail(user.userId(), groupId, memoryId);
     return ResponseEntity.ok(response);
   }
+
+  @PatchMapping("/groups/{groupId}/memories/{memoryId}")
+  public ResponseEntity<MemoryResponse> updateGroupMemory(
+      @PathVariable String groupId,
+      @PathVariable String memoryId,
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @Valid @RequestBody CreateMemoryRequest request
+  ) {
+    MemoryResponse response = recordService.updateGroupMemory(user.userId(), groupId, memoryId, request);
+    return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/groups/{groupId}/memories/{memoryId}")
+  public ResponseEntity<Void> deleteGroupMemory(
+      @PathVariable String groupId,
+      @PathVariable String memoryId,
+      @AuthenticationPrincipal AuthenticatedUser user
+  ) {
+    recordService.deleteGroupMemory(user.userId(), groupId, memoryId);
+    return ResponseEntity.noContent().build();
+  }
 }

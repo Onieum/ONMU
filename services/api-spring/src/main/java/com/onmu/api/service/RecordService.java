@@ -556,6 +556,18 @@ public class RecordService {
   }
 
   @Transactional
+  public MemoryResponse updateGroupMemory(UUID userId, String groupId, String memoryId, CreateMemoryRequest request) {
+    getGroupMemoryDetail(userId, groupId, memoryId);
+    return updateMemory(userId, memoryId, request);
+  }
+
+  @Transactional
+  public void deleteGroupMemory(UUID userId, String groupId, String memoryId) {
+    getGroupMemoryDetail(userId, groupId, memoryId);
+    deleteMemory(userId, memoryId);
+  }
+
+  @Transactional
   public MemoryResponse updateMemory(UUID userId, String memoryId, CreateMemoryRequest request) {
     UserEntity author = user(userId);
     RecordEntity record = recordRepository.findByPublicIdAndDeletedAtIsNull(memoryId)

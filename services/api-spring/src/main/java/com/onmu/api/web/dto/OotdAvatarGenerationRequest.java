@@ -10,5 +10,9 @@ public record OotdAvatarGenerationRequest(
   UUID outfitPhotoMediaId,
   String outfitPhotoStorageKey,
   String outfitDescription,
+  String weather,
+  String weatherText,
+  String mood,
+  String moodText,
   Map<String, Object> characterOverrides
 ) {}
