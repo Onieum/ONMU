@@ -34,6 +34,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
   late DateTime _deadlineAt = _initialDeadlineAt();
   final Set<int> _selectedCandidateIds = {};
   var _titleSeeded = false;
+  var _candidateSelectionSeeded = false;
   static const _voteMode = '단일 선택';
 
   @override
@@ -78,6 +79,7 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
       planId: widget.planId,
     ));
     final candidates = state.candidates;
+    _seedCandidateSelection(candidates);
     final candidateIds = candidates.map((candidate) => candidate.id).toSet();
     final selectedCandidateIds = _selectedCandidateIds.intersection(
       candidateIds,
@@ -92,7 +94,9 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),
       ),
       bottom: OnmuPrimaryButton(
-        label: '투표로 정하기',
+        label: hasSelectedCandidates
+            ? '선택한 ${selectedCandidateIds.length}개로 투표 만들기'
+            : '투표로 정하기',
         icon: Icons.how_to_vote_outlined,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
@@ -125,94 +129,126 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        OnmuCard(
-          backgroundColor: AppColors.bgDefault,
-          borderColor: AppColors.lineSoft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('마감일', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_month_outlined,
-                    color: AppColors.textSub,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '마감 날짜와 시간',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSub),
-                        ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          _formatDeadlineLabel(_deadlineAt),
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                      ],
+        _VoteDecisionSummaryCard(
+          candidateCount: candidates.length,
+          selectedCount: selectedCandidateIds.length,
+          onSelectRecommended: candidates.isEmpty
+              ? null
+              : () {
+                  setState(() {
+                    _selectedCandidateIds
+                      ..clear()
+                      ..addAll(_recommendedCandidateIds(candidates));
+                  });
+                },
+          onSelectAll: candidates.isEmpty
+              ? null
+              : () {
+                  setState(() {
+                    _selectedCandidateIds
+                      ..clear()
+                      ..addAll(candidates.map((candidate) => candidate.id));
+                  });
+                },
+          onClear: selectedCandidateIds.isEmpty
+              ? null
+              : () {
+                  setState(() {
+                    _selectedCandidateIds.clear();
+                  });
+                },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (candidates.isEmpty)
+          const _EmptyVoteCandidateCard(candidatesAvailable: false)
+        else ...[
+          OnmuCard(
+            backgroundColor: AppColors.bgDefault,
+            borderColor: AppColors.lineSoft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('마감일', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      color: AppColors.textSub,
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickDeadline(context),
-                    icon: const Icon(Icons.calendar_today_outlined),
-                    label: const Text('선택'),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '마감 날짜와 시간',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSub),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            _formatDeadlineLabel(_deadlineAt),
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: () => _pickDeadline(context),
+                      icon: const Icon(Icons.calendar_today_outlined),
+                      label: const Text('선택'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '캘린더에서 날짜와 시간을 함께 선택해 투표 마감일을 정해요.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '투표 후보',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '캘린더에서 날짜와 시간을 함께 선택해 투표 마감일을 정해요.',
-                style: Theme.of(context).textTheme.bodySmall,
+              OutlinedButton.icon(
+                onPressed: () => _openCandidatePicker(context, candidates),
+                icon: const Icon(Icons.playlist_add_rounded),
+                label: const Text('장소 후보 리스트에서 추가'),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '투표 후보',
-                style: Theme.of(context).textTheme.titleMedium,
+          const SizedBox(height: AppSpacing.sm),
+          if (!hasSelectedCandidates)
+            const _EmptyVoteCandidateCard(candidatesAvailable: true)
+          else
+            for (final candidate in candidates.where(
+              (candidate) => selectedCandidateIds.contains(candidate.id),
+            )) ...[
+              _VoteCandidateTile(
+                candidate: candidate,
+                selected: true,
+                onChanged: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedCandidateIds.add(candidate.id);
+                    } else {
+                      _selectedCandidateIds.remove(candidate.id);
+                    }
+                  });
+                },
               ),
-            ),
-            OutlinedButton.icon(
-              onPressed: candidates.isEmpty
-                  ? null
-                  : () => _openCandidatePicker(context, candidates),
-              icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('장소 후보 리스트에서 추가'),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (!hasSelectedCandidates)
-          _EmptyVoteCandidateCard(candidatesAvailable: candidates.isNotEmpty)
-        else
-          for (final candidate in candidates.where(
-            (candidate) => selectedCandidateIds.contains(candidate.id),
-          )) ...[
-            _VoteCandidateTile(
-              candidate: candidate,
-              selected: true,
-              onChanged: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedCandidateIds.add(candidate.id);
-                  } else {
-                    _selectedCandidateIds.remove(candidate.id);
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+            ],
+        ],
       ],
     );
   }
@@ -226,6 +262,35 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         ? '장소 투표'
         : '$normalizedTitle 장소 투표';
     _titleSeeded = true;
+  }
+
+  void _seedCandidateSelection(List<PlaceCandidate> candidates) {
+    if (_candidateSelectionSeeded) {
+      return;
+    }
+    _selectedCandidateIds.addAll(_recommendedCandidateIds(candidates));
+    _candidateSelectionSeeded = true;
+  }
+
+  Set<int> _recommendedCandidateIds(List<PlaceCandidate> candidates) {
+    if (candidates.isEmpty) {
+      return const {};
+    }
+    final sorted = [...candidates]..sort(_compareVoteCandidates);
+    final limit = sorted.length <= 5 ? sorted.length : 4;
+    return sorted.take(limit).map((candidate) => candidate.id).toSet();
+  }
+
+  int _compareVoteCandidates(PlaceCandidate a, PlaceCandidate b) {
+    final heartCompare = b.heartCount.compareTo(a.heartCount);
+    if (heartCompare != 0) {
+      return heartCompare;
+    }
+    final matchCompare = b.matchPercent.compareTo(a.matchPercent);
+    if (matchCompare != 0) {
+      return matchCompare;
+    }
+    return b.score.compareTo(a.score);
   }
 
   Future<void> _pickDeadline(BuildContext context) async {
@@ -285,6 +350,91 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         ..clear()
         ..addAll(selectedIds);
     });
+  }
+}
+
+class _VoteDecisionSummaryCard extends StatelessWidget {
+  const _VoteDecisionSummaryCard({
+    required this.candidateCount,
+    required this.selectedCount,
+    required this.onSelectRecommended,
+    required this.onSelectAll,
+    required this.onClear,
+  });
+
+  final int candidateCount;
+  final int selectedCount;
+  final VoidCallback? onSelectRecommended;
+  final VoidCallback? onSelectAll;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = candidateCount == 0
+        ? '먼저 장소 후보를 담으면 투표를 만들 수 있어요.'
+        : selectedCount == 0
+        ? '투표에 올릴 장소를 하나 이상 선택해 주세요.'
+        : '추천 기준으로 $selectedCount개 후보를 미리 담아뒀어요. 필요하면 후보를 조정하세요.';
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.how_to_vote_outlined,
+                color: AppColors.primaryPink,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '투표 후보를 확인해 주세요',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      description,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              ActionChip(
+                avatar: const Icon(Icons.auto_awesome_outlined, size: 18),
+                label: const Text('추천 다시 선택'),
+                onPressed: onSelectRecommended,
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.done_all_rounded, size: 18),
+                label: const Text('전체 선택'),
+                onPressed: onSelectAll,
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.remove_done_outlined, size: 18),
+                label: const Text('비우기'),
+                onPressed: onClear,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
