@@ -1971,6 +1971,64 @@ void main() {
     expect(unreadDividerTop, lessThan(firstUnreadTop));
   });
 
+  testWidgets(
+    'group chat renders ongoing pinned plan with active status chip',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            groupRepositoryProvider.overrideWithValue(
+              _OngoingPlanGroupRepository(),
+            ),
+            settlementRepositoryProvider.overrideWithValue(
+              TestSettlementRepository(InMemoryOnmuStore.seeded()),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const GroupChatPage(groupId: '4'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('지금 진행 중인 약속'), findsOneWidget);
+      expect(find.text('진행 중'), findsOneWidget);
+      expect(find.text('예정'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'group chat groups consecutive incoming messages from same sender',
+    (tester) async {
+      final store = InMemoryOnmuStore.seeded();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            groupRepositoryProvider.overrideWithValue(
+              _GroupedTimelineGroupRepository(store),
+            ),
+            settlementRepositoryProvider.overrideWithValue(
+              TestSettlementRepository(store),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const GroupChatPage(groupId: '1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('첫 번째 묶음 메시지'), findsOneWidget);
+      expect(find.text('두 번째 묶음 메시지'), findsOneWidget);
+      expect(find.text('묶음테스터'), findsOneWidget);
+      expect(find.text('19:00'), findsNothing);
+      expect(find.text('19:01'), findsOneWidget);
+    },
+  );
+
   testWidgets('group chat renders input without vote or settlement cards', (
     tester,
   ) async {
@@ -1998,6 +2056,103 @@ void main() {
     expect(find.text('메시지를 입력해보세요'), findsOneWidget);
     expect(find.text('투표 보기'), findsNothing);
     expect(find.text('정산 확인하기'), findsNothing);
+  });
+
+  testWidgets('group chat shows empty state when there are no messages', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _EmptyTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('아직 대화가 없어요.'), findsOneWidget);
+    expect(find.text('첫 메시지를 입력해보세요'), findsOneWidget);
+  });
+
+  testWidgets('group chat send button stays disabled until message is ready', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _EmptyTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final sendButtonFinder = find.byWidgetPredicate(
+      (widget) => widget is IconButton && widget.tooltip == '전송',
+    );
+
+    var sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.pump();
+
+    sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), '보낼 메시지');
+    await tester.pump();
+
+    sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNotNull);
+  });
+
+  testWidgets('group chat shows retry state when initial load fails', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _ChatLoadErrorGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('채팅을 불러오지 못했어요.'), findsOneWidget);
+    expect(find.text('다시 불러오기'), findsOneWidget);
   });
 
   testWidgets('group chat action launcher shows core actions', (tester) async {
@@ -2396,6 +2551,19 @@ class _NoAuxGroupRepository extends TestGroupRepository {
   }) async => [];
 }
 
+class _EmptyTimelineGroupRepository extends _NoAuxGroupRepository {
+  _EmptyTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(messages: []);
+  }
+}
+
 class _TimelineGroupRepository extends _NoAuxGroupRepository {
   _TimelineGroupRepository(super.store);
 
@@ -2434,6 +2602,47 @@ class _TimelineGroupRepository extends _NoAuxGroupRepository {
         ),
       ],
     );
+  }
+}
+
+class _GroupedTimelineGroupRepository extends _NoAuxGroupRepository {
+  _GroupedTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'grouped-message-1',
+          cursor: '2026-06-09T19:00:00+09:00',
+          sender: '묶음테스터',
+          message: '첫 번째 묶음 메시지',
+          timeLabel: '19:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'grouped-message-2',
+          cursor: '2026-06-09T19:01:00+09:00',
+          sender: '묶음테스터',
+          message: '두 번째 묶음 메시지',
+          timeLabel: '19:01',
+          isMine: false,
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatLoadErrorGroupRepository extends _NoAuxGroupRepository {
+  _ChatLoadErrorGroupRepository(super.store);
+
+  @override
+  Future<GroupSummary> fetchGroup(Object groupId) {
+    throw StateError('chat load failed');
   }
 }
 

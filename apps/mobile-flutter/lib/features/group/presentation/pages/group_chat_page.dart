@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,23 +12,27 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/settlement_models.dart';
+import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
+import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../repository/media_repository.dart';
 import '../../view_model/group_chat_view_model.dart';
 import '../widgets/group_cards.dart';
 
-class GroupChatPage extends StatefulWidget {
+class GroupChatPage extends ConsumerStatefulWidget {
   const GroupChatPage({required this.groupId, super.key});
 
   final String groupId;
 
   @override
-  State<GroupChatPage> createState() => _GroupChatPageState();
+  ConsumerState<GroupChatPage> createState() => _GroupChatPageState();
 }
 
-class _GroupChatPageState extends State<GroupChatPage> {
+class _GroupChatPageState extends ConsumerState<GroupChatPage>
+    with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -39,18 +45,33 @@ class _GroupChatPageState extends State<GroupChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_handleScroll);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_handleScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _sendMessage(WidgetRef ref) async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(groupChatViewModelProvider(widget.groupId).notifier)
+          .refreshVisibleState(),
+    );
+  }
+
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     final selectedImages = List<PickedChatImage>.of(_selectedImages);
 
@@ -85,7 +106,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            selectedImages.isEmpty ? '메시지를 보내지 못했어요.' : '사진을 보내지 못했어요.',
+            selectedImages.isEmpty ? '메시지를 보내지 못했어요.' : '사진을 올리지 못했어요.',
           ),
         ),
       );
@@ -229,58 +250,52 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final state = ref.watch(groupChatViewModelProvider(widget.groupId));
+    final state = ref.watch(groupChatViewModelProvider(widget.groupId));
 
-        return state.when(
-          data: (state) {
-            _syncTimelineScrollState(state.messages);
-            return _ThreadContent(
-              state: state,
-              messageController: _messageController,
-              scrollController: _scrollController,
-              selectedImages: _selectedImages,
-              showJumpToLatest: _showJumpToLatest,
-              onJumpToLatest: _jumpToLatestMessage,
-              onSend: () => _sendMessage(ref),
-              onPickImage: _pickImagesForComposer,
-              onRemoveSelectedImage: _removeSelectedImage,
-              onClearSelectedImages: _clearSelectedImages,
-              onLoadSettlementCandidatePlans: () => ref
-                  .read(groupChatViewModelProvider(widget.groupId).notifier)
-                  .loadSettlementCandidatePlans(),
-              onLoadOlderMessages: () => ref
-                  .read(groupChatViewModelProvider(widget.groupId).notifier)
-                  .loadOlderMessages(),
-              onRetryMessage: (messageId) async {
-                final retried = await ref
-                    .read(groupChatViewModelProvider(widget.groupId).notifier)
-                    .retryMessage(messageId);
-                if (!mounted || !context.mounted || retried) {
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')),
-                );
-              },
-            );
+    return state.when(
+      data: (state) {
+        _syncTimelineScrollState(state.messages);
+        return _ThreadContent(
+          state: state,
+          messageController: _messageController,
+          scrollController: _scrollController,
+          selectedImages: _selectedImages,
+          showJumpToLatest: _showJumpToLatest,
+          onJumpToLatest: _jumpToLatestMessage,
+          onSend: _sendMessage,
+          onPickImage: _pickImagesForComposer,
+          onRemoveSelectedImage: _removeSelectedImage,
+          onClearSelectedImages: _clearSelectedImages,
+          onLoadSettlementCandidatePlans: () => ref
+              .read(groupChatViewModelProvider(widget.groupId).notifier)
+              .loadSettlementCandidatePlans(),
+          onLoadOlderMessages: () => ref
+              .read(groupChatViewModelProvider(widget.groupId).notifier)
+              .loadOlderMessages(),
+          onRetryMessage: (messageId) async {
+            final retried = await ref
+                .read(groupChatViewModelProvider(widget.groupId).notifier)
+                .retryMessage(messageId);
+            if (!mounted || !context.mounted || retried) {
+              return;
+            }
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')));
           },
-          loading: () => const OnmuScaffold(
-            title: '채팅',
-            children: [Center(child: CircularProgressIndicator())],
-          ),
-          error: (error, stackTrace) => OnmuScaffold(
-            title: '채팅',
-            children: [
-              Text(
-                '채팅을 불러오지 못했어요.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
         );
       },
+      loading: () =>
+          const OnmuScaffold(title: '채팅', children: [_ChatLoadingState()]),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '채팅',
+        children: [
+          _ChatErrorState(
+            onRetry: () =>
+                ref.invalidate(groupChatViewModelProvider(widget.groupId)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -381,6 +396,7 @@ class _ThreadContent extends StatelessWidget {
       bottom: _MessageInput(
         controller: messageController,
         selectedImages: selectedImages,
+        isConversationEmpty: state.messages.isEmpty,
         onSend: onSend,
         onOpenActions: () => _showChatActions(context),
         onAddImage: onPickImage,
@@ -440,7 +456,15 @@ class _ThreadContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        ..._timelineChildren(context),
+        if (state.sendErrorMessage?.trim().isNotEmpty ?? false) ...[
+          _ChatInlineNotice(message: state.sendErrorMessage!.trim()),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (state.messages.isEmpty) ...[
+          const _ChatEmptyState(),
+        ] else ...[
+          ..._timelineChildren(context),
+        ],
       ],
     );
   }
@@ -448,16 +472,39 @@ class _ThreadContent extends StatelessWidget {
   List<Widget> _timelineChildren(BuildContext context) {
     final children = <Widget>[];
     final fallbackDate = DateTime.now();
+    final messages = state.messages;
     final unreadStartIndex = _unreadStartIndex(
-      state.messages.length,
+      messages.length,
       state.unreadCount,
     );
     String? previousDateKey;
 
-    for (var index = 0; index < state.messages.length; index += 1) {
-      final message = state.messages[index];
+    for (var index = 0; index < messages.length; index += 1) {
+      final message = messages[index];
       final messageDate = _localDateForMessage(message, fallbackDate);
       final dateKey = _dateKey(messageDate);
+      final previousMessage = index > 0 ? messages[index - 1] : null;
+      final previousMessageDate = previousMessage == null
+          ? null
+          : _localDateForMessage(previousMessage, fallbackDate);
+      final nextMessage = index + 1 < messages.length
+          ? messages[index + 1]
+          : null;
+      final nextMessageDate = nextMessage == null
+          ? null
+          : _localDateForMessage(nextMessage, fallbackDate);
+      final groupedWithPrevious = _canGroupTimelineMessages(
+        previousMessage,
+        message,
+        previousDate: previousMessageDate,
+        currentDate: messageDate,
+      );
+      final groupedWithNext = _canGroupTimelineMessages(
+        message,
+        nextMessage,
+        previousDate: messageDate,
+        currentDate: nextMessageDate,
+      );
       if (dateKey != previousDateKey) {
         children
           ..add(_DateDivider(label: _dateDividerLabel(messageDate)))
@@ -470,24 +517,82 @@ class _ThreadContent extends StatelessWidget {
           ..add(const SizedBox(height: AppSpacing.md));
       }
       children
-        ..add(_messageWidget(context, message))
-        ..add(const SizedBox(height: AppSpacing.sm));
+        ..add(
+          _messageWidget(
+            context,
+            message,
+            showAvatar: !groupedWithPrevious,
+            showSenderName: !groupedWithPrevious,
+            showTimestamp: !groupedWithNext,
+          ),
+        )
+        ..add(
+          SizedBox(height: groupedWithNext ? AppSpacing.xxs : AppSpacing.sm),
+        );
     }
 
     return children;
   }
 
-  Widget _messageWidget(BuildContext context, GroupMessage message) {
+  Widget _messageWidget(
+    BuildContext context,
+    GroupMessage message, {
+    required bool showAvatar,
+    required bool showSenderName,
+    required bool showTimestamp,
+  }) {
     if (message.isActivity) {
       return ChatActivityCard(
         message: message,
         onTap: () => _openActivityMessage(context, message),
       );
     }
+    final displayMessage = showTimestamp
+        ? message
+        : message.copyWith(timeLabel: '');
     return ChatMessageBubble(
-      message: message,
+      message: displayMessage,
+      showAvatar: showAvatar,
+      showSenderName: showSenderName,
       onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
     );
+  }
+
+  bool _canGroupTimelineMessages(
+    GroupMessage? previous,
+    GroupMessage? current, {
+    required DateTime? previousDate,
+    required DateTime? currentDate,
+  }) {
+    if (previous == null ||
+        current == null ||
+        previousDate == null ||
+        currentDate == null) {
+      return false;
+    }
+    if (previous.isActivity || current.isActivity) {
+      return false;
+    }
+    if (!_isSameLocalDate(previousDate, currentDate)) {
+      return false;
+    }
+    if (previous.isMine != current.isMine) {
+      return false;
+    }
+    if (current.isMine) {
+      return true;
+    }
+    final previousSender = previous.sender.trim();
+    final currentSender = current.sender.trim();
+    return previousSender.isNotEmpty && previousSender == currentSender;
+  }
+
+  bool _isSameLocalDate(DateTime left, DateTime right) {
+    final leftLocal = left.toLocal();
+    final rightLocal = right.toLocal();
+    return leftLocal.year == rightLocal.year &&
+        leftLocal.month == rightLocal.month &&
+        leftLocal.day == rightLocal.day;
   }
 
   int _unreadStartIndex(int messageCount, int unreadCount) {
@@ -996,7 +1101,10 @@ class _PlanChatAnchor extends StatelessWidget {
             ),
           ),
           if (plan.hasDisplayStatus) ...[
-            OnmuChip(label: plan.displayStatusLabel, selected: true),
+            OnmuPlanStatusChip(
+              status: plan.progressStatus,
+              label: plan.displayStatusLabel,
+            ),
             const SizedBox(width: AppSpacing.xs),
           ],
           const Icon(Icons.chevron_right, color: AppColors.textMuted),
@@ -1178,6 +1286,7 @@ class _MessageInput extends StatelessWidget {
   const _MessageInput({
     required this.controller,
     required this.selectedImages,
+    required this.isConversationEmpty,
     required this.onSend,
     required this.onOpenActions,
     required this.onAddImage,
@@ -1187,6 +1296,7 @@ class _MessageInput extends StatelessWidget {
 
   final TextEditingController controller;
   final List<PickedChatImage> selectedImages;
+  final bool isConversationEmpty;
   final Future<void> Function() onSend;
   final VoidCallback onOpenActions;
   final VoidCallback onAddImage;
@@ -1195,61 +1305,208 @@ class _MessageInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (selectedImages.isNotEmpty) ...[
-            ChatComposerImageTray(
-              images: selectedImages,
-              onAddImage: onAddImage,
-              onRemoveImage: onRemoveImage,
-              onClearImages: onClearImages,
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        final hasText = value.text.trim().isNotEmpty;
+        final canSend = hasText || selectedImages.isNotEmpty;
+        final hintText = selectedImages.isNotEmpty
+            ? '사진에 메시지를 더해보세요'
+            : isConversationEmpty
+            ? '첫 메시지를 입력해보세요'
+            : '메시지를 입력해보세요';
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.bgDefault,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: canSend ? AppColors.linePink : AppColors.lineSoft,
             ),
-            const Divider(height: 1, color: AppColors.lineSoft),
-          ],
-          Row(
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                tooltip: '채팅 액션',
-                onPressed: onOpenActions,
-                icon: const Icon(
-                  Icons.add_circle_outline,
-                  color: AppColors.primaryPink,
+              if (selectedImages.isNotEmpty) ...[
+                ChatComposerImageTray(
+                  images: selectedImages,
+                  onAddImage: onAddImage,
+                  onRemoveImage: onRemoveImage,
+                  onClearImages: onClearImages,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  onSubmitted: (_) => onSend(),
-                  decoration: InputDecoration(
-                    hintText: selectedImages.isEmpty
-                        ? '메시지를 입력해보세요'
-                        : '사진에 메시지를 더해보세요',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
+                const Divider(height: 1, color: AppColors.lineSoft),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton(
+                    tooltip: '채팅 액션',
+                    onPressed: onOpenActions,
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      color: AppColors.primaryPink,
+                    ),
                   ),
-                ),
-              ),
-              IconButton(
-                tooltip: '전송',
-                onPressed: onSend,
-                icon: Icon(
-                  selectedImages.isEmpty
-                      ? Icons.send_outlined
-                      : Icons.send_rounded,
-                ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm,
+                      ),
+                      child: TextField(
+                        controller: controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      right: AppSpacing.xs,
+                      bottom: AppSpacing.xs,
+                    ),
+                    child: IconButton.filled(
+                      tooltip: '전송',
+                      onPressed: canSend ? onSend : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primaryPink,
+                        disabledBackgroundColor: AppColors.lineSoft,
+                        foregroundColor: AppColors.textInverse,
+                        disabledForegroundColor: AppColors.textMuted,
+                      ),
+                      icon: Icon(
+                        selectedImages.isEmpty
+                            ? Icons.send_outlined
+                            : Icons.send_rounded,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ChatLoadingState extends StatelessWidget {
+  const _ChatLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: AppSpacing.md),
+          Text('채팅을 불러오는 중이에요.'),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatErrorState extends StatelessWidget {
+  const _ChatErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.accentRed,
+            size: 40,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '채팅을 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OnmuSecondaryButton(
+            label: '다시 불러오기',
+            icon: Icons.refresh_rounded,
+            onPressed: onRetry,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatEmptyState extends StatelessWidget {
+  const _ChatEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const OnmuEmptyStateCard(
+      title: '아직 대화가 없어요.',
+      description: '첫 메시지나 사진으로 이 모임의 이야기를 시작해보세요.',
+      icon: Icons.chat_bubble_outline_rounded,
+    );
+  }
+}
+
+class _ChatInlineNotice extends StatelessWidget {
+  const _ChatInlineNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.linePink,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: AppColors.primaryPink,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            ),
           ),
         ],
       ),
