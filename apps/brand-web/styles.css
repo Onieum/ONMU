@@ -1079,6 +1079,14 @@ button:focus-visible {
 .legal-section,
 .download-section {
   display: grid;
+}
+
+.legal-section {
+  gap: 12px;
+  padding: 28px 0 0;
+}
+
+.download-section {
   gap: 18px;
   padding: 42px 0 0;
 }
@@ -1091,7 +1099,7 @@ button:focus-visible {
 
 .legal-list {
   display: grid;
-  gap: 12px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1099,15 +1107,15 @@ button:focus-visible {
 
 .legal-list li,
 .policy-card {
-  padding: 20px;
+  padding: 14px 0;
   color: var(--sub);
-  line-height: 1.75;
+  line-height: 1.68;
 }
 
 .legal-list strong,
 .policy-card strong {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: var(--text);
 }
 
