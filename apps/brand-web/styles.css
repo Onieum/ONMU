@@ -399,33 +399,31 @@ button:focus-visible {
 }
 
 .hero-phone-stack {
-  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
   justify-self: center;
-  width: min(100%, 460px);
-  min-height: 696px;
+  width: min(100%, 486px);
+  gap: 18px;
+  min-height: auto;
 }
 
 .app-screenshot-hero {
-  position: relative;
   z-index: 2;
-  margin-left: auto;
-  transform: rotate(0.8deg);
+  justify-self: end;
+  transform: none;
 }
 
 .hero-phone-secondary {
-  position: absolute;
-  top: 46px;
-  left: 0;
   z-index: 1;
   width: min(100%, 306px);
-  opacity: 0.84;
-  transform: rotate(-2deg);
+  opacity: 1;
+  transform: translateY(38px);
   box-shadow: 0 18px 42px rgba(58, 42, 35, 0.14);
 }
 
 .app-screenshot-secondary {
-  transform: translateY(10px) rotate(4deg);
-  transform-origin: center bottom;
+  transform: none;
 }
 
 .app-screenshot-frame img {
@@ -642,10 +640,12 @@ button:focus-visible {
 }
 
 .screen-stage {
+  position: relative;
   display: grid;
-  grid-template-columns: 320px 320px minmax(0, 1fr);
-  gap: 52px;
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: end;
+  z-index: 1;
 }
 
 .memory-paper {
@@ -661,15 +661,71 @@ button:focus-visible {
   object-fit: cover;
 }
 
-.screen-notes {
+.screen-showcase {
+  position: relative;
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(0, 720px) minmax(280px, 1fr);
+  gap: 30px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(201, 169, 149, 0.56);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 251, 247, 0.92)),
+    linear-gradient(135deg, rgba(255, 232, 221, 0.42), rgba(255, 247, 239, 0.82));
+  padding: 38px;
+  box-shadow: 0 26px 56px rgba(58, 42, 35, 0.1);
+}
+
+.screen-showcase::before,
+.screen-showcase::after {
+  content: "";
+  position: absolute;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(234, 216, 204, 0.58);
+}
+
+.screen-showcase::before {
+  top: 42px;
+  left: 48px;
+  width: 316px;
+  height: 480px;
+}
+
+.screen-showcase::after {
+  top: 88px;
+  left: 286px;
+  width: 272px;
+  height: 404px;
+  background: rgba(236, 226, 214, 0.74);
+}
+
+.screen-frame-primary,
+.screen-frame-secondary {
+  position: relative;
+}
+
+.screen-frame-primary {
+  justify-self: start;
+}
+
+.screen-frame-secondary {
+  justify-self: end;
+  transform: translateY(-26px);
+}
+
+.screen-notes {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 16px;
 }
 
 .screen-notes article {
   display: grid;
   gap: 12px;
-  padding: 22px;
+  padding: 24px 26px;
   box-shadow: var(--shadow-soft);
 }
 
@@ -1133,8 +1189,27 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
   }
 
   .hero-phone-secondary {
-    left: 36px;
-    opacity: 0.76;
+    transform: translateY(26px);
+  }
+
+  .screen-showcase {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 30px;
+  }
+
+  .screen-showcase::before {
+    top: 36px;
+    left: 32px;
+    width: 290px;
+    height: 420px;
+  }
+
+  .screen-showcase::after {
+    top: 82px;
+    left: 248px;
+    width: 238px;
+    height: 338px;
   }
 
   .screen-stage {
@@ -1143,8 +1218,7 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
     align-items: start;
   }
 
-  .screen-stage .screen-notes {
-    grid-column: 1 / -1;
+  .screen-notes {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -1229,6 +1303,17 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
     gap: 28px;
   }
 
+  .screen-showcase {
+    gap: 18px;
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .screen-showcase::before,
+  .screen-showcase::after {
+    display: none;
+  }
+
   .screen-stage {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
@@ -1244,8 +1329,11 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
     box-shadow: 0 16px 34px rgba(58, 42, 35, 0.16);
   }
 
-  .screen-stage .screen-notes {
-    grid-column: 1 / -1;
+  .screen-frame-secondary {
+    transform: none;
+  }
+
+  .screen-notes {
     grid-template-columns: 1fr;
     gap: 10px;
   }
@@ -1321,6 +1409,7 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
     width: min(100%, 342px);
     min-height: auto;
     justify-self: center;
+    gap: 0;
   }
 
   .hero-phone-secondary {
