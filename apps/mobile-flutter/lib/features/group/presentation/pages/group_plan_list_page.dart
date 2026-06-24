@@ -371,6 +371,8 @@ class _PlanSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now().toLocal();
+
     return OnmuCard(
       onTap: onTap,
       backgroundColor: AppColors.bgDefault,
@@ -399,9 +401,13 @@ class _PlanSummaryCard extends StatelessWidget {
                     ),
                     IconButton(
                       tooltip: '약속 더보기',
-                      onPressed: () => _showPlanListSnack(
+                      onPressed: () => _showPlanActionsSheet(
                         context,
-                        '${plan.title} 더보기 메뉴는 다음 단계에서 연결할게요.',
+                        groupId: _groupIdFromContext(context),
+                        plan: plan,
+                        canOpenSettlement:
+                            plan.startsAt?.toLocal() != null &&
+                            !now.isBefore(plan.startsAt!.toLocal()),
                       ),
                       icon: const Icon(Icons.more_vert),
                     ),
@@ -456,6 +462,156 @@ class _PlanSummaryCard extends StatelessWidget {
   }
 }
 
-void _showPlanListSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+int _groupIdFromContext(BuildContext context) {
+  final state = GoRouterState.of(context);
+  return int.parse(state.pathParameters['groupId']!);
+}
+
+Future<void> _showPlanActionsSheet(
+  BuildContext context, {
+  required int groupId,
+  required GroupPlanSummary plan,
+  required bool canOpenSettlement,
+}) async {
+  final action = await showModalBottomSheet<_PlanCardAction>(
+    context: context,
+    backgroundColor: AppColors.bgDefault,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (context) =>
+        _PlanActionSheet(plan: plan, canOpenSettlement: canOpenSettlement),
+  );
+  if (action == null || !context.mounted) {
+    return;
+  }
+
+  switch (action) {
+    case _PlanCardAction.detail:
+      context.push(RoutePaths.planDetail(groupId, plan.id));
+      break;
+    case _PlanCardAction.edit:
+      context.push(RoutePaths.planEdit(groupId, plan.id));
+      break;
+    case _PlanCardAction.placeCandidates:
+      context.push(RoutePaths.planPlaceCandidates(groupId, plan.id));
+      break;
+    case _PlanCardAction.votes:
+      context.push(RoutePaths.planVotes(groupId, plan.id));
+      break;
+    case _PlanCardAction.settlement:
+      context.push(RoutePaths.planSettlementCurrent(groupId, plan.id));
+      break;
+  }
+}
+
+enum _PlanCardAction { detail, edit, placeCandidates, votes, settlement }
+
+class _PlanActionSheet extends StatelessWidget {
+  const _PlanActionSheet({required this.plan, required this.canOpenSettlement});
+
+  final GroupPlanSummary plan;
+  final bool canOpenSettlement;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.lineSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                plan.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                '${plan.displayDateTimeLabel} · ${plan.placeName}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _PlanActionTile(
+                icon: Icons.article_outlined,
+                label: '약속 상세 보기',
+                action: _PlanCardAction.detail,
+              ),
+              _PlanActionTile(
+                icon: Icons.edit_outlined,
+                label: '약속 수정하기',
+                action: _PlanCardAction.edit,
+              ),
+              _PlanActionTile(
+                icon: Icons.place_outlined,
+                label: '장소 후보 보기',
+                action: _PlanCardAction.placeCandidates,
+              ),
+              _PlanActionTile(
+                icon: Icons.how_to_vote_outlined,
+                label: '투표 보기',
+                action: _PlanCardAction.votes,
+              ),
+              if (canOpenSettlement)
+                _PlanActionTile(
+                  icon: Icons.receipt_long_outlined,
+                  label: '정산 보기',
+                  action: _PlanCardAction.settlement,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanActionTile extends StatelessWidget {
+  const _PlanActionTile({
+    required this.icon,
+    required this.label,
+    required this.action,
+  });
+
+  final IconData icon;
+  final String label;
+  final _PlanCardAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      minLeadingWidth: 32,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      leading: Icon(icon, color: AppColors.primaryPink),
+      title: Text(label, style: Theme.of(context).textTheme.labelLarge),
+      onTap: () => Navigator.of(context).pop(action),
+    );
+  }
 }
