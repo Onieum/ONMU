@@ -57,11 +57,11 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
         return _buildContent(context, state);
       },
       loading: () => const OnmuScaffold(
-        title: '투표 만들기',
+        title: '투표로 정하기',
         children: [Center(child: CircularProgressIndicator())],
       ),
       error: (error, stackTrace) => OnmuScaffold(
-        title: '투표 만들기',
+        title: '투표로 정하기',
         children: [
           Text(
             '투표 후보를 불러오지 못했어요.',
@@ -85,14 +85,14 @@ class _PlaceVoteCreatePageState extends ConsumerState<PlaceVoteCreatePage> {
     final hasSelectedCandidates = selectedCandidateIds.isNotEmpty;
 
     return OnmuScaffold(
-      title: '투표 만들기',
+      title: '투표로 정하기',
       titleSubtitle: OnmuLocationSubtitle(location: state.planLocation),
       showBackButton: true,
       onBack: () => context.popOrGo(
         RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),
       ),
       bottom: OnmuPrimaryButton(
-        label: '투표 만들기',
+        label: '투표로 정하기',
         icon: Icons.how_to_vote_outlined,
         color: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,

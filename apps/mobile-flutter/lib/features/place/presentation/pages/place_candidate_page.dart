@@ -56,11 +56,11 @@ class PlaceCandidatePage extends ConsumerWidget {
         },
       ),
       loading: () => const OnmuScaffold(
-        title: '장소 후보 리스트',
+        title: '장소 정하기',
         children: [Center(child: CircularProgressIndicator())],
       ),
       error: (error, stackTrace) => OnmuScaffold(
-        title: '장소 후보 리스트',
+        title: '장소 정하기',
         children: [
           Text(
             '장소 후보를 불러오지 못했어요.',
@@ -149,7 +149,7 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
     final visibleCandidates = _visibleCandidates;
 
     return OnmuScaffold(
-      title: '장소 후보 리스트',
+      title: '장소 정하기',
       titleSubtitle: OnmuLocationSubtitle(location: widget.state.planLocation),
       showBackButton: true,
       onBack: () =>
@@ -160,17 +160,17 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
             : () => context.push(
                 RoutePaths.planVoteNew(widget.groupId, widget.planId),
               ),
-        child: const Text('투표 만들기'),
+        child: const Text('투표로 정하기'),
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: '후보 추가',
+        tooltip: '장소 후보 추가',
         backgroundColor: AppColors.primaryPink,
         foregroundColor: AppColors.textInverse,
         shape: const CircleBorder(),
         onPressed: () => context.push(
           RoutePaths.planPlaceSearch(widget.groupId, widget.planId),
         ),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.search),
       ),
       bottom: OnmuCard(
         backgroundColor: AppColors.bgPaper,
@@ -181,7 +181,7 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                '약속 멤버가 함께 모은 장소 후보예요',
+                '후보를 비교하고, 하트나 투표로 만날 장소를 좁혀요.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -201,7 +201,11 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
         ),
         const SizedBox(height: AppSpacing.lg),
         if (visibleCandidates.isEmpty)
-          const _EmptyCandidateCard()
+          _EmptyCandidateCard(
+            onAddPressed: () => context.push(
+              RoutePaths.planPlaceSearch(widget.groupId, widget.planId),
+            ),
+          )
         else
           for (var index = 0; index < visibleCandidates.length; index += 1) ...[
             _CandidateListCard(
@@ -298,7 +302,9 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
 }
 
 class _EmptyCandidateCard extends StatelessWidget {
-  const _EmptyCandidateCard();
+  const _EmptyCandidateCard({required this.onAddPressed});
+
+  final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -327,17 +333,26 @@ class _EmptyCandidateCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            '아직 장소 후보 리스트가 비어있어요!',
+            '아직 만날 장소 후보가 없어요',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '후보를 추가하면 이 공간에 카드로 정리돼요.',
+            '검색으로 후보를 담으면 이곳에서 비교하고 투표할 수 있어요.',
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: onAddPressed,
+              icon: const Icon(Icons.search),
+              label: const Text('장소 후보 찾기'),
+            ),
           ),
         ],
       ),
@@ -499,7 +514,7 @@ class _CandidateListCard extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: saving ? null : onRegisterPressed,
-                    child: Text(saving ? '등록 중' : '일정에 등록'),
+                    child: Text(saving ? '등록 중' : '이 장소로 일정 만들기'),
                   ),
                 ),
               ],

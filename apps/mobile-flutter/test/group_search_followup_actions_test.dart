@@ -160,7 +160,7 @@ void main() {
       await tester.tap(find.text('장소 후보 보기'));
       await tester.pumpAndSettle();
 
-      expect(find.text('장소 후보 리스트'), findsOneWidget);
+      expect(find.text('장소 정하기'), findsOneWidget);
     },
   );
 

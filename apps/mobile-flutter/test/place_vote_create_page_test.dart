@@ -39,7 +39,7 @@ void main() {
     expect(addButton.onPressed, isNull);
 
     final createButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '투표 만들기'),
+      find.widgetWithText(FilledButton, '투표로 정하기'),
     );
     expect(createButton.onPressed, isNull);
   });

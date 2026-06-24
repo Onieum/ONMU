@@ -403,7 +403,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('홍대 전시회 구경'), findsOneWidget);
-    expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('후보 비교하기'), findsOneWidget);
   });
 
   testWidgets(
@@ -976,7 +976,7 @@ void main() {
     appRouter.push(RoutePaths.planDetail(_groupId, 104));
     await tester.pumpAndSettle();
 
-    expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('후보 비교하기'), findsOneWidget);
 
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
@@ -1124,8 +1124,8 @@ void main() {
     appRouter.go(RoutePaths.planDetail(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 검색하기'), findsOneWidget);
-    expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('장소 정하기'), findsOneWidget);
+    expect(find.text('후보 비교하기'), findsOneWidget);
     expect(find.text('제주도 일대'), findsOneWidget);
     expect(find.text('6.7 (금) 오전 10:00'), findsNothing);
     expect(find.text('일정이 없어요'), findsNothing);
@@ -1155,10 +1155,10 @@ void main() {
     );
     expect(searchButtonRect.size, candidateButtonRect.size);
 
-    await tester.tap(find.text('후보 리스트 보기'));
+    await tester.tap(find.text('후보 비교하기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 후보 리스트'), findsOneWidget);
+    expect(find.text('장소 정하기'), findsOneWidget);
   });
 
   testWidgets('plan detail edit flow returns home after save', (tester) async {
@@ -1319,7 +1319,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('제주도 여행'), findsOneWidget);
-    expect(find.text('후보 리스트 보기'), findsOneWidget);
+    expect(find.text('후보 비교하기'), findsOneWidget);
 
     appRouter.go(RoutePaths.planItinerary(_groupId, _planId));
     await tester.pumpAndSettle();
@@ -1339,9 +1339,9 @@ void main() {
     expect(find.text('6/7 토'), findsNothing);
     expect(find.text('6/8 일'), findsNothing);
     expect(find.text('6/9 월'), findsNothing);
-    expect(find.text('투표 만들기'), findsOneWidget);
+    expect(find.text('투표로 정하기'), findsOneWidget);
     expect(find.byIcon(Icons.favorite_border), findsWidgets);
-    expect(find.text('일정에 등록'), findsWidgets);
+    expect(find.text('이 장소로 일정 만들기'), findsWidgets);
     expect(find.textContaining('하트를 눌러'), findsNothing);
     expect(find.textContaining('마음에 들면'), findsNothing);
 
@@ -1358,7 +1358,7 @@ void main() {
 
     await tester.tap(find.text('숙소'));
     await tester.pumpAndSettle();
-    expect(find.text('아직 장소 후보 리스트가 비어있어요!'), findsOneWidget);
+    expect(find.text('아직 만날 장소 후보가 없어요'), findsOneWidget);
 
     await tester.tap(find.text('전체'));
     await tester.pumpAndSettle();
@@ -1388,11 +1388,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('아직 장소 후보 리스트가 비어있어요!'), findsOneWidget);
-    expect(find.text('후보를 추가하면 이 공간에 카드로 정리돼요.'), findsOneWidget);
-    expect(find.text('일정에 등록'), findsNothing);
+    expect(find.text('아직 만날 장소 후보가 없어요'), findsOneWidget);
+    expect(find.text('검색으로 후보를 담으면 이곳에서 비교하고 투표할 수 있어요.'), findsOneWidget);
+    expect(find.text('이 장소로 일정 만들기'), findsNothing);
     final voteButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '투표 만들기'),
+      find.widgetWithText(TextButton, '투표로 정하기'),
     );
     expect(voteButton.onPressed, isNull);
   });
@@ -1406,7 +1406,7 @@ void main() {
     appRouter.go(RoutePaths.planVoteNew(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    expect(find.text('투표 만들기'), findsWidgets);
+    expect(find.text('투표로 정하기'), findsWidgets);
     expect(find.text('제주도 여행 장소 투표'), findsOneWidget);
     expect(find.text('투표 방식'), findsNothing);
     expect(find.text('단일 선택'), findsNothing);
@@ -1441,7 +1441,7 @@ void main() {
     expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsNothing);
     expect(find.text('온무식당'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, '투표 만들기').last);
+    await tester.tap(find.widgetWithText(FilledButton, '투표로 정하기').last);
     await tester.pumpAndSettle();
 
     expect(find.text('투표 보기'), findsOneWidget);
@@ -1490,7 +1490,7 @@ void main() {
     await tester.tap(candidateAction);
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 후보 리스트'), findsOneWidget);
+    expect(find.text('장소 정하기'), findsOneWidget);
     expect(find.text('후보 리스트 보러가기'), findsNothing);
     expect(find.text('확인'), findsNothing);
   });
@@ -1791,13 +1791,13 @@ void main() {
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.byIcon(Icons.search));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 후보 리스트'), findsOneWidget);
+    expect(find.text('장소 정하기'), findsOneWidget);
 
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
@@ -1812,13 +1812,13 @@ void main() {
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('투표 만들기'));
+    await tester.tap(find.text('투표로 정하기'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('뒤로'));
     await tester.pumpAndSettle();
 
-    expect(find.text('장소 후보 리스트'), findsOneWidget);
+    expect(find.text('장소 정하기'), findsOneWidget);
     expect(find.text('투표 후보'), findsNothing);
   });
 
@@ -1852,6 +1852,9 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 5000));
 
     appRouter.go(RoutePaths.planPlaceSearchResults(_groupId, _planId));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '성수 카페');
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Kakao'), findsNothing);
