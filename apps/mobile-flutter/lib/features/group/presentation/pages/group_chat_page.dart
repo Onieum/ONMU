@@ -34,26 +34,37 @@ class GroupChatPage extends ConsumerStatefulWidget {
 class _GroupChatPageState extends ConsumerState<GroupChatPage>
     with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
+  final FocusNode _searchFocusNode = FocusNode();
 
   List<PickedChatImage> _selectedImages = const [];
   int _lastRenderedMessageCount = 0;
   String _lastRenderedLastMessageKey = '';
   bool _showJumpToLatest = false;
+  bool _isSearchVisible = false;
+  int _searchMatchIndex = 0;
+  String? _highlightedMessageKey;
+  String? _lastAutoFocusedMessageKey;
+  final Map<String, GlobalKey> _messageItemKeys = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_handleScroll);
+    _searchController.addListener(_handleSearchChanged);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_handleScroll);
+    _searchController.removeListener(_handleSearchChanged);
     _messageController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -171,6 +182,221 @@ class _GroupChatPageState extends ConsumerState<GroupChatPage>
     setState(() => _selectedImages = const []);
   }
 
+  void _handleSearchChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _searchMatchIndex = 0;
+      _highlightedMessageKey = null;
+      _lastAutoFocusedMessageKey = null;
+    });
+  }
+
+  void _openSearch() {
+    if (_isSearchVisible) {
+      _searchFocusNode.requestFocus();
+      return;
+    }
+    setState(() {
+      _isSearchVisible = true;
+      _searchMatchIndex = 0;
+      _highlightedMessageKey = null;
+      _lastAutoFocusedMessageKey = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    final hadQuery = _searchController.text.isNotEmpty;
+    if (hadQuery) {
+      _searchController.clear();
+    }
+    _lastAutoFocusedMessageKey = null;
+    if (!_isSearchVisible &&
+        _highlightedMessageKey == null &&
+        _searchMatchIndex == 0 &&
+        !hadQuery) {
+      return;
+    }
+    setState(() {
+      _isSearchVisible = false;
+      _searchMatchIndex = 0;
+      _highlightedMessageKey = null;
+    });
+  }
+
+  List<String> _searchMatchKeys(List<GroupMessage> messages) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return const [];
+    }
+    return [
+      for (final message in messages)
+        if (_matchesSearch(message, query)) _messageKey(message),
+    ];
+  }
+
+  bool _matchesSearch(GroupMessage message, String query) {
+    final values = [
+      message.sender,
+      message.message,
+      message.activityTitle,
+      message.activityActionLabel,
+    ];
+    return values
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .any((value) => value.contains(query));
+  }
+
+  void _showPreviousSearchMatch(List<String> matches) {
+    _moveSearchMatch(matches, direction: -1);
+  }
+
+  void _showNextSearchMatch(List<String> matches) {
+    _moveSearchMatch(matches, direction: 1);
+  }
+
+  void _moveSearchMatch(List<String> matches, {required int direction}) {
+    if (matches.isEmpty) {
+      return;
+    }
+    final currentIndex = _normalizedSearchMatchIndex(matches);
+    final nextIndex =
+        (currentIndex + direction + matches.length) % matches.length;
+    setState(() {
+      _searchMatchIndex = nextIndex;
+      _highlightedMessageKey = null;
+      _lastAutoFocusedMessageKey = null;
+    });
+  }
+
+  int _normalizedSearchMatchIndex(List<String> matches) {
+    if (matches.isEmpty) {
+      return 0;
+    }
+    return _searchMatchIndex.clamp(0, matches.length - 1);
+  }
+
+  GlobalKey _messageItemKey(String messageKey) {
+    return _messageItemKeys.putIfAbsent(
+      messageKey,
+      () => GlobalKey(debugLabel: 'chat-message-$messageKey'),
+    );
+  }
+
+  void _scheduleFocusMessage(String? messageKey) {
+    if (messageKey == null || _lastAutoFocusedMessageKey == messageKey) {
+      return;
+    }
+    _lastAutoFocusedMessageKey = messageKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final targetContext = _messageItemKey(messageKey).currentContext;
+      if (targetContext == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+        alignment: 0.18,
+      );
+    });
+  }
+
+  GroupMessage? _lastFailedMessage(List<GroupMessage> messages) {
+    for (var index = messages.length - 1; index >= 0; index -= 1) {
+      final message = messages[index];
+      if (message.canRetry) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  void _jumpToLatestFailedMessage(List<GroupMessage> messages) {
+    final failed = _lastFailedMessage(messages);
+    if (failed == null) {
+      return;
+    }
+    _closeSearch();
+    setState(() {
+      _highlightedMessageKey = _messageKey(failed);
+      _lastAutoFocusedMessageKey = null;
+    });
+  }
+
+  Future<void> _retryFailedMessages(List<GroupMessage> messages) async {
+    final failedMessageIds = [
+      for (final message in messages)
+        if (message.canRetry && message.id.trim().isNotEmpty) message.id,
+    ];
+    if (failedMessageIds.isEmpty) {
+      return;
+    }
+
+    final notifier = ref.read(
+      groupChatViewModelProvider(widget.groupId).notifier,
+    );
+    var successCount = 0;
+    var failureCount = 0;
+    for (final messageId in failedMessageIds) {
+      final retried = await notifier.retryMessage(messageId);
+      if (retried) {
+        successCount += 1;
+      } else {
+        failureCount += 1;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (failureCount == 0) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('전송 실패 메시지 $successCount개를 다시 보냈어요.')),
+      );
+      return;
+    }
+    if (successCount == 0) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('전송 실패 메시지를 다시 보내지 못했어요.')),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$successCount개는 다시 보냈고, $failureCount개는 아직 실패했어요.'),
+        ),
+      );
+    }
+
+    final latestState = ref
+        .read(groupChatViewModelProvider(widget.groupId))
+        .asData
+        ?.value;
+    if (latestState == null) {
+      return;
+    }
+    final latestFailed = _lastFailedMessage(latestState.messages);
+    if (latestFailed == null) {
+      return;
+    }
+    setState(() {
+      _highlightedMessageKey = _messageKey(latestFailed);
+      _lastAutoFocusedMessageKey = null;
+    });
+  }
+
   void _scheduleScrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) {
@@ -255,23 +481,50 @@ class _GroupChatPageState extends ConsumerState<GroupChatPage>
     return state.when(
       data: (state) {
         _syncTimelineScrollState(state.messages);
+        final searchMatches = _searchMatchKeys(state.messages);
+        final searchMatchIndex = _normalizedSearchMatchIndex(searchMatches);
+        final activeSearchMatchKey = searchMatches.isEmpty
+            ? null
+            : searchMatches[searchMatchIndex];
+        final highlightedMessageKey =
+            _isSearchVisible && activeSearchMatchKey != null
+            ? activeSearchMatchKey
+            : _highlightedMessageKey;
+        _scheduleFocusMessage(highlightedMessageKey);
         return _ThreadContent(
           state: state,
           messageController: _messageController,
           scrollController: _scrollController,
           selectedImages: _selectedImages,
           showJumpToLatest: _showJumpToLatest,
+          searchVisible: _isSearchVisible,
+          searchController: _searchController,
+          searchFocusNode: _searchFocusNode,
+          searchResultCount: searchMatches.length,
+          currentSearchPosition: searchMatches.isEmpty
+              ? 0
+              : searchMatchIndex + 1,
+          highlightedMessageKey: highlightedMessageKey,
+          messageLookupKey: _messageKey,
+          messageItemKey: _messageItemKey,
           onJumpToLatest: _jumpToLatestMessage,
           onSend: _sendMessage,
           onPickImage: _pickImagesForComposer,
           onRemoveSelectedImage: _removeSelectedImage,
           onClearSelectedImages: _clearSelectedImages,
+          onOpenSearch: _openSearch,
+          onCloseSearch: _closeSearch,
+          onSearchPrevious: () => _showPreviousSearchMatch(searchMatches),
+          onSearchNext: () => _showNextSearchMatch(searchMatches),
           onLoadSettlementCandidatePlans: () => ref
               .read(groupChatViewModelProvider(widget.groupId).notifier)
               .loadSettlementCandidatePlans(),
           onLoadOlderMessages: () => ref
               .read(groupChatViewModelProvider(widget.groupId).notifier)
               .loadOlderMessages(),
+          onRetryFailedMessages: () => _retryFailedMessages(state.messages),
+          onJumpToLatestFailedMessage: () =>
+              _jumpToLatestFailedMessage(state.messages),
           onRetryMessage: (messageId) async {
             final retried = await ref
                 .read(groupChatViewModelProvider(widget.groupId).notifier)
@@ -307,13 +560,27 @@ class _ThreadContent extends StatelessWidget {
     required this.scrollController,
     required this.selectedImages,
     required this.showJumpToLatest,
+    required this.searchVisible,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.searchResultCount,
+    required this.currentSearchPosition,
+    required this.highlightedMessageKey,
+    required this.messageLookupKey,
+    required this.messageItemKey,
     required this.onJumpToLatest,
     required this.onSend,
     required this.onPickImage,
     required this.onRemoveSelectedImage,
     required this.onClearSelectedImages,
+    required this.onOpenSearch,
+    required this.onCloseSearch,
+    required this.onSearchPrevious,
+    required this.onSearchNext,
     required this.onLoadSettlementCandidatePlans,
     required this.onLoadOlderMessages,
+    required this.onRetryFailedMessages,
+    required this.onJumpToLatestFailedMessage,
     required this.onRetryMessage,
   });
 
@@ -322,14 +589,28 @@ class _ThreadContent extends StatelessWidget {
   final ScrollController scrollController;
   final List<PickedChatImage> selectedImages;
   final bool showJumpToLatest;
+  final bool searchVisible;
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final int searchResultCount;
+  final int currentSearchPosition;
+  final String? highlightedMessageKey;
+  final String Function(GroupMessage message) messageLookupKey;
+  final GlobalKey Function(String messageKey) messageItemKey;
   final VoidCallback onJumpToLatest;
   final Future<void> Function() onSend;
   final Future<void> Function() onPickImage;
   final ValueChanged<int> onRemoveSelectedImage;
   final VoidCallback onClearSelectedImages;
+  final VoidCallback onOpenSearch;
+  final VoidCallback onCloseSearch;
+  final VoidCallback onSearchPrevious;
+  final VoidCallback onSearchNext;
   final Future<List<GroupPlanSummary>> Function()
   onLoadSettlementCandidatePlans;
   final Future<void> Function() onLoadOlderMessages;
+  final Future<void> Function() onRetryFailedMessages;
+  final VoidCallback onJumpToLatestFailedMessage;
   final Future<void> Function(String messageId) onRetryMessage;
 
   @override
@@ -340,17 +621,32 @@ class _ThreadContent extends StatelessWidget {
       title: group.name,
       showBackButton: true,
       onBack: () => context.popOrGo(RoutePaths.groupDetail(group.id)),
+      pinnedHeader: searchVisible
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                0,
+              ),
+              child: _ChatSearchCard(
+                controller: searchController,
+                focusNode: searchFocusNode,
+                resultCount: searchResultCount,
+                currentPosition: currentSearchPosition,
+                onPrevious: searchResultCount > 1 ? onSearchPrevious : null,
+                onNext: searchResultCount > 1 ? onSearchNext : null,
+                onClose: onCloseSearch,
+              ),
+            )
+          : null,
       action: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: '채팅 검색',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('채팅 검색은 다음 단계에서 연결할게요.')),
-              );
-            },
-            icon: const Icon(Icons.search),
+            tooltip: searchVisible ? '채팅 검색 닫기' : '채팅 검색',
+            onPressed: searchVisible ? onCloseSearch : onOpenSearch,
+            icon: Icon(searchVisible ? Icons.close : Icons.search),
           ),
           PopupMenuButton<_ChatMenuAction>(
             tooltip: '채팅 메뉴',
@@ -414,6 +710,13 @@ class _ThreadContent extends StatelessWidget {
           : null,
       scrollController: scrollController,
       children: [
+        _ChatRoomContextCard(
+          group: group,
+          onMembersTap: () => context.push(RoutePaths.groupMembers(group.id)),
+          onPlansTap: () => context.push(RoutePaths.groupPlans(group.id)),
+          onSettingsTap: () => context.push(RoutePaths.groupSettings(group.id)),
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (state.pinnedPlan != null)
           _PlanChatAnchor(
             plan: state.pinnedPlan!,
@@ -453,6 +756,14 @@ class _ThreadContent extends StatelessWidget {
             onPressed: state.isLoadingOlderMessages
                 ? null
                 : onLoadOlderMessages,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (_failedMessageCount > 0) ...[
+          _FailedMessagesNoticeCard(
+            count: _failedMessageCount,
+            onRetryAll: onRetryFailedMessages,
+            onJumpToLatestFailed: onJumpToLatestFailedMessage,
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -541,21 +852,45 @@ class _ThreadContent extends StatelessWidget {
     required bool showSenderName,
     required bool showTimestamp,
   }) {
+    final messageKey = messageLookupKey(message);
+    final highlighted = highlightedMessageKey == messageKey;
     if (message.isActivity) {
-      return ChatActivityCard(
-        message: message,
-        onTap: () => _openActivityMessage(context, message),
+      return KeyedSubtree(
+        key: messageItemKey(messageKey),
+        child: _TimelineHighlightFrame(
+          highlighted: highlighted,
+          child: ChatActivityCard(
+            message: message,
+            onTap: () => _openActivityMessage(context, message),
+          ),
+        ),
       );
     }
     final displayMessage = showTimestamp
         ? message
         : message.copyWith(timeLabel: '');
-    return ChatMessageBubble(
-      message: displayMessage,
-      showAvatar: showAvatar,
-      showSenderName: showSenderName,
-      onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
+    return KeyedSubtree(
+      key: messageItemKey(messageKey),
+      child: _TimelineHighlightFrame(
+        highlighted: highlighted,
+        child: ChatMessageBubble(
+          message: displayMessage,
+          showAvatar: showAvatar,
+          showSenderName: showSenderName,
+          onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
+        ),
+      ),
     );
+  }
+
+  int get _failedMessageCount {
+    var count = 0;
+    for (final message in state.messages) {
+      if (message.canRetry) {
+        count += 1;
+      }
+    }
+    return count;
   }
 
   bool _canGroupTimelineMessages(
@@ -1064,6 +1399,307 @@ class _UnreadDivider extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         const Expanded(child: Divider(color: AppColors.linePink)),
       ],
+    );
+  }
+}
+
+class _ChatRoomContextCard extends StatelessWidget {
+  const _ChatRoomContextCard({
+    required this.group,
+    required this.onMembersTap,
+    required this.onPlansTap,
+    required this.onSettingsTap,
+  });
+
+  final GroupSummary group;
+  final VoidCallback onMembersTap;
+  final VoidCallback onPlansTap;
+  final VoidCallback onSettingsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = group.description.trim();
+    final pinnedPlanTitle = group.pinnedPlanTitle.trim();
+    final lastMessage = group.lastMessage.trim();
+
+    return Semantics(
+      container: true,
+      label: '${group.name} 채팅방 정보',
+      child: OnmuCard(
+        backgroundColor: AppColors.bgDefault,
+        borderColor: AppColors.lineSoft,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GroupAvatarCluster(
+                  members: group.displayMemberAvatars,
+                  avatarSize: 36,
+                  overlap: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        description.isEmpty ? '함께 대화를 이어가 보세요.' : description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (pinnedPlanTitle.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        _ChatRoomMetaLine(
+                          icon: Icons.event_note_outlined,
+                          label: pinnedPlanTitle,
+                        ),
+                      ],
+                      if (lastMessage.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        _ChatRoomMetaLine(
+                          icon: Icons.chat_bubble_outline,
+                          label: lastMessage,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                OnmuChip(
+                  label: '멤버 ${group.members.length}명',
+                  icon: Icons.groups_2_outlined,
+                  onTap: onMembersTap,
+                ),
+                OnmuChip(
+                  label: '약속 보기',
+                  icon: Icons.event_note_outlined,
+                  onTap: onPlansTap,
+                ),
+                OnmuChip(
+                  label: '모임 설정',
+                  icon: Icons.tune_outlined,
+                  onTap: onSettingsTap,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatSearchCard extends StatelessWidget {
+  const _ChatSearchCard({
+    required this.controller,
+    required this.focusNode,
+    required this.resultCount,
+    required this.currentPosition,
+    required this.onClose,
+    this.onPrevious,
+    this.onNext,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final int resultCount;
+  final int currentPosition;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final summaryLabel = resultCount <= 0
+        ? '결과 없음'
+        : '$currentPosition / $resultCount';
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('대화 검색', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('group-chat-search-field'),
+                  controller: controller,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: '메시지나 보낸 사람을 검색해보세요',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: controller.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: '검색어 지우기',
+                            onPressed: controller.clear,
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              IconButton(
+                tooltip: '이전 검색 결과',
+                onPressed: onPrevious,
+                icon: const Icon(Icons.keyboard_arrow_up),
+              ),
+              IconButton(
+                tooltip: '다음 검색 결과',
+                onPressed: onNext,
+                icon: const Icon(Icons.keyboard_arrow_down),
+              ),
+              IconButton(
+                tooltip: '검색 닫기',
+                onPressed: onClose,
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            summaryLabel,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatRoomMetaLine extends StatelessWidget {
+  const _ChatRoomMetaLine({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textMuted),
+        const SizedBox(width: AppSpacing.xxs),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FailedMessagesNoticeCard extends StatelessWidget {
+  const _FailedMessagesNoticeCard({
+    required this.count,
+    required this.onRetryAll,
+    required this.onJumpToLatestFailed,
+  });
+
+  final int count;
+  final Future<void> Function() onRetryAll;
+  final VoidCallback onJumpToLatestFailed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.linePink,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.primaryPink),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  '전송 실패한 메시지 $count개',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            '개별 재시도도 가능하고, 여기서 한 번에 다시 보낼 수도 있어요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OnmuSecondaryButton(
+                  label: '마지막 실패로 이동',
+                  onPressed: onJumpToLatestFailed,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OnmuPrimaryButton(
+                  label: '전체 재시도',
+                  onPressed: () => unawaited(onRetryAll()),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineHighlightFrame extends StatelessWidget {
+  const _TimelineHighlightFrame({
+    required this.highlighted,
+    required this.child,
+  });
+
+  final bool highlighted;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!highlighted) {
+      return child;
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.primaryPink, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
