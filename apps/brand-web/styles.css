@@ -634,6 +634,7 @@ button:focus-visible {
   font-size: 1.25rem;
 }
 
+.flow-steps span,
 .screen-notes span {
   min-width: 0;
   min-height: 0;
