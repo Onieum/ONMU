@@ -455,6 +455,8 @@ button:focus-visible {
 }
 
 .story-about {
+  grid-template-columns: var(--inner);
+  gap: 28px;
   align-items: start;
 }
 
@@ -497,6 +499,7 @@ button:focus-visible {
 .about-cards {
   display: grid;
   gap: 14px;
+  max-width: 840px;
 }
 
 .about-card {
@@ -1376,11 +1379,6 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
   }
 
   .feature-illustration {
-    height: 168px;
-  }
-
-  .feature-illustration--square {
-    width: min(100%, 220px);
     height: 168px;
   }
 
