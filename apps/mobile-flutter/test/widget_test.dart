@@ -2133,6 +2133,83 @@ void main() {
     expect(find.byTooltip('약속 만들기'), findsOneWidget);
   });
 
+  testWidgets('group chat search finds messages and navigates matches', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(
+            _SearchTimelineGroupRepository(store),
+          ),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('채팅 검색'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('group-chat-search-field')),
+      '카페',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('다음 검색 결과'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('검색 닫기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('group-chat-search-field')), findsNothing);
+  });
+
+  testWidgets('group chat failed notice retries failed messages in batch', (
+    tester,
+  ) async {
+    final store = InMemoryOnmuStore.seeded();
+    final repository = _RetryNoticeGroupRepository(store);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          groupRepositoryProvider.overrideWithValue(repository),
+          settlementRepositoryProvider.overrideWithValue(
+            TestSettlementRepository(store),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const GroupChatPage(groupId: '1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('전송 실패한 메시지 1개'), findsOneWidget);
+
+    await tester.tap(find.text('전체 재시도'));
+    await tester.pumpAndSettle();
+
+    expect(repository.retrySendCount, 1);
+    expect(find.text('전송 실패한 메시지 1개'), findsNothing);
+    expect(find.text('전송 실패'), findsNothing);
+  });
+
   testWidgets('group chat send button stays disabled until message is ready', (
     tester,
   ) async {
@@ -2687,6 +2764,91 @@ class _GroupedTimelineGroupRepository extends _NoAuxGroupRepository {
           isMine: false,
         ),
       ],
+    );
+  }
+}
+
+class _SearchTimelineGroupRepository extends _NoAuxGroupRepository {
+  _SearchTimelineGroupRepository(super.store);
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'search-message-1',
+          cursor: '2026-06-09T18:00:00+09:00',
+          sender: '민서',
+          message: '오늘 카페 먼저 들를까?',
+          timeLabel: '18:00',
+          isMine: false,
+        ),
+        GroupMessage(
+          id: 'search-message-2',
+          cursor: '2026-06-09T18:02:00+09:00',
+          sender: '나',
+          message: '좋아, 카페에서 만나자',
+          timeLabel: '18:02',
+          isMine: true,
+        ),
+        GroupMessage(
+          id: 'search-message-3',
+          cursor: '2026-06-09T18:05:00+09:00',
+          sender: '현우',
+          message: '그러면 식당은 나중에 정하자',
+          timeLabel: '18:05',
+          isMine: false,
+        ),
+      ],
+    );
+  }
+}
+
+class _RetryNoticeGroupRepository extends _NoAuxGroupRepository {
+  _RetryNoticeGroupRepository(super.store);
+
+  var retrySendCount = 0;
+
+  @override
+  Future<GroupMessagePage> fetchMessagePage(
+    Object groupId, {
+    String? beforeCursor,
+    int? limit,
+  }) async {
+    return const GroupMessagePage(
+      messages: [
+        GroupMessage(
+          id: 'failed-message-1',
+          cursor: '2026-06-09T20:30:00+09:00',
+          sender: '나',
+          message: '다시 보내야 하는 메시지',
+          timeLabel: '전송 실패',
+          isMine: true,
+          sendStatus: GroupMessageSendStatus.failed,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<GroupMessage> sendMessage({
+    required Object groupId,
+    required String message,
+    List<GroupMessageAttachment> attachments = const [],
+  }) async {
+    retrySendCount += 1;
+    return GroupMessage(
+      id: 'retried-message-$retrySendCount',
+      cursor: '2026-06-09T20:31:00+09:00',
+      sender: '나',
+      message: message,
+      timeLabel: '방금',
+      isMine: true,
+      attachments: attachments,
     );
   }
 }
