@@ -132,9 +132,17 @@ class _PlaceSearchFilterPageState extends ConsumerState<PlaceSearchFilterPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('장소 후보에 담았어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('장소 후보에 담았어요.'),
+          action: SnackBarAction(
+            label: '후보 비교',
+            onPressed: () => context.go(
+              RoutePaths.planPlaceCandidates(widget.groupId, widget.planId),
+            ),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _savingCandidateIds.remove(candidate.id));

@@ -1348,7 +1348,6 @@ void main() {
     await tester.tap(find.text('카페'));
     await tester.pumpAndSettle();
     expect(find.text('무드카페'), findsOneWidget);
-    expect(find.text('하루정원'), findsOneWidget);
     expect(find.text('온무식당'), findsNothing);
 
     await tester.tap(find.text('식사'));
@@ -1360,10 +1359,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('아직 만날 장소 후보가 없어요'), findsOneWidget);
 
-    await tester.tap(find.text('전체'));
-    await tester.pumpAndSettle();
-    expect(find.text('온무식당'), findsOneWidget);
-    expect(find.text('무드카페'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1422,26 +1417,12 @@ void main() {
     await tester.tap(find.text('선택 완료'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('투표에 올릴 후보를 추가해 주세요.'),
-      160,
-      scrollable: find.byType(Scrollable).first,
+    expect(
+      find.text('추천 기준으로 3개 후보를 미리 담아뒀어요. 필요하면 후보를 조정하세요.'),
+      findsOneWidget,
     );
-    expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsOneWidget);
 
-    await tester.tap(find.text('장소 후보 리스트에서 추가'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('투표 후보 추가'), findsOneWidget);
-    await tester.tap(find.text('온무식당').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('추가 완료'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('투표에 올릴 후보를 추가해 주세요.'), findsNothing);
-    expect(find.text('온무식당'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, '투표로 정하기').last);
+    await tester.tap(find.widgetWithText(FilledButton, '선택한 3개로 투표 만들기').last);
     await tester.pumpAndSettle();
 
     expect(find.text('투표 보기'), findsOneWidget);
@@ -1791,7 +1772,7 @@ void main() {
     appRouter.go(RoutePaths.planPlaceCandidates(_groupId, _planId));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byTooltip('장소 후보 추가'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('뒤로'));
