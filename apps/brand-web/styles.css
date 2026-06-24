@@ -1205,21 +1205,25 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
   }
 
   .hero-phone-stack {
+    width: min(100%, 356px);
+    min-height: 648px;
     justify-self: start;
   }
 
   .hero-phone-secondary {
-    left: 24px;
-    opacity: 0.56;
-    transform: rotate(-4.5deg);
+    top: 58px;
+    left: -28px;
+    width: min(66%, 226px);
+    opacity: 0.58;
+    transform: rotate(-5.2deg);
   }
 
   .app-screenshot-hero {
-    transform: rotate(1.8deg);
+    transform: translateX(16px) rotate(1.8deg);
   }
 
   .app-screenshot-secondary {
-    transform: translateY(8px) rotate(3deg);
+    transform: translateY(12px) rotate(3.8deg);
   }
 
   .screen-showcase {
