@@ -2115,6 +2115,12 @@ void main() {
     var sendButton = tester.widget<IconButton>(sendButtonFinder);
     expect(sendButton.onPressed, isNull);
 
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.pump();
+
+    sendButton = tester.widget<IconButton>(sendButtonFinder);
+    expect(sendButton.onPressed, isNull);
+
     await tester.enterText(find.byType(TextField), '보낼 메시지');
     await tester.pump();
 

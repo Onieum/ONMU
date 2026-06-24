@@ -1648,6 +1648,69 @@ void main() {
     expect(state.pinnedPlan?.displayStatusLabel, '진행 중');
   });
 
+  test('채팅 ViewModel은 보이는 상태 새로고침 시 고정 약속 상태를 다시 계산한다', () async {
+    final now = DateTime.now();
+    final repository = _MutablePlansGroupRepository([
+      GroupPlanSummary(
+        id: 301,
+        title: '곧 시작할 약속',
+        dateLabel: '곧',
+        startsAt: now.add(const Duration(minutes: 20)),
+        endsAt: now.add(const Duration(hours: 2)),
+        placeName: '망원동',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 4,
+        extraMemberCount: 0,
+        iconKind: 'calendar',
+        isPast: false,
+      ),
+    ]);
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+    await pumpEventQueue();
+
+    expect(
+      container.read(provider).requireValue.pinnedPlan?.displayStatusLabel,
+      '예정',
+    );
+
+    repository.plans = [
+      GroupPlanSummary(
+        id: 301,
+        title: '곧 시작할 약속',
+        dateLabel: '오늘',
+        startsAt: now.subtract(const Duration(minutes: 10)),
+        endsAt: now.add(const Duration(minutes: 50)),
+        placeName: '망원동',
+        statusLabel: 'scheduled',
+        statusType: 'scheduled',
+        memberCount: 4,
+        extraMemberCount: 0,
+        iconKind: 'calendar',
+        isPast: false,
+      ),
+    ];
+
+    await container.read(provider.notifier).refreshAuxiliaryState();
+    await pumpEventQueue();
+
+    expect(
+      container.read(provider).requireValue.pinnedPlan?.displayStatusLabel,
+      '진행 중',
+    );
+  });
+
   test('채팅 ViewModel은 지나지 않은 약속이 없으면 보조 약속 카드를 숨긴다', () async {
     final now = DateTime.now();
     final repository = _FakeGroupRepository(
@@ -1827,6 +1890,40 @@ void main() {
     expect(repository.sentAttachments.single, hasLength(3));
     expect(updated.messages.single.attachments, hasLength(3));
     expect(updated.messages.single.sendStatus, GroupMessageSendStatus.sent);
+  });
+
+  test('채팅 ViewModel은 사진 업로드 실패를 인라인 오류로 남기고 false를 반환한다', () async {
+    final repository = _FakeGroupRepository();
+    final mediaRepository = _ThrowingMediaRepository();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(repository),
+        mediaRepositoryProvider.overrideWithValue(mediaRepository),
+        settlementRepositoryProvider.overrideWithValue(
+          _ChatSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = groupChatViewModelProvider('1');
+
+    await container.read(provider.future);
+
+    final sent = await container
+        .read(provider.notifier)
+        .sendImageMessage(
+          const PickedChatImage(
+            path: '/tmp/fail-photo.jpg',
+            fileName: 'fail-photo.jpg',
+          ),
+          text: '업로드 실패',
+        );
+    final updated = container.read(provider).requireValue;
+
+    expect(sent, isFalse);
+    expect(mediaRepository.uploadedPaths, ['/tmp/fail-photo.jpg']);
+    expect(updated.messages, isEmpty);
+    expect(updated.sendErrorMessage, '사진을 올리지 못했어요.');
   });
 
   test('채팅 ViewModel은 입장 시 새 메시지 구분선 수를 읽음 동기화와 분리해 보존한다', () async {
@@ -2566,6 +2663,15 @@ class _ChatNoCurrentVoteRepository extends _FakeGroupRepository {
   }
 }
 
+class _MutablePlansGroupRepository extends _FakeGroupRepository {
+  _MutablePlansGroupRepository(this.plans);
+
+  List<GroupPlanSummary> plans;
+
+  @override
+  Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => plans;
+}
+
 class _FakeMediaRepository implements MediaRepository {
   _FakeMediaRepository({required this.uploaded});
 
@@ -2576,6 +2682,16 @@ class _FakeMediaRepository implements MediaRepository {
   Future<GroupMessageAttachment> uploadChatImage(PickedChatImage image) async {
     uploadedPaths.add(image.path);
     return uploaded;
+  }
+}
+
+class _ThrowingMediaRepository implements MediaRepository {
+  final uploadedPaths = <String>[];
+
+  @override
+  Future<GroupMessageAttachment> uploadChatImage(PickedChatImage image) async {
+    uploadedPaths.add(image.path);
+    throw StateError('upload failed');
   }
 }
 

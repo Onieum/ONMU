@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,16 +22,17 @@ import '../../repository/media_repository.dart';
 import '../../view_model/group_chat_view_model.dart';
 import '../widgets/group_cards.dart';
 
-class GroupChatPage extends StatefulWidget {
+class GroupChatPage extends ConsumerStatefulWidget {
   const GroupChatPage({required this.groupId, super.key});
 
   final String groupId;
 
   @override
-  State<GroupChatPage> createState() => _GroupChatPageState();
+  ConsumerState<GroupChatPage> createState() => _GroupChatPageState();
 }
 
-class _GroupChatPageState extends State<GroupChatPage> {
+class _GroupChatPageState extends ConsumerState<GroupChatPage>
+    with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -42,18 +45,33 @@ class _GroupChatPageState extends State<GroupChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_handleScroll);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_handleScroll);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _sendMessage(WidgetRef ref) async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(groupChatViewModelProvider(widget.groupId).notifier)
+          .refreshVisibleState(),
+    );
+  }
+
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     final selectedImages = List<PickedChatImage>.of(_selectedImages);
 
@@ -88,7 +106,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            selectedImages.isEmpty ? '메시지를 보내지 못했어요.' : '사진을 보내지 못했어요.',
+            selectedImages.isEmpty ? '메시지를 보내지 못했어요.' : '사진을 올리지 못했어요.',
           ),
         ),
       );
@@ -232,56 +250,52 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final state = ref.watch(groupChatViewModelProvider(widget.groupId));
+    final state = ref.watch(groupChatViewModelProvider(widget.groupId));
 
-        return state.when(
-          data: (state) {
-            _syncTimelineScrollState(state.messages);
-            return _ThreadContent(
-              state: state,
-              messageController: _messageController,
-              scrollController: _scrollController,
-              selectedImages: _selectedImages,
-              showJumpToLatest: _showJumpToLatest,
-              onJumpToLatest: _jumpToLatestMessage,
-              onSend: () => _sendMessage(ref),
-              onPickImage: _pickImagesForComposer,
-              onRemoveSelectedImage: _removeSelectedImage,
-              onClearSelectedImages: _clearSelectedImages,
-              onLoadSettlementCandidatePlans: () => ref
-                  .read(groupChatViewModelProvider(widget.groupId).notifier)
-                  .loadSettlementCandidatePlans(),
-              onLoadOlderMessages: () => ref
-                  .read(groupChatViewModelProvider(widget.groupId).notifier)
-                  .loadOlderMessages(),
-              onRetryMessage: (messageId) async {
-                final retried = await ref
-                    .read(groupChatViewModelProvider(widget.groupId).notifier)
-                    .retryMessage(messageId);
-                if (!mounted || !context.mounted || retried) {
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')),
-                );
-              },
-            );
+    return state.when(
+      data: (state) {
+        _syncTimelineScrollState(state.messages);
+        return _ThreadContent(
+          state: state,
+          messageController: _messageController,
+          scrollController: _scrollController,
+          selectedImages: _selectedImages,
+          showJumpToLatest: _showJumpToLatest,
+          onJumpToLatest: _jumpToLatestMessage,
+          onSend: _sendMessage,
+          onPickImage: _pickImagesForComposer,
+          onRemoveSelectedImage: _removeSelectedImage,
+          onClearSelectedImages: _clearSelectedImages,
+          onLoadSettlementCandidatePlans: () => ref
+              .read(groupChatViewModelProvider(widget.groupId).notifier)
+              .loadSettlementCandidatePlans(),
+          onLoadOlderMessages: () => ref
+              .read(groupChatViewModelProvider(widget.groupId).notifier)
+              .loadOlderMessages(),
+          onRetryMessage: (messageId) async {
+            final retried = await ref
+                .read(groupChatViewModelProvider(widget.groupId).notifier)
+                .retryMessage(messageId);
+            if (!mounted || !context.mounted || retried) {
+              return;
+            }
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('메시지를 다시 보내지 못했어요.')));
           },
-          loading: () =>
-              const OnmuScaffold(title: '채팅', children: [_ChatLoadingState()]),
-          error: (error, stackTrace) => OnmuScaffold(
-            title: '채팅',
-            children: [
-              _ChatErrorState(
-                onRetry: () =>
-                    ref.invalidate(groupChatViewModelProvider(widget.groupId)),
-              ),
-            ],
-          ),
         );
       },
+      loading: () =>
+          const OnmuScaffold(title: '채팅', children: [_ChatLoadingState()]),
+      error: (error, stackTrace) => OnmuScaffold(
+        title: '채팅',
+        children: [
+          _ChatErrorState(
+            onRetry: () =>
+                ref.invalidate(groupChatViewModelProvider(widget.groupId)),
+          ),
+        ],
+      ),
     );
   }
 }

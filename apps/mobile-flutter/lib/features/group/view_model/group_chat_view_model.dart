@@ -100,6 +100,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
   Timer? _reconnectTimer;
   Timer? _catchUpTimer;
   Timer? _voteDeadlineTimer;
+  Timer? _planBoundaryTimer;
   bool _realtimeDisposed = false;
   bool _isCatchingUpLatestMessages = false;
   String? _lastReadSyncMessageId;
@@ -154,6 +155,12 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
         : _pinnedPlanFor(selectedPlan);
     final planId = selectedPlan?.id ?? 0;
     final settlementCandidatePlans = _settlementCandidatePlans(plans, now);
+    _schedulePlanBoundaryRefresh(
+      groupRepository,
+      settlementRepository,
+      plans,
+      now,
+    );
     List<VoteSummary> votes = const [];
     try {
       if (planId > 0) {
@@ -239,6 +246,18 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       _report(error, stackTrace, feature: 'group_chat_settlement_plans');
       Error.throwWithStackTrace(error, stackTrace);
     }
+  }
+
+  Future<void> refreshAuxiliaryState() async {
+    await _loadAuxiliaryChatState(
+      ref.read(groupRepositoryProvider),
+      ref.read(settlementRepositoryProvider),
+    );
+  }
+
+  Future<void> refreshVisibleState() async {
+    await refreshLatestMessages();
+    await refreshAuxiliaryState();
   }
 
   List<GroupPlanSummary> _settlementCandidatePlans(
@@ -356,6 +375,54 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
       }
       state = AsyncData(latest.copyWith(clearVote: true, voteId: 0));
     });
+  }
+
+  void _schedulePlanBoundaryRefresh(
+    GroupRepository groupRepository,
+    SettlementRepository settlementRepository,
+    List<GroupPlanSummary> plans,
+    DateTime now,
+  ) {
+    _planBoundaryTimer?.cancel();
+    _planBoundaryTimer = null;
+
+    final nextBoundary = _nextPlanBoundaryAfter(plans, now);
+    if (nextBoundary == null) {
+      return;
+    }
+
+    final delay = nextBoundary.difference(now.toLocal());
+    if (delay <= Duration.zero) {
+      return;
+    }
+
+    _planBoundaryTimer = Timer(delay + const Duration(milliseconds: 250), () {
+      if (_realtimeDisposed) {
+        return;
+      }
+      unawaited(_loadAuxiliaryChatState(groupRepository, settlementRepository));
+    });
+  }
+
+  DateTime? _nextPlanBoundaryAfter(List<GroupPlanSummary> plans, DateTime now) {
+    final localNow = now.toLocal();
+    final boundaries = <DateTime>[];
+    for (final plan in plans) {
+      final startsAt = plan.startsAt?.toLocal();
+      if (startsAt != null && startsAt.isAfter(localNow)) {
+        boundaries.add(startsAt);
+      }
+
+      final endsAt = plan.endsAt?.toLocal();
+      if (endsAt != null && endsAt.isAfter(localNow)) {
+        boundaries.add(endsAt);
+      }
+    }
+    if (boundaries.isEmpty) {
+      return null;
+    }
+    boundaries.sort();
+    return boundaries.first;
   }
 
   bool _voteSummaryMatchesPlan(VoteSummary vote, int planId) {
@@ -721,6 +788,7 @@ class GroupChatViewModel extends AsyncNotifier<GroupChatState> {
     _reconnectTimer?.cancel();
     _catchUpTimer?.cancel();
     _voteDeadlineTimer?.cancel();
+    _planBoundaryTimer?.cancel();
     _realtimeSubscription?.cancel();
   }
 
