@@ -84,7 +84,7 @@ class _FakeRecordRepository implements RecordRepository {
 }
 
 void main() {
-  testWidgets('OOTD record saves text-mode today-only style overrides', (
+  testWidgets('OOTD text mode hides style overrides and saves outfit focus', (
     tester,
   ) async {
     final repository = _FakeRecordRepository();
@@ -118,13 +118,8 @@ void main() {
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('변경하기'));
-    await tester.pumpAndSettle();
-    await _tapVisible(tester, find.byKey(const ValueKey('hairStyleOption-2')));
-    await _tapVisible(tester, find.byKey(const ValueKey('hairColorOption-4')));
-    await _tapVisible(tester, find.byKey(const ValueKey('eyeColorOption-2')));
-    await tester.tap(find.text('선택 완료'));
-    await tester.pumpAndSettle();
+    expect(find.text('변경하기'), findsNothing);
+    expect(find.text('코디 설명 확인'), findsOneWidget);
     await _tapVisible(tester, find.byKey(const ValueKey('weather-sunny')));
     await _tapVisible(tester, find.byKey(const ValueKey('mood-excited')));
     await _tapVisible(tester, find.byKey(const ValueKey('rating-5')));
@@ -132,15 +127,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(savedRecord, isNotNull);
-    expect(savedRecord!.character.hairStyleIndex, 2);
-    expect(savedRecord!.character.hairColorIndex, 4);
-    expect(savedRecord!.character.eyeColorIndex, 2);
+    expect(savedRecord!.character, const CharacterDraft(gender: 'female'));
     expect(savedRecord!.weather, 'sunny');
     expect(savedRecord!.mood, 'excited');
     expect(savedRecord!.brands['rating'], '5.0');
-    expect(repository.lastOverrides?.hairStyleIndex, 2);
-    expect(repository.lastOverrides?.hairColorIndex, 4);
-    expect(repository.lastOverrides?.eyeColorIndex, 2);
+    expect(savedRecord!.brands.containsKey('styleHairStyle'), isFalse);
+    expect(savedRecord!.brands.containsKey('styleHairColor'), isFalse);
+    expect(savedRecord!.brands.containsKey('styleEyeStyle'), isFalse);
+    expect(savedRecord!.brands.containsKey('styleEyeColor'), isFalse);
+    expect(repository.lastOverrides, isNull);
   });
 
   testWidgets('daily OOTD completion returns to daily record flow', (
