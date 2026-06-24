@@ -10,8 +10,10 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/models/group_models.dart';
 import '../../../../shared/models/settlement_models.dart';
+import '../../../../shared/widgets/onmu_button.dart';
 import '../../../../shared/widgets/onmu_card.dart';
 import '../../../../shared/widgets/onmu_chip.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_plan_status_chip.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../repository/media_repository.dart';
@@ -267,16 +269,14 @@ class _GroupChatPageState extends State<GroupChatPage> {
               },
             );
           },
-          loading: () => const OnmuScaffold(
-            title: '채팅',
-            children: [Center(child: CircularProgressIndicator())],
-          ),
+          loading: () =>
+              const OnmuScaffold(title: '채팅', children: [_ChatLoadingState()]),
           error: (error, stackTrace) => OnmuScaffold(
             title: '채팅',
             children: [
-              Text(
-                '채팅을 불러오지 못했어요.',
-                style: Theme.of(context).textTheme.bodyMedium,
+              _ChatErrorState(
+                onRetry: () =>
+                    ref.invalidate(groupChatViewModelProvider(widget.groupId)),
               ),
             ],
           ),
@@ -382,6 +382,7 @@ class _ThreadContent extends StatelessWidget {
       bottom: _MessageInput(
         controller: messageController,
         selectedImages: selectedImages,
+        isConversationEmpty: state.messages.isEmpty,
         onSend: onSend,
         onOpenActions: () => _showChatActions(context),
         onAddImage: onPickImage,
@@ -441,7 +442,15 @@ class _ThreadContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        ..._timelineChildren(context),
+        if (state.sendErrorMessage?.trim().isNotEmpty ?? false) ...[
+          _ChatInlineNotice(message: state.sendErrorMessage!.trim()),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (state.messages.isEmpty) ...[
+          const _ChatEmptyState(),
+        ] else ...[
+          ..._timelineChildren(context),
+        ],
       ],
     );
   }
@@ -500,6 +509,7 @@ class _ThreadContent extends StatelessWidget {
             message,
             showAvatar: !groupedWithPrevious,
             showSenderName: !groupedWithPrevious,
+            showTimestamp: !groupedWithNext,
           ),
         )
         ..add(
@@ -515,6 +525,7 @@ class _ThreadContent extends StatelessWidget {
     GroupMessage message, {
     required bool showAvatar,
     required bool showSenderName,
+    required bool showTimestamp,
   }) {
     if (message.isActivity) {
       return ChatActivityCard(
@@ -522,8 +533,11 @@ class _ThreadContent extends StatelessWidget {
         onTap: () => _openActivityMessage(context, message),
       );
     }
+    final displayMessage = showTimestamp
+        ? message
+        : message.copyWith(timeLabel: '');
     return ChatMessageBubble(
-      message: message,
+      message: displayMessage,
       showAvatar: showAvatar,
       showSenderName: showSenderName,
       onRetry: message.canRetry ? () => onRetryMessage(message.id) : null,
@@ -1258,6 +1272,7 @@ class _MessageInput extends StatelessWidget {
   const _MessageInput({
     required this.controller,
     required this.selectedImages,
+    required this.isConversationEmpty,
     required this.onSend,
     required this.onOpenActions,
     required this.onAddImage,
@@ -1267,6 +1282,7 @@ class _MessageInput extends StatelessWidget {
 
   final TextEditingController controller;
   final List<PickedChatImage> selectedImages;
+  final bool isConversationEmpty;
   final Future<void> Function() onSend;
   final VoidCallback onOpenActions;
   final VoidCallback onAddImage;
@@ -1275,61 +1291,208 @@ class _MessageInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bgDefault,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (selectedImages.isNotEmpty) ...[
-            ChatComposerImageTray(
-              images: selectedImages,
-              onAddImage: onAddImage,
-              onRemoveImage: onRemoveImage,
-              onClearImages: onClearImages,
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        final hasText = value.text.trim().isNotEmpty;
+        final canSend = hasText || selectedImages.isNotEmpty;
+        final hintText = selectedImages.isNotEmpty
+            ? '사진에 메시지를 더해보세요'
+            : isConversationEmpty
+            ? '첫 메시지를 입력해보세요'
+            : '메시지를 입력해보세요';
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.bgDefault,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: canSend ? AppColors.linePink : AppColors.lineSoft,
             ),
-            const Divider(height: 1, color: AppColors.lineSoft),
-          ],
-          Row(
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                tooltip: '채팅 액션',
-                onPressed: onOpenActions,
-                icon: const Icon(
-                  Icons.add_circle_outline,
-                  color: AppColors.primaryPink,
+              if (selectedImages.isNotEmpty) ...[
+                ChatComposerImageTray(
+                  images: selectedImages,
+                  onAddImage: onAddImage,
+                  onRemoveImage: onRemoveImage,
+                  onClearImages: onClearImages,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  onSubmitted: (_) => onSend(),
-                  decoration: InputDecoration(
-                    hintText: selectedImages.isEmpty
-                        ? '메시지를 입력해보세요'
-                        : '사진에 메시지를 더해보세요',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
+                const Divider(height: 1, color: AppColors.lineSoft),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton(
+                    tooltip: '채팅 액션',
+                    onPressed: onOpenActions,
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      color: AppColors.primaryPink,
+                    ),
                   ),
-                ),
-              ),
-              IconButton(
-                tooltip: '전송',
-                onPressed: onSend,
-                icon: Icon(
-                  selectedImages.isEmpty
-                      ? Icons.send_outlined
-                      : Icons.send_rounded,
-                ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm,
+                      ),
+                      child: TextField(
+                        controller: controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      right: AppSpacing.xs,
+                      bottom: AppSpacing.xs,
+                    ),
+                    child: IconButton.filled(
+                      tooltip: '전송',
+                      onPressed: canSend ? onSend : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primaryPink,
+                        disabledBackgroundColor: AppColors.lineSoft,
+                        foregroundColor: AppColors.textInverse,
+                        disabledForegroundColor: AppColors.textMuted,
+                      ),
+                      icon: Icon(
+                        selectedImages.isEmpty
+                            ? Icons.send_outlined
+                            : Icons.send_rounded,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ChatLoadingState extends StatelessWidget {
+  const _ChatLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: AppSpacing.md),
+          Text('채팅을 불러오는 중이에요.'),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatErrorState extends StatelessWidget {
+  const _ChatErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgDefault,
+      borderColor: AppColors.lineSoft,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.accentRed,
+            size: 40,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '채팅을 불러오지 못했어요.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OnmuSecondaryButton(
+            label: '다시 불러오기',
+            icon: Icons.refresh_rounded,
+            onPressed: onRetry,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatEmptyState extends StatelessWidget {
+  const _ChatEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const OnmuEmptyStateCard(
+      title: '아직 대화가 없어요.',
+      description: '첫 메시지나 사진으로 이 모임의 이야기를 시작해보세요.',
+      icon: Icons.chat_bubble_outline_rounded,
+    );
+  }
+}
+
+class _ChatInlineNotice extends StatelessWidget {
+  const _ChatInlineNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.linePink,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: AppColors.primaryPink,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            ),
           ),
         ],
       ),

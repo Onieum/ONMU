@@ -421,15 +421,17 @@ class _ChatMessageContent extends StatelessWidget {
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: AppColors.textMain),
                 ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                message.timeLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: message.isMine
-                      ? AppColors.textSub
-                      : AppColors.textMuted,
+              if (message.timeLabel.trim().isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  message.timeLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: message.isMine
+                        ? AppColors.textSub
+                        : AppColors.textMuted,
+                  ),
                 ),
-              ),
+              ],
               if (message.isMine &&
                   message.sendStatus != GroupMessageSendStatus.sent)
                 _SendStatusRow(message: message, onRetry: onRetry),
