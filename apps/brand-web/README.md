@@ -1,13 +1,13 @@
 # ONMU 브랜드 웹
 
-브랜드 웹 앱은 공개 제품 소개만 담당합니다.
+브랜드 웹 앱은 ONMU의 공개 제품 소개와 다운로드 안내를 담당합니다.
 
 포함해야 할 내용:
 
 - 제품 개념
 - 팀/제품 소개
 - 앱 screenshot 또는 prototype 영상
-- 준비된 경우 store/download 링크
+- 플랫폼별 store/download 링크
 - 개인정보 처리방침/contact 링크
 
 로그인, 약속 생성, 장소 선택, 기록 생성 같은 핵심 제품 흐름은 포함하지 않습니다. 해당 흐름은 Flutter 앱에 둡니다.
@@ -20,7 +20,7 @@
 - `privacy/index.html`: 개인정보 처리방침
 - `terms/index.html`: 이용약관
 - `download/index.html`: iOS/Android 다운로드 안내와 QR
-- `download/ios/index.html`, `download/android/index.html`: 스토어 링크 연결 전 stable QR 목적지
+- `download/ios/index.html`, `download/android/index.html`: 플랫폼별 stable QR 목적지
 - `404.html`: 정적 호스팅용 오류 페이지
 - `styles.css`: ONMU 디자인 시스템을 반영한 반응형 스타일
 - `brand-site.js`: 모바일 내비게이션 토글과 접근성을 해치지 않는 섹션 reveal 인터랙션
@@ -33,11 +33,11 @@
 ## 현재 공개 섹션
 
 - 문제와 관점: 약속 하나를 위해 여러 앱을 오가는 문제와 ONieum의 관점을 설명합니다.
-- 약속 하루 흐름: 만나기, 장소 정하기, 대화와 결정, 남기기 흐름을 소개합니다.
+- 약속 하루 흐름: 약속잡기, 장소 정하기, 대화와 결정, 기록하기 흐름을 소개합니다.
 - 앱 미리 보기: 실제 사용자 데이터 없이 만든 Flutter 캡처 PNG로 제품 경험을 보여줍니다.
 - 기능: 온모임, 채팅, 장소 후보, 정산, 기록, 신뢰 기능을 사용자 혜택 중심으로 설명합니다.
-- 팀: ONMU를 만드는 ONieum의 비전과 역할을 소개합니다.
-- 신뢰/FAQ/로드맵: 사진, 위치, 정산 데이터의 사용자 관점 경계와 출시 전 질문, 앞으로의 방향을 안내합니다.
+- 브랜드 서사: ONieum과 ONMU가 어떤 약속 경험을 만들고 싶은지 소개합니다.
+- 신뢰/FAQ/로드맵: 사진, 위치, 정산 데이터의 사용자 관점 경계와 앞으로의 방향을 안내합니다.
 - 다운로드: iOS/Android stable URL과 QR 코드를 제공합니다.
 
 ## 공개 링크 원칙
@@ -157,6 +157,6 @@ scripts/macos/deploy-brand-web-cloudflared.sh
 - `ONMU_BRAND_TUNNEL_NAME`: Cloudflare named tunnel. 기본값은 `onmu-brand-web`입니다.
 - `ONMU_BRAND_ROUTE_DNS=true`: 실행 중 DNS route를 함께 갱신합니다.
 - `ONMU_BRAND_QUICK_TUNNEL=true`: 루트 도메인이 아닌 임시 trycloudflare URL로 smoke할 때만 사용합니다.
-- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 스토어 공개 후 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.
+- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.
 - `ONMU_BRAND_GOOGLE_SITE_VERIFICATION`: Search Console URL prefix property용 meta verification 값
 - `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME`, `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT`: Search Console HTML file verification 값
