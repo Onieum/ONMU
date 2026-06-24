@@ -213,7 +213,7 @@ Outfit lock:
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- warm ivory paper background is acceptable because this sticker will be composited onto a diary card later.
+- Warm beige paper background is acceptable because this sticker will be composited onto a diary card later.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering visible intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are present in the photo analysis) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
@@ -225,15 +225,23 @@ Rendering requirements:
 Generate only the full-body ONMU OOTD avatar sticker from the user's text description.
 
 Use the text description as the outfit and styling source.
-Use the ONMU profile fallback as the character identity for details the text does not specify, such as hairstyle, hair color, eye style, eye color, mouth, skin tone, body proportions, and overall character mood.
+Use the ONMU profile fallback as the character identity for details the text does not specify, such as gender presentation, hairstyle, hair color, eye style, eye color, mouth, skin tone, body proportions, and overall character mood.
 If the text explicitly describes hair, eyes, accessories, or pose, the text wins over the profile fallback.
 If the text only describes clothes, preserve the profile hairstyle, profile hair color, profile eye color, profile skin tone, and profile face.
 
 Outfit and style request:
 {style_brief}
 
-Profile fallback for missing text details:
+Profile identity lock for missing text details:
 {profile_brief}
+
+Character identity lock:
+- If the outfit text does not explicitly mention hair, keep the profile hairstyle and profile hair color exactly.
+- If the outfit text does not explicitly mention eyes, keep the profile eye style and profile eye color exactly.
+- If the outfit text does not explicitly mention skin tone, keep the profile skin tone exactly.
+- If the outfit text does not explicitly mention gender presentation, keep the profile gender presentation exactly.
+- Treat the listed profile color hex values as strict palette anchors for the ONMU avatar identity.
+- Do not infer a different hair color, eye color, skin tone, or gender presentation from the clothing text.
 
 Outfit lock:
 - The user's text description is a strict clothing specification, not a loose inspiration.
@@ -248,7 +256,7 @@ Outfit lock:
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Plain transparent or warm ivory paper background is acceptable because this sticker will be composited onto a diary card later.
+- Warm beige paper background is acceptable because this sticker will be composited onto a diary card later.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering described intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are explicitly mentioned in the text description) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the described outfit, shoes, bags, and accessories clearly.

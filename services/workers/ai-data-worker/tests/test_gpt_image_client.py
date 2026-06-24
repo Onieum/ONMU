@@ -57,6 +57,7 @@ def test_text_prompt_uses_text_and_profile_for_missing_details() -> None:
             "mode": "TEXT_PROMPT",
             "outfitDescription": "Oversized navy hoodie, ivory cargo skirt, silver headphones, black boots.",
             "characterProfile": {
+                "gender": "female",
                 "skinTone": "skin_0",
                 "hairStyle": "hair_style_0",
                 "hairColor": "hair_color_8",
@@ -69,10 +70,14 @@ def test_text_prompt_uses_text_and_profile_for_missing_details() -> None:
     assert "from the user's text description" in prompt
     assert "If the text explicitly describes hair" in prompt
     assert "Oversized navy hoodie" in prompt
+    assert "female-presenting ONMU avatar" in prompt
+    assert "long straight center-part hair" in prompt
     assert "purple/violet hair" in prompt
+    assert "soft round anime eyes" in prompt
     assert "purple/violet eyes" in prompt
     assert "very fair peach skin" in prompt
-    assert "preserve the profile hairstyle" in prompt
+    assert "Character identity lock" in prompt
+    assert "keep the profile hairstyle and profile hair color exactly" in prompt
     assert "No diary page" in prompt
 
 
