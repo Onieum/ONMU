@@ -1,6 +1,7 @@
-import 'dart:typed_data';
+﻿import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import '../../../../core/media/gallery_image_saver.dart';
@@ -503,18 +504,21 @@ class _OotdListPageState extends State<OotdListPage> {
           !remoteIds.contains(record.id),
     );
 
-    final Set<String> existingDates = _allRecords.map(_recordKey).toSet();
     for (final record in visibleCustomRecords) {
       final dateKey = _recordKey(record);
       final existingIndex = _allRecords.indexWhere(
         (item) =>
             item.id != null && item.id!.isNotEmpty && item.id == record.id,
       );
+      final sameDateTypeIndex = _allRecords.indexWhere(
+        (item) => _recordKey(item) == dateKey,
+      );
       if (existingIndex >= 0) {
         _allRecords[existingIndex] = record;
-      } else if (!existingDates.contains(dateKey)) {
+      } else if (sameDateTypeIndex >= 0) {
+        _allRecords[sameDateTypeIndex] = record;
+      } else {
         _allRecords.add(record);
-        existingDates.add(dateKey);
       }
     }
 
@@ -789,7 +793,6 @@ class _OotdListPageState extends State<OotdListPage> {
       ),
     );
   }
-
   Widget _buildCalendarGrid() {
     final firstWeekday = _firstWeekday;
     final totalDays = _totalDaysInMonth;
@@ -801,7 +804,6 @@ class _OotdListPageState extends State<OotdListPage> {
     final availableCellWidth =
         (screenWidth - (horizontalPadding * 2) - (crossSpacing * 6)) / 7;
     final cellHeight = availableCellWidth.clamp(68.0, 104.0).toDouble();
-
     return ClipRect(
       child: GridView.builder(
         shrinkWrap: true,
@@ -821,7 +823,6 @@ class _OotdListPageState extends State<OotdListPage> {
           if (index < firstWeekday) {
             return const SizedBox();
           }
-
           final day = index - firstWeekday + 1;
           final cellDate = DateTime(
             _currentMonth.year,
@@ -842,9 +843,7 @@ class _OotdListPageState extends State<OotdListPage> {
               ootdRecord?.weather ??
               '';
           final borderColor = _pastelBorders[day % _pastelBorders.length];
-
           final cellBgColor = _calendarCellBackgroundColor(record);
-
           return MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -930,7 +929,6 @@ class _OotdListPageState extends State<OotdListPage> {
       ),
     );
   }
-
   Color _calendarCellBackgroundColor(OotdRecord? record) {
     final rawIndex = record?.brands['bgColorIndex'];
     final bgColorIndex = int.tryParse(rawIndex ?? '');
@@ -942,7 +940,6 @@ class _OotdListPageState extends State<OotdListPage> {
     return _bgColors[bgColorIndex].withOpacity(0.4);
   }
 }
-
 // -----------------------------------------------------------------------------
 // [슬라이드식 바텀시트 콘텐츠 위젯]
 // -----------------------------------------------------------------------------

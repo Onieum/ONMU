@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/pixel_character.dart';
@@ -14,9 +14,13 @@ String generatedOotdAvatarImageUrl(OotdRecord record) {
 String generatedOotdDisplayImageUrl(
   OotdRecord record, {
   bool preferAvatarImage = false,
+  bool avatarOnly = false,
 }) {
   final avatarUrl = generatedOotdAvatarImageUrl(record);
   final compositeUrl = generatedOotdImageUrl(record);
+  if (avatarOnly) {
+    return avatarUrl;
+  }
   if (preferAvatarImage && avatarUrl.isNotEmpty) {
     return avatarUrl;
   }
@@ -60,6 +64,7 @@ class OotdCalendarPreview extends StatelessWidget {
       characterSize: size,
       fit: BoxFit.contain,
       preferAvatarImage: true,
+      avatarOnly: true,
       showFallbackCharacter: false,
       compactStatus: true,
     );
@@ -74,6 +79,7 @@ class OotdGeneratedImageView extends StatelessWidget {
   final BoxFit fit;
   final BorderRadius? borderRadius;
   final bool preferAvatarImage;
+  final bool avatarOnly;
   final bool showFallbackCharacter;
   final bool compactStatus;
 
@@ -86,6 +92,7 @@ class OotdGeneratedImageView extends StatelessWidget {
     this.fit = BoxFit.contain,
     this.borderRadius,
     this.preferAvatarImage = false,
+    this.avatarOnly = false,
     this.showFallbackCharacter = true,
     this.compactStatus = false,
   });
@@ -107,6 +114,7 @@ class OotdGeneratedImageView extends StatelessWidget {
     final imageUrl = generatedOotdDisplayImageUrl(
       record,
       preferAvatarImage: preferAvatarImage,
+      avatarOnly: avatarOnly,
     );
     if (imageUrl.isNotEmpty) {
       return Image.network(

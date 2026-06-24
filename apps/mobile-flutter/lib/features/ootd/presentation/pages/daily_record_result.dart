@@ -1,4 +1,4 @@
-part of 'daily_record_screen.dart';
+﻿part of 'daily_record_screen.dart';
 
 class DailyRecordResultScreen extends StatelessWidget {
   final OotdRecord record;
@@ -202,7 +202,10 @@ class DailyRecordResultScreen extends StatelessWidget {
         : _buildCleanResult(context, photoItems, dailyMemo);
 
     if (captureKey == null) return content;
-    return RepaintBoundary(key: captureKey, child: content);
+    return RepaintBoundary(
+      key: captureKey,
+      child: ColoredBox(color: AppColors.bgDefault, child: content),
+    );
   }
 
   Widget _buildDiaryResult(
@@ -228,6 +231,7 @@ class DailyRecordResultScreen extends StatelessWidget {
       photoItems: limitedPhotoItems,
       imageUrls: imageUrls,
       dailyMemo: dailyMemo ?? '오늘의 소중한 순간을 기록했어요.',
+      ootdRecord: ootdRecord,
       includeCrew: includeCrew,
       userCharacter: userCharacter,
       memoryPlaces: _memoryPlaceNamesFromTimeline(record.timeline),
@@ -247,7 +251,7 @@ class DailyRecordResultScreen extends StatelessWidget {
     List<TimelineItem> photoItems,
     String? dailyMemo,
   ) {
-    final displayedPhotoCount = max(photoItems.length, photoCount);
+    final photoCount = photoItems.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +299,7 @@ class DailyRecordResultScreen extends StatelessWidget {
           child: _ResultMetaRow(
             mood: record.mood,
             weather: record.weather,
-            photoCount: displayedPhotoCount,
+            photoCount: photoCount,
           ),
         ),
         SizedBox(height: 14),
@@ -330,6 +334,7 @@ class DailyRecordResultScreen extends StatelessWidget {
           SizedBox(height: 20),
           _CleanPeopleBlock(
             userCharacter: userCharacter,
+            ootdRecord: ootdRecord,
             includeCrew: includeCrew,
             crewCharacters: record.crewCharacters,
             crewAppearances: record.crewAppearances,
@@ -359,6 +364,7 @@ class _DiaryResultLayout extends StatelessWidget {
   final List<TimelineItem> photoItems;
   final List<String?> imageUrls;
   final String dailyMemo;
+  final OotdRecord? ootdRecord;
   final bool includeCrew;
   final CharacterDraft userCharacter;
   final List<String> memoryPlaces;
@@ -376,6 +382,7 @@ class _DiaryResultLayout extends StatelessWidget {
     required this.photoItems,
     required this.imageUrls,
     required this.dailyMemo,
+    this.ootdRecord,
     required this.includeCrew,
     required this.userCharacter,
     required this.memoryPlaces,
@@ -422,6 +429,7 @@ class _DiaryResultLayout extends StatelessWidget {
               record: record,
               photos: decoratedPhotos,
               dailyMemo: dailyMemo,
+              ootdRecord: ootdRecord,
               includeCrew: includeCrew,
               userCharacter: userCharacter,
               memoryPlaces: memoryPlaces,
@@ -467,6 +475,7 @@ class _DiaryCollageCanvas extends StatelessWidget {
   final OotdRecord record;
   final List<_DiaryDecoratedPhoto> photos;
   final String dailyMemo;
+  final OotdRecord? ootdRecord;
   final bool includeCrew;
   final CharacterDraft userCharacter;
   final List<String> memoryPlaces;
@@ -480,6 +489,7 @@ class _DiaryCollageCanvas extends StatelessWidget {
     required this.record,
     required this.photos,
     required this.dailyMemo,
+    this.ootdRecord,
     required this.includeCrew,
     required this.userCharacter,
     required this.memoryPlaces,
@@ -500,12 +510,11 @@ class _DiaryCollageCanvas extends StatelessWidget {
         record.brands['linkedOotd'] == 'true' ||
         record.brands['recordType'] != 'daily';
     final spec = _DiaryCollageSpec.resolve(count, showCharacter);
-    final hasMemory = memoryPlaces.isNotEmpty;
     final memoryHeight = _DiaryTodayMemoryBlock.estimatedHeight(
       memoryPlaces.length,
     );
     final memoryPlace = spec.memoryPlace.copyWith(
-      height: hasMemory ? max(spec.memoryPlace.height, memoryHeight) : 0,
+      height: max(spec.memoryPlace.height, memoryHeight),
     );
 
     return LayoutBuilder(
@@ -567,6 +576,7 @@ class _DiaryCollageCanvas extends StatelessWidget {
                       spec.characterPlace!,
                       _DiaryCharacterPair(
                         userCharacter: userCharacter,
+                        ootdRecord: ootdRecord,
                         includeCrew: includeCrew,
                         crewCharacters: crewCharacters,
                         crewAppearances: crewAppearances,
@@ -578,19 +588,8 @@ class _DiaryCollageCanvas extends StatelessWidget {
                       _DiaryTodayMemoryBlock(places: memoryPlaces),
                     ),
                   _placed(
-                    hasMemory
-                        ? spec.statusPlace
-                        : spec.statusPlace.copyWith(
-                            x: spec.memoryPlace.x,
-                            width:
-                                spec.memoryPlace.width +
-                                spec.statusPlace.width +
-                                16,
-                          ),
-                    _DiaryTodayStatusBlock(
-                      record: record,
-                      expanded: !hasMemory,
-                    ),
+                    spec.statusPlace,
+                    _DiaryTodayStatusBlock(record: record),
                   ),
                   _placed(
                     spec.memoFooterPlace,
@@ -902,20 +901,8 @@ class _DiaryPlace {
 
   const _DiaryPlace(this.x, this.y, this.width, this.height, this.rotation);
 
-  _DiaryPlace copyWith({
-    double? x,
-    double? y,
-    double? width,
-    double? height,
-    double? rotation,
-  }) {
-    return _DiaryPlace(
-      x ?? this.x,
-      y ?? this.y,
-      width ?? this.width,
-      height ?? this.height,
-      rotation ?? this.rotation,
-    );
+  _DiaryPlace copyWith({double? height}) {
+    return _DiaryPlace(x, y, width, height ?? this.height, rotation);
   }
 }
 
@@ -962,12 +949,14 @@ class _DiaryCanvasStickers extends StatelessWidget {
 
 class _DiaryCharacterPair extends StatelessWidget {
   final CharacterDraft userCharacter;
+  final OotdRecord? ootdRecord;
   final bool includeCrew;
   final List<CharacterDraft> crewCharacters;
   final List<CrewOotdAppearance> crewAppearances;
 
   const _DiaryCharacterPair({
     required this.userCharacter,
+    this.ootdRecord,
     required this.includeCrew,
     this.crewCharacters = const [],
     this.crewAppearances = const [],
@@ -975,33 +964,52 @@ class _DiaryCharacterPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final widgets = <Widget>[
-      PixelCharacterWidget(
-        character: userCharacter,
-        size: 50,
-        showShadow: false,
-      ),
-      if (includeCrew && crewAppearances.isNotEmpty)
-        ...crewAppearances
-            .take(4)
-            .map((appearance) => _crewAppearanceAvatar(appearance, size: 44))
-      else if (includeCrew)
-        ...crewCharacters
-            .take(4)
-            .map(
-              (character) => PixelCharacterWidget(
-                character: character,
-                size: 44,
-                showShadow: false,
-              ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (ootdRecord != null)
+          SizedBox(
+            width: 58,
+            height: 74,
+            child: OotdGeneratedImageView(
+              record: ootdRecord!,
+              characterSize: 54,
+              preferAvatarImage: true,
+              avatarOnly: true,
+              showFallbackCharacter: false,
+              compactStatus: true,
             ),
-    ];
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.end,
-      spacing: 2,
-      runSpacing: 0,
-      children: widgets,
+          )
+        else
+          PixelCharacterWidget(
+            character: userCharacter,
+            size: 52,
+            showShadow: false,
+          ),
+        if (includeCrew && crewAppearances.isNotEmpty)
+          ...crewAppearances
+              .take(3)
+              .map(
+                (appearance) => Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: _crewAppearanceAvatar(appearance, size: 48),
+                ),
+              )
+        else if (includeCrew)
+          ...crewCharacters
+              .take(3)
+              .map(
+                (character) => Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: PixelCharacterWidget(
+                    character: character,
+                    size: 48,
+                    showShadow: false,
+                  ),
+                ),
+              ),
+      ],
     );
   }
 }
@@ -1022,9 +1030,7 @@ class _DiaryHeader extends StatelessWidget {
         ),
         SizedBox(height: 4),
         Text(
-          record.brands['title']?.trim().isNotEmpty == true
-              ? record.brands['title']!.trim()
-              : '하루 일과 기록',
+          '하루 일과 기록',
           textAlign: TextAlign.center,
           style: AppTextStyles.headlineLarge.copyWith(
             color: AppColors.textMain,
@@ -1339,10 +1345,7 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
   const _DiaryTodayMemoryBlock({required this.places});
 
   static double estimatedHeight(int placeCount) {
-    if (placeCount <= 0) {
-      return 0;
-    }
-    final visibleCount = placeCount <= 4 ? placeCount : 5;
+    final visibleCount = placeCount <= 4 ? max(1, placeCount) : 5;
     return 42 + visibleCount * 20;
   }
 
@@ -1409,9 +1412,8 @@ class _DiaryTodayMemoryBlock extends StatelessWidget {
 
 class _DiaryTodayStatusBlock extends StatelessWidget {
   final OotdRecord record;
-  final bool expanded;
 
-  const _DiaryTodayStatusBlock({required this.record, this.expanded = false});
+  const _DiaryTodayStatusBlock({required this.record});
 
   @override
   Widget build(BuildContext context) {
@@ -1429,36 +1431,14 @@ class _DiaryTodayStatusBlock extends StatelessWidget {
             "TODAY'S STATUS",
             style: AppTextStyles.tiny.copyWith(color: AppColors.textMain),
           ),
-          const SizedBox(height: 8),
-          if (expanded)
-            Row(
-              children: [
-                Expanded(
-                  child: _statusLine(
-                    'MOOD',
-                    _dailyMoodIcon(record.mood),
-                    record.mood,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _statusLine(
-                    'WEATHER',
-                    _dailyWeatherIcon(record.weather),
-                    record.weather,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            _statusLine('MOOD', _dailyMoodIcon(record.mood), record.mood),
-            const SizedBox(height: 3),
-            _statusLine(
-              'WEATHER',
-              _dailyWeatherIcon(record.weather),
-              record.weather,
-            ),
-          ],
+          const SizedBox(height: 6),
+          _statusLine('MOOD', _dailyMoodIcon(record.mood), record.mood),
+          const SizedBox(height: 3),
+          _statusLine(
+            'WEATHER',
+            _dailyWeatherIcon(record.weather),
+            record.weather,
+          ),
         ],
       ),
     );
@@ -1572,13 +1552,17 @@ class _CleanOotdBlock extends StatelessWidget {
       ),
       child: Row(
         children: [
-          OotdGeneratedImageView(
-            record: ootdRecord,
-            characterSize: 62,
-            width: 78,
-            height: 78,
-            preferAvatarImage: true,
-            showFallbackCharacter: false,
+          SizedBox(
+            width: 74,
+            height: 88,
+            child: OotdGeneratedImageView(
+              record: ootdRecord,
+              characterSize: 68,
+              preferAvatarImage: true,
+              avatarOnly: true,
+              showFallbackCharacter: false,
+              compactStatus: true,
+            ),
           ),
           SizedBox(width: 14),
           Expanded(
@@ -1598,12 +1582,14 @@ class _CleanOotdBlock extends StatelessWidget {
 
 class _CleanPeopleBlock extends StatelessWidget {
   final CharacterDraft userCharacter;
+  final OotdRecord? ootdRecord;
   final bool includeCrew;
   final List<CharacterDraft> crewCharacters;
   final List<CrewOotdAppearance> crewAppearances;
 
   const _CleanPeopleBlock({
     required this.userCharacter,
+    this.ootdRecord,
     required this.includeCrew,
     this.crewCharacters = const [],
     this.crewAppearances = const [],
@@ -1622,36 +1608,40 @@ class _CleanPeopleBlock extends StatelessWidget {
         border: Border.all(color: AppColors.lineSoft),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 150,
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              alignment: WrapAlignment.start,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              children: [
-                PixelCharacterWidget(character: userCharacter, size: 52),
-                if (hasCrew && crewAppearances.isNotEmpty)
-                  ...crewAppearances
-                      .take(4)
-                      .map(
-                        (appearance) =>
-                            _crewAppearanceAvatar(appearance, size: 48),
-                      )
-                else if (hasCrew)
-                  ...crewCharacters
-                      .take(4)
-                      .map(
-                        (character) => PixelCharacterWidget(
-                          character: character,
-                          size: 48,
-                        ),
-                      ),
-              ],
-            ),
-          ),
+          if (ootdRecord != null)
+            SizedBox(
+              width: 66,
+              height: 82,
+              child: OotdGeneratedImageView(
+                record: ootdRecord!,
+                characterSize: 60,
+                preferAvatarImage: true,
+                avatarOnly: true,
+                showFallbackCharacter: false,
+                compactStatus: true,
+              ),
+            )
+          else
+            PixelCharacterWidget(character: userCharacter, size: 58),
+          if (hasCrew && crewAppearances.isNotEmpty)
+            ...crewAppearances
+                .take(4)
+                .map(
+                  (appearance) => Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: _crewAppearanceAvatar(appearance, size: 52),
+                  ),
+                )
+          else if (hasCrew)
+            ...crewCharacters
+                .take(4)
+                .map(
+                  (character) => Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: PixelCharacterWidget(character: character, size: 52),
+                  ),
+                ),
           SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -1688,9 +1678,7 @@ class _ResultMetaRow extends StatelessWidget {
       children: [
         Expanded(child: _meta('MOOD', mood, _dailyMoodIcon(mood))),
         Expanded(child: _meta('WEATHER', weather, _dailyWeatherIcon(weather))),
-        Expanded(
-          child: _meta('PHOTO', '$photoCount장', Icons.photo_library_outlined),
-        ),
+        Expanded(child: _meta('PHOTO', '사진', Icons.photo_library_outlined)),
       ],
     );
   }
