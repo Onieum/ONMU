@@ -45,7 +45,8 @@
 GitHub, Notion, Jira, PR, CI 같은 내부 협업 링크는 브랜드 웹에 공개하지 않습니다.
 앱 다운로드는 `/download/ios/`, `/download/android/` stable URL을 QR 목적지로 두고,
 스토어 링크가 확정되면 해당 페이지에서 이동시키는 방식으로 관리합니다.
-Naver Search Advisor, Bing Webmaster 같은 사이트 인증 메타는 실제 검증 값이 확정된 뒤에만 추가합니다.
+Google Search Console, Naver Search Advisor, Bing Webmaster 같은 사이트 인증 값은
+repo에 고정 커밋하지 않고 배포 시점 env var 또는 DNS 설정으로만 반영합니다.
 
 ## 로컬 확인
 
@@ -93,6 +94,39 @@ export ONMU_BRAND_IOS_STORE_URL=""
 export ONMU_BRAND_ANDROID_STORE_URL=""
 ```
 
+## Search Console / SEO 운영
+
+브랜드 웹은 검색 노출을 위해 `robots.txt`, `sitemap.xml`, canonical, Open Graph,
+JSON-LD를 기본 포함합니다. 다만 신생 도메인은 메타만 있다고 바로 인덱싱되지 않으므로
+Google Search Console 등록과 URL 검사 요청을 함께 진행해야 합니다.
+
+권장 순서:
+
+1. Search Console에서 `onmu.cloud`를 Domain property로 등록합니다.
+2. 가능하면 Cloudflare DNS에 Google이 준 TXT record를 추가해 소유권을 검증합니다.
+3. DNS 검증이 어려우면 URL prefix property를 만들고, 아래 env var로 meta/file 검증 값을 배포 시점에만 주입합니다.
+4. `https://onmu.cloud/sitemap.xml`을 제출합니다.
+5. `/`, `/download/`, `/privacy/`, `/terms/`를 URL Inspection으로 인덱싱 요청합니다.
+
+배포 시점에만 사용하는 env var:
+
+```bash
+export ONMU_BRAND_GOOGLE_SITE_VERIFICATION=""
+export ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME=""
+export ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT=""
+```
+
+- `ONMU_BRAND_GOOGLE_SITE_VERIFICATION`: 홈 `<head>`에 `google-site-verification` meta를 삽입합니다.
+- `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME` + `..._CONTENT`: Google이 요구하는 `google<token>.html` 파일을 정적 루트에 생성합니다.
+- 실제 검증 문자열은 secret처럼 장기 보안값은 아니지만, 운영 문서/PR/repo에는 고정값으로 남기지 않습니다.
+
+운영 메모:
+
+- 현재 `www.onmu.cloud`와 `onmu.cloud`가 함께 열리면 중복 수집 후보가 될 수 있으므로,
+  public 운영에서는 Cloudflare Redirect Rule 등으로 `www -> apex(onmu.cloud)` 301을 거는 편이 더 좋습니다.
+- `meta keywords`는 Google 랭킹에 거의 영향을 주지 않으므로 핵심은 Search Console 등록, sitemap 제출,
+  외부 브랜드 언급, canonical 일관성입니다.
+
 ## Cloudflare Tunnel 배포
 
 `onmu.cloud` 임시 공개는 Mac에서 정적 서버를 띄우고 Cloudflare named tunnel로 연결합니다.
@@ -124,3 +158,5 @@ scripts/macos/deploy-brand-web-cloudflared.sh
 - `ONMU_BRAND_ROUTE_DNS=true`: 실행 중 DNS route를 함께 갱신합니다.
 - `ONMU_BRAND_QUICK_TUNNEL=true`: 루트 도메인이 아닌 임시 trycloudflare URL로 smoke할 때만 사용합니다.
 - `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 스토어 공개 후 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.
+- `ONMU_BRAND_GOOGLE_SITE_VERIFICATION`: Search Console URL prefix property용 meta verification 값
+- `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME`, `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT`: Search Console HTML file verification 값

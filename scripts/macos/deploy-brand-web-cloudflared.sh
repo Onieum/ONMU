@@ -119,6 +119,60 @@ with open(target, "w", encoding="utf-8") as handle:
     handle.write(";\n")
 PY
 
+python3 - "$deploy_dir/index.html" "$deploy_dir" <<'PY'
+import html
+import os
+import re
+import sys
+from pathlib import Path
+
+index_path = Path(sys.argv[1])
+deploy_dir = Path(sys.argv[2])
+
+google_site_verification = (
+    os.environ.get("ONMU_BRAND_GOOGLE_SITE_VERIFICATION")
+    or os.environ.get("GOOGLE_SITE_VERIFICATION")
+    or ""
+).strip()
+verification_file_name = (
+    os.environ.get("ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME") or ""
+).strip()
+verification_file_content = (
+    os.environ.get("ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT") or ""
+).strip()
+
+if google_site_verification:
+    html_text = index_path.read_text(encoding="utf-8")
+    verification_meta = (
+        f'    <meta name="google-site-verification" '
+        f'content="{html.escape(google_site_verification, quote=True)}">'
+    )
+    pattern = re.compile(
+        r'^[ \t]*<meta name="google-site-verification" content="[^"]*">\s*\n?',
+        re.MULTILINE,
+    )
+    if pattern.search(html_text):
+        html_text = pattern.sub(verification_meta + "\n", html_text, count=1)
+    else:
+        html_text = html_text.replace("</head>", verification_meta + "\n  </head>", 1)
+    index_path.write_text(html_text, encoding="utf-8")
+
+if verification_file_name or verification_file_content:
+    if not verification_file_name or not verification_file_content:
+        raise SystemExit(
+            "ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME and "
+            "ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT must be set together."
+        )
+    if "/" in verification_file_name or verification_file_name in {".", ".."}:
+        raise SystemExit("Google verification file name must be a flat file name.")
+    if not verification_file_name.startswith("google") or not verification_file_name.endswith(".html"):
+        raise SystemExit(
+            "Google verification file name must look like google<token>.html."
+        )
+    target = deploy_dir / verification_file_name
+    target.write_text(verification_file_content + "\n", encoding="utf-8")
+PY
+
 stop_pid_file "$cloudflared_pid_file"
 stop_pid_file "$http_pid_file"
 
