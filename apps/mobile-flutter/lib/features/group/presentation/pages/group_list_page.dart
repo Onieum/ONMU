@@ -6,7 +6,9 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/models/group_models.dart';
 import '../../../../shared/widgets/onmu_card.dart';
+import '../../../../shared/widgets/onmu_empty_state_card.dart';
 import '../../../../shared/widgets/onmu_scaffold.dart';
 import '../../view_model/group_list_view_model.dart';
 import '../widgets/group_cards.dart';
@@ -37,23 +39,72 @@ class GroupListPage extends ConsumerWidget {
   }
 }
 
-class _GroupListContent extends StatelessWidget {
+class _GroupListContent extends StatefulWidget {
   const _GroupListContent({required this.state});
 
   final GroupListState state;
 
   @override
+  State<_GroupListContent> createState() => _GroupListContentState();
+}
+
+class _GroupListContentState extends State<_GroupListContent> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_syncSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_syncSearch)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncSearch() => setState(() {});
+
+  List<GroupSummary> _visibleGroups() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return widget.state.groups;
+    }
+    return widget.state.groups
+        .where((group) {
+          final haystack = [
+            group.name,
+            group.description,
+            group.members.join(' '),
+            group.pinnedPlanTitle,
+            group.lastMessage,
+          ].join(' ').toLowerCase();
+          return haystack.contains(query);
+        })
+        .toList(growable: false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visibleGroups = _visibleGroups();
+    final searchActive = _searchController.text.trim().isNotEmpty;
+
     return OnmuScaffold(
-      title: '온모임',
-      pinnedHeader: const Padding(
-        padding: EdgeInsets.fromLTRB(
+      title: searchActive ? '검색 결과' : '온모임',
+      pinnedHeader: Padding(
+        padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
           AppSpacing.md,
           AppSpacing.lg,
           AppSpacing.sm,
         ),
-        child: _GroupSearchField(key: ValueKey('group-list-sticky-search')),
+        child: _GroupSearchField(
+          key: const ValueKey('group-list-sticky-search'),
+          controller: _searchController,
+          resultCount: visibleGroups.length,
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: '온모임 만들기',
@@ -66,9 +117,16 @@ class _GroupListContent extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('내 모임', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              searchActive ? '검색 결과' : '내 모임',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(width: AppSpacing.xs),
-            _GroupCountBadge(count: state.groupCount),
+            _GroupCountBadge(
+              count: searchActive
+                  ? visibleGroups.length
+                  : widget.state.groupCount,
+            ),
             const Spacer(),
             TextButton(
               onPressed: () =>
@@ -78,13 +136,24 @@ class _GroupListContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        for (final group in state.groups) ...[
-          GroupSummaryCard(
-            group: group,
-            onTap: () => context.push(RoutePaths.groupDetail(group.id)),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        if (visibleGroups.isEmpty)
+          OnmuEmptyStateCard(
+            title: searchActive ? '검색 결과가 없어요.' : '아직 온모임이 없어요.',
+            description: searchActive
+                ? '모임 이름, 멤버, 약속, 최근 대화 키워드로 다시 찾아보세요.'
+                : '첫 온모임을 만들어 약속과 대화를 시작해보세요.',
+            icon: searchActive
+                ? Icons.search_off_outlined
+                : Icons.groups_2_outlined,
+          )
+        else
+          for (final group in visibleGroups) ...[
+            GroupSummaryCard(
+              group: group,
+              onTap: () => context.push(RoutePaths.groupDetail(group.id)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         const SizedBox(height: 72),
       ],
     );
@@ -123,29 +192,59 @@ class _GroupCountBadge extends StatelessWidget {
 }
 
 class _GroupSearchField extends StatelessWidget {
-  const _GroupSearchField({super.key});
+  const _GroupSearchField({
+    required this.controller,
+    required this.resultCount,
+    super.key,
+  });
+
+  final TextEditingController controller;
+  final int resultCount;
 
   @override
   Widget build(BuildContext context) {
+    final searchActive = controller.text.trim().isNotEmpty;
     return OnmuCard(
-      onTap: () =>
-          _showGroupListSnack(context, '검색어 입력 UI는 다음 단계에서 실제 필드로 연결할게요.'),
       backgroundColor: AppColors.bgDefault,
       borderColor: AppColors.lineSoft,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.search, color: AppColors.textMuted, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '모임, 멤버, 약속 검색',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+          TextField(
+            key: const ValueKey('group-list-search-field'),
+            controller: controller,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: '모임, 멤버, 약속 검색',
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
+              suffixIcon: !searchActive
+                  ? null
+                  : IconButton(
+                      tooltip: '검색어 지우기',
+                      onPressed: controller.clear,
+                      icon: const Icon(Icons.close),
+                    ),
+            ),
           ),
+          if (searchActive) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '$resultCount개 결과',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+            ),
+          ],
         ],
       ),
     );
