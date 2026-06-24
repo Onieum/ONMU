@@ -15,6 +15,9 @@
     valueAsString(config.sentryEnvironment) ||
     valueAsString(config.environment) ||
     "production";
+  if (isLocalHost(window.location.hostname)) {
+    environment = "dev";
+  }
   var release = valueAsString(config.sentryRelease) || "brand-web-static";
   var errorSampleRate = valueAsRate(config.sentryErrorSampleRate, 1);
   var tracesSampleRate = valueAsRate(config.sentryTracesSampleRate, 0);
@@ -174,6 +177,10 @@
 
   function valueAsString(value) {
     return typeof value === "string" ? value.trim() : "";
+  }
+
+  function isLocalHost(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   }
 
   function valueAsRate(value, fallback) {
