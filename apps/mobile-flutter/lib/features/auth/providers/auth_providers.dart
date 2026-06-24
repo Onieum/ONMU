@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../shared/providers/state_providers.dart';
 import '../../character/repository/character_repository.dart';
+import '../../group/view_model/group_list_view_model.dart';
 import '../../home/view_model/home_notifications_view_model.dart';
 import '../../home/view_model/home_view_model.dart';
 import '../../my/repository/friend_repository.dart';
@@ -199,6 +200,7 @@ class AuthActionController {
     _ref.invalidate(friendProfileProvider);
     _ref.invalidate(characterProfileProvider);
     _ref.invalidate(ootdRecordsProvider);
+    _ref.invalidate(groupListViewModelProvider);
     _ref.invalidate(homeRecentRecordsProvider);
     _ref.invalidate(homeViewModelProvider);
     _ref.invalidate(homeNotificationsViewModelProvider);
