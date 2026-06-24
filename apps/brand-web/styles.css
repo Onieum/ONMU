@@ -634,6 +634,15 @@ button:focus-visible {
   font-size: 1.25rem;
 }
 
+.screen-notes span {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
 .flow-steps p,
 .feature-card p,
 .screen-notes p {
