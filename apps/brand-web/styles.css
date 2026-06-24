@@ -687,14 +687,8 @@ button:focus-visible {
   grid-template-columns: minmax(0, 720px) minmax(280px, 1fr);
   gap: 30px;
   align-items: center;
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: 28px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 251, 247, 0.94)),
-    linear-gradient(135deg, rgba(248, 227, 221, 0.26), rgba(255, 251, 247, 0.9));
-  padding: 38px;
-  box-shadow: 0 26px 56px rgba(58, 42, 35, 0.1);
+  overflow: visible;
+  padding: 8px 0 0;
 }
 
 .screen-frame-primary,
@@ -1229,21 +1223,7 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
   .screen-showcase {
     grid-template-columns: 1fr;
     gap: 24px;
-    padding: 30px;
-  }
-
-  .screen-showcase::before {
-    top: 36px;
-    left: 32px;
-    width: 290px;
-    height: 420px;
-  }
-
-  .screen-showcase::after {
-    top: 82px;
-    left: 248px;
-    width: 238px;
-    height: 338px;
+    padding: 0;
   }
 
   .screen-stage {
@@ -1343,13 +1323,7 @@ body.reveal-ready .reveal-item.is-visible .reveal-child {
 
   .screen-showcase {
     gap: 18px;
-    padding: 20px;
-    border-radius: 22px;
-  }
-
-  .screen-showcase::before,
-  .screen-showcase::after {
-    display: none;
+    padding: 0;
   }
 
   .screen-stage {
