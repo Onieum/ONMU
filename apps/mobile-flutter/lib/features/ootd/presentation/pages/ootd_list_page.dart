@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
@@ -36,8 +37,8 @@ class _BottomSheetScrollBehavior extends MaterialScrollBehavior {
 class OotdListPage extends StatefulWidget {
   final CharacterDraft userCharacter;
   final List<OotdRecord> customRecords;
-  final Function(DateTime, OotdRecord?) onAddOotd;
-  final void Function(DateTime, OotdRecord?) onAddDailyRecord;
+  final FutureOr<void> Function(DateTime, OotdRecord?) onAddOotd;
+  final FutureOr<void> Function(DateTime, OotdRecord?) onAddDailyRecord;
   final Function(OotdRecord) onViewOotdDetail;
   final Future<Object?> Function(OotdRecord) onEditRecord;
   final Future<void> Function(OotdRecord) onDeleteRecord;

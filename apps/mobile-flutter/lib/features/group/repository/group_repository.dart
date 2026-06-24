@@ -562,6 +562,7 @@ class ApiGroupRepository implements GroupRepository {
       thumbnailImageUrl: _planThumbnailImageUrl(json),
       memoryPlaceNames: _planMemoryPlaceNames(json),
       settlementId: OnmuJson.readString(json, 'settlementId'),
+      memoryPlaceNamesByDate: _planMemoryPlaceNamesByDate(json),
     );
   }
 
@@ -594,17 +595,7 @@ class ApiGroupRepository implements GroupRepository {
 
     void addPlaceMaps(Object? value) {
       for (final place in OnmuJson.asMapList(value)) {
-        addName(
-          OnmuJson.readString(
-            place,
-            'placeName',
-            OnmuJson.readString(
-              place,
-              'name',
-              OnmuJson.readString(place, 'title'),
-            ),
-          ),
-        );
+        addName(_planPlaceName(place));
       }
     }
 
@@ -625,6 +616,101 @@ class ApiGroupRepository implements GroupRepository {
     }
 
     return List.unmodifiable(names);
+  }
+
+  Map<String, List<String>> _planMemoryPlaceNamesByDate(
+    Map<String, dynamic> json,
+  ) {
+    final namesByDate = <String, List<String>>{};
+    final seenByDate = <String, Set<String>>{};
+
+    void addName(String dateKey, String value) {
+      final name = value.trim();
+      if (dateKey.isEmpty || name.isEmpty) return;
+      final seen = seenByDate.putIfAbsent(dateKey, () => <String>{});
+      final key = name.toLowerCase();
+      if (seen.add(key)) {
+        namesByDate.putIfAbsent(dateKey, () => <String>[]).add(name);
+      }
+    }
+
+    void addPlaceMaps(Object? value) {
+      for (final place in OnmuJson.asMapList(value)) {
+        final name = _planPlaceName(place);
+        if (name.isEmpty) continue;
+        for (final dateKey in _planPlaceDateKeys(place)) {
+          addName(dateKey, name);
+        }
+      }
+    }
+
+    for (final key in const [
+      'schedulePlaces',
+      'itineraryPlaces',
+      'visitPlans',
+      'visitPlaces',
+      'places',
+    ]) {
+      addPlaceMaps(json[key]);
+    }
+
+    return Map.unmodifiable(
+      namesByDate.map(
+        (dateKey, names) => MapEntry(dateKey, List.unmodifiable(names)),
+      ),
+    );
+  }
+
+  String _planPlaceName(Map<String, dynamic> place) {
+    return OnmuJson.readString(
+      place,
+      'placeName',
+      OnmuJson.readString(place, 'name', OnmuJson.readString(place, 'title')),
+    );
+  }
+
+  List<String> _planPlaceDateKeys(Map<String, dynamic> place) {
+    final start = _planPlaceDateTime(place, const [
+      'startsAt',
+      'startAt',
+      'startedAt',
+      'scheduledAt',
+      'dateTime',
+      'date',
+    ]);
+    if (start == null) {
+      return const [];
+    }
+
+    final end = _planPlaceDateTime(place, const ['endsAt', 'endAt', 'endedAt']);
+    final startDate = _localDate(start);
+    final endDate = end == null ? startDate : _localDate(end);
+    if (endDate.isBefore(startDate)) {
+      return [_dateOnly(startDate)];
+    }
+
+    final keys = <String>[];
+    var cursor = startDate;
+    while (!cursor.isAfter(endDate) && keys.length < 32) {
+      keys.add(_dateOnly(cursor));
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return List.unmodifiable(keys);
+  }
+
+  DateTime? _planPlaceDateTime(Map<String, dynamic> place, List<String> keys) {
+    for (final key in keys) {
+      final parsed = DateTime.tryParse(OnmuJson.readString(place, key));
+      if (parsed != null) {
+        return parsed.toLocal();
+      }
+    }
+    return null;
+  }
+
+  DateTime _localDate(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    return DateTime(local.year, local.month, local.day);
   }
 
   String _planThumbnailImageUrl(Map<String, dynamic> json) {

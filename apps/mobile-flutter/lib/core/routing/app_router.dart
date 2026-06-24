@@ -457,13 +457,14 @@ final appRouter = GoRouter(
                         await ref.read(ootdRecordsProvider.future);
                       } catch (_) {}
                     },
-                    onAddOotd: (date, ootdRecord) {
-                      context.push(
+                    onAddOotd: (date, ootdRecord) async {
+                      await context.push<Object?>(
                         '${RoutePaths.recordNewOotd}?date=${date.toIso8601String()}',
                         extra: ootdRecord,
                       );
+                      controller.refreshRecords();
                     },
-                    onAddDailyRecord: (date, ootdRecord) {
+                    onAddDailyRecord: (date, ootdRecord) async {
                       final dailyContext = _dailyRoutePlanContextFor(
                         date,
                         homeState,
@@ -482,7 +483,11 @@ final appRouter = GoRouter(
                             ),
                         },
                       );
-                      context.push(uri.toString(), extra: ootdRecord);
+                      await context.push<Object?>(
+                        uri.toString(),
+                        extra: ootdRecord,
+                      );
+                      controller.refreshRecords();
                     },
                     onViewOotdDetail: (record) {
                       context.push(
@@ -765,8 +770,11 @@ _DailyRoutePlanContext _dailyRoutePlanContextFor(
   final memoryPlaces = <String>[];
   final seenPlaces = <String>{};
   for (final plan in orderedPlans) {
-    final planPlaces = plan.memoryPlaceNames.isNotEmpty
-        ? plan.memoryPlaceNames
+    final dayPlaces = plan.memoryPlaceNamesFor(date);
+    final planPlaces = dayPlaces.isNotEmpty
+        ? dayPlaces
+        : plan.hasDateSpecificMemoryPlaceNames
+        ? const <String>[]
         : [plan.placeName];
     for (final rawPlace in planPlaces) {
       final place = rawPlace.trim();
