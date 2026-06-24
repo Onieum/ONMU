@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/group_models.dart';
 import '../../../shared/models/ootd_model.dart';
 import '../../../shared/models/plan_models.dart';
-import '../../group/repository/group_repository.dart';
+import '../repository/home_repository.dart';
 import '../../ootd/repository/record_repository.dart';
 
 final homeViewModelProvider = AsyncNotifierProvider<HomeViewModel, HomeState>(
@@ -47,36 +47,75 @@ class HomeState {
 class HomeViewModel extends AsyncNotifier<HomeState> {
   @override
   Future<HomeState> build() async {
-    final groupRepository = ref.watch(groupRepositoryProvider);
+    final homeRepository = ref.watch(homeRepositoryProvider);
 
-    final groups = await groupRepository.fetchGroups();
-    if (groups.isEmpty) {
+    final summary = await homeRepository.fetchSummary();
+    if (summary.groups.isEmpty) {
       return const HomeState.empty();
     }
 
-    var group = groups.first;
-    var plans = await groupRepository.fetchPlans(group.id);
-    for (final candidateGroup in groups) {
-      final candidatePlans = await groupRepository.fetchPlans(
-        candidateGroup.id,
-      );
-      if (_todayPlans(candidatePlans).isNotEmpty ||
-          _upcomingPlans(candidatePlans).isNotEmpty) {
-        group = candidateGroup;
-        plans = candidatePlans;
-        break;
-      }
-    }
+    final plans = summary.upcomingPlans;
     final todayPlans = _todayPlans(plans);
+    final activePlan = _activePlan(summary, plans);
 
     return HomeState(
-      groupId: group.id,
-      activePlan: null,
+      groupId: _selectedGroupId(summary),
+      activePlan: activePlan == null ? null : _toPlan(activePlan),
       todayPlans: todayPlans,
       upcomingPlans: _upcomingPlans(plans),
       calendarPlans: _calendarPlans(plans),
-      settlementId: null,
+      settlementId: int.tryParse(
+        summary.settlementId.trim().isNotEmpty
+            ? summary.settlementId
+            : activePlan?.settlementId ?? '',
+      ),
       todayPlanCount: todayPlans.length,
+    );
+  }
+
+  int _selectedGroupId(HomeSummary summary) {
+    for (final plan in [
+      summary.activePlan,
+      summary.nextPlan,
+      ...summary.upcomingPlans,
+    ]) {
+      final groupId = plan?.groupId;
+      if (groupId != null) {
+        return groupId;
+      }
+    }
+    return summary.groups.first.id;
+  }
+
+  GroupPlanSummary? _activePlan(
+    HomeSummary summary,
+    List<GroupPlanSummary> plans,
+  ) {
+    if (summary.activePlan != null) {
+      return summary.activePlan;
+    }
+    final now = DateTime.now().toLocal();
+    for (final plan in plans) {
+      if (plan.isOngoingAt(now)) {
+        return plan;
+      }
+    }
+    return null;
+  }
+
+  Plan _toPlan(GroupPlanSummary summary) {
+    return Plan(
+      id: summary.id,
+      title: summary.title,
+      dateTime: summary.dateLabel,
+      location: summary.placeName,
+      status: summary.statusType,
+      memo: '',
+      members: const [],
+      timeCandidates: const [],
+      visitPlan: const [],
+      startsAt: summary.startsAt,
+      endsAt: summary.endsAt,
     );
   }
 
