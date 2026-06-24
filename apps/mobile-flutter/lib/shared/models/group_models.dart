@@ -92,14 +92,17 @@ class GroupPlanSummary {
     required this.extraMemberCount,
     required this.iconKind,
     required this.isPast,
+    this.groupId,
     this.memberAvatars = const [],
     this.thumbnailImageUrl = '',
     this.memoryPlaceNames = const [],
+    this.settlementId = '',
     this.startsAt,
     this.endsAt,
   });
 
   final int id;
+  final int? groupId;
   final String title;
   final String dateLabel;
   final DateTime? startsAt;
@@ -114,6 +117,7 @@ class GroupPlanSummary {
   final List<GroupPlanMemberAvatar> memberAvatars;
   final String thumbnailImageUrl;
   final List<String> memoryPlaceNames;
+  final String settlementId;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;

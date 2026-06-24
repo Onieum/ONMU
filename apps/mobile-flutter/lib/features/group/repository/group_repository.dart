@@ -542,6 +542,7 @@ class ApiGroupRepository implements GroupRepository {
     final memberAvatars = _groupPlanMemberAvatars(json);
     return GroupPlanSummary(
       id: OnmuJson.readInt(json, 'id'),
+      groupId: _optionalInt(json, 'groupId'),
       title: OnmuJson.readString(json, 'title', '약속'),
       dateLabel: OnmuJson.readString(json, 'dateLabel', '일정 미정'),
       startsAt: DateTime.tryParse(OnmuJson.readString(json, 'startsAt')),
@@ -560,7 +561,22 @@ class ApiGroupRepository implements GroupRepository {
       memberAvatars: memberAvatars,
       thumbnailImageUrl: _planThumbnailImageUrl(json),
       memoryPlaceNames: _planMemoryPlaceNames(json),
+      settlementId: OnmuJson.readString(json, 'settlementId'),
     );
+  }
+
+  int? _optionalInt(Map<String, dynamic> json, String key) {
+    final value = json[key];
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value.toString());
   }
 
   List<String> _planMemoryPlaceNames(Map<String, dynamic> json) {

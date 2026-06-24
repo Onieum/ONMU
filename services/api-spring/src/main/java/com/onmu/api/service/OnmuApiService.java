@@ -206,18 +206,28 @@ public class OnmuApiService {
   public Map<String, Object> homeSummary(java.util.UUID userId) {
     UserEntity viewer = userOrThrow(userId);
     List<GroupEntity> groups = groupRepository.findVisibleForUserOrderByCreatedAtAsc(viewer.getId());
-    GroupEntity firstGroup = groups.stream().findFirst().orElse(null);
-    List<PlanEntity> plans = firstGroup == null ? List.of() : participatingPlans(firstGroup, viewer);
-    List<VoteEntity> votes = firstGroup == null ? List.of() : voteRepository.findByGroupOrderByCreatedAtAsc(firstGroup);
+    List<PlanEntity> plans = groups.stream()
+      .flatMap(group -> participatingPlans(group, viewer).stream())
+      .sorted(Comparator.comparing(plan -> plan.getStartsAt() == null ? Instant.MAX : plan.getStartsAt()))
+      .toList();
+    List<VoteEntity> votes = groups.stream()
+      .flatMap(group -> voteRepository.findByGroupOrderByCreatedAtAsc(group).stream())
+      .toList();
+    PlanEntity activePlan = plans.stream()
+      .filter(this::isPlanOngoing)
+      .findFirst()
+      .orElse(null);
 
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("service", "onmu-api-spring");
     value.put("env", "local");
     value.put("viewer", userMe(viewer));
     value.put("groups", groups.stream().map(groupReadModelMapper::groupCard).toList());
-    value.put("upcomingPlans", plans.stream().map(this::planCard).toList());
+    value.put("upcomingPlans", plans.stream().map(this::homePlanCard).toList());
     value.put("activeVotes", votes.stream().map(this::voteCard).toList());
-    value.put("nextPlan", plans.stream().findFirst().map(this::planCard).orElse(null));
+    value.put("nextPlan", plans.stream().findFirst().map(this::homePlanCard).orElse(null));
+    value.put("activePlan", activePlan == null ? null : homePlanCard(activePlan));
+    value.put("settlementId", activePlan == null ? null : latestSettlementId(activePlan));
     return value;
   }
 
@@ -837,9 +847,7 @@ public class OnmuApiService {
     requireSettlementSections(request.sections());
     SettlementDraftEntity draft = settlementDraftRepository.findByPlan(plan)
       .orElseGet(() -> new SettlementDraftEntity(
-        nextPublicId(settlementDraftRepository.findAll().stream()
-          .map(SettlementDraftEntity::getPublicId)
-          .toList(), 301),
+        nextPublicId(settlementDraftRepository.findPublicIds(), 301),
         group,
         plan,
         defaultSettlementPayload(plan)
@@ -862,9 +870,7 @@ public class OnmuApiService {
     PlanEntity plan = planOrThrow(group, planId);
     requireSettlementSections(request.sections());
     Map<String, Object> payload = settlementPayloadFromSections(plan, request.sections());
-    String publicId = nextPublicId(settlementRepository.findAll().stream()
-      .map(SettlementEntity::getPublicId)
-      .toList(), 301);
+    String publicId = nextPublicId(settlementRepository.findPublicIds(), 301);
     SettlementEntity settlement = settlementRepository.save(new SettlementEntity(
       publicId,
       group,
@@ -1006,6 +1012,33 @@ public class OnmuApiService {
     return value;
   }
 
+  private Map<String, Object> homePlanCard(PlanEntity plan) {
+    Map<String, Object> value = planCard(plan);
+    value.put("settlementId", latestSettlementId(plan));
+    return value;
+  }
+
+  private String latestSettlementId(PlanEntity plan) {
+    return settlementRepository.findFirstByPlanAndStatusInOrderByCreatedAtDesc(
+        plan,
+        List.of("finalized", "completed")
+      )
+      .map(SettlementEntity::getPublicId)
+      .orElse("");
+  }
+
+  private boolean isPlanOngoing(PlanEntity plan) {
+    if ("active".equals(PlanEntity.normalizeStatus(plan.getStatus()))) {
+      return true;
+    }
+    Instant startsAt = plan.getStartsAt();
+    if (startsAt == null || startsAt.isAfter(Instant.now())) {
+      return false;
+    }
+    Instant endsAt = plan.getEndsAt() == null ? startsAt.plusSeconds(7200) : plan.getEndsAt();
+    return Instant.now().isBefore(endsAt) && !"completed".equals(PlanEntity.normalizeStatus(plan.getStatus()));
+  }
+
   private String planStatusLabel(String status) {
     return switch (PlanEntity.normalizeStatus(status)) {
       case "active" -> "진행 중";
@@ -1126,9 +1159,22 @@ public class OnmuApiService {
     value.put("responseCount", Math.toIntExact(optionResponses));
     value.put("countLabel", optionResponses + "표");
     value.put("progress", totalResponses == 0 ? 0 : (double) optionResponses / totalResponses);
+    value.put("voters", voteResponseRepository.findByVoteOptionWithUserOrderByCreatedAtAsc(option).stream()
+      .map(VoteResponseEntity::getUser)
+      .map(this::voteVoterCard)
+      .toList());
     if (currentUser != null) {
       value.put("selectedByMe", voteResponseRepository.existsByVoteOptionAndUser(option, currentUser));
     }
+  }
+
+  private Map<String, Object> voteVoterCard(UserEntity user) {
+    Map<String, Object> value = new LinkedHashMap<>();
+    value.put("userId", user.getPublicId());
+    value.put("name", stringOrDefault(user.getNickname(), "사용자"));
+    value.put("nickname", stringOrDefault(user.getNickname(), "사용자"));
+    value.put("profileImageUrl", stringOrDefault(user.getProfileImageUrl(), ""));
+    return value;
   }
 
   private ExternalPlaceEntity resolveExternalPlace(CreatePlaceCandidateRequest request) {

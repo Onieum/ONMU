@@ -258,7 +258,7 @@ class SettlementApiServiceTests {
       new PlanParticipantEntity(pastPlan, minsu, "joined", "accepted")
     ));
     when(settlementDraftRepository.findActiveByPlan(pastPlan)).thenReturn(Optional.empty());
-    when(settlementDraftRepository.findAll()).thenReturn(List.of());
+    when(settlementDraftRepository.findPublicIds()).thenReturn(List.of());
     when(settlementDraftRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementSectionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -273,7 +273,7 @@ class SettlementApiServiceTests {
     when(settlementDraftRepository.findByPlanForUpdate(pastPlan))
       .thenReturn(Optional.of(draft));
     when(settlementItemRepository.findBySettlementDraft(any())).thenReturn(List.of());
-    when(settlementRepository.findAll()).thenReturn(List.of());
+    when(settlementRepository.findPublicIds()).thenReturn(List.of());
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementTransferRepository.save(any(SettlementTransferEntity.class)))
       .thenAnswer(invocation -> invocation.getArgument(0));
@@ -689,7 +689,7 @@ class SettlementApiServiceTests {
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementDraftRepository.findByPlanForUpdate(plan))
       .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
-    when(settlementRepository.findAll()).thenReturn(List.of(new SettlementEntity("301", group, plan, "{}")));
+    when(settlementRepository.findPublicIds()).thenReturn(List.of("301"));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))
@@ -729,7 +729,7 @@ class SettlementApiServiceTests {
     when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
     when(settlementDraftRepository.findByPlanForUpdate(plan))
       .thenReturn(Optional.of(new com.onmu.api.domain.SettlementDraftEntity("301", group, plan, requestPayload())));
-    when(settlementRepository.findAll()).thenReturn(List.of(new SettlementEntity("301", group, plan, "{}")));
+    when(settlementRepository.findPublicIds()).thenReturn(List.of("301"));
     when(settlementRepository.save(any(SettlementEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemRepository.save(any(SettlementItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(settlementItemTargetRepository.save(any(SettlementItemTargetEntity.class)))

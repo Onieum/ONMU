@@ -1,5 +1,6 @@
 package com.onmu.api.domain;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import jakarta.persistence.LockModeType;
@@ -9,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SettlementDraftRepository extends JpaRepository<SettlementDraftEntity, UUID> {
+  @Query("select draft.publicId from SettlementDraftEntity draft")
+  List<String> findPublicIds();
+
   Optional<SettlementDraftEntity> findByPlan(PlanEntity plan);
 
   @Query("select draft from SettlementDraftEntity draft where draft.plan = :plan and draft.status = 'draft'")

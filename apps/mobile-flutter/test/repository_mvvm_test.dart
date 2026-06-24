@@ -18,6 +18,7 @@ import 'package:onmu_mobile/features/group/view_model/group_members_view_model.d
 import 'package:onmu_mobile/features/group/view_model/group_plan_board_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/group_plan_list_view_model.dart';
 import 'package:onmu_mobile/features/group/view_model/vote_view_model.dart';
+import 'package:onmu_mobile/features/home/repository/home_repository.dart';
 import 'package:onmu_mobile/features/home/view_model/home_view_model.dart';
 import 'package:onmu_mobile/features/my/domain/my_profile.dart';
 import 'package:onmu_mobile/features/my/repository/my_repository.dart';
@@ -108,6 +109,9 @@ void main() {
   test('홈 ViewModel은 서버에 모임이 없어도 빈 상태를 반환한다', () async {
     final container = ProviderContainer(
       overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository.empty(),
+        ),
         groupRepositoryProvider.overrideWithValue(_EmptyGroupRepository()),
         planRepositoryProvider.overrideWithValue(_UnusedPlanRepository()),
         settlementRepositoryProvider.overrideWithValue(
@@ -129,6 +133,11 @@ void main() {
   test('홈 ViewModel은 오늘 날짜 약속 수를 API 결과에서 계산한다', () async {
     final container = ProviderContainer(
       overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository.fromGroupRepository(
+            _TodayPlansGroupRepository(),
+          ),
+        ),
         groupRepositoryProvider.overrideWithValue(_TodayPlansGroupRepository()),
         planRepositoryProvider.overrideWithValue(_TodayPlansPlanRepository()),
         settlementRepositoryProvider.overrideWithValue(
@@ -146,6 +155,11 @@ void main() {
   test('홈 ViewModel은 다가오는 약속을 오늘 이후 날짜순으로 정렬한다', () async {
     final container = ProviderContainer(
       overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository.fromGroupRepository(
+            _UpcomingOrderRepository(),
+          ),
+        ),
         groupRepositoryProvider.overrideWithValue(_UpcomingOrderRepository()),
         planRepositoryProvider.overrideWithValue(
           _UpcomingOrderPlanRepository(),
@@ -170,6 +184,11 @@ void main() {
   test('홈 ViewModel은 캘린더 표시용 약속에 지난 약속도 유지한다', () async {
     final container = ProviderContainer(
       overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository.fromGroupRepository(
+            _UpcomingOrderRepository(),
+          ),
+        ),
         groupRepositoryProvider.overrideWithValue(_UpcomingOrderRepository()),
         planRepositoryProvider.overrideWithValue(
           _UpcomingOrderPlanRepository(),
@@ -193,6 +212,9 @@ void main() {
   test('홈 ViewModel은 현재 진행 중인 약속이 없으면 activePlan을 비운다', () async {
     final container = ProviderContainer(
       overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository.fromGroupRepository(_NoActivePlanRepository()),
+        ),
         groupRepositoryProvider.overrideWithValue(_NoActivePlanRepository()),
         planRepositoryProvider.overrideWithValue(_UnusedPlanRepository()),
         settlementRepositoryProvider.overrideWithValue(
@@ -206,6 +228,59 @@ void main() {
 
     expect(state.activePlan, isNull);
     expect(state.upcomingPlans.map((plan) => plan.title), ['내일 약속']);
+  });
+
+  test('홈 ViewModel은 home summary의 진행 중 약속과 정산 id를 연결한다', () async {
+    final now = DateTime.now();
+    final activePlan = GroupPlanSummary(
+      id: 9901,
+      title: '진행 중 약속',
+      dateLabel: '오늘',
+      startsAt: now.subtract(const Duration(minutes: 10)),
+      endsAt: now.add(const Duration(hours: 1)),
+      placeName: '성수',
+      statusLabel: '진행 중',
+      statusType: 'active',
+      memberCount: 2,
+      extraMemberCount: 0,
+      iconKind: 'coffee',
+      isPast: false,
+      settlementId: '301',
+    );
+    final container = ProviderContainer(
+      overrides: [
+        homeRepositoryProvider.overrideWithValue(
+          _HomeSummaryRepository(
+            HomeSummary(
+              groups: const [
+                GroupSummary(
+                  id: 9,
+                  name: '진행 중 모임',
+                  description: '',
+                  members: [],
+                  lastMessage: '',
+                  unreadCount: 0,
+                  pinnedPlanTitle: '',
+                ),
+              ],
+              upcomingPlans: [activePlan],
+              activePlan: activePlan,
+              settlementId: '301',
+            ),
+          ),
+        ),
+        planRepositoryProvider.overrideWithValue(_UnusedPlanRepository()),
+        settlementRepositoryProvider.overrideWithValue(
+          _UnusedSettlementRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(homeViewModelProvider.future);
+
+    expect(state.activePlan?.title, '진행 중 약속');
+    expect(state.settlementId, 301);
   });
 
   test('온모임 생성 ViewModel은 기존 모임 멤버 추천 없이 친구 후보만 불러온다', () async {
@@ -2718,6 +2793,55 @@ class _MutablePlansGroupRepository extends _FakeGroupRepository {
 
   @override
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async => plans;
+}
+
+class _HomeSummaryRepository implements HomeRepository {
+  _HomeSummaryRepository(this.summary);
+
+  _HomeSummaryRepository.empty()
+    : summary = const HomeSummary(groups: [], upcomingPlans: []);
+
+  _HomeSummaryRepository.fromGroupRepository(GroupRepository repository)
+    : summaryFuture = _summaryFromGroupRepository(repository),
+      summary = null;
+
+  final HomeSummary? summary;
+  Future<HomeSummary>? summaryFuture;
+
+  @override
+  Future<HomeSummary> fetchSummary() async {
+    final value = summary;
+    if (value != null) {
+      return value;
+    }
+    return summaryFuture!;
+  }
+
+  static Future<HomeSummary> _summaryFromGroupRepository(
+    GroupRepository repository,
+  ) async {
+    final groups = await repository.fetchGroups();
+    final plans = <GroupPlanSummary>[];
+    for (final group in groups) {
+      plans.addAll(await repository.fetchPlans(group.id));
+    }
+    plans.sort(GroupPlanSummary.compareUpcoming);
+    final now = DateTime.now();
+    GroupPlanSummary? activePlan;
+    for (final plan in plans) {
+      if (plan.isOngoingAt(now)) {
+        activePlan = plan;
+        break;
+      }
+    }
+    return HomeSummary(
+      groups: groups,
+      upcomingPlans: plans,
+      nextPlan: plans.isEmpty ? null : plans.first,
+      activePlan: activePlan,
+      settlementId: activePlan?.settlementId ?? '',
+    );
+  }
 }
 
 class _FakeMediaRepository implements MediaRepository {
