@@ -13,6 +13,7 @@ import com.onmu.api.domain.GroupRepository;
 import com.onmu.api.domain.OotdFeatureEntity;
 import com.onmu.api.domain.OotdFeatureRepository;
 import com.onmu.api.domain.PlanEntity;
+import com.onmu.api.domain.PlanParticipantEntity;
 import com.onmu.api.domain.PlanParticipantRepository;
 import com.onmu.api.domain.PlanRepository;
 import com.onmu.api.domain.RecordEntity;
@@ -375,6 +376,47 @@ class RecordServiceTests {
           && "none".equals(outboxSnapshot.get("clothes"));
       })
     );
+  }
+
+  @Test
+  void crewOotdAppearancesIncludeProfileGenderFallback() {
+    UserEntity crew = new UserEntity(
+      java.util.UUID.fromString("22222222-2222-2222-2222-222222222222"),
+      "crew"
+    );
+    CharacterProfileEntity crewProfile = new CharacterProfileEntity(
+      crew.getId(),
+      "male",
+      "skin_2",
+      "hair_style_1",
+      "hair_color_0",
+      "eye_style_0",
+      "eye_color_0",
+      "top_1"
+    );
+
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(groupRepository.isUserMember("1", user.getId())).thenReturn(true);
+    when(planRepository.findByGroupAndPublicId(group, "101")).thenReturn(Optional.of(plan));
+    when(planRepository.isUserParticipant("101", user.getId())).thenReturn(true);
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan)).thenReturn(List.of(
+      new PlanParticipantEntity(plan, user, "joined", "accepted"),
+      new PlanParticipantEntity(plan, crew, "joined", "accepted")
+    ));
+    when(recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(crew))
+      .thenReturn(List.of());
+    when(characterProfileRepository.findByUserId(crew.getId()))
+      .thenReturn(Optional.of(crewProfile));
+
+    var appearances = service.getCrewOotdAppearances(
+      user.getId(),
+      "1",
+      "101",
+      "2026-06-12"
+    );
+
+    assertThat(appearances).singleElement().satisfies(appearance ->
+      assertThat(appearance.character()).containsEntry("gender", "male"));
   }
 
   @Test
