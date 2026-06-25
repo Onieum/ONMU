@@ -580,6 +580,19 @@ class ApiGroupRepository implements GroupRepository {
     return int.tryParse(value.toString());
   }
 
+  List<String> _stringValues(Object? value) {
+    if (value is List) {
+      return value
+          .where((item) => item != null)
+          .map((item) => item.toString())
+          .toList(growable: false);
+    }
+    if (value is String) {
+      return [value];
+    }
+    return const [];
+  }
+
   List<String> _planMemoryPlaceNames(Map<String, dynamic> json) {
     final names = <String>[];
     final seen = <String>{};
@@ -610,12 +623,12 @@ class ApiGroupRepository implements GroupRepository {
     }
 
     for (final key in const ['memoryPlaceNames', 'placeNames']) {
-      for (final name in OnmuJson.stringList(json[key])) {
+      for (final name in _stringValues(json[key])) {
         addName(name);
       }
     }
 
-    return List.unmodifiable(names);
+    return List<String>.unmodifiable(names);
   }
 
   Map<String, List<String>> _planMemoryPlaceNamesByDate(
@@ -644,6 +657,14 @@ class ApiGroupRepository implements GroupRepository {
       }
     }
 
+    void addNamesByDateMap(Object? value) {
+      for (final entry in OnmuJson.asMap(value).entries) {
+        for (final name in _stringValues(entry.value)) {
+          addName(entry.key, name);
+        }
+      }
+    }
+
     for (final key in const [
       'schedulePlaces',
       'itineraryPlaces',
@@ -654,11 +675,14 @@ class ApiGroupRepository implements GroupRepository {
       addPlaceMaps(json[key]);
     }
 
-    return Map.unmodifiable(
-      namesByDate.map(
-        (dateKey, names) => MapEntry(dateKey, List.unmodifiable(names)),
-      ),
-    );
+    for (final key in const ['memoryPlaceNamesByDate', 'placeNamesByDate']) {
+      addNamesByDateMap(json[key]);
+    }
+
+    return Map<String, List<String>>.unmodifiable({
+      for (final entry in namesByDate.entries)
+        entry.key: List<String>.unmodifiable(entry.value),
+    });
   }
 
   String _planPlaceName(Map<String, dynamic> place) {
@@ -686,7 +710,7 @@ class ApiGroupRepository implements GroupRepository {
     final startDate = _localDate(start);
     final endDate = end == null ? startDate : _localDate(end);
     if (endDate.isBefore(startDate)) {
-      return [_dateOnly(startDate)];
+      return <String>[_dateOnly(startDate)];
     }
 
     final keys = <String>[];
@@ -695,7 +719,7 @@ class ApiGroupRepository implements GroupRepository {
       keys.add(_dateOnly(cursor));
       cursor = cursor.add(const Duration(days: 1));
     }
-    return List.unmodifiable(keys);
+    return List<String>.unmodifiable(keys);
   }
 
   DateTime? _planPlaceDateTime(Map<String, dynamic> place, List<String> keys) {
@@ -925,7 +949,7 @@ class ApiGroupRepository implements GroupRepository {
   }
 
   List<String> _absoluteMediaUrls(Object? value) {
-    return OnmuJson.stringList(value)
+    return _stringValues(value)
         .map(_absoluteMediaUrl)
         .where((url) => url.isNotEmpty)
         .toList(growable: false);
@@ -1179,7 +1203,10 @@ class ApiGroupRepository implements GroupRepository {
         voters[candidateId] = names;
       }
     }
-    return Map.unmodifiable(voters);
+    return Map<int, List<String>>.unmodifiable({
+      for (final entry in voters.entries)
+        entry.key: List<String>.unmodifiable(entry.value),
+    });
   }
 
   Map<int, List<String>> _votersByCandidateMap(Object? raw) {
@@ -1197,7 +1224,10 @@ class ApiGroupRepository implements GroupRepository {
         result[candidateId] = names;
       }
     }
-    return Map.unmodifiable(result);
+    return Map<int, List<String>>.unmodifiable({
+      for (final entry in result.entries)
+        entry.key: List<String>.unmodifiable(entry.value),
+    });
   }
 
   List<String> _voterNames(Object? raw) {
@@ -1207,7 +1237,7 @@ class ApiGroupRepository implements GroupRepository {
     return raw
         .map((voter) {
           if (voter is Map) {
-            final map = Map<String, dynamic>.from(voter);
+            final map = OnmuJson.asMap(voter);
             return resolveOnmuDisplayName([
               OnmuJson.readString(map, 'nickname'),
               OnmuJson.readString(map, 'name'),
