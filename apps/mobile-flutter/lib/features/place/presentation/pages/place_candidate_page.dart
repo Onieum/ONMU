@@ -193,6 +193,13 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
           const _VoteResultNotice(),
           const SizedBox(height: AppSpacing.md),
         ],
+        _DecisionSummaryCard(
+          candidateCount: widget.state.candidates.length,
+          visibleCandidateCount: visibleCandidates.length,
+          selectedCategory: _selectedCategory,
+          leadingCandidate: _leadingCandidate(widget.state.candidates),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _CategoryChips(
           selectedCategory: _selectedCategory,
           onCategorySelected: (category) {
@@ -233,6 +240,26 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
         const SizedBox(height: 72),
       ],
     );
+  }
+
+  PlaceCandidate? _leadingCandidate(List<PlaceCandidate> candidates) {
+    if (candidates.isEmpty) {
+      return null;
+    }
+    final sorted = [...candidates]..sort(_compareDecisionCandidates);
+    return sorted.first;
+  }
+
+  int _compareDecisionCandidates(PlaceCandidate a, PlaceCandidate b) {
+    final heartCompare = b.heartCount.compareTo(a.heartCount);
+    if (heartCompare != 0) {
+      return heartCompare;
+    }
+    final matchCompare = b.matchPercent.compareTo(a.matchPercent);
+    if (matchCompare != 0) {
+      return matchCompare;
+    }
+    return b.score.compareTo(a.score);
   }
 
   Future<void> _registerCandidate(
@@ -298,6 +325,88 @@ class _PlaceCandidateContentState extends State<_PlaceCandidateContent> {
       return planEnd;
     }
     return defaultEnd;
+  }
+}
+
+class _DecisionSummaryCard extends StatelessWidget {
+  const _DecisionSummaryCard({
+    required this.candidateCount,
+    required this.visibleCandidateCount,
+    required this.selectedCategory,
+    required this.leadingCandidate,
+  });
+
+  final int candidateCount;
+  final int visibleCandidateCount;
+  final String selectedCategory;
+  final PlaceCandidate? leadingCandidate;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = candidateCount == 0
+        ? '먼저 후보를 담아볼까요?'
+        : candidateCount == 1
+        ? '비교 후보를 하나 더 담아보세요'
+        : '이제 만날 장소를 좁혀볼 수 있어요';
+    final description = candidateCount == 0
+        ? '검색으로 장소를 담으면 하트, 투표, 일정 등록까지 이어져요.'
+        : candidateCount == 1
+        ? '2개 이상 모이면 참여자들이 비교하고 투표하기 좋아요.'
+        : _leadingCandidateDescription;
+
+    return OnmuCard(
+      backgroundColor: AppColors.bgPaper,
+      borderColor: AppColors.lineWarm,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.place_outlined, color: AppColors.primaryPink),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      description,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              OnmuChip(label: '전체 $candidateCount개'),
+              if (selectedCategory != '전체')
+                OnmuChip(label: '$selectedCategory $visibleCandidateCount개'),
+              if (leadingCandidate != null && leadingCandidate!.heartCount > 0)
+                OnmuChip(
+                  label: '하트 ${leadingCandidate!.heartCount}',
+                  icon: Icons.favorite,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String get _leadingCandidateDescription {
+    final candidate = leadingCandidate;
+    if (candidate == null) {
+      return '후보를 비교하고, 투표나 일정 등록으로 만날 장소를 확정해요.';
+    }
+    return '현재는 ${candidate.name} 후보가 가장 앞서요. 마음에 드는 후보를 하트로 표시하거나 투표로 확정해요.';
   }
 }
 
@@ -460,12 +569,9 @@ class _CandidateListCard extends StatelessWidget {
               color: AppColors.bgGrid,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const SizedBox.square(
+            child: SizedBox.square(
               dimension: 58,
-              child: Icon(
-                Icons.photo_camera_outlined,
-                color: AppColors.textSub,
-              ),
+              child: _CandidateThumbnail(candidate: candidate),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -504,10 +610,37 @@ class _CandidateListCard extends StatelessWidget {
                   _candidateMetaLabel(candidate),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (candidate.displayAddress.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    candidate.displayAddress,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.textSub),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   candidate.summary,
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    if (candidate.matchPercent > 0)
+                      OnmuChip(label: '취향 ${candidate.matchPercent}%'),
+                    if (candidate.travelTimeLabel.trim().isNotEmpty)
+                      OnmuChip(
+                        label: candidate.travelTimeLabel,
+                        icon: Icons.directions_walk,
+                      ),
+                    for (final reason in candidate.reasons.take(1))
+                      OnmuChip(label: reason),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Align(
@@ -521,6 +654,29 @@ class _CandidateListCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CandidateThumbnail extends StatelessWidget {
+  const _CandidateThumbnail({required this.candidate});
+
+  final PlaceCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = candidate.imageUrl.trim();
+    if (imageUrl.isEmpty) {
+      return const Icon(Icons.photo_camera_outlined, color: AppColors.textSub);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.photo_camera_outlined, color: AppColors.textSub),
       ),
     );
   }
