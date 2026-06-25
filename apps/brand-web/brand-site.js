@@ -22,12 +22,17 @@
     });
   }
 
-  const storeLabels = {
-    ios: "App Store로 이동",
-    android: "Google Play로 이동",
+  const downloadLabels = {
+    ios: downloads.iosLabel || "iOS 다운로드",
+    android: downloads.androidLabel || "Android 다운로드",
   };
 
-  const safeStoreUrl = (value) => {
+  const downloadStatuses = {
+    ios: downloads.iosStatus || "iOS 링크 연결됨",
+    android: downloads.androidStatus || "Android 링크 연결됨",
+  };
+
+  const safeDownloadUrl = (value) => {
     if (!value) {
       return "";
     }
@@ -40,46 +45,47 @@
     }
   };
 
-  const storeUrlFor = (platform) => {
+  const downloadUrlFor = (platform) => {
     if (platform === "ios") {
-      return safeStoreUrl(downloads.iosUrl);
+      return safeDownloadUrl(downloads.iosUrl);
     }
     if (platform === "android") {
-      return safeStoreUrl(downloads.androidUrl);
+      return safeDownloadUrl(downloads.androidUrl);
     }
     return "";
   };
 
   document.querySelectorAll("[data-download-platform]").forEach((target) => {
     const platform = target.getAttribute("data-download-platform");
-    const storeUrl = storeUrlFor(platform);
+    const downloadUrl = downloadUrlFor(platform);
 
-    if (!storeUrl) {
+    if (!downloadUrl) {
       return;
     }
 
     if (target instanceof HTMLAnchorElement) {
-      target.href = storeUrl;
+      target.href = downloadUrl;
       target.rel = "noopener noreferrer";
       target.target = "_blank";
-      if (storeLabels[platform]) {
-        target.querySelector("[data-store-label]")?.replaceChildren(storeLabels[platform]);
+      if (downloadLabels[platform]) {
+        target.querySelector("[data-download-label]")?.replaceChildren(downloadLabels[platform]);
       }
     }
   });
 
-  document.querySelectorAll("[data-store-status]").forEach((target) => {
-    const platform = target.getAttribute("data-store-status");
-    if (storeUrlFor(platform)) {
-      target.textContent = platform === "ios" ? "iOS 링크 연결됨" : "Android 링크 연결됨";
+  document.querySelectorAll("[data-download-status]").forEach((target) => {
+    const platform = target.getAttribute("data-download-status");
+    if (downloadUrlFor(platform)) {
+      target.textContent = downloadStatuses[platform] || "다운로드 링크 연결됨";
     }
   });
 
   const pagePlatform = document.body.getAttribute("data-download-page");
-  if (new URLSearchParams(window.location.search).get("redirect") === "store") {
-    const storeUrl = storeUrlFor(pagePlatform);
-    if (storeUrl) {
-      window.location.replace(storeUrl);
+  const redirectTarget = new URLSearchParams(window.location.search).get("redirect");
+  if (redirectTarget === "download" || redirectTarget === "store") {
+    const downloadUrl = downloadUrlFor(pagePlatform);
+    if (downloadUrl) {
+      window.location.replace(downloadUrl);
       return;
     }
   }

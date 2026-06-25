@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ONMU Android 다운로드 안내</title>
+    <title>ONMU Android APK 다운로드</title>
     <meta
       name="description"
-      content="ONMU(온뮤) Android 앱 다운로드 안내 페이지입니다. Android에서 ONMU를 시작할 수 있는 최신 안내 경로를 제공합니다.">
+      content="ONMU(온뮤) Android arm64 APK 다운로드 페이지입니다. Blob Storage 최신 APK 링크와 QR 코드를 제공합니다.">
     <meta name="robots" content="index,follow">
     <meta name="theme-color" content="#FF9097" media="(prefers-color-scheme: light)">
     <link rel="canonical" href="https://onmu.cloud/download/android/">
@@ -14,22 +14,22 @@
     <meta property="og:locale" content="ko_KR">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="ONMU">
-    <meta property="og:title" content="ONMU Android 다운로드 안내">
-    <meta property="og:description" content="ONMU Android 앱은 Google Play 기준의 최신 안내 경로를 이 페이지에서 제공합니다.">
+    <meta property="og:title" content="ONMU Android APK 다운로드">
+    <meta property="og:description" content="ONMU Android arm64 APK를 Blob Storage 최신 경로에서 내려받을 수 있습니다.">
     <meta property="og:url" content="https://onmu.cloud/download/android/">
     <meta property="og:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="ONMU Android 다운로드 안내 브랜드 이미지">
+    <meta property="og:image:alt" content="ONMU Android APK 다운로드 브랜드 이미지">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ONMU Android 다운로드 안내">
-    <meta name="twitter:description" content="ONMU Android 앱은 Google Play 기준의 최신 안내 경로를 이 페이지에서 제공합니다.">
+    <meta name="twitter:title" content="ONMU Android APK 다운로드">
+    <meta name="twitter:description" content="ONMU Android arm64 APK를 Blob Storage 최신 경로에서 내려받을 수 있습니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
-    <meta name="twitter:image:alt" content="ONMU Android 다운로드 안내 브랜드 이미지">
-    <link rel="stylesheet" href="/styles.css?v=0.3.7">
+    <meta name="twitter:image:alt" content="ONMU Android APK 다운로드 브랜드 이미지">
+    <link rel="stylesheet" href="/styles.css?v=0.3.8">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
-    <script src="/brand-site.js?v=0.3.0" defer></script>
+    <script src="/brand-site.js?v=0.3.1" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -39,14 +39,14 @@
         "applicationCategory": "LifestyleApplication",
         "operatingSystem": "Android",
         "url": "https://onmu.cloud/download/android/",
-        "downloadUrl": "https://onmu.cloud/download/android/",
-        "description": "ONMU Android 앱 다운로드 안내 페이지입니다. Android에서 ONMU를 시작할 수 있는 최신 안내 경로를 제공합니다."
+        "downloadUrl": "https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/onmu-android-arm64.apk",
+        "description": "ONMU Android arm64 APK 다운로드 페이지입니다. Blob Storage 최신 APK 링크와 QR 코드를 제공합니다."
       }
     </script>
   </head>
   <body class="subpage" data-download-page="android">
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
-    <header class="site-header" aria-label="ONMU Android 다운로드 페이지 상단">
+    <header class="site-header" aria-label="ONMU Android APK 다운로드 페이지 상단">
       <a class="brand-mark" href="/" aria-label="ONMU 홈">
         <img class="brand-logo" src="/assets/images/onmu-logo-wordmark.png" alt="" width="620" height="300" decoding="async">
       </a>
@@ -60,22 +60,22 @@
       <section class="download-detail" aria-labelledby="android-title">
         <div class="download-hero">
           <p class="eyebrow">Android</p>
-          <h1 id="android-title">Android용 ONMU</h1>
+          <h1 id="android-title">Android APK 다운로드</h1>
           <p>
-            Google Play를 통해 Android에서 ONMU를 시작할 수 있습니다.
-            이 페이지는 가장 최신 Android 안내 경로를 제공합니다.
+            Android arm64 APK를 바로 내려받을 수 있습니다.
+            기기에 설치할 때는 브라우저 또는 파일 앱의 알 수 없는 앱 설치 허용이 필요할 수 있습니다.
           </p>
           <div class="hero-actions">
             <a class="button-primary" href="/download/" data-download-platform="android">
-              <span data-store-label>다운로드 경로 보기</span>
+              <span data-download-label>Android APK 다운로드</span>
             </a>
             <a class="button-secondary" href="/">ONMU 소개 보기</a>
           </div>
         </div>
-        <div class="download-qr">
-          <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="220" height="220" decoding="async">
-          <strong>https://onmu.cloud/download/android/</strong>
-        </div>
+        <a class="download-qr" href="/download/" data-download-platform="android">
+          <img src="/assets/qr/onmu-android.svg" alt="ONMU Android APK 다운로드 QR 코드" width="220" height="220" decoding="async">
+          <strong data-download-status="android">Android APK 연결됨 · arm64</strong>
+        </a>
       </section>
     </main>
     <footer class="site-footer">
