@@ -113,6 +113,8 @@ az version
 
 현재 staging runtime secret source는 재사용 Key Vault `onmu-dev-kv-27db5e`의 `staging-*` secret name이다. 이 이름은 secret 값이 아니라 운영 참조명이다.
 
+Local-only 백업 후보 준비에서 즉시 필요한 값은 DB 연결 정보, Redis URL, local object storage endpoint/bucket, `ONMU_ACCESS_TOKEN_SECRET` 정도다. OAuth redirect/callback, provider secret, place-search/route API key는 OAuth 또는 provider smoke 같은 별도 승인 검증 단계에서만 참조한다. `staging-*` secret value는 운영자가 fallback rehearsal을 명시적으로 승인했을 때만 읽는다.
+
 | Env var | Key Vault secret name 후보 | 대상 |
 | --- | --- | --- |
 | `DATABASE_URL` 또는 `SPRING_DATASOURCE_URL` | `staging-database-url` | Spring datasource |
@@ -132,8 +134,8 @@ az version
 | `NAVER_SEARCH_CLIENT_ID` | `staging-naver-search-client-id` | Place search |
 | `NAVER_SEARCH_CLIENT_SECRET` | `staging-naver-search-client-secret` | Place search |
 | `OPENROUTESERVICE_API_KEY` | `staging-openrouteservice-api-key` | Route provider |
-| `OBJECT_STORAGE_ENDPOINT` | `staging-blob-endpoint` | Object storage |
-| `OBJECT_STORAGE_BUCKET` | `staging-blob-container` | Object storage |
+| `OBJECT_STORAGE_ENDPOINT` | `staging-blob-endpoint` | Object storage. local-only 준비에서는 local MinIO endpoint를 사용하고, `staging-blob-*` secret name은 운영자 승인 시에만 참조한다. |
+| `OBJECT_STORAGE_BUCKET` | `staging-blob-container` | Object storage. local-only 준비에서는 local MinIO bucket을 사용하고, `staging-blob-*` secret name은 운영자 승인 시에만 참조한다. |
 
 값 존재 여부를 확인할 때는 secret value를 출력하지 않고 presence, length, status만 기록한다.
 
@@ -154,6 +156,14 @@ Docker Desktop 또는 Colima가 실행 중인지 확인한다.
 docker ps
 ```
 
+Local dependency compose 파일은 repo 루트가 아니라 `infra/compose/docker-compose.yml`에 있다. Spring datasource 기본값은 `POSTGRES_HOST_PORT=15432` 축을 사용하므로, Mac local-only 준비에서는 compose와 Spring 실행 전에 같은 값을 명시한다.
+
+```bash
+cd <ONMU_REPO>
+export POSTGRES_HOST_PORT=15432
+docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
+```
+
 ### 7.2 실행 형태
 
 Mac 백업 서버는 local-only로 먼저 준비한다.
@@ -163,6 +173,8 @@ cd <ONMU_REPO>/services/api-spring
 ./mvnw -DskipTests clean package
 java -jar target/onmu-api-spring-*.jar
 ```
+
+Local-only 단계에서는 `ONMU_ACCESS_TOKEN_SECRET`을 staging secret에서 읽지 않고 local-only 값이나 local 개발 기본값을 사용한다. staging signing secret을 Mac 장비로 가져오는 일은 운영자가 별도 승인한 fallback rehearsal로 한정한다.
 
 실제 운영 secret을 넣어 실행해야 하는 경우에는 별도 승인된 local ignored env 파일에서 현재 shell로만 주입한다. `.env`나 shell history에 secret value가 남지 않도록 한다.
 
