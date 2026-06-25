@@ -10,13 +10,13 @@
 | --- | --- |
 | Primary API | `https://staging-api.onmu.cloud` Azure Container Apps |
 | Backup 후보 | Mac 또는 Windows 장비의 Spring Boot Main API |
-| 실행 단계 | Phase A local-only 준비 -> Phase B 데이터/미디어 rehearsal -> Phase C 공개 route cutover -> Phase D 지도/외부 의존성 분리 |
+| 실행 단계 | Phase A local-only 준비 -> Phase B 데이터/미디어 rehearsal -> Phase C 공개 route cutover -> Phase D 지도/외부 의존성 분리 -> Phase E Key Vault down preseed |
 | 기본 공개 범위 | Phase A는 local-only, Phase B는 팀 내부 smoke, Phase C에서만 공개 route 전환 |
 | 자동 전환 | 하지 않음 |
 | DNS/provider console 변경 | Phase C cutover checklist에서만 실행 |
-| DB/Media/Tile 복제 | DB/media는 Phase B migration checklist, 지도 tile asset은 Phase D checklist에서만 실행 |
+| DB/Media/Tile 복제 | DB/media는 Phase B migration checklist, 지도 tile asset은 Phase D checklist에서만 실행. Key Vault 장애 전제는 Phase E preseed checklist를 추가로 적용 |
 
-Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret value, OAuth provider console, Cloudflare tunnel route를 변경하지 않는다. Phase B/C/D로 넘어갈 때는 이 문서의 migration/cutover checklist를 그대로 이어서 실행하고, status/path/count와 rollback point만 기록한다.
+Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret value, OAuth provider console, Cloudflare tunnel route를 변경하지 않는다. Phase B/C/D/E로 넘어갈 때는 이 문서의 migration/cutover checklist를 그대로 이어서 실행하고, status/path/count와 rollback point만 기록한다.
 
 ## 2. 문서 읽는 순서
 
@@ -268,8 +268,9 @@ curl -i http://127.0.0.1:8080/api/v1/users/me
 | B. 데이터/미디어 rehearsal | backup backend가 staging-compatible data를 읽을 수 있는지 확인 | DB logical dump/restore, object prefix copy, staging-compatible env 주입, 내부 smoke | row count/table presence, object prefix/count/checksum, authenticated smoke, OAuth/provider smoke |
 | C. 공개 route cutover | `staging-api` 대체 경로로 단기 운영 | backup API 공개 route, DNS/tunnel/provider callback 정렬, smoke, 모니터링 | route smoke 통과, mobile smoke 통과, rollback point 보존 |
 | D. 지도/외부 의존성 분리 | Azure Front Door/Blob이 없어도 지도 화면이 열리는지 확인 | tile manifest/style/PMTiles copy, tile gateway/public route, mobile tile define, provider env preflight | manifest/style 200, PMTiles Range 206, map-points/place-search/route status, provider availability 기록 |
+| E. Key Vault down preseed | Key Vault도 사용할 수 없을 때 backup runtime이 필요한 secret을 로컬에서 읽는지 확인 | 장애 전 local ignored env 사전 적재, wrapper/launchd 또는 PowerShell env injection, local DB/MinIO/tile/provider smoke | secret presence no missing, `/readyz` 200, provider availability, place-search/map-points/live route smoke |
 
-Phase C/D는 자동 failover가 아니다. 실행자가 route를 전환하고, 실패 시 route를 Azure staging으로 되돌리는 수동 절차다.
+Phase C/D/E는 자동 failover가 아니다. 실행자가 route를 전환하고, 실패 시 route를 Azure staging으로 되돌리는 수동 절차다. Phase E는 Azure 장애 전에 준비해 둔 local ignored env와 object copy가 있다는 전제에서만 의미가 있다.
 
 ## 11. 데이터/미디어 migration checklist
 
@@ -398,6 +399,86 @@ flutter run \
 | 외부 장소/경로 provider | Naver/Kakao/OpenRouteService env 사전 주입 | provider availability, provider/source count, fallback 여부 |
 
 외부 provider secret이 Azure Key Vault에만 있고 backup 장비에 사전 적재되지 않았다면, Azure 장애 이후에는 실시간 provider 검색이나 live route provider를 복구할 수 없다. 이 경우 ONMU catalog 또는 dev fallback으로 화면을 유지할 수 있는지와, 실제 provider 품질이 빠진 상태임을 분리해 보고한다.
+
+### 11.7 Key Vault down preseed checklist
+
+Phase E는 `onmu-dev-kv-27db5e`, Azure Container Apps secretRef, Azure Blob Storage, Azure Front Door가 모두 unavailable인 상황을 가정한다. 이 phase는 장애가 난 뒤 처음 값을 가져오는 절차가 아니라, 장애 전에 백업 장비에 필요한 값을 안전하게 사전 적재했는지 확인하는 절차다.
+
+사전 적재 대상:
+
+- Spring runtime secret: `ONMU_ACCESS_TOKEN_SECRET`
+- OAuth/provider env: Kakao/Naver/Google public client id, server client id, redirect/callback URI, provider secret
+- 지도/검색 provider env: `NAVER_SEARCH_CLIENT_ID`, `NAVER_SEARCH_CLIENT_SECRET`, `KAKAO_REST_API_KEY`, `OPENROUTESERVICE_API_KEY`
+- datasource/cache/object env: local restored Postgres, Redis, MinIO endpoint/bucket/access env
+- object copy: Phase B media copy, Phase D tile manifest/style/PMTiles copy
+- route credential: Cloudflare tunnel 또는 대체 공개 route credential. 이 값은 별도 local secret store에 두고 문서에 남기지 않는다.
+
+저장 기준:
+
+| 항목 | 기준 |
+| --- | --- |
+| 파일 위치 | repo 밖 local 전용 경로 또는 OS secret store |
+| 파일 권한 | macOS/Linux `600`, wrapper script `700`; Windows는 사용자 단위 ACL |
+| git 포함 여부 | 금지. `.env`, generated dart-define, dump/object copy는 commit하지 않음 |
+| 로그 기준 | secret value 금지, presence/count/status만 기록 |
+| launchd/Task Scheduler | plist/task 본문에 secret value 직접 쓰지 않음. wrapper가 local env 파일을 source/import |
+
+macOS 예시:
+
+```bash
+RUN_DIR="$HOME/.codex/local/ONMU/onprem-backup-backend/<phase-e-run-id>"
+chmod 600 "$RUN_DIR/backup-runtime.preseed.secrets.env"
+
+set -a
+source "$RUN_DIR/backup-runtime.preseed.secrets.env"
+set +a
+
+test -n "${ONMU_ACCESS_TOKEN_SECRET:-}" && echo "ONMU_ACCESS_TOKEN_SECRET present"
+test -n "${OPENROUTESERVICE_API_KEY:-}" && echo "OPENROUTESERVICE_API_KEY present"
+```
+
+Windows 예시:
+
+```powershell
+$RunDir = "$env:USERPROFILE\.onmu\onprem-backup\<phase-e-run-id>"
+$EnvFile = Join-Path $RunDir "backup-runtime.preseed.secrets.ps1"
+
+# 파일 ACL은 현재 사용자만 읽을 수 있게 설정한다.
+. $EnvFile
+
+if ($env:ONMU_ACCESS_TOKEN_SECRET) { "ONMU_ACCESS_TOKEN_SECRET present" }
+if ($env:OPENROUTESERVICE_API_KEY) { "OPENROUTESERVICE_API_KEY present" }
+```
+
+Spring API는 env 파일을 source한 wrapper에서 실행한다. macOS launchd plist 또는 Windows Scheduled Task에는 wrapper path와 log path만 넣고, secret value를 직접 넣지 않는다.
+
+검증 기준:
+
+| Smoke | 기대 |
+| --- | --- |
+| local/public `/healthz` | 200 |
+| local/public `/readyz` | 200 |
+| no-token `/api/v1/users/me` | 401 |
+| authenticated `/api/v1/users/me` | 200, field presence만 기록 |
+| `/api/v1/place-search` | 200, provider_counts/source_counts/coordinate_count 기록 |
+| `/api/v1/map-points` | 200, mode/point_count/cluster_count/schema_version presence 기록 |
+| `/api/v1/routes/recommend` | 200, provider/liveProvider/fallbackReason/geometry_count 기록 |
+| tile manifest/style/PMTiles | manifest/style 200, PMTiles Range 206 |
+
+이미지/인터넷까지 내려갈 수 있는 상황을 대비하려면 Docker image도 별도로 export한다. 이 파일은 repo 밖에 두고 checksum만 기록한다.
+
+```bash
+mkdir -p "$RUN_DIR/docker-images"
+docker ps --format '{{.Image}}' \
+  | sort -u \
+  > "$RUN_DIR/docker-images/images.txt"
+docker save $(cat "$RUN_DIR/docker-images/images.txt") \
+  -o "$RUN_DIR/docker-images/onmu-backup-runtime-images.tar"
+shasum -a 256 "$RUN_DIR/docker-images/onmu-backup-runtime-images.tar" \
+  > "$RUN_DIR/docker-images/onmu-backup-runtime-images.sha256"
+```
+
+복구 장비에서 인터넷/registry가 unavailable이면 `docker load`로 image를 먼저 적재한 뒤 Phase A/B/E를 진행한다. `images.txt`에는 실제 런타임에서 검증한 image tag만 남긴다. image tar 자체도 credential과 같은 보안 자산으로 취급하고 공개 PR이나 문서에 포함하지 않는다.
 
 ## 12. Public route cutover checklist
 

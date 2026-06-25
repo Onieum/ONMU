@@ -31,9 +31,9 @@ On-prem backup backend는 위 표의 Local/Windows dev와 다르게 팀 공용 f
 | DB | 기본 local/Phase B restored copy, staging raw DB 직접 복제는 migration checklist 기준 |
 | Tile | Azure Front Door 기본 tile manifest를 그대로 쓰지 않는다. backup tile route와 `ONMU_TILE_MANIFEST_URL`을 별도 smoke한다. |
 | External map provider | Naver/Kakao/OpenRouteService secret은 Azure 장애 전에 backup 장비에 사전 적재되어야 한다. 없으면 ONMU catalog/fallback 상태로만 판정한다. |
-| Secret source | env var name과 Key Vault secret name만 문서화, 값 복사 금지 |
+| Secret source | 기본은 env var name과 Key Vault secret name만 문서화. Azure/Key Vault down fallback까지 목표면 장애 전에 local ignored preseed env를 준비하고 값은 문서화 금지 |
 | CI/CD | 자동 deploy 없음. 수동 준비와 smoke 기록 |
-| 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) |
+| 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) Phase A/B/C/D/E |
 
 ## 2. Secret prefix 기준
 
@@ -114,6 +114,14 @@ Release/pre-prod acceptance는 Azure staging 기준으로만 본다. Local/Windo
 - tile manifest/style/PMTiles Range 200/206
 - Naver place-search는 status/result_count/provider_counts/source_counts/coordinate_count만 보고
 - chat/notification/push-token은 raw body/token 없이 status/count 중심 보고
+
+On-prem backup fallback smoke가 Azure/Key Vault outage를 가정한다면 아래 항목도 추가로 확인한다.
+
+- local preseed env presence: missing secret name 없음, value 출력 없음
+- local DB restore: public table count와 Flyway row count
+- local media/tile object restore: object count와 manifest/style/PMTiles status
+- provider runtime: Naver/Kakao place provider availability, OpenRouteService live route 또는 fallbackReason
+- public backup route: `backup-api.onmu.cloud`와 `backup-tiles.onmu.cloud`가 status/path/count 기준으로 응답
 
 OOTD AI generation은 Azure staging에서도 단계적으로 판정한다.
 
