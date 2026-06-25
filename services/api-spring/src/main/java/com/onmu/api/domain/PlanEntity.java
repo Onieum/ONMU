@@ -116,7 +116,7 @@ public class PlanEntity {
   }
 
   public String getStatus() {
-    return normalizeStatus(status);
+    return normalizeStoredStatus(status);
   }
 
   public Instant getCreatedAt() {
@@ -131,6 +131,17 @@ public class PlanEntity {
     return switch (normalized) {
       case "scheduled", "active", "completed", "cancelled" -> normalized;
       default -> throw new IllegalArgumentException("invalid_plan_status");
+    };
+  }
+
+  public static String normalizeStoredStatus(String status) {
+    if (status == null || status.isBlank()) {
+      return DEFAULT_STATUS;
+    }
+    String normalized = status.trim().toLowerCase();
+    return switch (normalized) {
+      case "confirmed" -> DEFAULT_STATUS;
+      default -> normalizeStatus(normalized);
     };
   }
 }

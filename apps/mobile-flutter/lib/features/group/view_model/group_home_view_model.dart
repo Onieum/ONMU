@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/onmu_error_reporter.dart';
 import '../../../shared/models/group_models.dart';
 import '../repository/group_repository.dart';
 
@@ -16,6 +17,7 @@ class GroupHomeState {
     required this.memories,
     required this.recentMemories,
     required this.recentMessage,
+    this.plansLoadFailed = false,
   });
 
   final GroupSummary group;
@@ -24,6 +26,7 @@ class GroupHomeState {
   final List<GroupMemoryRecord> memories;
   final List<GroupMemoryRecord> recentMemories;
   final GroupMessage? recentMessage;
+  final bool plansLoadFailed;
 }
 
 class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
@@ -35,7 +38,17 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
   Future<GroupHomeState> build() async {
     final repository = ref.watch(groupRepositoryProvider);
     final group = await repository.fetchGroup(groupId);
-    final plans = await repository.fetchPlans(groupId);
+    var plansLoadFailed = false;
+    List<GroupPlanSummary> plans;
+    try {
+      plans = await repository.fetchPlans(groupId);
+    } catch (error, stackTrace) {
+      plansLoadFailed = true;
+      ref
+          .read(onmuErrorReporterProvider)
+          .captureException(error, stackTrace, feature: 'group_home_plans');
+      plans = const [];
+    }
     final memories = await _optionalList(
       () => repository.fetchMemories(groupId),
     );
@@ -50,6 +63,7 @@ class GroupHomeViewModel extends AsyncNotifier<GroupHomeState> {
       memories: List.unmodifiable(memories),
       recentMemories: List.unmodifiable(memories.take(4)),
       recentMessage: messages.isEmpty ? null : messages.last,
+      plansLoadFailed: plansLoadFailed,
     );
   }
 

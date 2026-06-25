@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/onmu_api_client.dart';
 import '../../../core/error/onmu_exception.dart';
 import '../../../shared/models/group_models.dart';
+import '../../../shared/utils/character_draft_json.dart';
+import '../../../shared/utils/onmu_display_name.dart';
+import '../../../shared/utils/onmu_profile_image.dart';
 
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
   return ApiHomeRepository(ref.watch(onmuApiClientProvider));
@@ -145,18 +148,9 @@ class ApiHomeRepository implements HomeRepository {
   }
 
   List<GroupPlanMemberAvatar> _memberAvatars(Map<String, dynamic> json) {
-    return OnmuJson.asMapList(json['memberProfiles'])
-        .map((profile) {
-          return GroupPlanMemberAvatar(
-            name: OnmuJson.readString(
-              profile,
-              'name',
-              OnmuJson.readString(profile, 'nickname', '참여자'),
-            ),
-            profileImageUrl: OnmuJson.readString(profile, 'profileImageUrl'),
-          );
-        })
-        .toList(growable: false);
+    return OnmuJson.asMapList(
+      json['memberProfiles'],
+    ).map(_memberAvatar).toList(growable: false);
   }
 
   GroupPlanSummary? _optionalPlan(Object? raw) {
@@ -209,21 +203,33 @@ class ApiHomeRepository implements HomeRepository {
   }
 
   List<GroupPlanMemberAvatar> _planMemberAvatars(Map<String, dynamic> json) {
-    final profiles = OnmuJson.asMapList(json['memberProfiles']).isNotEmpty
-        ? OnmuJson.asMapList(json['memberProfiles'])
-        : OnmuJson.asMapList(json['participants']);
-    return profiles
-        .map((profile) {
-          return GroupPlanMemberAvatar(
-            name: OnmuJson.readString(
-              profile,
-              'name',
-              OnmuJson.readString(profile, 'nickname', '참여자'),
-            ),
-            profileImageUrl: OnmuJson.readString(profile, 'profileImageUrl'),
-          );
-        })
-        .toList(growable: false);
+    final memberProfiles = OnmuJson.asMapList(json['memberProfiles']);
+    final participants = OnmuJson.asMapList(json['participants']);
+    final members = OnmuJson.asMapList(json['members']);
+    final profiles = memberProfiles.isNotEmpty
+        ? memberProfiles
+        : participants.isNotEmpty
+        ? participants
+        : members;
+    return profiles.map(_memberAvatar).toList(growable: false);
+  }
+
+  GroupPlanMemberAvatar _memberAvatar(Map<String, dynamic> profile) {
+    final name = resolveOnmuDisplayName([
+      OnmuJson.readString(profile, 'name'),
+      OnmuJson.readString(profile, 'nickname'),
+    ], fallback: '참여자');
+    return GroupPlanMemberAvatar(
+      name: name,
+      profileImageUrl: resolveOnmuProfileImageUrl(
+        profile,
+        baseUrl: _client.baseUrl,
+      ),
+      character: characterDraftFromJson(
+        profile['pixelCharacter'],
+        nickname: name,
+      ),
+    );
   }
 
   GroupPlanSummary? _firstWhereOrNull(

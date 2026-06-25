@@ -65,6 +65,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -558,6 +559,34 @@ class OnmuApiServiceTests {
     assertThat(plans).hasSize(1);
     assertThat(plans.getFirst()).containsEntry("id", "101");
     assertThat(plans).noneSatisfy(planCard -> assertThat(planCard).containsEntry("id", otherPlan.getPublicId()));
+  }
+
+  @Test
+  void planListNormalizesLegacyConfirmedStatusRows() {
+    UserEntity viewer = user("00000000-0000-0000-0000-000000000001", "지민");
+    PlanEntity legacyPlan = new PlanEntity(
+      "102",
+      group,
+      "기존 confirmed 약속",
+      Instant.parse("2026-06-13T01:00:00Z"),
+      "scheduled"
+    );
+    ReflectionTestUtils.setField(legacyPlan, "status", "confirmed");
+    PlanParticipantEntity participant = new PlanParticipantEntity(legacyPlan, viewer, "joined", "accepted");
+    when(groupRepository.findByPublicId("1")).thenReturn(Optional.of(group));
+    when(userRepository.findByIdAndDeletedAtIsNull(viewer.getId())).thenReturn(Optional.of(viewer));
+    when(groupRepository.isUserMember("1", viewer.getId())).thenReturn(true);
+    when(planRepository.findParticipatingByGroupAndUser(group, viewer)).thenReturn(List.of(legacyPlan));
+    when(planParticipantRepository.findByPlanAndUser(legacyPlan, viewer)).thenReturn(Optional.of(participant));
+    when(planParticipantRepository.findByPlanOrderByCreatedAtAsc(legacyPlan)).thenReturn(List.of(participant));
+
+    var plans = service.plans("1", viewer.getId());
+
+    assertThat(plans).singleElement().satisfies(planCard ->
+      assertThat(planCard)
+        .containsEntry("id", "102")
+        .containsEntry("status", "scheduled")
+        .containsEntry("statusLabel", "예정"));
   }
 
   @Test
