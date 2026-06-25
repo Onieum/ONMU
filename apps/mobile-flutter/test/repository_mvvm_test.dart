@@ -473,6 +473,52 @@ void main() {
     expect(state.recentMessage, isNull);
   });
 
+  test('온모임 홈 ViewModel은 약속 목록 실패 시에도 그룹 홈을 렌더링한다', () async {
+    final reporter = _RecordingOnmuErrorReporter();
+    final container = ProviderContainer(
+      overrides: [
+        groupRepositoryProvider.overrideWithValue(
+          _FakeGroupRepository(
+            throwOnFetchPlans: true,
+            fetchPlansError: OnmuApiException(
+              kind: OnmuErrorKind.server,
+              userMessage: '잠시 문제가 생겼어요. 다시 시도해 주세요.',
+              technicalMessage: 'GET /api/v1/groups/9001/plans failed with 500',
+              feature: 'group',
+              statusCode: 500,
+              method: 'GET',
+              endpoint: '/api/v1/groups/9001/plans',
+              retryable: true,
+              reportable: true,
+              serverReason: 'invalid_plan_status',
+              errorCode: 'invalid_plan_status',
+            ),
+          ),
+        ),
+        onmuErrorReporterProvider.overrideWithValue(reporter),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      groupHomeViewModelProvider('9001').future,
+    );
+
+    expect(state.group.id, 9001);
+    expect(state.ongoingPlan, isNull);
+    expect(state.upcomingPlan, isNull);
+    expect(state.plansLoadFailed, isTrue);
+    expect(reporter.reports.single.tags, containsPair('kind', 'server'));
+    expect(
+      reporter.reports.single.tags,
+      containsPair('endpoint_template', '/api/v1/groups/{id}/plans'),
+    );
+    expect(
+      reporter.reports.single.tags,
+      containsPair('error_code', 'invalid_plan_status'),
+    );
+  });
+
   test('온모임 홈 ViewModel은 미래 약속만 날짜순으로 다가오는 약속에 노출한다', () async {
     final container = ProviderContainer(
       overrides: [
@@ -2432,6 +2478,8 @@ class _FakeGroupRepository implements GroupRepository {
     this.sentMessage,
     this.throwOnSend = false,
     this.sendFailuresBeforeSuccess = 0,
+    this.throwOnFetchPlans = false,
+    this.fetchPlansError,
     this.throwOnFetchMemories = false,
     this.throwOnFetchMessages = false,
     this.initialMessages = const [],
@@ -2448,6 +2496,8 @@ class _FakeGroupRepository implements GroupRepository {
   final GroupMessage? sentMessage;
   final bool throwOnSend;
   final int sendFailuresBeforeSuccess;
+  final bool throwOnFetchPlans;
+  final Object? fetchPlansError;
   final bool throwOnFetchMemories;
   final bool throwOnFetchMessages;
   final List<GroupMessage> initialMessages;
@@ -2505,6 +2555,9 @@ class _FakeGroupRepository implements GroupRepository {
 
   @override
   Future<List<GroupPlanSummary>> fetchPlans(Object groupId) async {
+    if (throwOnFetchPlans) {
+      throw fetchPlansError ?? StateError('plans failed');
+    }
     final completer = fetchPlansCompleter;
     if (completer != null) {
       return completer.future;

@@ -34,6 +34,25 @@ void main() {
       expect(OnmuReportPolicy.shouldReport(error), isTrue);
     });
 
+    test('maps safe server error code into report tags', () {
+      final error = OnmuApiException.fromDio(
+        _dioError(
+          statusCode: 500,
+          path: '/api/v1/groups/1/plans',
+          data: {'detail': 'invalid_plan_status'},
+        ),
+        feature: 'group',
+      );
+
+      expect(error.kind, OnmuErrorKind.server);
+      expect(error.serverReason, 'invalid_plan_status');
+      expect(error.errorCode, 'invalid_plan_status');
+      expect(
+        OnmuReportPolicy.safeTags(error),
+        containsPair('error_code', 'invalid_plan_status'),
+      );
+    });
+
     test('maps receive timeout as retryable sampled report', () {
       final error = OnmuApiException.fromDio(
         _dioError(type: DioExceptionType.receiveTimeout),
@@ -105,6 +124,7 @@ DioException _dioError({
   int? statusCode,
   String path = '/api/v1/test',
   DioExceptionType type = DioExceptionType.badResponse,
+  Object? data,
 }) {
   final requestOptions = RequestOptions(path: path, method: 'GET');
   return DioException(
@@ -115,6 +135,7 @@ DioException _dioError({
         : Response<Object?>(
             requestOptions: requestOptions,
             statusCode: statusCode,
+            data: data,
           ),
   );
 }

@@ -33,6 +33,8 @@ class OnmuReportPolicy {
         'method': error.method!.trim(),
       if (error.endpoint != null && error.endpoint!.trim().isNotEmpty)
         'endpoint_template': _endpointTemplate(error.endpoint!.trim()),
+      if (error is OnmuApiException && error.errorCode.trim().isNotEmpty)
+        'error_code': error.errorCode.trim(),
     };
   }
 }

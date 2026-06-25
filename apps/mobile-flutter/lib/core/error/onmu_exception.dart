@@ -59,6 +59,7 @@ class OnmuApiException extends OnmuException {
     required super.technicalMessage,
     required super.feature,
     this.serverReason = '',
+    this.errorCode = '',
     super.statusCode,
     super.method,
     super.endpoint,
@@ -68,6 +69,7 @@ class OnmuApiException extends OnmuException {
   });
 
   final String serverReason;
+  final String errorCode;
 
   factory OnmuApiException.fromDio(
     DioException error, {
@@ -75,6 +77,7 @@ class OnmuApiException extends OnmuException {
   }) {
     final statusCode = error.response?.statusCode;
     final kind = _kindFor(error, statusCode);
+    final errorCode = _serverErrorCodeFor(error.response?.data);
     return OnmuApiException(
       kind: kind,
       userMessage: _userMessageFor(kind),
@@ -86,7 +89,10 @@ class OnmuApiException extends OnmuException {
       retryable: _retryableFor(kind),
       reportable: _reportableFor(kind),
       cause: error,
-      serverReason: _serverReasonFor(error.response?.data),
+      serverReason: errorCode.isEmpty
+          ? _serverReasonFor(error.response?.data)
+          : errorCode,
+      errorCode: errorCode,
     );
   }
 }
@@ -217,4 +223,39 @@ String _serverReasonFor(Object? data) {
     return '';
   }
   return data.toString();
+}
+
+String _serverErrorCodeFor(Object? data) {
+  if (data is Map) {
+    for (final key in const [
+      'errorCode',
+      'code',
+      'reason',
+      'detail',
+      'message',
+    ]) {
+      final value = data[key];
+      if (value is String) {
+        final code = _safeServerCode(value);
+        if (code.isNotEmpty) {
+          return code;
+        }
+      }
+    }
+  }
+  if (data is String) {
+    return _safeServerCode(data);
+  }
+  return '';
+}
+
+String _safeServerCode(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed.length > 120) {
+    return '';
+  }
+  if (!RegExp(r'^[A-Za-z][A-Za-z0-9_.-]*$').hasMatch(trimmed)) {
+    return '';
+  }
+  return trimmed;
 }

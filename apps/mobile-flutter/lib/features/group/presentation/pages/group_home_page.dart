@@ -294,7 +294,9 @@ class _GroupPlansTab extends StatelessWidget {
           onTap: () => context.push(RoutePaths.groupPlans(group.id)),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (upcomingPlan != null)
+        if (state.plansLoadFailed)
+          const OnmuEmptyStateCard(title: '약속 정보를 불러오지 못했어요.')
+        else if (upcomingPlan != null)
           _UpcomingPlanCard(
             plan: upcomingPlan,
             onTap: () =>
