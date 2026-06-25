@@ -416,7 +416,9 @@ class RecordServiceTests {
     );
 
     assertThat(appearances).singleElement().satisfies(appearance ->
-      assertThat(appearance.character()).containsEntry("gender", "male"));
+      assertThat(appearance.character())
+        .containsEntry("gender", "male")
+        .containsEntry("clothes", "top_1"));
   }
 
   @Test

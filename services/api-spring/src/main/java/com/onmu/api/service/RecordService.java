@@ -865,7 +865,7 @@ public class RecordService {
     snapshot.put("hair_color", characterProfile.getHairColor());
     snapshot.put("eye_style", characterProfile.getEyeStyle());
     snapshot.put("eye_color", characterProfile.getEyeColor());
-    snapshot.put("clothes", "none");
+    snapshot.put("clothes", characterProfile.getClothes());
     return snapshot;
   }
 
