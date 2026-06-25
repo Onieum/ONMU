@@ -105,7 +105,8 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 - `onmu-dev-kv-27db5e`가 현재 runtime 표준 secret source다.
 - `kvonmustagingkrc001`는 존재하지만 현재 앱 runtime의 기본 secret source로 보지 않는다.
 - Windows dev backend는 staging 표준 경로가 아니다. GitHub Actions도 자동 deploy를 하지 않고 수동 legacy workflow로만 남긴다.
-- Mac/Windows on-prem backup backend는 [공통 runbook](./onprem-backup-backend-runbook.md)의 Phase A/B/C를 기준으로 준비, 데이터 rehearsal, route cutover까지 이어간다. 자동 failover는 아니며 rollback point를 기록한 수동 fallback으로만 본다.
+- Mac/Windows on-prem backup backend는 [공통 runbook](./onprem-backup-backend-runbook.md)의 Phase A/B/C/D를 기준으로 준비, 데이터 rehearsal, route cutover, 지도 tile/provider 분리까지 이어간다. 자동 failover는 아니며 rollback point를 기록한 수동 fallback으로만 본다.
+- Azure 전체 장애를 가정하는 fallback은 API/DB/media만으로 완료되지 않는다. 지도 화면은 `ONMU_TILE_MANIFEST_URL`이 backup tile route를 보도록 재빌드 또는 route 전환되어야 하며, Naver/Kakao/OpenRouteService 같은 외부 provider secret은 Azure 장애 전에 backup 장비에 사전 적재되어 있어야 한다.
 - 2026-06-26 이후 Windows backend workflow, Cloudflare tunnel, `dev-api.onmu.cloud` 문서의 유지/삭제를 별도 PR로 판단한다.
 - production 전용 environment, stronger rollback discipline, private networking hardening은 기존 production 로드맵에서 후속으로 다시 합류한다.
 

@@ -29,6 +29,8 @@ On-prem backup backend는 위 표의 Local/Windows dev와 다르게 팀 공용 f
 | API host | 기본 local-only `127.0.0.1:8080`, 공개 전환은 on-prem runbook Phase C cutover 기준 |
 | Compute | Mac 또는 Windows Spring Boot Main API |
 | DB | 기본 local/Phase B restored copy, staging raw DB 직접 복제는 migration checklist 기준 |
+| Tile | Azure Front Door 기본 tile manifest를 그대로 쓰지 않는다. backup tile route와 `ONMU_TILE_MANIFEST_URL`을 별도 smoke한다. |
+| External map provider | Naver/Kakao/OpenRouteService secret은 Azure 장애 전에 backup 장비에 사전 적재되어야 한다. 없으면 ONMU catalog/fallback 상태로만 판정한다. |
 | Secret source | env var name과 Key Vault secret name만 문서화, 값 복사 금지 |
 | CI/CD | 자동 deploy 없음. 수동 준비와 smoke 기록 |
 | 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) |
@@ -94,6 +96,7 @@ Edge/API gateway 단계:
 | Azure staging OAuth smoke | `.dart_tool/onmu-staging-oauth.defines.json` | staging API base URL, staging public OAuth config | access token, refresh token, DB password |
 | local/dev API mode | `.dart_tool/onmu-dev-api.defines.json` | `ONMU_API_BASE_URL`, 짧은 수명 dev JWT 후보 | JWT signing secret, OAuth client secret |
 | dev OAuth smoke | `.dart_tool/onmu-dev-oauth.defines.json` | provider public client id, redirect URI, Google public client ids | access token, refresh token, DB password |
+| on-prem backup fallback smoke | `.dart_tool/onmu-backup-api.defines.json` 후보 | `ONMU_API_BASE_URL`, `ONMU_TILE_MANIFEST_URL`, provider public client id | JWT signing secret, OAuth client secret, object storage credential |
 | production release | release pipeline managed define 후보 | production API base URL, production public OAuth config | secret 값, debug/dev token |
 
 iOS는 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공해야 Google 앱 복귀가 가능하다. Android는 manifest intent filter와 package/SHA-1 provider console 설정을 환경별로 확인한다.

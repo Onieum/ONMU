@@ -175,6 +175,8 @@ docker compose -f infra/compose/docker-compose.yml ps
 
 MapLibre 개발용 PMTiles object, manifest, style JSON을 MinIO에 올릴 때는 별도 seed 스크립트를 사용합니다. 앱은 PMTiles URL을 직접 하드코딩하지 않고 manifest pointer를 읽습니다. 자세한 기준은 [MapLibre 개발 타일 manifest 운영](./map-tiles-dev.md)을 따릅니다.
 
+Windows 장비를 on-prem backup 후보로 쓰는 경우에는 이 타일 자산을 단순 개발 seed가 아니라 Azure Blob/Front Door 장애 시에도 필요한 fallback 자산으로 봅니다. `manifest.json`, style JSON, PMTiles object를 backup object storage에 복사하고, Flutter backup build에는 [On-prem backup backend runbook](./onprem-backup-backend-runbook.md)의 `ONMU_TILE_MANIFEST_URL` 기준을 적용합니다.
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File scripts\windows\seed-map-tiles-minio.ps1 `

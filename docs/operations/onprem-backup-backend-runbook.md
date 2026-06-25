@@ -10,13 +10,13 @@
 | --- | --- |
 | Primary API | `https://staging-api.onmu.cloud` Azure Container Apps |
 | Backup 후보 | Mac 또는 Windows 장비의 Spring Boot Main API |
-| 실행 단계 | Phase A local-only 준비 -> Phase B 데이터/미디어 rehearsal -> Phase C 공개 route cutover |
+| 실행 단계 | Phase A local-only 준비 -> Phase B 데이터/미디어 rehearsal -> Phase C 공개 route cutover -> Phase D 지도/외부 의존성 분리 |
 | 기본 공개 범위 | Phase A는 local-only, Phase B는 팀 내부 smoke, Phase C에서만 공개 route 전환 |
 | 자동 전환 | 하지 않음 |
 | DNS/provider console 변경 | Phase C cutover checklist에서만 실행 |
-| DB/Media 복제 | Phase B migration checklist에서만 실행 |
+| DB/Media/Tile 복제 | DB/media는 Phase B migration checklist, 지도 tile asset은 Phase D checklist에서만 실행 |
 
-Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret value, OAuth provider console, Cloudflare tunnel route를 변경하지 않는다. Phase B/C로 넘어갈 때는 이 문서의 migration/cutover checklist를 그대로 이어서 실행하고, status/path/count와 rollback point만 기록한다.
+Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret value, OAuth provider console, Cloudflare tunnel route를 변경하지 않는다. Phase B/C/D로 넘어갈 때는 이 문서의 migration/cutover checklist를 그대로 이어서 실행하고, status/path/count와 rollback point만 기록한다.
 
 ## 2. 문서 읽는 순서
 
@@ -47,7 +47,7 @@ Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret val
 | DB | schema 준비 절차와 Phase B logical dump/restore 절차 | Phase B 체크포인트 없는 staging raw data dump/restore |
 | Redis | 재생성 가능한 cache로 취급 | 영속 backup/restore |
 | Object storage | object prefix/count/checksum 리허설과 Phase B copy 절차 | 사용자 media raw URL/파일명 공유 |
-| Tile asset | manifest/style/PMTiles count/status 검증 | current object 체크포인트 없는 overwrite |
+| Tile asset | manifest/style/PMTiles object copy, local/public Range smoke, mobile define 기준 | current object 체크포인트 없는 overwrite |
 
 데이터 복제가 필요하면 이 문서의 Phase B 절차와 [Azure 데이터 이전 runbook](./azure-data-migration-runbook.md)을 함께 사용한다. 이 PR에서는 백업 후보 준비에서 실제 대체 운영/마이그레이션까지 한 runbook 안에서 이어지도록 다룬다.
 
@@ -114,7 +114,19 @@ az version
 
 현재 staging runtime secret source는 재사용 Key Vault `onmu-dev-kv-27db5e`의 `staging-*` secret name이다. 이 이름은 secret 값이 아니라 운영 참조명이다.
 
-Local-only 백업 후보 준비에서 즉시 필요한 값은 DB 연결 정보, Redis URL, local object storage endpoint/bucket, `ONMU_ACCESS_TOKEN_SECRET` 정도다. OAuth redirect/callback, provider secret, place-search/route API key는 OAuth 또는 provider smoke가 포함되는 Phase B/C에서만 참조한다. `staging-*` secret value는 실행자가 fallback rehearsal 또는 cutover phase를 시작한다고 기록했을 때만 읽는다.
+Local-only 백업 후보 준비에서 즉시 필요한 값은 DB 연결 정보, Redis URL, local object storage endpoint/bucket, `ONMU_ACCESS_TOKEN_SECRET` 정도다. OAuth redirect/callback, provider secret, place-search/route API key는 OAuth 또는 provider smoke가 포함되는 Phase B/C/D에서만 참조한다. `staging-*` secret value는 실행자가 fallback rehearsal 또는 cutover phase를 시작한다고 기록했을 때만 읽는다.
+
+Azure가 이미 장애 상태가 된 뒤에는 Key Vault, Blob Storage, Front Door, Container Apps에서 값을 새로 가져올 수 없다고 가정한다. 따라서 단기 대체 운영까지 목표라면 아래 항목은 Azure 장애 전 백업 장비에 local ignored env 또는 local object store 형태로 사전 적재되어 있어야 한다.
+
+- DB logical backup 또는 최신 restore 가능한 dump
+- media object copy와 target object count
+- map tile manifest/style/PMTiles object copy
+- `ONMU_ACCESS_TOKEN_SECRET` 등 Spring runtime secret
+- OAuth provider public client id, server client id, redirect/callback URI
+- Naver/Kakao place search, OpenRouteService 같은 외부 provider secret
+- Cloudflare tunnel 또는 대체 공개 route credential
+
+위 항목의 실제 값은 문서/PR/채팅에 남기지 않고 presence, secret name, object count, HTTP status만 기록한다.
 
 | Env var | Key Vault secret name 후보 | 대상 |
 | --- | --- | --- |
@@ -137,6 +149,7 @@ Local-only 백업 후보 준비에서 즉시 필요한 값은 DB 연결 정보, 
 | `OPENROUTESERVICE_API_KEY` | `staging-openrouteservice-api-key` | Route provider |
 | `OBJECT_STORAGE_ENDPOINT` | `staging-blob-endpoint` | Object storage. local-only 준비에서는 local MinIO endpoint를 사용하고, `staging-blob-*` secret name은 Phase B/C에서만 참조한다. |
 | `OBJECT_STORAGE_BUCKET` | `staging-blob-container` | Object storage. local-only 준비에서는 local MinIO bucket을 사용하고, `staging-blob-*` secret name은 Phase B/C에서만 참조한다. |
+| `ONMU_TILE_MANIFEST_URL` | 값은 build/runtime define에서 관리 | Flutter map tile manifest. Azure down fallback build에서는 backup tile route를 가리킨다. |
 
 값 존재 여부를 확인할 때는 secret value를 출력하지 않고 presence, length, status만 기록한다.
 
@@ -254,8 +267,9 @@ curl -i http://127.0.0.1:8080/api/v1/users/me
 | A. Local-only 준비 | Mac/Windows 장비가 Spring API를 실행할 수 있는지 확인 | repo sync, Java/Docker, local Postgres/Redis/MinIO, Spring package/run | `/healthz` 200, `/readyz` 200, no-token `/api/v1/users/me` 401 |
 | B. 데이터/미디어 rehearsal | backup backend가 staging-compatible data를 읽을 수 있는지 확인 | DB logical dump/restore, object prefix copy, staging-compatible env 주입, 내부 smoke | row count/table presence, object prefix/count/checksum, authenticated smoke, OAuth/provider smoke |
 | C. 공개 route cutover | `staging-api` 대체 경로로 단기 운영 | backup API 공개 route, DNS/tunnel/provider callback 정렬, smoke, 모니터링 | route smoke 통과, mobile smoke 통과, rollback point 보존 |
+| D. 지도/외부 의존성 분리 | Azure Front Door/Blob이 없어도 지도 화면이 열리는지 확인 | tile manifest/style/PMTiles copy, tile gateway/public route, mobile tile define, provider env preflight | manifest/style 200, PMTiles Range 206, map-points/place-search/route status, provider availability 기록 |
 
-Phase C는 자동 failover가 아니다. 실행자가 route를 전환하고, 실패 시 route를 Azure staging으로 되돌리는 수동 절차다.
+Phase C/D는 자동 failover가 아니다. 실행자가 route를 전환하고, 실패 시 route를 Azure staging으로 되돌리는 수동 절차다.
 
 ## 11. 데이터/미디어 migration checklist
 
@@ -329,6 +343,61 @@ java -jar target/onmu-api-spring-*.jar
 - place-search provider/source/coordinate count
 - chat messages/read-state/SSE status
 - notification list/unread/preferences status/count
+
+### 11.5 Map tile asset copy
+
+지도 바닥 타일은 일반 media object와 별도 자산으로 취급한다. Azure Blob Storage/Front Door가 내려가도 지도 화면이 비지 않게 하려면 manifest, style JSON, PMTiles object를 backup object storage로 복사하고, manifest 내부 URL도 backup tile route로 다시 렌더링한다.
+
+복사 대상:
+
+- `manifest.json`
+- MapLibre style JSON
+- `korea-dev.pmtiles` 같은 PMTiles bundle
+
+기록할 값:
+
+- source/target object count
+- manifest/style HTTP status
+- PMTiles Range request status와 byte count
+- manifest의 `styleUrl` host가 backup tile route인지 여부
+- style source URL이 backup PMTiles route인지 여부
+
+기록하지 않을 값:
+
+- object storage credential
+- signed URL
+- Cloudflare token
+
+예시 smoke:
+
+```bash
+curl -fsS -o /dev/null -w 'manifest=%{http_code}\n' "$BACKUP_TILE_MANIFEST_URL"
+curl -fsS -o /dev/null -w 'style=%{http_code}\n' "$BACKUP_TILE_STYLE_URL"
+curl -fsS -r 0-15 -o /tmp/onmu-pmtiles-range.bin -D /tmp/onmu-pmtiles-range.headers \
+  -w 'pmtiles=%{http_code} bytes=%{size_download}\n' "$BACKUP_PMTILES_URL"
+```
+
+Flutter backup build는 기존 Azure Front Door 기본값을 그대로 쓰면 안 된다. Azure down fallback 검증용 앱은 아래처럼 backup manifest를 명시한다.
+
+```bash
+flutter run \
+  --dart-define=ONMU_API_BASE_URL=https://backup-api.onmu.cloud \
+  --dart-define=ONMU_TILE_MANIFEST_URL=https://backup-tiles.onmu.cloud/manifest.json
+```
+
+운영 route를 `staging-api.onmu.cloud`로 되돌려 쓰는 cutover라면 `ONMU_API_BASE_URL`은 기존 staging host를 유지할 수 있다. 하지만 tile manifest가 Azure Front Door를 기본값으로 가진 앱은 별도 define 또는 DNS/route 전환 없이는 Azure tile 장애를 우회하지 못한다.
+
+### 11.6 External map/provider preflight
+
+지도 관련 기능은 세 층으로 나눠 판정한다.
+
+| 층 | Azure down 시 필요한 준비 | Smoke 기준 |
+| --- | --- | --- |
+| 지도 바닥 타일 | local object store + tile gateway/public route + `ONMU_TILE_MANIFEST_URL` | manifest/style 200, PMTiles Range 206 |
+| ONMU 장소 카탈로그 | PostGIS 포함 DB restore | `/api/v1/map-points` status, cluster/point count |
+| 외부 장소/경로 provider | Naver/Kakao/OpenRouteService env 사전 주입 | provider availability, provider/source count, fallback 여부 |
+
+외부 provider secret이 Azure Key Vault에만 있고 backup 장비에 사전 적재되지 않았다면, Azure 장애 이후에는 실시간 provider 검색이나 live route provider를 복구할 수 없다. 이 경우 ONMU catalog 또는 dev fallback으로 화면을 유지할 수 있는지와, 실제 provider 품질이 빠진 상태임을 분리해 보고한다.
 
 ## 12. Public route cutover checklist
 
