@@ -165,6 +165,10 @@ export POSTGRES_HOST_PORT=15432
 docker compose -f infra/compose/docker-compose.yml up -d postgres redis minio
 ```
 
+기존 장비에서 같은 compose를 여러 번 실행했다면 로컬 Postgres volume에 이전 seed나 부분 migration이 남아 있을 수 있다. Flyway가 duplicate key로 멈추면 먼저 volume을 삭제하지 말고, 실행 로그와 volume/container 이름을 기록한 뒤 clean clone 또는 별도 local-only container set으로 Phase A를 다시 실행한다. `docker compose down -v`, DB drop, volume remove는 해당 volume이 generated local-only 데이터라는 점을 확인한 뒤에만 별도 승인된 정리 절차로 수행한다.
+
+비기본 포트로 Redis를 띄우는 경우 Spring runtime과 readiness probe가 같은 Redis를 보도록 `SPRING_DATA_REDIS_URL`과 `REDIS_URL`을 함께 맞춘다. object storage도 비기본 MinIO 포트를 쓰면 `OBJECT_STORAGE_ENDPOINT`를 함께 맞춘다.
+
 ### 7.2 실행 형태
 
 Mac 백업 서버는 local-only로 먼저 준비한다.
@@ -174,6 +178,8 @@ cd <ONMU_REPO>/services/api-spring
 ./mvnw -DskipTests clean package
 java -jar target/onmu-api-spring-*.jar
 ```
+
+터미널 세션과 분리해 백업 후보 API를 유지해야 하면 macOS 사용자 `launchctl` agent로 실행한다. plist와 stdout/stderr log는 repo 밖 local 전용 경로에 두고, launchd label, PID, log path, bind address를 Phase A 보고서에 기록한다. launchd plist에도 실제 운영 secret value를 직접 쓰지 않는다.
 
 Local-only 단계에서는 `ONMU_ACCESS_TOKEN_SECRET`을 staging secret에서 읽지 않고 local-only 값이나 local 개발 기본값을 사용한다. staging signing secret을 Mac 장비로 가져오는 일은 Phase B/C에서만 진행한다.
 
