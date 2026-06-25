@@ -421,7 +421,7 @@ public class RecordService {
     return planParticipantRepository.findByPlanOrderByCreatedAtAsc(plan).stream()
         .filter(this::isActiveParticipant)
         .map(PlanParticipantEntity::getUser)
-        .filter(participant -> participant != null && !participant.getId().equals(viewer.getId()))
+        .filter(participant -> participant != null)
         .map(participant -> crewAppearance(participant, targetDate))
         .toList();
   }
@@ -865,7 +865,7 @@ public class RecordService {
     snapshot.put("hair_color", characterProfile.getHairColor());
     snapshot.put("eye_style", characterProfile.getEyeStyle());
     snapshot.put("eye_color", characterProfile.getEyeColor());
-    snapshot.put("clothes", "none");
+    snapshot.put("clothes", characterProfile.getClothes());
     return snapshot;
   }
 

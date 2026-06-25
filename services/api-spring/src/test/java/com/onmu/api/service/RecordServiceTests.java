@@ -380,6 +380,7 @@ class RecordServiceTests {
 
   @Test
   void crewOotdAppearancesIncludeProfileGenderFallback() {
+    when(user.getPublicId()).thenReturn("me");
     UserEntity crew = new UserEntity(
       java.util.UUID.fromString("22222222-2222-2222-2222-222222222222"),
       "crew"
@@ -403,6 +404,27 @@ class RecordServiceTests {
       new PlanParticipantEntity(plan, user, "joined", "accepted"),
       new PlanParticipantEntity(plan, crew, "joined", "accepted")
     ));
+    RecordEntity userOotd = new RecordEntity(
+      "ootd_me",
+      group,
+      plan,
+      user,
+      "user ootd",
+      "participants",
+      """
+      {
+        "recordType": "OOTD",
+        "recordedAt": "2026-06-12",
+        "aiStatus": "SUCCESS",
+        "avatarImageUrl": "https://cdn.example.com/me.png"
+      }
+      """,
+      "[]"
+    );
+    when(recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(user))
+      .thenReturn(List.of(userOotd));
+    when(characterProfileRepository.findByUserId(user.getId()))
+      .thenReturn(Optional.empty());
     when(recordRepository.findByAuthorAndDeletedAtIsNullOrderByCreatedAtDesc(crew))
       .thenReturn(List.of());
     when(characterProfileRepository.findByUserId(crew.getId()))
@@ -415,8 +437,21 @@ class RecordServiceTests {
       "2026-06-12"
     );
 
-    assertThat(appearances).singleElement().satisfies(appearance ->
-      assertThat(appearance.character()).containsEntry("gender", "male"));
+    assertThat(appearances).hasSize(2);
+    assertThat(appearances)
+      .filteredOn(appearance -> "me".equals(appearance.userId()))
+      .singleElement()
+      .satisfies(appearance -> {
+        assertThat(appearance.source()).isEqualTo("OOTD_IMAGE");
+        assertThat(appearance.ootdImageUrl()).isEqualTo("https://cdn.example.com/me.png");
+      });
+    assertThat(appearances)
+      .filteredOn(appearance -> crew.getPublicId().equals(appearance.userId()))
+      .singleElement()
+      .satisfies(appearance ->
+        assertThat(appearance.character())
+        .containsEntry("gender", "male")
+        .containsEntry("clothes", "top_1"));
   }
 
   @Test
