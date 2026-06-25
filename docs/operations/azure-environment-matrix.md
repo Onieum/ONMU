@@ -19,6 +19,20 @@
 | Observability | console/log file | log file + smoke | log file + smoke | App Insights + Log Analytics | App Insights + alerts |
 | OOTD AI generation | mock provider | mock provider | mock 또는 Azure ML 후보 | Worker + Azure ML + Vision 후보, 기본 mock | production 승인 후 상업 가능 모델 또는 승인된 endpoint |
 
+### 1.1 On-prem backup backend 후보
+
+On-prem backup backend는 위 표의 Local/Windows dev와 다르게 팀 공용 fallback 후보를 준비하는 절차다. Mac 또는 Windows 장비를 사용할 수 있지만, Azure staging primary를 대체하거나 자동 전환하지 않는다.
+
+| 항목 | On-prem backup 기준 |
+| --- | --- |
+| 목적 | Azure staging 장애 분석, 수동 fallback 준비, 복구 리허설 |
+| API host | 기본 local-only `127.0.0.1:8080`, 공개 전환은 별도 승인 |
+| Compute | Mac 또는 Windows Spring Boot Main API |
+| DB | 기본 local/승인된 restored copy, staging raw DB 직접 복제 금지 |
+| Secret source | env var name과 Key Vault secret name만 문서화, 값 복사 금지 |
+| CI/CD | 자동 deploy 없음. 수동 준비와 smoke 기록 |
+| 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) |
+
 ## 2. Secret prefix 기준
 
 | 환경 | Key Vault secret prefix 후보 | 비고 |

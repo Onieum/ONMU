@@ -5,6 +5,7 @@
 ## 중요: 현재 표준 staging 경로가 아닙니다
 
 - 현재 팀의 기본 배포/검증/모바일 재빌드 기준은 Azure staging입니다.
+- Mac 또는 Windows 장비를 새 백업 백엔드 후보로 준비할 때는 먼저 [On-prem backup backend runbook](./onprem-backup-backend-runbook.md)을 봅니다.
 - 이 문서는 Windows dev, rollback 비교, provider 문제 분리, legacy 경계 확인이 필요할 때만 봅니다.
 - 일반 팀 검증은 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [Azure staging smoke checklist](./azure-staging-smoke-checklist.md)를 먼저 봅니다.
 - 이 문서의 `dev-api.onmu.cloud`와 Cloudflare Tunnel smoke는 release/pre-prod acceptance gate가 아닙니다. Windows dev 서버를 내리는 단계에서는 이 문서를 shutdown 전 확인/rollback 비교용으로만 사용합니다.
