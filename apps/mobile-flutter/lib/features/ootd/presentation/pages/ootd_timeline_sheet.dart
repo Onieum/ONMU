@@ -571,12 +571,14 @@ class _TimelineBottomSheetContentState
               ),
               const SizedBox(height: 16),
               SizedBox(
-                height: 260,
+                width: double.infinity,
+                height: 320,
                 child: Center(
                   child: OotdGeneratedImageView(
                     record: ootdRecord,
-                    characterSize: 190,
-                    height: 260,
+                    width: double.infinity,
+                    characterSize: 240,
+                    height: 320,
                     fit: BoxFit.contain,
                     showFallbackCharacter: false,
                   ),

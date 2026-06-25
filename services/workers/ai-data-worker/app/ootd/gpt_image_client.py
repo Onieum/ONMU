@@ -200,6 +200,11 @@ Visible OOTD photo/style analysis:
 Profile fallback for hidden or missing details:
 {profile_brief}
 
+Gender lock:
+- The final avatar must strictly match the ONMU profile gender presentation whenever the profile provides one.
+- Do not feminize a male-presenting profile or masculinize a female-presenting profile because of hairstyle, outfit color, pose, cute styling, diary aesthetics, or pixel-art proportions.
+- If outfit evidence conflicts with inferred gender presentation, preserve the outfit details but keep the profile gender presentation unchanged.
+
 Outfit lock:
 - The visible outfit analysis is a strict clothing specification, not a loose inspiration.
 - Do not replace garment categories. If the photo has pants, generate pants, not a skirt or dress. If the photo has a skirt, generate a skirt, not pants or a dress. If the photo has a dress, generate a dress, not separated top and bottom.
@@ -207,13 +212,14 @@ Outfit lock:
 - Do not replace outerwear, tops, bottoms, bags, hats, glasses, belts, socks, jewelry, or handheld items with different item types.
 - Preserve the exact visible color family, color placement, fabric/material impression, fit, length, rise, volume, sleeve shape, neckline/collar, hem shape, layering order, and silhouette.
 - Preserve visible graphics, logos, lettering, patches, stripes, checks, embroidery, lace, buttons, zippers, pockets, seams, straps, chains, charms, and decorative details.
+- Follow the photo/style analysis as a hard visual contract: item colors, skirt or pants length, sleeve length, hem length, waist rise, looseness, layering order, shoe shape, bag placement, prints, seams, and small accessories must be reflected as precisely as possible.
 - Do not simplify, beautify, feminize, masculinize, formalize, casualize, or restyle the outfit into a different fashion look.
 - If a detail is uncertain, keep it understated rather than inventing a new fashion item.
 
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Warm beige paper background is acceptable because this sticker will be composited onto a diary card later.
+- Use the same warm ivory paper background with a subtle square grid notebook pattern as the OOTD diary card background.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering visible intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are present in the photo analysis) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
@@ -236,6 +242,8 @@ Profile identity lock for missing text details:
 {profile_brief}
 
 Character identity lock:
+- The final avatar must strictly match the ONMU profile gender presentation whenever the profile provides one.
+- Do not feminize a male-presenting profile or masculinize a female-presenting profile because of hairstyle, outfit color, pose, cute styling, diary aesthetics, or pixel-art proportions.
 - If the outfit text does not explicitly mention hair, keep the profile hairstyle and profile hair color exactly.
 - If the outfit text does not explicitly mention eyes, keep the profile eye style and profile eye color exactly.
 - If the outfit text does not explicitly mention skin tone, keep the profile skin tone exactly.
@@ -250,13 +258,14 @@ Outfit lock:
 - Do not replace outerwear, tops, bottoms, bags, hats, glasses, belts, socks, jewelry, or handheld items with different item types.
 - Preserve the requested color family, color placement, fabric/material impression, fit, length, rise, volume, sleeve shape, neckline/collar, hem shape, layering order, and silhouette.
 - Preserve requested graphics, logos, lettering, patches, stripes, checks, embroidery, lace, buttons, zippers, pockets, seams, straps, chains, charms, and decorative details.
+- Follow the text/analysis outfit description as a hard visual contract: item colors, skirt or pants length, sleeve length, hem length, waist rise, looseness, layering order, shoe shape, bag placement, prints, seams, and small accessories must be reflected as precisely as possible.
 - Do not simplify, beautify, feminize, masculinize, formalize, casualize, or restyle the outfit into a different fashion look.
 - If a detail is not specified, use the ONMU profile fallback for character features and keep clothing details simple rather than inventing a different outfit.
 
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Warm beige paper background is acceptable because this sticker will be composited onto a diary card later.
+- Use the same warm ivory paper background with a subtle square grid notebook pattern as the OOTD diary card background.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering described intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are explicitly mentioned in the text description) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the described outfit, shoes, bags, and accessories clearly.

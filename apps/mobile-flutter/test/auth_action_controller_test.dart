@@ -13,6 +13,12 @@ import 'package:onmu_mobile/features/auth/domain/auth_user.dart';
 import 'package:onmu_mobile/features/auth/domain/oauth_provider_credential.dart';
 import 'package:onmu_mobile/features/auth/providers/auth_providers.dart';
 import 'package:onmu_mobile/features/auth/repository/auth_repository.dart';
+import 'package:onmu_mobile/features/group/repository/group_repository.dart';
+import 'package:onmu_mobile/features/group/view_model/group_list_view_model.dart';
+import 'package:onmu_mobile/shared/models/group_models.dart';
+
+import 'support/in_memory_onmu_store.dart';
+import 'support/test_onmu_repositories.dart';
 
 void main() {
   test(
@@ -320,6 +326,32 @@ void main() {
       expect(await tokenStore.read(), isNull);
     },
   );
+
+  test('signOut clears cached group list for the next account', () async {
+    final tokenStore = InMemoryAuthTokenStore();
+    final apiClient = OnmuApiClient(
+      Dio(BaseOptions(baseUrl: defaultOnmuApiBaseUrl)),
+    );
+    final repository = RecordingAuthRepository();
+    final groupRepository = CountingGroupRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(repository),
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        onmuApiClientProvider.overrideWithValue(apiClient),
+        groupRepositoryProvider.overrideWithValue(groupRepository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(groupListViewModelProvider.future);
+    expect(groupRepository.fetchGroupsCallCount, 1);
+
+    await container.read(authActionProvider).signOut();
+    await container.read(groupListViewModelProvider.future);
+
+    expect(groupRepository.fetchGroupsCallCount, 2);
+  });
 }
 
 class RecordingAuthRepository implements AuthRepository {
@@ -366,5 +398,17 @@ class RecordingSignOutSocialAuthService extends SocialAuthService {
   @override
   Future<void> signOut({String? provider, String? onmuApiBaseUrl}) async {
     signOutCallCount += 1;
+  }
+}
+
+class CountingGroupRepository extends TestGroupRepository {
+  CountingGroupRepository() : super(InMemoryOnmuStore.seeded());
+
+  int fetchGroupsCallCount = 0;
+
+  @override
+  Future<List<GroupSummary>> fetchGroups() async {
+    fetchGroupsCallCount += 1;
+    return super.fetchGroups();
   }
 }

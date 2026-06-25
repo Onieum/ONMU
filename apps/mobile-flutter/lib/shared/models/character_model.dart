@@ -128,7 +128,14 @@ class CharacterDraft {
       hairColorIndex: _readIndexedValue(json['hairColor'], 'hair_color'),
       eyeShapeIndex: _readIndexedValue(json['eyeStyle'], 'eye_style'),
       eyeColorIndex: _readIndexedValue(json['eyeColor'], 'eye_color'),
-      topStyleIndex: _readIndexedValue(json['clothes'], 'top', fallback: -1),
+      topStyleIndex: _readIndexedValue(
+        json['clothes'] ??
+            json['topStyle'] ??
+            json['top_style'] ??
+            json['topStyleIndex'],
+        'top',
+        fallback: -1,
+      ),
     );
   }
 
@@ -146,6 +153,9 @@ class CharacterDraft {
     String prefix, {
     int fallback = 0,
   }) {
+    if (value is int) {
+      return value;
+    }
     final text = value?.toString() ?? '';
     final match = RegExp(
       '^${RegExp.escape(prefix)}_(-?\\d+)\$',

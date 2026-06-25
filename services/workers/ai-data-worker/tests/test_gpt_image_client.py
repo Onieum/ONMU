@@ -43,6 +43,8 @@ def test_photo_prompt_uses_photo_first_and_profile_only_as_fallback() -> None:
     assert "Generate only the full-body ONMU OOTD avatar sticker" in prompt
     assert "visible OOTD photo analysis as the primary evidence" in prompt
     assert "Use the ONMU profile fallback only" in prompt
+    assert "The final avatar must strictly match the ONMU profile gender presentation" in prompt
+    assert "hard visual contract" in prompt
     assert "If the photo shows a hairstyle, hat, glasses, bag, or accessory" in prompt
     assert "half-up tied dark hair" in prompt
     assert "purple/violet hair" in prompt
@@ -77,7 +79,9 @@ def test_text_prompt_uses_text_and_profile_for_missing_details() -> None:
     assert "purple/violet eyes" in prompt
     assert "very fair peach skin" in prompt
     assert "Character identity lock" in prompt
+    assert "The final avatar must strictly match the ONMU profile gender presentation" in prompt
     assert "keep the profile hairstyle and profile hair color exactly" in prompt
+    assert "hard visual contract" in prompt
     assert "No diary page" in prompt
 
 

@@ -579,6 +579,7 @@ class ApiRecordRepository implements RecordRepository {
   CharacterDraft? _characterDraftFromJson(Map<String, dynamic> json) {
     if (json.isEmpty) return null;
     return CharacterDraft(
+      gender: OnmuJson.readString(json, 'gender', 'female'),
       skinToneIndex: _readIndexedValue(
         json['skin_tone'] ?? json['skinTone'],
         'skin',
@@ -636,6 +637,7 @@ class ApiRecordRepository implements RecordRepository {
 
   Map<String, Object?> _characterDraftPayload(CharacterDraft character) {
     return {
+      'gender': character.gender,
       'skin_tone': 'skin_${character.skinToneIndex}',
       'hair_style': 'hair_style_${character.hairStyleIndex}',
       'hair_color': 'hair_color_${character.hairColorIndex}',

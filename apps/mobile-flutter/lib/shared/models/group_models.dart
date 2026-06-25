@@ -97,6 +97,7 @@ class GroupPlanSummary {
     this.thumbnailImageUrl = '',
     this.memoryPlaceNames = const [],
     this.settlementId = '',
+    this.memoryPlaceNamesByDate = const {},
     this.startsAt,
     this.endsAt,
   });
@@ -118,6 +119,7 @@ class GroupPlanSummary {
   final String thumbnailImageUrl;
   final List<String> memoryPlaceNames;
   final String settlementId;
+  final Map<String, List<String>> memoryPlaceNamesByDate;
 
   PlanProgressStatus get progressStatus {
     final source = statusType.trim().isNotEmpty ? statusType : statusLabel;
@@ -130,6 +132,15 @@ class GroupPlanSummary {
 
   String get participantSummaryLabel =>
       memberCount > 0 ? '$memberCount명 참여' : '';
+
+  bool get hasDateSpecificMemoryPlaceNames => memoryPlaceNamesByDate.isNotEmpty;
+
+  List<String> memoryPlaceNamesFor(DateTime targetDate) {
+    if (memoryPlaceNamesByDate.isEmpty) {
+      return memoryPlaceNames;
+    }
+    return memoryPlaceNamesByDate[_dateKey(targetDate)] ?? const [];
+  }
 
   String get displayDateTimeLabel {
     final startsAtLocal = startsAt?.toLocal();
@@ -234,6 +245,13 @@ class GroupPlanSummary {
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  String _dateKey(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$month-$day';
   }
 
   bool _isSameLocalDate(DateTime left, DateTime right) {

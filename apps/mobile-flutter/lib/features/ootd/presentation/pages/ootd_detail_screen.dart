@@ -238,19 +238,31 @@ class _AvatarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.bgWarm.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.lineSoft),
-      ),
-      alignment: Alignment.center,
-      child: OotdGeneratedImageView(
-        record: record,
-        characterSize: 220,
-        height: 260,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final imageHeight = (maxWidth * 1.16).clamp(320.0, 460.0).toDouble();
+        final characterSize = (maxWidth * 0.82).clamp(240.0, 360.0).toDouble();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppColors.bgWarm.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.lineSoft),
+          ),
+          alignment: Alignment.center,
+          child: OotdGeneratedImageView(
+            record: record,
+            width: double.infinity,
+            height: imageHeight,
+            characterSize: characterSize,
+          ),
+        );
+      },
     );
   }
 }

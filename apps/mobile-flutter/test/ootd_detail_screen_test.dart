@@ -2,6 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onmu_mobile/core/theme/app_theme.dart';
 import 'package:onmu_mobile/features/ootd/presentation/pages/ootd_detail_screen.dart';
+import 'package:onmu_mobile/features/ootd/presentation/widgets/ootd_generated_image_view.dart';
 import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 
@@ -34,6 +35,7 @@ void main() {
         'point': '가방으로 포인트 주기',
         'nextSuggestion': '다음엔 니트에 청바지 조합도 좋을 것 같아요.',
         'rating': '4.0',
+        'generatedImageUrl': 'https://example.com/generated-ootd.png',
       },
     );
 
@@ -53,5 +55,11 @@ void main() {
     expect(find.text('4.0'), findsOneWidget);
     expect(find.textContaining('베이지와 블랙'), findsOneWidget);
     expect(find.textContaining('청바지 조합'), findsOneWidget);
+
+    final generatedImage = tester.widget<OotdGeneratedImageView>(
+      find.byType(OotdGeneratedImageView),
+    );
+    expect(generatedImage.width, double.infinity);
+    expect(generatedImage.height, greaterThan(300));
   });
 }

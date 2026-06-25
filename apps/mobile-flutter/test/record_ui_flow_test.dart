@@ -6,6 +6,7 @@ import 'package:onmu_mobile/features/ootd/presentation/pages/daily_record_edit_s
 import 'package:onmu_mobile/features/ootd/presentation/pages/daily_record_screen.dart';
 import 'package:onmu_mobile/features/ootd/presentation/pages/ootd_list_page.dart';
 import 'package:onmu_mobile/features/ootd/presentation/pages/ootd_record_screen.dart';
+import 'package:onmu_mobile/features/ootd/presentation/widgets/ootd_generated_image_view.dart';
 import 'package:onmu_mobile/shared/models/character_model.dart';
 import 'package:onmu_mobile/shared/models/ootd_model.dart';
 
@@ -83,6 +84,42 @@ void main() {
     expect(find.text('하루 일과 기록하기'), findsOneWidget);
   });
 
+  testWidgets('OOTD 상세 카드의 생성 이미지는 텍스트 박스 너비만큼 확장된다', (tester) async {
+    final date = DateTime.now();
+    final ootdRecord = OotdRecord(
+      id: 'record-ootd-wide-image',
+      date: DateTime(date.year, date.month, date.day, 12),
+      character: _character,
+      moodTags: const ['#OOTD'],
+      brands: const {
+        'recordType': 'ootd',
+        'generatedImageUrl': 'https://cdn.onmu.test/generated-ootd.png',
+      },
+      weather: 'sunny',
+      mood: 'happy',
+      timeline: const [
+        TimelineItem(
+          time: 'OOTD',
+          placeName: '오늘의 코디',
+          category: 'ootd',
+          description: '선택한 OOTD 사진에서 분석한 코디',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(_recordApp(_listPage(records: [ootdRecord])));
+    await tester.tap(find.text('${date.day}').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OOTD 기록'));
+    await tester.pumpAndSettle();
+
+    final generatedImage = tester
+        .widgetList<OotdGeneratedImageView>(find.byType(OotdGeneratedImageView))
+        .last;
+    expect(generatedImage.width, double.infinity);
+    expect(generatedImage.height, greaterThan(300));
+  });
+
   testWidgets('하루 일과 사진 코멘트는 25자 제한과 정리된 안내 문구를 사용한다', (tester) async {
     await tester.pumpWidget(_recordApp(_dailyRecordScreen()));
     await tester.tap(find.text('시작하기'));
@@ -99,6 +136,34 @@ void main() {
     expect(commentField.maxLength, 25);
     expect(commentField.maxLengthEnforcement, MaxLengthEnforcement.enforced);
     expect(commentField.decoration?.hintText, '사진에 대한 코멘트');
+  });
+
+  testWidgets('약속이 없는 하루 일과도 크루 단계에서 나만 또는 아무도 안 넣기를 고른다', (tester) async {
+    await tester.pumpWidget(_recordApp(_dailyRecordScreen()));
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('함께한 크루'), findsOneWidget);
+    expect(find.text('크루와 함께'), findsNothing);
+    expect(find.text('나만 넣기'), findsOneWidget);
+    expect(find.text('아무도 안 넣기'), findsOneWidget);
+  });
+
+  test('캐릭터 API 파서는 설정한 옷 키 변형을 보존한다', () {
+    final character = CharacterDraft.fromApiJson(const {
+      'gender': 'male',
+      'topStyle': 'top_2',
+    });
+
+    expect(character.gender, 'male');
+    expect(character.topStyleIndex, 2);
   });
 
   testWidgets('OOTD 사진 입력 안내는 전체 코디 1장 기준으로 표시한다', (tester) async {

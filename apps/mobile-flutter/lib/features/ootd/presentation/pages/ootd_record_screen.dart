@@ -11,7 +11,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/character_model.dart';
 import '../../../../shared/models/ootd_model.dart';
 import '../../../../shared/widgets/grid_background.dart';
-import '../../../../shared/widgets/pixel_character.dart';
 import '../../repository/record_repository.dart';
 import '../../view_model/record_flow_controller.dart';
 import '../../../home/view_model/home_view_model.dart';
@@ -54,8 +53,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   OotdAvatarGenerationJob? _generationJob;
   OotdRecord? _savedRecord;
   Timer? _generationPollTimer;
-  late CharacterDraft _styleCharacter;
-  late bool _changeStyle;
   late String _weather;
   late String _mood;
   late double _rating;
@@ -70,11 +67,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
     final existing = widget.existingRecord;
     final brands = existing?.brands ?? const <String, String>{};
     _inputMode = brands['inputType'] == 'TEXT_PROMPT' ? _textMode : _photoMode;
-    _styleCharacter = existing?.character ?? widget.userCharacter;
-    _changeStyle =
-        _isTextMode &&
-        existing != null &&
-        !_sameCharacterStyle(_styleCharacter, widget.userCharacter);
     _weather = existing?.weather.isNotEmpty == true
         ? existing!.weather
         : 'sunny';
@@ -111,7 +103,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         child: Column(
           children: [
             RecordFlowStepIndicator(
-              labels: const ['방식', '입력', '스타일', '완료'],
+              labels: const ['방식', '입력', '상태', '완료'],
               activeIndex: _step,
             ),
             Expanded(
@@ -168,14 +160,14 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       children: [
         const _SectionTitle(
           title: 'AI OOTD 생성 방식',
-          subtitle: '사진은 보이는 스타일을 우선 반영하고, 가려진 부분만 프로필 캐릭터 설정을 참고해요.',
+          subtitle: '사진이나 텍스트에서 확인한 의상 특징을 중심으로 오늘의 코디 이미지를 만들어요.',
         ),
         const SizedBox(height: 20),
         _ModeCard(
           selected: _isPhotoMode,
           icon: Icons.photo_camera_outlined,
           title: '사진으로 생성',
-          subtitle: '사진에서 보이는 의상, 머리, 모자, 소품을 우선 분석해 OOTD 캐릭터를 만들어요.',
+          subtitle: '사진에서 보이는 의상, 헤어, 모자, 소품을 우선 분석해 OOTD 이미지를 만들어요.',
           onTap: () => setState(() => _inputMode = _photoMode),
         ),
         const SizedBox(height: 12),
@@ -183,14 +175,14 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           selected: _isTextMode,
           icon: Icons.edit_note_outlined,
           title: '텍스트 설명으로 생성',
-          subtitle: '입력하신 텍스트 설명을 기반으로 어울리는 의상과 소품을 입힌 OOTD 캐릭터를 만들어요.',
+          subtitle: '입력하신 설명을 기반으로 색상, 길이, 핏, 소품을 살린 OOTD 이미지를 만들어요.',
           onTap: () => setState(() => _inputMode = _textMode),
         ),
         const SizedBox(height: 18),
         const _InfoBox(
           icon: Icons.info_outline,
           text:
-              '프로필 캐릭터는 기준 이미지가 아니라 보이지 않거나 설명이 부족한 부분을 보완하는 참고값이에요. 사진에서 보이는 헤어, 모자, 의상, 소품은 사진을 우선 반영해요.',
+              'OOTD 이미지는 코디 기록용 이미지예요. 하루일과에서 OOTD를 만들지 않아도 프로필의 기본 캐릭터를 넣어 기록을 완성할 수 있어요.',
         ),
       ],
     );
@@ -328,70 +320,21 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   }
 
   Widget _buildStylePage() {
-    final previewCharacter = _isTextMode
-        ? _effectiveCharacter
-        : widget.userCharacter;
     final styleSubtitle = _isPhotoMode
-        ? '사진에서 보이지 않는 얼굴, 눈, 입 같은 부분만 프로필 캐릭터 설정을 참고해요.'
-        : '텍스트 설명에 없는 헤어/눈 컬러를 오늘 코디에 맞게 바꿀 수 있어요.';
+        ? '사진에서 확인한 의상 특징과 함께 오늘의 상태를 기록해요.'
+        : '텍스트로 적은 코디 설명과 함께 오늘의 상태를 기록해요.';
     final styleInfoText = _isPhotoMode
-        ? '사진에서 보이는 머리, 모자, 소품, 의상은 사진을 우선 반영하고, 눈이나 입처럼 보이지 않는 부분만 프로필 설정을 참고해요.'
-        : _changeStyle
-        ? '텍스트에 없는 머리/눈 정보는 오늘만 바꾼 스타일을 참고해요.'
-        : '텍스트에 없는 머리/눈/피부 정보는 프로필 캐릭터 설정을 참고해요.';
+        ? '사진 속 의상과 소품을 우선으로 반영해요. 더 정확한 결과를 원하면 전체 코디가 잘 보이는 사진을 사용해 주세요.'
+        : '텍스트에 적은 의상 설명을 우선으로 반영해요. 필요한 색상, 길이, 핏은 직접 적어 주세요.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionTitle(
-          title: _isPhotoMode ? '사진 기반 스타일 보완' : '오늘만 스타일 조정',
+          title: _isPhotoMode ? '사진 기반 코디 확인' : '코디 설명 확인',
           subtitle: styleSubtitle,
         ),
         const SizedBox(height: 16),
-        if (_isTextMode) ...[
-          Row(
-            children: [
-              Expanded(
-                child: _ToggleCard(
-                  label: '변경 안 함',
-                  selected: !_changeStyle,
-                  onTap: () => setState(() {
-                    _changeStyle = false;
-                    _styleCharacter = widget.userCharacter;
-                  }),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ToggleCard(
-                  label: '변경하기',
-                  selected: _changeStyle,
-                  onTap: () {
-                    setState(() => _changeStyle = true);
-                    _openStylePickerSheet();
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.bgDefault,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: AppColors.lineSoft),
-            ),
-            child: PixelCharacterWidget(
-              character: previewCharacter,
-              size: 150,
-              showClothes: false,
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
         _InfoBox(icon: Icons.auto_awesome, text: styleInfoText),
         const SizedBox(height: 24),
         _OptionGroup(
@@ -435,121 +378,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Future<void> _openStylePickerSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.bgDefault,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            void updateCharacter(CharacterDraft character) {
-              setState(() => _styleCharacter = character);
-              setSheetState(() {});
-            }
-
-            return SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  24,
-                  18,
-                  24,
-                  24 + MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 42,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.lineSoft,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      '오늘만 스타일 변경',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.textMain,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '텍스트 설명에 없는 머리와 렌즈 컬러를 보완할 때만 사용해요.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSub,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _OptionGroup(
-                      title: '헤어스타일',
-                      children: List.generate(
-                        6,
-                        (index) => _ChoicePill(
-                          key: ValueKey('hairStyleOption-$index'),
-                          label: '머리 ${index + 1}',
-                          width: 96,
-                          selected: _styleCharacter.hairStyleIndex == index,
-                          onTap: () => updateCharacter(
-                            _styleCharacter.copyWith(hairStyleIndex: index),
-                          ),
-                        ),
-                      ),
-                    ),
-                    _OptionGroup(
-                      title: '머리색',
-                      children: List.generate(
-                        CharacterDraft.hairColors.length,
-                        (index) => _ColorChoice(
-                          key: ValueKey('hairColorOption-$index'),
-                          colorHex: CharacterDraft.hairColors[index],
-                          selected: _styleCharacter.hairColorIndex == index,
-                          onTap: () => updateCharacter(
-                            _styleCharacter.copyWith(hairColorIndex: index),
-                          ),
-                        ),
-                      ),
-                    ),
-                    _OptionGroup(
-                      title: '눈색 / 렌즈',
-                      children: List.generate(
-                        CharacterDraft.eyeColors.length,
-                        (index) => _ColorChoice(
-                          key: ValueKey('eyeColorOption-$index'),
-                          colorHex: CharacterDraft.eyeColors[index],
-                          selected: _styleCharacter.eyeColorIndex == index,
-                          onTap: () => updateCharacter(
-                            _styleCharacter.copyWith(eyeColorIndex: index),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('선택 완료'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -622,7 +450,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
 
   void _nextStep() {
     if (_step == 3) {
-      if (widget.isDailyRecord && Navigator.of(context).canPop()) {
+      if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(_savedRecord);
       } else {
         context.go(RoutePaths.records);
@@ -724,7 +552,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         media: uploaded == null
             ? widget.existingRecord?.media ?? const []
             : [uploaded],
-        character: _isTextMode ? _effectiveCharacter : widget.userCharacter,
+        character: widget.userCharacter,
         moodTags: _tags,
         brands: brands,
         weather: _weather,
@@ -760,7 +588,7 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
         outfitDescription: _isTextMode
             ? _descriptionController.text.trim()
             : null,
-        characterOverrides: _isTextMode ? _effectiveCharacter : null,
+        characterOverrides: null,
       );
       generationAccepted = true;
       final resolved = await _resolveJob(repository, job);
@@ -900,10 +728,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
       'moodText': _mood,
       'outfitDescription': outfitDescription,
       'rating': _rating.toStringAsFixed(1),
-      'styleHairStyle': 'hair_style_${_effectiveCharacter.hairStyleIndex}',
-      'styleHairColor': 'hair_color_${_effectiveCharacter.hairColorIndex}',
-      'styleEyeStyle': 'eye_style_${_effectiveCharacter.eyeShapeIndex}',
-      'styleEyeColor': 'eye_color_${_effectiveCharacter.eyeColorIndex}',
       if (uploaded != null) 'outfitPhotoStorageKey': uploaded.storageKey,
       ...outfitInfo,
     };
@@ -923,18 +747,6 @@ class _OotdRecordScreenState extends ConsumerState<OotdRecordScreen> {
   String get _outfitDescription => _isTextMode
       ? _descriptionController.text.trim()
       : '선택한 OOTD 사진에서 Vision AI가 보이는 스타일과 의상 디테일을 분석합니다.';
-
-  CharacterDraft get _effectiveCharacter {
-    if (_isPhotoMode) return widget.userCharacter;
-    return _changeStyle ? _styleCharacter : widget.userCharacter;
-  }
-
-  static bool _sameCharacterStyle(CharacterDraft a, CharacterDraft b) {
-    return a.hairStyleIndex == b.hairStyleIndex &&
-        a.hairColorIndex == b.hairColorIndex &&
-        a.eyeShapeIndex == b.eyeShapeIndex &&
-        a.eyeColorIndex == b.eyeColorIndex;
-  }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(
@@ -1081,56 +893,6 @@ class _InfoBox extends StatelessWidget {
   }
 }
 
-class _ToggleCard extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ToggleCard({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryPinkSoft : AppColors.bgDefault,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: selected ? AppColors.primaryPink : AppColors.textSub,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: selected ? AppColors.primaryPink : AppColors.textMain,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _OptionGroup extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -1174,14 +936,12 @@ class _ChoicePill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final double? width;
 
   const _ChoicePill({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
-    this.width,
   });
 
   @override
@@ -1227,52 +987,7 @@ class _ChoicePill extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      child: width == null ? content : SizedBox(width: width, child: content),
-    );
-  }
-}
-
-class _ColorChoice extends StatelessWidget {
-  final String colorHex;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ColorChoice({
-    super.key,
-    required this.colorHex,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Color(int.parse(colorHex.replaceFirst('#', '0xff')));
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? AppColors.primaryPink : AppColors.lineSoft,
-            width: selected ? 3 : 1,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryPink.withOpacity(0.28),
-                    blurRadius: 8,
-                  ),
-                ]
-              : null,
-        ),
-        child: selected
-            ? const Icon(Icons.check, color: Colors.white, size: 18)
-            : null,
-      ),
+      child: content,
     );
   }
 }
