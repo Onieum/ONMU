@@ -859,6 +859,7 @@ public class RecordService {
         ));
 
     Map<String, Object> snapshot = new LinkedHashMap<>();
+    snapshot.put("gender", characterProfile.getGender());
     snapshot.put("skin_tone", characterProfile.getSkinTone());
     snapshot.put("hair_style", characterProfile.getHairStyle());
     snapshot.put("hair_color", characterProfile.getHairColor());

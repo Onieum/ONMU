@@ -219,7 +219,7 @@ Outfit lock:
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Use the same warm ivory paper background with a subtle square grid notebook pattern as the OOTD diary card background.
+- Use the same warm ivory paper background.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering visible intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are present in the photo analysis) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the visible outfit, shoes, bags, headwear, hair, and accessories clearly.
@@ -265,7 +265,7 @@ Outfit lock:
 Rendering requirements:
 - One single full-body ONMU pixel-art avatar sticker, centered.
 - No diary page, no notebook background, no labels, no memo cards, no phone UI, no buttons.
-- Use the same warm ivory paper background with a subtle square grid notebook pattern as the OOTD diary card background.
+- Use the same warm ivory paper background.
 - After preserving the exact outfit first, render the character as a cute and charming ONMU-like pixel avatar: front-facing full-body game sprite, semi-chibi proportions with a 4 to 4.5 head-to-body ratio, slightly taller and slender silhouette, large expressive eyes, small simple mouth, high-resolution clean pixel art, fine pixel density, thin and soft dark outlines, highly detailed pixel art with exquisite shading, rendering described intricate accessories precisely (such as necklace pendants, pant chains, or headwear if and only if they are explicitly mentioned in the text description) without creating or inventing any non-existent accessories.
 - Do not render as a painterly illustration, semi-realistic anime character, fashion sketch, 3D model, photo, or smooth vector art.
 - Apply the described outfit, shoes, bags, and accessories clearly.
