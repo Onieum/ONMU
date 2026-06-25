@@ -599,6 +599,150 @@ void main() {
     );
   });
 
+  test('maps dynamic date-specific memory place names without cast errors', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 101,
+                  'title': '성수 브런치',
+                  'dateLabel': '오늘 12:00',
+                  'placeName': '성수동',
+                  'status': 'scheduled',
+                  'memberCount': 1,
+                  'memoryPlaceNamesByDate': {
+                    '2026-06-19': ['퍼스트커피랩 행궁', '렉스프레소뮤지엄 행궁'],
+                    '2026-06-20': '오후 카페',
+                  },
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(plans.single.memoryPlaceNamesFor(DateTime(2026, 6, 19)), [
+      '퍼스트커피랩 행궁',
+      '렉스프레소뮤지엄 행궁',
+    ]);
+    expect(plans.single.memoryPlaceNamesFor(DateTime(2026, 6, 20)), [
+      '오후 카페',
+    ]);
+  });
+
+  test('maps schedule places into date-specific memory place names', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': 101,
+                  'title': '행궁 투어',
+                  'dateLabel': '6월 19일',
+                  'placeName': '수원',
+                  'status': 'scheduled',
+                  'memberCount': 1,
+                  'schedulePlaces': [
+                    {
+                      'name': '퍼스트커피랩 행궁',
+                      'startsAt': '2026-06-19T05:00:00Z',
+                      'endsAt': '2026-06-19T06:00:00Z',
+                    },
+                    {
+                      'placeName': '렉스프레소뮤지엄 행궁',
+                      'startsAt': '2026-06-20T01:00:00Z',
+                      'endsAt': '2026-06-20T02:00:00Z',
+                    },
+                  ],
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(plans.single.memoryPlaceNames, [
+      '퍼스트커피랩 행궁',
+      '렉스프레소뮤지엄 행궁',
+    ]);
+    expect(plans.single.memoryPlaceNamesFor(DateTime(2026, 6, 19)), [
+      '퍼스트커피랩 행궁',
+    ]);
+    expect(plans.single.memoryPlaceNamesFor(DateTime(2026, 6, 20)), [
+      '렉스프레소뮤지엄 행궁',
+    ]);
+  });
+
+  test('tolerates mixed optional plan card fields when fetching plans', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: [
+                {
+                  'id': '101',
+                  'groupId': '1',
+                  'title': '혼합 응답 약속',
+                  'startsAt': 'not-a-date',
+                  'endsAt': null,
+                  'placeName': '',
+                  'status': 'scheduled',
+                  'memberCount': '2',
+                  'members': [
+                    {'nickname': '지우'},
+                    'invalid member row',
+                  ],
+                  'memoryPlaceNames': ['카페', null],
+                  'placeNamesByDate': {
+                    '2026-06-21': ['카페', null, '식당'],
+                  },
+                  'imageUrls': [null, '/api/v1/media/public?key=dev%2Fone.jpg'],
+                  'schedulePlaces': [
+                    {'name': '날짜 없는 장소'},
+                  ],
+                },
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiGroupRepository(OnmuApiClient(dio));
+
+    final plans = await repository.fetchPlans(1);
+
+    expect(plans.single.id, 101);
+    expect(plans.single.groupId, 1);
+    expect(plans.single.startsAt, isNull);
+    expect(plans.single.placeName, '장소 미정');
+    expect(plans.single.memoryPlaceNames, ['날짜 없는 장소', '카페']);
+    expect(plans.single.memoryPlaceNamesFor(DateTime(2026, 6, 21)), [
+      '카페',
+      '식당',
+    ]);
+    expect(plans.single.thumbnailImageUrl, endsWith('dev%2Fone.jpg'));
+  });
+
   test('API 메시지 목록 JSON을 GroupMessage로 매핑한다', () async {
     final requestedPaths = <String>[];
     final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
