@@ -26,9 +26,9 @@ On-prem backup backend는 위 표의 Local/Windows dev와 다르게 팀 공용 f
 | 항목 | On-prem backup 기준 |
 | --- | --- |
 | 목적 | Azure staging 장애 분석, 수동 fallback 준비, 복구 리허설 |
-| API host | 기본 local-only `127.0.0.1:8080`, 공개 전환은 별도 승인 |
+| API host | 기본 local-only `127.0.0.1:8080`, 공개 전환은 on-prem runbook Phase C cutover 기준 |
 | Compute | Mac 또는 Windows Spring Boot Main API |
-| DB | 기본 local/승인된 restored copy, staging raw DB 직접 복제 금지 |
+| DB | 기본 local/Phase B restored copy, staging raw DB 직접 복제는 migration checklist 기준 |
 | Secret source | env var name과 Key Vault secret name만 문서화, 값 복사 금지 |
 | CI/CD | 자동 deploy 없음. 수동 준비와 smoke 기록 |
 | 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) |
@@ -65,7 +65,7 @@ Azure staging/prod runtime에서는 위 redirect/callback URI 값도 Container A
 | Local Flutter web | local API 또는 dev API | `http://localhost:<port>`, `http://127.0.0.1:<port>`. 현재 Vite/Flutter web smoke 기준 `http://127.0.0.1:5173`, `http://localhost:5173` 포함 | local-only |
 | Legacy Windows dev web smoke | `https://dev-api.onmu.cloud` | dev Flutter web origin 후보 또는 local web origin | 명시 opt-in한 legacy 점검 전용 |
 | Legacy Android/iOS dev build | `https://dev-api.onmu.cloud` | 모바일 앱은 CORS 대상이 아님 | 명시 opt-in한 dev define에서만 사용 |
-| Azure staging web build | `https://staging-api.onmu.cloud` | staging web origin 후보 | DNS/provider console 변경은 별도 승인 후 수행 |
+| Azure staging web build | `https://staging-api.onmu.cloud` | staging web origin 후보 | DNS/provider console 변경은 cutover checklist 기준 |
 | Production web build | `https://api.onmu.cloud` 후보 | production web origin 후보 | production approval 필요 |
 
 Flutter에는 공개 client id와 redirect URI, `ONMU_API_BASE_URL` 같은 공개 runtime define만 넣는다. OAuth client secret, DB password, JWT signing secret, object storage credential은 Flutter에 넣지 않는다.

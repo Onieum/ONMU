@@ -1,6 +1,6 @@
 # Azure 데이터 이전 runbook
 
-이 문서는 Windows dev backend의 데이터 저장소를 Azure staging/production으로 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 별도 승인, 백업, smoke 계획이 확정된 뒤 수행한다.
+이 문서는 Windows dev backend, on-prem backup backend, Azure staging/production 사이에서 데이터 저장소를 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 go/no-go 체크포인트, 백업, smoke 계획, rollback point가 확정된 뒤 수행한다.
 
 ## 1. 이전 대상과 비대상
 
@@ -23,11 +23,11 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 - Flyway migration이 target DB에서 clean하게 실행되는지 확인
 - target Key Vault secret name과 runtime env binding 확인
 - object storage container와 access policy 확인
-- tile hosting target을 Blob Storage + CDN, Front Door, gateway fallback 중 어떤 조합으로 둘지 승인
+- tile hosting target을 Blob Storage + CDN, Front Door, gateway fallback 중 어떤 조합으로 둘지 확정
 - tile cache invalidation/rollback 담당자와 실행 권한 확인
 - Azure Pricing Calculator 기준 staging/prod 비용 산출물 존재 확인
 - rollback snapshot 또는 source freeze 기준 확정
-- smoke checklist와 cutover window 승인
+- smoke checklist와 cutover window 확정
 
 ## 3. PostgreSQL 이전 절차
 
@@ -46,11 +46,11 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 | 항목 | 선택지 | 기본 기준 |
 | --- | --- | --- |
 | dev DB snapshot | logical dump, physical snapshot 후보 | staging rehearsal은 logical dump 우선. raw user data 값은 보고하지 않음 |
-| staging DB 초기화 | 새 database 생성, schema drop/recreate, dump restore | 팀 공유 staging은 승인 없이 drop 금지 |
+| staging DB 초기화 | 새 database 생성, schema drop/recreate, dump restore | 팀 공유 staging은 go/no-go 체크포인트 없이 drop 금지 |
 | Flyway baseline | clean DB full migration, baseline 후 migrate | Azure staging 1차는 clean DB full migration을 우선 검증 |
 | checksum mismatch | 기존 migration 수정 금지, 새 V번호 migration으로 forward fix | checksum mismatch가 나면 배포 중단 후 원인 분석 |
 | seed/test data | Flyway seed, Spring script, 별도 import | production seed와 demo/test data를 분리 |
-| 실패 rollback | migration 전이면 deploy 중단, migration 후면 forward fix 우선 | snapshot restore는 별도 승인 |
+| 실패 rollback | migration 전이면 deploy 중단, migration 후면 forward fix 우선 | snapshot restore는 rollback point와 go/no-go 기록 이후 수행 |
 
 rehearsal 결과는 migration version, table count, row count, duration, error type 중심으로 기록한다. 사용자 raw value, secret, connection string, token은 기록하지 않는다.
 
@@ -64,9 +64,9 @@ Flyway는 Spring Main API schema를 소유한다.
 - schema 변경은 항상 새 `V{n+1}__...sql` migration으로 추가한다.
 - `external_places` schema와 catalog 조회 인덱스는 Flyway가 소유하지만, `ONMU_CATALOG` 대량 row 적재/교체/rollback은 별도 운영 import 절차가 소유한다.
 - checksum mismatch는 팀원 DB와 staging DB를 깨뜨릴 수 있으므로, 로컬에서만 맞추려고 기존 migration을 고치지 않는다.
-- baseline/repair는 production/staging에서 사람 승인 없이 실행하지 않는다.
+- baseline/repair는 production/staging에서 go/no-go 체크포인트 없이 실행하지 않는다.
 - 이미 적용된 migration은 되돌리지 않고 forward migration으로 보정한다.
-- destructive migration은 production cutover 전 별도 승인과 backup 이후에만 수행한다.
+- destructive migration은 production cutover 전 backup과 go/no-go 체크포인트 이후에만 수행한다.
 
 ## 5. FastAPI Worker schema 경계
 
@@ -137,6 +137,6 @@ PostgreSQL 이전 이후에는 다음을 우선 확인한다.
 
 - DNS cutover 전이면 Windows dev backend 또는 이전 Azure deployment로 되돌린다.
 - DB migration이 target에만 적용된 상태라면 source DB는 그대로 보존한다.
-- production source DB에 destructive migration이 적용된 뒤에는 자동 rollback을 금지하고 forward fix 또는 snapshot restore를 별도 승인한다.
+- production source DB에 destructive migration이 적용된 뒤에는 자동 rollback을 금지하고 forward fix 또는 snapshot restore를 go/no-go 체크포인트로 분리한다.
 - object storage는 overwrite 전 backup key 또는 versioning이 있어야 한다.
 - record delete는 DB soft delete와 object cleanup이 원자적이지 않으므로, 실패 시 object cleanup worker/outbox를 재시도하고 사용자-facing record는 `deleted_at` 기준으로 숨긴다.
