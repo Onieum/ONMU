@@ -544,46 +544,54 @@ extension _DailyRecordScreenSections on _DailyRecordScreenState {
           child: Column(
             children: [
               if (_linkedOotdRecord != null) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 88,
-                      height: 104,
-                      child: OotdGeneratedImageView(
-                        record: _linkedOotdRecord!,
-                        characterSize: 78,
-                        preferAvatarImage: true,
-                        avatarOnly: true,
-                        showFallbackCharacter: false,
-                        compactStatus: true,
-                      ),
-                    ),
-                    if (_selectedCrewAppearances.isNotEmpty)
-                      ..._selectedCrewAppearances
-                          .take(3)
-                          .map(
-                            (appearance) => Padding(
-                              padding: const EdgeInsets.only(left: 10),
-                              child: _crewAppearanceAvatar(
-                                appearance,
-                                size: 66,
-                              ),
-                            ),
-                          )
-                    else if (_selectedCrewCharacters.isNotEmpty)
-                      ..._selectedCrewCharacters
-                          .take(3)
-                          .map(
-                            (character) => Padding(
-                              padding: const EdgeInsets.only(left: 10),
-                              child: PixelCharacterWidget(
-                                character: character,
-                                size: 66,
-                              ),
-                            ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 330;
+                    final ootdWidth = compact ? 74.0 : 84.0;
+                    final ootdHeight = compact ? 96.0 : 104.0;
+                    final ootdCharacterSize = compact ? 68.0 : 78.0;
+                    final crewSize = compact ? 50.0 : 56.0;
+
+                    return Wrap(
+                      alignment: WrapAlignment.center,
+                      runAlignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.end,
+                      spacing: compact ? 8 : 10,
+                      runSpacing: 8,
+                      children: [
+                        SizedBox(
+                          width: ootdWidth,
+                          height: ootdHeight,
+                          child: OotdGeneratedImageView(
+                            record: _linkedOotdRecord!,
+                            characterSize: ootdCharacterSize,
+                            preferAvatarImage: true,
+                            avatarOnly: true,
+                            showFallbackCharacter: false,
+                            compactStatus: true,
                           ),
-                  ],
+                        ),
+                        if (_selectedCrewAppearances.isNotEmpty)
+                          ..._selectedCrewAppearances
+                              .take(3)
+                              .map(
+                                (appearance) => _crewAppearanceAvatar(
+                                  appearance,
+                                  size: crewSize,
+                                ),
+                              )
+                        else if (_selectedCrewCharacters.isNotEmpty)
+                          ..._selectedCrewCharacters
+                              .take(3)
+                              .map(
+                                (character) => PixelCharacterWidget(
+                                  character: character,
+                                  size: crewSize,
+                                ),
+                              ),
+                      ],
+                    );
+                  },
                 ),
                 SizedBox(height: 14),
               ],
