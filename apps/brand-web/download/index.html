@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ONMU 앱 다운로드 | iOS와 Android</title>
+    <title>ONMU 앱 다운로드 | Android APK와 iOS archive</title>
     <meta
       name="description"
-      content="ONMU(온뮤) iOS와 Android 앱 다운로드 안내 페이지입니다. 플랫폼별 다운로드 경로와 안내를 한곳에서 확인할 수 있습니다.">
+      content="ONMU(온뮤) Android APK와 iOS archive 다운로드 페이지입니다. 플랫폼별 최신 빌드 산출물과 안내를 한곳에서 확인할 수 있습니다.">
     <meta name="robots" content="index,follow">
     <meta name="theme-color" content="#FF9097" media="(prefers-color-scheme: light)">
     <link rel="canonical" href="https://onmu.cloud/download/">
@@ -14,22 +14,22 @@
     <meta property="og:locale" content="ko_KR">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="ONMU">
-    <meta property="og:title" content="ONMU 앱 다운로드 안내">
-    <meta property="og:description" content="ONMU iOS와 Android 다운로드 경로와 안내를 이 페이지와 QR 코드에서 확인할 수 있습니다.">
+    <meta property="og:title" content="ONMU 앱 다운로드">
+    <meta property="og:description" content="ONMU Android APK와 iOS archive 다운로드 링크를 이 페이지와 QR 코드에서 확인할 수 있습니다.">
     <meta property="og:url" content="https://onmu.cloud/download/">
     <meta property="og:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="ONMU 앱 다운로드 안내 브랜드 이미지">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ONMU 앱 다운로드 안내">
-    <meta name="twitter:description" content="ONMU iOS와 Android 다운로드 경로와 안내를 이 페이지와 QR 코드에서 확인할 수 있습니다.">
+    <meta name="twitter:title" content="ONMU 앱 다운로드">
+    <meta name="twitter:description" content="ONMU Android APK와 iOS archive 다운로드 링크를 이 페이지와 QR 코드에서 확인할 수 있습니다.">
     <meta name="twitter:image" content="https://onmu.cloud/assets/images/onmu-social-preview.png">
     <meta name="twitter:image:alt" content="ONMU 앱 다운로드 안내 브랜드 이미지">
-    <link rel="stylesheet" href="/styles.css?v=0.3.7">
+    <link rel="stylesheet" href="/styles.css?v=0.3.8">
     <script src="/brand-config.js" defer></script>
     <script src="/brand-observability.js" defer></script>
-    <script src="/brand-site.js?v=0.3.0" defer></script>
+    <script src="/brand-site.js?v=0.3.1" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -40,8 +40,8 @@
         "operatingSystem": "iOS, Android",
         "url": "https://onmu.cloud/download/",
         "downloadUrl": [
-          "https://onmu.cloud/download/ios/",
-          "https://onmu.cloud/download/android/"
+          "https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/onmu-ios-unsigned-xcarchive.zip",
+          "https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/onmu-android-arm64.apk"
         ],
         "description": "ONMU는 약속 만들기, 장소 선택, 채팅, 정산, 사진 기록을 하나의 온모임 안에서 이어주는 모바일 앱입니다."
       }
@@ -61,26 +61,26 @@
     </header>
     <main id="main" class="subpage-main">
       <section class="download-hero" aria-labelledby="download-title">
-        <p class="eyebrow">다운로드 안내</p>
-        <h1 id="download-title">iOS와 Android에서 ONMU를 시작해보세요.</h1>
+        <p class="eyebrow">다운로드</p>
+        <h1 id="download-title">ONMU 최신 빌드 산출물을 내려받으세요.</h1>
         <p>
-          iPhone과 Android에서 ONMU를 사용할 수 있도록
-          플랫폼별 다운로드 경로와 안내를 한곳에 모았습니다.
+          Android APK와 iOS archive를 Blob Storage 최신 경로로 연결했습니다.
+          iOS archive는 코드서명 후 TestFlight 또는 기기 설치용으로 내보내야 합니다.
         </p>
       </section>
 
       <section class="download-section" aria-labelledby="download-options">
-        <h2 id="download-options">다운로드 안내</h2>
+        <h2 id="download-options">플랫폼별 다운로드</h2>
         <div class="download-page-grid">
           <a class="download-card" href="/download/ios/" data-download-platform="ios">
-            <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
+            <img src="/assets/qr/onmu-ios.svg" alt="ONMU iOS archive 다운로드 QR 코드" width="180" height="180" decoding="async">
             <span>iPhone</span>
-            <strong data-store-label>iOS 다운로드 안내</strong>
+            <strong data-download-label>iOS archive 다운로드</strong>
           </a>
           <a class="download-card" href="/download/android/" data-download-platform="android">
-            <img src="/assets/qr/onmu-android.svg" alt="ONMU Android 다운로드 안내 QR 코드" width="180" height="180" decoding="async">
+            <img src="/assets/qr/onmu-android.svg" alt="ONMU Android APK 다운로드 QR 코드" width="180" height="180" decoding="async">
             <span>Android</span>
-            <strong data-store-label>Android 다운로드 안내</strong>
+            <strong data-download-label>Android APK 다운로드</strong>
           </a>
         </div>
       </section>
@@ -88,9 +88,9 @@
       <section class="download-section" aria-labelledby="download-policy">
         <h2 id="download-policy">배포 원칙</h2>
         <div class="policy-card">
-          <strong>공식 경로 안내</strong>
-          ONMU는 iOS App Store 또는 TestFlight, Android Google Play 안내를 기준으로 연결합니다.
-          가장 최신 다운로드 경로와 정책 문서를 이 페이지에서 함께 확인할 수 있습니다.
+          <strong>현재 배포 상태</strong>
+          Android는 arm64 APK 직접 다운로드로 연결되어 있습니다.
+          iOS는 unsigned Xcode archive ZIP으로 연결되어 있으며, 실제 설치와 TestFlight 배포 전 Apple Developer 코드서명이 필요합니다.
         </div>
       </section>
     </main>

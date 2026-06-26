@@ -24,7 +24,7 @@
 - `404.html`: 정적 호스팅용 오류 페이지
 - `styles.css`: ONMU 디자인 시스템을 반영한 반응형 스타일
 - `brand-site.js`: 모바일 내비게이션 토글과 접근성을 해치지 않는 섹션 reveal 인터랙션
-- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN과 스토어 URL은 빈 값으로 둡니다.
+- `brand-config.js`: 공개 사이트 기본 runtime 설정. Sentry DSN과 다운로드 산출물 URL을 관리합니다.
 - `brand-observability.js`: Sentry Browser SDK를 조건부로 로드하는 오류 관측성 부트스트랩
 - `robots.txt`, `sitemap.xml`: 검색 엔진 수집 기준
 - `site.webmanifest`: 브라우저/PWA 기본 메타데이터
@@ -38,13 +38,15 @@
 - 기능: 온모임, 채팅, 장소 후보, 정산, 기록, 신뢰 기능을 사용자 혜택 중심으로 설명합니다.
 - 브랜드 서사: ONieum과 ONMU가 어떤 약속 경험을 만들고 싶은지 소개합니다.
 - 신뢰/FAQ/로드맵: 사진, 위치, 정산 데이터의 사용자 관점 경계와 앞으로의 방향을 안내합니다.
-- 다운로드: iOS/Android stable URL과 QR 코드를 제공합니다.
+- 다운로드: Android APK와 iOS unsigned archive 최신 Blob URL, QR 코드를 제공합니다.
 
 ## 공개 링크 원칙
 
 GitHub, Notion, Jira, PR, CI 같은 내부 협업 링크는 브랜드 웹에 공개하지 않습니다.
-앱 다운로드는 `/download/ios/`, `/download/android/` stable URL을 QR 목적지로 두고,
-스토어 링크가 확정되면 해당 페이지에서 이동시키는 방식으로 관리합니다.
+앱 다운로드 버튼과 QR은 현재 Azure Blob Storage의 최신 빌드 산출물 URL로 연결합니다.
+iOS 산출물은 unsigned Xcode archive ZIP이므로 실제 기기 설치와 TestFlight 배포 전
+Apple Developer 코드서명과 export 단계가 필요합니다. 스토어 링크가 확정되면
+`brand-config.js`의 다운로드 URL을 스토어 또는 TestFlight 공개 URL로 교체합니다.
 Google Search Console, Naver Search Advisor, Bing Webmaster 같은 사이트 인증 값은
 repo에 고정 커밋하지 않고 배포 시점 env var 또는 DNS 설정으로만 반영합니다.
 
@@ -90,8 +92,9 @@ Sentry 이벤트는 Flutter 관측성 정책과 같은 방향으로 제한합니
 export ONMU_BRAND_SENTRY_DSN="<Key Vault sentry-dsn에서 읽은 값>"
 export ONMU_BRAND_SENTRY_ENVIRONMENT="production"
 export ONMU_BRAND_SENTRY_RELEASE="$(git rev-parse --short HEAD)"
-export ONMU_BRAND_IOS_STORE_URL=""
-export ONMU_BRAND_ANDROID_STORE_URL=""
+export ONMU_BRAND_IOS_DOWNLOAD_URL="https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/onmu-ios-unsigned-xcarchive.zip"
+export ONMU_BRAND_ANDROID_DOWNLOAD_URL="https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/onmu-android-arm64.apk"
+export ONMU_BRAND_DOWNLOAD_CHECKSUMS_URL="https://stonmustagingkrc001.blob.core.windows.net/tiles/downloads/mobile/latest/SHA256SUMS.txt"
 ```
 
 ## Search Console / SEO 운영
@@ -157,6 +160,8 @@ scripts/macos/deploy-brand-web-cloudflared.sh
 - `ONMU_BRAND_TUNNEL_NAME`: Cloudflare named tunnel. 기본값은 `onmu-brand-web`입니다.
 - `ONMU_BRAND_ROUTE_DNS=true`: 실행 중 DNS route를 함께 갱신합니다.
 - `ONMU_BRAND_QUICK_TUNNEL=true`: 루트 도메인이 아닌 임시 trycloudflare URL로 smoke할 때만 사용합니다.
-- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 다운로드 CTA를 실제 스토어로 연결할 때만 설정합니다.
+- `ONMU_BRAND_IOS_DOWNLOAD_URL`, `ONMU_BRAND_ANDROID_DOWNLOAD_URL`: 다운로드 CTA와 QR 카드가 연결할 최신 산출물 URL입니다.
+- `ONMU_BRAND_DOWNLOAD_CHECKSUMS_URL`: 모바일 산출물 SHA256SUMS 파일 URL입니다.
+- `ONMU_BRAND_IOS_STORE_URL`, `ONMU_BRAND_ANDROID_STORE_URL`: 과거 배포 호환용 alias입니다. 스토어 링크가 확정되면 새 다운로드 URL 변수에 스토어 또는 TestFlight 공개 URL을 넣는 것을 우선합니다.
 - `ONMU_BRAND_GOOGLE_SITE_VERIFICATION`: Search Console URL prefix property용 meta verification 값
 - `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_NAME`, `ONMU_BRAND_GOOGLE_VERIFICATION_FILE_CONTENT`: Search Console HTML file verification 값

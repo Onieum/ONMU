@@ -1112,8 +1112,18 @@ button:focus-visible {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--white);
+  color: inherit;
   padding: 28px;
   box-shadow: var(--shadow);
+  text-decoration: none;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.download-qr:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-strong);
 }
 
 .download-qr img {
