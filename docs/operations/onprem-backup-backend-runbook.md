@@ -265,7 +265,7 @@ curl -i http://127.0.0.1:8080/api/v1/users/me
 | Phase | 목표 | 실행 범위 | 완료 기준 |
 | --- | --- | --- | --- |
 | A. Local-only 준비 | Mac/Windows 장비가 Spring API를 실행할 수 있는지 확인 | repo sync, Java/Docker, local Postgres/Redis/MinIO, Spring package/run | `/healthz` 200, `/readyz` 200, no-token `/api/v1/users/me` 401 |
-| B. 데이터/미디어 rehearsal | backup backend가 staging-compatible data를 읽을 수 있는지 확인 | DB logical dump/restore, object prefix copy, staging-compatible env 주입, 내부 smoke | row count/table presence, object prefix/count/checksum, authenticated smoke, OAuth/provider smoke |
+| B. 데이터/미디어 rehearsal | backup backend가 staging-compatible data를 읽을 수 있는지 확인 | DB logical dump/restore, object prefix copy, staging-compatible env 주입, 내부 smoke | `pg_restore` exit/error 판정, extension/Flyway/schema spot check, row count/table presence, object prefix/count/checksum, authenticated smoke, OAuth/provider smoke |
 | C. 공개 route cutover | `staging-api` 대체 경로로 단기 운영 | backup API 공개 route, DNS/tunnel/provider callback 정렬, smoke, 모니터링 | route smoke 통과, mobile smoke 통과, rollback point 보존 |
 | D. 지도/외부 의존성 분리 | Azure Front Door/Blob이 없어도 지도 화면이 열리는지 확인 | tile manifest/style/PMTiles copy, tile gateway/public route, mobile tile define, provider env preflight | manifest/style 200, PMTiles Range 206, map-points/place-search/route status, provider availability 기록 |
 | E. Key Vault down preseed | Key Vault도 사용할 수 없을 때 backup runtime이 필요한 secret을 로컬에서 읽는지 확인 | 장애 전 local ignored env 사전 적재, wrapper/launchd 또는 PowerShell env injection, local DB/MinIO/tile/provider smoke | secret presence no missing, `/readyz` 200, provider availability, place-search/map-points/live route smoke |
@@ -283,11 +283,33 @@ Phase B에서는 단일 writer 원칙을 먼저 정한다. source Azure staging�
 ```bash
 RUN_DIR="<ignored-local-run-dir>/onprem-cutover-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RUN_DIR"
+mkdir -p "$RUN_DIR/logs"
 test -n "${SOURCE_DATABASE_URL:-}" && echo "SOURCE_DATABASE_URL present"
 test -n "${TARGET_DATABASE_URL:-}" && echo "TARGET_DATABASE_URL present"
 pg_dump --format=custom --no-owner --no-privileges --file "$RUN_DIR/onmu.dump" "$SOURCE_DATABASE_URL"
-pg_restore --clean --if-exists --no-owner --no-privileges --dbname "$TARGET_DATABASE_URL" "$RUN_DIR/onmu.dump"
+pg_restore --clean --if-exists --no-owner --no-privileges --dbname "$TARGET_DATABASE_URL" "$RUN_DIR/onmu.dump" \
+  2> "$RUN_DIR/logs/pg_restore.err.log"
 ```
+
+`pg_restore`가 non-zero exit으로 끝나면 기본 판정은 실패다. 일부 extension, owner, role, already-exists warning처럼 운영자가 의도한 target 차이로 설명 가능한 경우에도 즉시 통과로 올리지 않고 error type을 분류한 뒤 아래 검사를 모두 통과해야 go/no-go 회의에 올릴 수 있다. table count와 row count만 맞는 것은 복원 성공 근거로 부족하다.
+
+```bash
+rg -n "ERROR|FATAL|could not|permission denied|constraint|extension|role|already exists" \
+  "$RUN_DIR/logs/pg_restore.err.log"
+psql "$TARGET_DATABASE_URL" -Atc "select extname from pg_extension order by 1;"
+psql "$TARGET_DATABASE_URL" -Atc "select count(*) from flyway_schema_history;"
+psql "$TARGET_DATABASE_URL" -Atc "select installed_rank, version, success from flyway_schema_history order by installed_rank desc limit 5;"
+```
+
+복원 go/no-go 기준:
+
+| 항목 | Go 기준 | No-Go 기준 |
+| --- | --- | --- |
+| `pg_restore` exit | `0` 또는 분류된 warning만 존재 | 원인 미분류 non-zero exit, data/constraint/role/permission error |
+| PostGIS/extension | 필요한 extension presence 확인 | PostGIS 등 필수 extension 누락 |
+| Flyway | `flyway_schema_history` 존재, 최신 migration success 확인 | Flyway table 누락, failed migration, checksum 불일치 |
+| schema/index | 핵심 table, PK/FK/index spot check 통과 | 핵심 table/constraint/index 누락 |
+| data count | source/target 핵심 table count 차이 설명 가능 | 핵심 row count mismatch 또는 설명 불가 |
 
 기록할 값:
 
@@ -295,7 +317,8 @@ pg_restore --clean --if-exists --no-owner --no-privileges --dbname "$TARGET_DATA
 - target migration version
 - 핵심 table 존재 여부
 - 핵심 table row count
-- 실패 시 error type
+- `pg_restore` exit code와 분류된 error type
+- extension/Flyway/schema spot check status
 
 기록하지 않을 값:
 

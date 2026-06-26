@@ -41,6 +41,23 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 8. domain smoke를 실행한다.
 9. row count, key table presence, migration version을 값 노출 없이 count/status 중심으로 확인한다.
 
+`pg_restore` 또는 migration job이 non-zero exit으로 끝나면 기본 판정은 실패다. owner/role/extension 차이처럼 사전에 승인된 warning만 있는 경우에도 error type을 분류하고 extension, Flyway, schema/index, 핵심 table count를 각각 확인한 뒤 go/no-go 회의에 올린다. row count만 맞는 것은 target DB가 대체 운영 가능한 상태라는 근거로 부족하다.
+
+```bash
+rg -n "ERROR|FATAL|could not|permission denied|constraint|extension|role|already exists" \
+  "$RUN_DIR/logs/pg_restore.err.log"
+psql "$TARGET_DATABASE_URL" -Atc "select extname from pg_extension order by 1;"
+psql "$TARGET_DATABASE_URL" -Atc "select installed_rank, version, success from flyway_schema_history order by installed_rank desc limit 5;"
+```
+
+| 항목 | Go 기준 | No-Go 기준 |
+| --- | --- | --- |
+| restore/migration exit | `0` 또는 분류된 warning만 존재 | 원인 미분류 non-zero exit, data/constraint/permission error |
+| extension | PostGIS 등 필수 extension presence 확인 | 필수 extension 누락 |
+| Flyway | 최신 migration success 확인 | failed migration, checksum 불일치, Flyway table 누락 |
+| schema/index | 핵심 table, PK/FK/index spot check 통과 | 핵심 constraint/index 누락 |
+| data count | source/target 핵심 count 차이 설명 가능 | 설명 불가 mismatch |
+
 ### Migration rehearsal 결정 항목
 
 | 항목 | 선택지 | 기본 기준 |
