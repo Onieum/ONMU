@@ -50,6 +50,12 @@ On-prem primary는 backup 후보와 다르다. 이 경로는 Azure staging을 �
 | Tile | on-prem tile route와 `ONMU_TILE_MANIFEST_URL`을 최종 앱/route와 정렬 |
 | Secret source | Azure Key Vault가 primary가 아님. repo 밖 local secret store/OS secret store를 사용하고 값은 문서화 금지 |
 | OAuth/provider | provider console callback, Spring env, Flutter public define, mobile deep link를 같은 phase에서 정렬 |
+| Observability | App Insights 의존 없이 health/readiness/access log/alert channel을 on-prem 기준으로 운영. 최소 30분 soak와 alert dry-run 필요 |
+| Backup/recovery | on-prem DB/object/tile backup과 scratch restore-test가 primary 선언 전 1회 이상 성공해야 함 |
+| RPO/RTO | 기본 후보 RPO 24h, RTO 2h. 팀이 더 엄격한 값을 정하면 그 값을 우선 |
+| HA/failover | 기본은 단일 primary + cold standby + Azure read-only retention. 자동 failover 없음 |
+| Notification provider | FCM/APNs는 live, dry-run, excluded 중 하나로 범위 명시. credential value 출력 금지 |
+| Event/outbox | `outbox_events` pending count와 consumer 정책을 event type/count/status 중심으로 기록 |
 | Rollback | on-prem write 수락 전에는 route rollback 가능. write 수락 후에는 reverse migration 또는 forward fix 필요 |
 | 세부 runbook | [On-prem full migration runbook](./onprem-full-migration-runbook.md) |
 
@@ -148,6 +154,12 @@ On-prem primary migration smoke는 backup fallback smoke에 아래를 추가한�
 - target DB가 cutover 후 write source of truth인지 확인
 - final API host와 provider callback host 정렬
 - iOS/Android actual OAuth smoke 통과와 앱 재실행 후 세션 유지
+- health/readiness/access log/alert dry-run과 30분 monitoring soak
+- DB backup job과 scratch restore-test 1회 이상 성공
+- RPO/RTO, cold standby, Azure read-only retention 기준 기록
+- `--require-full-env` preflight에서 provider env와 notification env missing count가 `0`인지 확인
+- FCM/APNs 또는 notification provider 범위 기록
+- outbox pending count와 event consumer 정책 기록
 - cutover 후 Azure API가 stopped/read-only/standby 중 어떤 상태인지 기록
 - on-prem write 수락 이후 rollback은 reverse migration으로만 가능하다는 한계 기록
 

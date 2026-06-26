@@ -160,3 +160,33 @@ PostgreSQL 이전 이후에는 다음을 우선 확인한다.
 - on-prem primary cutover 후 새 write를 수락했다면 Azure DB는 더 이상 최신 source가 아니다. 이 시점의 Azure 복귀는 단순 route rollback이 아니라 on-prem -> Azure reverse migration 또는 forward fix로 취급한다.
 - object storage는 overwrite 전 backup key 또는 versioning이 있어야 한다.
 - record delete는 DB soft delete와 object cleanup이 원자적이지 않으므로, 실패 시 object cleanup worker/outbox를 재시도하고 사용자-facing record는 `deleted_at` 기준으로 숨긴다.
+
+## 10. On-prem primary 지속 backup과 reverse migration
+
+On-prem이 primary source of truth가 된 뒤에는 Azure managed snapshot을 기본 보호막으로 볼 수 없다. 따라서 데이터 이전 runbook은 cutover 이후의 지속 backup도 이전 범위에 포함한다.
+
+### 10.1 지속 backup 기준
+
+| 대상 | 최소 기준 | 보고 방식 |
+| --- | --- | --- |
+| PostgreSQL/PostGIS | 매일 custom format logical dump, 최근 7개 + 주간 4개 보존 | dump timestamp, size, checksum, exit code |
+| Scratch restore-test | 주 1회 또는 cutover 직후 1회 이상 | target scratch DB name pattern, Flyway latest, 핵심 table count |
+| Object/media | prefix count, sample checksum/size, API read smoke | prefix/count/status만 기록 |
+| Tile | versioned manifest/style/PMTiles, Range smoke | manifest/style status, PMTiles 206 |
+| Outbox | pending count, event type count, consumer policy | raw payload 없이 count/status |
+
+backup file, dump, object copy, checksum 파일은 repo 밖 local-only 또는 별도 보안 저장소에 둔다. 문서와 PR에는 path, count, checksum status만 남기고 실제 connection string, token, 사용자 raw row, media URL은 남기지 않는다.
+
+### 10.2 Reverse migration 기준
+
+On-prem write 수락 이후 Azure로 돌아가려면 아래 순서가 필요하다.
+
+1. on-prem write freeze 또는 maintenance window를 연다.
+2. on-prem DB logical dump와 object/tile checkpoint를 만든다.
+3. Azure target DB/object store를 새 restore target으로 준비한다.
+4. restore/migration exit, extension, Flyway, schema/index, 핵심 count를 확인한다.
+5. OAuth/provider callback과 route를 Azure target에 맞춘다.
+6. iOS/Android 실제 OAuth와 domain smoke를 통과시킨다.
+7. Azure가 다시 write source of truth인지 선언한다.
+
+이 절차를 거치지 않고 DNS만 Azure로 되돌리는 것은 데이터 유실 가능성이 있으므로 금지한다.
