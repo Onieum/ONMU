@@ -1,6 +1,8 @@
 # Azure 데이터 이전 runbook
 
-이 문서는 Windows dev backend, on-prem backup backend, Azure staging/production 사이에서 데이터 저장소를 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 go/no-go 체크포인트, 백업, smoke 계획, rollback point가 확정된 뒤 수행한다.
+이 문서는 Windows dev backend, on-prem backup/primary backend, Azure staging/production 사이에서 데이터 저장소를 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 go/no-go 체크포인트, 백업, smoke 계획, rollback point가 확정된 뒤 수행한다.
+
+Azure staging을 내리고 on-prem을 primary source of truth로 승격하는 완전 이전은 이 문서의 데이터 기준과 [On-prem full migration runbook](./onprem-full-migration-runbook.md)을 함께 따른다.
 
 ## 1. 이전 대상과 비대상
 
@@ -155,5 +157,6 @@ PostgreSQL 이전 이후에는 다음을 우선 확인한다.
 - DNS cutover 전이면 Windows dev backend 또는 이전 Azure deployment로 되돌린다.
 - DB migration이 target에만 적용된 상태라면 source DB는 그대로 보존한다.
 - production source DB에 destructive migration이 적용된 뒤에는 자동 rollback을 금지하고 forward fix 또는 snapshot restore를 go/no-go 체크포인트로 분리한다.
+- on-prem primary cutover 후 새 write를 수락했다면 Azure DB는 더 이상 최신 source가 아니다. 이 시점의 Azure 복귀는 단순 route rollback이 아니라 on-prem -> Azure reverse migration 또는 forward fix로 취급한다.
 - object storage는 overwrite 전 backup key 또는 versioning이 있어야 한다.
 - record delete는 DB soft delete와 object cleanup이 원자적이지 않으므로, 실패 시 object cleanup worker/outbox를 재시도하고 사용자-facing record는 `deleted_at` 기준으로 숨긴다.

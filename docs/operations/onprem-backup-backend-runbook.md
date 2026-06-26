@@ -4,6 +4,8 @@
 
 현재 팀의 primary 서비스와 acceptance 기준은 Azure staging이다. On-prem backup backend는 자동 failover 대상이 아니며, Azure staging 장애 분석, 수동 fallback, 개발/검증 분리, 복구 리허설, 단기 대체 운영을 위한 보조 경로다.
 
+Azure staging primary를 완전히 내리고 on-prem 장비를 새 source of truth로 승격하는 작업은 이 문서의 범위를 넘어선다. 완전 이전은 [On-prem full migration runbook](./onprem-full-migration-runbook.md)을 따른다.
+
 ## 1. 운영 경계
 
 | 항목 | 기준 |
@@ -24,7 +26,8 @@ Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret val
 2. Azure primary 운영: [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md)
 3. 환경별 차이: [Azure 환경 매트릭스](./azure-environment-matrix.md)
 4. 데이터 이전 세부 기준: [Azure 데이터 이전 runbook](./azure-data-migration-runbook.md)
-5. Windows legacy 상세: [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md)
+5. 완전 primary 이전: [On-prem full migration runbook](./onprem-full-migration-runbook.md)
+6. Windows legacy 상세: [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md)
 
 이 문서는 Mac/Windows 공통 진입점이다. Windows 전용 legacy tunnel, PowerShell helper, Docker Desktop 세부 운영은 Windows 문서를 참고한다.
 
@@ -49,7 +52,7 @@ Phase A 준비 중에는 Azure staging DNS, Container Apps, Key Vault secret val
 | Object storage | object prefix/count/checksum 리허설과 Phase B copy 절차 | 사용자 media raw URL/파일명 공유 |
 | Tile asset | manifest/style/PMTiles object copy, local/public Range smoke, mobile define 기준 | current object 체크포인트 없는 overwrite |
 
-데이터 복제가 필요하면 이 문서의 Phase B 절차와 [Azure 데이터 이전 runbook](./azure-data-migration-runbook.md)을 함께 사용한다. 이 PR에서는 백업 후보 준비에서 실제 대체 운영/마이그레이션까지 한 runbook 안에서 이어지도록 다룬다.
+데이터 복제가 필요하면 이 문서의 Phase B 절차와 [Azure 데이터 이전 runbook](./azure-data-migration-runbook.md)을 함께 사용한다. 이 문서는 백업 후보 준비와 수동 fallback까지 다루며, on-prem을 최종 primary로 선언하는 완전 이전은 [On-prem full migration runbook](./onprem-full-migration-runbook.md)으로 넘긴다.
 
 ## 5. 공통 준비 절차
 

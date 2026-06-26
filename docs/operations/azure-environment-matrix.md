@@ -35,6 +35,24 @@ On-prem backup backend는 위 표의 Local/Windows dev와 다르게 팀 공용 f
 | CI/CD | 자동 deploy 없음. 수동 준비와 smoke 기록 |
 | 세부 runbook | [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) Phase A/B/C/D/E |
 
+### 1.2 On-prem primary migration 후보
+
+On-prem primary는 backup 후보와 다르다. 이 경로는 Azure staging을 더 이상 primary source of truth로 보지 않고, Mac 또는 Windows 장비의 Spring runtime과 local/managed on-prem data store를 새 primary로 승격하는 완전 이전 절차다.
+
+| 항목 | On-prem primary migration 기준 |
+| --- | --- |
+| 목적 | Azure staging primary를 내리고 on-prem 장비를 실제 primary backend로 승격 |
+| API host | `staging-api.onmu.cloud` route를 on-prem으로 전환하거나, 별도 최종 host를 앱 build define/provider callback과 함께 정렬 |
+| Compute | 하나의 Mac 또는 Windows 장비를 primary로 지정. 다른 장비는 cold standby 또는 rehearsal 전용 |
+| DB | on-prem PostgreSQL/PostGIS가 cutover 후 write source of truth |
+| Redis | on-prem Redis 또는 동등 cache runtime. Redis는 원장 이전 대상이 아니라 warm-up 대상 |
+| Object storage | on-prem MinIO 또는 동등 object store가 media primary |
+| Tile | on-prem tile route와 `ONMU_TILE_MANIFEST_URL`을 최종 앱/route와 정렬 |
+| Secret source | Azure Key Vault가 primary가 아님. repo 밖 local secret store/OS secret store를 사용하고 값은 문서화 금지 |
+| OAuth/provider | provider console callback, Spring env, Flutter public define, mobile deep link를 같은 phase에서 정렬 |
+| Rollback | on-prem write 수락 전에는 route rollback 가능. write 수락 후에는 reverse migration 또는 forward fix 필요 |
+| 세부 runbook | [On-prem full migration runbook](./onprem-full-migration-runbook.md) |
+
 ## 2. Secret prefix 기준
 
 | 환경 | Key Vault secret prefix 후보 | 비고 |
@@ -97,6 +115,7 @@ Edge/API gateway 단계:
 | local/dev API mode | `.dart_tool/onmu-dev-api.defines.json` | `ONMU_API_BASE_URL`, 짧은 수명 dev JWT 후보 | JWT signing secret, OAuth client secret |
 | dev OAuth smoke | `.dart_tool/onmu-dev-oauth.defines.json` | provider public client id, redirect URI, Google public client ids | access token, refresh token, DB password |
 | on-prem backup fallback smoke | `.dart_tool/onmu-backup-api.defines.json` 후보 | `ONMU_API_BASE_URL`, `ONMU_TILE_MANIFEST_URL`, provider public client id | JWT signing secret, OAuth client secret, object storage credential |
+| on-prem primary migration build | `.dart_tool/onmu-onprem-primary.defines.json` 후보 | final `ONMU_API_BASE_URL`, final `ONMU_TILE_MANIFEST_URL`, provider public client id/redirect URI | JWT signing secret, OAuth client secret, object storage credential |
 | production release | release pipeline managed define 후보 | production API base URL, production public OAuth config | secret 값, debug/dev token |
 
 iOS는 `ios/Flutter/GoogleOAuth.generated.xcconfig`가 `GOOGLE_IOS_REVERSED_CLIENT_ID`를 제공해야 Google 앱 복귀가 가능하다. Android는 manifest intent filter와 package/SHA-1 provider console 설정을 환경별로 확인한다.
@@ -122,6 +141,15 @@ On-prem backup fallback smoke가 Azure/Key Vault outage를 가정한다면 아�
 - local media/tile object restore: object count와 manifest/style/PMTiles status
 - provider runtime: Naver/Kakao place provider availability, OpenRouteService live route 또는 fallbackReason
 - public backup route: `backup-api.onmu.cloud`와 `backup-tiles.onmu.cloud`가 status/path/count 기준으로 응답
+
+On-prem primary migration smoke는 backup fallback smoke에 아래를 추가한다.
+
+- source freeze와 single writer 전환 기록
+- target DB가 cutover 후 write source of truth인지 확인
+- final API host와 provider callback host 정렬
+- iOS/Android actual OAuth smoke 통과와 앱 재실행 후 세션 유지
+- cutover 후 Azure API가 stopped/read-only/standby 중 어떤 상태인지 기록
+- on-prem write 수락 이후 rollback은 reverse migration으로만 가능하다는 한계 기록
 
 OOTD AI generation은 Azure staging에서도 단계적으로 판정한다.
 
