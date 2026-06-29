@@ -1,6 +1,8 @@
 # Azure 데이터 이전 runbook
 
-이 문서는 Windows dev backend의 데이터 저장소를 Azure staging/production으로 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 별도 승인, 백업, smoke 계획이 확정된 뒤 수행한다.
+이 문서는 Windows dev backend, on-prem backup/primary backend, Azure staging/production 사이에서 데이터 저장소를 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 go/no-go 체크포인트, 백업, smoke 계획, rollback point가 확정된 뒤 수행한다.
+
+Azure staging을 내리고 on-prem을 primary source of truth로 승격하는 완전 이전은 이 문서의 데이터 기준과 [On-prem full migration runbook](./onprem-full-migration-runbook.md)을 함께 따른다.
 
 ## 1. 이전 대상과 비대상
 
@@ -23,11 +25,11 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 - Flyway migration이 target DB에서 clean하게 실행되는지 확인
 - target Key Vault secret name과 runtime env binding 확인
 - object storage container와 access policy 확인
-- tile hosting target을 Blob Storage + CDN, Front Door, gateway fallback 중 어떤 조합으로 둘지 승인
+- tile hosting target을 Blob Storage + CDN, Front Door, gateway fallback 중 어떤 조합으로 둘지 확정
 - tile cache invalidation/rollback 담당자와 실행 권한 확인
 - Azure Pricing Calculator 기준 staging/prod 비용 산출물 존재 확인
 - rollback snapshot 또는 source freeze 기준 확정
-- smoke checklist와 cutover window 승인
+- smoke checklist와 cutover window 확정
 
 ## 3. PostgreSQL 이전 절차
 
@@ -41,16 +43,33 @@ Redis는 원장 저장소가 아니므로 migration 대상이 아니다. 필요�
 8. domain smoke를 실행한다.
 9. row count, key table presence, migration version을 값 노출 없이 count/status 중심으로 확인한다.
 
+`pg_restore` 또는 migration job이 non-zero exit으로 끝나면 기본 판정은 실패다. owner/role/extension 차이처럼 사전에 승인된 warning만 있는 경우에도 error type을 분류하고 extension, Flyway, schema/index, 핵심 table count를 각각 확인한 뒤 go/no-go 회의에 올린다. row count만 맞는 것은 target DB가 대체 운영 가능한 상태라는 근거로 부족하다.
+
+```bash
+rg -n "ERROR|FATAL|could not|permission denied|constraint|extension|role|already exists" \
+  "$RUN_DIR/logs/pg_restore.err.log"
+psql "$TARGET_DATABASE_URL" -Atc "select extname from pg_extension order by 1;"
+psql "$TARGET_DATABASE_URL" -Atc "select installed_rank, version, success from flyway_schema_history order by installed_rank desc limit 5;"
+```
+
+| 항목 | Go 기준 | No-Go 기준 |
+| --- | --- | --- |
+| restore/migration exit | `0` 또는 분류된 warning만 존재 | 원인 미분류 non-zero exit, data/constraint/permission error |
+| extension | PostGIS 등 필수 extension presence 확인 | 필수 extension 누락 |
+| Flyway | 최신 migration success 확인 | failed migration, checksum 불일치, Flyway table 누락 |
+| schema/index | 핵심 table, PK/FK/index spot check 통과 | 핵심 constraint/index 누락 |
+| data count | source/target 핵심 count 차이 설명 가능 | 설명 불가 mismatch |
+
 ### Migration rehearsal 결정 항목
 
 | 항목 | 선택지 | 기본 기준 |
 | --- | --- | --- |
 | dev DB snapshot | logical dump, physical snapshot 후보 | staging rehearsal은 logical dump 우선. raw user data 값은 보고하지 않음 |
-| staging DB 초기화 | 새 database 생성, schema drop/recreate, dump restore | 팀 공유 staging은 승인 없이 drop 금지 |
+| staging DB 초기화 | 새 database 생성, schema drop/recreate, dump restore | 팀 공유 staging은 go/no-go 체크포인트 없이 drop 금지 |
 | Flyway baseline | clean DB full migration, baseline 후 migrate | Azure staging 1차는 clean DB full migration을 우선 검증 |
 | checksum mismatch | 기존 migration 수정 금지, 새 V번호 migration으로 forward fix | checksum mismatch가 나면 배포 중단 후 원인 분석 |
 | seed/test data | Flyway seed, Spring script, 별도 import | production seed와 demo/test data를 분리 |
-| 실패 rollback | migration 전이면 deploy 중단, migration 후면 forward fix 우선 | snapshot restore는 별도 승인 |
+| 실패 rollback | migration 전이면 deploy 중단, migration 후면 forward fix 우선 | snapshot restore는 rollback point와 go/no-go 기록 이후 수행 |
 
 rehearsal 결과는 migration version, table count, row count, duration, error type 중심으로 기록한다. 사용자 raw value, secret, connection string, token은 기록하지 않는다.
 
@@ -64,9 +83,9 @@ Flyway는 Spring Main API schema를 소유한다.
 - schema 변경은 항상 새 `V{n+1}__...sql` migration으로 추가한다.
 - `external_places` schema와 catalog 조회 인덱스는 Flyway가 소유하지만, `ONMU_CATALOG` 대량 row 적재/교체/rollback은 별도 운영 import 절차가 소유한다.
 - checksum mismatch는 팀원 DB와 staging DB를 깨뜨릴 수 있으므로, 로컬에서만 맞추려고 기존 migration을 고치지 않는다.
-- baseline/repair는 production/staging에서 사람 승인 없이 실행하지 않는다.
+- baseline/repair는 production/staging에서 go/no-go 체크포인트 없이 실행하지 않는다.
 - 이미 적용된 migration은 되돌리지 않고 forward migration으로 보정한다.
-- destructive migration은 production cutover 전 별도 승인과 backup 이후에만 수행한다.
+- destructive migration은 production cutover 전 backup과 go/no-go 체크포인트 이후에만 수행한다.
 
 ## 5. FastAPI Worker schema 경계
 
@@ -137,6 +156,37 @@ PostgreSQL 이전 이후에는 다음을 우선 확인한다.
 
 - DNS cutover 전이면 Windows dev backend 또는 이전 Azure deployment로 되돌린다.
 - DB migration이 target에만 적용된 상태라면 source DB는 그대로 보존한다.
-- production source DB에 destructive migration이 적용된 뒤에는 자동 rollback을 금지하고 forward fix 또는 snapshot restore를 별도 승인한다.
+- production source DB에 destructive migration이 적용된 뒤에는 자동 rollback을 금지하고 forward fix 또는 snapshot restore를 go/no-go 체크포인트로 분리한다.
+- on-prem primary cutover 후 새 write를 수락했다면 Azure DB는 더 이상 최신 source가 아니다. 이 시점의 Azure 복귀는 단순 route rollback이 아니라 on-prem -> Azure reverse migration 또는 forward fix로 취급한다.
 - object storage는 overwrite 전 backup key 또는 versioning이 있어야 한다.
 - record delete는 DB soft delete와 object cleanup이 원자적이지 않으므로, 실패 시 object cleanup worker/outbox를 재시도하고 사용자-facing record는 `deleted_at` 기준으로 숨긴다.
+
+## 10. On-prem primary 지속 backup과 reverse migration
+
+On-prem이 primary source of truth가 된 뒤에는 Azure managed snapshot을 기본 보호막으로 볼 수 없다. 따라서 데이터 이전 runbook은 cutover 이후의 지속 backup도 이전 범위에 포함한다.
+
+### 10.1 지속 backup 기준
+
+| 대상 | 최소 기준 | 보고 방식 |
+| --- | --- | --- |
+| PostgreSQL/PostGIS | 매일 custom format logical dump, 최근 7개 + 주간 4개 보존 | dump timestamp, size, checksum, exit code |
+| Scratch restore-test | 주 1회 또는 cutover 직후 1회 이상 | target scratch DB name pattern, Flyway latest, 핵심 table count |
+| Object/media | prefix count, sample checksum/size, API read smoke | prefix/count/status만 기록 |
+| Tile | versioned manifest/style/PMTiles, Range smoke | manifest/style status, PMTiles 206 |
+| Outbox | pending count, event type count, consumer policy | raw payload 없이 count/status |
+
+backup file, dump, object copy, checksum 파일은 repo 밖 local-only 또는 별도 보안 저장소에 둔다. 문서와 PR에는 path, count, checksum status만 남기고 실제 connection string, token, 사용자 raw row, media URL은 남기지 않는다.
+
+### 10.2 Reverse migration 기준
+
+On-prem write 수락 이후 Azure로 돌아가려면 아래 순서가 필요하다.
+
+1. on-prem write freeze 또는 maintenance window를 연다.
+2. on-prem DB logical dump와 object/tile checkpoint를 만든다.
+3. Azure target DB/object store를 새 restore target으로 준비한다.
+4. restore/migration exit, extension, Flyway, schema/index, 핵심 count를 확인한다.
+5. OAuth/provider callback과 route를 Azure target에 맞춘다.
+6. iOS/Android 실제 OAuth와 domain smoke를 통과시킨다.
+7. Azure가 다시 write source of truth인지 선언한다.
+
+이 절차를 거치지 않고 DNS만 Azure로 되돌리는 것은 데이터 유실 가능성이 있으므로 금지한다.

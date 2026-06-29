@@ -17,6 +17,7 @@
 | tile manifest | `https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json` | `tiles.onmu.cloud`는 Azure Front Door custom domain cutover 후 기본 smoke 기준으로 승격한다. Windows local gateway는 dev 전용 |
 | runtime secret source | `onmu-dev-kv-27db5e` | `kvonmustagingkrc001`는 현재 표준 runtime source 아님 |
 | 표준 backend compute | Azure Container Apps | Windows Spring runtime은 legacy/dev/rollback |
+| 백업 backend compute | Azure staging 상태를 유지한 채 준비 후 필요 시 수동 cutover | Mac/Windows on-prem backup은 자동 전환 대상이 아니라 Phase A/B/C/D/E 수동 fallback 후보 |
 
 OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-27db5e`의 staging Key Vault secretRef를 기준으로 본다. 대상은 `KAKAO_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_MOBILE_CALLBACK_URI`, `NAVER_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_MOBILE_CALLBACK_URI`다.
 
@@ -26,7 +27,9 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 2. [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md)
 3. [Azure staging smoke checklist](./azure-staging-smoke-checklist.md)
 4. [OAuth 모바일 smoke 검증 워크플로](./oauth-mobile-smoke.md)
-5. [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md) - dev/rollback이 필요할 때만
+5. [On-prem backup backend runbook](./onprem-backup-backend-runbook.md) - Mac/Windows 백업 서버 후보 준비부터 대체 운영/마이그레이션까지 이어갈 때
+6. [On-prem full migration runbook](./onprem-full-migration-runbook.md) - Azure staging primary를 내리고 on-prem을 primary source of truth로 승격할 때
+7. [Windows 노트북 백엔드 서버 세팅 가이드](./windows-backend-server.md) - Windows legacy 세부 절차나 rollback 비교가 필요할 때만
 
 추가 참고:
 
@@ -103,6 +106,9 @@ OAuth redirect/callback runtime env도 ACA plain env가 아니라 `onmu-dev-kv-2
 - `onmu-dev-kv-27db5e`가 현재 runtime 표준 secret source다.
 - `kvonmustagingkrc001`는 존재하지만 현재 앱 runtime의 기본 secret source로 보지 않는다.
 - Windows dev backend는 staging 표준 경로가 아니다. GitHub Actions도 자동 deploy를 하지 않고 수동 legacy workflow로만 남긴다.
+- Mac/Windows on-prem backup backend는 [공통 runbook](./onprem-backup-backend-runbook.md)의 Phase A/B/C/D/E를 기준으로 준비, 데이터 rehearsal, route cutover, 지도 tile/provider 분리, Key Vault down preseed까지 이어간다. 자동 failover는 아니며 rollback point를 기록한 수동 fallback으로만 본다.
+- Azure staging primary를 완전히 내리고 on-prem을 새 source of truth로 승격하려면 [On-prem full migration runbook](./onprem-full-migration-runbook.md)을 별도 go/no-go 기준으로 따른다. 이 경우 cutover 후 단순 route rollback이 아니라 on-prem에서 Azure로 reverse migration이 필요할 수 있다.
+- Azure 전체 장애를 가정하는 fallback은 API/DB/media만으로 완료되지 않는다. 지도 화면은 `ONMU_TILE_MANIFEST_URL`이 backup tile route를 보도록 재빌드 또는 route 전환되어야 하며, Naver/Kakao/OpenRouteService 같은 외부 provider secret과 Spring runtime secret은 Azure/Key Vault 장애 전에 backup 장비에 사전 적재되어 있어야 한다.
 - 2026-06-26 이후 Windows backend workflow, Cloudflare tunnel, `dev-api.onmu.cloud` 문서의 유지/삭제를 별도 PR로 판단한다.
 - production 전용 environment, stronger rollback discipline, private networking hardening은 기존 production 로드맵에서 후속으로 다시 합류한다.
 
