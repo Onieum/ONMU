@@ -21,6 +21,8 @@
     "api:integration:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1",
     "api:integration:deploy:dry-run": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1 -DryRun",
     "api:integration:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-integration-backend.ps1 -StopOnly",
+    "onprem:primary:preflight:mac": "bash scripts/macos/onprem-primary-preflight.sh",
+    "onprem:primary:preflight:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/onprem-primary-preflight.ps1",
     "host:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1",
     "host:windows:keyvault": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -UseKeyVault",
     "host:windows:lan": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-windows-backend.ps1 -AllowLan",
