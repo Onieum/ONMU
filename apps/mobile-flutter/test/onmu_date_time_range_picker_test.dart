@@ -467,17 +467,38 @@ void main() {
   testWidgets('recommended date cards keep a stable height for long notices', (
     tester,
   ) async {
+    // 모든 날짜를 today 기반으로 유도해 연중 어느 때도 통과하도록 한다.
+    // 프로덕션은 추천 anchor 를 today 로 clamp 하고 추천 토요일 상위 4개만(불가능
+    // 일정이 뒤로 정렬) 내보내므로, anchor 를 일~목 요일(30일 안에 정확히 4개의
+    // 토요일을 갖는 요일)로 두면 4번째 토요일을 긴 공지 conflict 카드로 쓸 수 있다.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final anchor = _firstMatchingWeekday(
+      today.add(const Duration(days: 2)),
+      {
+        DateTime.sunday,
+        DateTime.monday,
+        DateTime.tuesday,
+        DateTime.wednesday,
+        DateTime.thursday,
+      },
+    );
+    final normalSaturday = _firstMatchingWeekday(anchor, {DateTime.saturday});
+    final conflictSaturday = normalSaturday.add(const Duration(days: 21));
+    String dateKey(DateTime date) =>
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
     await _pumpRangePicker(
       tester,
-      initialStart: DateTime(2026, 6, 30, 14),
-      initialEnd: DateTime(2026, 6, 30, 16),
+      initialStart: DateTime(anchor.year, anchor.month, anchor.day, 14),
+      initialEnd: DateTime(anchor.year, anchor.month, anchor.day, 16),
       participantPreferences: [
         _participant(
           '아주긴이름의박진희',
           PreferenceProfile.empty().copyWith(
             preferredWeekdays: ['토요일'],
             preferredTimes: ['점심'],
-            unavailableDates: ['2026-07-25'],
+            unavailableDates: [dateKey(conflictSaturday)],
           ),
         ),
       ],
@@ -485,10 +506,10 @@ void main() {
     await _openRangePicker(tester);
 
     final conflictCard = tester.getSize(
-      find.byKey(const ValueKey('recommended-date-2026-07-25')),
+      find.byKey(ValueKey('recommended-date-${dateKey(conflictSaturday)}')),
     );
     final normalCard = tester.getSize(
-      find.byKey(const ValueKey('recommended-date-2026-07-04')),
+      find.byKey(ValueKey('recommended-date-${dateKey(normalSaturday)}')),
     );
 
     expect(conflictCard.height, normalCard.height);
