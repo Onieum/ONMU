@@ -1183,7 +1183,11 @@ void main() {
     expect(find.text('제주도 일대'), findsOneWidget);
     expect(find.text('선택한 일정'), findsOneWidget);
     expect(find.text('추천 시간대 또는 직접 시간을 터치해서 선택'), findsNothing);
-    expect(find.textContaining('~ 6월'), findsWidgets);
+    // plan 101 의 endsAt 은 today 기준(daysFromToday: -3) 시드이므로,
+    // '선택한 일정' 범위 라벨의 종료 월은 항상 (today - 3일) 의 월이 된다.
+    final expectedEndMonth =
+        DateTime.now().subtract(const Duration(days: 3)).month;
+    expect(find.textContaining('~ $expectedEndMonth월'), findsWidgets);
 
     expect(find.widgetWithText(TextFormField, '제주도 일대'), findsOneWidget);
     expect(find.byTooltip('지역 지우기'), findsOneWidget);
