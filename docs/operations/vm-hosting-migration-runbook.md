@@ -30,10 +30,58 @@
 
 ---
 
-## WS0 — 사전 준비
-- Azure 구독, koreacentral, Cloudflare 계정, `onmu.cloud` 도메인 보유 확인.
-- 4인 팀원 초대: Azure IAM(`3dt-final-team1` RG 기여자), Cloudflare 계정 멤버(둘 다 무료, 멤버 무제한).
-- 로컬에 `az`(Azure CLI), `cloudflared`, `wrangler`(npm) 설치.
+## WS0 — 사전 준비 (사용자 실습 가이드)
+
+> 이전 예산 게이트/`3dt-final-team1` RG는 사라졌습니다. 프로젝트에 맞춰 새 RG `onmu-staging-rg` 를 만듭니다.
+
+### 0-1. Docker Desktop 재부팅 (로컬 검증용)
+- Docker 데몬이 응답하지 않으면 PC 재부팅 후 Docker Desktop 실행 → 상단 톱니바퀴가 회전 중이고 `docker ps` 가 응답하면 준비 완료.
+- 확인: `docker version` 에 Server 버전이 출력되면 OK.
+
+### 0-2. Azure 리소스 그룹 신규 생성
+```bash
+az login
+az group create --name onmu-staging-rg --location koreacentral
+az group show -g onmu-staging-rg --query '{name,location}' -o tsv   # 확인
+```
+- 이 RG 안에 Postgres(WS1) + VM(WS2)을 만듭니다. 12개월 무료 한도 내에서 $0 목표.
+
+### 0-3. Kakao OAuth 키 발급 (REST API 키 + Client Secret + Redirect URI)
+1. https://developers.kakao.com → 로그인 → **내 애플리케이션** → 앱 선택(또는 신규 생성).
+2. **앱 키** 항목에서 **REST API 키** 복사 → 이것이 OAuth `client_id`. (JavaScript 키는 웹 클라이언트용, Admin 키는 앱 관리용이라 인증에 안 씀.)
+3. **보안** 메뉴 → **Client Secret** → 활성화 후 발급 → 복사 → `KAKAO_CLIENT_SECRET`.
+4. **카카오 로그인** → 활성화 ON → **Redirect URI** 등록:
+   - 웹: `https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`
+   - (모바일은 동적 스킴) `io.onieum.onmu://oauth/kakao/callback` — 앱 설정의 플랫폼>Android/iOS redirect 에도 추가.
+5. `.env.production` (VM) / Kakao 콘솔 값:
+   - `KAKAO_REST_API_KEY=<REST API 키>`, `KAKAO_CLIENT_SECRET=<secret>`,
+   - `KAKAO_OAUTH_REDIRECT_URI=https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback`,
+   - `KAKAO_OAUTH_TOKEN_URL=https://kauth.kakao.com/oauth/token`.
+
+### 0-4. Cloudflare API 토큰 발급 (R2 + Pages + DNS)
+1. https://dash.cloudflare.com → 우상단 프로필 → **My Profile** → **API Tokens** → **Create Token**.
+2. **Create Custom Token** → 권한:
+   - Account · **Workers R2 Storage** · **Edit**
+   - Account · **Cloudflare Pages** · **Edit**
+   - Account · **Account Settings** · **Read**
+   - Zone · **DNS** · **Edit** (`onmu.cloud` zone) — 터널/도메인 자동 route 용
+3. Account Resources = 본인 계정, Zone Resources = `onmu.cloud`. Create → 토큰 복사(한 번만 표시).
+4. 설치 + 인증:
+   ```bash
+   npm i -g wrangler
+   export CLOUDFLARE_API_TOKEN='<위 토큰>'   # 또는 wrangler login (브라우저)
+   wrangler whoami                             # 계정 연결 확인
+   ```
+   - 간편하게는 `wrangler login`(브라우저 OAuth) 로 R2/Pages 인증 처리 가능. DNS/터널 자동화가 필요하면 위 API 토큰 방식 사용.
+
+### 0-5. 도구 설치 확인
+```bash
+az --version | head -1; cloudflared --version; wrangler --version; docker version --format 'server {{.Server.Version}}'
+```
+
+### 0-6. 팀원 초대
+- Azure: RG `onmu-staging-rg` → Access control (IAM) → Add role assignment → **Contributor** → 팀원 3명.
+- Cloudflare: 대시보드 → 계정 → Members → Invite(무료, 멤버 무제한).
 
 ---
 
@@ -41,20 +89,20 @@
 
 ```bash
 # 1) 서버 생성 (koreacentral, B1ms 12개월 무료 한도)
-az group create --name 3dt-final-team1 --location koreacentral   # 이미 있으면 생략
+az group create --name onmu-staging-rg --location koreacentral   # WS0-2 에서 이미 만들었으면 생략
 az postgres flexible-server create \
-  --name onmu-staging-pg --resource-group 3dt-final-team1 \
+  --name onmu-staging-pg --resource-group onmu-staging-rg \
   --location koreacentral --sku-name Standard_B1ms --tier Burstable \
   --version 16 --storage-size 32 --admin-user onmu --admin-password '<강력한비밀번호>' \
   --yes
 
 # 2) DB 생성
 az postgres flexible-server db create --server-name onmu-staging-pg \
-  --resource-group 3dt-final-team1 --database-name onmu
+  --resource-group onmu-staging-rg --database-name onmu
 
 # 3) VM 공용 IP(WS2 생성 후)만 허용. 우선 임시 전체 허용 후 좁힘:
 az postgres flexible-server firewall-rule create --server-name onmu-staging-pg \
-  --resource-group 3dt-final-team1 --name allow-vm --start-ip-address <VM_PUBLIC_IP> --end-ip-address <VM_PUBLIC_IP>
+  --resource-group onmu-staging-rg --name allow-vm --start-ip-address <VM_PUBLIC_IP> --end-ip-address <VM_PUBLIC_IP>
 
 # 4) PostGIS / pg_trgm 확장 (Flyway initdb 와 동일)
 PGPASSWORD='<강력한비밀번호>' psql "host=onmu-staging-pg.postgres.database.azure.com \
@@ -78,15 +126,15 @@ PGPASSWORD='<강력한비밀번호>' psql "host=onmu-staging-pg.postgres.databas
 ```bash
 # 1) VM 생성 (B2ats_v2 2vCPU/3.5GB, 12개월 무료 한도. 할당량 문제 시 B2s 로 fallback)
 az vm create \
-  --name onmu-staging-vm --resource-group 3dt-final-team1 --location koreacentral \
+  --name onmu-staging-vm --resource-group onmu-staging-rg --location koreacentral \
   --image Canonical:ubuntu-24_04-lts:server:latest --size Standard_B2ats_v2 \
   --admin-username onmu --ssh-key-values ~/.ssh/id_rsa.pub \
   --public-ip-sku Standard --os-disk-size-gb 30
-VM_IP=$(az vm show -d -g 3dt-final-team1 -n onmu-staging-vm --query publicIps -o tsv)
+VM_IP=$(az vm show -d -g onmu-staging-rg -n onmu-staging-vm --query publicIps -o tsv)
 
 # 2) Postgres 방화벽에 VM IP 허용 (WS1 의 <VM_PUBLIC_IP> 자리에 $VM_IP)
 az postgres flexible-server firewall-rule create --server-name onmu-staging-pg \
-  --resource-group 3dt-final-team1 --name allow-vm --start-ip-address $VM_IP --end-ip-address $VM_IP
+  --resource-group onmu-staging-rg --name allow-vm --start-ip-address $VM_IP --end-ip-address $VM_IP
 
 # 3) VM 진입 후 부트스트랩
 ssh onmu@$VM_IP
