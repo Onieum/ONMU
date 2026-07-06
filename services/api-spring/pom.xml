@@ -74,6 +74,17 @@
       <artifactId>azure-identity</artifactId>
       <version>1.18.1</version>
     </dependency>
+    <!-- Cloudflare R2(S3 호환) 저장소 지원. AWS SDK v2 버전은 필요시 상향. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>2.31.0</version>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>2.31.0</version>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>

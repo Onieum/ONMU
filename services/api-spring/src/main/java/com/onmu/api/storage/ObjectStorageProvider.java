@@ -4,7 +4,8 @@ import java.util.Locale;
 
 public enum ObjectStorageProvider {
   MINIO,
-  AZURE_BLOB;
+  AZURE_BLOB,
+  R2;
 
   public static ObjectStorageProvider from(String value) {
     if (value == null || value.isBlank()) {
@@ -13,6 +14,7 @@ public enum ObjectStorageProvider {
     return switch (value.trim().toLowerCase(Locale.ROOT)) {
       case "minio" -> MINIO;
       case "azure_blob", "azure-blob", "azureblob" -> AZURE_BLOB;
+      case "r2", "aws", "s3", "cloudflare" -> R2;
       default -> throw new IllegalArgumentException("Unsupported object storage provider");
     };
   }
@@ -25,6 +27,7 @@ public enum ObjectStorageProvider {
     return switch (this) {
       case MINIO -> "minio";
       case AZURE_BLOB -> "azure_blob";
+      case R2 -> "r2";
     };
   }
 }
