@@ -11,6 +11,9 @@ public record ObjectStorageProperties(
   String minioAccessKey,
   String minioSecretKey,
   String managedIdentityClientId,
+  String accessKeyId,
+  String secretAccessKey,
+  String region,
   Duration presignedUrlTtl
 ) {
   public static ObjectStorageProperties from(Environment environment) {
@@ -36,6 +39,17 @@ public record ObjectStorageProperties(
     }
 
     String managedIdentityClientId = firstText(environment, "OBJECT_STORAGE_MANAGED_IDENTITY_CLIENT_ID", "AZURE_CLIENT_ID");
+
+    // R2 / S3 호환 자격증명. R2 Access Key ID / Secret Access Key 를 여기에 넣는다.
+    String accessKeyId = firstText(environment, "OBJECT_STORAGE_ACCESS_KEY_ID");
+    String secretAccessKey = firstText(environment, "OBJECT_STORAGE_SECRET_ACCESS_KEY");
+
+    // R2 는 region "auto" 사용. 명시 없으면 "auto".
+    String region = firstText(environment, "OBJECT_STORAGE_REGION");
+    if (!StringUtils.hasText(region)) {
+      region = "auto";
+    }
+
     return new ObjectStorageProperties(
       provider,
       endpoint,
@@ -43,6 +57,9 @@ public record ObjectStorageProperties(
       accessKey,
       secretKey,
       managedIdentityClientId,
+      accessKeyId,
+      secretAccessKey,
+      region,
       Duration.ofHours(1)
     );
   }

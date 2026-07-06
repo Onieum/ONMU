@@ -12,6 +12,7 @@ public class ObjectStorageConfig {
     return switch (properties.provider()) {
       case MINIO -> new MinioObjectStorageClient(properties);
       case AZURE_BLOB -> new AzureBlobObjectStorageClient(properties);
+      case R2 -> new R2ObjectStorageClient(properties);
     };
   }
 }

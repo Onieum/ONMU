@@ -1,0 +1,111 @@
+# VM 단일 호스트 운영용 compose (하이브리드 마이그레이션 경로)
+#
+# 전제:
+#   - PostgreSQL 은 Azure Database for PostgreSQL Flexible(관리형, 외부) → 컨테이너에 두지 않음.
+#   - 객체 스토리지는 Cloudflare R2(S3 호환) → MinIO 컨테이너 제거.
+#   - Redis 만 컨테이너로 구동(방 상태/캐시, source of truth 아님).
+#   - 앱(api/worker)은 각 서비스 디렉토리의 Dockerfile 로 이미지 빌드.
+#
+# 실행(VM 내 repo 루트):
+#   docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production up -d --build
+#
+# .env.production 예시는 이 파일 하단 주석 + WS3/WS1 산출물 참조.
+
+name: onmu-prod-vm
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: onmu-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../../services/api-spring
+      dockerfile: Dockerfile
+    image: onmu-api-spring:prod-vm
+    container_name: onmu-api
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../../.env.production
+    environment:
+      # 컨테이너 내부 바인딩. application.yml 의 SERVER_ADDRESS=${...API_HOST} 기본값이 127.0.0.1 이라
+      # 터널/다른 컨테이너가 닿으려면 반드시 0.0.0.0 으로 덮어쓴다.
+      SERVER_ADDRESS: "0.0.0.0"
+      SERVER_PORT: "8080"
+      # Redis 는 같은 compose 네트워크의 서비스명으로 연결.
+      SPRING_DATA_REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      # VM 의 cloudflared 가 localhost:8080 으로 역방향 연결. 외부 직접 노출 금지.
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    logging: *default-logging
+    # 베이스 이미지(eclipse-temurin:21-jre)에 curl 이 있으면 아래 주석 해제.
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
+    #   interval: 15s
+    #   timeout: 5s
+    #   retries: 6
+    #   start_period: 40s
+
+  worker:
+    build:
+      context: ../../services/workers/ai-data-worker
+      dockerfile: Dockerfile
+    image: onmu-ai-data-worker:prod-vm
+    container_name: onmu-worker
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    env_file:
+      - ../../.env.production
+    environment:
+      # 워커는 psycopg/SQLAlchemy 용 postgresql:// URL (jdbc 아님).
+      # .env.production 의 DATABASE_URL 이 우선된다.
+      REDIS_URL: redis://redis:6379/0
+    restart: unless-stopped
+    logging: *default-logging
+
+  # realtime-gateway: 현재 stub(구현/Dockerfile 없음). 라이브 방 동기화가 데모에 필요하면
+  # services/realtime-gateway/Dockerfile 을 추가하고 아래 주석을 해제한다.
+  # realtime:
+  #   build:
+  #     context: ../../services/realtime-gateway
+  #     dockerfile: Dockerfile
+  #   image: onmu-realtime-gateway:prod-vm
+  #   container_name: onmu-realtime
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   env_file:
+  #     - .env.production
+  #   environment:
+  #     REDIS_URL: redis://redis:6379/0
+  #     REALTIME_PORT: "8081"
+  #   ports:
+  #     - "127.0.0.1:8081:8081"
+  #   restart: unless-stopped
+  #   logging: *default-logging
+
+volumes:
+  redis-data:

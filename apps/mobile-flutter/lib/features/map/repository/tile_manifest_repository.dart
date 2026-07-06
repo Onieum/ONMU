@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../model/map_models.dart';
 
 const defaultOnmuTileManifestUrl =
-    'https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json';
+    'https://tiles.onmu.cloud/manifest.json';
 
 final tileManifestRepositoryProvider = Provider<TileManifestRepository>((ref) {
   const manifestUrl = String.fromEnvironment(
