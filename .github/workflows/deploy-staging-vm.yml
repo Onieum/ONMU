@@ -1,0 +1,187 @@
+name: Deploy Staging VM
+
+# VM 하이브리드 호스팅 배포 (구 ACA/ACR 경로인 deploy-staging-api.yml 을 대체).
+# 대상: Azure VM onmu-staging-vm (onmu@<ip>) 위 docker-compose.prod-vm.yml 스택.
+# 수신은 Cloudflare Tunnel(localhost:8080)이 별도 프로세스로 담당 → 이 워크플로우는
+# api/worker 컨테이너만 재빌드/재기동하며 터널을 건드리지 않는다.
+# 비밀값은 VM 의 repo-root .env.production 에서 주입되므로 러너를 통해 전달하지 않는다.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "services/api-spring/**"
+      - "services/workers/**"
+      - "infra/compose/**"
+      - ".github/workflows/deploy-staging-vm.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Service(s) to build & restart"
+        type: choice
+        options:
+          - "api"
+          - "api-and-worker"
+          - "full-stack"
+        default: "api"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm-staging-prod-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to onmu-staging-vm
+    runs-on: ubuntu-latest
+    environment: vm-staging-apply
+    timeout-minutes: 25
+    steps:
+      - name: Resolve deploy target
+        id: resolve
+        env:
+          TARGET: ${{ inputs.target || 'api' }}
+        run: |
+          set -euo pipefail
+          echo "Deploy target: $TARGET"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Validate VM deploy configuration
+        env:
+          VM_HOST: ${{ vars.ONMU_VM_HOST || secrets.ONMU_VM_HOST }}
+          VM_KEY: ${{ secrets.ONMU_VM_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VM_HOST" ]; then
+            echo "::error title=Missing VM host::Set ONMU_VM_HOST (repository variable or secret) on the vm-staging-apply environment."
+            exit 1
+          fi
+          if [ -z "$VM_KEY" ]; then
+            echo "::error title=Missing SSH key::Set ONMU_VM_SSH_KEY secret on the vm-staging-apply environment."
+            exit 1
+          fi
+          # 호스트 IP 는 변수일 때 로그에 마스킹되지 않으므로 출력하지 않는다.
+          echo "VM deploy configuration present (host configured)."
+
+      - name: SSH build, rollout, and readiness gate
+        # SHA 고정(appleboy/ssh-action v1). 업그레이드 시 upstream SHA 까지 갱신할 것.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          REPO_PATH: ${{ vars.ONMU_VM_REPO_PATH }}
+          DEPLOY_BRANCH: ${{ github.ref_name || 'dev' }}
+          DEPLOY_TARGET: ${{ steps.resolve.outputs.target }}
+        with:
+          host: ${{ vars.ONMU_VM_HOST || secrets.ONMU_VM_HOST }}
+          username: ${{ vars.ONMU_VM_USER || secrets.ONMU_VM_USER || 'onmu' }}
+          port: ${{ vars.ONMU_VM_SSH_PORT || 22 }}
+          key: ${{ secrets.ONMU_VM_SSH_KEY }}
+          envs: REPO_PATH,DEPLOY_BRANCH,DEPLOY_TARGET
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+
+            REPO="${REPO_PATH:-$HOME/ONMU}"
+            COMPOSE="docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production"
+
+            echo "==> repository : $REPO"
+            echo "==> branch     : $DEPLOY_BRANCH"
+            echo "==> target     : $DEPLOY_TARGET"
+
+            cd "$REPO"
+
+            echo "==> syncing source to origin/$DEPLOY_BRANCH"
+            git fetch origin "$DEPLOY_BRANCH" --prune
+            git reset --hard "origin/$DEPLOY_BRANCH"
+            echo "    now at $(git rev-parse --short HEAD): $(git log -1 --format='%s')"
+
+            echo "==> building & starting containers"
+            case "$DEPLOY_TARGET" in
+              api)
+                $COMPOSE up -d --build api
+                ;;
+              api-and-worker)
+                $COMPOSE up -d --build api worker
+                ;;
+              full-stack)
+                $COMPOSE up -d --build --remove-orphans
+                ;;
+              *)
+                echo "ERROR: unknown deploy target '$DEPLOY_TARGET'" >&2
+                exit 1
+                ;;
+            esac
+
+            # /readyz 만이 DB/Redis/저장소를 실제로 검사하는 진짜 게이트다.
+            # (/healthz 는 HealthController 가 무조건 200 을 주므로 게이트로 부적절)
+            echo "==> readiness gate: /readyz (ok:true) on 127.0.0.1:8080"
+            ok=0
+            for attempt in $(seq 1 40); do
+              resp="$(curl -sS -w $'\n%{http_code}' --max-time 5 http://127.0.0.1:8080/readyz || true)"
+              code="$(printf '%s' "$resp" | tail -1)"
+              body="$(printf '%s' "$resp" | sed '$d')"
+              if [ "$code" = "200" ] && printf '%s' "$body" | grep -q '"ok":[[:space:]]*true'; then
+                echo "    /readyz -> 200 ok:true (attempt $attempt)"
+                ok=1
+                break
+              fi
+              echo "    attempt $attempt: /readyz -> ${code:-<no-response>}; retrying in 5s"
+              sleep 5
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "ERROR: API /readyz did not report ok within timeout" >&2
+              echo "----- last 80 api log lines -----" >&2
+              $COMPOSE logs --tail=80 api >&2 || true
+              exit 1
+            fi
+
+            # worker 를 재기동한 경우 컨테이너가 살아있는지(시작 크래시가 아닌지) 확인.
+            if [ "$DEPLOY_TARGET" = "api-and-worker" ] || [ "$DEPLOY_TARGET" = "full-stack" ]; then
+              echo "==> worker liveness check"
+              sleep 5
+              state="$(docker inspect -f '{{.State.Running}}' onmu-worker 2>/dev/null || echo false)"
+              if [ "$state" != "true" ]; then
+                echo "ERROR: worker container not running" >&2
+                $COMPOSE logs --tail=40 worker >&2 || true
+                exit 1
+              fi
+              echo "    worker running"
+            fi
+
+            echo "==> VM deploy OK"
+
+      - name: Public smoke (via Cloudflare Tunnel)
+        env:
+          PUBLIC_BASE_URL: ${{ vars.ONMU_VM_PUBLIC_BASE_URL || 'https://dev-api.onmu.cloud' }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$PUBLIC_BASE_URL/healthz" || true)"
+            if [ "$status" = "200" ]; then
+              echo "$PUBLIC_BASE_URL/healthz -> 200 (attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt: $PUBLIC_BASE_URL/healthz -> ${status:-<no-response>}; retrying in 10s"
+            sleep 10
+          done
+          echo "::error title=Public smoke failed::$PUBLIC_BASE_URL/healthz did not return 200 within timeout (check cloudflared tunnel)."
+          exit 1
+
+      - name: Deployment summary
+        if: always()
+        env:
+          OUTCOME: ${{ job.status }}
+          BRANCH: ${{ github.ref_name }}
+          TARGET: ${{ steps.resolve.outputs.target }}
+        run: |
+          {
+            echo "## Staging VM deploy"
+            echo ""
+            echo "- status: \`${OUTCOME}\`"
+            echo "- branch: \`${BRANCH}\`"
+            echo "- target: \`${TARGET}\`"
+            echo "- compose: \`infra/compose/docker-compose.prod-vm.yml\`"
+            echo "- gate: local /readyz ok:true on 127.0.0.1:8080, then public /healthz via Cloudflare Tunnel"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,9 @@
 name: Build Staging Images
 
+# PR 트리거로 Spring API/worker 이미지의 로컬 빌드 검증만 수행.
+# (구 ACR push(acr-push) 잡과 push_images 입력은 VM 하이브리드 호스팅 전환으로 제거됨.
+#  운영 배포는 deploy-staging-vm.yml 이 VM 에서 직접 빌드한다.)
+
 on:
   pull_request:
     branches: [dev]
@@ -7,22 +11,7 @@ on:
       - ".github/workflows/build-staging-images.yml"
       - "services/api-spring/**"
       - "services/workers/ai-data-worker/**"
-      - "docs/operations/azure-aca-app-preflight.md"
   workflow_dispatch:
-    inputs:
-      push_images:
-        description: "Push images to the staging ACR after protected approval."
-        required: true
-        type: boolean
-        default: false
-      spring_image_tag:
-        description: "Optional Spring API image tag override."
-        required: false
-        type: string
-      worker_image_tag:
-        description: "Optional worker image tag override."
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -53,88 +42,3 @@ jobs:
           echo "Built local-only validation images:"
           echo "- onmu-api-spring:ci-${GITHUB_SHA::7}"
           echo "- onmu-ai-data-worker:ci-${GITHUB_SHA::7}"
-
-  acr-push:
-    name: Push staging images to ACR
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_images == true }}
-    needs: docker-build
-    runs-on: ubuntu-latest
-    environment: azure-staging-apply
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      STAGING_ACR_NAME: ${{ vars.STAGING_ACR_NAME || 'acronmustagingkrc001' }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Validate Azure workflow variables
-        env:
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
-        run: |
-          set -euo pipefail
-          missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error title=Missing Azure workflow variable::$name must be configured on the azure-staging-apply environment."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-          echo "Required Azure workflow variable names are configured."
-
-      - name: Azure login with OIDC
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Resolve staging image refs
-        id: refs
-        run: |
-          set -euo pipefail
-          spring_tag="${{ inputs.spring_image_tag }}"
-          worker_tag="${{ inputs.worker_image_tag }}"
-          if [ -z "$spring_tag" ]; then
-            spring_tag="staging-${GITHUB_SHA::7}"
-          fi
-          if [ -z "$worker_tag" ]; then
-            worker_tag="staging-${GITHUB_SHA::7}"
-          fi
-          login_server="$(az acr show --name "$STAGING_ACR_NAME" --query loginServer -o tsv)"
-          echo "login_server=$login_server" >> "$GITHUB_OUTPUT"
-          echo "spring_ref=$login_server/onmu-api-spring:$spring_tag" >> "$GITHUB_OUTPUT"
-          echo "worker_ref=$login_server/onmu-ai-data-worker:$worker_tag" >> "$GITHUB_OUTPUT"
-
-      - name: Login to ACR
-        run: |
-          set -euo pipefail
-          az acr login --name "$STAGING_ACR_NAME"
-
-      - name: Build and push Spring API image
-        run: |
-          set -euo pipefail
-          docker build \
-            -t "${{ steps.refs.outputs.spring_ref }}" \
-            services/api-spring
-          docker push "${{ steps.refs.outputs.spring_ref }}"
-
-      - name: Build and push worker image
-        run: |
-          set -euo pipefail
-          docker build \
-            -t "${{ steps.refs.outputs.worker_ref }}" \
-            services/workers/ai-data-worker
-          docker push "${{ steps.refs.outputs.worker_ref }}"
-
-      - name: Push summary
-        run: |
-          echo "Pushed staging image refs:"
-          echo "- ${{ steps.refs.outputs.spring_ref }}"
-          echo "- ${{ steps.refs.outputs.worker_ref }}"
-          echo "Update azure-staging-apply environment variables STAGING_SPRING_API_IMAGE and STAGING_WORKER_IMAGE before api_app_ready or worker_app_ready."
