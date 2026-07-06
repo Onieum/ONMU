@@ -40,7 +40,7 @@ dependencies:
   url_launcher: ^6.3.2
   app_links: ^7.1.2
   maplibre_gl: ^0.26.2
-  image_picker: ^1.2.2
+  image_picker: ^1.2.3
   permission_handler: ^12.0.3
   geolocator: ^14.0.3
   sentry_flutter: ^9.23.0
