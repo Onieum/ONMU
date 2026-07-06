@@ -44,7 +44,7 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - .env.production
+      - ../../.env.production
     environment:
       # 컨테이너 내부 바인딩. application.yml 의 SERVER_ADDRESS=${...API_HOST} 기본값이 127.0.0.1 이라
       # 터널/다른 컨테이너가 닿으려면 반드시 0.0.0.0 으로 덮어쓴다.
@@ -78,7 +78,7 @@ services:
       api:
         condition: service_started
     env_file:
-      - .env.production
+      - ../../.env.production
     environment:
       # 워커는 psycopg/SQLAlchemy 용 postgresql:// URL (jdbc 아님).
       # .env.production 의 DATABASE_URL 이 우선된다.
