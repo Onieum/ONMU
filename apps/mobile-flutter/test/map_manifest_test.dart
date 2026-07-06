@@ -3,10 +3,10 @@ import 'package:onmu_mobile/features/map/model/map_models.dart';
 import 'package:onmu_mobile/features/map/repository/tile_manifest_repository.dart';
 
 void main() {
-  test('uses Azure Front Door tile manifest as staging default', () {
+  test('uses Cloudflare R2 tile manifest as staging default', () {
     expect(
       defaultOnmuTileManifestUrl,
-      'https://fde-onmustagingkrc001-hgbmd5cah5bke7c9.a01.azurefd.net/manifest.json',
+      'https://tiles.onmu.cloud/manifest.json',
     );
   });
 
