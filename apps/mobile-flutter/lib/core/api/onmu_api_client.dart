@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../error/onmu_exception.dart';
 
-const defaultOnmuApiBaseUrl = 'https://staging-api.onmu.cloud';
+const defaultOnmuApiBaseUrl = 'https://dev-api.onmu.cloud';
 
 final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
   const baseUrl = String.fromEnvironment(
