@@ -1,5 +1,8 @@
 # Azure CI/CD runbook
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU의 Terraform 기반 Azure 배포를 GitHub Actions로 연결할 때의 단계와 보호 장치를 정의한다.
 
 ## 1. 원칙

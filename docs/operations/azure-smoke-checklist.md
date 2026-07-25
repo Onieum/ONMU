@@ -1,5 +1,8 @@
 # Azure smoke checklist
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 Azure staging/production 배포 후 최소 확인해야 하는 smoke 목록이다. 모든 결과는 status/count/field presence 중심으로 보고하고, secret/token/raw body/사용자 개인정보 실제 값은 출력하지 않는다.
 
 ## 1. 공통 기본 smoke

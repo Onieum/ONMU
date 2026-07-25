@@ -1,5 +1,7 @@
 # Terraform 결정 항목
 
+> **범위:** 아래 결정은 ONMU의 **정식 운영 target인 검증된 관리형(Azure PaaS) 아키텍처** 기준 확정안이다. 현재 개발 단계 임시 운영은 비용($0/월, 무료 한도) 때문에 Azure VM + Docker Compose + Cloudflare(R2/Tunnel/Pages) + Azure PostgreSQL Flexible 조합을 사용한다([`docs/operations/vm-hosting-migration-runbook.md`](../../docs/operations/vm-hosting-migration-runbook.md), [staging cutover status](../../docs/operations/staging-cutover-status.md) 참고). 임시 운영이 이 결정들을 폐기하는 것은 아니며, 정식 운영 전환 시 이 관리형 target 기준으로 apply한다.
+
 이 문서는 Terraform skeleton 이후 사람이 확정한 선택지와 남은 승인 gate를 정리한다. 확정 결정은 Azure staging 1차 skeleton 기준이다. `environments/prod`는 production hardening 후보를 담은 placeholder이며, 별도 production approval 전에는 apply 대상이 아니다. 실제 `terraform apply`, DNS 변경, DB migration, secret value 작성은 별도 승인 뒤에만 한다.
 
 ## 확정 결정 요약

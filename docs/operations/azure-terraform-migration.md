@@ -1,5 +1,8 @@
 # Azure Terraform 전환 운영 가이드
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU를 Windows dev backend 중심 운영에서 Terraform 기반 Azure staging/production 운영으로 옮기기 위한 상위 runbook이다. 실제 배포 명령보다 전환 순서, 책임 경계, 승인 게이트를 먼저 고정하는 데 목적이 있다.
 
 ## 1. 전환 목표

@@ -1,5 +1,8 @@
 # On-prem full migration runbook
 
+> **상태**: 이 문서는 **현재 개발 단계 임시 운영 런타임(VM + Cloudflare, 비용 $0/월)** runbook이다. 정식 운영 target은 검증된 관리형(`infra/terraform/`)이며, 정식 운영 전환 시 관리형 runbook(`azure-*.md`)으로 넘어간다.
+
+
 이 문서는 Azure staging primary를 유지하는 백업/수동 fallback이 아니라, Mac 또는 Windows 기반 on-prem 장비를 ONMU의 primary backend로 승격하는 완전 마이그레이션 절차를 정리한다.
 
 이 문서는 준비와 go/no-go 기준을 고정하기 위한 문서다. 실제 DNS 변경, provider console 변경, DB dump/restore, object copy, Azure 중지/삭제는 각 phase의 승인과 실행 기록이 준비된 뒤에만 수행한다.

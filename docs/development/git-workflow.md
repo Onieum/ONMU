@@ -30,7 +30,11 @@ ONMU 저장소는 public 저장소 기준으로 `dev`와 `main`에 브랜치 보
 필수 CI check:
 
 - `Repository checks`
-- `Flutter app`
+- `Flutter app` (`flutter analyze`만 게이트. 개발 편의를 위해 `flutter test`, gradle wrapper 확인은 로컬/릴리스로 이관)
+
+임시 운영 배포:
+
+- 현재 개발 단계에서는 `dev` 머지/푸시 후 `Deploy Staging VM`(`.github/workflows/deploy-staging-vm.yml`)이 Azure VM + Cloudflare 임시 운영 런타임에 자동 배포한다. 정식 운영 target(관리형) 전환은 별도 단계다. 자세한 분기는 `docs/operations/staging-cutover-status.md`를 본다.
 
 공통 보호 기준:
 

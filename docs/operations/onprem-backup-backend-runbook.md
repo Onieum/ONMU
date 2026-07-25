@@ -1,5 +1,8 @@
 # On-prem backup backend runbook
 
+> **상태**: 이 문서는 **현재 개발 단계 임시 운영 런타임(VM + Cloudflare, 비용 $0/월)** runbook이다. 정식 운영 target은 검증된 관리형(`infra/terraform/`)이며, 정식 운영 전환 시 관리형 runbook(`azure-*.md`)으로 넘어간다.
+
+
 이 문서는 Mac 또는 Windows 장비를 ONMU 백업 백엔드 서버 후보로 준비하고, 필요 시 Azure staging primary를 수동 대체 운영 경로로 전환할 때의 공통 절차를 정리한다.
 
 현재 팀의 primary 서비스와 acceptance 기준은 Azure staging이다. On-prem backup backend는 자동 failover 대상이 아니며, Azure staging 장애 분석, 수동 fallback, 개발/검증 분리, 복구 리허설, 단기 대체 운영을 위한 보조 경로다.

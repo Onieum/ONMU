@@ -1,5 +1,7 @@
 # ONMU Terraform skeleton
 
+> **역할:** 이 디렉터리는 ONMU의 **정식 운영 target인 검증된 관리형(Azure PaaS) 아키텍처 명세**다. 현재 개발 단계 임시 운영은 비용($0/월, 무료 한도) 때문에 Azure VM + Docker Compose + Cloudflare(R2/Tunnel/Pages) + Azure PostgreSQL Flexible 조합을 쓴다. 임시 운영 세팅/배포는 [`docs/operations/vm-hosting-migration-runbook.md`](../../docs/operations/vm-hosting-migration-runbook.md)을 본다. 정식 운영 전환 시 이 Terraform을 apply해 관리형 target로 이전한다. 분기 요약은 [staging cutover status](../../docs/operations/staging-cutover-status.md) 참고.
+
 이 디렉터리는 ONMU의 Azure staging/production 전환을 위한 Terraform skeleton이다. 실제 Azure 리소스 생성, DNS 전환, DB migration, Key Vault secret 값 작성은 이 PR의 범위가 아니다.
 
 ## 범위
@@ -73,9 +75,9 @@ Staging Wave 1은 적용 완료된 기준으로 본다. `environments/staging/te
 - `ai_foundation`: OOTD AI generation을 위한 Azure ML Workspace, Azure OpenAI-compatible vision account, optional vision deployment, worker runtime RBAC, worker AI env/secret reference를 준비한다. 기본값은 꺼져 있으며, `storage`, `observability`, `container_registry`가 먼저 준비되어 있어야 한다.
 - `db_and_app_ready`: 기존 호환용 alias다. 실제 운영 순서는 split wave를 기준으로 본다.
 
-Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 먼저 build하고, 필요 시 protected environment approval 뒤 staging ACR에 push한다. 최초 `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
+Spring API/worker image는 `.github/workflows/build-staging-images.yml`에서 PR 시 로컬 빌드 검증만 수행한다(과거 ACR push 잡은 VM 하이브리드 호스팅 전환으로 제거됨). 관리형 target(ACA/ACR) 전환 시에는 별도 image push 경로와 protected environment approval을 거쳐 staging ACR에 push하고, 최초 `api_app_ready`, `worker_app_ready`는 image ref를 `STAGING_SPRING_API_IMAGE`, `STAGING_WORKER_IMAGE`로 갱신한 뒤 실행한다.
 
-Spring API Container App이 이미 생성된 뒤의 일반 코드 변경 배포는 `.github/workflows/deploy-staging-api.yml`을 사용한다. 이 workflow는 Spring API image를 staging ACR에 push하고 기존 ACA Spring API revision의 image만 갱신한 뒤 smoke를 수행한다. Terraform app wave는 인프라 wiring, 최초 app 생성, worker rollout처럼 resource graph 변경이 필요한 경우에 사용한다.
+관리형 target(ACA) 전환 후 일반 코드 변경 배포는 별도의 관리형 배포 워크플로(Azure Container Apps 기반)를 사용한다. **현재 임시 운영(VM) 단계**에서는 `.github/workflows/deploy-staging-vm.yml`이 `dev` push 시 VM에서 직접 컨테이너를 빌드/기동한다(ACR을 사용하지 않는다). Terraform app wave는 인프라 wiring, 최초 app 생성, worker rollout처럼 resource graph 변경이 필요한 경우(정식 운영 target 전환 시)에 사용한다.
 
 `ai_foundation`은 OOTD 생성 기능의 실제 모델 호출을 위한 foundation wave다. 이 wave는 Azure ML Workspace와 Vision 계정을 만들고, worker managed identity가 Blob, Event Hubs, Azure ML, Vision 리소스에 접근할 수 있는 RBAC 경계를 준비한다. 단, Hugging Face token, Azure ML endpoint key, Vision API key 같은 secret value는 Terraform state에 넣지 않는다. Terraform은 Key Vault secret name과 Container Apps secret reference만 선언하고, 값 주입은 운영자가 Key Vault에서 별도 수행한다.
 

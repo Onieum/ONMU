@@ -85,6 +85,8 @@ lib/features/<feature>/
 - secret, API key, credential, 실제 사용자 데이터, 실제 위치/사진/정산 데이터를 커밋하지 않는다.
 - `.env.example`은 커밋할 수 있지만 `.env`는 커밋하지 않는다.
 - 운영 secret은 Azure Key Vault, GitHub Secrets, 로컬 `.env` 중 하나로 관리한다.
+  - 정식 운영 target(관리형)에서는 Azure Key Vault가 runtime 표준 secret source다.
+  - 현재 임시 운영(VM + Cloudflare)에서는 VM 내 `.env.production`과 GitHub Secrets가 runtime secret source다. 환경 분기는 `docs/operations/staging-cutover-status.md`를 본다.
 - MCP 설정 파일에 토큰이나 개인 로컬 경로가 들어가면 커밋하지 않는다.
 
 ## Dev API / Dev DB 연결 보안

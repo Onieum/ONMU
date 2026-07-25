@@ -1,5 +1,8 @@
 # Azure cutover/rollback runbook
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 Azure staging/production으로 traffic을 전환하거나 문제가 생겼을 때 되돌리는 절차를 정리한다. Cutover는 별도 승인된 window에서만 수행한다.
 
 현재 팀의 일상 배포/검증 기본선은 Azure staging이다. 이 문서는 일상 staging 운영 문서가 아니라 cutover, public domain 전환, rollback 판단이 필요한 시점에만 사용한다. 현재 staging 기준 운영 경계는 [staging cutover status](./staging-cutover-status.md), 일반 배포 순서는 [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md)을 먼저 본다.

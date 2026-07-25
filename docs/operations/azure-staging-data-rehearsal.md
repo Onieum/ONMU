@@ -1,5 +1,8 @@
 # Azure staging data rehearsal plan
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU Azure staging 전환 전 데이터 이전 rehearsal 기준을 정리한다. 실제 dev snapshot dump/restore, destructive migration, private media 공개 전환은 별도 승인 전까지 수행하지 않는다.
 
 ## 1. PostgreSQL rehearsal

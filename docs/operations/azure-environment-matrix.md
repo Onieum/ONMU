@@ -1,5 +1,8 @@
 # Azure 환경 매트릭스
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU의 local, Windows dev, integration-staging, Azure staging, Azure production 환경을 같은 축으로 비교한다. 값이 secret인 항목은 env var name 또는 Key Vault secret name만 적는다.
 
 ## 1. 환경 표
