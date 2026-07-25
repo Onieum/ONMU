@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -5,6 +6,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../error/onmu_exception.dart';
+import 'token_refresh_interceptor.dart';
+import 'token_refresh_service.dart';
+import '../../features/auth/data/auth_token_store.dart';
+import '../../features/auth/providers/auth_providers.dart';
 
 const defaultOnmuApiBaseUrl = 'https://dev-api.onmu.cloud';
 
@@ -19,6 +24,7 @@ final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
     accessJwt: accessJwt,
     legacyDevAccessToken: legacyDevAccessToken,
   );
+
   final dio = Dio(
     BaseOptions(
       baseUrl: baseUrl,
@@ -28,7 +34,38 @@ final onmuApiClientProvider = Provider<OnmuApiClient>((ref) {
       headers: {'Accept': 'application/json'},
     ),
   );
-  return OnmuApiClient(dio, initialAccessToken: accessToken);
+
+  final apiClient = OnmuApiClient(dio, initialAccessToken: accessToken);
+
+  // 순환 의존 없이 콜백을 직접 주입하여 401 자동 갱신 인터셉터 등록
+  // ref.read를 사용하여 필요한 의존성을 가져옴 (프로바이더 체인 순환 없음)
+  final refreshService = TokenRefreshService(baseUrl: baseUrl);
+  final tokenStore = ref.read(authTokenStoreProvider);
+  final authUserNotifier = ref.read(authUserProvider.notifier);
+
+  dio.interceptors.add(
+    AuthRefreshInterceptor(
+      readRefreshToken: () async {
+        final tokens = await tokenStore.read();
+        return tokens?.refreshToken;
+      },
+      performRefresh: (refreshToken) async {
+        return await refreshService.refreshTokens(refreshToken);
+      },
+      onRefreshed: (tokens) async {
+        await tokenStore.save(tokens);
+        apiClient.setAccessToken(tokens.accessToken);
+      },
+      onRefreshFailed: () async {
+        await tokenStore.clear();
+        apiClient.clearAccessToken();
+        authUserNotifier.state = null;
+      },
+      dio: dio,
+    ),
+  );
+
+  return apiClient;
 });
 
 String resolveOnmuAccessToken({
