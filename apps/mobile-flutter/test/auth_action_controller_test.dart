@@ -363,6 +363,9 @@ class RecordingAuthRepository implements AuthRepository {
   Future<AuthUser?> fetchCurrentUser() async => currentUser;
 
   @override
+  Future<OnmuAuthTokens?> refreshTokens(String refreshToken) async => null;
+
+  @override
   Future<AuthSession> exchangeOAuthLogin(
     OAuthProviderCredential credential,
   ) async {
