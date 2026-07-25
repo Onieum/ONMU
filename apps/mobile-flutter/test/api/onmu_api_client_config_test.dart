@@ -5,8 +5,8 @@ import 'package:onmu_mobile/core/error/onmu_exception.dart';
 
 void main() {
   group('ONMU API config', () {
-    test('defaults to Azure staging API base URL', () {
-      expect(defaultOnmuApiBaseUrl, 'https://staging-api.onmu.cloud');
+    test('defaults to dev API base URL', () {
+      expect(defaultOnmuApiBaseUrl, 'https://dev-api.onmu.cloud');
     });
 
     test('prefers access JWT over legacy dev access token', () {
@@ -27,7 +27,7 @@ void main() {
     });
 
     test('normalizes DioException before exposing API failures', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'https://staging-api.onmu.cloud'));
+      final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
       dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {

@@ -10,7 +10,7 @@ void main() {
     final loader = KakaoOAuthCredentialLoader(
       clientId: 'rest-api-key',
       redirectUri:
-          'https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
+          'https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
       stateGenerator: () => 'state-123',
       initialLinkReader: () async => null,
       linkStreamReader: () => links.stream,
@@ -41,7 +41,7 @@ void main() {
     expect(launchedUri?.queryParameters['client_id'], 'rest-api-key');
     expect(
       launchedUri?.queryParameters['redirect_uri'],
-      contains('staging-api'),
+      contains('dev-api'),
     );
     expect(launchedUri?.queryParameters['state'], 'state-123');
     expect(launchedUri?.queryParameters.containsKey('client_secret'), isFalse);
@@ -68,7 +68,7 @@ void main() {
     final loader = KakaoOAuthCredentialLoader(
       clientId: 'rest-api-key',
       redirectUri:
-          'https://staging-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
+          'https://dev-api.onmu.cloud/api/v1/auth/oauth/kakao/callback',
       stateGenerator: () => 'state-123',
       initialLinkReader: () async => null,
       linkStreamReader: () => links.stream,

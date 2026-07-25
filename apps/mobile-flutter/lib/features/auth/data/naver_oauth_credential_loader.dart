@@ -38,7 +38,7 @@ class NaverOAuthCredentialLoader {
   static const _defaultRedirectUri = String.fromEnvironment(
     'NAVER_OAUTH_REDIRECT_URI',
     defaultValue:
-        'https://staging-api.onmu.cloud/api/v1/auth/oauth/naver/callback',
+        'https://dev-api.onmu.cloud/api/v1/auth/oauth/naver/callback',
   );
   static const _defaultCallbackScheme = 'io.onieum.onmu';
   static const _defaultCallbackHost = 'oauth';
