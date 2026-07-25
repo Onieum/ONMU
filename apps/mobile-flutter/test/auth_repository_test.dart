@@ -402,4 +402,65 @@ void main() {
       expect(session.user.nickname, 'Google User');
     },
   );
+
+  test('refreshes tokens via refresh endpoint without bearer header', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.path, '/api/v1/auth/refresh');
+          expect(options.headers['Authorization'], isNull);
+          expect(options.data, {'refreshToken': 'stored-refresh'});
+          handler.resolve(
+            Response<Object?>(
+              requestOptions: options,
+              data: {
+                'ok': true,
+                'authenticated': true,
+                'tokens': {
+                  'accessToken': 'onmu-access-jwt-refreshed',
+                  'refreshToken': 'onmu-refresh-token-rotated',
+                  'tokenType': 'Bearer',
+                  'accessTokenExpiresAt': '2026-06-11T11:00:00Z',
+                  'refreshTokenExpiresAt': '2026-08-11T10:00:00Z',
+                },
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+    final tokens = await repository.refreshTokens('stored-refresh');
+
+    expect(tokens, isNotNull);
+    expect(tokens!.accessToken, 'onmu-access-jwt-refreshed');
+    expect(tokens.refreshToken, 'onmu-refresh-token-rotated');
+  });
+
+  test('treats invalid refresh token response as unrecoverable', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dev-api.onmu.cloud'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.badResponse,
+              response: Response<Object?>(
+                requestOptions: options,
+                statusCode: 401,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    final repository = ApiAuthRepository(OnmuApiClient(dio));
+
+    final tokens = await repository.refreshTokens('stored-refresh');
+
+    expect(tokens, isNull);
+  });
 }

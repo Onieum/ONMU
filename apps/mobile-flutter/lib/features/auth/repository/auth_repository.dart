@@ -17,6 +17,8 @@ abstract interface class AuthRepository {
 
   Future<AuthSession> exchangeOAuthLogin(OAuthProviderCredential credential);
 
+  Future<OnmuAuthTokens?> refreshTokens(String refreshToken);
+
   Future<void> logout(String? refreshToken);
 
   Future<void> withdraw();
@@ -58,6 +60,30 @@ class ApiAuthRepository implements AuthRepository {
         'authProvider': provider.toUpperCase(),
     }, mediaBaseUrl: _client.baseUrl);
     return AuthSession(user: user, tokens: tokens);
+  }
+
+  @override
+  Future<OnmuAuthTokens?> refreshTokens(String refreshToken) async {
+    final token = refreshToken.trim();
+    if (token.isEmpty) {
+      return null;
+    }
+    // /api/v1/auth/refresh 는 permitAll 이므로 만료된 access bearer 를 보내면
+    // 토큰 검증 필터가 401 을 줄 수 있다. refresh 호출 전 authorization 헤더를 비운다.
+    _client.clearAccessToken();
+    try {
+      final json = await _client.postObject(
+        '/api/v1/auth/refresh',
+        body: {'refreshToken': token},
+      );
+      return OnmuAuthTokens.fromJson(OnmuJson.asMap(json['tokens']));
+    } on OnmuApiException catch (error) {
+      final statusCode = error.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override

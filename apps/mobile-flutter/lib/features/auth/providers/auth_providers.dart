@@ -37,7 +37,17 @@ final authBootstrapProvider = FutureProvider<AuthBootstrapResult>((ref) async {
   }
 
   final repository = ref.watch(authRepositoryProvider);
-  final user = await repository.fetchCurrentUser();
+  var user = await repository.fetchCurrentUser();
+  // access 토큰이 만료돼 /users/me 가 401(null) 이면, 저장된 refresh 토큰으로
+  // 한 번 갱신을 시도한 뒤 다시 사용자 조회. refresh 도 실패하면 그때 세션을 비운다.
+  if (user == null && storedTokens != null) {
+    final refreshed = await repository.refreshTokens(storedTokens.refreshToken);
+    if (refreshed != null) {
+      await ref.read(authTokenStoreProvider).save(refreshed);
+      ref.read(onmuApiClientProvider).setAccessToken(refreshed.accessToken);
+      user = await repository.fetchCurrentUser();
+    }
+  }
   if (user == null && storedTokens != null) {
     await ref.read(authTokenStoreProvider).clear();
     ref.read(onmuApiClientProvider).clearAccessToken();

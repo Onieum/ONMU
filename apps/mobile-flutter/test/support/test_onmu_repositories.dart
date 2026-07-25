@@ -491,6 +491,14 @@ class TestAuthRepository implements AuthRepository {
   Future<AuthUser?> fetchCurrentUser() async => user;
 
   @override
+  Future<OnmuAuthTokens?> refreshTokens(String refreshToken) async {
+    return const OnmuAuthTokens(
+      accessToken: 'test-onmu-access-jwt-refreshed',
+      refreshToken: 'test-onmu-refresh-token-rotated',
+    );
+  }
+
+  @override
   Future<AuthSession> exchangeOAuthLogin(
     OAuthProviderCredential credential,
   ) async {
