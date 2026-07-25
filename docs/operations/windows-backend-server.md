@@ -1,5 +1,8 @@
 # Windows 노트북 백엔드 서버 세팅 가이드
 
+> **상태**: 이 문서는 **현재 개발 단계 임시 운영 런타임(VM + Cloudflare, 비용 $0/월)** runbook이다. 정식 운영 target은 검증된 관리형(`infra/terraform/`)이며, 정식 운영 전환 시 관리형 runbook(`azure-*.md`)으로 넘어간다.
+
+
 이 문서는 Windows 노트북을 팀 개발용 백엔드 서버로 사용할 때 필요한 세팅과 운영 기준입니다. OBS와 캡처보드는 화면 공유와 모니터링 용도이고, 백엔드 서비스 자체는 Windows, Docker Desktop, WSL2, 방화벽, 네트워크 설정으로 운영합니다.
 
 ## 중요: 현재 표준 staging 경로가 아닙니다

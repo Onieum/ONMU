@@ -1,5 +1,8 @@
 # Azure secret 인벤토리
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 Azure 전환에 필요한 env var name과 Key Vault secret name을 정리한다. secret 값은 문서, PR, 로그, 채팅에 절대 출력하지 않는다.
 
 ## 1. 작성 규칙

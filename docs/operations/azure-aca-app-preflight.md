@@ -1,5 +1,8 @@
 # Azure ACA 앱 배포 사전 점검
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU staging에서 Spring API와 worker를 Azure Container Apps에 올리기 전에 막히기 쉬운 조건을 한곳에 모은다. 목적은 `postgres_ready -> api_app_ready -> worker_app_ready` wave를 실행하기 전에 사람과 CI가 같은 체크리스트를 보게 만드는 것이다.
 
 이 문서는 app phase 직전 전용 점검표다. 팀 표준 staging 실행/운영 순서는 먼저 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [staging cutover status](./staging-cutover-status.md)를 본다.

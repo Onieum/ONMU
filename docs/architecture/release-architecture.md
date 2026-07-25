@@ -2,17 +2,19 @@
 
 ## 원칙
 
-ONMU는 처음부터 실제 서비스 릴리스를 전제로 설계합니다. 구현은 애자일하게 작게 나누어 진행하지만, 목표 아키텍처는 운영 가능한 제품 수준을 기준으로 둡니다. Flutter 앱, API, 실시간 게이트웨이, 워커, 관리형 데이터 서비스, AKS, 관측성, CI/CD를 초기 설계에 포함합니다.
+ONMU는 처음부터 실제 서비스 릴리스를 전제로 설계합니다. 구현은 애자일하게 작게 나누어 진행하지만, 목표 아키텍처는 운영 가능한 제품 수준을 기준으로 둡니다. Flutter 앱, API, 실시간 게이트웨이, 워커, 관리형 데이터 서비스, 관측성, CI/CD를 초기 설계에 포함합니다.
+
+> **운영 이중 경로:** 정식 운영 target은 `infra/terraform/`의 Azure 관리형(검증된 관리형: Container Apps, ACR, Front Door, Managed Redis, Event Hubs, Blob) 아키텍처다. 단, 현재 개발 단계에서는 비용($0/월, 무료 한도) 때문에 Azure VM + Docker Compose + Cloudflare(R2/Tunnel/Pages) + Azure PostgreSQL Flexible(관리형 DB 잔류) 조합을 임시 운영 런타임으로 사용한다. 정식 운영 전환 시 임시 VM 경로에서 관리형 target으로 이전한다. 자세한 분기는 [staging cutover status](../operations/staging-cutover-status.md)를 본다.
 
 발표용 다이어그램과 기술 스택 기준은 [현재 아키텍처 다이어그램과 기술 스택 결정안](./current-architecture-diagram.md)을 기준으로 함께 관리합니다. Flutter 구조는 [Flutter 프론트 아키텍처](./frontend-architecture.md), API 계약은 [API Contract Map](./api-contract-map.md), Auth/User/Profile 경계는 [ONMU Auth/User/Profile 아키텍처](./auth-user-profile-architecture.md), 홈/약속/투표 경계는 [ONMU 홈 / 약속 / 투표 아키텍처](./home-plans-vote-architecture.md), 채팅/ChatActivity 목표 구조는 [ONMU 채팅 및 ChatActivity 아키텍처](./chat-activity-architecture.md), Place/Search/Route/Map 경계는 [ONMU Place / Search / Route / Map 아키텍처](./place-search-route-map-architecture.md), 백엔드 확정안은 [백엔드 결정 원본과 기술스택](./backend-stack-options.md)을 함께 봅니다.
 
 Azure/Terraform 전환을 준비할 때는 [Current-to-target 아키텍처 인덱스](./current-to-target-index.md)에서 도메인별 목표 구조를 먼저 확인하고, 운영 절차는 [Azure Terraform 전환 운영 가이드](../operations/azure-terraform-migration.md), secret 경계는 [Azure secret 인벤토리](../operations/azure-secret-inventory.md), 배포 검증은 [Azure smoke checklist](../operations/azure-smoke-checklist.md)를 기준으로 봅니다.
 
-## 운영 메모 (2026-06)
+## 운영 메모 (2026-07)
 
-- 현재 일정에서는 Azure staging acceptance를 먼저 닫고, 이 환경을 prod-like 운영 기준점으로 사용한다.
-- 이 메모는 기존 production 목표 아키텍처와 cutover/runbook을 대체하지 않는다.
-- 전용 production 환경, 더 강한 rollback discipline, 네트워크 hardening, production smoke는 후속 단계에서 기존 로드맵으로 다시 합류해 진행한다.
+- 현재 일정에서는 비용($0/월, 무료 한도) 때문에 **임시 운영 런타임(Azure VM + Docker Compose + Cloudflare)** 을 pre-prod 기본선으로 사용한다. 정식 운영 target(관리형)은 `infra/terraform/`에 그대로 유지한다.
+- 이 메모는 정식 운영 target(관리형) 아키텍처와 cutover/runbook을 대체하지 않는다.
+- 전용 production 환경(관리형), 더 강한 rollback discipline, 네트워크 hardening, production smoke는 정식 운영 전환 단계에서 관리형 target 로드맵으로 합류해 진행한다.
 - 현재 운영 경계와 읽는 순서는 [staging cutover status](../operations/staging-cutover-status.md)에 따로 정리한다.
 
 ## 제품 표면

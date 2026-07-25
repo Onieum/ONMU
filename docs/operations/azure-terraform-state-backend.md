@@ -1,5 +1,8 @@
 # Azure Terraform state backend bootstrap
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU Terraform state backend를 준비하기 위한 운영 기준이다. 목적은 앱 리소스가 아니라 Terraform state 저장소 준비다.
 
 실제 apply 준비 순서는 [Azure tfstate bootstrap apply 준비 runbook](./azure-tfstate-bootstrap-apply-runbook.md)을 따른다.

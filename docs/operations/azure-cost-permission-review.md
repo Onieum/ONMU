@@ -1,5 +1,8 @@
 # Azure staging cost and permission review
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU Azure staging 적용 전에 비용 산출과 권한 경계를 점검하기 위한 checklist다. 금액은 Azure Pricing Calculator로 확정하고, 이 문서에는 rough risk와 산출 항목만 남긴다.
 
 ## 1. 공식 가격/크레딧 확인 기준

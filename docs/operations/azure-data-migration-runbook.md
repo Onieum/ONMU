@@ -1,5 +1,8 @@
 # Azure 데이터 이전 runbook
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 Windows dev backend, on-prem backup/primary backend, Azure staging/production 사이에서 데이터 저장소를 이전할 때의 절차와 책임 경계를 정리한다. 실제 이전은 go/no-go 체크포인트, 백업, smoke 계획, rollback point가 확정된 뒤 수행한다.
 
 Azure staging을 내리고 on-prem을 primary source of truth로 승격하는 완전 이전은 이 문서의 데이터 기준과 [On-prem full migration runbook](./onprem-full-migration-runbook.md)을 함께 따른다.

@@ -1,5 +1,8 @@
 # Azure staging smoke checklist
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU Azure staging이 실제로 동작한다고 판정하기 위한 smoke 기준이다. Terraform apply, container image push, 또는 build 성공만으로 배포 성공으로 보지 않는다.
 
 현재 팀 운영 기준은 Azure staging을 pre-prod 기본선처럼 사용하는 것이다. 일반 실행/배포 순서는 [Flutter staging 실행 runbook](./flutter-staging-runbook.md), [Azure staging 배포/운영 runbook](./azure-staging-deploy-runbook.md), [staging cutover status](./staging-cutover-status.md)를 먼저 본다.

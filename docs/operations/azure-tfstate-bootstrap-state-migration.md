@@ -1,5 +1,8 @@
 # Azure tfstate bootstrap state migration runbook
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 이미 생성된 Terraform state backend 리소스를 관리하는 bootstrap root module의 local state를 remote backend key로 이전하는 절차다. 앱 리소스 생성, DNS 변경, DB migration, Key Vault secret value 작성, production apply는 포함하지 않는다.
 
 ## 1. 고정 결정

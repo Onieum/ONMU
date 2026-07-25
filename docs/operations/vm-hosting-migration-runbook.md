@@ -1,5 +1,8 @@
 # VM 하이브리드 호스팅 마이그레이션 Runbook
 
+> **상태**: 이 문서는 **현재 개발 단계 임시 운영 런타임(VM + Cloudflare, 비용 $0/월)** runbook이다. 정식 운영 target은 검증된 관리형(`infra/terraform/`)이며, 정식 운영 전환 시 관리형 runbook(`azure-*.md`)으로 넘어간다.
+
+
 **대상**: Azure VM(compute) + Azure PostgreSQL Flexible(DB) + Cloudflare R2(객체/타일) + Cloudflare Pages(brand-web) + Cloudflare Tunnel(수신)
 **목적**: 무료/최소 비용 + 해커톤 속도로 운영 환경을 1-2일 안에 가동.
 **전제 산출물(이미 코드 반영)**:

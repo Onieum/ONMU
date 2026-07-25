@@ -1,5 +1,8 @@
 # Azure staging 배포/운영 runbook
 
+> **상태**: 이 문서는 **정식 운영 target(검증된 관리형, Azure PaaS) 러북**이다. 현재 개발 단계 임시 운영은 VM 경로([`vm-hosting-migration-runbook.md`](./vm-hosting-migration-runbook.md))를 본다. 정식 운영 전환 시 이 러북을 따른다.
+
+
 이 문서는 ONMU의 현재 표준 배포/운영 경로를 설명한다. 지금 팀의 기본선은 Azure staging이며, 이 환경을 일정상 pre-prod 기준점처럼 사용한다. 기존 production 로드맵은 유지하며, 이 문서는 현재 운영 현실만 정리한다.
 
 ## 1. 현재 표준 기준
