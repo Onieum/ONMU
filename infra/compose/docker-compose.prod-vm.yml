@@ -36,17 +36,17 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
-    # B2ats_v2(3.5GB) 에서 api/worker/redis 와 함께 구동하기 위한 메모리 튜닝.
+    # B2ats_v2(1GB) 에서 api/worker/redis 와 함께 구동하기 위한 메모리 튜닝.
     command:
       - postgres
       - -c
-      - shared_buffers=256MB
+      - shared_buffers=128MB
       - -c
       - work_mem=4MB
       - -c
-      - effective_cache_size=1GB
+      - effective_cache_size=512MB
       - -c
-      - max_connections=100
+      - max_connections=50
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -89,8 +89,8 @@ services:
       # Redis 는 같은 compose 네트워크의 서비스명으로 연결.
       SPRING_DATA_REDIS_URL: redis://redis:6379/0
       REDIS_URL: redis://redis:6379/0
-      # JVM 힙 제한(B2ats_v2 3.5GB 대응). Dockerfile ENTRYPOINT 가 $JAVA_OPTS 를 소비한다.
-      JAVA_OPTS: "${JAVA_OPTS:--Xmx512m -XX:MaxMetaspaceSize=256m}"
+      # JVM 힙 제한(B2ats_v2 1GB 대응). Dockerfile ENTRYPOINT 가 $JAVA_OPTS 를 소비한다.
+      JAVA_OPTS: "${JAVA_OPTS:--Xmx384m -XX:MaxMetaspaceSize=192m}"
     ports:
       # VM 의 cloudflared 가 localhost:8080 으로 역방향 연결. 외부 직접 노출 금지.
       - "127.0.0.1:8080:8080"
