@@ -1,10 +1,16 @@
 name: Deploy Staging VM
 
-# VM 하이브리드 호스팅 배포 (구 ACA/ACR 경로인 deploy-staging-api.yml 을 대체).
+# VM 하이브리드 호스팅 배포 (무료 우선 티어 전환).
 # 대상: Azure VM onmu-staging-vm (onmu@<ip>) 위 docker-compose.prod-vm.yml 스택.
-# 수신은 Cloudflare Tunnel(localhost:8080)이 별도 프로세스로 담당 → 이 워크플로우는
-# api/worker 컨테이너만 재빌드/재기동하며 터널을 건드리지 않는다.
+#
+# 흐름(무료 티어 전환):
+#   1. runner 가 api/worker 이미지를 빌드하여 ACR(Standard, 12개월 무료)에 푸시.
+#      → VM 에서 빌드하지 않으므로 B2ats_v2 무료 VM 의 버스트 크레딧이 방전되지 않는다.
+#   2. SSH 로 VM 에서 docker compose pull && up -d (빌드 없이 pull).
+#   수신은 Cloudflare Tunnel(localhost:8080)이 별도 프로세스로 담당 → 터널을 건드리지 않는다.
 # 비밀값은 VM 의 repo-root .env.production 에서 주입되므로 러너를 통해 전달하지 않는다.
+# 단, ACR_PUSH 용 자격(AcrPush)은 GH secrets(ACR_LOGIN_SERVER/ACR_USERNAME/ACR_PASSWORD)로 받는다.
+# VM 은 사전에 docker login 으로 ACR pull 자격을 확보해 둔다(runbook 참조).
 
 on:
   push:
@@ -17,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Service(s) to build & restart"
+        description: "Service(s) to pull & restart"
         type: choice
         options:
           - "api"
@@ -34,10 +40,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: SSH deploy to onmu-staging-vm
+    name: Build & push to ACR, then rollout on onmu-staging-vm
     runs-on: ubuntu-latest
     environment: vm-staging-apply
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Resolve deploy target
         id: resolve
@@ -48,10 +54,13 @@ jobs:
           echo "Deploy target: $TARGET"
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
-      - name: Validate VM deploy configuration
+      - name: Validate VM + ACR deploy configuration
         env:
           VM_HOST: ${{ vars.ONMU_VM_HOST || secrets.ONMU_VM_HOST }}
           VM_KEY: ${{ secrets.ONMU_VM_SSH_KEY }}
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USER: ${{ secrets.ACR_USERNAME }}
+          ACR_PASS: ${{ secrets.ACR_PASSWORD }}
         run: |
           set -euo pipefail
           if [ -z "$VM_HOST" ]; then
@@ -62,22 +71,64 @@ jobs:
             echo "::error title=Missing SSH key::Set ONMU_VM_SSH_KEY secret on the vm-staging-apply environment."
             exit 1
           fi
+          if [ -z "$ACR_SERVER" ] || [ -z "$ACR_USER" ] || [ -z "$ACR_PASS" ]; then
+            echo "::error title=Missing ACR creds::Set ACR_LOGIN_SERVER / ACR_USERNAME / ACR_PASSWORD secrets (AcrPush) on the vm-staging-apply environment."
+            exit 1
+          fi
           # 호스트 IP 는 변수일 때 로그에 마스킹되지 않으므로 출력하지 않는다.
-          echo "VM deploy configuration present (host configured)."
+          echo "VM + ACR deploy configuration present."
 
-      - name: SSH build, rollout, and readiness gate
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build & push images to ACR
+        env:
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          TAG="dev"
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          echo "==> building & pushing api-spring (Maven 멀티스테이지)"
+          docker build \
+            -t "$ACR_SERVER/onmu-api-spring:$TAG" \
+            -t "$ACR_SERVER/onmu-api-spring:$SHA_TAG" \
+            services/api-spring
+          docker push "$ACR_SERVER/onmu-api-spring:$TAG"
+          docker push "$ACR_SERVER/onmu-api-spring:$SHA_TAG"
+
+          echo "==> building & pushing ai-data-worker"
+          docker build \
+            -t "$ACR_SERVER/onmu-ai-data-worker:$TAG" \
+            -t "$ACR_SERVER/onmu-ai-data-worker:$SHA_TAG" \
+            services/workers/ai-data-worker
+          docker push "$ACR_SERVER/onmu-ai-data-worker:$TAG"
+          docker push "$ACR_SERVER/onmu-ai-data-worker:$SHA_TAG"
+
+          echo "==> pushed: $TAG, $SHA_TAG"
+
+      - name: SSH pull, rollout, and readiness gate
         # SHA 고정(appleboy/ssh-action v1). 업그레이드 시 upstream SHA 까지 갱신할 것.
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         env:
           REPO_PATH: ${{ vars.ONMU_VM_REPO_PATH }}
           DEPLOY_BRANCH: ${{ github.ref_name || 'dev' }}
           DEPLOY_TARGET: ${{ steps.resolve.outputs.target }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           host: ${{ vars.ONMU_VM_HOST || secrets.ONMU_VM_HOST }}
           username: ${{ vars.ONMU_VM_USER || secrets.ONMU_VM_USER || 'onmu' }}
           port: ${{ vars.ONMU_VM_SSH_PORT || 22 }}
           key: ${{ secrets.ONMU_VM_SSH_KEY }}
-          envs: REPO_PATH,DEPLOY_BRANCH,DEPLOY_TARGET
+          envs: REPO_PATH,DEPLOY_BRANCH,DEPLOY_TARGET,ACR_LOGIN_SERVER,ACR_USERNAME,ACR_PASSWORD
           script_stop: true
           command_timeout: 20m
           script: |
@@ -97,16 +148,22 @@ jobs:
             git reset --hard "origin/$DEPLOY_BRANCH"
             echo "    now at $(git rev-parse --short HEAD): $(git log -1 --format='%s')"
 
-            echo "==> building & starting containers"
+            echo "==> VM docker login to ACR (배포 시 자동 인증, 비밀번호는 stdin)"
+            echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" -u "$ACR_USERNAME" --password-stdin
+
+            echo "==> pulling images & starting containers (VM 에서 빌드하지 않음)"
             case "$DEPLOY_TARGET" in
               api)
-                $COMPOSE up -d --build api
+                $COMPOSE pull api
+                $COMPOSE up -d api
                 ;;
               api-and-worker)
-                $COMPOSE up -d --build api worker
+                $COMPOSE pull api worker
+                $COMPOSE up -d api worker
                 ;;
               full-stack)
-                $COMPOSE up -d --build --remove-orphans
+                $COMPOSE pull
+                $COMPOSE up -d --remove-orphans
                 ;;
               *)
                 echo "ERROR: unknown deploy target '$DEPLOY_TARGET'" >&2
@@ -183,5 +240,6 @@ jobs:
             echo "- branch: \`${BRANCH}\`"
             echo "- target: \`${TARGET}\`"
             echo "- compose: \`infra/compose/docker-compose.prod-vm.yml\`"
+            echo "- registry: ACR pull (VM 미리 docker login), CI push (GH secrets AcrPush)"
             echo "- gate: local /readyz ok:true on 127.0.0.1:8080, then public /healthz via Cloudflare Tunnel"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -263,7 +263,7 @@ module "container_registry" {
   resource_group_name = local.resource_group_name
   location            = local.resource_group_location
   name                = module.naming.container_registry_name
-  sku                 = "Basic"
+  sku                 = "Standard"
   tags                = local.tags
 }
 

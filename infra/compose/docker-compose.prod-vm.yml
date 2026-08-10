@@ -1,15 +1,21 @@
-# VM 단일 호스트 운영용 compose (하이브리드 마이그레이션 경로)
+# VM 단일 호스트 운영용 compose (무료 우선 티어 전환 경로)
 #
 # 전제:
-#   - PostgreSQL 은 Azure Database for PostgreSQL Flexible(관리형, 외부) → 컨테이너에 두지 않음.
+#   - PostgreSQL 은 관리형(Azure Flexible)에서 → VM 컨테이너(postgis/postgis:16-3.4)로 이전.
+#     (Azure Flexible 은 12개월 무료 항목이 아니므로 과금 중단 목적)
 #   - 객체 스토리지는 Cloudflare R2(S3 호환) → MinIO 컨테이너 제거.
-#   - Redis 만 컨테이너로 구동(방 상태/캐시, source of truth 아님).
-#   - 앱(api/worker)은 각 서비스 디렉토리의 Dockerfile 로 이미지 빌드.
+#   - Redis/Postgres 만 컨테이너로 구동. Postgres 는 source of truth(pg_dump→R2 백업 필수).
+#   - 앱(api/worker) 이미지는 CI(GitHub Actions)가 ACR(Standard, 12개월 무료)에 빌드/푸시.
+#     VM 은 빌드하지 않고 pull 한다(→ B2ats_v2 무료 VM 에서 버스트 크레딧 방전 방지).
+#
+# 필수 환경변수(.env.production):
+#   ACR_LOGIN_SERVER=<acr-name>.azurecr.io   # VM docker login + 아래 image 기본값
+#   POSTGRES_PASSWORD=...                     # 컨테이너 PG 비밀번호
+#   SPRING_DATASOURCE_URL/DATABASE_URL        # Phase B 컷오버 후 postgres:5432 로 전환
 #
 # 실행(VM 내 repo 루트):
-#   docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production up -d --build
-#
-# .env.production 예시는 이 파일 하단 주석 + WS3/WS1 산출물 참조.
+#   docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production pull
+#   docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production up -d
 
 name: onmu-prod-vm
 
@@ -20,6 +26,36 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: onmu-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-onmu}
+      POSTGRES_USER: ${POSTGRES_USER:-onmu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    # B2ats_v2(3.5GB) 에서 api/worker/redis 와 함께 구동하기 위한 메모리 튜닝.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - max_connections=100
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-onmu} -d ${POSTGRES_DB:-onmu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   redis:
     image: redis:7.4-alpine
     container_name: onmu-redis
@@ -35,12 +71,12 @@ services:
       retries: 5
 
   api:
-    build:
-      context: ../../services/api-spring
-      dockerfile: Dockerfile
-    image: onmu-api-spring:prod-vm
+    # CI 가 ACR 에 빌드/푸시한 이미지를 pull. VM 에서 빌드하지 않는다.
+    image: ${ACR_LOGIN_SERVER}/onmu-api-spring:${IMAGE_TAG:-dev}
     container_name: onmu-api
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -53,6 +89,8 @@ services:
       # Redis 는 같은 compose 네트워크의 서비스명으로 연결.
       SPRING_DATA_REDIS_URL: redis://redis:6379/0
       REDIS_URL: redis://redis:6379/0
+      # JVM 힙 제한(B2ats_v2 3.5GB 대응). Dockerfile ENTRYPOINT 가 $JAVA_OPTS 를 소비한다.
+      JAVA_OPTS: "${JAVA_OPTS:--Xmx512m -XX:MaxMetaspaceSize=256m}"
     ports:
       # VM 의 cloudflared 가 localhost:8080 으로 역방향 연결. 외부 직접 노출 금지.
       - "127.0.0.1:8080:8080"
@@ -67,12 +105,12 @@ services:
     #   start_period: 40s
 
   worker:
-    build:
-      context: ../../services/workers/ai-data-worker
-      dockerfile: Dockerfile
-    image: onmu-ai-data-worker:prod-vm
+    # CI 가 ACR 에 빌드/푸시한 이미지를 pull. VM 에서 빌드하지 않는다.
+    image: ${ACR_LOGIN_SERVER}/onmu-ai-data-worker:${IMAGE_TAG:-dev}
     container_name: onmu-worker
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       api:
@@ -89,10 +127,7 @@ services:
   # realtime-gateway: 현재 stub(구현/Dockerfile 없음). 라이브 방 동기화가 데모에 필요하면
   # services/realtime-gateway/Dockerfile 을 추가하고 아래 주석을 해제한다.
   # realtime:
-  #   build:
-  #     context: ../../services/realtime-gateway
-  #     dockerfile: Dockerfile
-  #   image: onmu-realtime-gateway:prod-vm
+  #   image: ${ACR_LOGIN_SERVER}/onmu-realtime-gateway:${IMAGE_TAG:-dev}
   #   container_name: onmu-realtime
   #   depends_on:
   #     redis:
@@ -109,3 +144,4 @@ services:
 
 volumes:
   redis-data:
+  postgres-data:

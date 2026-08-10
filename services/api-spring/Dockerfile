@@ -38,4 +38,6 @@ EXPOSE 8080
 
 USER onmu
 
-ENTRYPOINT ["java", "-jar", "/app/onmu-api-spring.jar"]
+# JAVA_OPTS(예: -Xmx512m)를 런타임에 주입 가능. 미설정 시 빈 문자열.
+# JAVA_TOOL_OPTIONS(Application Insights agent)는 별도로 JVM 이 자동 적용한다.
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/onmu-api-spring.jar"]

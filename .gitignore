@@ -80,3 +80,6 @@ raw/
 minio-data/
 postgres-data/
 redis-data/
+
+tmp/
+output/
