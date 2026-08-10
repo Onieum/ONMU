@@ -3,6 +3,24 @@
 > 관련 변경: `infra/compose/docker-compose.prod-vm.yml`, `.github/workflows/deploy-staging-vm.yml`, `infra/terraform/environments/staging/main.tf`(ACR Standard), `scripts/prod-vm/bootstrap-vm.sh`, `services/api-spring/Dockerfile`(JAVA_OPTS).
 > 참고 런북: `vm-hosting-migration-runbook.md`, `azure-data-migration-runbook.md`, `azure-cost-permission-review.md`.
 
+## 0. 실행 결과 (2026-08-10)
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| Phase A (CI→ACR→VM pull) | ✅ 완료 | ACR `onmustagingacr`(Standard) 생성, GH secrets `ACR_*` 등록, deploy 워크플로 자동 docker login, VM 빌드 부하 제거 |
+| Phase B (Postgres→컨테이너) | ✅ 완료 | pg_dump/restore 에러 0건, row count 소스-타겟 일치, Flyway 32/32, 확장 4개. 앱 컨테이너 PG로 라이브 |
+| 관리형 PG `onmu-staging-pg` | ✅ **삭제** | 과금 중단. 앱 영향 없음(컨테이너 PG 사용) |
+| 백업 | ✅ 3중 | VM `/home/onmu/onmu-backups/` · R2 `onmu-media/pg-backups/` · Mac 로컬 (pg custom format) |
+| VM swap | ✅ 2GB | `/swapfile` (fstab persist) |
+| Phase C (VM→B2ats_v2) | ❌ **정체** | `standardBasv2Family` quota=0. 무료+quota 있는 B1s(1GB)는 스택에 너무 작음 |
+
+**남은 유료 원인**: VM `Standard_D2ats_v2`(가동 시 ~$60/월) 단一项. → Phase C 해결(PAYG 전환 후 B2ats_v2 quota 승인 → 리사이즈) 필요. 사용 안 할 때 `az vm deallocate` 로 컴퓨팅 과금 정지 가능.
+
+**ACR**: `az` 로 직접 생성(terraform skeleton 과 별개). provider `Microsoft.ContainerRegistry` 최초 등록 필요했음.
+
+---
+
+
 ## 1. 배경 / 목표
 
 Azure free trial 크레딧 소진 시, 현재 staging 은 **유료 리소스 2개**에 의존해 spending limit 으로 앱이 자동 정지한다.
