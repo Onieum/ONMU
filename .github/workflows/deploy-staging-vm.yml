@@ -120,12 +120,15 @@ jobs:
           REPO_PATH: ${{ vars.ONMU_VM_REPO_PATH }}
           DEPLOY_BRANCH: ${{ github.ref_name || 'dev' }}
           DEPLOY_TARGET: ${{ steps.resolve.outputs.target }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           host: ${{ vars.ONMU_VM_HOST || secrets.ONMU_VM_HOST }}
           username: ${{ vars.ONMU_VM_USER || secrets.ONMU_VM_USER || 'onmu' }}
           port: ${{ vars.ONMU_VM_SSH_PORT || 22 }}
           key: ${{ secrets.ONMU_VM_SSH_KEY }}
-          envs: REPO_PATH,DEPLOY_BRANCH,DEPLOY_TARGET
+          envs: REPO_PATH,DEPLOY_BRANCH,DEPLOY_TARGET,ACR_LOGIN_SERVER,ACR_USERNAME,ACR_PASSWORD
           script_stop: true
           command_timeout: 20m
           script: |
@@ -144,6 +147,9 @@ jobs:
             git fetch origin "$DEPLOY_BRANCH" --prune
             git reset --hard "origin/$DEPLOY_BRANCH"
             echo "    now at $(git rev-parse --short HEAD): $(git log -1 --format='%s')"
+
+            echo "==> VM docker login to ACR (배포 시 자동 인증, 비밀번호는 stdin)"
+            echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" -u "$ACR_USERNAME" --password-stdin
 
             echo "==> pulling images & starting containers (VM 에서 빌드하지 않음)"
             case "$DEPLOY_TARGET" in
