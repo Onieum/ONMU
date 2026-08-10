@@ -17,6 +17,8 @@ ONMU는 환경을 두 경로로 분리해 관리한다.
 - 이 판단은 정식 운영 target(관리형) 로드맵을 삭제하거나 대체하지 않는다.
 - 정식 운영 target 구조와 cutover discipline은 [ONMU 릴리스 아키텍처](../architecture/release-architecture.md)와 `infra/terraform/`에 그대로 유지한다.
 
+> **진행 중(2026-08): 무료 우선 티어 전환.** free trial 크레딧 소진에 대비해 임시 운영 런타임 자체를 12개월 무료 한도 내로 맞춘다 — VM 은 `B2ats_v2`(750h/월 무료) 복귀, PostgreSQL Flexible(유료)은 VM 컨테이너로 이관, ACR 은 Standard(무료), 빌드는 VM → CI/ACR 로 이전. 절차는 [무료 우선 티어 전환 런북](./free-tier-migration-runbook.md) 참조. PostgreSQL Flexible 이 관리형 DB 기준에서 빠지는 것이 이 전환의 핵심이다.
+
 ## 2. 지금 팀이 기준으로 삼는 경로
 
 | 구분 | 현재 임시 운영 (실제 런타임) | 정식 운영 target (관리형, 전환 시) |

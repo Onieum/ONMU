@@ -45,9 +45,16 @@ else
   sudo apt-get install -y cloudflared
 fi
 
-log "Done. 다음 단계:"
+log "Done. 다음 단계(무료 우선 티어 전환 후):"
 cat <<'NEXT'
   1. git clone <ONMU_REPO> && cd ONMU  (또는 이미 clone 한 repo 로 이동)
-  2. repo 루트에 .env.production 작성 (runbook WS2 의 예시 참조)
-  3. docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production up -d --build
+  2. repo 루트에 .env.production 작성 (runbook 의 예시 참조)
+     - ACR_LOGIN_SERVER, POSTGRES_PASSWORD, (Phase B 후) postgres:5432 접속처 필수
+  3. ACR pull 자격 확보(1회):
+     - admin 자격: docker login <acr-login-server> -u <user> -p <password>
+     - 또는 managed identity: az cli 설치 후 az acr login --name <acr> --identity
+       (VM system-assigned identity 에 ACRPull 부여 필요)
+  4. docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production pull
+  5. docker compose -f infra/compose/docker-compose.prod-vm.yml --env-file .env.production up -d
+     (VM 에서 빌드하지 않음 → B2ats_v2 무료 VM 버스트 크레딧 방전 방지)
 NEXT

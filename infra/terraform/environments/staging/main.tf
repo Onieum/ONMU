@@ -263,7 +263,8 @@ module "container_registry" {
   resource_group_name = local.resource_group_name
   location            = local.resource_group_location
   name                = module.naming.container_registry_name
-  sku                 = "Basic"
+  # 12개월 무료 한도: Standard 1개(100GB). VM 빌드 부하를 없애기 위해 CI 가 ACR 에 빌드/푸시.
+  sku                 = "Standard"
   tags                = local.tags
 }
 
