@@ -12,9 +12,10 @@
 | 관리형 PG `onmu-staging-pg` | ✅ **삭제** | 과금 중단. 앱 영향 없음(컨테이너 PG 사용) |
 | 백업 | ✅ 3중 | VM `/home/onmu/onmu-backups/` · R2 `onmu-media/pg-backups/` · Mac 로컬 (pg custom format) |
 | VM swap | ✅ 2GB | `/swapfile` (fstab persist) |
-| Phase C (VM→B2ats_v2) | ❌ **정체** | `standardBasv2Family` quota=0. 무료+quota 있는 B1s(1GB)는 스택에 너무 작음 |
+| Phase C (VM→B2ats_v2) | ✅ **완료** | `standardBasv2Family` quota 0→2 승인(`az quota create`) 후 리사이즈. B2ats_v2 는 **1GB RAM**(3.5GB 아님). JVM -Xmx384m·postgres shared_buffers=128MB 튜닝. 앱 B2ats_v2에서 readyz ok |
+| VM 과금 | ✅ deallocated | 평소 `az vm deallocate`(컴퓨팅 과금 정지, 디스크 ~$1-5/월만). 작업 시 `az vm start`(750h/월 무료) |
 
-**남은 유료 원인**: VM `Standard_D2ats_v2`(가동 시 ~$60/월) 단一项. → Phase C 해결(PAYG 전환 후 B2ats_v2 quota 승인 → 리사이즈) 필요. 사용 안 할 때 `az vm deallocate` 로 컴퓨팅 과금 정지 가능.
+**무료 달성**: 전 스택 $0(B2ats_v2 750h/월 무료 + ACR Standard 12개월 무료 + 컨테이너 PG $0 + Cloudflare $0). 관리형 PG 삭제. **제약**: B2ats_v2 1GB라 메모리 빡빡(swap 2GB 보조) — 데모/스테이징 경량 부하 적합, 고부하 시 B2s(유료 4GB) fallback.
 
 **ACR**: `az` 로 직접 생성(terraform skeleton 과 별개). provider `Microsoft.ContainerRegistry` 최초 등록 필요했음.
 
@@ -179,7 +180,7 @@ az postgres flexible-server delete --name onmu-staging-pg -g <RG>
 
 ---
 
-## 5. Phase C — VM 무료 SKU 복귀 (B2ats_v2, 3.5GB)
+## 5. Phase C — VM 무료 SKU 복귀 (B2ats_v2, 1GB) — ✅ 완료
 
 > Phase A 로 VM 빌드 부하가 제거되어 버스트 방전 위험이 사라진 뒤 축소.
 
