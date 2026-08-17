@@ -79,7 +79,7 @@ jobs:
           echo "VM + ACR deploy configuration present."
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Login to ACR
         uses: docker/login-action@v3
